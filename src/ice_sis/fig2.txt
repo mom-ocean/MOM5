@@ -1,0 +1,16 @@
+
+         -> +---------+ <- ts - diagnostic surface temperature ( <= 0C )        
+        /   |         |                                                         
+      hs    |  snow   | <- 0-heat capacity snow layer                           
+        \   |         |                                                         
+         => +---------+                                                         
+        /   |         |                                                         
+       /    |         | <- t1 - upper 1/2 ice temperature; this layer has       
+      /     |         |         a variable (T/S dependent) heat capacity        
+    hi      |...ice...|                                                         
+      \     |         |                                                         
+       \    |         | <- t2 - lower 1/2 ice temp. (fixed heat capacity)       
+        \   |         |                                                         
+         -> +---------+ <- base of ice fixed at seawater freezing temp.        
+
+    FIGURE 2:  SEA ICE THERMODYNAMIC STRUCTURE

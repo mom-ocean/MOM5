@@ -1,0 +1,21 @@
+#This file should set all the necessary system environment variables 
+#and/or load all the necessary modules for the code to compile and run on the specific platform.
+#Users need to find these for their systems.
+#
+        source $MODULESHOME/init/csh
+        module rm PrgEnv-pgi PrgEnv-pathscale netcdf
+        module load PrgEnv-intel/3.1.29
+	module load hdf5/1.8.4.1
+        module load netcdf/4.0.1.3
+        module load nco
+        module list
+        setenv MPICH_MAX_SHORT_MSG_SIZE 8000
+        setenv NC_BLKSZ 1M
+        setenv F_UFMTENDIAN big
+        setenv OMP_NUM_THREADS 1
+#
+	setenv FMS_ARCHIVE /lustre/fs/archive/fms
+        setenv mpirunCommand   "aprun -n"
+	setenv PATH ${PATH}:.
+        setenv netcdf3_inc_dir "/opt/cray/netcdf/3.6.2/netcdf-gnu/include"
+	setenv netcdf3_lib_dir "/opt/cray/netcdf/3.6.2/netcdf-gnu/lib"

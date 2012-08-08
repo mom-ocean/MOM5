@@ -1,0 +1,56 @@
+
+                       <- lower limit 3
+                  +--+
+                  |  |
+             +----+  |
+             |    |  | <- lower limit 2
+         +---+    |  |
+         |   |    |  |
+      ~~~+---+----+--+ <- lower limit 1
+
+         <-cell area->
+
+             |    |
+      Step 1:  area adjustment
+             |    |
+             v    v
+
+                       <- lower limit 3
+                  +--+
+          +--+    |  |
+	  |  +----+  |
+	  |  |    |  | <- lower limit 2
+          |  |    |  |
+          |  |    |  |
+          +--+----+--+ <- lower limit 1
+
+             |    |
+      Step 2:  category maxima
+             |    |
+             v    v
+
+                       <- lower limit 3
+                  +--+
+                  |  |
+          +-------+  |
+          |       |  | <- lower limit 2
+          |       |  |
+          |       |  |
+          +-------+--+ <- lower limit 1
+
+             |    |
+      Step 3:  category minima
+             |    |
+             v    v
+
+                       <- lower limit 3
+
+          +----------+
+          |          |
+          |          | <- lower limit 2
+          |          |
+          |          |
+          +----------+ <- lower limit 1
+
+
+     FIGURE 3:  ICE REDISTRIBUTION ALGORITHM

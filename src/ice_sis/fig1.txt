@@ -1,0 +1,25 @@
+     
+     ice_model_init
+              .
+     +->      .
+     |  +->   .
+     |  |     .
+     |  |  ice_bottom_to_ice_top
+     |  |     .
+     |  |     .
+     |  |  update_atmos_model_down
+     |  |     .
+     |  |     .
+     |  |  update_ice_model_fast
+     |  |     .
+     |  |     .
+     |  +--update_atmos_model_up
+     |        .
+     |        .
+     |  update_ice_model_slow
+     +--update_ocean_model
+              .
+              .
+     ice_model_end
+
+     FIGURE 1:  FMS DRIVER SCHEME

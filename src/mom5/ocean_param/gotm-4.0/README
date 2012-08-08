@@ -1,0 +1,41 @@
+Updated to gotm-2012.03.09 on 23Apr2012 by
+Martin.Schmidt@io-warnemuende.de
+Stephen.Griffies
+
+
+################## README ################################################
+
+This directory contains files distributed with GOTM (General Ocean
+Turbulence Model).  MOM provides interface to this code, yet MOM
+developers do not support GOTM.  Hence, MOM users who employ GOTM for
+MOM simulations should register with the GOTM user community in order
+to keep abreast of GOTM changes that may affect your research.
+
+Note regarding the IBM-compiler xlf:
+
+For compatibility with the definition of variables of type "real" in mom, 
+which is transformed to REAL*8 with the compiler flag -qrealsize=8,
+the switch __aix is added to cppdefs.h. Please note, that __aix is set
+by mkmf. Hence, compiling this code independent from the main mom code is
+not recommended. Especially the usage of "double precision" leads
+to type mismatch in the FORTRAN90/95 interface between mom and GOTM.
+
+About GOTM
+
+The GOTM package consists of the FORTRAN90 software, a number of idealised and 
+realistic test cases, and a scientific documentation, all published under the 
+GNU public license. THIS LICENCE REQUIRES THAT ANY CODE USING AN ORIGINAL OR 
+MODIFIED VERSION OF GOTM MUST BE MADE PUBLICALLY AVAILABLE WITHOUT ANY 
+RESTRICTIONS. The complete package is available from the GOTM homepage at 
+www.gotm.net, where also the online-documentation can be found.
+
+If you find a bug in GOTM, please let us know using the bug-list on 
+www.gotm.net or by sending an E-mail to gotm-users@gotm.net. If you plan an 
+extension to GOTM for your own research project, please contact us via 
+gotm-users@gotm.net before you start. It occurred a number of times in the 
+past that different groups started working on very similar projects without 
+knowing from each other - which would be exactly against the spirit of the 
+GOTM project. 
+
+##########################################################################
+

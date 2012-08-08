@@ -1,0 +1,102 @@
+BODY#toc {
+    margin:2px;
+}
+
+#toc DIV#toplevel {
+    background-color: #E9E9E9;
+    border: solid thin #939393;
+}
+
+#toc UL { 
+    list-style: square inside; 
+    padding-left: 10px;
+}
+
+
+BODY {
+    font-family: Lucida Grande, Verdana, Arial, sans-serif;
+    font-size: 12px;
+    margin: 2em;
+}
+
+H1 {
+    font-size: 16px;
+    font-style: oblique;
+    text-align: center;
+}
+
+H2 {
+    color: #000080;
+    font-size: 14px;
+    background: #e6e6e6;
+    border-spacing: 2px;
+    font-style: oblique;
+}
+
+H3 {
+    color: #004080;
+    font-size: 13px;
+    border-spacing: 2px;
+    list-style: disc outside;
+    font-style: oblique;
+    border-bottom-width: thin;
+    border-bottom-style: double;
+}
+
+H4 {
+    color: #993366;
+    font-size: 13px;
+    font-style: oblique;
+}
+
+TT, CODE { 
+    font-family: Monaco, Courier, monospace;
+}
+
+pre {
+    font-family: Monaco, Courier, monospace; font-size: 11px;
+    background-color: #E9E9E9;
+    border: solid thin #939393;
+    padding: 2px 2px 2px 1em;
+}
+
+DIV.figure {
+    width: 400px;
+    margin: 10px;
+    padding: 10px;
+    font-size: smaller;
+    float:left
+}
+
+
+#funcref H2 { 
+    margin-top: 2.5em;
+    font-size: 24px;
+    background-color: white;
+    color: black;
+    padding-bottom: 2px; border-bottom: 1px solid black;
+}
+
+#funcref H3 {
+    color: #000000;
+    font-style: normal;
+    font-weight: bold;
+    font-size: 18px;
+    border-style: none;
+    margin-top: 2em;
+    margin-bottom: 0.25em;
+}
+
+UL.arglist {
+   list-style: none;
+   padding-left: 5em;
+}
+
+UL.arglist LI {
+   text-indent: -5em;
+}
+
+.argtype {
+    font-family: Monaco, Courier, monospace;
+    color: blue;
+}

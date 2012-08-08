@@ -1,0 +1,17 @@
+# Makefile for the "mppnccombine" program
+#
+# Written by Hans Vahlenkamp (Hans.Vahlenkamp)
+# Geophysical Fluid Dynamics Laboratory / NOAA
+# Princeton Forrestal Campus
+# Last updated: 05/15/08
+
+NETCDFPATH = /usr/local/netcdf-4.0.1
+SOURCES = mppnccombine.c
+OBJECTS = mppnccombine.o
+CC = icc
+CFLAGS = 
+LFLAGS = -L${NETCDFPATH}/lib
+LIBS = -lnetcdf -lhdf5_hl -lhdf5 -lmpi -lz
+
+mppnccombine: $(OBJECTS)
+	$(CC) $(CFLAGS) -o mppnccombine -s $(OBJECTS) $(LFLAGS) $(LIBS)

@@ -1,0 +1,598 @@
+#! /usr/bin/perl
+
+# $Author: fms $
+# $Revision: 17.0 $
+# $Date: 2009/08/10 20:51:27 $
+
+# Perl script to parse the diag_table.  Count the number of files to
+# be used, and the max number of fields per file used.
+
+use strict;
+use Switch;
+use List::Util qw/max/;
+use XML::LibXML;
+use Pod::Usage;
+use Getopt::Long;
+
+my $help = 0;
+my $verbose = 0;
+my $xmlFile = '';
+GetOptions ("help|h" => \$help,
+	    "verbose|v" => \$verbose,
+	    "xml|x=s" => \$xmlFile) or pod2usage(2);
+pod2usage(1) if $help;
+
+# Variable to hold the location of the diag_table file.
+my $diag_table_file = '';
+
+# diag_table_chk can be called one of two ways.  Either, the
+# diag_table file is given on the command line, or we will extract the
+# information from an XML file and experiment.
+if ( ! $xmlFile ) { # If no XML file specified.
+  if ( $#ARGV < 0 ) {
+    pod2usage( { -message => "$0: diag_table file must be given as an argument.",
+		 -verbose => 0,
+	       } );
+  } else {
+    $diag_table_file = $ARGV[0]
+  }
+} else { # We are using an XML file.
+  # Set up the XML Parser.
+  if ( $#ARGV < 0 ) {
+    pod2usage( { -message => "$0: experiment must be given as an argument.",
+		 -verbose => 0,
+	       } );
+  } else {
+    # Make sure the $xmlFile exists and is readable
+    die "File $xmlFile does not exist.\n" unless ( -e $xmlFile );
+    die "File $xmlFile exists, but is unreadable.\n" unless ( -r $xmlFile );
+    die "$xmlFile is not a file.\n" unless ( -f $xmlFile );
+    our $parser = XML::LibXML -> new();
+    our $root = $parser -> parse_file($xmlFile) -> getDocumentElement;
+    our $inputExperiment = $ARGV[0];
+    die "$0: Experiment $inputExperiment does not exist in file $xmlFile.\n" unless ( experimentExistsInXML($inputExperiment) );
+    $diag_table_file = getDiagTableFromXML($inputExperiment);
+  }
+}
+
+# Check if the diag table file exists, is not a directory and is readable.
+die "$0: File $diag_table_file does not exist.\n" unless ( -e $diag_table_file );
+die "$0: File $diag_table_file exists, but is unreadable.\n" unless ( -r $diag_table_file );
+die "$0: $diag_table_file is not a file.\n" unless ( -f $diag_table_file );
+
+# Announce what file we are going to read.
+print "Reading file $diag_table_file\n\n";
+
+# Open the file handler for the filename.
+open(DIAG_TABLE, "<", $diag_table_file);
+
+# Arrays to hold files and fields.
+my @files = ( {
+	       file_name => '',
+	       output_frequency => 0,
+	       output_frequency_units => 0,
+	       output_format => 0,
+	       time_units => 0,
+	       long_name => '',
+	       new_file_frequency => 0,
+	       new_file_frequency_units => 0,
+	       start_time_string => '',
+	       file_duration => 0,
+	       file_duration_units => 0,
+	      } );
+
+my @fields = ( {
+		file_name => '',
+		module_name => '',
+		field_name => '',
+		output_name => '',
+		time_sampling => '',
+		time_method => '',
+		spatial_ops => '',
+		packing => 0,
+	       } );
+
+# Other variables to hold useful information.
+my %fields_per_file;
+my @warnings = ( { line_number => 0,
+		   message => '',
+		 } );
+my $tableName;
+my @globalDate;
+# Parse the data from the diag table file, and put it in the
+# appropiate array.
+while ( <DIAG_TABLE> ) {
+  my $line = sanitizeString($_);
+  next if ( $line =~ /^#/ or $line =~ /^$/ );
+  my @line_data = split(/,/,$line,11);
+
+  my $num_warnings = 0;
+
+  if ( $#line_data == 0 ) { # No Commas in string
+    # Find the descriptor and base date.  Neither should have a comma.
+    my @date = split(/\s+/, sanitizeString($line_data[0]));
+    if ( $#date >= 1 ) { # We have a date.
+      my $message = verifyDate(@date);
+      if ( $message ) {
+	push @warnings, ( {
+			   line_number => $.,
+			   message => "Invalid global date. $message",
+			  } );
+      } else {
+	@globalDate = @date;
+      }
+    } else { # We have the the descriptor / table name or the date may be set by the script
+      if ( $line_data[0] =~ /^\$.*[dD]ate$/ ) {
+	@globalDate[0] = $line_data[0];
+      } else {
+	$tableName = sanitizeString($line_data[0]);
+      }
+    }
+  } elsif ( $#line_data > 1 ) {
+    if ( $tableName =~ /^$/ or $globalDate[0] =~ /^$/ ) {
+      push @warnings, ( {
+			 line_number => $.,
+			 message => 'The table descriptor and the base date must be set before any files or fields.',
+			} );
+      $tableName = 'NOT SET' if ( $tableName =~ /^$/ );
+      $globalDate[0] = 'NOT SET' if ( $globalDate[0] =~ /^$/ ) ;
+    }
+    if ( lc($line_data[5]) =~ /time/ ) { # This is a file.
+      # Check output_frequency :: Must be >= -1
+      if ( $line_data[1] < -1 ) {
+	$num_warnings++;
+	push @warnings, ( {
+			   line_number => $.,
+			   message => 'Invalid output frequency.  Must be >= -1.',
+			  } );
+      }
+      # check output_frequency units :: return from find_unit_ivalue() > 0
+      if ( find_unit_ivalue($line_data[2]) < 0 ) {
+	$num_warnings++;
+	$line_data[2] =~ s/"//g;
+	push @warnings, ( {
+			   line_number => $.,
+			   message => "Invalid output frequency unit. ($line_data[2]).",
+			  } );
+      }
+      # check output_format :: Must be in the range 1 <= output_format <= 2
+      if ( $line_data[3] < 1 or $line_data[3] > 2 ) {
+	$num_warnings++;
+	push @ warnings, ( {
+			    line_number => $.,
+			    message => "Output_format out of range. Must be in the range [1,2].",
+			   } );
+      }
+      # check time_units :: return from find_unit_ivalue() > 0
+      if ( find_unit_ivalue($line_data[4]) < 0 ) {
+	$num_warnings++;
+	$line_data[4] =~ s/"//g;
+	push @warnings, ( {
+			   line_number => $.,
+			   message => "Invalid time unit. ($line_data[4]).",
+			  } );
+      }
+      # The following are optional. (There may be a slight problem if the line ends with a ','.)
+      if ( $#line_data > 6 ) {
+	# Check new_file_frequency :: Must be > 0
+	if ( $line_data[6] < 0 ) {
+	  $num_warnings++;
+	  push @warnings, ( {
+			     line_number => $.,
+			     message => "Invalid new file frequency.  Must be > 0.",
+			    } );
+	}
+	# Check new_file_frequency_units :: return from find_unit_ivalue() > 0
+	if ( find_unit_ivalue($line_data[7]) < 0 ) {
+	  $num_warnings++;
+	  $line_data[7] =~ s/"//g;
+	  push @warnings, ( {
+			     line_number => $.,
+			     message => "Invalid new file frequency unit. ($line_data[7]).",
+			    } );
+	}
+	# More optional inputs
+	if ( $#line_data >= 8 ) {
+	  $num_warnings++;
+	  # remove quotes, beginning and ending space.
+	  $line_data[8] =~ s/"//g;
+	  $line_data[8] =~ s/^\s+//;
+	  $line_data[8] =~ s/\s+$//;
+	  my @start_time = split(/\s+/,$line_data[8]);
+	  # Check start_time_string :: Must be valid date string
+	  my $message = verifyDate(@start_time);
+	  if ( $message ) {
+	    push @warnings, ( {
+			       line_number => $.,
+			       message => "Invalid start time format. $message",
+			      } );
+	  }
+	  # The last two optional inputs
+	  if ( $#line_data > 8 ) {
+	    # Check file_duration :: Must be > 0
+	    if ( $line_data[9] < 0 ) {
+	      $num_warnings++;
+	      push @warnings, ( {
+				 line_number => $.,
+				 message => "Invalid file duration.  Must be > 0.",
+				} );
+	    }
+	    # Check file_duration_units :: return from find_unit_ivalue() > 0
+	    if ( find_unit_ivalue($line_data[10]) < 0 ) {
+	      $num_warnings++;
+	      $line_data[10] =~ s/"//g;
+	      push @ warnings, ( {
+				  line_number => $.,
+				  message => "Invalid file duration unit. ($line_data[10]).",
+				 } );
+	    }
+	  }
+	}
+      }
+      if ( $num_warnings == 0 ) {
+	push @files, ( {
+			file_name => sanitizeString($line_data[0]),
+			output_frequency => sanitizeString($line_data[1]),
+			output_frequency_units => sanitizeString($line_data[2]),
+			output_format => sanitizeString($line_data[3]),
+			time_units => sanitizeString($line_data[4]),
+			long_name => sanitizeString($line_data[5]),
+			new_file_frequency => sanitizeString($line_data[6]),
+			new_file_frequency_units => sanitizeString($line_data[7]),
+			start_time_string => sanitizeString($line_data[8]),
+			file_duration => sanitizeString($line_data[9]),
+			file_duration_units => sanitizeString($line_data[10]),
+		       } );
+	$fields_per_file{$files[$#files]{file_name}} = 0;
+	#	print "File found (",$files[$#files]{file_name},"), line ",$.,".\n";
+      }
+    } else { # This is a field.
+      # Make sure there are enough fields on the description line :: must be = 8.
+      if ( $#line_data != 7 ) {
+	$num_warnings++;
+	my $message;
+	# Are there too many?
+	if ( $#line_data > 7 ) {
+	  $message = "Too many fields on field description line.";
+	} else { # Nope, too few.
+	  $message = "Not enough fields on field description line.";
+	}
+	push @warnings, ( {
+			   line_number => $.,
+			   message => $message,
+			  } );
+      }
+
+      # Verify that file_name exists in the files array
+      $line_data[3] =~ s/"//g;
+      $line_data[3] =~ s/^\s+//;
+      $line_data[3] =~ s/\s+$//;
+      my $notfound = 1;
+      for (my $i=0; $i <= $#files; $i++) {
+	if ( $files[$i]{file_name} =~ $line_data[3] ) {
+	  $notfound = 0;
+	  last;
+	}
+      }
+      if ( $notfound ) {
+	$num_warnings++;
+	push @warnings, ( {
+			   line_number => $.,
+			   message => "File ($line_data[3]) not defined.  It must be defined before any fields.",
+			  } );
+      }
+      # Verify time_method / time_avg is valid
+      if ( invalid_timeSample(sanitizeString($line_data[5])) ) {
+	$ num_warnings++;
+	push @warnings, ( {
+			   line_number => $.,
+			   message => "Time sampling method must be one of (.true., mean, average, avg, .false., none, point, maximum, max, minimum, min, diurnal[#]).",
+			  } );
+      }
+      # Verify packing is valid :: must be in range [1,8]
+      if ( $line_data[7] < 1 or $line_data[7] > 8 ) {
+	$num_warnings++;
+	push @warnings, ( {
+			   line_number => $.,
+			   message => "Packing is out of the valid range.  Must be in the range [1,8]."
+			  } );
+      }
+      if ( $num_warnings == 0 ) {
+	push @fields, ( {
+			 file_name => sanitizeString($line_data[3]),
+			 module_name => sanitizeString($line_data[0]),
+			 field_name => sanitizeString($line_data[1]),
+			 output_name => sanitizeString($line_data[2]),
+			 time_sampling => sanitizeString($line_data[4]),
+			 time_method => sanitizeString($line_data[5]),
+			 spatial_ops => sanitizeString($line_data[6]),
+			 packing => sanitizeString($line_data[7]),
+			} );
+	$fields_per_file{$fields[$#fields]{file_name}}++;
+      }
+    }
+  }
+}
+
+if ( $verbose ) {
+  my $files2output;
+  my $fields2output;
+  open(FILES, '>', \$files2output);
+  open(FIELDS, '>', \$fields2output);
+
+  my $file_name;
+  my $output_frequency;
+  my $output_frequency_units;
+  my $output_format;
+  my $time_units;
+  my $module_name;
+  my $field_name;
+  my $output_name;
+  my $time_sampling;
+  my $time_method;
+  my $spatial_ops;
+  my $packing;
+
+format FILES_TOP =
+                        Files
+                                   Output          Axis
+File Name                         Frequency   FMT  Units
+------------------------------------------------------------
+.
+
+format FILES =
+@<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< @>>> @<<<<<<< @||| @<<<<
+$file_name, $output_frequency, $output_frequency_units, $output_format, $time_units
+.
+
+  for ( my $file=1; $file <= $#files; $file++ ) {
+    $file_name = $files[$file]{file_name};
+    $output_frequency = $files[$file]{output_frequency};
+    $output_frequency_units = $files[$file]{output_frequency_units};
+    $output_format = $files[$file]{output_format};
+    $time_units = $files[$file]{time_units};
+    write FILES;
+  }
+
+format FIELDS_TOP =
+
+                                                   Fields
+                                                             Output                   Sample Spatial
+Field Name       Module      File Name                       Name             Samples Method   Ops    Packing
+-------------------------------------------------------------------------------------------------------------
+.
+
+format FIELDS =
+@<<<<<<<<<<<<<<< @<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< @<<<<<<<<<<<<<<< @<<<<< @<<<<<< @<<<     @<
+$field_name, $module_name, $file_name, $output_name, $time_sampling, $time_method, $spatial_ops, $packing
+.
+
+  for ( my $field=1; $field <=$#fields; $field++ ) {
+    $module_name = $fields[$field]{module_name};
+    $field_name = $fields[$field]{field_name};
+    $output_name = $fields[$field]{output_name};
+    $file_name = $fields[$field]{file_name};
+    $time_sampling = $fields[$field]{time_sampling};
+    $time_method = $fields[$field]{time_method};
+    $spatial_ops = $fields[$field]{spatial_ops};
+    $packing = $fields[$field]{packing};
+    write FIELDS;
+  }
+  # Output the files and fields
+  close(FILES);
+  close(FIELDS);
+  print $files2output;
+  print $fields2output;
+  print "\n";
+}
+
+print "Table Descriptor:\t",$tableName,"\n";
+print "Base Date:\t\t",join(' ',@globalDate),"\n";
+print "Number of files:\t",$#files,"\n";
+print "Max fields per file:\t",max(values(%fields_per_file)),"\n";
+print "Number of warnings:\t",$#warnings,"\n";
+
+if ( $#warnings ) {
+  for ( my $warning=1; $warning <= $#warnings; $warning++ ) {
+    print STDERR "WARNING($warnings[$warning]{line_number}): $warnings[$warning]{message}\n";
+  }
+}
+
+# Verify that the given unit is understood.
+# A return value of -1 indicated an unknown unit.
+sub invalid_timeSample {
+  my $timeSample = $_[0];
+
+  switch ($timeSample) {
+    case (/^\.true\.$/i) { return 0; }
+    case (/^\.false\.$/i) { return 0; }
+    case (/^mean|average|avg$/) { return 0; }
+    case (/^none|point$/) { return 0; }
+    case (/^maximum|max$/) { return 0; }
+    case (/^minimum|min$/) { return 0; }
+    case (/^diurnal\d+$/) { return 0; }
+    else { return 1 };
+  }
+}
+
+# Verify that the given unit is understood.
+# A return value of -1 indicated an unknown unit.
+sub find_unit_ivalue {
+  my $unit_string = $_[0];
+
+  switch ($unit_string) {
+    case (/seconds/) { return 1; }
+    case (/minutes/) { return 2; }
+    case (/hours/) { return 3; }
+    case (/days/) { return 4; }
+    case (/months/) { return 5; }
+    case (/years/) { return 6; }
+    else { return -1 }
+  }
+}
+
+sub experimentExistsInXML {
+  my $experiment = shift(@_);
+  my $experimentNode =  $::root -> findnodes("experiment[\@label='$experiment' or \@name='$experiment']") -> get_node(1);
+
+  return $experimentNode;
+}
+
+sub getDiagTableFromXML {
+  my $experiment = shift(@_);
+  my $diagTableNode = $::root -> findnodes("experiment[\@label='$experiment' or \@name='$experiment']/input/diagTable") -> get_node(1);
+
+  # If the diagTable node is empty, then recursivly check the parent experiment until it is found.
+  if ( $diagTableNode ) {
+    return $diagTableNode -> findvalue("\@file");
+  } else {
+    my $parent = $::root -> findvalue("experiment[\@label='$experiment' or \@name='$experiment]/\@inherit");
+    if ( $parent) {
+      &getDiagTable($parent);
+    } else {
+      die "$0: Cannot find diagTable tag in the XML file $::xmlFile.\n"
+    }
+  }
+}
+
+sub verifyDate {
+  # The date must already be in an array.  We will check the size here.
+  # The format should be (year, month, day, hour, min, sec)
+  my @date = @_;
+  my $leapYear = 0;
+
+  my @months = ( { month => 'January',
+		   days => 31 },
+		 { month => 'February',
+		   days => 28 },
+		 { month => 'March',
+		   days => 31 },
+		 { month => 'April',
+		   days => 30 },
+		 { month => 'May',
+		   days => 31 },
+		 { month => 'June',
+		   days => 30 },
+		 { month => 'July',
+		   days => 31 },
+		 { month => 'August',
+		   days => 31 },
+		 { month => 'September',
+		   days => 30 },
+		 { month => 'October',
+		   days => 31 },
+		 { month => 'November',
+		   days => 30 },
+		 { month => 'December',
+		   days => 31 } );
+
+  if ( scalar(@date) != 6 ) {
+    # Wrong number of elements in date.  Are we too big?
+    return 'Too many elements in date string.' if ( scalar(@date) > 6 ) ;
+    return 'Too few elements in date string.' if ( scalar(@date) < 6 );
+  }
+
+  return 'Year must be > 0.' if ( $date[0] < 0 );
+
+  # Correct number of days in February if this is a leap year.
+  $months[1]{days} = $months[1]{days} + 1 if ( isLeapYear($date[0]) );
+
+  return 'Month must be in the range [1,12].' if ( $date[1] < 1 or $date[1] > 12 ) ;
+
+  return "Days must be in the range [1,$months[$date[1]-1]{days}] for $months[$date[1]-1]{month} in year $date[0]." if ( $date[2] < 1 or $date[2] > $months[$date[1]-1]{days} );
+
+  return 'Hours must be in the range [0,24].' if ( $date[3] < 0 or $date[3] > 24 );
+
+  return 'Minutes must be in the range [0,60].' if ( $date[4] < 0 or $date[4] > 60 );
+
+  return 'Seconds must be in the range [0,60].' if ( $date[5] < 0 or $date[5] > 60 );
+
+  return '';
+}
+
+sub isLeapYear {
+  my $year = shift(@_);
+
+  if ( ($year % 4 == 0) and ($year % 100 != 0) or ($year % 400 == 0) ) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
+sub sanitizeString {
+  # Remove the quote marks and any additional space before and after
+  # the string.
+  my $string = shift(@_);
+
+  $string =~ s/"//g;
+  $string =~ s/^\s+//;
+  $string =~ s/\s+$//;
+
+  return $string;
+}
+
+__END__
+
+=head1 NAME
+
+diag_table_chk - Parse a diag_table, and report the number of files, max fields, and parse errors
+
+=head1 SYNOPSIS
+
+diag_table_chk [-h|--help]
+
+diag_table_chk [-v|--verbose] I<diag_table>
+
+diag_table_chk [-v|--verbose] -x I<xml_file> I<experiment>
+
+=head1 DESCRIPTION
+
+B<diag_table_chk> will parse a diag_table and report on the number of
+files in the diag_table, the max fields used per file, and will give
+warnings on any parse errors found in the format of 'WARNING(<line_number>)'.
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<-h>, B<--help>
+
+Display usage information
+
+=item B<-v>, B<--verbose>
+
+Display the files and fields that were found.
+
+=item B<-x>, B<--xml> <xml_file> <experiment>
+
+Read the diagnostic table file from I<<experiment>> from the I<<xml_file>>.
+
+=item <diag_table>
+
+The file name of the diagnostic table to check
+
+=back
+
+=head1 EXAMPLE
+
+ > diag_table_chk -x SM2.1U-LM3V.xml SM2.1U_Control-1990_lm3v_pot_A1
+
+ Table Descriptor:       NOT SET
+ Base Date:              0101 01 01 0 0 0
+ Number of files:        14
+ Max fields per file:    93
+ Number of warnings:     2
+ WARNING(3): The table descriptor and the base date must be set before any files or fields.
+ WARNING(206): Time sampling method must be one of (.true., mean, average, avg, .false., none, point, maximum, max, minimum, min, diurnal[#]).
+
+=head1 AUTHOR
+
+Seth Underwood <sunderwood@hpti.com>
+
+=head1 BUGS
+
+No known bugs at this time.
+Report any bug to the author.
+
+=cut

@@ -1,0 +1,48 @@
+###########################################################
+                   MODULE DRY_ADJ_MOD
+###########################################################
+
+============================================================
+  PUBLIC SUBROUTINES AND ARGUMENTS
+============================================================
+
+  SUBROUTINE DRY_ADJ ( temp, pres, pres_int, dtemp )
+
+     Arguments (Intent in)
+          temp     - Temperature
+          pres     - Pressure
+          pres_int - Pressure at layer interface
+
+     Arguments (Intent out)
+          dtemp - Change in temperature
+
+------------------------------------------------------------
+
+  SUBROUTINE DRY_ADJ_INIT( grav, kappa )
+
+     Arguments (Intent in)
+          grav   - Gravity
+          kappa  - Rgas / cp
+
+------------------------------------------------------------
+
+  SUBROUTINE DRY_ADJ_BDGT ( dtemp, pres_int )
+
+      Arguments (Intent in)
+          dtemp    - Temperature change 
+          pres_int - Pressure at layer interface
+
+
+============================================================
+  NAMELIST
+============================================================
+   
+   NONE
+
+============================================================
+  USES MODULES:
+============================================================
+   
+  Utilities_Mod
+
+============================================================

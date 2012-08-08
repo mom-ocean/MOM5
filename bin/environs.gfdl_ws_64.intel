@@ -1,0 +1,16 @@
+         source $MODULESHOME/init/csh
+         module use -a /home/fms/local/modulefiles
+         module purge
+	 module rm netcdf hdf5
+         module load ifort/11.1.073
+         module load icc/11.1.073
+         module load hdf5/1.8.6
+         module load netcdf/4.1.2
+         module load mpich2/1.2.1p1
+#
+         setenv PATH ${PATH}:.
+         setenv mpirunCommand   "/net2/nnz/opt/mpich2-1.3_ifort11_x64/bin/mpirun -np"
+         setenv FMS_ARCHIVE /archive/fms
+         setenv PATH ${PATH}:.
+
+

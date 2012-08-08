@@ -1,0 +1,24 @@
+
+Where to start
+~~~~~~~~~~~~~~
+A good place to start is the "doc" directory, where you
+will find  "user" guides for the MOM.  
+
+Summary of directory contents
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+bin/
+     -- mkmf script for creating Makefiles
+     -- template files for the mkmf script
+     -- assorted other scripts
+
+exp/
+     -- all MOM experiments (test cases)
+
+src/   
+     -- source code for all models
+
+src/postprocessing/
+    -- source code for postprocessing programs
+
+src/preprocessing/
+    -- source code for preprocessing programs

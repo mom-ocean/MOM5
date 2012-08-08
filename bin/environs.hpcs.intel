@@ -1,0 +1,16 @@
+         source /opt/modules/default/init/tcsh
+         module purge
+         module load ifort.11.0.074
+         module load icc.11.0.074
+         module load idb.11.0.034
+         module load scsl-1.5.1.0
+         module load mpt-1.18
+         module load hdf5-1.8.1
+         module load netcdf-4.0.1
+         setenv NC_BLKSZ 64K 
+         setenv FMS_ARCHIVE /archive/fms
+         setenv PATH ${PATH}:.
+         setenv netcdf3_inc_dir "/usr/local/netcdf-3.6.2/include"
+         setenv netcdf3_lib_dir "/usr/local/netcdf-3.6.2/lib"
+         setenv mpirunCommand   "mpirun -np"
+
