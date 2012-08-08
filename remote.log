@@ -1,0 +1,1 @@
+2fb995de-e12e-11e1-b8a9-bf7a9a37d2d3 bucket=breakawaylabs-mom-data datacenter=US encryption=none host=s3.amazonaws.com name=cloud port=80 storageclass=STANDARD type=S3 timestamp=1344412428.817932s
