@@ -1,0 +1,7 @@
+         setenv NC_BLKSZ 64K 
+         setenv FMS_ARCHIVE /archive/fms
+         setenv PATH ${PATH}:.
+         setenv netcdf3_inc_dir "/usr/local/netcdf-3.6.2/include"
+         setenv netcdf3_lib_dir "/usr/local/netcdf-3.6.2/lib"
+         setenv mpirunCommand   "mpirun -np"
+
