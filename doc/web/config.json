@@ -3,5 +3,13 @@
     "tags": [{"tag": "5.0.0-beta0", "commit": "7ffd65ae4dd6a4a6c06ebff910326c1bc35c8f01"}],
     "project_desc": "FIXME",
     "google_groups": "mom-users",
-    "docs": [{"file": "quickstart", "title": "Quickstart"}]
+    "docs": [{"file": "quickstart", "title": "Quickstart"}],
+    "pdfs": [{"file": "MOM5_elements", "title": "Elements of MOM 5"},
+             {"file": "MOM4_guide", "title": "MOM 4 Technical Guide"},
+             {"file": "testcase_atl_regional", "title": "Test Case: Atlantic"},
+             {"file": "testcase_baltic", "title": "Test Case: Baltic"},
+             {"file": "testcase_ICCM", "title": "Test Case: ICCM"},
+             {"file": "testcase_ocean_cpld", "title": "Test Case: Coupled Ocean"},
+             {"file": "testcase_ocean_solo", "title": "Test Case: Solo Ocean"}
+	     ]
 }
