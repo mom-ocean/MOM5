@@ -1,7 +1,7 @@
 {
     "project_title": "MOM",
     "tags": [{"tag": "5.0.0-beta0", "commit": "7ffd65ae4dd6a4a6c06ebff910326c1bc35c8f01"}],
-    "project_desc": "FIXME",
+    "project_desc": "MOM is a numerical ocean model based on the hydrostatic primitive equations.",
     "google_groups": "mom-users",
     "docs": [{"file": "quickstart", "title": "Quickstart"}],
     "pdfs": [{"file": "MOM5_elements", "title": "Elements of MOM 5"},
