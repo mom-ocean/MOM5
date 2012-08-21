@@ -2,6 +2,7 @@
     "project_title": "MOM",
     "tags": [{"tag": "5.0.0-beta0", "commit": "7ffd65ae4dd6a4a6c06ebff910326c1bc35c8f01"}],
     "project_desc": "MOM is a numerical ocean model based on the hydrostatic primitive equations.",
+    "project_about": "The Modular Ocean Model (MOM) is a hydrostatic generalized level coordinate numerical ocean code with mass conserving non-Boussinesq or volume conserving Boussinesq kinematics. The model equations are discretized with generalized horizontal coordinates on the sphere using either an Arakawa B-grid or C-grid. MOM has a broad suite of physical parameterizations, diagnostic features, test cases, and documentation. It has been utilized for research and operations from the coasts to the globe. MOM is institutionally sanctioned by NOAA’s Geophysical Fluid Dynamics Laboratory (GFDL), where development is centered. Additional development and use occurs through hundreds of international scientists and engineers comprising the MOM community. MOM is free software distributed under GPLv2 and it is part of an open source community.",
     "google_groups": "mom-users",
     "docs": [{"file": "quickstart", "title": "Quickstart"}],
     "pdfs": [{"file": "MOM5_elements", "title": "Elements of MOM 5"},
