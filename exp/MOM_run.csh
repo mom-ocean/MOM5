@@ -111,6 +111,8 @@ source $root/bin/environs.$platform  # environment variables and loadable module
 set mppnccombine  = $root/bin/mppnccombine.$platform  # path to executable mppnccombine
 set time_stamp    = $root/bin/time_stamp.csh          # path to cshell to generate the date
 
+set echo
+
 # Check if the user has extracted the input data
   if ( ! -d $inputDataDir ) then
 
@@ -140,8 +142,6 @@ set time_stamp    = $root/bin/time_stamp.csh          # path to cshell to genera
 
     endif
   endif
-
-set echo
 
 # setup directory structure
   if ( ! -d $expdir )         mkdir -p $expdir
