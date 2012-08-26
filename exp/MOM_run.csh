@@ -3,7 +3,7 @@
 
 set type          = MOM_solo       # type of the experiment
 set name          = box1           
-set platform      = ncrc2.intel     # A unique identifier for your platform
+set platform      = gfortran     # A unique identifier for your platform
 set npes          = 8              # number of processor
                                    # Note: If you change npes you may need to change
                                    # the layout in the corresponding namelist
@@ -115,17 +115,16 @@ set time_stamp    = $root/bin/time_stamp.csh          # path to cshell to genera
   if ( ! -d $inputDataDir ) then
 
     if( $download ) then
-      cd $workdir
-      wget ftp.gfdl.noaa.gov:/perm/MOM4/mom4p1_pubrel_dec2009/exp/$name.input.tar.gz
-      tar zxvf $name.input.tar.gz
     else  
 
     echo "ERROR: the experiment directory '$inputDataDir' does not exist or does not contain input and preprocessing data directories!"
-    echo "Please download and extract the tar ball corresponding to this experiment from GFDL anonymous ftp site!"
-    echo " cd  $workdir"
-    echo " wget ftp.gfdl.noaa.gov:/perm/MOM4/mom4p1_pubrel_dec2009/exp/$name.input.tar.gz"
-    echo " tar zxvf $name.input.tar.gz" 
-    echo "Then rerun this script."
+    echo "Please copy the input data from the MOM data directory. This may required downloading data from a remote git annex if you do not already have the data locally."
+    echo "cd $root/data/archives"
+    echo "git annex get $name.input.tar.gz"
+    echo "mkdir -p $workdir"
+    echo "cp $name.input.tar.gz $workdir"
+    echo "cd $workdir"
+    echo "tar zxvf $name.input.tar.gz"
     echo "Or use the --download option to do this automatically"
     exit 1
 
