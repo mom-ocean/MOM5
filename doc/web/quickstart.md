@@ -14,28 +14,28 @@ The full documentation of MOM appear are bundled as separate files and can be do
    
 You can get the tar ball for source code by logging into your GFDL GForge account and navigate to the Files section of MOM project area. Then you need to untar the tar bundle and cd to the resulting directory. For convenience, this directory will be referred to as the `ROOT` directory. A `README` file in the `ROOT` directory will tell you the contents of each subdirectory under `ROOT`.
    
-In the sections below, `test\_case is a generic name referring to the name of a specific experiment you are working on. After you expand the tar bundle you get a directory which will be referred to as `root\_dir` in this guide.
+In the sections below, `test_case` is a generic name referring to the name of a specific experiment you are working on. After you expand the tar bundle you get a directory which will be referred to as `root_dir` in this guide.
    
 ## How to compile and run the MOM tests
    
 MOM requires that NetCDF and MPI libraries be installed on users' platform.
     
-Ensure that you have the right environment variable for your platform in the file `bin/environs.YOUR\_PLATFORM\_ID`. `YOUR\_PLATFORM\_ID` could be any string that identifies your platform. The file `bin/environs.YOUR\_PLATFORM\_ID` gets sourced at the beginning of all compile and run scripts and is there to make sure all compile and run time library paths are found.
+Ensure that you have the right environment variable for your platform in the file `bin/environs.YOUR_PLATFORM_ID`. `YOUR_PLATFORM_ID` could be any string that identifies your platform. The file `bin/environs.YOUR_PLATFORM_ID` gets sourced at the beginning of all compile and run scripts and is there to make sure all compile and run time library paths are found.
     
 There are a few types of test models provided for this release  all using the GFDL shared infrastructure (FMS) but have different FMS component models for atmosphere and/or land. 
-We refer to these types as `MODEL\_TYPE` in this guide: 
+We refer to these types as `MODEL_TYPE` in this guide: 
      
        
-* `MOM\_solo`: stand alone MOM ocean model.
-* `MOM\_SIS`: MOM coupled with GFDL ice model (SIS) besides null versions of atmosphere and land models.
-* `EBM`: MOM\_SIS coupled with land_lad and energy balanced atmosphere model 
-* `ICCM`: MOM\_SIS coupled with land_lad and bgrid atmosphere model in low resolution setup.  
+* `MOM_solo`: stand alone MOM ocean model.
+* `MOM_SIS`: MOM coupled with GFDL ice model (SIS) besides null versions of atmosphere and land models.
+* `EBM`: MOM_SIS coupled with land_lad and energy balanced atmosphere model 
+* `ICCM`: MOM_SIS coupled with land_lad and bgrid atmosphere model in low resolution setup.  
 * `CM2M`: GFDL CM2.1 model which is MOM_SIS coupled with land_lad and finite volume atmosphere model (with am2 physics).
 * `ESM2M`: GFDL Earth System Model which is `MOM_SIS` coupled with land_lad2 and finite volume atmosphere model (with am2 physics).
       
 ### To compile the models:
       
-Find out what `MODEL\_TYPE` you want to work on and what is `YOUR\_PLATFORM\_ID` then
+Find out what `MODEL_TYPE` you want to work on and what is `YOUR_PLATFORM_ID` then
         
     $ cd root_dir/exp    
     $ ./MOM_compile.csh --platform YOUR_PLATFORM_ID --type MODEL_TYPE
@@ -49,15 +49,15 @@ Make sure you have a large enough working directory (`WORKDIR`) and made a symbo
     $ cd root_dir
     $ ln -s YOUR_LARGE_WORK_DIR work
             
-Find out what test cases are available for a particular `MODEL\_TYPE`
+Find out what test cases are available for a particular `MODEL_TYPE`
 
     $ ./MOM_run.csh --platform YOUR_PLATFORM_ID --type MODEL_TYPE -h      
 
-### To run a `TEST\_CASE`
+### To run a `TEST_CASE`
                 
     $ ./MOM_run.csh --platform YOUR_PLATFORM_ID --type MODEL_TYPE  --experiment TEST_CASE
 
-If you do not have the right input data in the `WORKDIR` for the `TEST\_CASE` the above command would ask you to download it and try again. You may need to specify the number of processor for the `TEST\_CASE`, in that case the above command errors out with the right info. Note: The script exp/preprocessing.csh is called by the `MOM\_run.csh` to modify the mom4p1 namelists of these old test cases to make them compatible with mom5. The results go into `WORKDIR`.
+If you do not have the right input data in the `WORKDIR` for the `TEST_CASE` the above command would ask you to download it and try again. You may need to specify the number of processor for the `TEST_CASE`, in that case the above command errors out with the right info. Note: The script exp/preprocessing.csh is called by the `MOM_run.csh` to modify the mom4p1 namelists of these old test cases to make them compatible with mom5. The results go into `WORKDIR`.
 
 ### Notes
 
@@ -70,7 +70,7 @@ If you do not have the right input data in the `WORKDIR` for the `TEST\_CASE` th
 
 
 * The compile script provides the basic capability with dynamic memory allocation. To use static memory allocation which might be faster on some platforms  you need to adjust the values of domain bounds properly according to the number of processors and layout. 
-* The compile script use netcdf3 by default. If you want to use netcdf4 libraries instead you can do so by deleting the `-Duse\_netCDF3` from the CPPs in compile script and then recompile.   
+* The compile script use netcdf3 by default. If you want to use netcdf4 libraries instead you can do so by deleting the `-Duse_netCDF3` from the CPPs in compile script and then recompile.   
 
 ## How to prepare input data
    
