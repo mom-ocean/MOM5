@@ -28,10 +28,10 @@ We refer to these types as `MODEL_TYPE` in this guide:
        
 * `MOM_solo`: stand alone MOM ocean model.
 * `MOM_SIS`: MOM coupled with GFDL ice model (SIS) besides null versions of atmosphere and land models.
-* `EBM`: MOM_SIS coupled with land_lad and energy balanced atmosphere model 
-* `ICCM`: MOM_SIS coupled with land_lad and bgrid atmosphere model in low resolution setup.  
-* `CM2M`: GFDL CM2.1 model which is MOM_SIS coupled with land_lad and finite volume atmosphere model (with am2 physics).
-* `ESM2M`: GFDL Earth System Model which is `MOM_SIS` coupled with land_lad2 and finite volume atmosphere model (with am2 physics).
+* `EBM`: `MOM_SIS` coupled with `land_lad` and energy balanced atmosphere model 
+* `ICCM`: `MOM_SIS` coupled with `land_lad` and bgrid atmosphere model in low resolution setup.  
+* `CM2M`: GFDL CM2.1 model which is `MOM_SIS` coupled with `land_lad` and finite volume atmosphere model (with am2 physics).
+* `ESM2M`: GFDL Earth System Model which is `MOM_SIS` coupled with `land_lad2` and finite volume atmosphere model (with am2 physics).
       
 ### To compile the models:
       
@@ -57,7 +57,7 @@ Find out what test cases are available for a particular `MODEL_TYPE`
                 
     $ ./MOM_run.csh --platform YOUR_PLATFORM_ID --type MODEL_TYPE  --experiment TEST_CASE
 
-If you do not have the right input data in the `WORKDIR` for the `TEST_CASE` the above command would ask you to download it and try again. You may need to specify the number of processor for the `TEST_CASE`, in that case the above command errors out with the right info. Note: The script exp/preprocessing.csh is called by the `MOM_run.csh` to modify the mom4p1 namelists of these old test cases to make them compatible with mom5. The results go into `WORKDIR`.
+If you do not have the right input data in the `WORKDIR` for the `TEST_CASE` the above command would ask you to download it and try again. You may need to specify the number of processor for the `TEST_CASE`, in that case the above command errors out with the right info. Note: The script `exp/preprocessing.csh` is called by the `MOM_run.csh` to modify the mom4p1 namelists of these old test cases to make them compatible with mom5. The results go into `WORKDIR`.
 
 ### Notes
 
@@ -76,7 +76,7 @@ If you do not have the right input data in the `WORKDIR` for the `TEST_CASE` the
    
 The input data needed to run the selected experiments (tests) that are included in this release are available via anonymous ftp.
    
-Note that data in `ASCII/`, `HISTORY/`, `RESTART/` directories are NOT needed for running experiments. They are the outputs of the experiments and are provided for the purpose of comparing your results with results produced at GFDL. Tools are provided so that users can create data from scratch for their own experiments. For more details refer to ROOT/src/preprocessing.
+Note that data in `ASCII/`, `HISTORY/`, `RESTART/` directories are NOT needed for running experiments. They are the outputs of the experiments and are provided for the purpose of comparing your results with results produced at GFDL. Tools are provided so that users can create data from scratch for their own experiments. For more details refer to `ROOT/src/preprocessing`.
       
 
 ## Examine the output
