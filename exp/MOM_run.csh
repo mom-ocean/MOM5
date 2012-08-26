@@ -117,8 +117,6 @@ set echo
   if ( ! -d $inputDataDir ) then
 
     if( $download ) then
-        cd $root
-	git annex init
 	cd $root/data/archives
 	git annex get $name.input.tar.gz
 	mkdir -p $workdir
@@ -129,8 +127,6 @@ set echo
 
     echo "ERROR: the experiment directory '$inputDataDir' does not exist or does not contain input and preprocessing data directories!"
     echo "Please copy the input data from the MOM data directory. This may required downloading data from a remote git annex if you do not already have the data locally."
-    echo "cd $root"
-    echo "git annex init"
     echo "cd $root/data/archives"
     echo "git annex get $name.input.tar.gz"
     echo "mkdir -p $workdir"
