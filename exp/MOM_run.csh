@@ -115,6 +115,12 @@ set time_stamp    = $root/bin/time_stamp.csh          # path to cshell to genera
   if ( ! -d $inputDataDir ) then
 
     if( $download ) then
+	cd $root/data/archives
+	git annex get $name.input.tar.gz
+	mkdir -p $workdir
+	cp $name.input.tar.gz $workdir
+	cd $workdir
+	tar zxvf $name.input.tar.gz
     else  
 
     echo "ERROR: the experiment directory '$inputDataDir' does not exist or does not contain input and preprocessing data directories!"
