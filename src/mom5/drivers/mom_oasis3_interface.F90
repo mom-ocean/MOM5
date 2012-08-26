@@ -167,7 +167,7 @@ endif
 end subroutine mom_prism_init
 
 !-----------------------------------------------------------------------------------
-subroutine coupler_init(Dom, Time, Time_step_coupled, Run_len, dt_cpld)
+subroutine coupler_init(Dom, dt_cpld, Time, Time_step_coupled, Run_len)
 
 ! In this routine we set up all our arrays and determine which fields are to be passed to and fro.
 ! Determine the style of coupling
@@ -176,8 +176,8 @@ subroutine coupler_init(Dom, Time, Time_step_coupled, Run_len, dt_cpld)
 ! use them for initialising.
 
 type(domain2d)  :: Dom  
-type(time_type) :: Time, Time_step_coupled, Run_len
 integer         :: dt_cpld
+type(time_type), optional :: Time, Time_step_coupled, Run_len
 
 integer, dimension(5) :: il_paral
 integer, dimension(2) :: var_num_dims ! see below
@@ -402,13 +402,13 @@ endif   !
 end subroutine  coupler_init
 
 !=======================================================================
-subroutine into_coupler(step, Ocean_sfc, Time, before_ocean_update)
+subroutine into_coupler(step, Ocean_sfc, before_ocean_update, Time)
 !------------------------------------------!
 
 implicit none
 
 type (ocean_public_type) :: Ocean_sfc
-type (time_type)         :: Time
+type (time_type), optional :: Time
 
 integer, intent(in) :: step
 logical, intent(in) :: before_ocean_update ! Flag to indicate whether
@@ -484,7 +484,7 @@ use constants_mod, only: hlv    ! 2.500e6 J/kg
 implicit none
 
 type (ice_ocean_boundary_type) :: Ice_ocean_boundary
-type (time_type)         :: Time
+type (time_type), optional :: Time
 
 integer, intent(in) :: step
 

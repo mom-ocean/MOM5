@@ -539,12 +539,12 @@ end subroutine ocean_solo_restart
   subroutine external_coupler_sbc_init(Dom, dt_cpld, Run_len)
 ! Call to routine initializing arrays etc for transferring via coupler
 ! Perform sanity checks and make sure all inputs are compatible
-  use mom_oasis_interface_mod, only : coupler_init
+  use mom_oasis3_interface_mod, only : coupler_init
   implicit none
   type(domain2d) :: Dom
   integer :: dt_cpld
   type(time_type) :: Run_len
-  call coupler_init(Dom, dt_cpld, Run_len)
+  call coupler_init(Dom, dt_cpld, Run_len=Run_len)
   end  subroutine external_coupler_sbc_init
 !-----------------------------------------------------------------------------------------
 
