@@ -31,7 +31,7 @@ MOM has had the following releases (note that MOM4p1 releases are distinguished 
 * MOM4p1: Dec 2009
 * MOM5: 2012
          
-For each release, we aim to update MOM by enhancing features and documentation, and correcting bugs.  Each version is generally compatible with the previous versions.  However, as updates are made, we cannot guarantee that all features will bitwise agree across releases.  Nonetheless, we do maintain a small selection of ``bitwise-legacy'' code to allow for certain modules to bitwise agreement across versions.  As the maintenance of bitwise-legacy features represents an onerous task (e.g., bits change when A+B is altered to B+A), we recommend that researchers beginning new projects start with the most recent version, and that researchers with mature projects carefully test the new code prior to moving forward.
+For each release, we aim to update MOM by enhancing features and documentation, and correcting bugs.  Each version is generally compatible with the previous versions.  However, as updates are made, we cannot guarantee that all features will bitwise agree across releases.  Nonetheless, we do maintain a small selection of "bitwise-legacy" code to allow for certain modules to bitwise agreement across versions.  As the maintenance of bitwise-legacy features represents an onerous task (e.g., bits change when A+B is altered to B+A), we recommend that researchers beginning new projects start with the most recent version, and that researchers with mature projects carefully test the new code prior to moving forward.
 
 ### MOM registration
    
@@ -49,7 +49,7 @@ There is a sizable user community for MOM. This community has proven to be a gre
 
 The MOM team aims to provide code that is efficient, flexible, and transparent for use across a broad range of computer platforms. Balancing these aims is not always simple. For example, some of the most efficient code is also the least transparent. The MOM developers are scientists whose main concern is to support MOM as a tool for science research. This focus then leads us to weight transparency and portability over efficiency. However, we readily make efficiency modifications that are of a general nature, so please do feel free to volunteer any such changes.
 
-Given the above aims, we have continued to support one avenue for code efficiency involving the allocation of arrays. MOM can be compiled in two ways: with static allocation of arrays or dynamic allocation. Static allocation is enabled at compile time via the cpp-preprocessor option MOM\_STATIC\_ARRAYS.  At GFDL, we have generally found that static allocation executables are faster than dynamic, since compilers like to know before-hand the size of the model arrays. Work on the SGI machines at GFDL has reduced the difference in efficiency between these two compilations. However, details of the model configuration strongly impact the differences in model speed. Additionally, we understand that on some platforms, the dynamic allocation results in faster code than static. Consequently, we have decided to maintain both the static and dynamic options, given the ambiguous results across platforms, compilers, model configurations, ect.
+Given the above aims, we have continued to support one avenue for code efficiency involving the allocation of arrays. MOM can be compiled in two ways: with static allocation of arrays or dynamic allocation. Static allocation is enabled at compile time via the cpp-preprocessor option `MOM_STATIC_ARRAYS`.  At GFDL, we have generally found that static allocation executables are faster than dynamic, since compilers like to know before-hand the size of the model arrays. Work on the SGI machines at GFDL has reduced the difference in efficiency between these two compilations. However, details of the model configuration strongly impact the differences in model speed. Additionally, we understand that on some platforms, the dynamic allocation results in faster code than static. Consequently, we have decided to maintain both the static and dynamic options, given the ambiguous results across platforms, compilers, model configurations, ect.
 
 ## An Outline of MOM
 
@@ -146,7 +146,7 @@ The following list represents a sample of the FMS shared modules used by MOM.
    
 The FMS infrastructure (the "Siena version") forms the basis for the 2012 release of MOM. 
       
-The Flexible Modeling System ( FMS), including MOM, is free software; you can redistribute it and/or modify it and are expected to follow the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+The Flexible Modeling System(FMS), including MOM, is free software; you can redistribute it and/or modify it and are expected to follow the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
 FMS is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
     
@@ -273,7 +273,7 @@ After generating the model grid, it is time to generate the initial and boundary
 There are two options for ICs and BCs.
 
 * Idealized Conditions.  These conditions are based on subroutines that design idealized setups for either initial conditions (e.g., exponential temperature profile) or boundary conditions (e.g., cosine zonal wind stress).  Code for these purposes is found in the idealized_ic and idealized_bc directories in the MOM distribution. Details of available namelist choices are in the documentation file idealized_ic.html as well as the comments within the source code itself.  Users can readily incorporate their favorite idealized IC or BC into the MOM idealized preprocessing step by emulating the code provided.
-* Realistic Conditions.  These ICs and BCs generally result from a regridding routine to bring, say, the Levitus analysis onto the model grid for initializing a model, or for mapping surface fluxes onto the grid for boundary conditions.  Code enabling the regridding functions is found in the preprocessing/regrid_2d, preprocessing/regrid_3d and preprocessing/regrid directories in the MOM distribution.
+* Realistic Conditions.  These ICs and BCs generally result from a regridding routine to bring, say, the Levitus analysis onto the model grid for initializing a model, or for mapping surface fluxes onto the grid for boundary conditions.  Code enabling the regridding functions is found in the `preprocessing/regrid_2d`, `preprocessing/regrid_3d` and `preprocessing/regrid` directories in the MOM distribution.
 
 In the remainder of this section, we detail code to generate the ICs and BCs of use for MOM.
     
@@ -281,29 +281,29 @@ In the remainder of this section, we detail code to generate the ICs and BCs of 
       
 It is typical for air-sea fluxes of momentum, heat, and mosture to live on a grid distinct from the ocean model grid.  In particular, most analysis are placed on a spherical latitude-longitude grid, whereas most global ocean models configured from MOM are run with tripolar grids.
 
-When running an ocean or ocean-ice model, it is useful to map the boundary fluxes onto the ocean model grid prior to the experiment. This preprocessing step saves computational time that would otherwise be needed if the fluxes were mapped each time step of a running experiment.  To enable this regridding, one should access code in the preprocessing/regrid_2d directory.  The original data must be on a latitude-longitude grid to use regrid_2d.  The target/destination grid can be either latitude-longitude with arbitrary resolution, or tripolar with arbitrary resolution.
+When running an ocean or ocean-ice model, it is useful to map the boundary fluxes onto the ocean model grid prior to the experiment. This preprocessing step saves computational time that would otherwise be needed if the fluxes were mapped each time step of a running experiment.  To enable this regridding, one should access code in the `preprocessing/regrid_2d` directory.  The original data must be on a latitude-longitude grid to use `regrid_2d`.  The target/destination grid can be either latitude-longitude with arbitrary resolution, or tripolar with arbitrary resolution.
       
 ### 2d Regridding: the less common approach
 
 In some cases, one may wish to take a set of forcing fields from one tripolar MOM experiment and regrid them onto another tripolar MOM experiment with different grid resolution.  In this case, it is necessary to regrid before running the experiment.
 
-As of the MOM4p0d distribution, there is a regridding tool within the preprocessing/regrid directory that enables one to regrid fields on one tripolar grid to another tripolar grid. Indeed, one can regrid source data from any logically rectangular grid (e.g.,latitude-longitude grid or tripolar grid) to a target/destination grid that is any logically rectangular grid.
+As of the MOM4p0d distribution, there is a regridding tool within the `preprocessing/regrid` directory that enables one to regrid fields on one tripolar grid to another tripolar grid. Indeed, one can regrid source data from any logically rectangular grid (e.g.,latitude-longitude grid or tripolar grid) to a target/destination grid that is any logically rectangular grid.
 
 Note that this is new code, and so has been tested only for particular cases.  So the user should be extra careful to scrutinize the results.
 
-### Setting the on_grid logical in the data_table
+### Setting the `on_grid` logical in the data_table
 
-The "on_grid" logical in the data_table indicates whether an input file is on the grid of the model or not.
+The `on_grid` logical in the data_table indicates whether an input file is on the grid of the model or not.
 
-on_grid=.true. means that the input file is on the same grid as the ocean model.  This is the recommended setting for models running with specified atmospheric forcing from data or an analysis product.
+`on_grid=.true.` means that the input file is on the same grid as the ocean model.  This is the recommended setting for models running with specified atmospheric forcing from data or an analysis product.
 
-on_grid=.false. means the input file has data on a grid differing from the ocean model.  This feature is allowed ONLY if the input data lives on a spherical grid.  This is a relevant setting if one wishes to keep the input data on their native spherical grid. If the input data is non-spherical, then on_grid=.false. is NOT supported.  Instead, it is necessary to preprocess the data onto the ocean model grid.
+`on_grid=.false.` means the input file has data on a grid differing from the ocean model.  This feature is allowed ONLY if the input data lives on a spherical grid.  This is a relevant setting if one wishes to keep the input data on their native spherical grid. If the input data is non-spherical, then `on_grid=.false.` is NOT supported.  Instead, it is necessary to preprocess the data onto the ocean model grid.
 
 ### Regridding river runoff data
 
-The tool preprocessing/runoff_regrid is of use to grid river runoff data onto the ocean model grid.  In this case, runoff is moved to a nearest ocean/land boundary point on the new grid.  Note that the source runoff dataset must be on a spherical latitude-longitude grid, whereas the target/destination grid can be spherical or tripolar.  The regridding algorithm is conservative.
+The tool `preprocessing/runoff_regrid` is of use to grid river runoff data onto the ocean model grid.  In this case, runoff is moved to a nearest ocean/land boundary point on the new grid.  Note that the source runoff dataset must be on a spherical latitude-longitude grid, whereas the target/destination grid can be spherical or tripolar.  The regridding algorithm is conservative.
 
-The conservative regridding scheme used in runoff_regrid is an area average scheme, which is similiar to the algorithm used in coupler flux exchange.  If any land point has runoff data, after remapping runoff data onto destination grid, the runoff value of that land point will be moved to the nearest ocean point. Before using this tool, you must use make_xgrids to generate exchange grid information between the source grid and destination grid. The complete description can be found in runoff_regrid.html.
+The conservative regridding scheme used in `runoff_regrid` is an area average scheme, which is similiar to the algorithm used in coupler flux exchange.  If any land point has runoff data, after remapping runoff data onto destination grid, the runoff value of that land point will be moved to the nearest ocean point. Before using this tool, you must use `make_xgrids` to generate exchange grid information between the source grid and destination grid. The complete description can be found in `runoff_regrid.html`.
 
 ### Two ways to specify surface boundary fluxes
 
@@ -311,23 +311,23 @@ There are two ways to specify surface boundary fluxes when using the coupler fea
 
 ### 3d Regridding for initial conditions or sponges
 
-When generating realistic initial conditions for an ocean experiment, one generally requires the gridding of temperature and salinity, such as from the Levitus analysis product, onto the model's grid.  For this purpose, we are in need of vertical grid information in addition to horizontal 2d information required for the surface boundary conditions.  Hence, we use the preprocessing/regrid_3d. A similar procedure is required to develop sponge data.
+When generating realistic initial conditions for an ocean experiment, one generally requires the gridding of temperature and salinity, such as from the Levitus analysis product, onto the model's grid.  For this purpose, we are in need of vertical grid information in addition to horizontal 2d information required for the surface boundary conditions.  Hence, we use the `preprocessing/regrid_3d`. A similar procedure is required to develop sponge data.
 
-The original data must be on a spherical grid in order to use regrid_3d.  If the original data is on a tripolar grid, we should use preprocessing/regrid, which can map data from any logical rectangular grid onto any logical rectangular grid.
+The original data must be on a spherical grid in order to use `regrid_3d`.  If the original data is on a tripolar grid, we should use `preprocessing/regrid`, which can map data from any logical rectangular grid onto any logical rectangular grid.
 
 ###  Comments on the regridding algorithms
 
-For preprocessing/regrid_3d, preprocessing/regrid_2d and preprocessing/regrid, regridding is accomplished non-conservatively using a nearest neighbor distance weighting algorithm, or bilinear interpolation.  The interpolation algorithm is controlled through the namelist option "interp_method".
+For `preprocessing/regrid_3d`, `preprocessing/regrid_2d` and `preprocessing/regrid`, regridding is accomplished non-conservatively using a nearest neighbor distance weighting algorithm, or bilinear interpolation.  The interpolation algorithm is controlled through the namelist option `interp_method`.
 
 Bilinear interpolation is recommanded for most cases since it provides a smooth interpolation when regridding from coarse grid to fine grid (the usual situation with model destination grids typically having resolution more refined than source data products), and it is more efficient.  Efficiency can become a particularly important issue when developing initial and boundary conditions for a refined resolution model.
 
-If the original data is on a tripolar grid, nearest neighbor distance weighting interpolation found in preprocessing/regrid must be used, since bilinear interpolation assumes the original data is on a latitude-longitude grid.  For preprocessing/regrid_2d, preprocessing/regrid_3d and preprocessing/regrid using the nearest neighbor distance weighting algorithm, a maximum distance (in radians) can be selected using the namelist value max_dist. Namelist option "num_nbrs" can be adjusted for speed, although for most applications this refinement is not necessary.
+If the original data is on a tripolar grid, nearest neighbor distance weighting interpolation found in `preprocessing/regrid` must be used, since bilinear interpolation assumes the original data is on a latitude-longitude grid.  For `preprocessing/regrid_2d`, `preprocessing/regrid_3d` and `preprocessing/regrid` using the nearest neighbor distance weighting algorithm, a maximum distance (in radians) can be selected using the namelist value max_dist. Namelist option `num_nbrs` can be adjusted for speed, although for most applications this refinement is not necessary.
 
-The complete namelist description for these algorithms can be found in regrid_2d.html, regrid_3d.html and regrid.html.
+The complete namelist description for these algorithms can be found in `regrid_2d.html`, `regrid_3d.html` and `regrid.html`.
 
 ### Acceptable data formats
 
-When the input data is on a latitude-longitude grid, preprocessing/regrid_2d and preprocessing/regrid_3d can be used.
+When the input data is on a latitude-longitude grid, `preprocessing/regrid_2d` and `preprocessing/regrid_3d` can be used.
 
 When the input data is on a tripolar grid or a latitude-longitude grid, postprocessing/regrid can be used.
 
@@ -354,7 +354,7 @@ It is likely that you will encounter an error using "off-the-shelf" NetCDF files
 
 The first thing you should do to setup a new forcing file is use the test program: time_interp_external_mod:test_time_interp_external. This test program calls time_interp_external at user-specified model times and returns information on how the times were decoded and the resulting interpolation indices and weights. It is STRONGLY suggested that you pass your forcing files through this program before including them in your model configuration. As you gain familiarity with the metadata requirements, you will more easily be able to identify errors and save a lot of time debugging.
 
-The forcing test program is located in src/preprocessing/test_time_interp_ext. There is a csh version and a Perl version. Compilation
+The forcing test program is located in `src/preprocessing/test_time_interp_ext`. There is a csh version and a Perl version. Compilation
 
     mkmf -m Makefile -p test_time_interp_ext.exe -t $TEMPLATE -c -Dtest_time_interp_external -x shared/{time_manager,fms,mpp,clocks,time_interp,axis_utils,platform,horiz_interp,constants,memutils} 
 
@@ -445,7 +445,7 @@ mask_list = 1,2, 1,3, 3,3
 
 If a mask list is specified, the domain layout of the ocean and the ice model is automatically the same, as specified with layout_mask. Running the model, only 6 MPI tasks need to be started.
 
-For large and complex model topography, it is very tedious to specify the mask list by hand.  To simplify this task, the preprocessing tool "check_mask" can be used after the model grid and topography are specified, i.e., when grid_spec.nc is generated. To do so requires adding the following to topog_nml during the preprocessing stage
+For large and complex model topography, it is very tedious to specify the mask list by hand.  To simplify this task, the preprocessing tool `check_mask` can be used after the model grid and topography are specified, i.e., when grid_spec.nc is generated. To do so requires adding the following to `topog_nml` during the preprocessing stage
 
 topog_nml
 
@@ -522,13 +522,13 @@ The complete namelist option description is available in regrid.html or the code
 
 ### The runscript
    
-A runscript is provided in each test case directory (exp/$test_case) for each test case. Details can be found in quickstart_guide.html.
+A runscript is provided in each test case directory (`exp/$test_case`) for each test case. Details can be found in quickstart_guide.html.
        
 Incorporated in the FMS infrastructure is MPP (Massively Parallel Processing), which provides a uniform message-passing API interface to the different message-passing libraries. If MPICH is installed, the user can compile the MOM source code with MPI. If the user does not have MPICH or the communications library, the MOM source code can be compiled without MPI by omitting the CPPFLAGS value -Duse_libMPI in the example runscript.
 
 ### The diagnostics table
    
-The diagnostics table allows users to specify the sampling rates and choose the output fields prior to executing the MOM source code. It is included in the input directory for each test case (exp/$test_case/input). A portion of a sample MOM diagnostic table is displayed below. Reference diag_manager.html for detailed information on the use of diag_manager.
+The diagnostics table allows users to specify the sampling rates and choose the output fields prior to executing the MOM source code. It is included in the input directory for each test case (`exp/$test_case/input`). A portion of a sample MOM diagnostic table is displayed below. Reference diag_manager.html for detailed information on the use of diag_manager.
    
    
     "Diagnostics for MOM test case"
@@ -567,61 +567,58 @@ The diagnostics manager module, diag_manager_mod, is a set of simple calls for p
  
 The MOM field table is used to specify tracers and their advection schemes, cross-land tracer mixing, cross-land insertion, and other options. The field table is included in the runscript as a namelist and is written to an output file upon execution of the runscript. 
    
-"prog_tracers","ocean_mod","temp"
-
-horizontal-advection-scheme = quicker
-vertical-advection-scheme = quicker
-restart_file  = ocean_temp_salt.res.nc
-/
-     
-"prog_tracers","ocean_mod","salt"
-
-horizontal-advection-scheme = mdfl_sweby
-vertical-advection-scheme = mdfl_sweby
-restart_file  = ocean_temp_salt.res.nc
-/ 
+    "prog_tracers","ocean_mod","temp"
     
-"tracer_packages","ocean_mod","ocean_age_tracer"
-
-names = global
-horizontal-advection-scheme = mdfl_sweby
-vertical-advection-scheme = mdfl_sweby
-restart_file  = ocean_age.res.nc
-min_tracer_limit=0.0
-/
-
+    horizontal-advection-scheme = quicker
+    vertical-advection-scheme = quicker
+    restart_file  = ocean_temp_salt.res.nc
+    /
+         
+    "prog_tracers","ocean_mod","salt"
     
-"namelists","ocean_mod","ocean_age_tracer/global"
-
-slat = -90.0
-nlat =  90.0
-wlon =   0.0
-elon = 360.0
-/
-
-
-
-"xland_mix","ocean_mod","xland_mix"
-"xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=146,jxland_2=146,kxland_1=1,kxland_2=28,vxland=0.55e6"
-"xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=147,jxland_2=147,kxland_1=1,kxland_2=28,vxland=0.55e6"
-"xland","Black-Med","ixland_1=305,ixland_2=309,jxland_1=151,jxland_2=152,kxland_1=1,kxland_2=6,vxland=0.01e6"
-"xland","Black-Med","ixland_1=306,ixland_2=309,jxland_1=151,jxland_2=153,kxland_1=1,kxland_2=6,vxland=0.01e6"/
-
-"xland_insert","ocean_mod","xland_insert"
-"xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=146,jxland_2=146,kxland_1=1,kxland_2=18,tauxland=86400.0"
-"xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=147,jxland_2=147,kxland_1=1,kxland_2=18,tauxland=86400.0"
-"xland","Black-Med","ixland_1=305,ixland_2=309,jxland_1=151,jxland_2=152,kxland_1=1,kxland_2=6,tauxland=86400.0"
-"xland","Black-Med","ixland_1=306,ixland_2=309,jxland_1=151,jxland_2=153,kxland_1=1,kxland_2=6,tauxland=86400.0"/
-
-"diff_cbt_enhance","ocean_mod","diff_cbt_enhance"
-"diffcbt","Gibraltar","itable=274,jtable=146,ktable_1=1,ktable_2=18,diff_cbt_table=0.01"
-"diffcbt","Gibraltar","itable=276,jtable=146,ktable_1=1,ktable_2=18,diff_cbt_table=0.01"
-"diffcbt","Gibraltar","itable=274,jtable=147,ktable_1=1,ktable_2=18,diff_cbt_table=0.01"
-"diffcbt","Gibraltar","itable=276,jtable=147,ktable_1=1,ktable_2=18,diff_cbt_table=0.01"
-"diffcbt","Black-Med","itable=305,jtable=151,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"
-"diffcbt","Black-Med","itable=309,jtable=152,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"
-"diffcbt","Black-Med","itable=306,jtable=151,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"
-"diffcbt","Black-Med","itable=309,jtable=153,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"/
+    horizontal-advection-scheme = mdfl_sweby
+    vertical-advection-scheme = mdfl_sweby
+    restart_file  = ocean_temp_salt.res.nc
+    / 
+        
+    "tracer_packages","ocean_mod","ocean_age_tracer"
+    
+    names = global
+    horizontal-advection-scheme = mdfl_sweby
+    vertical-advection-scheme = mdfl_sweby
+    restart_file  = ocean_age.res.nc
+    min_tracer_limit=0.0
+    /
+        
+    "namelists","ocean_mod","ocean_age_tracer/global"
+    
+    slat = -90.0
+    nlat =  90.0
+    wlon =   0.0
+    elon = 360.0
+    /
+    
+    "xland_mix","ocean_mod","xland_mix"
+    "xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=146,jxland_2=146,kxland_1=1,kxland_2=28,vxland=0.55e6"
+    "xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=147,jxland_2=147,kxland_1=1,kxland_2=28,vxland=0.55e6"
+    "xland","Black-Med","ixland_1=305,ixland_2=309,jxland_1=151,jxland_2=152,kxland_1=1,kxland_2=6,vxland=0.01e6"
+    "xland","Black-Med","ixland_1=306,ixland_2=309,jxland_1=151,jxland_2=153,kxland_1=1,kxland_2=6,vxland=0.01e6"/
+    
+    "xland_insert","ocean_mod","xland_insert"
+    "xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=146,jxland_2=146,kxland_1=1,kxland_2=18,tauxland=86400.0"
+    "xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=147,jxland_2=147,kxland_1=1,kxland_2=18,tauxland=86400.0"
+    "xland","Black-Med","ixland_1=305,ixland_2=309,jxland_1=151,jxland_2=152,kxland_1=1,kxland_2=6,tauxland=86400.0"
+    "xland","Black-Med","ixland_1=306,ixland_2=309,jxland_1=151,jxland_2=153,kxland_1=1,kxland_2=6,tauxland=86400.0"/
+    
+    "diff_cbt_enhance","ocean_mod","diff_cbt_enhance"
+    "diffcbt","Gibraltar","itable=274,jtable=146,ktable_1=1,ktable_2=18,diff_cbt_table=0.01"
+    "diffcbt","Gibraltar","itable=276,jtable=146,ktable_1=1,ktable_2=18,diff_cbt_table=0.01"
+    "diffcbt","Gibraltar","itable=274,jtable=147,ktable_1=1,ktable_2=18,diff_cbt_table=0.01"
+    "diffcbt","Gibraltar","itable=276,jtable=147,ktable_1=1,ktable_2=18,diff_cbt_table=0.01"
+    "diffcbt","Black-Med","itable=305,jtable=151,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"
+    "diffcbt","Black-Med","itable=309,jtable=152,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"
+    "diffcbt","Black-Med","itable=306,jtable=151,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"
+    "diffcbt","Black-Med","itable=309,jtable=153,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"/
    
 In the first section of the field table, the user can specify tracers to be used in the simulation. Although there is no limit to the number of tracers specified, temperature (temp) and salinity (salt) must be included. The user may also define the horizontal and vertical tracer advection schemes. For more information on the field manager,reference field_manager.html.
       
@@ -640,28 +637,18 @@ mppnccombine requires decomposed dimensions in each file to have a domain_decomp
 The syntax of mppnccombine is:
      
     mppnccombine [-v] [-a] [-r] output.nc [input ...] 
-     
-     
+          
      mppnccombine arguments
-     
-     
        
          -v
          print some progress information
        
-       
          -a
-         append to an existing
-                
-                NetCDF file
-       
-       
+         append to an existing NetCDF file
+    
          -r
-         remove the '.####' decomposed files after a successful\
-                run
+         remove the '.####' decomposed files after a successful  run
        
-     
-     
 An output file must be specified and it is assumed to be the first filename argument. If the output file already exists, then it will not be modified unless the option is chosen to append to it. If no input files are specified, their names will be based on the name of the output file plus the extensions '.0000', '.0001', etc. If input files are specified, they are assumed to be absolute filenames. A value of 0 is returned if execution is completed successfully and a value of 1 indicates otherwise.
    
 The source of mppnccombine is packaged with the MOM module in the postprocessing directory. mppnccombine.c should be compiled on the platform where the user intends to run the FMS MOM source code so the runscript can call it. A C compiler and NetCDF library are required for compiling mppnccombine.c:
