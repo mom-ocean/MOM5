@@ -255,13 +255,13 @@ When running an ocean or ocean-ice model, it is useful to map the boundary fluxe
 
 In some cases, one may wish to take a set of forcing fields from one tripolar MOM experiment and regrid them onto another tripolar MOM experiment with different grid resolution.  In this case, it is necessary to regrid before running the experiment.
 
-As of the MOM4p0d distribution, there is a regridding tool within the `preprocessing/regrid` directory that enables one to regrid fields on one tripolar grid to another tripolar grid. Indeed, one can regrid source data from any logically rectangular grid (e.g.,latitude-longitude grid or tripolar grid) to a target/destination grid that is any logically rectangular grid.
+As of the MOM4p0d distribution, there is a regridding tool within the `preprocessing/regrid` directory that enables one to regrid fields on one tripolar grid to another tripolar grid. Indeed, one can regrid source data from any logically rectangular grid (e.g., latitude-longitude grid or tripolar grid) to a target/destination grid that is any logically rectangular grid.
 
 Note that this is new code, and so has been tested only for particular cases.  So the user should be extra careful to scrutinize the results.
 
-### Setting the `on_grid` logical in the data_table
+### Setting the `on_grid` logical in the `data_table`
 
-The `on_grid` logical in the data_table indicates whether an input file is on the grid of the model or not.
+The `on_grid` logical in the `data_table` indicates whether an input file is on the grid of the model or not.
 
 `on_grid=.true.` means that the input file is on the same grid as the ocean model.  This is the recommended setting for models running with specified atmospheric forcing from data or an analysis product.
 
@@ -309,16 +309,16 @@ There are many ways that data can be formatted in time.  The FMS tools used to r
 
 Previous versions of MOM used IEEE binary formats and MOM-specific headers to process forcing data. As of MOM4, data are stored in portable formats (NetCDF currently), and contain standardized metadata per the CF1.0 convention. Understading the functions of Fortran modules that handle metadata and time-related problems will be very helpful in identifying some user's problems. Some of the most frequently used modules are listed below:
 
-* mpp_io_mod: Low level I/O (open, close file, write, read,...)
-* axis_utils_mod: process metadata: identify cartesian axis information (X/Y/Z/T)
-* time_manager_mod: basic time operations, calendar, increment/decrement time
-* time_interp_mod: Computes a weight for linearly interpolating between two dates
-* time_interp_external_mod: top level routines for requesting data
-* data_override_mod: top level routines for requesting data
+* `mpp_io_mod`: Low level I/O (open, close file, write, read,...)
+* `axis_utils_mod`: process metadata: identify cartesian axis information (X/Y/Z/T)
+* `time_manager_mod`: basic time operations, calendar, increment/decrement time
+* `time_interp_mod`: Computes a weight for linearly interpolating between two dates
+* `time_interp_external_mod`: top level routines for requesting data
+* `data_override_mod`: top level routines for requesting data
 
 ### Test your forcing files before use 
 
-It is likely that you will encounter an error using "off-the-shelf" NetCDF files to force your ocean model. This could be due to inadequate metadata in the forcing files, mis-specification of the DataTable, or errors in the parsing of the axis information by axis_utils or get_cal_time. You'll need some tools to help you diagnose problems and apply the required fix. 
+It is likely that you will encounter an error using "off-the-shelf" NetCDF files to force your ocean model. This could be due to inadequate metadata in the forcing files, mis-specification of the DataTable, or errors in the parsing of the axis information by `axis_utils` or `get_cal_time`. You'll need some tools to help you diagnose problems and apply the required fix. 
 
 The first thing you should do to setup a new forcing file is use the test program: time_interp_external_mod:test_time_interp_external. This test program calls time_interp_external at user-specified model times and returns information on how the times were decoded and the resulting interpolation indices and weights. It is STRONGLY suggested that you pass your forcing files through this program before including them in your model configuration. As you gain familiarity with the metadata requirements, you will more easily be able to identify errors and save a lot of time debugging.
 
