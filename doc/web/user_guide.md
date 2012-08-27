@@ -453,14 +453,14 @@ topog_nml
 check_mask=.true.
       
 
-The preprocessing code prints out a number of proposals for possible domain layouts, number of land-only subdomains, and templates for setting the mask_list. You may copy these layouts to coupler_nml, but note that you must replace spaces by a comma in "mask_list".
+The preprocessing code prints out a number of proposals for possible domain layouts, number of land-only subdomains, and templates for setting the mask_list. You may copy these layouts to `coupler_nml`, but note that you must replace spaces by a comma in `mask_list`.
 
-You may configure "check_mask" from the namelist check_mask_nml. There are two variables "max_pe" and "halo" required to perform the mask checking. The default settings are
+You may configure `check_mask` from the namelist `check_mask_nml`. There are two variables `max_pe` and `halo` required to perform the mask checking. The default settings are
 
    max_pe = 128
    halo = 1
 
-If you intend to employ more processors, then increase max_pe. If you want to use higher order advection schemes, then increase halo to halo=2 or even halo=3.  Otherwise, the halo information of masked domains may leak into ocean domains, in which case the model will fail, with errors reporting land values at ocean points.
+If you intend to employ more processors, then increase `max_pe`. If you want to use higher order advection schemes, then increase halo to halo=2 or even halo=3.  Otherwise, the halo information of masked domains may leak into ocean domains, in which case the model will fail, with errors reporting land values at ocean points.
       
 In the postprocessing step, the single netCDF-output files from the MPI tasks can be combined into one file using the tool mppnccombine. The latest version adds "missing" values at the location of land-only domains. Hence, the only remaining trace of masking out land-only processors is in your account files, where some compute time is saved.
 
@@ -490,20 +490,18 @@ east or E-cell as for an eastward tracer flux
 	
  
 north or N-cell as for a northward tracer flux
-		
+		 
+then regridding is accomplished non-conservatively using a nearest neighbor distance weighting algorithm.  It is for this reason that computationally accurate results are only available when working on the model's native grids. The regridding tool reads grids information from a netcdf file, specified by the namelist `grid_spec_file`. `grid_spec_file` contains source grid, destination grid and exchange grid information.
  
-then regridding is accomplished non-conservatively using a nearest neighbor distance weighting algorithm.  It is for this reason that computationally accurate results are only available when working on the model's native grids. The regridding tool reads grids information from a netcdf file, specified by the namelist "grid_spec_file". "grid_spec_file" contains source grid, destination grid and exchange grid information.
- 
-
-* source grid: src_grid.nc. This is the model's native grid. It results from running preprocessing grid generation code.
-* destination grid: dst_grid.nc. This is the spherical latitude-lontitude grid.  This grid can also be obtained from running preprocessing grid generation code.  Be sure that the tripolar option is set to false to ensure that dst_grid.nc is spherical.
-* exchange grid: grid_spec.nc.  This is the union of the source grid and destination grid.  The exchange grid is needed for conservative regridding.  The same conservative regridding algorithm is used for coupled models with FMS.  The tool to construct the exchange grid is know as "make_xgrids". It is located in the preprocessing directory. After grid_spec.nc is generated, it should be passed to the regrid tool through namelist "grid_spec_file"(No need to pass src_grid.nc and dst_grid.nc to the regrid tool).
+* source grid: `src_grid.nc`. This is the model's native grid. It results from running preprocessing grid generation code.
+* destination grid: dst_grid.nc. This is the spherical latitude-lontitude grid.  This grid can also be obtained from running preprocessing grid generation code.  Be sure that the tripolar option is set to false to ensure that `dst_grid.nc` is spherical.
+* exchange grid: `grid_spec.nc`.  This is the union of the source grid and destination grid.  The exchange grid is needed for conservative regridding.  The same conservative regridding algorithm is used for coupled models with FMS.  The tool to construct the exchange grid is know as `make_xgrids`. It is located in the preprocessing directory. After `grid_spec.nc` is generated, it should be passed to the regrid tool through namelist `grid_spec_file` (No need to pass `src_grid.nc` and `dst_grid.nc` to the regrid tool).
 
 To create the exchange grid, execute the command 
 
     make_xgrids -o src_grid.nc -a dst_grid.nc
  
-The exchange grid creates a file grid_spec.nc.  It has new fields with names: 
+The exchange grid creates a file `grid_spec.nc`.  It has new fields with names: 
 
 AREA_ATMxOCN, DI_ATMxOCN, DJ_ATMxOCN, I_ATM_ATMxOCN, J_ATM_ATMxOCN,
 I_OCN_ATMxOCN, J_OCN_ATMxOCN, AREA_ATMxLND, DI_ATMxLND, DJ_ATMxLND,
@@ -512,11 +510,11 @@ AREA_LNDxOCN, DI_LNDxOCN, DJ_LNDxOCN, I_LND_LNDxOCN, J_LND_LNDxOCN,
 I_OCN_LNDxOCN, J_OCN_LNDxOCN, xba, yba, xta, yta, AREA_ATM, xbl, ybl,
 xtl, ytl, AREA_LND, AREA_LND_CELL, xto, yto, AREA_OCN  
 
-It is critical that src_grid.nc DO NOT already have any of the above new exchange grid fields.  If they do, then these fields should be removed using netcdf tools such as ncks. After the grid_spec.nc file is generated, it is passed into the regrid program through the nml option "grid_spec_file".
+It is critical that src_grid.nc DO NOT already have any of the above new exchange grid fields.  If they do, then these fields should be removed using netcdf tools such as ncks. After the `grid_spec.nc` file is generated, it is passed into the regrid program through the nml option `grid_spec_file`.
  
-The regrid program reads model data from a netcdf file, which is specfied by the namelist variable "src_data". Again, src_data fields are gridded according to src_grid.nc.  The number of fields to be regridded is specified by num_flds. The name of the fields (e.g., temp, salt) to be regridded is specified by the namelist variable "fld_name".  Each field can be a scalar or vector.  If a vector, then specify by vector_fld. Vector fields should always be paired together (e.g., u,v components to the horizontal current).  The output file is a netcdf file specified by the namelist variable "dst_data".
+The regrid program reads model data from a netcdf file, which is specfied by the namelist variable "src_data". Again, src_data fields are gridded according to src_grid.nc.  The number of fields to be regridded is specified by `num_flds`. The name of the fields (e.g., temp, salt) to be regridded is specified by the namelist variable `fld_name`.  Each field can be a scalar or vector.  If a vector, then specify by `vector_fld`. Vector fields should always be paired together (e.g., u,v components to the horizontal current).  The output file is a netcdf file specified by the namelist variable `dst_data`.
  
-The complete namelist option description is available in regrid.html or the code itself. 
+The complete namelist option description is available in `regrid.html` or the code itself. 
 
 ## Preparing the runscript
 
@@ -528,7 +526,7 @@ Incorporated in the FMS infrastructure is MPP (Massively Parallel Processing), w
 
 ### The diagnostics table
    
-The diagnostics table allows users to specify the sampling rates and choose the output fields prior to executing the MOM source code. It is included in the input directory for each test case (`exp/$test_case/input`). A portion of a sample MOM diagnostic table is displayed below. Reference diag_manager.html for detailed information on the use of diag_manager.
+The diagnostics table allows users to specify the sampling rates and choose the output fields prior to executing the MOM source code. It is included in the input directory for each test case (`exp/$test_case/input`). A portion of a sample MOM diagnostic table is displayed below. Reference `diag_manager.html` for detailed information on the use of `diag_manager`.
    
    
     "Diagnostics for MOM test case"
@@ -560,7 +558,7 @@ The diagnostics table allows users to specify the sampling rates and choose the 
     #-----------------------------------------------------------------
    
    
-The diagnostics manager module, diag_manager_mod, is a set of simple calls for parallel diagnostics on distributed systems. It provides a convenient set of interfaces for writing data to disk in NetCDF format. The diagnostics manager is packaged with the MOM source code. The FMS diagnostic manager can handle scalar fields as well as arrays. For more information on the diagnostics manager, reference diag_manager.html.
+The diagnostics manager module, `diag_manager_mod`, is a set of simple calls for parallel diagnostics on distributed systems. It provides a convenient set of interfaces for writing data to disk in NetCDF format. The diagnostics manager is packaged with the MOM source code. The FMS diagnostic manager can handle scalar fields as well as arrays. For more information on the diagnostics manager, reference `diag_manager.html`.
    
 
 ### The field table
@@ -628,13 +626,13 @@ For some cases, it is necessary to set a large vertical tracer diffusivity at a 
    
 For a technical description of cross-land tracer mixing and insertion, please reference A Technical Guide to MOM4.
 
-### mppnccombine
+### `mppnccombine`
    
-Running the MOM source code in a parallel processing environment will produce one output NetCDF diagnostic file per processor. mppnccombine joins together an arbitrary number of data files containing chunks of a decomposed domain into a unified NetCDF file. If the user is running the source code on one processor, the domain is not decomposed and there is only one data file. mppnccombine will still copy the full contents of the data file, but this is inefficient and mppnccombine should not be used in this case. Executing mppnccombine is automated through the runscripts. The data files are NetCDF format for now, but IEEE binary may be supported in the future.
+Running the MOM source code in a parallel processing environment will produce one output NetCDF diagnostic file per processor. `mppnccombine` joins together an arbitrary number of data files containing chunks of a decomposed domain into a unified NetCDF file. If the user is running the source code on one processor, the domain is not decomposed and there is only one data file. `mppnccombine` will still copy the full contents of the data file, but this is inefficient and `mppnccombine` should not be used in this case. Executing `mppnccombine` is automated through the runscripts. The data files are NetCDF format for now, but IEEE binary may be supported in the future.
    
-mppnccombine requires decomposed dimensions in each file to have a domain_decomposition attribute. This attribute contains four integer values: starting value of the entire non-decomposed dimension range (usually 1), ending value of the entire non-decomposed dimension range, starting value of the current chunk's dimension range and ending value of the current chunk's dimension range. mppnccombine also requires that each file have a NumFilesInSet global attribute which contains a single integer value representing the total number of chunks (i.e., files) to combine. 
+`mppnccombine` requires decomposed dimensions in each file to have a domain_decomposition attribute. This attribute contains four integer values: starting value of the entire non-decomposed dimension range (usually 1), ending value of the entire non-decomposed dimension range, starting value of the current chunk's dimension range and ending value of the current chunk's dimension range. `mppnccombine` also requires that each file have a `NumFilesInSet` global attribute which contains a single integer value representing the total number of chunks (i.e., files) to combine. 
 
-The syntax of mppnccombine is:
+The syntax of `mppnccombine` is:
      
     mppnccombine [-v] [-a] [-r] output.nc [input ...] 
           
@@ -651,7 +649,7 @@ The syntax of mppnccombine is:
        
 An output file must be specified and it is assumed to be the first filename argument. If the output file already exists, then it will not be modified unless the option is chosen to append to it. If no input files are specified, their names will be based on the name of the output file plus the extensions '.0000', '.0001', etc. If input files are specified, they are assumed to be absolute filenames. A value of 0 is returned if execution is completed successfully and a value of 1 indicates otherwise.
    
-The source of mppnccombine is packaged with the MOM module in the postprocessing directory. mppnccombine.c should be compiled on the platform where the user intends to run the FMS MOM source code so the runscript can call it. A C compiler and NetCDF library are required for compiling mppnccombine.c:
+The source of `mppnccombine` is packaged with the MOM module in the postprocessing directory. `mppnccombine.c` should be compiled on the platform where the user intends to run the FMS MOM source code so the runscript can call it. A C compiler and NetCDF library are required for compiling `mppnccombine.c`:
 
     cc -O -o mppnccombine -I/usr/local/include -L/usr/local/lib mppnccombine.c -lnetcdf
      
@@ -661,11 +659,10 @@ The source of mppnccombine is packaged with the MOM module in the postprocessing
 
 Sample MOM model output data files are available at GFDL ftp site. Output files are classified into three subdirectories:
 
-* ascii: the description of the setup of the run and verbose comments printed out during the run.
-* restart: the model fields necessary to initialize future runs of the model.
-* history: output of the model, both averaged over specified time intervals and snapshots.
-      
-     
+* `ascii/`: the description of the setup of the run and verbose comments printed out during the run.
+* `restart/`: the model fields necessary to initialize future runs of the model.
+* `history/: output of the model, both averaged over specified time intervals and snapshots.
+
 Note that these output files are compressed using tar. All .tar files should be decompressed for viewing. The decompress command is:
      
     tar -xvf filename.tar
