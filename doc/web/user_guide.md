@@ -33,13 +33,9 @@ MOM has had the following releases (note that MOM4p1 releases are distinguished 
          
 For each release, we aim to update MOM by enhancing features and documentation, and correcting bugs.  Each version is generally compatible with the previous versions.  However, as updates are made, we cannot guarantee that all features will bitwise agree across releases.  Nonetheless, we do maintain a small selection of "bitwise-legacy" code to allow for certain modules to bitwise agreement across versions.  As the maintenance of bitwise-legacy features represents an onerous task (e.g., bits change when A+B is altered to B+A), we recommend that researchers beginning new projects start with the most recent version, and that researchers with mature projects carefully test the new code prior to moving forward.
 
-### MOM registration
-   
-We maintain the MOM source code and associated datasets at GForge. MOM users are required to register at the GFDL GForge location. Users need to register only once to get both the source code and datasets of MOM. Registered users then need to request access to the relevant project.
-
 ### MOM email list
    
-Email concerning MOM should be directed to the MOM-email. All questions, comments, and suggestions are to be referred to this list. Note that by registering at GForge to access the code, you are automatically subscribed to the email list.
+Email concerning MOM should be directed to the MOM-email. All questions, comments, and suggestions are to be referred to this list.
 
 ### The MOM community
       
@@ -55,7 +51,7 @@ Given the above aims, we have continued to support one avenue for code efficienc
 
 The purpose of this section is to outline certain features of MOM.  
 
-## Documentation
+### Documentation
 
 In addition to this online user guide, documentation for MOM is provided by the following LaTeX generated postscript documents:
        
@@ -91,11 +87,11 @@ In addition to this online user guide, documentation for MOM is provided by the 
          Available on-line at .
        
        
-         A theoretical rationalization of ocean climate models is provided by
+A theoretical rationalization of ocean climate models is provided by
          
-         Fundamentals of Ocean Climate Models. This book by
-         Stephen.Griffies@noaa.gov was published by
-         Princeton University Press in August 2004.
+    Fundamentals of Ocean Climate Models. This book by
+    Stephen.Griffies@noaa.gov was published by
+    Princeton University Press in August 2004.
 
 
 ### Embedded Documentation
@@ -104,7 +100,7 @@ The documentation of most Fortran modules in FMS is inserted right in the source
    
 ### MOM Characteristics
    
-Although MOM shares much in common with earlier versions of MOM, it possesses a number of computational, numerical, and physical characteristics that are noteworthy. The main characteristics of MOM can be found in the introduction to Elements of MOM).
+Although MOM shares much in common with earlier versions of MOM, it possesses a number of computational, numerical, and physical characteristics that are noteworthy. The main characteristics of MOM can be found in the introduction to Elements of MOM.
 
 ### MOM and FMS
    
@@ -112,53 +108,25 @@ MOM has been coded within GFDL's Flexible Modeling System (FMS). Doing so allows
 
 The following list represents a sample of the FMS shared modules used by MOM.
      
-       time
-          manager: keeps model time and sets time
-          dependent flags
-       
-       coupler:
-          used to couple MOM to other component models
-       
-       
-          I/O
-          : to read and write data in either NetCDF, ASCII, or native
-          formats 
-       
+* time manager: keeps model time and sets time dependent flags
+* coupler: used to couple MOM to other component models
+* I/O: to read and write data in either NetCDF, ASCII, or native formats 
+* parallelization tools: for passing messages across parallel processors
+* diagnostic manager: to register and send fields to be written to a file for later analysis
+* field manager: for integrating multiple tracers and organizing their names, boundary conditions, and advection schemes
 
-       
-          parallelization
-          tools: for passing messages across
-          parallel processors
-       
-       
-          diagnostic
-          manager: to register and send fields to
-          be written to a file for later analysis
-       
-       
-          field
-          manager: for integrating multiple tracers
-          and organizing their names, boundary conditions, and
-          advection schemes
-       
-     
-   
-   
 The FMS infrastructure (the "Siena version") forms the basis for the 2012 release of MOM. 
       
 The Flexible Modeling System(FMS), including MOM, is free software; you can redistribute it and/or modify it and are expected to follow the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
 FMS is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
     
-     You should have received a copy of the GNU General Public License along
-     with MOM; if not, write to:
+You should have received a copy of the GNU General Public License along with MOM; if not, write to:
    
      Free Software Foundation, Inc.
      59 Temple Place, Suite 330
      Boston, MA 02111-1307  
      USA
-     or see: 
-   
    
 ### MOM test cases
    
@@ -618,7 +586,7 @@ The MOM field table is used to specify tracers and their advection schemes, cros
     "diffcbt","Black-Med","itable=306,jtable=151,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"
     "diffcbt","Black-Med","itable=309,jtable=153,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"/
    
-In the first section of the field table, the user can specify tracers to be used in the simulation. Although there is no limit to the number of tracers specified, temperature (temp) and salinity (salt) must be included. The user may also define the horizontal and vertical tracer advection schemes. For more information on the field manager,reference field_manager.html.
+In the first section of the field table, the user can specify tracers to be used in the simulation. Although there is no limit to the number of tracers specified, temperature (temp) and salinity (salt) must be included. The user may also define the horizontal and vertical tracer advection schemes. For more information on the field manager, reference `field_manager.html`.
       
 In climate modeling, it is often necessary to allow water masses that are separated by land to exchange tracer and surface height properties. This situation arises in models when the grid mesh is too coarse to resolve narrow passageways that in reality provide crucial connections between water masses. The cross-land mixing and cross-land insertion establishes communication between bodies of water separated by land. The communication consists of mixing tracers and volume between non-adjacent water columns. Momentum is not mixed. The scheme conserves total tracer content, total volume, and maintains compatibility between the tracer and volume budgets. The grid points where this exchange takes place, and the rates of the exchange, are specified in the field table. 
 
