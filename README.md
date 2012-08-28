@@ -6,3 +6,4 @@ MOM is a numerical ocean model based on the hydrostatic primitive equations. Dev
 
 Contributions from users and developers are always welcomed. Any questions should be directed to the [mailing list](https://groups.google.com/forum/#!forum/mom-users).
 
+To get started with MOM please consult the [quickstart guide](http://www.mom-ocean.org/web/docs/project/quickstart). More information can be found in the [online documentation](http://www.mom-ocean.org/web/docs)
