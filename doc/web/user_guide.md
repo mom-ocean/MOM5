@@ -1,12 +1,10 @@
 # The FMS MOM User Guide
     
-      Stephen
-      Griffies
+      Stephen Griffies
       Stephen.Griffies@noaa.gov
    
      
-      Niki
-      Zadeh
+      Niki Zadeh
       Niki.Zadeh@noaa.gov
    
 
@@ -16,7 +14,7 @@ The purpose of this section is to provide an overview of MOM and the contents of
    
 ### What is MOM?
    
-The Modular Ocean Model (MOM) is a numerical representation of the ocean's hydrostatic primitive equations. It is designed primarily as a tool for studying the global ocean climate system, as well as capabilities for regional and coastal applications. The latest release of MOM occurred in 2012, and is named MOM. This code has origins that date back to the pioneering work of Kirk Bryan and Mike Cox in the 1960s-1980s. It is developed and supported by researchers at NOAA's Geophysical Fluid Dynamics Laboratory (GFDL), with critical contributions also provided by researchers worldwide who comprise the MOM community. The purpose of this web guide is to provide general information about MOM, and particular information for how to download and run the code. Here is a table summarizing the algorithmic history of MOM.
+The Modular Ocean Model (MOM) is a numerical representation of the ocean's hydrostatic primitive equations. It is designed primarily as a tool for studying the global ocean climate system, as well as capabilities for regional and coastal applications. The latest release of MOM occurred in 2012, and is named MOM5. This code has origins that date back to the pioneering work of Kirk Bryan and Mike Cox in the 1960s-1980s. It is developed and supported by researchers at NOAA's [Geophysical Fluid Dynamics Laboratory](http://gfdl.noaa.gov/) (GFDL), with critical contributions also provided by researchers worldwide who comprise the MOM community. The purpose of this web guide is to provide general information about MOM, and particular information for how to download and run the code. Here is a table summarizing the algorithmic history of MOM.
    
 ### MOM Releases
 
@@ -35,7 +33,7 @@ For each release, we aim to update MOM by enhancing features and documentation, 
 
 ### MOM email list
    
-Email concerning MOM should be directed to the MOM-email. All questions, comments, and suggestions are to be referred to this list.
+Email concerning MOM should be directed to the [MOM mailing list](https://groups.google.com/forum/#!forum/mom-users). All questions, comments, and suggestions are to be referred to this list.
 
 ### The MOM community
       
@@ -55,56 +53,40 @@ The purpose of this section is to outline certain features of MOM.
 
 In addition to this online user guide, documentation for MOM is provided by the following LaTeX generated postscript documents:
        
-      A Technical Guide to MOM4 by
-       Stephen.Griffies@noaa.gov,
-       Matthew.Harrison@noaa.gov,
-       Ronald.Pacanowski@noaa.gov, and
-       Tony.Rosati@noaa.gov. This is the primary
-       reference for MOM4p0. It contains details about some of the
-       numerical algorithms and diagnostics. Reference to MOM4p0 in
-       the literature should refer to this document:
+* [A Technical Guide to MOM4](http://www.mom-ocean.org/a/pdfs/MOM4_guide.pdf!devel) by Stephen.Griffies@noaa.gov, Matthew.Harrison@noaa.gov, Ronald.Pacanowski@noaa.gov, and Tony.Rosati@noaa.gov. This is the primary reference for MOM4p0. It contains details about some of the numerical algorithms and diagnostics. Reference to MOM4p0 in the literature should refer to this document:
        
-         A Technical Guide to MOM4
-         GFDL Ocean Group Technical Report No. 5
-         S.M. Griffies, M.J. Harrison, R.C. Pacanowski, and A. Rosati
-         NOAA/Geophysical Fluid Dynamics Laboratory
-         August 2004
-         Available on-line at .
+    A Technical Guide to MOM4
+    GFDL Ocean Group Technical Report No. 5
+    S.M. Griffies, M.J. Harrison, R.C. Pacanowski, and A. Rosati
+    NOAA/Geophysical Fluid Dynamics Laboratory
+    August 2004
+    Available on-line at http://www.mom-ocean.org/web/docs
        
+* [Elements of MOM](http://www.mom-ocean.org/a/pdfs/MOM5_elements.pdf!devel) by Stephen.Griffies@noaa.gov is the primary reference for MOM4p1 and MOM5. It contains details about some of the numerical algorithms and diagnostics. Reference to MOM in the literature should refer to this document:
        
-        Elements of MOM by
-       Stephen.Griffies@noaa.gov is the primary
-       reference for MOM4p1 and MOM5. It contains details about some of the
-       numerical algorithms and diagnostics. Reference to MOM in
-       the literature should refer to this document:
-       
-         Elements of the Modular Ocean Model (MOM)
-         GFDL Ocean Group Technical Report No. 7
-         Stephen M. Griffies
-         NOAA/Geophysical Fluid Dynamics Laboratory
-         June 2012
-         620 + xiii pages 
-         Available on-line at .
+    Elements of the Modular Ocean Model (MOM)
+    GFDL Ocean Group Technical Report No. 7
+    Stephen M. Griffies
+    NOAA/Geophysical Fluid Dynamics Laboratory
+    June 2012
+    620 + xiii pages 
+    Available on-line at http://www.mom-ocean.org/web/docs
        
        
-A theoretical rationalization of ocean climate models is provided by
-         
-    Fundamentals of Ocean Climate Models. This book by
-    Stephen.Griffies@noaa.gov was published by
-    Princeton University Press in August 2004.
+A theoretical rationalization of ocean climate models is provided by [Fundamentals of Ocean Climate Models](http://www.amazon.com/Fundamentals-Climate-Models-Stephen-Griffies/dp/0691118922). This book by Stephen.Griffies@noaa.gov was published by Princeton University Press in August 2004.
 
 
 ### Embedded Documentation
    
 The documentation of most Fortran modules in FMS is inserted right in the source code to enable consistency between the code and documentation. A Perl software tool is used to extract documentation from the source code to create a corresponding html module.  For example, documentation for `shared/diag_manager/diag_manager.F90 module` is `shared/diag_manager/diag_manager.html`. In general, the embedded documentation is a good starting point to understand the Fortran module, though ultimately the Fortran code is the final source for information.
    
-### MOM Characteristics
+### MOM5 Characteristics
    
-Although MOM shares much in common with earlier versions of MOM, it possesses a number of computational, numerical, and physical characteristics that are noteworthy. The main characteristics of MOM can be found in the introduction to Elements of MOM.
+Although MOM5 shares much in common with earlier versions of MOM, it possesses a number of computational, numerical, and physical characteristics that are noteworthy. The main characteristics of MOM5 can be found in the introduction to [Elements of MOM](http://www.mom-ocean.org/a/pdfs/MOM5_elements.pdf!devel).
 
 ### MOM and FMS
    
-MOM has been coded within GFDL's Flexible Modeling System (FMS). Doing so allows for MOM developers to use numerous FMS infrastructure and superstructure modules that are shared amongst various atmospheric, ocean, sea ice, land, vegetative, etc. models. Common standards and shared software tools facilitate the development of high-end earth system models, which necessarily involves a wide variety of researchers working on different computational platforms.  Such standards also foster efficient input from computational scientists and engineers as they can more readily focus on common computational issues.
+MOM has been coded within GFDL's [Flexible Modeling System](http://gfdl.noaa.gov/fms) (FMS). Doing so allows for MOM developers to use numerous FMS infrastructure and superstructure modules that are shared amongst various atmospheric, ocean, sea ice, land, vegetative, etc. models. Common standards and shared software tools facilitate the development of high-end earth system models, which necessarily involves a wide variety of researchers working on different computational platforms.  Such standards also foster efficient input from computational scientists and engineers as they can more readily focus on common computational issues.
 
 The following list represents a sample of the FMS shared modules used by MOM.
      
@@ -117,7 +99,7 @@ The following list represents a sample of the FMS shared modules used by MOM.
 
 The FMS infrastructure (the "Siena version") forms the basis for the 2012 release of MOM. 
       
-The Flexible Modeling System(FMS), including MOM, is free software; you can redistribute it and/or modify it and are expected to follow the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+The Flexible Modeling System (FMS), including MOM, is free software; you can redistribute it and/or modify it and are expected to follow the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
 FMS is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
     
@@ -130,7 +112,7 @@ You should have received a copy of the GNU General Public License along with MOM
    
 ### MOM test cases
    
-MOM is distributed with a suite of test cases, with these tests detailed in Elements of MOM.
+MOM is distributed with a suite of test cases, with these tests detailed in [Elements of MOM](http://www.mom-ocean.org/a/pdfs/MOM5_elements.pdf!devel).
 
 Many of the test cases are NOT sanctioned for their physical relevance. They are instead provided for the user to learn how to run MOM, and to verify the numerical and/or computational integrity of the code. PLEASE do not assume that the experiments will run for more than the short time selected in the sample runscripts.
    
@@ -154,9 +136,9 @@ The data set and outputs for selected MOM test experiments are available via ftp
 
 ### Description of the data sets
 
-here are many datasets provided with the various MOM test cases. All datasets released with MOM are in NetCDF format, since this format is widely used in the community. A number of useful tools are available  here  that allow the user to perform some necessary operations (editting attributes, merging, etc.) on a NetCDF file.
+There are many datasets provided with the various MOM test cases. All datasets released with MOM are in NetCDF format, since this format is widely used in the community. A number of useful tools are available  here  that allow the user to perform some necessary operations (editting attributes, merging, etc.) on a NetCDF file.
      
-## Setting up an experiment with MOM4
+## Setting up an experiment with MOM
      
 MOM is distributed with code used to generate model grids, initial conditions, and boundary conditions.  Each step must be performed prior to running the ocean model.  The steps used during this experimental setup stage are generally termed "preprocessing", and the code used for these purposes is under the /preprocessing directory in the MOM distribution.  The purpose of this section of the User Guide is to outline this code and its usage.  Further details of usage and algorithms can be found in the internal documentation within the various preprocessing code modules.
 
@@ -357,14 +339,13 @@ Currently, the FMS time_manager does not support the Gregorian calendar. So, for
  
 ## Scalability of MOM code 
    
-Scalability of a complex model like MOM is the correlation between the number of processing elements (PE) and the run time. One would expect that run time decreases as the number of PEs increases. It is important, however, to note that there are a number of important factors that can affect scalability considerably:  
+Scalability of a complex model like MOM is the correlation between the number of processing elements (PE) and the run time. One would expect that run time decreases as the number of PEs increases. It is important, however, to note that there are a number of important factors that can affect scalability considerably. The reader is referred to the paper "[A benchmark for the parallel code used in FMS and MOM4](http://www.sciencedirect.com/science/article/pii/S1463500306001107)" Ocean Modelling, Volume 17, Issue 1, 2007, Pages 49-67, Martin Schmidt
 
 MOM test cases are designed for testing the code integrity, they are not set for scalability study or "production" purpose. Changes should be made if one wants to study scalability of the code.
 
-diag_step set the time steps at which numerical diagnostics (e.g., energy, tracer budgets) are computed. The user needs to set this value to be equal to the time step at the end of the experiment, so that only a single instance of the diagnostics is evaluated. For example, if time step is 1 hour and run length is 4 days, diag_step (or diag_freq in MOM4p0) should be set to 96.
+`diag_step` set the time steps at which numerical diagnostics (e.g., energy, tracer budgets) are computed. The user needs to set this value to be equal to the time step at the end of the experiment, so that only a single instance of the diagnostics is evaluated. For example, if time step is 1 hour and run length is 4 days, `diag_step` (or `diag_freq` in MOM4p0) should be set to 96.
 
-
-diag_table contains all fields that will be saved in history files. The frequency of saving and number of fields can afect the total run time greatly.  So when testing performance, it is recommended that the researcher reduce the output of history files.
+`diag_table` contains all fields that will be saved in history files. The frequency of saving and number of fields can afect the total run time greatly.  So when testing performance, it is recommended that the researcher reduce the output of history files.
 
 Scalability is also dependent on the configuration of the computing platform: Ethernet card, interconnect between PEs, implementation of MPI, memory hierarchy, version of compiler, ...
 
@@ -379,42 +360,27 @@ When running an ocean-ice model with atmospheric data forcing, it may happen tha
  
 In the following example, an "x" represents a land-only subdomain, whereas a dot indicates a domain with a nonzero number of "wet" ocean points:
 
-x . x 
 
-
-x . .
-
-
-. . .
-
+    x . x 
+    x . .
+    . . .
 
 
 In this example, three idle processors could be left out (two in the northern-most row, and one in the second row) since there are no wet ocean points on these "x" domains.  The ocean-ice model may thus be run with only 6 MPI tasks rather than nine.  To enable this feature of FMS, the following variables in the namelist `coupler_nml` must be specified.
 
 
-coupler_nml
-
-
-...
-
-
-do_atmos = .false.
-
-
-....
-
-
-n_mask =  3
-
-
-layout_mask = 3, 3
-
-
-mask_list = 1,2, 1,3, 3,3
+    coupler_nml
+    ...
+    do_atmos = .false.
+    ....
+    n_mask = 3
+    layout_mask = 3, 3
+    mask_list = 1,2, 1,3, 3,3
 
 If a mask list is specified, the domain layout of the ocean and the ice model is automatically the same, as specified with layout_mask. Running the model, only 6 MPI tasks need to be started.
 
 For large and complex model topography, it is very tedious to specify the mask list by hand.  To simplify this task, the preprocessing tool `check_mask` can be used after the model grid and topography are specified, i.e., when grid_spec.nc is generated. To do so requires adding the following to `topog_nml` during the preprocessing stage
+
 
 topog_nml
 
@@ -593,7 +559,7 @@ In climate modeling, it is often necessary to allow water masses that are separa
 
 For some cases, it is necessary to set a large vertical tracer diffusivity at a specified point in the model, say next to a river mouth to ensure fresh water is mixed vertically. These diffusivities are specified in the field table.
    
-For a technical description of cross-land tracer mixing and insertion, please reference A Technical Guide to MOM4.
+For a technical description of cross-land tracer mixing and insertion, please reference [A Technical Guide to MOM4](http://www.mom-ocean.org/a/pdfs/MOM4_guide.pdf!devel).
 
 ### `mppnccombine`
    
@@ -626,7 +592,7 @@ The source of `mppnccombine` is packaged with the MOM module in the postprocessi
 
 ### Sample model output
 
-Sample MOM model output data files are available at GFDL ftp site. Output files are classified into three subdirectories:
+Sample MOM model output data files are available in the `data/` directory. Output files are classified into three subdirectories:
 
 * `ascii/`: the description of the setup of the run and verbose comments printed out during the run.
 * `restart/`: the model fields necessary to initialize future runs of the model.
