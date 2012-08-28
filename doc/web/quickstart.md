@@ -15,7 +15,7 @@ This document gives a short outline of how to get a very basic example experimen
 
 You can access the source code by following these [download instructions](http://www.mom-ocean.org/web/downloads)
       
-In the sections below, `test_case` is a generic name referring to the name of a specific experiment you are working on. After you clone the repository from github a directory called `mom/` in your working directory, which will be referred to as `$root_dir` in this guide.
+In the sections below, `TEST_CASE` is a generic name referring to the name of a specific experiment you are working on. After you clone the repository from github you will have a directory called `mom/` in your working directory, which will be referred to as `$root_dir` in this guide.
    
 ## How to compile and run the MOM tests
    
@@ -55,7 +55,7 @@ Find out what test cases are available for a particular `MODEL_TYPE`
     $ cd $root_dir/exp
     $ ./MOM_run.csh --platform YOUR_PLATFORM_ID --type MODEL_TYPE -h      
 
-### To run a `TEST_CASE`
+To run a `TEST_CASE`
                 
     $ ./MOM_run.csh --platform YOUR_PLATFORM_ID --type MODEL_TYPE  --experiment TEST_CASE
 
@@ -68,7 +68,7 @@ If you do not have the right input data in the `WORKDIR` for the `TEST_CASE` the
 * IBM platform users might want to add the following line to the top of the run scripts 
 
 
-       $ setenv LDR_CNTRL MAXDATA=0xD0000000@DSA 
+        $ setenv LDR_CNTRL MAXDATA=0xD0000000@DSA 
 
 
 * The compile script provides the basic capability with dynamic memory allocation. To use static memory allocation which might be faster on some platforms  you need to adjust the values of domain bounds properly according to the number of processors and layout. 
