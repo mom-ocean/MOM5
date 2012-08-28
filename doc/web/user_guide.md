@@ -1,4 +1,4 @@
-# The FMS MOM User Guide
+# The MOM User Guide
 
 Authors:
 
@@ -126,21 +126,15 @@ The purpose of this section is to outline methods required to obtain the source 
 
 ### Obtaining source code and data sets
    
-The FMS development team uses a local implementation of GForge to serve FMS software, located at . In order to obtain the source code and data sets, you must register as an FMS user on our software server. After submitting the registration form on the software server, you should receive an automatically generated confirmation email within a few minutes. Clicking on the link in the email confirms the creation of your account.
-   
-After your account has been created, you should log in and request access to the MOM project. Once the project administrator grants you access, you will receive a second email notification. This email requires action on the part of the project administrator and thus may take longer to arrive. The email will contain a software access password along with instructions for obtaining the release package (a tar file).
-
-You may download the MOM tar file from .
-
-The data set and outputs for selected MOM test experiments are available via ftp. More details can be found in the `quickstart_guide.html`.
+The source code and test case data sets for MOM are hosted on [github](https://github.com/BreakawayLabs/mom). Follow [these instructions](http://www.mom-ocean.org/web/downloads) to download the code.
 
 ### Description of the data sets
 
-There are many datasets provided with the various MOM test cases. All datasets released with MOM are in NetCDF format, since this format is widely used in the community. A number of useful tools are available  here  that allow the user to perform some necessary operations (editting attributes, merging, etc.) on a NetCDF file.
+There are many datasets provided with the various MOM test cases. All datasets released with MOM are in [NetCDF](http://www.unidata.ucar.edu/software/netcdf/) format, since this format is widely used in the community. A number of useful tools are available as part of the [NCO](http://nco.sourceforge.net/) suite that allow the user to perform some necessary operations (editting attributes, merging, etc.) on a NetCDF file.
      
 ## Setting up an experiment with MOM
      
-MOM is distributed with code used to generate model grids, initial conditions, and boundary conditions.  Each step must be performed prior to running the ocean model.  The steps used during this experimental setup stage are generally termed "preprocessing", and the code used for these purposes is under the /preprocessing directory in the MOM distribution.  The purpose of this section of the User Guide is to outline this code and its usage.  Further details of usage and algorithms can be found in the internal documentation within the various preprocessing code modules.
+MOM is distributed with code used to generate model grids, initial conditions, and boundary conditions.  Each step must be performed prior to running the ocean model.  The steps used during this experimental setup stage are generally termed "preprocessing", and the code used for these purposes is under the `preprocessing/` directory in the MOM distribution.  The purpose of this section of the User Guide is to outline this code and its usage.  Further details of usage and algorithms can be found in the internal documentation within the various preprocessing code modules.
 
 ### General comments
    
@@ -215,7 +209,7 @@ Model cell intersections are calculated using the Sutherland-Hodgman polygon cli
 
 Spherical areas are calculated by taking the integral of the negative sine of latitude around the boundary of a polygon (Jones, P. W., 1999: [First- and second-order conservative remapping schemes for grids in spherical coordinates](http://journals.ametsoc.org/doi/pdf/10.1175/1520-0493(1999)127%3C2204%3AFASOCR%3E2.0.CO%3B2). Monthly Weather Review, 127, 2204-2210.). The integration pathways are again straight lines in longitude/latitude space. `make_xgrids` checks that the sphere and the individual cells of the atmosphere and ocean grids are tiled by the surface exchange cells. The fractional tiling errors are reported.
 
-## Initial and Boundary Conditions
+### Initial and Boundary Conditions
      
 After generating the model grid, it is time to generate the initial and boundary conditions (ICs and BCs).  These conditions are specific to the details of the model grid, so it is necessary to have the grid specificiation file in hand before moving to the IC and BC generation.
 
@@ -270,7 +264,7 @@ For `preprocessing/regrid_3d`, `preprocessing/regrid_2d` and `preprocessing/regr
 
 Bilinear interpolation is recommanded for most cases since it provides a smooth interpolation when regridding from coarse grid to fine grid (the usual situation with model destination grids typically having resolution more refined than source data products), and it is more efficient.  Efficiency can become a particularly important issue when developing initial and boundary conditions for a refined resolution model.
 
-If the original data is on a tripolar grid, nearest neighbor distance weighting interpolation found in `preprocessing/regrid` must be used, since bilinear interpolation assumes the original data is on a latitude-longitude grid.  For `preprocessing/regrid_2d`, `preprocessing/regrid_3d` and `preprocessing/regrid` using the nearest neighbor distance weighting algorithm, a maximum distance (in radians) can be selected using the namelist value max_dist. Namelist option `num_nbrs` can be adjusted for speed, although for most applications this refinement is not necessary.
+If the original data is on a tripolar grid, nearest neighbor distance weighting interpolation found in `preprocessing/regrid` must be used, since bilinear interpolation assumes the original data is on a latitude-longitude grid.  For `preprocessing/regrid_2d`, `preprocessing/regrid_3d` and `preprocessing/regrid` using the nearest neighbor distance weighting algorithm, a maximum distance (in radians) can be selected using the namelist value `max_dist`. Namelist option `num_nbrs` can be adjusted for speed, although for most applications this refinement is not necessary.
 
 The complete namelist description for these algorithms can be found in `regrid_2d.html`, `regrid_3d.html` and `regrid.html`.
 
@@ -280,9 +274,9 @@ When the input data is on a latitude-longitude grid, `preprocessing/regrid_2d` a
 
 When the input data is on a tripolar grid or a latitude-longitude grid, `postprocessing/regrid` can be used.
 
-For sponge generation, acceptable input data sets must have NetCDF format with COARDS-compliance.
+For sponge generation, acceptable input data sets must have NetCDF format with [COARDS](http://ferret.wrc.noaa.gov/noaa_coop/coop_cdf_profile.html)-compliance.
 
-## Time-related issues in forcing files
+### Time-related issues in forcing files
 
 There are many ways that data can be formatted in time.  The FMS tools used to read in time information, and to time interpolate, are quite sophisticated and flexible.  Nonetheless, these tools cannot do everything, nor can they know a priori what the modeler intends.  It is therefore necessary to maintain certain conventions when preparing the time information for datasets. This section aims to outline some of the common issues involved with time, and to provide a guide for resolving possible problems.        
       
@@ -449,7 +443,7 @@ The complete namelist option description is available in `regrid.html` or the co
 
 ### The runscript
    
-A runscript is provided in each test case directory (`exp/$test_case`) for each test case. Details can be found in `quickstart_guide.html`.
+A runscript is provided in each test case directory (`exp/$test_case`) for each test case. Details can be found in [quickstart guide](http://www.mom-ocean.org/web/docs/project/quickstart).
        
 Incorporated in the FMS infrastructure is MPP (Massively Parallel Processing), which provides a uniform message-passing API interface to the different message-passing libraries. If MPICH is installed, the user can compile the MOM source code with MPI. If the user does not have MPICH or the communications library, the MOM source code can be compiled without MPI by omitting the `CPPFLAGS` value `-Duse_libMPI` in the example runscript.
 
