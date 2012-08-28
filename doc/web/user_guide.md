@@ -53,28 +53,27 @@ In addition to this online user guide, documentation for MOM is provided by the 
 * [A Technical Guide to MOM4](http://www.mom-ocean.org/a/pdfs/MOM4_guide.pdf!devel) by Stephen.Griffies@noaa.gov, Matthew.Harrison@noaa.gov, Ronald.Pacanowski@noaa.gov, and Tony.Rosati@noaa.gov. This is the primary reference for MOM4p0. It contains details about some of the numerical algorithms and diagnostics. Reference to MOM4p0 in the literature should refer to this document:
 
        
-    A Technical Guide to MOM4
-    GFDL Ocean Group Technical Report No. 5
-    S.M. Griffies, M.J. Harrison, R.C. Pacanowski, and A. Rosati
-    NOAA/Geophysical Fluid Dynamics Laboratory
-    August 2004
-    Available on-line at http://www.mom-ocean.org/web/docs
+        A Technical Guide to MOM4
+        GFDL Ocean Group Technical Report No. 5
+        S.M. Griffies, M.J. Harrison, R.C. Pacanowski, and A. Rosati
+        NOAA/Geophysical Fluid Dynamics Laboratory
+        August 2004
+        Available on-line at http://www.mom-ocean.org/web/docs
 
        
 * [Elements of MOM](http://www.mom-ocean.org/a/pdfs/MOM5_elements.pdf!devel) by Stephen.Griffies@noaa.gov is the primary reference for MOM4p1 and MOM5. It contains details about some of the numerical algorithms and diagnostics. Reference to MOM in the literature should refer to this document:
 
        
-    Elements of the Modular Ocean Model (MOM)
-    GFDL Ocean Group Technical Report No. 7
-    Stephen M. Griffies
-    NOAA/Geophysical Fluid Dynamics Laboratory
-    June 2012
-    620 + xiii pages 
-    Available on-line at http://www.mom-ocean.org/web/docs
+        Elements of the Modular Ocean Model (MOM)
+        GFDL Ocean Group Technical Report No. 7
+        Stephen M. Griffies
+        NOAA/Geophysical Fluid Dynamics Laboratory
+        June 2012
+        620 + xiii pages 
+        Available on-line at http://www.mom-ocean.org/web/docs
        
        
 A theoretical rationalization of ocean climate models is provided by [Fundamentals of Ocean Climate Models](http://www.amazon.com/Fundamentals-Climate-Models-Stephen-Griffies/dp/0691118922). This book by Stephen.Griffies@noaa.gov was published by Princeton University Press in August 2004.
-
 
 ### Embedded Documentation
    
@@ -97,7 +96,7 @@ The following list represents a sample of the FMS shared modules used by MOM.
 * diagnostic manager: to register and send fields to be written to a file for later analysis
 * field manager: for integrating multiple tracers and organizing their names, boundary conditions, and advection schemes
 
-The FMS infrastructure (the "Siena version") forms the basis for the 2012 release of MOM. 
+The FMS infrastructure (the "Siena" version) forms the basis for the 2012 release of MOM. 
       
 The Flexible Modeling System (FMS), including MOM, is free software; you can redistribute it and/or modify it and are expected to follow the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
@@ -119,6 +118,8 @@ Many of the test cases are NOT sanctioned for their physical relevance. They are
 ## Contributing to MOM
    
 MOM developers aim to provide the international climate research community with a repository for robust and well documented methods to simulate the ocean climate system.  Consequently, we encourage interested researchers to contribute to MOM by commenting on code features, and providing new modules that enhance simulation integrity (e.g., a new physical parameterization or new advection scheme) or increase the model's functionality.
+
+The [Model Development Lab](http://www.mom-ocean.org) (MDL) provides infrastructure to facilitate contributions from the MOM community.
    
 ## Source code and data sets
 
@@ -126,7 +127,7 @@ The purpose of this section is to outline methods required to obtain the source 
 
 ### Obtaining source code and data sets
    
-The source code and test case data sets for MOM are hosted on [github](https://github.com/BreakawayLabs/mom). Follow [these instructions](http://www.mom-ocean.org/web/downloads) to download the code.
+The source code and test case data sets for MOM are hosted on [github](https://github.com/BreakawayLabs/mom). Follow [these instructions](http://www.mom-ocean.org/web/downloads) to download the code and (optionally) the test case data sets.
 
 ### Description of the data sets
 
@@ -144,7 +145,7 @@ We start this section with some general comments regarding the setup of a model 
  
 * Many steps in idealized experiments that were formerly performed while running earlier MOM versions have been extracted from MOM and placed into preprocessing.  Hence, even if you are running an idealized experiment, it is likely that you will need to perform some if not all of the preprocessing steps discussed here.
  
-* If you have a problem that is not addressed here, then please feel free to query the MOM email list.  No question is too silly, so please ask!
+* If you have a problem that is not addressed here, then please feel free to query the [MOM mailing list](https://groups.google.com/forum/#!forum/mom-users).  No question is too silly, so please ask!
  
 * All code used to setup an experiment with MOM is written in Fortran 90/95 except `make_xgrids`, which is written in C.  Most code is dependent on FMS shared code for the purpose of parallization and interpolation.  In addition to the documentation provided here, there are comments within the code to help users debug and to make modifications to suit their purpose.
  
@@ -152,9 +153,7 @@ We start this section with some general comments regarding the setup of a model 
  
 ### Creation of the ocean/ice grid (mosaics)
   
-Mosaics is the name given to a general framework to define structured grids at GFDL.  The details of this scheme are being incorporated by others outside of GFDL as well.  Most of the recent global models developed at GFDL employ the conventions of Mosaic.  However, MOM is backwards compatible, so that it still supports grids generated with older software (discussed here)
-
-For a description of how to create grids using the newer Mosaic tools, which are more general than the older approaches, then please access this link
+Mosaics is the name given to a general framework to define structured grids at GFDL.  The details of this scheme are being incorporated by others outside of GFDL as well.  Most of the recent global models developed at GFDL employ the conventions of Mosaic.  However, MOM is backwards compatible, so that it still supports grids generated with older software.
 
 ### Creation of the ocean/ice grid (pre-mosaics)
   
@@ -164,7 +163,7 @@ Even though the ocean and ice models read the same grid specification file, they
 
 The ocean/ice grid specification file is generated by executing the `ocean_grid_generator` utility. The `ocean_grid_generator` utility generates the horizontal grid, vertical grid, and topography. A C-shell script is provided to compile relevant code to generate and run the executable to produce the grid file. To create the desired grid and topography, setting namelist options within the runscript is needed.  
 
-The horizontal grid can be conventional lon-lat spherical grid or a reprojected rotated tripolar grid (R. Murray, "Explicit generation of orthogonal grids for ocean models", 1996, J.Comp.Phys., v. 126, p. 251-273.).  The choice is controlled by the namelist option `tripolar grid` (true for tripolar grid and false for lon-lat spherical grid).  Note that Cartesian beta-plane and f-plane geometries are set up within MOM, not within the grid generation preprocessing steps discussed here (see `ocean_core/ocean_grids.F90` for beta-plane and f-plane namelist options).
+The horizontal grid can be conventional lon-lat spherical grid or a reprojected rotated tripolar grid (R. Murray, [Explicit generation of orthogonal grids for ocean models](http://www.sciencedirect.com/science/article/pii/S0021999196901369), 1996, J.Comp.Phys., v. 126, p. 251-273.).  The choice is controlled by the namelist option `tripolar grid` (true for tripolar grid and false for lon-lat spherical grid).  Note that Cartesian beta-plane and f-plane geometries are set up within MOM, not within the grid generation preprocessing steps discussed here (see `ocean_core/ocean_grids.F90` for beta-plane and f-plane namelist options).
 
 The `grid_spec` file contains the following horizontal grid information: geographic location of T, E, C and N-cell (Tracer, East, Corner, and North cells), half and full cell lengths (in meters), rotation information between logical (i.e., grid oriented) and geographic east of cell. The complete description of the horizontal grid and namelist option is available in hgrid 
 
