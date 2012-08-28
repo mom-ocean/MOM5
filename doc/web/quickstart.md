@@ -7,14 +7,15 @@ Author: Niki Zadeh (Niki.Zadeh@@noaa.gov)
 
 ##  Where to start?
    
-A good place to start is the `doc/` directory, where you will find  "user" guides for the MOM.
-The full documentation of MOM appear are bundled as separate files and can be download from GFDL GForge. 
+A good place to start is the online [User Guide](http://www.mom-ocean.org/web/docs/project/user_guide), which gives full details on all the steps involved in running a complete experiment.
+
+This document gives a short outline of how to get a very basic example experiment running.
    
 ## How to get the source code and scripts
-   
-You can get the tar ball for source code by logging into your GFDL GForge account and navigate to the Files section of MOM project area. Then you need to untar the tar bundle and cd to the resulting directory. For convenience, this directory will be referred to as the `ROOT` directory. A `README` file in the `ROOT` directory will tell you the contents of each subdirectory under `ROOT`.
-   
-In the sections below, `test_case` is a generic name referring to the name of a specific experiment you are working on. After you expand the tar bundle you get a directory which will be referred to as `root_dir` in this guide.
+
+You can access the source code by following these [download instructions](http://www.mom-ocean.org/web/downloads)
+      
+In the sections below, `test_case` is a generic name referring to the name of a specific experiment you are working on. After you clone the repository from github a directory called `mom/` in your working directory, which will be referred to as `$root_dir` in this guide.
    
 ## How to compile and run the MOM tests
    
@@ -37,7 +38,7 @@ We refer to these types as `MODEL_TYPE` in this guide:
       
 Find out what `MODEL_TYPE` you want to work on and what is `YOUR_PLATFORM_ID` then
         
-    $ cd root_dir/exp    
+    $ cd $root_dir/exp    
     $ ./MOM_compile.csh --platform YOUR_PLATFORM_ID --type MODEL_TYPE
       
 NOTE: The Energy Balanced Model (`EBM`) cannot be compiled by the above procedure and a separate compile script is provided for it. 
@@ -46,18 +47,19 @@ NOTE: The Energy Balanced Model (`EBM`) cannot be compiled by the above procedur
 
 Make sure you have a large enough working directory (`WORKDIR`) and made a symbolic link to it called `work` in your top directory. I.e.,    
 
-    $ cd root_dir
+    $ cd $root_dir
     $ ln -s YOUR_LARGE_WORK_DIR work
             
 Find out what test cases are available for a particular `MODEL_TYPE`
 
+    $ cd $root_dir/exp
     $ ./MOM_run.csh --platform YOUR_PLATFORM_ID --type MODEL_TYPE -h      
 
 ### To run a `TEST_CASE`
                 
     $ ./MOM_run.csh --platform YOUR_PLATFORM_ID --type MODEL_TYPE  --experiment TEST_CASE
 
-If you do not have the right input data in the `WORKDIR` for the `TEST_CASE` the above command would ask you to download it and try again. You may need to specify the number of processor for the `TEST_CASE`, in that case the above command errors out with the right info. Note: The script `exp/preprocessing.csh` is called by the `MOM_run.csh` to modify the mom4p1 namelists of these old test cases to make them compatible with mom5. The results go into `WORKDIR`.
+If you do not have the right input data in the `WORKDIR` for the `TEST_CASE` the above command would ask you to download it and try again. You may need to specify the number of processor for the `TEST_CASE`, in that case the above command errors out with the right info. Note: The script `exp/preprocessing.csh` is called by the `MOM_run.csh` to modify the mom4p1 namelists of these old test cases to make them compatible with MOM5. The results go into `WORKDIR`.
 
 ### Notes
 
@@ -66,7 +68,7 @@ If you do not have the right input data in the `WORKDIR` for the `TEST_CASE` the
 * IBM platform users might want to add the following line to the top of the run scripts 
 
 
-   $ setenv LDR_CNTRL MAXDATA=0xD0000000@DSA 
+       $ setenv LDR_CNTRL MAXDATA=0xD0000000@DSA 
 
 
 * The compile script provides the basic capability with dynamic memory allocation. To use static memory allocation which might be faster on some platforms  you need to adjust the values of domain bounds properly according to the number of processors and layout. 
@@ -74,9 +76,9 @@ If you do not have the right input data in the `WORKDIR` for the `TEST_CASE` the
 
 ## How to prepare input data
    
-The input data needed to run the selected experiments (tests) that are included in this release are available via anonymous ftp.
+The input data needed to run the selected experiments (tests) that are included in this release are available in the `data/` directory.
    
-Note that data in `ASCII/`, `HISTORY/`, `RESTART/` directories are NOT needed for running experiments. They are the outputs of the experiments and are provided for the purpose of comparing your results with results produced at GFDL. Tools are provided so that users can create data from scratch for their own experiments. For more details refer to `ROOT/src/preprocessing`.
+Note that data in `ASCII/`, `HISTORY/`, `RESTART/` directories are NOT needed for running experiments. They are the outputs of the experiments and are provided for the purpose of comparing your results with results produced at GFDL. Tools are provided so that users can create data from scratch for their own experiments. For more details refer to `src/preprocessing`.
       
 
 ## Examine the output
@@ -92,4 +94,4 @@ The ascii file contains everything written to the screen during model execution.
     tar -xvf filename.tar
      
 Users will see result files in NetCDF format. Postprocessing tools such as Ferret, ncview, grads or matlab can be used to view data in these files.
-The outputs of the selected experiments are provided on GFDL ftp site for the purpose of comparing your results with results produced at GFDL.
+The outputs of the selected experiments are available in the `data/` directory for the purpose of comparing your results with results produced at GFDL.
