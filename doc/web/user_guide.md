@@ -50,7 +50,7 @@ The purpose of this section is to outline certain features of MOM.
 
 In addition to this online user guide, documentation for MOM is provided by the following LaTeX generated postscript documents:
        
-* [A Technical Guide to MOM4](http://www.mom-ocean.org/a/pdfs/MOM4_guide.pdf!devel) by Stephen.Griffies@noaa.gov, Matthew.Harrison@noaa.gov, Ronald.Pacanowski@noaa.gov, and Tony.Rosati@noaa.gov. This is the primary reference for MOM4p0. It contains details about some of the numerical algorithms and diagnostics. Reference to MOM4p0 in the literature should refer to this document:
+* [A Technical Guide to MOM4](http://www.mom-ocean.org/web/docs/project/MOM4_guide.pdf) by Stephen.Griffies@noaa.gov, Matthew.Harrison@noaa.gov, Ronald.Pacanowski@noaa.gov, and Tony.Rosati@noaa.gov. This is the primary reference for MOM4p0. It contains details about some of the numerical algorithms and diagnostics. Reference to MOM4p0 in the literature should refer to this document:
 
        
         A Technical Guide to MOM4
@@ -61,7 +61,7 @@ In addition to this online user guide, documentation for MOM is provided by the 
         Available on-line at http://www.mom-ocean.org/web/docs
 
        
-* [Elements of MOM](http://www.mom-ocean.org/a/pdfs/MOM5_elements.pdf!devel) by Stephen.Griffies@noaa.gov is the primary reference for MOM4p1 and MOM5. It contains details about some of the numerical algorithms and diagnostics. Reference to MOM in the literature should refer to this document:
+* [Elements of MOM](http://www.mom-ocean.org/web/docs/project/MOM5_elements.pdf) by Stephen.Griffies@noaa.gov is the primary reference for MOM4p1 and MOM5. It contains details about some of the numerical algorithms and diagnostics. Reference to MOM in the literature should refer to this document:
 
        
         Elements of the Modular Ocean Model (MOM)
@@ -81,7 +81,7 @@ The documentation of most Fortran modules in FMS is inserted right in the source
    
 ### MOM5 Characteristics
    
-Although MOM5 shares much in common with earlier versions of MOM, it possesses a number of computational, numerical, and physical characteristics that are noteworthy. The main characteristics of MOM5 can be found in the introduction to [Elements of MOM](http://www.mom-ocean.org/a/pdfs/MOM5_elements.pdf!devel).
+Although MOM5 shares much in common with earlier versions of MOM, it possesses a number of computational, numerical, and physical characteristics that are noteworthy. The main characteristics of MOM5 can be found in the introduction to [Elements of MOM](http://www.mom-ocean.org/web/docs/project/MOM5_elements.pdf).
 
 ### MOM and FMS
    
@@ -111,7 +111,7 @@ You should have received a copy of the GNU General Public License along with MOM
    
 ### MOM test cases
    
-MOM is distributed with a suite of test cases, with these tests detailed in [Elements of MOM](http://www.mom-ocean.org/a/pdfs/MOM5_elements.pdf!devel).
+MOM is distributed with a suite of test cases, with these tests detailed in [Elements of MOM](http://www.mom-ocean.org/web/docs/project/MOM5_elements.pdf).
 
 Many of the test cases are NOT sanctioned for their physical relevance. They are instead provided for the user to learn how to run MOM, and to verify the numerical and/or computational integrity of the code. PLEASE do not assume that the experiments will run for more than the short time selected in the sample runscripts.
    
@@ -546,7 +546,7 @@ In climate modeling, it is often necessary to allow water masses that are separa
 
 For some cases, it is necessary to set a large vertical tracer diffusivity at a specified point in the model, say next to a river mouth to ensure fresh water is mixed vertically. These diffusivities are specified in the field table.
    
-For a technical description of cross-land tracer mixing and insertion, please reference [A Technical Guide to MOM4](http://www.mom-ocean.org/a/pdfs/MOM4_guide.pdf!devel).
+For a technical description of cross-land tracer mixing and insertion, please reference [A Technical Guide to MOM4](http://www.mom-ocean.org/web/docs/project/MOM4_guide.pdf).
 
 ### `mppnccombine`
    
