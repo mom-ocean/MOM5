@@ -229,6 +229,11 @@ endif
 #   --- run the model ---
 
 $runCommand
+set model_status = $status
+if ( $model_status != 0) then
+    echo "ERROR: Model failed to run to completion"
+    exit 1
+endif
 
 #----------------------------------------------------------------------------------------------
 # generate date for file names ---
