@@ -21,7 +21,7 @@ In the sections below, `TEST_CASE` is a generic name referring to the name of a 
    
 MOM requires that NetCDF and MPI libraries be installed on users' platform.
     
-Ensure that you have the right environment variable for your platform in the file `bin/environs.YOUR_PLATFORM_ID`. `YOUR_PLATFORM_ID` could be any string that identifies your platform. The file `bin/environs.YOUR_PLATFORM_ID` gets sourced at the beginning of all compile and run scripts and is there to make sure all compile and run time library paths are found.
+Ensure that you have the right environment variable for your platform in the file `bin/environs.PLATFORM_ID`. `PLATFORM_ID` could be any string that identifies your platform. The file `bin/environs.PLATFORM_ID` gets sourced at the beginning of all compile and run scripts and is there to make sure all compile and run time library paths are found.
     
 There are a few types of test models provided for this release  all using the GFDL shared infrastructure (FMS) but have different FMS component models for atmosphere and/or land. 
 We refer to these types as `MODEL_TYPE` in this guide: 
@@ -30,34 +30,34 @@ We refer to these types as `MODEL_TYPE` in this guide:
 * `MOM_solo`: stand alone MOM ocean model.
 * `MOM_SIS`: MOM coupled with GFDL ice model (SIS) besides null versions of atmosphere and land models.
 * `EBM`: `MOM_SIS` coupled with `land_lad` and energy balanced atmosphere model 
-* `ICCM`: `MOM_SIS` coupled with `land_lad` and bgrid atmosphere model in low resolution setup.  
-* `CM2M`: GFDL CM2.1 model which is `MOM_SIS` coupled with `land_lad` and finite volume atmosphere model (with am2 physics).
-* `ESM2M`: GFDL Earth System Model which is `MOM_SIS` coupled with `land_lad2` and finite volume atmosphere model (with am2 physics).
+* `ICCM`: `MOM_SIS` coupled with `land_lad` and `bgrid` atmosphere model in low resolution setup.  
+* `CM2M`: GFDL CM2.1 model which is `MOM_SIS` coupled with `land_lad` and finite volume atmosphere model (with `am2` physics).
+* `ESM2M`: GFDL Earth System Model which is `MOM_SIS` coupled with `land_lad2` and finite volume atmosphere model (with `am2` physics).
       
 ### To compile the models:
       
-Find out what `MODEL_TYPE` you want to work on and what is `YOUR_PLATFORM_ID` then
+Find out what `MODEL_TYPE` you want to work on and what is `PLATFORM_ID` then
         
     $ cd $root_dir/exp    
-    $ ./MOM_compile.csh --platform YOUR_PLATFORM_ID --type MODEL_TYPE
+    $ ./MOM_compile.csh --platform PLATFORM_ID --type MODEL_TYPE
       
 NOTE: The Energy Balanced Model (`EBM`) cannot be compiled by the above procedure and a separate compile script is provided for it. 
 
 ### To run an experiment
 
-Make sure you have a large enough working directory (`WORKDIR`) and made a symbolic link to it called `work` in your top directory. I.e.,    
+Make sure you have a large enough working directory (`WORKDIR`) and made a symbolic link to it called `work` in your top directory, i.e.,    
 
     $ cd $root_dir
-    $ ln -s YOUR_LARGE_WORK_DIR work
+    $ ln -s WORKDIR work
             
 Find out what test cases are available for a particular `MODEL_TYPE`
 
     $ cd $root_dir/exp
-    $ ./MOM_run.csh --platform YOUR_PLATFORM_ID --type MODEL_TYPE -h      
+    $ ./MOM_run.csh --platform PLATFORM_ID --type MODEL_TYPE -h      
 
 To run a `TEST_CASE`
                 
-    $ ./MOM_run.csh --platform YOUR_PLATFORM_ID --type MODEL_TYPE  --experiment TEST_CASE
+    $ ./MOM_run.csh --platform PLATFORM_ID --type MODEL_TYPE  --experiment TEST_CASE
 
 If you do not have the right input data in the `WORKDIR` for the `TEST_CASE` the above command would ask you to download it and try again. You may need to specify the number of processor for the `TEST_CASE`, in that case the above command errors out with the right info. Note: The script `exp/preprocessing.csh` is called by the `MOM_run.csh` to modify the mom4p1 namelists of these old test cases to make them compatible with MOM5. The results go into `WORKDIR`.
 
@@ -68,7 +68,7 @@ If you do not have the right input data in the `WORKDIR` for the `TEST_CASE` the
 * IBM platform users might want to add the following line to the top of the run scripts 
 
 
-        $ setenv LDR_CNTRL MAXDATA=0xD0000000@DSA 
+        setenv LDR_CNTRL MAXDATA=0xD0000000@DSA 
 
 
 * The compile script provides the basic capability with dynamic memory allocation. To use static memory allocation which might be faster on some platforms  you need to adjust the values of domain bounds properly according to the number of processors and layout. 
