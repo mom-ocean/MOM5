@@ -40,7 +40,7 @@ There is a sizable user community for MOM. This community has proven to be a gre
 
 The MOM team aims to provide code that is efficient, flexible, and transparent for use across a broad range of computer platforms. Balancing these aims is not always simple. For example, some of the most efficient code is also the least transparent. The MOM developers are scientists whose main concern is to support MOM as a tool for science research. This focus then leads us to weight transparency and portability over efficiency. However, we readily make efficiency modifications that are of a general nature, so please do feel free to volunteer any such changes.
 
-Given the above aims, we have continued to support one avenue for code efficiency involving the allocation of arrays. MOM can be compiled in two ways: with static allocation of arrays or dynamic allocation. Static allocation is enabled at compile time via the cpp-preprocessor option `MOM_STATIC_ARRAYS`.  At GFDL, we have generally found that static allocation executables are faster than dynamic, since compilers like to know before-hand the size of the model arrays. Work on the SGI machines at GFDL has reduced the difference in efficiency between these two compilations. However, details of the model configuration strongly impact the differences in model speed. Additionally, we understand that on some platforms, the dynamic allocation results in faster code than static. Consequently, we have decided to maintain both the static and dynamic options, given the ambiguous results across platforms, compilers, model configurations, ect.
+Given the above aims, we have continued to support one avenue for code efficiency involving the allocation of arrays. MOM can be compiled in two ways: with static allocation of arrays or dynamic allocation. Static allocation is enabled at compile time via the cpp-preprocessor option `MOM_STATIC_ARRAYS`.  At GFDL, we have generally found that static allocation executables are faster than dynamic, since compilers like to know before-hand the size of the model arrays. Work on the SGI machines at GFDL has reduced the difference in efficiency between these two compilations. However, details of the model configuration strongly impact the differences in model speed. Additionally, we understand that on some platforms, the dynamic allocation results in faster code than static. Consequently, we have decided to maintain both the static and dynamic options, given the ambiguous results across platforms, compilers, model configurations, etc.
 
 ## An Outline of MOM
 
@@ -48,7 +48,7 @@ The purpose of this section is to outline certain features of MOM.
 
 ### Documentation
 
-In addition to this online user guide, documentation for MOM is provided by the following LaTeX generated postscript documents:
+In addition to this online user guide, documentation for MOM is provided by the following LaTeX generated PDF documents:
        
 * [A Technical Guide to MOM4](http://www.mom-ocean.org/web/docs/project/MOM4_guide.pdf) by Stephen.Griffies@noaa.gov, Matthew.Harrison@noaa.gov, Ronald.Pacanowski@noaa.gov, and Tony.Rosati@noaa.gov. This is the primary reference for MOM4p0. It contains details about some of the numerical algorithms and diagnostics. Reference to MOM4p0 in the literature should refer to this document:
 
