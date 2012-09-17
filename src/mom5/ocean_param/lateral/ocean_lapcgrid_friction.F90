@@ -875,8 +875,8 @@ subroutine lapcgrid_friction(Time, Thickness, Adv_vel, Velocity, lap_viscosity, 
   do k=1,nk
      do j=jsd,jed
         do i=isd,ied
-           wrk1_v(i,j,k,1) = Velocity%u(i,j,k,taum1,1) - neptune_velocity(i,j,1)
-           wrk1_v(i,j,k,2) = Velocity%u(i,j,k,taum1,2) - neptune_velocity(i,j,2)
+           wrk1_v(i,j,k,1) = Velocity%u(i,j,k,1,taum1) - neptune_velocity(i,j,1)
+           wrk1_v(i,j,k,2) = Velocity%u(i,j,k,2,taum1) - neptune_velocity(i,j,2)
         enddo
      enddo
   enddo
