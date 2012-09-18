@@ -241,7 +241,7 @@ module mpp_domains_mod
      private
      integer                  :: count = 0                 ! number of ovrelapping
      integer                  :: pe
-     integer ,        pointer :: msgsize(:)                ! overlapping msgsize to be sent or received
+     integer ,        pointer :: msgsize(:)      => NULL() ! overlapping msgsize to be sent or received
      integer,         pointer :: tileMe(:)       => NULL() ! my tile id for this overlap
      integer,         pointer :: tileNbr(:)      => NULL() ! neighbor tile id for this overlap
      integer,         pointer :: is(:)           => NULL() ! starting i-index 
@@ -267,7 +267,7 @@ module mpp_domains_mod
      type(overlap_type), pointer :: send(:) => NULL()
      type(overlap_type), pointer :: recv(:) => NULL()
      type(refineSpec),   pointer :: rSpec(:)=> NULL()
-     type(overlapSpec),  pointer :: next
+     type(overlapSpec),  pointer :: next => NULL()
   end type overlapSpec
 
   type tile_type
@@ -361,7 +361,7 @@ module mpp_domains_mod
      integer                     :: extra_halo
      type(overlap_type), pointer :: send(:) => NULL()
      type(overlap_type), pointer :: recv(:) => NULL()
-     type(nestSpec),     pointer :: next
+     type(nestSpec),     pointer :: next => NULL()
 
   end type nestSpec
 
