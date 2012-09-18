@@ -509,6 +509,7 @@
 
      v%is_range = .true.
      v%min = -HUGE(v%min); v%max = HUGE(v%max)
+     if (f%natt == 0) return
      ! find indices of relevant attributes
      irange   = mpp_find_att(f%att,'valid_range')
      imin     = mpp_find_att(f%att,'valid_min')
