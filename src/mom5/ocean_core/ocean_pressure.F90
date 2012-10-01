@@ -1502,8 +1502,8 @@ subroutine press_grad_force_press_blob(Time, Thickness, Dens, Velocity, L_system
      tmp2(:,:) = rho0r*FAX(FAY(wrk4(:,:,k))*diff_press_y(:,:))
      do j=jsc,jec
         do i=isc,iec
-           wrk1_v(i,j,k,1) = Grd%dxur(i,j)*Thickness%dzu(i,j,k)
-           wrk1_v(i,j,k,2) = Grd%dyur(i,j)*Thickness%dzu(i,j,k)
+           wrk1_v(i,j,k,1) = tmp1(i,j)*Grd%dxur(i,j)*Thickness%dzu(i,j,k)
+           wrk1_v(i,j,k,2) = tmp2(i,j)*Grd%dyur(i,j)*Thickness%dzu(i,j,k)
         enddo
      enddo
 
