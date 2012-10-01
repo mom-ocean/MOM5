@@ -2068,19 +2068,20 @@ subroutine horz_advect_tracer(Time, Adv_vel, Thickness, Dens, T_prog, Tracer, nt
         call store_ocean_obc_tracer_flux(Time,Tracer,flux_y,ntracer,'m','adv')
       endif
 
+      ! This is only needed for diagnostics of the flux through open boundaries.
+      ! It must be checked, if still correct with the new scheme
+      ! for gyre/overturning diagnostics
+      ! Note we need to call this from within advect_tracer_sweby_all
+      if(compute_gyre_overturn_diagnose) then
+         call gyre_overturn_diagnose(Time, Adv_vel, Tracer, Thickness, ntracer)
+      endif
+
   endif   ! endif for (.not. advect_sweby_all)
 
 
   if(advect_sweby_all .and. ntracer==1) then 
     call advect_tracer_sweby_all(Time, Adv_vel, Dens, T_prog, Thickness, dtime)
   endif 
-
-  ! This is only needed for diagnostics of the flux through open boundaries.
-  ! It must be checked, if still correct with the new scheme
-  ! for gyre/overturning diagnostics 
-  if(compute_gyre_overturn_diagnose) then 
-     call gyre_overturn_diagnose(Time, Adv_vel, Tracer, Thickness, ntracer)
-  endif
 
  
 end subroutine horz_advect_tracer
@@ -4520,6 +4521,13 @@ subroutine advect_tracer_sweby_all(Time, Adv_vel, Dens, T_prog, Thickness, dtime
                  enddo
               enddo
           enddo
+      endif
+
+      ! This is only needed for diagnostics of the flux through open boundaries.
+      ! It must be checked, if still correct with the new scheme
+      ! for gyre/overturning diagnostics
+      if(compute_gyre_overturn_diagnose) then
+         call gyre_overturn_diagnose(Time, Adv_vel, T_prog(n), Thickness, n)
       endif
 
       call mpp_clock_end(id_clock_mdfl_sweby_dia)
@@ -7334,11 +7342,6 @@ end function advect_tracer_mdmdt_test
 ! purposes at the REAL(4) level. 
 ! 
 ! We require no global arrays here, and redundant computation is eliminated.
-!
-! Note that if advect_sweby_all is used we cannot do this calculation since we
-! don not have flux_y, except for the last tracer computed.
-! The zonal mean could be computed within the routine or flux_y itself could 
-! be stored in a 3D arrays. 
 ! 
 ! original approach 
 ! Stephen.Griffies
