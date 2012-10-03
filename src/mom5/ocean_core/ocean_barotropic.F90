@@ -79,6 +79,11 @@ module ocean_barotropic_mod
 !  Will set to zero the nonlinear forcing terms, leaving only the smf and bmf 
 !  terms to force the barotropic velocity. 
 !  </DATA> 
+!  <DATA NAME="zero_coriolis_bt" TYPE="logical">
+!  Will set to zero the Coriolis parameter for purpooses of computing the
+!  barotropic momentum equation. This option is for testing alone.
+!  Default zero_coriolis_bt = .false.
+!  </DATA>
 !  <DATA NAME="zero_eta_ic" TYPE="logical">
 !  To initialize eta_t to zero. 
 !  </DATA> 
@@ -521,6 +526,7 @@ logical  :: zero_eta_t=.false.                ! if true, will maintain eta_t at 
 logical  :: zero_eta_u=.false.                ! if true, will maintain eta_u at zero. 
 logical  :: zero_forcing_bt=.false.           ! if true, will set Ext_mode%forcing_bt=0.0.  
 logical  :: zero_nonlinear_forcing_bt=.false. ! if true, will only use smf and bmf for Ext_mode%forcing_bt.  
+logical  :: zero_coriolis_bt=.false.          ! if true, will set Coriolis parameter to zero for barotropic.
 
 logical  :: ideal_initial_eta=.false.         ! for ideal initialization of eta 
 real     :: ideal_initial_eta_amplitude=5.0   ! metre 
@@ -904,7 +910,7 @@ real, private, dimension(:,:), allocatable :: sin2lat     !   sine   of 2*latitu
 real, private, dimension(:,:), allocatable :: ideal_amp   ! amplitude for ideal tidal forcing 
 
 namelist /ocean_barotropic_nml/ write_a_restart,                                &
-         zero_tendency, zero_eta_ic, zero_eta_t, zero_eta_u,                    &
+         zero_tendency, zero_eta_ic, zero_eta_t, zero_eta_u, zero_coriolis_bt,  &
          zero_nonlinear_forcing_bt, zero_forcing_bt, zero_eta_tendency,         &
          barotropic_time_stepping_A, barotropic_time_stepping_B,                &
          tidal_forcing_m2, tidal_forcing_8, tidal_forcing_ideal, geoid_forcing, &
@@ -1258,6 +1264,12 @@ subroutine ocean_barotropic_init(Grid, Domain, Time, Time_steps, Ocean_options, 
   if(barotropic_halo > 1) then
      call mpp_update_domains(f_bt, Dom_bt%domain2d, position=CORNER)
      call mpp_update_domains(tmask_bt, Dom_bt%domain2d)
+  endif
+  if(zero_coriolis_bt) then
+    f_bt(:,:) = 0.0
+    write(stdoutunit,'(a)') '==>Warning: running ocean_barotropic with zero Coriolis parameter. This approach is for testing alone.'
+    call mpp_error(WARNING,&
+     '==>Warning in ocean_barotropic_init: running ocean_barotropic with zero Coriolis parameter. This approach is for testing alone.')
   endif
 
   if (have_obc) then
