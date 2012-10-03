@@ -819,9 +819,9 @@ subroutine press_grad_force_depth_cgrid(Time, Thickness, Velocity, rho)
      do j=jsd,jec
         do i=isd,iec
            rhoave          = onehalf*(wrk2(i+1,j,k)+wrk2(i,j,k))
-           wrk1_v(i,j,k,1) = grav*rhoave*(Thickness%geodepth_zt(i+1,j,k)-Thickness%geodepth_zt(i,j,k))
+           wrk1_v(i,j,k,1) = -grav*rhoave*(Thickness%geodepth_zt(i+1,j,k)-Thickness%geodepth_zt(i,j,k))
            rhoave          = onehalf*(wrk2(i,j+1,k)+wrk2(i,j,k))
-           wrk1_v(i,j,k,2) = grav*rhoave*(Thickness%geodepth_zt(i,j+1,k)-Thickness%geodepth_zt(i,j,k))
+           wrk1_v(i,j,k,2) = -grav*rhoave*(Thickness%geodepth_zt(i,j+1,k)-Thickness%geodepth_zt(i,j,k))
            wrk2_v(i,j,k,1) = wrk1(i+1,j,k)-wrk1(i,j,k)
            wrk2_v(i,j,k,2) = wrk1(i,j+1,k)-wrk1(i,j,k)
         enddo
