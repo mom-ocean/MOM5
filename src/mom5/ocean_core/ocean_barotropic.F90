@@ -745,7 +745,21 @@ logical :: used
 integer :: id_eta_t_mod          =-1
 integer :: id_eta_t              =-1
 integer :: id_eta_t_sq           =-1
+
 integer :: id_eta_t_bt           =-1
+integer :: id_anompb_bt          =-1
+integer :: id_psx_bt             =-1
+integer :: id_psy_bt             =-1
+integer :: id_udrho_bt           =-1
+integer :: id_vdrho_bt           =-1
+
+integer :: id_eta_t_bt1          =-1
+integer :: id_anompb_bt1         =-1
+integer :: id_psx_bt1            =-1
+integer :: id_psy_bt1            =-1
+integer :: id_udrho_bt1          =-1
+integer :: id_vdrho_bt1          =-1
+
 integer :: id_deta_dt            =-1
 integer :: id_eta_u              =-1
 integer :: id_eta_t_bar          =-1
@@ -763,6 +777,11 @@ integer :: id_udrho_bt_lap     =-1
 integer :: id_udrho_bt_bih     =-1
 integer :: id_vdrho_bt_lap     =-1
 integer :: id_vdrho_bt_bih     =-1
+integer :: id_conv_ud_pred_bt1 =-1
+integer :: id_conv_ud_corr_bt1 =-1
+integer :: id_conv_ud_pred_bt  =-1
+integer :: id_conv_ud_corr_bt  =-1
+
 integer :: id_udrho_lap        =-1
 integer :: id_udrho_bih        =-1
 integer :: id_vdrho_lap        =-1
@@ -770,7 +789,6 @@ integer :: id_vdrho_bih        =-1
 
 integer :: id_pbot_t     =-1
 integer :: id_anompb     =-1
-integer :: id_anompb_bt  =-1
 integer :: id_pbot_u     =-1
 integer :: id_dpbot_dt   =-1
 
@@ -1837,10 +1855,6 @@ subroutine barotropic_diag_init(Time)
               Time%model_time, 'surface height on T cells averaged over bar loop', 'meter',&
               missing_value=missing_value, range=(/-1e3,1e3/))
 
-  id_eta_t_bt  = register_diag_field ('ocean_model', 'eta_t_bt', Grd%tracer_axes(1:2),     &
-                 Time%model_time, 'surface height on T cells w/i barotropic loop', 'meter',&
-                 missing_value=missing_value, range=(/-1e3,1e3/))
-
   id_deta_dt  = register_diag_field ('ocean_model', 'deta_dt', Grd%tracer_axes(1:2), &
                 Time%model_time,'tendency for eta_t', 'm/s',                         &
                 missing_value=missing_value, range=(/-1e6,1e6/))
@@ -1863,8 +1877,8 @@ subroutine barotropic_diag_init(Time)
               Time%model_time,'T-cell bottom pressure - rho0*grav*ht', 'dbar',    &
               missing_value=missing_value, range=(/-1e6,1e6/))
 
-  id_anompb_bt = register_diag_field ('ocean_model', 'anompb_bt', Grd%tracer_axes(1:2),&
-                 Time%model_time,'pbot_t - rho0*grav*ht in barotropic loop', 'dbar',   &
+  id_anompb_bt = register_diag_field ('ocean_model', 'anompb_bt', Grd%tracer_axes(1:2),        &
+                 Time%model_time,'pbot_t - rho0*grav*ht at itime=2 in barotropic loop', 'dbar',&
                  missing_value=missing_value, range=(/-1e6,1e6/))
 
   id_dpbot_dt = register_diag_field ('ocean_model', 'dpbot_dt', Grd%tracer_axes(1:2), &
@@ -1903,6 +1917,52 @@ subroutine barotropic_diag_init(Time)
   id_psy  = register_diag_field ('ocean_model', 'psy', Grd%vel_axes_v(1:2),&
             Time%model_time, 'meridional surf pressure gradient', 'Pa/m',  &
             missing_value=missing_value, range=(/-1e9,1e9/))
+
+  id_eta_t_bt  = register_diag_field ('ocean_model', 'eta_t_bt', Grd%tracer_axes(1:2),     &
+                 Time%model_time, 'surface height on T cells w/i barotropic loop', 'meter',&
+                 missing_value=missing_value, range=(/-1e3,1e3/))
+
+  id_udrho_bt = register_diag_field ('ocean_model', 'udrho_bt', Grd%vel_axes_u(1:2),                &
+             Time%model_time,'depth and density weighted u sampled from b/t loop', '(kg/m^3)*m^2/s',&
+             missing_value=missing_value, range=(/-1e20,1e20/))
+
+  id_vdrho_bt = register_diag_field ('ocean_model', 'vdrho_bt', Grd%vel_axes_v(1:2),                &
+             Time%model_time,'depth and density weighted v sampled from b/t loop', '(kg/m^3)*m^2/s',&
+             missing_value=missing_value, range=(/-1e20,1e20/))
+
+  id_psx_bt  = register_diag_field ('ocean_model', 'psx_bt', Grd%vel_axes_u(1:2),        &
+            Time%model_time,'zonal surf pressure gradient sampled from b/t loop', 'Pa/m',&
+            missing_value=missing_value, range=(/-1e9,1e9/))
+
+  id_psy_bt  = register_diag_field ('ocean_model', 'psy_bt', Grd%vel_axes_v(1:2),             &
+            Time%model_time,'meridional surf pressure gradient sampled from b/t loop', 'Pa/m',&
+            missing_value=missing_value, range=(/-1e9,1e9/))
+
+
+  id_eta_t_bt1  = register_diag_field ('ocean_model', 'eta_t_bt1', Grd%tracer_axes(1:2),     &
+                 Time%model_time, 'surface height on T cells from fstau=1 in barotropic loop', 'meter',&
+                 missing_value=missing_value, range=(/-1e3,1e3/))
+
+  id_anompb_bt1 = register_diag_field ('ocean_model', 'anompb_bt1', Grd%tracer_axes(1:2),      &
+                 Time%model_time,'pbot_t - rho0*grav*ht at itime=1 in barotropic loop', 'dbar',&
+                 missing_value=missing_value, range=(/-1e6,1e6/))
+
+  id_udrho_bt1 = register_diag_field ('ocean_model', 'udrho_bt1', Grd%vel_axes_u(1:2),                &
+             Time%model_time,'depth and density weighted u sampled from fstau=1 in b/t loop', '(kg/m^3)*m^2/s',&
+             missing_value=missing_value, range=(/-1e20,1e20/))
+
+  id_vdrho_bt1 = register_diag_field ('ocean_model', 'vdrho_bt1', Grd%vel_axes_v(1:2),                &
+             Time%model_time,'depth and density weighted v sampled from fstau=1 in b/t loop', '(kg/m^3)*m^2/s',&
+             missing_value=missing_value, range=(/-1e20,1e20/))
+
+  id_psx_bt1  = register_diag_field ('ocean_model', 'psx_bt1', Grd%vel_axes_u(1:2),        &
+            Time%model_time,'zonal surf pressure gradient sampled from fstau=1 in b/t loop', 'Pa/m',&
+            missing_value=missing_value, range=(/-1e9,1e9/))
+
+  id_psy_bt1  = register_diag_field ('ocean_model', 'psy_bt1', Grd%vel_axes_v(1:2),             &
+            Time%model_time,'meridional surf pressure gradient sampled from fstau=1 in b/t loop', 'Pa/m',&
+            missing_value=missing_value, range=(/-1e9,1e9/))
+
 
   id_pb   = register_diag_field ('ocean_model', 'pb', Grd%tracer_axes(1:2), &
             Time%model_time,'effective bottom pressure ', 'Pa',             &
@@ -2045,15 +2105,51 @@ subroutine barotropic_diag_init(Time)
                'kg/m^3', missing_value=missing_value, range=(/-1e1,1e6/))
 
   if(vert_coordinate_class==PRESSURE_BASED) then 
-      rho_water_r=0.001
-      id_pme_velocity = register_diag_field('ocean_model','pme_velocity', Grd%tracer_axes(1:2),        &
-           Time%model_time, 'net (precip-evap)(kg/(m2*sec) into ocean, divided by 1000kg/m3', 'm/sec', &
-           missing_value=missing_value,range=(/-1e6,1e6/))   
+
+     rho_water_r=0.001
+     id_pme_velocity = register_diag_field('ocean_model','pme_velocity', Grd%tracer_axes(1:2),        &
+          Time%model_time, 'net (precip-evap)(kg/(m2*sec) into ocean, divided by 1000kg/m3', 'm/sec', &
+          missing_value=missing_value,range=(/-1e6,1e6/))
+
+     id_conv_ud_pred_bt1 = register_diag_field ('ocean_model', 'conv_ud_pred_bt1', Grd%tracer_axes(1:2),         &
+                 Time%model_time, 'dt*gamma*convergence of (udrho_bt,vdrho_bt) at fstau=1 for pred step', 'dbar',&
+                 missing_value=missing_value, range=(/-1e3,1e3/))
+
+     id_conv_ud_corr_bt1 = register_diag_field ('ocean_model', 'conv_ud_corr_bt1', Grd%tracer_axes(1:2),   &
+                 Time%model_time, 'dt*convergence of (udrho_bt,vdrho_bt) at fstau=1 for corr step', 'dbar',&
+                 missing_value=missing_value, range=(/-1e3,1e3/))
+
+     id_conv_ud_pred_bt = register_diag_field ('ocean_model', 'conv_ud_pred_bt', Grd%tracer_axes(1:2),           &
+                 Time%model_time, 'dt*gamma*convergence of (udrho_bt,vdrho_bt) at fstau=2 for pred step', 'dbar',&
+                 missing_value=missing_value, range=(/-1e3,1e3/))
+
+     id_conv_ud_corr_bt = register_diag_field ('ocean_model', 'conv_ud_corr_bt', Grd%tracer_axes(1:2),     &
+                 Time%model_time, 'dt*convergence of (udrho_bt,vdrho_bt) at fstau=2 for corr step', 'dbar',&
+                 missing_value=missing_value, range=(/-1e3,1e3/))
+
   else 
-      rho_water_r=rho0r
-      id_pme_velocity = register_diag_field('ocean_model','pme_velocity', Grd%tracer_axes(1:2),       &
-           Time%model_time, 'net (precip-evap)(kg/(m2*sec) into ocean, divided by 1035kg/m3', 'm/sec',&
-           missing_value=missing_value,range=(/-1e6,1e6/))   
+
+     rho_water_r=rho0r
+     id_pme_velocity = register_diag_field('ocean_model','pme_velocity', Grd%tracer_axes(1:2),       &
+          Time%model_time, 'net (precip-evap)(kg/(m2*sec) into ocean, divided by 1035kg/m3', 'm/sec',&
+          missing_value=missing_value,range=(/-1e6,1e6/))
+
+     id_conv_ud_pred_bt1 = register_diag_field ('ocean_model', 'conv_ud_pred_bt1', Grd%tracer_axes(1:2),                &
+                 Time%model_time, 'dt*rho0r*gamma*convergence of (udrho_bt,vdrho_bt) at fstau=1 for pred step', 'metre',&
+                 missing_value=missing_value, range=(/-1e3,1e3/))
+
+     id_conv_ud_corr_bt1 = register_diag_field ('ocean_model', 'conv_ud_corr_bt1', Grd%tracer_axes(1:2),          &
+                 Time%model_time, 'dt*rho0r*convergence of (udrho_bt,vdrho_bt) at fstau=1 for corr step', 'metre',&
+                 missing_value=missing_value, range=(/-1e3,1e3/))
+
+     id_conv_ud_pred_bt = register_diag_field ('ocean_model', 'conv_ud_pred_bt', Grd%tracer_axes(1:2),                  &
+                 Time%model_time, 'dt*rho0r*gamma*convergence of (udrho_bt,vdrho_bt) at fstau=2 for pred step', 'metre',&
+                 missing_value=missing_value, range=(/-1e3,1e3/))
+
+     id_conv_ud_corr_bt = register_diag_field ('ocean_model', 'conv_ud_corr_bt', Grd%tracer_axes(1:2),            &
+                 Time%model_time, 'dt*rho0r*convergence of (udrho_bt,vdrho_bt) at fstau=2 for corr step', 'metre',&
+                 missing_value=missing_value, range=(/-1e3,1e3/))
+
   endif
 
   call eta_terms_diagnose_init(Time)
@@ -3299,6 +3395,8 @@ subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Velocity, Ext_mode, pa
   thicku_bt      = 0.0
   friction_lap   = 0.0 
   friction_bih   = 0.0 
+  wrk1_2d        = 0.0     ! for diagnostics
+  wrk2_2d        = 0.0     ! for diagnostics
 
   tau   = Time%tau 
   taup1 = Time%taup1
@@ -3412,6 +3510,9 @@ subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Velocity, Ext_mode, pa
      else
          eta_t_bt(isd:ied,jsd:jed,fstaup1) = eta_t_bt(isd:ied,jsd:jed,fstau)
      endif
+
+     ! for diagnostics
+     wrk1_2d(isd:ied,jsd:jed) = dtbt_gamma_rho0r*tmp(isd:ied,jsd:jed)
 
      if(use_legacy_barotropic_halos) call mpp_update_domains(eta_t_bt(:,:,fstaup1), Dom_bt%domain2d)
 
@@ -3537,6 +3638,9 @@ subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Velocity, Ext_mode, pa
      enddo
      if(have_obc) call ocean_obc_barotropic(eta_t_bt, fstau, fstau, fstaup1, dtbt)
 
+     ! for diagnostics
+     wrk2_2d(isd:ied,jsd:jed) = dtbt_rho0r*tmp(isd:ied,jsd:jed)
+
      ! smooth eta_t_bt (relative to eta_t_bt=0).
      ! time consuming due to mpp_update_domain calls
      if(smooth_eta_t_bt_laplacian) then
@@ -3577,11 +3681,78 @@ subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Velocity, Ext_mode, pa
          enddo
      endif
 
-     ! take a sample from the centre of the barotropic loop 
-     if(itime==int(nts/2)) then 
-         if (id_eta_t_bt > 0) then
-             used = send_data (id_eta_t_bt, eta_t_bt(:,:,fstau), &
+     if(itime==1) then
+         if (id_conv_ud_pred_bt1 > 0) then
+             used = send_data (id_conv_ud_pred_bt1, wrk1_2d(:,:), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),      &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_conv_ud_corr_bt1 > 0) then
+             used = send_data (id_conv_ud_corr_bt1, wrk2_2d(:,:), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),      &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_eta_t_bt1 > 0) then
+             used = send_data (id_eta_t_bt1, eta_t_bt(:,:,fstaup1), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),        &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_psx_bt1 > 0) then
+             used = send_data (id_psx_bt1, press_force_bt(:,:,1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),  &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_psy_bt1 > 0) then
+             used = send_data (id_psy_bt1, press_force_bt(:,:,2), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),  &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_udrho_bt1 > 0) then
+             used = send_data (id_udrho_bt1, udrho_bt(:,:,1,fstaup1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),      &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_vdrho_bt1 > 0) then
+             used = send_data (id_vdrho_bt1, udrho_bt(:,:,2,fstaup1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),      &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+     endif
+
+     if(itime==2) then
+         if (id_conv_ud_pred_bt > 0) then
+             used = send_data (id_conv_ud_pred_bt, wrk1_2d(:,:), &
                     Time%model_time, rmask=Grd%tmask(:,:,1),     &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_conv_ud_corr_bt > 0) then
+             used = send_data (id_conv_ud_corr_bt, wrk2_2d(:,:), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),     &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_eta_t_bt > 0) then
+             used = send_data (id_eta_t_bt, eta_t_bt(:,:,fstaup1), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),       &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_psx_bt > 0) then
+             used = send_data (id_psx_bt, press_force_bt(:,:,1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_psy_bt > 0) then
+             used = send_data (id_psy_bt, press_force_bt(:,:,2), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,2), &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_udrho_bt > 0) then
+             used = send_data (id_udrho_bt, udrho_bt(:,:,1,fstaup1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),     &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_vdrho_bt > 0) then
+             used = send_data (id_vdrho_bt, udrho_bt(:,:,2,fstaup1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),     &
                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
          endif
          if (id_udrho_bt_lap > 0) then
@@ -3650,9 +3821,12 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, pa
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt)     :: tmp
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt)     :: ps_bt
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt)     :: patm_bt
+  real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt)     :: dxter_bt
+  real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt)     :: dytnr_bt
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt,2)   :: forcing_bt
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt,2)   :: grad_ps_bt
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt,2)   :: thicken_bt
+  real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt,2)   :: tmasken_bt
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt,2)   :: wrk1_v2d_bt
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt,2)   :: press_force_bt
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt,2,3) :: coriolis_force_bt
@@ -3673,9 +3847,14 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, pa
   patm_bt           = 0.0
   forcing_bt        = 0.0
   thicken_bt        = 0.0
+  tmasken_bt        = 0.0
+  dxter_bt          = 0.0
+  dytnr_bt          = 0.0
   coriolis_force_bt = 0.0
   coriolis_accel_bt = 0.0
   wrk1_v2d_bt       = 0.0    ! placeholder array 
+  wrk1_2d           = 0.0    ! for diagnostics
+  wrk2_2d           = 0.0    ! for diagnostics
 
   tau   = Time%tau 
   taup1 = Time%taup1
@@ -3760,6 +3939,10 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, pa
   call mpp_update_domains(coriolis_accel_bt(:,:,1),coriolis_accel_bt(:,:,2), Dom%domain2d, gridtype=GRID_NE)
 
   patm_bt(isd:ied,jsd:jed)      = patm(isd:ied,jsd:jed)
+  dxter_bt(isd:ied,jsd:jed)     = Grd%dxter(isd:ied,jsd:jed)
+  dytnr_bt(isd:ied,jsd:jed)     = Grd%dytnr(isd:ied,jsd:jed)
+  tmasken_bt(isd:ied,jsd:jed,1) = Grd%tmasken(isd:ied,jsd:jed,1,1)
+  tmasken_bt(isd:ied,jsd:jed,2) = Grd%tmasken(isd:ied,jsd:jed,1,2)
   thicken_bt(isd:ied,jsd:jed,1) = Thickness%thicken(isd:ied,jsd:jed,1)
   thicken_bt(isd:ied,jsd:jed,2) = Thickness%thicken(isd:ied,jsd:jed,2)
   forcing_bt(isd:ied,jsd:jed,:) = Ext_mode%forcing_bt(isd:ied,jsd:jed,:)
@@ -3780,10 +3963,15 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, pa
 
      call mpp_update_domains(patm_bt,             Dom_bt%domain2d, complete=.false.)
      call mpp_update_domains(steady_forcing,      Dom_bt%domain2d, complete=.false.)
+     call mpp_update_domains(dxter_bt,            Dom_bt%domain2d, complete=.false.)
+     call mpp_update_domains(dytnr_bt,            Dom_bt%domain2d, complete=.false.)
      call mpp_update_domains(eta_t_bt(:,:,fstau), Dom_bt%domain2d, complete=.true.)
 
      call mpp_update_domains(thicken_bt(:,:,1), Dom_bt%domain2d, position=EAST)
      call mpp_update_domains(thicken_bt(:,:,2), Dom_bt%domain2d, position=NORTH)
+
+     call mpp_update_domains(tmasken_bt(:,:,1), Dom_bt%domain2d, position=EAST)
+     call mpp_update_domains(tmasken_bt(:,:,2), Dom_bt%domain2d, position=NORTH)
   endif
 
   ! step over the nts barotropic time steps 
@@ -3829,6 +4017,9 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, pa
      else
          eta_t_bt(isd:ied,jsd:jed,fstaup1) = eta_t_bt(isd:ied,jsd:jed,fstau)
      endif
+
+     ! for diagnostics
+     wrk1_2d(isd:ied,jsd:jed) = dtbt_gamma_rho0r*tmp(isd:ied,jsd:jed)
 
      if (tidal_forcing) then
          dayr = dayr + dtbt/86400.0 
@@ -3918,6 +4109,9 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, pa
      enddo
      if(have_obc) call ocean_obc_barotropic(eta_t_bt, fstau, fstau, fstaup1, dtbt)
 
+     ! for diagnostics
+     wrk2_2d(isd:ied,jsd:jed) = dtbt_rho0r*tmp(isd:ied,jsd:jed)
+
      ! these two if-tests have no overlap  
      if (update_domains_for_obc  .or.  &
          (do_update .AND. barotropic_halo.gt.1) )  then
@@ -3945,14 +4139,84 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, pa
          enddo
      endif
 
-     ! take a sample from the centre of the barotropic loop 
-     if(itime==int(nts/2)) then 
-         if (id_eta_t_bt > 0) then
-             used = send_data (id_eta_t_bt, eta_t_bt(:,:,fstau), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),     &
+     ! take a sample from the barotropic loop itime=1
+     if(itime==1) then
+         if (id_conv_ud_pred_bt1 > 0) then
+             used = send_data (id_conv_ud_pred_bt1, wrk1_2d(:,:), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),      &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_conv_ud_corr_bt1 > 0) then
+             used = send_data (id_conv_ud_corr_bt1, wrk2_2d(:,:), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),      &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_eta_t_bt1 > 0) then
+             used = send_data (id_eta_t_bt1, eta_t_bt(:,:,fstaup1), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),        &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_psx_bt1 > 0) then
+             used = send_data (id_psx_bt1, press_force_bt(:,:,1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),  &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_psy_bt1 > 0) then
+             used = send_data (id_psy_bt1, press_force_bt(:,:,2), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),  &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_udrho_bt1 > 0) then
+             used = send_data (id_udrho_bt1, udrho_bt(:,:,1,fstaup1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),      &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_vdrho_bt1 > 0) then
+             used = send_data (id_vdrho_bt1, udrho_bt(:,:,2,fstaup1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),      &
                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
          endif
      endif
+
+     ! take a sample from the barotropic loop itime=2
+     if(itime==2) then
+         if (id_conv_ud_pred_bt > 0) then
+             used = send_data (id_conv_ud_pred_bt, wrk1_2d(:,:), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),     &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_conv_ud_corr_bt > 0) then
+             used = send_data (id_conv_ud_corr_bt, wrk2_2d(:,:), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),     &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_eta_t_bt > 0) then
+             used = send_data (id_eta_t_bt, eta_t_bt(:,:,fstaup1), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),       &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_psx_bt > 0) then
+             used = send_data (id_psx_bt, press_force_bt(:,:,1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_psy_bt > 0) then
+             used = send_data (id_psy_bt, press_force_bt(:,:,2), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,2), &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_udrho_bt > 0) then
+             used = send_data (id_udrho_bt, udrho_bt(:,:,1,fstaup1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),     &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_vdrho_bt > 0) then
+             used = send_data (id_vdrho_bt, udrho_bt(:,:,2,fstaup1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),     &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+     endif
+
      if( barotropic_halo > 1 ) then
         offset = offset + 1
         if(do_update) offset = 0
@@ -4018,6 +4282,8 @@ subroutine pred_corr_tropic_press_bgrid (Time, Thickness, Velocity, Ext_mode, pm
   taup1 = Time%taup1
 
   eta_eq_tidal = 0.0 
+  wrk1_2d      = 0.0    ! for diagnostics
+  wrk2_2d      = 0.0    ! for diagnostics
 
   itime   = 1
   fstau   = mod(itime+0,2) + 1
@@ -4126,6 +4392,9 @@ subroutine pred_corr_tropic_press_bgrid (Time, Thickness, Velocity, Ext_mode, pm
      else
          anompb_bt(isd:ied,jsd:jed,fstaup1) = anompb_bt(isd:ied,jsd:jed,fstau)
      endif
+
+     ! for diagnostics
+     wrk1_2d(isd:ied,jsd:jed) = dtbt_gamma*tmp(isd:ied,jsd:jed)
 
      if(use_legacy_barotropic_halos) call mpp_update_domains(anompb_bt(:,:,fstaup1), Dom_bt%domain2d)
 
@@ -4244,6 +4513,9 @@ subroutine pred_corr_tropic_press_bgrid (Time, Thickness, Velocity, Ext_mode, pm
 
      if (have_obc) call ocean_obc_barotropic(anompb_bt, fstau, fstau, fstaup1, dtbt)
 
+     ! for diagnostics
+     wrk2_2d(isd:ied,jsd:jed) = dtbt*tmp(isd:ied,jsd:jed)
+
      ! smooth anompb_bt.
      ! time consuming due to mpp_update_domain calls
      if(smooth_anompb_bt_laplacian) then
@@ -4287,16 +4559,79 @@ subroutine pred_corr_tropic_press_bgrid (Time, Thickness, Velocity, Ext_mode, pm
          enddo
      endif
 
-     ! take a sample from the centre of the barotropic loop 
-     if(itime==int(nts/2)) then 
-         if (id_eta_t_bt > 0) then
-             used = send_data (id_eta_t_bt, eta_t_bt(isd:ied,jsd:jed,fstau), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),                 &
+     ! take a sample from the barotropic loop
+     if(itime==1) then
+         if (id_conv_ud_pred_bt1 > 0) then
+             used = send_data (id_conv_ud_pred_bt1, wrk1_2d(:,:), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),      &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_conv_ud_corr_bt1 > 0) then
+             used = send_data (id_conv_ud_corr_bt1, wrk2_2d(:,:), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),      &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_psx_bt1 > 0) then
+             used = send_data (id_psx_bt1, press_force_bt(:,:,1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_psy_bt1 > 0) then
+             used = send_data (id_psy_bt1, press_force_bt(:,:,2), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,2), &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_udrho_bt1 > 0) then
+             used = send_data (id_udrho_bt1, udrho_bt(:,:,1,fstaup1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),   &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_vdrho_bt1 > 0) then
+             used = send_data (id_vdrho_bt1, udrho_bt(:,:,2,fstaup1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),   &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_anompb_bt1 > 0) then
+             used = send_data (id_anompb_bt1, anompb_bt(isd:ied,jsd:jed,fstaup1), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),                      &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+     endif
+
+     if(itime==2) then
+         if (id_conv_ud_pred_bt > 0) then
+             used = send_data (id_conv_ud_pred_bt, wrk1_2d(:,:), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),     &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_conv_ud_corr_bt > 0) then
+             used = send_data (id_conv_ud_corr_bt, wrk2_2d(:,:), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),     &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_psx_bt > 0) then
+             used = send_data (id_psx_bt, press_force_bt(:,:,1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_psy_bt > 0) then
+             used = send_data (id_psy_bt, press_force_bt(:,:,2), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,2), &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_udrho_bt > 0) then
+             used = send_data (id_udrho_bt, udrho_bt(:,:,1,fstaup1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),     &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_vdrho_bt > 0) then
+             used = send_data (id_vdrho_bt, udrho_bt(:,:,2,fstaup1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),     &
                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
          endif
          if (id_anompb_bt > 0) then
-             used = send_data (id_anompb_bt, anompb_bt(isd:ied,jsd:jed,fstau), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),                   &
+             used = send_data (id_anompb_bt, anompb_bt(isd:ied,jsd:jed,fstaup1), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),                     &
                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
          endif
          if (id_udrho_bt_lap > 0) then
@@ -4391,6 +4726,8 @@ subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Velocity, Ext_mode, pm
   coriolis_force_bt = 0.0
   coriolis_accel_bt = 0.0
   wrk1_v2d_bt       = 0.0    ! placeholder array 
+  wrk1_2d           = 0.0    ! for diagnostics
+  wrk2_2d           = 0.0    ! for diagnostics
 
   tau   = Time%tau 
   taup1 = Time%taup1
@@ -4540,6 +4877,9 @@ subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Velocity, Ext_mode, pm
 
      if(have_obc) call ocean_obc_barotropic(anompb_bt, fstau, fstau, fstaup1, dtbt_gamma)
 
+     ! for diagnostics
+     wrk1_2d(isd:ied,jsd:jed) = dtbt_gamma*tmp(isd:ied,jsd:jed)
+
      wrk1_2d_bt(:,:) = 0.0
      if (tidal_forcing) then
          dayr = dayr + dtbt/86400.0 
@@ -4623,6 +4963,9 @@ subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Velocity, Ext_mode, pm
 
      if (have_obc) call ocean_obc_barotropic(anompb_bt, fstau, fstau, fstaup1, dtbt)
 
+     ! for diagnostics
+     wrk2_2d(isd:ied,jsd:jed) = dtbt*tmp(isd:ied,jsd:jed)
+
      ! smooth anompb_bt.
      ! time consuming due to mpp_update_domain calls
      if(smooth_anompb_bt_laplacian) then
@@ -4666,16 +5009,84 @@ subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Velocity, Ext_mode, pm
          enddo
      endif
 
-     ! take a sample from the centre of the barotropic loop 
-     if(itime==int(nts/2)) then 
+     ! take a sample from the barotropic loop
+     if(itime==1) then
+         if (id_conv_ud_pred_bt1 > 0) then
+             used = send_data (id_conv_ud_pred_bt1, wrk1_2d(:,:), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),      &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_conv_ud_corr_bt1 > 0) then
+             used = send_data (id_conv_ud_corr_bt1, wrk2_2d(:,:), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),      &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_psx_bt1 > 0) then
+             used = send_data (id_psx_bt1, press_force_bt(:,:,1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_psy_bt1 > 0) then
+             used = send_data (id_psy_bt1, press_force_bt(:,:,2), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,2), &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_udrho_bt1 > 0) then
+             used = send_data (id_udrho_bt1, udrho_bt(:,:,1,fstaup1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),   &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_vdrho_bt1 > 0) then
+             used = send_data (id_vdrho_bt1, udrho_bt(:,:,2,fstaup1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),   &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_anompb_bt1 > 0) then
+             used = send_data (id_anompb_bt1, anompb_bt(isd:ied,jsd:jed,fstaup1), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),                      &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+     endif
+
+     if(itime==2) then
+         if (id_conv_ud_pred_bt > 0) then
+             used = send_data (id_conv_ud_pred_bt, wrk1_2d(:,:), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),     &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_conv_ud_corr_bt > 0) then
+             used = send_data (id_conv_ud_corr_bt, wrk2_2d(:,:), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),     &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
          if (id_eta_t_bt > 0) then
-             used = send_data (id_eta_t_bt, eta_t_bt(isd:ied,jsd:jed,fstau), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),                 &
+             used = send_data (id_eta_t_bt, eta_t_bt(:,:,fstaup1), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),       &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_psx_bt > 0) then
+             used = send_data (id_psx_bt, press_force_bt(:,:,1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_psy_bt > 0) then
+             used = send_data (id_psy_bt, press_force_bt(:,:,2), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,2), &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_udrho_bt > 0) then
+             used = send_data (id_udrho_bt, udrho_bt(:,:,1,fstaup1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),     &
+                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         endif
+         if (id_vdrho_bt > 0) then
+             used = send_data (id_vdrho_bt, udrho_bt(:,:,2,fstaup1), &
+                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),     &
                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
          endif
          if (id_anompb_bt > 0) then
-             used = send_data (id_anompb_bt, anompb_bt(isd:ied,jsd:jed,fstau), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),                   &
+             used = send_data (id_anompb_bt, anompb_bt(isd:ied,jsd:jed,fstaup1), &
+                    Time%model_time, rmask=Grd%tmask(:,:,1),                     &
                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
          endif
      endif
