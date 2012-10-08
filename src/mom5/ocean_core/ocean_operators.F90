@@ -152,11 +152,13 @@ module ocean_operators_mod
   namelist /ocean_operators_nml/ use_legacy_DIV_UD
 
   integer :: barotropic_halo, isd_bt, ied_bt, jsd_bt, jed_bt
+  real, dimension(:,:),   allocatable :: dxtn_bt,  dyte_bt
   real, dimension(:,:),   allocatable :: dxte_bt,  dytn_bt
   real, dimension(:,:),   allocatable :: dxter_bt, dytnr_bt
   real, dimension(:,:),   allocatable :: dxu_bt,   dyu_bt
   real, dimension(:,:),   allocatable :: dxur_bt,  dyur_bt
-  real, dimension(:,:),   allocatable :: umask_bt, datr_bt
+  real, dimension(:,:),   allocatable :: dat_bt,   datr_bt
+  real, dimension(:,:),   allocatable :: umask_bt
   real, dimension(:,:,:), allocatable :: tmasken_bt
   type(ocean_domain_type), pointer    :: Dom_bt => NULL()
 
@@ -277,35 +279,44 @@ subroutine ocean_operators_init(Grid, Domain, Thickness, hor_grid)
    jsd_bt = jsc - barotropic_halo
    jed_bt = jec + barotropic_halo
 
+   allocate(dxtn_bt(isd_bt:ied_bt,  jsd_bt:jed_bt))
+   allocate(dyte_bt(isd_bt:ied_bt,  jsd_bt:jed_bt))
    allocate(dxte_bt(isd_bt:ied_bt,  jsd_bt:jed_bt))
    allocate(dytn_bt(isd_bt:ied_bt,  jsd_bt:jed_bt))
    allocate(dxter_bt(isd_bt:ied_bt, jsd_bt:jed_bt))
    allocate(dytnr_bt(isd_bt:ied_bt, jsd_bt:jed_bt))
    allocate(dxu_bt(isd_bt:ied_bt,   jsd_bt:jed_bt))
    allocate(dyu_bt(isd_bt:ied_bt,   jsd_bt:jed_bt))
+   allocate(dat_bt(isd_bt:ied_bt,   jsd_bt:jed_bt))
    allocate(datr_bt(isd_bt:ied_bt,  jsd_bt:jed_bt))
    allocate(dxur_bt(isd_bt:ied_bt,  jsd_bt:jed_bt))
    allocate(dyur_bt(isd_bt:ied_bt,  jsd_bt:jed_bt))
    allocate(umask_bt(isd_bt:ied_bt, jsd_bt:jed_bt))
    allocate(tmasken_bt(isd_bt:ied_bt, jsd_bt:jed_bt, 2))
+   dxtn_bt    = 0
+   dyte_bt    = 0
    dxte_bt    = 0
    dytn_bt    = 0
    dxter_bt   = 0
    dytnr_bt   = 0
    dxu_bt     = 0
    dyu_bt     = 0
+   dat_bt     = 0
    datr_bt    = 0
    dxur_bt    = 0
    dyur_bt    = 0
    umask_bt   = 0
    tmasken_bt = 0
 
+   dxtn_bt(isd:ied, jsd:jed)       = Grid%dxtn
+   dyte_bt(isd:ied, jsd:jed)       = Grid%dyte
    dxte_bt(isd:ied, jsd:jed)       = Grid%dxte
    dytn_bt(isd:ied, jsd:jed)       = Grid%dytn
    dxter_bt(isd:ied, jsd:jed)      = Grid%dxter
    dytnr_bt(isd:ied, jsd:jed)      = Grid%dytnr
    dxu_bt(isd:ied, jsd:jed)        = Grid%dxu
    dyu_bt(isd:ied, jsd:jed)        = Grid%dyu
+   dat_bt(isd:ied, jsd:jed)        = Grid%dat
    datr_bt(isd:ied, jsd:jed)       = Grid%datr
    dxur_bt(isd:ied, jsd:jed)       = Grid%dxur
    dyur_bt(isd:ied, jsd:jed)       = Grid%dyur
@@ -313,6 +324,8 @@ subroutine ocean_operators_init(Grid, Domain, Thickness, hor_grid)
    tmasken_bt(isd:ied, jsd:jed, 1) = Grid%tmasken(:,:,1,1)
    tmasken_bt(isd:ied, jsd:jed, 2) = Grid%tmasken(:,:,1,2)
    if(barotropic_halo > 1 ) then
+      call mpp_update_domains(dxtn_bt,  Dom_bt%domain2d, position=NORTH  )
+      call mpp_update_domains(dyte_bt,  Dom_bt%domain2d, position=EAST   )
       call mpp_update_domains(dxte_bt,  Dom_bt%domain2d, position=EAST   )
       call mpp_update_domains(dytn_bt,  Dom_bt%domain2d, position=NORTH  )
       call mpp_update_domains(dxter_bt, Dom_bt%domain2d, position=EAST   )
@@ -321,6 +334,7 @@ subroutine ocean_operators_init(Grid, Domain, Thickness, hor_grid)
       call mpp_update_domains(dyu_bt,   Dom_bt%domain2d, position=CORNER )
       call mpp_update_domains(dxur_bt,  Dom_bt%domain2d, position=CORNER )
       call mpp_update_domains(dyur_bt,  Dom_bt%domain2d, position=CORNER )
+      call mpp_update_domains(dat_bt,   Dom_bt%domain2d )
       call mpp_update_domains(datr_bt,  Dom_bt%domain2d )
       call mpp_update_domains(umask_bt, Dom_bt%domain2d, position=CORNER )
       call mpp_update_domains(tmasken_bt(:,:,1), Dom_bt%domain2d, position=EAST )
