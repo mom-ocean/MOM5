@@ -39,6 +39,7 @@ use time_manager_mod,    only: time_type, increment_time
 use ocean_domains_mod,    only: get_local_indices
 use ocean_operators_mod,  only: BAX, BAY, BDX_ET, BDY_NT, BDX_EU, BDY_NU
 use ocean_operators_mod,  only: REMAP_ET_TO_EU, REMAP_NT_TO_NU, REMAP_BT_TO_BU
+use ocean_parameters_mod, only: MOM_BGRID, MOM_CGRID
 use ocean_parameters_mod, only: missing_value, rho0r 
 use ocean_types_mod,      only: ocean_domain_type, ocean_grid_type
 use ocean_types_mod,      only: ocean_adv_vel_type, ocean_density_type
@@ -110,6 +111,8 @@ logical :: used
 type(ocean_grid_type), pointer   :: Grd =>NULL()
 type(ocean_domain_type), pointer :: Dom =>NULL()
 
+! for Bgrid or Cgrid
+integer :: horz_grid
 
 #ifdef MOM_STATIC_ARRAYS
  real, dimension(isd:ied,jsd:jed)  :: tmp 
@@ -152,7 +155,7 @@ contains
 ! diagnosing advection velocity related properties of the simulation.
 ! </DESCRIPTION>
 !
-subroutine ocean_adv_vel_diag_init(Grid, Domain, Time, Time_steps, T_prog, Dens, cmip_units)
+subroutine ocean_adv_vel_diag_init(Grid, Domain, Time, Time_steps, T_prog, Dens, hor_grid, cmip_units)
 
 type(ocean_grid_type),    target, intent(in) :: Grid
 type(ocean_domain_type),  target, intent(in) :: Domain
@@ -160,6 +163,7 @@ type(ocean_time_type),            intent(in) :: Time
 type(ocean_time_steps_type),      intent(in) :: Time_steps
 type(ocean_prog_tracer_type),     intent(in) :: T_prog(:)
 type(ocean_density_type),         intent(in) :: Dens
+integer,                          intent(in) :: hor_grid
 logical,                          intent(in) :: cmip_units
 
 integer :: n, ioun, io_status, ierr
@@ -202,6 +206,7 @@ dtuv    = Time_steps%dtuv
 dtts    = Time_steps%dtts
 dtime_t = Time_steps%dtime_t
 dtime_u = Time_steps%dtime_u
+horz_grid = hor_grid
 
 ! set index for potential temperature 
 do n=1,size(T_prog,1)
@@ -292,7 +297,9 @@ id_transport_on_rho   = mpp_clock_id('(Ocean adv_vel_diag: rho-trans)'   ,grain=
 id_transport_on_nrho  = mpp_clock_id('(Ocean adv_vel_diag: nrho-trans)'  ,grain=CLOCK_ROUTINE)
 id_transport_on_theta = mpp_clock_id('(Ocean adv_vel_diag: theta-trans)' ,grain=CLOCK_ROUTINE)
 
-call remapping_check
+if(horz_grid == MOM_BGRID) then
+  call remapping_check
+endif
 
 end subroutine ocean_adv_vel_diag_init
 ! </SUBROUTINE>  NAME="ocean_adv_vel_diag_init"
@@ -654,7 +661,10 @@ subroutine maximum_bottom_w(Adv_vel)
   enddo
   wtbot = rho0r*abs(wtbot)
 
-  ! Find Max "wrho_bu" at bottom (not an error: part of the slope velocity)
+  ! Find Max "wrho_bu" at bottom
+  ! Relevant only for Bgrid.
+  ! Note that wrho_bu is nonzero at the bottom of a U-column
+  ! since it is part of the slope velocity.
 
   wubot=0.0; iwubot=isc; jwubot=jsc; kwubot=1
   do j=jsc,jec
@@ -687,10 +697,12 @@ subroutine maximum_bottom_w(Adv_vel)
                       Grd%xt(iwtbot,jwtbot), Grd%yt(iwtbot,jwtbot), Grd%zt(kwtbot)
   endif
   
-  if (abs(wubot0) == wubot) then
-    wubot = wubot0/fudge
-    write (unit,9113) wubot, iwubot+Dom%ioff, jwubot+Dom%joff, kwubot, &
-                      Grd%xu(iwubot,jwubot), Grd%yu(iwubot,jwubot), Grd%zt(kwubot)
+  if(horz_grid == MOM_BGRID) then
+     if (abs(wubot0) == wubot) then
+       wubot = wubot0/fudge
+       write (unit,9113) wubot, iwubot+Dom%ioff, jwubot+Dom%joff, kwubot, &
+                         Grd%xu(iwubot,jwubot), Grd%yu(iwubot,jwubot), Grd%zt(kwubot)
+     endif
   endif
 
 9112  format(/' Maximum T-cell bottom velocity (',es10.3,' m/s){error}  at (i,j,k) = ','(',i4,',',i4,',',i4,'),',&
@@ -733,6 +745,7 @@ subroutine max_continuity_error(Adv_vel, Thickness)
                    + BDY_NT(Adv_vel%vhrho_nt(:,:,k)) &
                    + Adv_vel%wrho_bt(:,:,k-1)-Adv_vel%wrho_bt(:,:,k))*Grd%tmask(:,:,k)
 
+     ! relevant only for Bgrid
      tmp(:,:)    = Grd%umask(:,:,k)*REMAP_BT_TO_BU(tmp(:,:))
      wrk2(:,:,k) =  (tmp(:,:)                        &
                    + BDX_EU(Adv_vel%uhrho_eu(:,:,k)) &
@@ -785,11 +798,13 @@ subroutine max_continuity_error(Adv_vel, Thickness)
      ,Grd%xt(it,jt),',',Grd%yt(it,jt),',',  Grd%zt(kt),' m)'
   endif
 
-  if (abs(bigu0) == bigu) then
-    bigu = bigu0/fudge
-    write (unit,'(/,a,es10.3,a,i4,a1,i3,a1,i3,a,f9.2,a,f9.2,a,f9.2,a)') ' Maximum U-cell Continuity Error (',bigu,&
-    ' m/s) is at (i,j,k) = (',iu+Dom%ioff,',',ju+Dom%joff,',',ku,'),  (lon,lat,dpt) = ('&
-     ,Grd%xu(iu,ju),',',Grd%yu(iu,ju),',',  Grd%zt(ku),' m)'
+  if(horz_grid==MOM_BGRID) then
+     if (abs(bigu0) == bigu) then
+       bigu = bigu0/fudge
+       write (unit,'(/,a,es10.3,a,i4,a1,i3,a1,i3,a,f9.2,a,f9.2,a,f9.2,a)') ' Maximum U-cell Continuity Error (',bigu,&
+       ' m/s) is at (i,j,k) = (',iu+Dom%ioff,',',ju+Dom%joff,',',ku,'),  (lon,lat,dpt) = ('&
+        ,Grd%xu(iu,ju),',',Grd%yu(iu,ju),',',  Grd%zt(ku),' m)'
+     endif
   endif
 
   

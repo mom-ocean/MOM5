@@ -110,7 +110,7 @@ id_adv_vel_diag  = mpp_clock_id('(Ocean diagnostics: adv_vel)'  ,grain=CLOCK_MOD
 id_tracer_diag   = mpp_clock_id('(Ocean diagnostics: tracer)'   ,grain=CLOCK_MODULE)
 id_velocity_diag = mpp_clock_id('(Ocean diagnostics: velocity)' ,grain=CLOCK_MODULE)
 
-call ocean_adv_vel_diag_init (Grid, Domain, Time, Time_steps, T_prog, Dens, cmip_units)
+call ocean_adv_vel_diag_init (Grid, Domain, Time, Time_steps, T_prog, Dens, horz_grid, cmip_units)
 call ocean_tracer_diag_init  (Grid, Domain, Time, Time_steps, Thickness, T_prog, T_diag, Dens, &
                               vert_coordinate_class, use_blobs, have_obc)
 call ocean_velocity_diag_init(Grid, Domain, Time, Time_steps, horz_grid)
