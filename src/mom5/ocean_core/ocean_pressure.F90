@@ -515,6 +515,7 @@ subroutine press_grad_force_depth_bgrid(Time, Thickness, Velocity, rho)
 
   do k=1,nk
 
+     ! geopotential = -grav*geodepth, hence the minus sign below 
      do j=jsd,jed
         do i=isd,iec
            diff_geo_x(i,j) = -grav*(Thickness%geodepth_zt(i+1,j,k)-Thickness%geodepth_zt(i,j,k))
@@ -812,7 +813,7 @@ subroutine press_grad_force_depth_cgrid(Time, Thickness, Velocity, rho)
   ! hydrostatic pressure anomaly at T-point ( Pa = N/m^2 = kg/(m*s^2) )
   wrk1(:,:,:) = hydrostatic_pressure(Thickness, wrk2(:,:,:))  
 
-  ! wrk1_v = horizontal gradient of geopotential on T-cell faces;
+  ! wrk1_v = horizontal gradient of geopotential on T-cell faces (geopotential = -grav*geodepth);
   ! wrk2_v = horizontal gradient of anomalous baroclinic pressure on T-cell faces;
   ! press_force = thickness weighted baroclinic pressure gradient on z-levels at T-cell faces. 
   do k=1,nk
