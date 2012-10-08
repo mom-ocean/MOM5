@@ -140,7 +140,7 @@ module ocean_types_mod
 
      real, dimension(isd:ied,jsd:jed,nk)   :: rho_dzt_tendency ! rho_dzt tendency (kg/m^3)*(m/s)
 
-     real, dimension(isd:ied,jsd:jed)      :: sea_lev     ! eta_t + patm/(rho0*grav) (m) at time taup1 for coupler 
+     real, dimension(isd:ied,jsd:jed)      :: sea_lev     ! eta_t + patm/(rho0*grav) - eta_geoid - eta_tide (m) at time taup1 for coupler
      real, dimension(isd:ied,jsd:jed,nk)   :: dzt         ! thickness (m) of T cell at time tau/taup1
      real, dimension(isd:ied,jsd:jed,nk,2) :: dzten       ! thickness (m) of east/north face of T cell at time tau/taup1
      real, dimension(isd:ied,jsd:jed,nk)   :: dzu         ! thickness (m) of U cell at time tau/taup1
@@ -671,7 +671,7 @@ module ocean_types_mod
 
      real, dimension(:,:,:),   _ALLOCATABLE :: rho_dzt_tendency _NULL ! rho_dzt tendency (kg/m^3)*(m/s)
 
-     real, dimension(:,:),     _ALLOCATABLE :: sea_lev _NULL ! eta_t + patm/(rho0*grav) (m) at time taup1 for coupler 
+     real, dimension(:,:),     _ALLOCATABLE :: sea_lev _NULL ! eta_t + patm/(rho0*grav) - eta_geoid - eta_tide (m) at time taup1 for coupler
 
      real, dimension(:,:,:),   _ALLOCATABLE :: dzt    _NULL ! E system contribution to dztT
      real, dimension(:,:,:,:), _ALLOCATABLE :: dzten  _NULL ! E system contribution to dzt at east/north face of T-cell
@@ -1215,7 +1215,7 @@ module ocean_types_mod
      real, pointer, dimension(:,:)    :: s_surf  =>NULL() ! SSS on t-cell (psu)
      real, pointer, dimension(:,:)    :: u_surf  =>NULL() ! i-directed surface ocean velocity on u-cell (m/s)
      real, pointer, dimension(:,:)    :: v_surf  =>NULL() ! j-directed surface ocean velocity on u-cell (m/s)
-     real, pointer, dimension(:,:)    :: sea_lev =>NULL() ! eta_t + patm/(rho0*grav) (m) 
+     real, pointer, dimension(:,:)    :: sea_lev =>NULL() ! eta_t + patm/(rho0*grav) - eta_geoid - eta_tide (m)
      real, pointer, dimension(:,:)    :: frazil  =>NULL() ! accumulated heating (J/m^2) from 
                                                           ! frazil formation in the ocean 
      real, pointer, dimension(:,:)    :: area    =>NULL() ! T-cell area.

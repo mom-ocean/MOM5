@@ -2524,6 +2524,24 @@ subroutine eta_and_pbot_diagnose (Time, Dens, Thickness, patm, pme, river, Ext_m
       enddo
   endif
 
+  ! account for modification to effective sea level from equilibrium tide
+  if(tidal_forcing) then
+     do j=jsd,jed
+        do i=isd,ied
+           Thickness%sea_lev(i,j) = Thickness%sea_lev(i,j) - eta_eq_tidal(i,j)
+        enddo
+     enddo
+  endif
+
+  ! account for modification to effective sea level from modification to geoid
+  if(geoid_forcing) then
+     do j=jsd,jed
+        do i=isd,ied
+           Thickness%sea_lev(i,j) = Thickness%sea_lev(i,j) - eta_geoid(i,j)
+        enddo
+     enddo
+  endif
+
   ! compute depth from z=0 to T-point, for use in computing geopotential. 
   do j=jsd,jed
      do i=isd,ied
@@ -6912,8 +6930,9 @@ subroutine get_tidal_forcing(Time, dayr)
   ! ideal tidal forcing
   if(tidal_forcing_ideal) then 
      eta_eq_tidal(:,:)  =  ideal_amp(:,:)*cosomegat_M2
-  endif 
+  endif
 
+  eta_eq_tidal(:,:) = eta_eq_tidal(:,:)*Grd%tmask(:,:,1) 
 
   if (id_eta_eq_tidal > 0) then 
     used = send_data (id_eta_eq_tidal, eta_eq_tidal(:,:), &
