@@ -132,7 +132,7 @@ module ocean_barotropic_mod
 !  in MOM.  We use this assumption so that the eta_t and 
 !  pbot_t fields are updated with a time average. This 
 !  approach is used for open boundary condition applications. 
-!  Default barotropic_time_stepping_A=.false. 
+!  Default barotropic_time_stepping_B=.false.
 !  </DATA> 
 !
 !  <DATA NAME="pred_corr_gamma" UNITS="dimensionless" TYPE="real">
@@ -3602,6 +3602,7 @@ subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Velocity, Ext_mode, pa
 
         ! update with explicit time pieces and implicit Coriolis. 
         ! extended halos not supported with friction_lap and friction_bih
+        ! smg: unsure if the press_force is correct here...
         do j=jsd,jed
            do i=isd,ied
 
@@ -4097,7 +4098,7 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, pa
      ! pressure gradient 
      grad_ps_bt(isd_now:ied_now,jsd_now:jed_now,:) = GRAD_BAROTROPIC_P(ps_bt(:,:),barotropic_halo, halo_now)
 
-     ! update vertically integrate momentum per area; halos are not trustworthy   
+     ! update vertically integrated momentum per area; halos are not trustworthy
      do j=jsd_now,jed_now
         do i=isd_now,ied_now
 

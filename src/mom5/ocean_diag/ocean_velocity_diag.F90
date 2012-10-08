@@ -1152,8 +1152,8 @@ end subroutine compute_vorticity
 ! computed prior to update_ucell_thickness since we need to use dzu(tau)
 ! and dzten(tau) here rather than dzu(taup1) or dzten(taup1).  
 !
-! Account taken for Bgrid and Cgrid.  However, blobs need to be updated
-! for Cgrid.
+! Account taken for Bgrid and Cgrid.  However, blobs have no yet
+! been updated for Cgrid.
 !
 ! </DESCRIPTION>
 !
@@ -1678,8 +1678,8 @@ end subroutine pressure_energy
 ! The reason is that bottom drag and surface stress are incorporated to 
 ! the vertical friction operator, even when doing vertical friction 
 ! implicitly in time.  So it is tough to remove these effects in an 
-! explicitl diagnostic manner.  So the u dot vertical friction piece
-! includes BOTH surface and bottom stress.  
+! explicit diagnostic manner.  So the u dot vertical friction piece
+! includes BOTH surface (i.e., winds) and bottom stress.
 !
 ! </DESCRIPTION>
 !
@@ -1820,7 +1820,7 @@ subroutine friction_energy (Time, Thickness, Adv_vel, Ext_mode, Velocity, visc_c
 
   ! work done by vertical friction, including wind stress and bottom stress. 
   ! implicit acceleration has been saved from previous call to ocean_implicit_accel.
-  ! the implicit piece include contribution from visc_cbu_form_drag, as well as visc_cbu, visc_cbt. 
+  ! the implicit piece includes contributions from visc_cbu_form_drag, as well as visc_cbu, visc_cbt. 
   ! vert_frict returns thickness weighted and density weighted vertical friction (kg/m^3)*(m^2/s^2)
   ! wrk2_v [=]  kg*m^2/s^3 = Watt
   ! Note: no need to call the implicit operator again, since saved result in vfrict_impl. 
@@ -1915,7 +1915,7 @@ subroutine vert_dissipation (Time, Thickness, Velocity, visc_cbu, visc_cbt, visc
              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
          endif
       
-      else  ! cgrid
+      else  ! Cgrid
 
          wrk1(:,:,:) = 0.0
          do n=1,2
@@ -2039,6 +2039,7 @@ subroutine energy_analysis (Time, Thickness, Ext_mode, Adv_vel, Dens,    &
      enddo
   enddo
 
+  ! mass per horizontal area of a fluid column
   if(horz_grid == MOM_BGRID) then 
      do j=jsd,jed
         do i=isd,ied
@@ -2055,7 +2056,7 @@ subroutine energy_analysis (Time, Thickness, Ext_mode, Adv_vel, Dens,    &
      enddo
   endif 
 
-  ! vertically averaged horizontal velocity 
+  ! compute vertical average of horizontal velocity
   do j=jsd,jed
     do i=isd,ied
       ubar(i,j,1) = Grd%tmasken(i,j,1,1)*Ext_mode%udrho(i,j,1,tau)/(mass_column(i,j,1)+epsln)
@@ -2560,7 +2561,8 @@ end subroutine energy_analysis
 ! <DESCRIPTION>
 ! Perform the first of two CFL checks on horizontal velocity. 
 !
-! Assume Bgrid here.
+! Assume Bgrid here.  Cgrid calculation not affected much
+! for purposes of the CFL check.
 !
 ! Vectorized version from Russell.Fiedler@csiro.au computes cfl
 ! values at a single latitude. The location of the maximum at this

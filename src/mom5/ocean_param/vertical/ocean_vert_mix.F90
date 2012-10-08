@@ -3113,6 +3113,10 @@ end subroutine vert_mix_coeff
 ! The watermass diagnostics have not been ported to this subroutine
 ! since aidif=0 is rarely used, even in idealized studies.   
 !
+! This routine is generally never used, since nearly all the vertical
+! physical parameterizations allow for large vertical mixing coefficients,
+! thus requiring implicit vertical time stepping.
+!
 ! </DESCRIPTION>
 !
 subroutine vert_diffuse (Time, Thickness, Dens, ntracer, Tracer, diff_cbt, diag_flag) 
@@ -3503,7 +3507,7 @@ end subroutine vert_friction_bgrid
 !
 ! For aidif=1.0, this module does nothing since all vertical friction 
 ! is instead handled implicitly in time, and this is computed in the 
-! velocity module. 
+! routine vert_friction_implicit_cgrid.
 !
 ! MOM only supports aidif==0.0 or aidif==1.0.
 ! MOM does not support cases with 0.0 < aidif < 1.0.
@@ -3905,17 +3909,18 @@ end subroutine vert_friction_implicit_bgrid
 ! Note that smf and bmf have units N/m^2.  These are the natural units 
 ! for surface stress.  To include these stresses as boundary terms in the 
 ! call to invtri, it is necessary to use vertical viscosities with units
-! (kg/m^3)*(m2^/s) = N/m^2.  This is achieved by multiplying visc_cbu
+! (kg/m^3)*(m2^/s) = N/m^2.  This is achieved by multiplying viscosity
 ! by rho0 when sent to invtri.  For depth-like vertical coordinates, this
-! is cancelled exactly by the rho0 in rho_dzu.  For pressure-like 
-! vertical coordinates, the rho0*visc_cbu introduces a negligible 
+! rho0 factor is cancelled exactly by the rho0 in rho_dzu.  For pressure-like
+! vertical coordinates, the rho0*viscosity introduces a negligible
 ! change in the vertical viscosity that is well within uncertainty
-! in this coefficient. 
+! in this coefficient; a presumably more accurate approach is rho*viscosity.
 !
 ! Include visc_cbu_form_drag to each of the velocity components 
-! vertical friction.  
+! vertical friction. Do not worry about averaging visc_cbu_form_drag
+! to u,v grid cell faces.
 !
-! Note: if try to merge this routine with vert_friction_cgrid
+! Note: if try to merge this routine with vert_friction_bgrid,
 ! some machines and compilers will change bits by the mere 
 ! introduction of extra if-test logic into the calculation.
 ! So we define the separate routines to maintain bit-wise 
@@ -3927,9 +3932,8 @@ end subroutine vert_friction_implicit_bgrid
 ! sides of the tracer cell.  This choice is for simplicity.
 ! It also acknowledges that the alternative of introducing 
 ! distinct visc_cbt_u and visc_cbt_v would presume knowledge
-! of subgrid scale features that we really do not have.  
-! So again, visc_cbt is used for both u,v C-grid velocity 
-! components.  
+! of subgrid scale features that we do not have. So we choose
+! to use visc_cbt for both u,v C-grid velocity components.
 !
 ! </DESCRIPTION>
 !
