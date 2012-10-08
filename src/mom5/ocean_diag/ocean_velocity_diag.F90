@@ -55,7 +55,8 @@ use constants_mod,    only: epsln, c2dbars
 use diag_manager_mod, only: register_diag_field, need_data, send_data
 use fms_mod,          only: open_namelist_file, check_nml_error, close_file, write_version_number
 use fms_mod,          only: FATAL, stdout, stdlog
-use mpp_domains_mod,  only: mpp_global_sum, BITWISE_EXACT_SUM, NON_BITWISE_EXACT_SUM
+use mpp_domains_mod,  only: mpp_global_sum, mpp_update_domains
+use mpp_domains_mod,  only: BITWISE_EXACT_SUM, NON_BITWISE_EXACT_SUM, BGRID_NE
 use mpp_mod,          only: input_nml_file, mpp_error, mpp_max, mpp_sum, mpp_chksum, mpp_pe 
 use mpp_mod,          only: mpp_clock_id, mpp_clock_begin, mpp_clock_end, CLOCK_MODULE
 use time_manager_mod, only: time_type, increment_time
@@ -158,6 +159,10 @@ real :: press_conv     ! integrated power converted from u dot grap(p) into othe
 real :: press_conv_err ! error in converting pressure work into other terms   
 real :: ucell_mass
 
+! for Stokes-Coriolis force
+integer :: id_stokes_force_x =-1
+integer :: id_stokes_force_y =-1
+
 ! for output
 integer :: unit=6
 
@@ -191,6 +196,7 @@ private cfl_check2_bgrid
 private cfl_check2_cgrid
 private compute_topostrophy
 private compute_vorticity
+private stokes_coriolis_force
 
 integer :: global_sum_flag
 integer :: diag_step         = -1
@@ -356,6 +362,14 @@ id_topostrophy = register_diag_field ('ocean_model', 'topostrophy', Grd%vel_axes
        Time%model_time, 'topostrophy = f * (zhat cross u) dot grad H', 'm/s^2',          &
        missing_value=missing_value, range=(/-1.e20,1.e20/))
 
+id_stokes_force_x = register_diag_field ('ocean_model', 'stokes_force_x', Grd%vel_axes_u(1:3), &
+     Time%model_time, 'Zonal component to Stokes Coriolis force', '(kg/m^3)*(m^2/s^2)',        &
+      missing_value=missing_value, range=(/-1e9,1e9/))
+
+id_stokes_force_y = register_diag_field ('ocean_model', 'stokes_force_y', Grd%vel_axes_v(1:3), &
+      Time%model_time, 'Meridional component to Stokes Coriolis force', '(kg/m^3)*(m^2/s^2)',  &
+      missing_value=missing_value, range=(/-1e9,1e9/))
+
 if(horz_grid == MOM_BGRID) then 
    id_u_dot_grad_pint_xy = register_diag_field ('ocean_model', 'u_dot_grad_pint_xy', &
         Grd%vel_axes_uv(1:3), Time%model_time,                                       &
@@ -475,6 +489,8 @@ subroutine ocean_velocity_diagnostics(Time, Thickness, Dens, Velocity)
   ! diagnose vorticity 
   call compute_vorticity(Time, Velocity)
 
+  ! diagnostic Stokes-Coriolis force 
+  call stokes_coriolis_force(Time, Thickness, Velocity)
 
 end subroutine ocean_velocity_diagnostics
 ! </SUBROUTINE>  NAME="ocean_velocity_diagnostics"
@@ -2825,6 +2841,77 @@ subroutine cfl_check2_cgrid(Time, Thickness, Velocity)
 
 end subroutine cfl_check2_cgrid
 ! </SUBROUTINE> NAME="cfl_check2_cgrid"
+
+
+!#######################################################################
+! <SUBROUTINE NAME="stokes_coriolis_force">
+!
+! <DESCRIPTION>
+!
+! Diagnostic to compute thickness weighted and density
+! weighted acceleration from the Stokes coriolis force, where the
+! Stokes drift arises from surface ocean waves.  To obtain the
+! Stokes drift requires coupling MOM to a surface wave model.
+!
+! Note: for a hydrostatic model, we should NOT
+! include the Stokes-Coriolis force as part of the
+! model prognostic equations. It is computed here only
+! for diagnostic purposes.
+!
+! Assume stokes_drift is on U-grid point
+! (Stephen.Griffies: to be revisited when couple to wave model).
+!
+! </DESCRIPTION>
+!
+subroutine stokes_coriolis_force(Time, Thickness, Velocity)
+
+  type(ocean_time_type),       intent(in)    :: Time
+  type(ocean_thickness_type),  intent(in)    :: Thickness
+  type(ocean_velocity_type),   intent(inout) :: Velocity
+
+  integer :: i, j, k
+  integer :: tau
+  tau = Time%tau
+  wrk1_v(:,:,:,:) = 0.0
+
+  if(id_stokes_force_x > 0 .or. id_stokes_force_y > 0) then
+     if(horz_grid == MOM_BGRID) then
+        do k=1,nk
+           do j=jsc,jec
+              do i=isc,iec
+                 wrk1_v(i,j,k,1) =  Grd%f(i,j)*Velocity%stokes_drift(i,j,k,2)*Thickness%rho_dzu(i,j,k,tau)
+                 wrk1_v(i,j,k,2) = -Grd%f(i,j)*Velocity%stokes_drift(i,j,k,1)*Thickness%rho_dzu(i,j,k,tau)
+              enddo
+           enddo
+        enddo
+     else   ! Cgrid
+        call mpp_update_domains(Velocity%stokes_drift(:,:,:,1),Velocity%stokes_drift(:,:,:,2),Dom%domain2d,gridtype=BGRID_NE)
+        do k=1,nk
+           do j=jsc,jec
+              do i=isc,iec
+                 wrk1_v(i,j,k,1) =  onehalf &
+                       *( Grd%f(i,j)*Velocity%stokes_drift(i,j,k,2)*Thickness%rho_dzu(i,j,k,tau) &
+                         +Grd%f(i,j-1)*Velocity%stokes_drift(i,j-1,k,2)*Thickness%rho_dzu(i,j-1,k,tau))
+                 wrk1_v(i,j,k,2) =  -onehalf &
+                       *( Grd%f(i,j)*Velocity%stokes_drift(i,j,k,1)*Thickness%rho_dzu(i,j,k,tau) &
+                         +Grd%f(i-1,j)*Velocity%stokes_drift(i-1,j,k,1)*Thickness%rho_dzu(i-1,j,k,tau))
+              enddo
+           enddo
+        enddo
+     endif
+  endif
+
+  if (id_stokes_force_x > 0) used = send_data(id_stokes_force_x, wrk1_v(:,:,:,1),&
+                            Time%model_time, rmask=Grd%tmasken(:,:,:,1),         &
+                            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+
+  if (id_stokes_force_y > 0) used = send_data(id_stokes_force_y, wrk1_v(:,:,:,2),&
+                            Time%model_time, rmask=Grd%tmasken(:,:,:,2),         &
+                            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+
+
+end subroutine stokes_coriolis_force
+! </SUBROUTINE> NAME="stokes_coriolis_force"
 
 
 end module ocean_velocity_diag_mod
