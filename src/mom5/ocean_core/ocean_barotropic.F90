@@ -4104,16 +4104,18 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, pa
            press_force_bt(i,j,2) = -thicken_bt(i,j,2)*grad_ps_bt(i,j,2)
 
            udrho_bt(i,j,1,fstaup1) = udrho_bt(i,j,1,fstau) &
-           + dtbt*( coriolis_accel_bt(i,j,1)               &
-           + press_force_bt(i,j,1)		           &
-           + forcing_bt(i,j,1)		                   &
-           + wrk1_v2d_bt(i,j,1) )
+           + dtbt*tmasken_bt(i,j,1)*(                      &
+                coriolis_accel_bt(i,j,1)                   &
+              + press_force_bt(i,j,1)		           &
+              + forcing_bt(i,j,1)		           &
+              + wrk1_v2d_bt(i,j,1) )
 
            udrho_bt(i,j,2,fstaup1) = udrho_bt(i,j,2,fstau) &
-           + dtbt*( coriolis_accel_bt(i,j,2)               &
-           + press_force_bt(i,j,2)	                   &
-           + forcing_bt(i,j,2)		                   &
-           + wrk1_v2d_bt(i,j,2) )
+           + dtbt*tmasken_bt(i,j,2)*(                      &
+                coriolis_accel_bt(i,j,2)                   &
+              + press_force_bt(i,j,2)	                   &
+              + forcing_bt(i,j,2)		           &
+              + wrk1_v2d_bt(i,j,2) )
 
         enddo
      enddo
@@ -4738,6 +4740,7 @@ subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Velocity, Ext_mode, pm
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt,2)   :: press_force_bt
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt,2,3) :: coriolis_force_bt
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt,2)   :: coriolis_accel_bt
+  real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt,2)   :: tmasken_bt
 
   integer :: offset, isd_now, ied_now, jsd_now, jed_now, halo_now
   integer :: itime, i, j, n
@@ -4851,6 +4854,8 @@ subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Velocity, Ext_mode, pm
   mass_en_bt(isd:ied,jsd:jed,1) = Thickness%mass_en(isd:ied,jsd:jed,1)
   mass_en_bt(isd:ied,jsd:jed,2) = Thickness%mass_en(isd:ied,jsd:jed,2)
   forcing_bt(isd:ied,jsd:jed,:) = Ext_mode%forcing_bt(isd:ied,jsd:jed,:) 
+  tmasken_bt(isd:ied,jsd:jed,1) = Grd%tmasken(isd:ied,jsd:jed,1,1)
+  tmasken_bt(isd:ied,jsd:jed,2) = Grd%tmasken(isd:ied,jsd:jed,1,2)
 
   if( barotropic_halo > 1) then
      call mpp_update_domains (udrho_bt(:,:,1,fstau),udrho_bt(:,:,2,fstau), &
@@ -4867,7 +4872,9 @@ subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Velocity, Ext_mode, pm
 
      call mpp_update_domains(mass_en_bt(:,:,1) , Dom_bt%domain2d, position=EAST)
      call mpp_update_domains(mass_en_bt(:,:,2) , Dom_bt%domain2d, position=NORTH)
-  endif
+     call mpp_update_domains(tmasken_bt(:,:,1) , Dom_bt%domain2d, position=EAST)
+     call mpp_update_domains(tmasken_bt(:,:,2) , Dom_bt%domain2d, position=NORTH)
+   endif
 
   ! time step over the nts barotropic time steps 
   offset = 0
@@ -4964,15 +4971,17 @@ subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Velocity, Ext_mode, pm
            press_force_bt(i,j,1) = -rho0r*mass_en_bt(i,j,1)*grad_anompb_bt(i,j,1)
            press_force_bt(i,j,2) = -rho0r*mass_en_bt(i,j,2)*grad_anompb_bt(i,j,2)
 
-           urhod_tmp1 = udrho_bt(i,j,1,fstau)      &
-                + dtbt*( coriolis_accel_bt(i,j,1)  &
-                + press_force_bt(i,j,1)            &
-                + forcing_bt(i,j,1) )                                     
+           udrho_bt(i,j,1,fstaup1) = udrho_bt(i,j,1,fstau) &
+                + dtbt*tmasken_bt(i,j,1)*(                 &
+                     coriolis_accel_bt(i,j,1)              &
+                   + press_force_bt(i,j,1)                 &
+                   + forcing_bt(i,j,1) )
 
-           urhod_tmp2 = udrho_bt(i,j,2,fstau)      &
-                + dtbt*( coriolis_accel_bt(i,j,2)  &
-                + press_force_bt(i,j,2)            &  
-                + forcing_bt(i,j,2) )                                    
+           udrho_bt(i,j,2,fstaup1) = udrho_bt(i,j,2,fstau) &
+                + dtbt*tmasken_bt(i,j,2)*(                 &
+                     coriolis_accel_bt(i,j,2)              &
+                   + press_force_bt(i,j,2)                 &
+                   + forcing_bt(i,j,2) )
 
         enddo
      enddo
