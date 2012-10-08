@@ -2528,8 +2528,11 @@ subroutine energy_analysis (Time, Thickness, Ext_mode, Adv_vel, Dens,    &
   write (stdoutunit,9101) ' work by momentum src   ', engint(12)+engext(12), engint(12), engext(12)
   write (stdoutunit,9101) ' work by Aiki drag      ', engint(13)+engext(13), engint(13), engext(13)
 
-  write (stdoutunit,9110) press_conv, press_int+press_ext, press_conv_err, compression, enleak
-  
+  if(horz_grid==MOM_BGRID) then
+     write (stdoutunit,9110) press_conv, press_int+press_ext, press_conv_err, compression, enleak
+  else
+     write (stdoutunit,9111) press_conv, press_int+press_ext, press_conv_err
+  endif
 
 9100 format(/1x,a,1x,/,' ocean mass         =',e16.9,' kg',/, ' ocean surface area =',e16.9,&
           ' m^2',//,35x,'total(Watt)             internal(Watt)             external(Watt)')
@@ -2540,6 +2543,9 @@ subroutine energy_analysis (Time, Thickness, Ext_mode, Adv_vel, Dens,    &
             /,' power mismatch between -u dot grad(p) and its conversions              = ',es24.17,&
             /,' power from grid cell mass changes due to compresibility and/or sources = ',es24.17,&
             /,' power mismatch between -u dot grad (v u) and its conversions           = ',es24.17/)
+9111 format(/ ' power contributed by pressure conversion and mass tendencies           = ',es24.17,&
+            /,' power from horizontal pressure force -u dot force(p)                   = ',es24.17,&
+            /,' power mismatch between -u dot grad(p) and its conversions              = ',es24.17)
  
 
   call mpp_clock_end(id_clock_energy_analysis)
