@@ -3967,10 +3967,10 @@ subroutine vert_friction_implicit_cgrid (visc_cbt, visc_cbu_form_drag, Time, Thi
             do i=isc,iec
                wrk1_v(i,j,k,1) = Grd%tmasken(i,j,k,1)*                            &
                     (Adv_vel%uhrho_et(i,j,k) + dtime_u*Velocity%accel(i,j,k,1))/  &
-                    (Thickness%dzten(i,j,k,1)+ epsln)
+                    (Thickness%rho_dzten(i,j,k,1) + epsln)
                wrk1_v(i,j,k,2) = Grd%tmasken(i,j,k,2)*                            &
                     (Adv_vel%vhrho_nt(i,j,k) + dtime_u*Velocity%accel(i,j,k,2))/  &
-                    (Thickness%dzten(i,j,k,2)+ epsln)
+                    (Thickness%rho_dzten(i,j,k,2) + epsln)
             enddo
          enddo
       enddo
