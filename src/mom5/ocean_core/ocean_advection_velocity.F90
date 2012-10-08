@@ -467,17 +467,20 @@ subroutine ocean_advection_velocity_init(Grid, Domain, Time, Time_steps, Thickne
   id_vhrho_nt = register_diag_field ('ocean_model', 'vhrho_nt', Grd%tracer_axes(1:3), Time%model_time, &
     'vhrho_nt on horz face of T-cells', '(kg/m^3)*m^2/sec', missing_value=missing_value, range=(/-100.e4,100.e4/))
 
-  id_horz_diverge_u = register_diag_field ('ocean_model', 'horz_diverge_u',                 &
-     Grd%vel_axes_wu(1:3), Time%model_time,                                                 &
-    'horizontal (on k=constant) divergence of (uhrho,vhrho) at U-points', '(kg/m^3)*m/sec', &
-    missing_value=missing_value, range=(/-10.e4,10.e4/))
+  id_horz_diverge_u = register_diag_field ('ocean_model', 'horz_diverge_u',                         &
+     Grd%vel_axes_wu(1:3), Time%model_time,                                                         &
+    'horizontal (on k=constant) divergence of (uhrho,vhrho) at U-points (only relevant for B-grid)',&
+    '(kg/m^3)*m/sec', missing_value=missing_value, range=(/-10.e4,10.e4/))
 
   id_wrho_bu = register_diag_field ('ocean_model', 'wrhou', Grd%vel_axes_wu(1:3), Time%model_time, &
-    'rho*dia-surface velocity U-points', '(kg/m^3)*m/sec', missing_value=missing_value, range=(/-10.e4,10.e4/))
+    'rho*dia-surface velocity U-points (only relevant for B-grid)', '(kg/m^3)*m/sec',              &
+    missing_value=missing_value, range=(/-10.e4,10.e4/))
   id_uhrho_eu = register_diag_field ('ocean_model', 'uhrho_eu', Grd%vel_axes_uv(1:3), Time%model_time, &
-    'uhrho_eu on horz face of U-cells', '(kg/m^3)*m^2/sec', missing_value=missing_value, range=(/-100.e4,100.e4/))
+    'uhrho_eu on horz face of U-cells (only relevant for B-grid)', '(kg/m^3)*m^2/sec',                 &
+     missing_value=missing_value, range=(/-100.e4,100.e4/))
   id_vhrho_nu = register_diag_field ('ocean_model', 'vhrho_nu', Grd%vel_axes_uv(1:3), Time%model_time, &
-    'vhrho_nu on horz face of U-cells', '(kg/m^3)*m^2/sec', missing_value=missing_value, range=(/-100.e4,100.e4/))
+    'vhrho_nu on horz face of U-cells (only relevant for B-grid)', '(kg/m^3)*m^2/sec',                 &
+    missing_value=missing_value, range=(/-100.e4,100.e4/))
 
   ! mass-based vorticity 
   id_rhodz_vorticity_z = register_diag_field ('ocean_model', 'rhodz_vorticity_z', Grd%vel_axes_uv(1:3), &
@@ -532,6 +535,11 @@ end subroutine ocean_advection_velocity_init
 ! <DESCRIPTION>
 ! Compute thickness weighted and density weighted advection velocity 
 ! components for the B-grid on the T-cells and U-cells. 
+!
+! U-cell advective components are not used for Cgrid, so we do not
+! update the u-cell components.  Instead, simply keep values at their
+! initial setting of 0.0.
+!
 ! </DESCRIPTION>
 !
 subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river, Adv_vel, &
@@ -637,8 +645,6 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
         tmp(:,:) = Thickness%rho_dzt_tendency(:,:,k) - Thickness%mass_source(:,:,k)
         Adv_vel%wrho_bt(:,:,k) = (tmp(:,:) + Adv_vel%diverge_t(:,:,k) + Adv_vel%wrho_bt(:,:,k-1)) &
                                  *Grd%tmask(:,:,k)
-        tmp(:,:) = Grd%umask(:,:,k)*REMAP_BT_TO_BU(tmp(:,:))
-        Adv_vel%wrho_bu(:,:,k) = tmp(:,:) + Adv_vel%diverge_u(:,:,k) + Adv_vel%wrho_bu(:,:,k-1) 
      enddo
 
   endif  ! endif for .not. constant_advection_velocity and MOM_CGRID 
@@ -969,13 +975,12 @@ subroutine read_advect_velocity(Time, Thickness, Adv_vel)
         Adv_vel%wrho_bu(:,:,k)  = REMAP_BT_TO_BU(Adv_vel%wrho_bt(:,:,k))
      enddo
   else 
+
+     ! U-cell advective components are not used for Cgrid
      do k=1,nk
         Adv_vel%uhrho_et(:,:,k) = rho0*ue(:,:,k)*Thickness%dzten(:,:,k,1) 
         Adv_vel%vhrho_nt(:,:,k) = rho0*vn(:,:,k)*Thickness%dzten(:,:,k,2) 
         Adv_vel%wrho_bt(:,:,k)  = rho0*wb(:,:,k)
-        Adv_vel%uhrho_eu(:,:,k) = REMAP_ET_TO_EU(Adv_vel%uhrho_et(:,:,k))                                       
-        Adv_vel%vhrho_nu(:,:,k) = REMAP_NT_TO_NU(Adv_vel%vhrho_nt(:,:,k))                                       
-        Adv_vel%wrho_bu(:,:,k)  = REMAP_BT_TO_BU(Adv_vel%wrho_bt(:,:,k))
      enddo
   endif 
 
