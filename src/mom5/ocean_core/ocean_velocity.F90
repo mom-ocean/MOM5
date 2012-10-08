@@ -155,12 +155,6 @@ module ocean_velocity_mod
 !  (Section 2.3.6 of Durran).  This is the model default. 
 !  </DATA> 
 !
-!  <DATA NAME="use_stokes_coriolis_force" TYPE="logical">
-!  For including the contribution to the Coriolis force from surface wave
-!  induced Stokes drift.  This force requires the coupling to a prognostic
-!  surface wave model. Default use_stokes_coriolis_force=.false. 
-!  </DATA> 
-!
 !</NAMELIST>
 
 use constants_mod,    only: epsln
@@ -210,8 +204,6 @@ integer :: id_ubott(2)          =-1
 integer :: id_speed             =-1
 integer :: id_accel(2)          =-1
 integer :: id_converge_rho_ud_t =-1
-integer :: id_stokes_force_x    =-1
-integer :: id_stokes_force_y    =-1
 logical :: used
 
 ! for data over ride files
@@ -266,7 +258,6 @@ private ocean_velocity_chksum
 private check_gravity_wave_cfl
 private velocity_truncate
 private remap_s_to_depth
-private stokes_coriolis_force 
 
 ! Adams-Bashforth treatment of velocity advection 
 logical :: adams_bashforth_third   = .true.
@@ -285,9 +276,6 @@ logical :: truncate_velocity          = .false.
 logical :: truncate_verbose           = .false.
 real    :: truncate_velocity_lat      = 0.0
 real    :: truncate_velocity_value    = 1.0
-
-! Coriolis force from surface wave induced Stokes drift 
-logical :: use_stokes_coriolis_force = .false.
 
 ! for idealized constant velocity situations 
 logical :: use_constant_velocity = .false.
@@ -405,7 +393,6 @@ subroutine ocean_velocity_init (Grid, Domain, Time, Time_steps, Ocean_options, &
   allocate (Velocity%rossby_radius(isd:ied,jsd:jed))
   allocate (Velocity%stokes_depth(isd:ied,jsd:jed))
   allocate (Velocity%stokes_drift(isd:ied,jsd:jed,nk,2))
-  allocate (Velocity%stokes_force(isd:ied,jsd:jed,nk,2))
   allocate (Velocity%press_force(isd:ied,jsd:jed,nk,2))
   allocate (Velocity%accel(isd:ied,jsd:jed,nk,2))
   allocate (Velocity%source(isd:ied,jsd:jed,nk,2))
@@ -427,7 +414,6 @@ subroutine ocean_velocity_init (Grid, Domain, Time, Time_steps, Ocean_options, &
   Velocity%rossby_radius       = 1.e5
   Velocity%stokes_depth        = 0.0
   Velocity%stokes_drift        = 0.0
-  Velocity%stokes_force        = 0.0
   Velocity%accel               = 0.0
   Velocity%source              = 0.0
   Velocity%wrkv                = 0.0
@@ -468,12 +454,6 @@ subroutine ocean_velocity_init (Grid, Domain, Time, Time_steps, Ocean_options, &
 
   id_accel(2) = register_diag_field ('ocean_model', 'accel_v', Grd%vel_axes_v(1:3), Time%model_time, &
      'baroclinic forcing of rho*v', '(kg/m^3)*(m^2/s^2)', missing_value=missing_value, range=(/-1e9,1e9/))
-
-  id_stokes_force_x = register_diag_field ('ocean_model', 'stokes_force_x', Grd%vel_axes_u(1:3), Time%model_time, &
-     'Zonal component to Stokes Coriolis force', '(kg/m^3)*(m^2/s^2)', missing_value=missing_value, range=(/-1e9,1e9/))
-
-  id_stokes_force_y = register_diag_field ('ocean_model', 'stokes_force_y', Grd%vel_axes_v(1:3), Time%model_time, &
-     'Meridional component to Stokes Coriolis force', '(kg/m^3)*(m^2/s^2)', missing_value=missing_value, range=(/-1e9,1e9/))
 
   id_converge_rho_ud_t = register_diag_field ('ocean_model', 'converge_rho_ud_t', Grd%tracer_axes(1:2), &
                      Time%model_time,'convergence rho*ud on T cells computed in velocity_mod',          &
@@ -937,7 +917,6 @@ subroutine ocean_explicit_accel_a(Velocity, Time, Adv_vel, Thickness, Dens, &
               Velocity%accel(i,j,k,n)            = 0.0 
               Velocity%source(i,j,k,n)           = 0.0 
               Velocity%press_force(i,j,k,n)      = 0.0 
-              Velocity%stokes_force(i,j,k,n)     = 0.0 
               Velocity%advection(i,j,k,n,tau_m0) = 0.0 
               Velocity%coriolis(i,j,k,n,tau_m0)  = 0.0 
            enddo
@@ -975,20 +954,6 @@ subroutine ocean_explicit_accel_a(Velocity, Time, Adv_vel, Thickness, Dens, &
             enddo
          enddo
       enddo
-
-      ! include contribution from Stokes drift contribution to Coriolis force 
-      if(use_stokes_coriolis_force) then 
-         call stokes_coriolis_force(Time, Thickness, Velocity) 
-         do n=1,2
-            do k=1,nk
-               do j=jsc,jec
-                  do i=isc,iec
-                     Velocity%accel(i,j,k,n) = Velocity%accel(i,j,k,n) + Velocity%stokes_force(i,j,k,n) 
-                  enddo
-               enddo
-            enddo
-         enddo
-      endif 
 
       ! compute horizontal friction and add to Velocity%accel 
       call lap_friction(Time, Thickness, Adv_vel, Velocity, energy_analysis_step=.false.)
@@ -1946,73 +1911,6 @@ subroutine remap_s_to_depth(Thickness, Time, array_in, nvelocity)
 
 end subroutine remap_s_to_depth
 ! </SUBROUTINE>  NAME="remap_s_to_depth"
-
- 
-!#######################################################################
-! <SUBROUTINE NAME="stokes_coriolis_force">
-!
-! <DESCRIPTION>
-!
-! Time explicit contributions to thickness weighted and density 
-! weighted acceleration from the Stokes coriolis force, where the
-! Stokes drift arises from surface ocean waves.  To obtain the 
-! Stokes drift requires coupling MOM to a surface wave model.  
-!
-! Assume stokes_drift is on U-grid point (smg: to be revisited).
-!
-! </DESCRIPTION>
-!
-subroutine stokes_coriolis_force(Time, Thickness, Velocity)
-
-  type(ocean_time_type),       intent(in)    :: Time
-  type(ocean_thickness_type),  intent(in)    :: Thickness
-  type(ocean_velocity_type),   intent(inout) :: Velocity
-
-  integer :: i, j, k
-  integer :: tau
-  tau = Time%tau
-
-  if(horz_grid == MOM_BGRID) then 
-
-     do k=1,nk
-        do j=jsc,jec
-           do i=isc,iec
-              Velocity%stokes_force(i,j,k,1) =  Grd%f(i,j)*Velocity%stokes_drift(i,j,k,2)*Thickness%rho_dzu(i,j,k,tau)
-              Velocity%stokes_force(i,j,k,2) = -Grd%f(i,j)*Velocity%stokes_drift(i,j,k,1)*Thickness%rho_dzu(i,j,k,tau)
-           enddo
-        enddo
-     enddo
-
-  else   ! Cgrid 
-
-     call mpp_update_domains(Velocity%stokes_drift(:,:,:,1),Velocity%stokes_drift(:,:,:,2),Dom%domain2d,gridtype=BGRID_NE)
-     do k=1,nk
-        do j=jsc,jec
-           do i=isc,iec
-              Velocity%stokes_force(i,j,k,1) =  onehalf &
-                    *( Grd%f(i,j)*Velocity%stokes_drift(i,j,k,2)*Thickness%rho_dzu(i,j,k,tau) &
-                      +Grd%f(i,j-1)*Velocity%stokes_drift(i,j-1,k,2)*Thickness%rho_dzu(i,j-1,k,tau))
-              Velocity%stokes_force(i,j,k,2) =  -onehalf &
-                    *( Grd%f(i,j)*Velocity%stokes_drift(i,j,k,1)*Thickness%rho_dzu(i,j,k,tau) &
-                      +Grd%f(i-1,j)*Velocity%stokes_drift(i-1,j,k,1)*Thickness%rho_dzu(i-1,j,k,tau))
-           enddo
-        enddo
-     enddo
- 
-  endif 
-
-  if (id_stokes_force_x > 0) used = send_data(id_stokes_force_x, Velocity%stokes_force(:,:,:,1),&
-                            Time%model_time, rmask=Grd%tmasken(:,:,:,1),                        &
-                            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-  if (id_stokes_force_y > 0) used = send_data(id_stokes_force_y, Velocity%stokes_force(:,:,:,2),&
-                            Time%model_time, rmask=Grd%tmasken(:,:,:,2),                        &
-                            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-
-end subroutine stokes_coriolis_force 
-! </SUBROUTINE> NAME="stokes_coriolis_force"
-
 
 
 end module ocean_velocity_mod

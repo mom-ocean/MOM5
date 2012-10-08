@@ -560,7 +560,6 @@ module ocean_types_mod
      real, dimension(isd:ied,jsd:jed)        :: rossby_radius   ! first baroclinic rossby radius (m)
      real, dimension(isd:ied,jsd:jed)        :: stokes_depth    ! depth scale (m) used for exponential decay of surface wave Stokes velocity
      real, dimension(isd:ied,jsd:jed,nk,2)   :: stokes_drift    ! Stokes drift velocity (m/s) from surface wave model 
-     real, dimension(isd:ied,jsd:jed,nk,2)   :: stokes_force    ! Coriolis force from Stokes drift (N/m^2)
      real, dimension(isd:ied,jsd:jed,nk,2)   :: press_force     ! thickness*density weighted (i,j)-directed press force (N/m^2)
      real, dimension(isd:ied,jsd:jed,nk,2)   :: accel           ! thickness*density weighted (i,j)-directed acceleration (N/m^2)
      real, dimension(isd:ied,jsd:jed,nk,2)   :: vfrict_impl     ! thickness*density weighted vertical friction (N/m^2)
@@ -1083,7 +1082,6 @@ module ocean_types_mod
      real, _ALLOCATABLE, dimension(:,:)       :: rossby_radius   _NULL ! first baroclinic rossby radius (m)
      real, _ALLOCATABLE, dimension(:,:)       :: stokes_depth    _NULL ! depth scale (m) for exp decay of surface wave Stokes vel
      real, _ALLOCATABLE, dimension(:,:,:,:)   :: stokes_drift    _NULL ! Stokes drift velocity (m/s) from surface wave model 
-     real, _ALLOCATABLE, dimension(:,:,:,:)   :: stokes_force    _NULL ! Coriolis force from Stokes drift velocity (N/m2)
      real, _ALLOCATABLE, dimension(:,:,:,:)   :: press_force     _NULL ! rho*dz*horz (i,j)-directed press force (N/m^2)
      real, _ALLOCATABLE, dimension(:,:,:,:)   :: accel           _NULL ! rho*dz*velocity (i,j)-directed acceleration (N/m^2)
      real, _ALLOCATABLE, dimension(:,:,:,:)   :: vfrict_impl     _NULL ! rho*dz*vertical friction (N/m^2)
