@@ -552,15 +552,19 @@ end subroutine coriolis_force_bgrid_implicit
 ! 
 ! </DESCRIPTION>
 !
-subroutine coriolis_force_cgrid(Time, Thickness, Adv_vel, Velocity, energy_analysis_step)
+subroutine coriolis_force_cgrid(Time, Thickness, Adv_vel, Velocity, abtau_m0, abtau_m1, abtau_m2, energy_analysis_step)
 
   type(ocean_time_type),      intent(in)    :: Time
   type(ocean_thickness_type), intent(in)    :: Thickness
   type(ocean_adv_vel_type),   intent(in)    :: Adv_vel
   type(ocean_velocity_type),  intent(inout) :: Velocity
+  real,                       intent(in)    :: abtau_m0
+  real,                       intent(in)    :: abtau_m1
+  real,                       intent(in)    :: abtau_m2
   logical,                    intent(in)    :: energy_analysis_step
 
-  integer :: tau, tau_m0
+  integer :: tau
+  integer :: tau_m0, tau_m1, tau_m2
   integer :: i, j, k, n
   
   if(.not. use_this_module) then 
@@ -573,6 +577,8 @@ subroutine coriolis_force_cgrid(Time, Thickness, Adv_vel, Velocity, energy_analy
   wrk1_v = 0.0
   tau    = Time%tau
   tau_m0 = Time%tau_m0
+  tau_m1 = Time%tau_m1
+  tau_m2 = Time%tau_m2
 
   do k=1,nk
      do j=jsc,jec
@@ -603,6 +609,10 @@ subroutine coriolis_force_cgrid(Time, Thickness, Adv_vel, Velocity, energy_analy
            do j=jsc,jec
               do i=isc,iec
                  Velocity%coriolis(i,j,k,n,tau_m0) = Velocity%coriolis(i,j,k,n,tau_m0) + wrk1_v(i,j,k,n)
+                 Velocity%accel(i,j,k,n) = Velocity%accel(i,j,k,n)                     + &
+                                           abtau_m0*Velocity%coriolis(i,j,k,n,tau_m0)  + &
+                                           abtau_m1*Velocity%coriolis(i,j,k,n,tau_m1)  + &
+                                           abtau_m2*Velocity%coriolis(i,j,k,n,tau_m2)
               enddo
            enddo
         enddo

@@ -1004,6 +1004,11 @@ subroutine ocean_explicit_accel_b(visc_cbu, visc_cbt, Time, Thickness, Adv_vel, 
   type(ocean_velocity_type),      intent(inout) :: Velocity
   
   integer :: stdoutunit 
+  integer :: tau_m0, tau_m1, tau_m2
+
+  tau_m2 = Time%tau_m2
+  tau_m1 = Time%tau_m1
+  tau_m0 = Time%tau_m0
   stdoutunit=stdout() 
 
   if (.not. zero_tendency .and. .not. zero_tendency_explicit_b) then 
@@ -1013,7 +1018,8 @@ subroutine ocean_explicit_accel_b(visc_cbu, visc_cbt, Time, Thickness, Adv_vel, 
          call coriolis_force_bgrid(Time, Thickness, Velocity, energy_analysis_step=.false.)
       else 
          call vert_friction_cgrid(Time, Thickness, Velocity, visc_cbt, energy_analysis_step=.false.)
-         call coriolis_force_cgrid(Time, Thickness, Adv_vel, Velocity, energy_analysis_step=.false.)
+         call coriolis_force_cgrid(Time, Thickness, Adv_vel, Velocity, abtau_m0, abtau_m1, abtau_m2, &
+                                   energy_analysis_step=.false.)
       endif 
 
       if (debug_this_module) then
