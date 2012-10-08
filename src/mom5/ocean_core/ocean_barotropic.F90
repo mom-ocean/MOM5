@@ -6013,11 +6013,13 @@ subroutine maximum_convrhoud(Time, Ext_mode)
     write (unit,9112) convrhoudt/fudge, iconvrhoudt, jconvrhoudt, &
            Grd%xt(iconvrhoudt,jconvrhoudt), Grd%yt(iconvrhoudt,jconvrhoudt)
   endif
-  
-  if (abs(convrhoudu0) == convrhoudu .and. abs(convrhoudu0) /= 0.0) then
-    convrhoudu = convrhoudu0
-    write (unit,9113) convrhoudu/fudge, iconvrhoudu, jconvrhoudu, &
+
+  if(horz_grid == MOM_BGRID) then
+     if (abs(convrhoudu0) == convrhoudu .and. abs(convrhoudu0) /= 0.0) then
+        convrhoudu = convrhoudu0
+        write (unit,9113) convrhoudu/fudge, iconvrhoudu, jconvrhoudu, &
            Grd%xu(iconvrhoudu,jconvrhoudu), Grd%yu(iconvrhoudu,jconvrhoudu)
+     endif
   endif
 
 
@@ -6667,16 +6669,18 @@ subroutine eta_check(Time, Ext_mode)
                         Grd%xt(i_thick_t_cell,j_thick_t_cell), Grd%yt(i_thick_t_cell,j_thick_t_cell)
   endif
 
-  if (thin_u0 == thin_u_cell) then
-    write (unit,7000) ' Minimum thickness surface U cell = ',thin_u_cell/fudge, &
-                        i_thin_u_cell+Dom%ioff, j_thin_u_cell+Dom%joff, &
-                        Grd%xu(i_thin_u_cell,j_thin_u_cell), Grd%yu(i_thin_u_cell,j_thin_u_cell)
-  endif
+  if(horz_grid == MOM_BGRID) then
+     if (thin_u0 == thin_u_cell) then
+       write (unit,7000) ' Minimum thickness surface U cell = ',thin_u_cell/fudge, &
+                           i_thin_u_cell+Dom%ioff, j_thin_u_cell+Dom%joff, &
+                           Grd%xu(i_thin_u_cell,j_thin_u_cell), Grd%yu(i_thin_u_cell,j_thin_u_cell)
+     endif
 
-  if (thick_u0 == thick_u_cell) then
-    write (unit,7000) ' Maximum thickness surface U cell = ',thick_u_cell/fudge, &
-                        i_thick_u_cell+Dom%ioff, j_thick_u_cell+Dom%joff, &
-                        Grd%xu(i_thick_u_cell,j_thick_u_cell), Grd%yu(i_thick_u_cell,j_thick_u_cell)
+     if (thick_u0 == thick_u_cell) then
+       write (unit,7000) ' Maximum thickness surface U cell = ',thick_u_cell/fudge, &
+                           i_thick_u_cell+Dom%ioff, j_thick_u_cell+Dom%joff, &
+                           Grd%xu(i_thick_u_cell,j_thick_u_cell), Grd%yu(i_thick_u_cell,j_thick_u_cell)
+     endif
   endif
 
   if (thin_t_cell < crit_cell_height) then
