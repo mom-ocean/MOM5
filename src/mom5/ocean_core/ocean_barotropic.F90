@@ -3827,7 +3827,8 @@ end subroutine pred_corr_tropic_depth_bgrid
 ! predictor-corrector. Assume depth-like vertical coordinate
 ! so solve for surface height. 
 !
-! Cgrid horizontal layout.   
+! Cgrid horizontal layout. No barotropic smoothing operators,
+! since Cgrid has no gravity wave null mode.
 !
 ! This scheme is more stable than leap_frog since it can run with 
 ! longer time steps to resolve external mode gravity waves.  It also  
@@ -4718,6 +4719,9 @@ end subroutine pred_corr_tropic_press_bgrid
 !
 ! Time steps Cgrid layout of discrete fields. 
 !
+! No barotropic smoothing operators available, since Cgrid has no
+! gravity wave null modes so smoothing should be unnecessary.
+!
 ! </DESCRIPTION>
 !
 subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Velocity, Ext_mode, pme, river)
@@ -5005,24 +5009,6 @@ subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Velocity, Ext_mode, pm
      ! for diagnostics
      wrk2_2d(isd:ied,jsd:jed) = dtbt*tmp(isd:ied,jsd:jed)
 
-     ! smooth anompb_bt.
-     ! time consuming due to mpp_update_domain calls
-     if(smooth_anompb_bt_laplacian) then
-         tmp(:,:) = anompb_bt(:,:,fstau)
-         call mpp_update_domains (tmp(:,:), Dom%domain2d)
-         anompb_bt(:,:,fstaup1) = anompb_bt(:,:,fstaup1) &
-         + dtbt*LAP_T(tmp(:,:), smooth_lap(:,:))
-     endif
-     if(smooth_anompb_bt_biharmonic) then
-         tmp(:,:) = anompb_bt(:,:,fstau) 
-         call mpp_update_domains (tmp(:,:), Dom%domain2d)
-         tmp(:,:) = -LAP_T(tmp(:,:), smooth_bih(:,:))
-         call mpp_update_domains (tmp(:,:), Dom%domain2d)
-         anompb_bt(:,:,fstaup1) = anompb_bt(:,:,fstaup1) &
-         + dtbt*LAP_T(tmp(:,:),smooth_bih(:,:))
-     endif
-
-     ! what about the smoothers?
      if (update_domains_for_obc     .or.  &
         (do_update .AND. barotropic_halo.gt.1) ) then
         if (have_obc) call mpp_update_domains_obc (Dom_bt)
