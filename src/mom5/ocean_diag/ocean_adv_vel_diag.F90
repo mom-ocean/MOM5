@@ -359,7 +359,13 @@ end subroutine ocean_adv_vel_diagnostics
 ! <SUBROUTINE NAME="remapping_check">
 !
 ! <DESCRIPTION>
-! Compute remapping error.  This error will be roundoff only for model
+! Compute remapping error for mapping from T to U cell fields.
+!
+! This error is only relevant for Bgrid calculations, where
+! we need to remap some of the T-grid transports to U-grid.
+! The C-grid does not have such remapping operations.
+!
+! The remapping error will be roundoff only for model
 ! grids where the tracer and velocity grid cell distances are 
 ! linearly related.  The spherical version of MOM satisfies the
 ! appropriate relation, and so should maintain roundoff for the 
@@ -412,10 +418,10 @@ subroutine remapping_check
     remap_err = remap_err0
     write (unit,9000)  remap_err/fudge, ierr+Dom%ioff, jerr+Dom%joff, Grd%xu(ierr,jerr), Grd%yu(ierr,jerr)
     if(Grd%tripolar) write (unit,'(a)') &
-    '==>Note: remapping error will be small (i.e., order 1e-20) only for spherical grids.'
+    '==>Note: T-->U remapping error will be small (i.e., order 1e-20) only for spherical grids.'
   endif
 
-9000  format(//'==>Maximum remapping error = ',es10.3,' m/s  at (i,j) = ','(',i4,',',i4,'),',' (lon,lat) = (',f7.2,',',f7.2,')')
+9000  format(//'==>Maximum T-->U remapping error = ',es10.3,' m/s  at (i,j) = ','(',i4,',',i4,'),',' (lon,lat) = (',f7.2,',',f7.2,')')
 
 end subroutine remapping_check
 ! </SUBROUTINE> NAME="remapping_check"
@@ -475,7 +481,7 @@ subroutine cfl_check1(Time, Thickness, Adv_vel)
   do k=1,nk
      do j=jsc,jec
         do i=isc,iec
-           tempcfl(i)=abs(Grd%tmask(i,j,k)*Adv_vel%wrho_bt(i,j,k)/Thickness%dzwu(i,j,k))
+           tempcfl(i)=abs(Grd%tmask(i,j,k)*Adv_vel%wrho_bt(i,j,k)/Thickness%dzwt(i,j,k))
         enddo
         itemp=maxloc(tempcfl)+isc-1
         if(tempcfl(itemp(1))>cflwtp) then
@@ -554,7 +560,7 @@ subroutine cfl_check2(Time, Thickness, Adv_vel)
     w(:,:) = rho0r*Adv_vel%wrho_bt(:,:,k)
     do j=jsc,jec
       do i=isc,iec
-        cflw  = abs((dtmax/Thickness%dzwu(i,j,k))*w(i,j))*Grd%tmask(i,j,k)
+        cflw  = abs((dtmax/Thickness%dzwt(i,j,k))*w(i,j))*Grd%tmask(i,j,k)
 
         if (cflw >= large_cfl_value) then
 
@@ -562,12 +568,12 @@ subroutine cfl_check2(Time, Thickness, Adv_vel)
            ' Note: CFL velocity limit exceeded at (i,j,k) = (',&
            i+Dom%ioff, ',',j+Dom%joff,',',k,') by factor =',large_cfl_value 
 
-          wmax  = Thickness%dzwu(i,j,k)/dtmax
+          wmax  = Thickness%dzwt(i,j,k)/dtmax
           pcflw = abs(100.0*w(i,j)/wmax)
           write (unit,'(a,f8.2,a,g15.8,a)') ' w_bt reached', pcflw,' % of the local CFL limit (',wmax,' m/s)'
           write (unit,'(a,e12.3,a,e12.3,a,f10.3)') &
-          ' where the grid cell has dimensions (metres) (dxte,dytn,dzwu) = (',&
-          Grd%dxte(i,j),',',Grd%dytn(i,j),',',Thickness%dzwu(i,j,k)
+          ' where the grid cell has dimensions (metres) (dxt,dyt,dzwt) = (',&
+          Grd%dxt(i,j),',',Grd%dyt(i,j),',',Thickness%dzwt(i,j,k)
           write(unit,'(a,i6)') ' The number of cells in the column are kmt = ', Grd%kmt(i,j)
           write(unit,'(a,es22.12,a,es22.12)') ' The grid dimensions (dst,rho_dzt) = ', &
           Thickness%dst(i,j,k),', ',Thickness%rho_dzt(i,j,k,tau)
@@ -1365,7 +1371,7 @@ subroutine vertical_reynolds_check(Adv_vel, Thickness, visc_cbt)
            ' at (i,j,k) = (',ireynz+Dom%ioff,',',jreynz+Dom%joff,',',kreynz,&
            '),  (lon,lat,dpt) = (',Grd%xt(ireynz,jreynz),',', &
            Grd%yt(ireynz,jreynz),',', Grd%dzt(kreynz),' m). ', 'Vertical velocity "w_bt" is (m/s) ',&
-            rho0r*reynw, ' and vertical diabatic viscosity (m^2/s) "visc_cbt" is ', reynmw
+            rho0r*reynw, ' and vertical viscosity (m^2/s) "visc_cbt" is ', reynmw
   endif
 
 end subroutine vertical_reynolds_check
