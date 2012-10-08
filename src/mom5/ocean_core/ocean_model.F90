@@ -931,8 +931,8 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     ! MOM_BGRID and MOM_CGRID 
     if(horizontal_grid=='cgrid') then 
       horz_grid = MOM_CGRID 
-       call mpp_error(FATAL, &
-       '==>Error from ocean_model_mod: cgrid in MOM is not supported for general use. It remains under development.')
+       call mpp_error(WARNING, &
+       '==>Warning from ocean_model_mod: cgrid in MOM remains under active development.')
       write (stdoutunit,'(/1x,a)') &
       ' ==> Note: Using MOM with C-grid horizontal layout. Note that blobs and OBC are not yet available for C-grid.'
       write (stdoutunit,'(/1x,a)') &
