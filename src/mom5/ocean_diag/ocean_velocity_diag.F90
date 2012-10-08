@@ -84,6 +84,7 @@ use ocean_velocity_advect_mod, only: horz_advection_of_velocity, vert_advection_
 use ocean_vert_mix_mod,        only: vert_friction_bgrid, vert_friction_cgrid
 use ocean_workspace_mod,       only: wrk1, wrk2, wrk3
 use ocean_workspace_mod,       only: wrk1_v2d, wrk2_v2d  
+use ocean_workspace_mod,       only: wrk1_2d, wrk2_2d, wrk3_2d
 use ocean_workspace_mod,       only: wrk1_v, wrk2_v, wrk3_v
 
 implicit none
@@ -114,9 +115,6 @@ real, dimension(:,:,:), allocatable :: mass_column
 
 logical :: used
 
-! for kinetic energy 
-integer :: id_ke_tot=-1
-
 integer :: id_clock_energy_analysis
 integer :: id_clock_press_conversion
 integer :: id_clock_press_energy
@@ -128,6 +126,14 @@ integer :: id_pe_tot    =-1
 integer :: id_pe_tot_rel=-1
 logical :: potential_energy_first=.true.
 real, dimension(:), allocatable :: potential_0 ! gravitational potential energy (joules) at initial timestep. 
+
+! for kinetic energy
+integer :: id_ke_tot                    =-1
+integer :: id_kinetic_energy            =-1
+integer :: id_kinetic_energy_intz       =-1
+integer :: id_kinetic_energy_clinic     =-1
+integer :: id_kinetic_energy_clinic_intz=-1
+integer :: id_kinetic_energy_tropic     =-1
 
 ! for pressure energy maps
 integer :: id_u_dot_grad_pint(2)
@@ -197,6 +203,7 @@ private cfl_check2_cgrid
 private compute_topostrophy
 private compute_vorticity
 private stokes_coriolis_force
+private diagnose_kinetic_energy_maps
 
 integer :: global_sum_flag
 integer :: diag_step         = -1
@@ -208,8 +215,11 @@ real    :: max_cfl_value   = 100.0
 real    :: large_cfl_value = 10.0 
 logical :: verbose_cfl     =.false.
 
+! internally set for diagnosing kinetic energy maps
+logical :: compute_kinetic_energy_maps = .false.
+
 logical :: do_bitwise_exact_sum = .false.
-logical :: debug_this_module    = .false. 
+logical :: debug_this_module    = .false.
 
 
 namelist /ocean_velocity_diag_nml/ diag_step, energy_diag_step, do_bitwise_exact_sum, debug_this_module, &
@@ -293,18 +303,6 @@ dtimer       = 1.0/dtime
 acor         = Time_steps%acor
 horz_grid    = hor_grid 
 
-! kinetic energy 
-id_ke_tot = register_diag_field ('ocean_model', 'ke_tot', Time%model_time, &
-            'Total ke', '10^15 Joules', missing_value=missing_value, range=(/0.0,1e20/))
-
-! potential energy 
-id_pe_tot = register_diag_field ('ocean_model', 'pe_tot',       &
-            Time%model_time, 'potential energy', '10^15 Joules',&
-            missing_value=missing_value, range=(/0.0,1e20/))
-id_pe_tot_rel = register_diag_field ('ocean_model', 'pe_tot_rel',                          &
-            Time%model_time, 'potential energy - initial potential energy', '10^15 Joules',&
-            missing_value=missing_value, range=(/0.0,1e20/))
-
 ! pressure energetics 
 id_u_dot_grad_pint(1) = register_diag_field ('ocean_model', 'u_dot_grad_pint_x', &
      Grd%vel_axes_u(1:3), Time%model_time,                                       &
@@ -370,6 +368,19 @@ id_stokes_force_y = register_diag_field ('ocean_model', 'stokes_force_y', Grd%ve
       Time%model_time, 'Meridional component to Stokes Coriolis force', '(kg/m^3)*(m^2/s^2)',  &
       missing_value=missing_value, range=(/-1e9,1e9/))
 
+! kinetic energy scalar
+id_ke_tot = register_diag_field ('ocean_model', 'ke_tot', Time%model_time, &
+            'Globally integrated ocean kinetic energy', '10^15 Joules',    &
+            missing_value=missing_value, range=(/0.0,1e20/))
+
+! potential energy
+id_pe_tot = register_diag_field ('ocean_model', 'pe_tot', Time%model_time, &
+            'Globally integrated ocean potential energy', '10^15 Joules',  &
+            missing_value=missing_value, range=(/0.0,1e20/))
+id_pe_tot_rel = register_diag_field ('ocean_model', 'pe_tot_rel', Time%model_time,          &
+                'global potential energy - initial global potential energy', '10^15 Joules',&
+                missing_value=missing_value, range=(/0.0,1e20/))
+
 if(horz_grid == MOM_BGRID) then 
    id_u_dot_grad_pint_xy = register_diag_field ('ocean_model', 'u_dot_grad_pint_xy', &
         Grd%vel_axes_uv(1:3), Time%model_time,                                       &
@@ -385,7 +396,32 @@ if(horz_grid == MOM_BGRID) then
           standard_name='ocean_kinetic_energy_dissipation_per_unit_area_due_to_vertical_friction')
    id_vorticity_z = register_diag_field ('ocean_model', 'vorticity_z', Grd%tracer_axes(1:3), Time%model_time,&
      'vertical vorticity component: v_x - u_y', '1/sec', missing_value=missing_value, range=(/-1e6,1e6/))
-else 
+   id_kinetic_energy = register_diag_field ('ocean_model', 'kinetic_energy', Grd%vel_axes_uv(1:3),&
+          Time%model_time, 'kinetic energy in a grid cell', '10^15 Joules',                       &
+          missing_value=missing_value, range=(/0.0,1.e20/))
+   if(id_kinetic_energy > 0) compute_kinetic_energy_maps = .true.
+
+   id_kinetic_energy_intz = register_diag_field ('ocean_model', 'kinetic_energy_intz',  &
+          Grd%vel_axes_uv(1:2), Time%model_time, 'Vertically integrated kinetic energy',&
+          '10^15 Joules', missing_value=missing_value, range=(/0.0,1.e20/))
+   if(id_kinetic_energy_intz > 0) compute_kinetic_energy_maps = .true.
+
+   id_kinetic_energy_clinic = register_diag_field ('ocean_model', 'kinetic_energy_clinic',   &
+          Grd%vel_axes_uv(1:3), Time%model_time, 'Baroclinic kinetic energy', '10^15 Joules',&
+          missing_value=missing_value, range=(/0.0,1.e20/))
+   if(id_kinetic_energy_clinic > 0) compute_kinetic_energy_maps = .true.
+
+   id_kinetic_energy_clinic_intz = register_diag_field ('ocean_model', 'kinetic_energy_clinic_intz',&
+          Grd%vel_axes_uv(1:2), Time%model_time, 'Vertically integrated baroclinic kinetic energy', &
+          '10^15 Joules', missing_value=missing_value, range=(/0.0,1.e20/))
+   if(id_kinetic_energy_clinic_intz > 0) compute_kinetic_energy_maps = .true.
+
+   id_kinetic_energy_tropic = register_diag_field ('ocean_model', 'kinetic_energy_tropic',   &
+          Grd%vel_axes_uv(1:2), Time%model_time, 'Barotropic kinetic energy', '10^15 Joules',&
+          missing_value=missing_value, range=(/0.0,1.e20/))
+   if(id_kinetic_energy_tropic > 0) compute_kinetic_energy_maps = .true.
+
+else  ! Cgrid
    id_u_dot_grad_pint_xy = register_diag_field ('ocean_model', 'u_dot_grad_pint_xy',&
         Grd%tracer_axes(1:3), Time%model_time,                                      &
         'current dot 3d pressure force', 'Watt',                                    &
@@ -400,6 +436,33 @@ else
           standard_name='ocean_kinetic_energy_dissipation_per_unit_area_due_to_vertical_friction')
    id_vorticity_z = register_diag_field ('ocean_model', 'vorticity_z', Grd%vel_axes_uv(1:3), Time%model_time, &
      'vertical vorticity component: v_x - u_y', '1/sec', missing_value=missing_value, range=(/-1e6,1e6/))
+
+
+   id_kinetic_energy = register_diag_field ('ocean_model', 'kinetic_energy', Grd%tracer_axes(1:3),&
+          Time%model_time, 'kinetic energy in a grid cell', '10^15 Joules',                       &
+          missing_value=missing_value, range=(/0.0,1.e20/))
+   if(id_kinetic_energy > 0) compute_kinetic_energy_maps = .true.
+
+   id_kinetic_energy_intz = register_diag_field ('ocean_model', 'kinetic_energy_intz',  &
+          Grd%tracer_axes(1:2), Time%model_time, 'Vertically integrated kinetic energy',&
+          '10^15 Joules', missing_value=missing_value, range=(/0.0,1.e20/))
+   if(id_kinetic_energy_intz > 0) compute_kinetic_energy_maps = .true.
+
+   id_kinetic_energy_clinic = register_diag_field ('ocean_model', 'kinetic_energy_clinic',   &
+          Grd%tracer_axes(1:3), Time%model_time, 'Baroclinic kinetic energy', '10^15 Joules',&
+          missing_value=missing_value, range=(/0.0,1.e20/))
+   if(id_kinetic_energy_clinic > 0) compute_kinetic_energy_maps = .true.
+
+   id_kinetic_energy_clinic_intz = register_diag_field ('ocean_model', 'kinetic_energy_clinic_intz',&
+          Grd%tracer_axes(1:2), Time%model_time, 'Vertically integrated baroclinic kinetic energy', &
+          '10^15 Joules', missing_value=missing_value, range=(/0.0,1.e20/))
+   if(id_kinetic_energy_clinic_intz > 0) compute_kinetic_energy_maps = .true.
+
+   id_kinetic_energy_tropic = register_diag_field ('ocean_model', 'kinetic_energy_tropic',   &
+          Grd%tracer_axes(1:2), Time%model_time, 'Barotropic kinetic energy', '10^15 Joules',&
+          missing_value=missing_value, range=(/0.0,1.e20/))
+   if(id_kinetic_energy_tropic > 0) compute_kinetic_energy_maps = .true.
+
 endif 
 
 allocate (potential_0(nk))
@@ -443,11 +506,12 @@ end subroutine ocean_velocity_diag_init
 ! Call diagnostics related to the velocity. 
 ! </DESCRIPTION>
 !
-subroutine ocean_velocity_diagnostics(Time, Thickness, Dens, Velocity)
+subroutine ocean_velocity_diagnostics(Time, Thickness, Dens, Ext_mode, Velocity)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_thickness_type),     intent(in)    :: Thickness
   type(ocean_density_type),       intent(in)    :: Dens
+  type(ocean_external_mode_type), intent(in)    :: Ext_mode
   type(ocean_velocity_type),      intent(inout) :: Velocity
 
   type(time_type) :: next_time 
@@ -491,6 +555,9 @@ subroutine ocean_velocity_diagnostics(Time, Thickness, Dens, Velocity)
 
   ! diagnostic Stokes-Coriolis force 
   call stokes_coriolis_force(Time, Thickness, Velocity)
+
+  ! diagnostic kinetic energy maps
+  call diagnose_kinetic_energy_maps(Time, Thickness, Velocity, Ext_mode)
 
 end subroutine ocean_velocity_diagnostics
 ! </SUBROUTINE>  NAME="ocean_velocity_diagnostics"
@@ -658,6 +725,137 @@ subroutine kinetic_energy (Time, Thickness, Velocity, ke_tot, diag_flag, write_f
 
 end subroutine kinetic_energy
 ! </SUBROUTINE> NAME="kinetic_energy"
+
+
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_kinetic_energy_maps">
+!
+! <DESCRIPTION>
+! Compute maps of horizontal kinetic energy, which is the kinetic
+! energy appropriate for a hydrostatic fluid.
+!
+! Note that for Cgrid calculation we ignore the
+! offset in the horizontal velocity components.
+!
+! </DESCRIPTION>
+!
+subroutine diagnose_kinetic_energy_maps (Time, Thickness, Velocity, Ext_mode)
+
+  type(ocean_time_type),          intent(in) :: Time
+  type(ocean_thickness_type),     intent(in) :: Thickness
+  type(ocean_velocity_type),      intent(in) :: Velocity
+  type(ocean_external_mode_type), intent(in) :: Ext_mode
+
+  integer :: i, j, k, tau
+  real    :: uprime, vprime
+  real, dimension(isd:ied,jsd:jed,2)    :: ubar
+  real, dimension(isd:ied,jsd:jed,2)    :: mass_per_area
+  real, dimension(isd:ied,jsd:jed,nk,2) :: mass_per_cell
+
+  if(.not. compute_kinetic_energy_maps) return
+
+  tau                    = Time%tau
+  wrk1(:,:,:)            = 0.0
+  wrk2(:,:,:)            = 0.0
+  wrk1_2d(:,:)           = 0.0
+  wrk2_2d(:,:)           = 0.0
+  wrk3_2d(:,:)           = 0.0
+  mass_per_area(:,:,:)   = 0.0
+  mass_per_cell(:,:,:,:) = 0.0
+
+  ! compute masses appropriate for Bgrid or Cgrid
+  if(horz_grid == MOM_BGRID) then
+
+     do j=jsd,jed
+        do i=isd,ied
+           mass_per_area(i,j,1) = Thickness%mass_u(i,j,tau)
+           mass_per_area(i,j,2) = Thickness%mass_u(i,j,tau)
+        enddo
+     enddo
+     do k=1,nk
+        do j=jsd,jed
+           do i=isd,ied
+              mass_per_cell(i,j,k,1) = grd_area(i,j,k)*Thickness%rho_dzu(i,j,k,tau)
+              mass_per_cell(i,j,k,2) = mass_per_cell(i,j,k,1)
+           enddo
+        enddo
+     enddo
+
+  else ! Cgrid
+
+     do j=jsd,jed
+        do i=isd,ied
+           mass_per_area(i,j,1) = Thickness%mass_en(i,j,1)
+           mass_per_area(i,j,2) = Thickness%mass_en(i,j,2)
+        enddo
+     enddo
+     do k=1,nk
+        do j=jsd,jed
+           do i=isd,ied
+              mass_per_cell(i,j,k,1) = grd_area(i,j,k)*Thickness%rho_dzten(i,j,k,1)
+              mass_per_cell(i,j,k,2) = grd_area(i,j,k)*Thickness%rho_dzten(i,j,k,2)
+           enddo
+        enddo
+     enddo
+
+  endif
+
+
+  ! vertical average of horizontal velocity and kinetic energy in this vertical average
+  do j=jsd,jed
+     do i=isd,ied
+        ubar(i,j,1)  = Grd%tmasken(i,j,1,1)*Ext_mode%udrho(i,j,1,tau)/(mass_per_area(i,j,1)+epsln)
+        ubar(i,j,2)  = Grd%tmasken(i,j,1,2)*Ext_mode%udrho(i,j,2,tau)/(mass_per_area(i,j,2)+epsln)
+        wrk3_2d(i,j) = onehalf*grd_area(i,j,1)*(mass_per_area(i,j,1)*ubar(i,j,1)**2 + mass_per_area(i,j,2)*ubar(i,j,2)**2)
+     enddo
+  enddo
+
+  ! kinetic energy in full flow and in baroclinic flow
+  do k=1,nk
+     do j=jsd,jed
+        do i=isd,ied
+           uprime      = Velocity%u(i,j,k,1,tau) - ubar(i,j,1)
+           vprime      = Velocity%u(i,j,k,2,tau) - ubar(i,j,2)
+           wrk1(i,j,k) = onehalf*(mass_per_cell(i,j,k,1)*Velocity%u(i,j,k,1,tau)**2 + mass_per_cell(i,j,k,2)*Velocity%u(i,j,k,2,tau)**2)
+           wrk2(i,j,k) = onehalf*(mass_per_cell(i,j,k,1)*uprime**2 + mass_per_cell(i,j,k,2)*vprime**2)
+        enddo
+     enddo
+  enddo
+
+  ! vertical integrals
+  do k=1,nk
+     do j=jsc,jec
+        do i=isc,iec
+           wrk1_2d(i,j) = wrk1_2d(i,j) + wrk1(i,j,k)
+           wrk2_2d(i,j) = wrk2_2d(i,j) + wrk2(i,j,k)
+        enddo
+     enddo
+  enddo
+
+  if(id_kinetic_energy > 0) then
+     used = send_data (id_kinetic_energy, wrk1(:,:,:)*1e-15, Time%model_time, rmask=Grd%mask(:,:,:), &
+            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  endif
+  if(id_kinetic_energy_intz > 0) then
+     used = send_data (id_kinetic_energy_intz, wrk1_2d(:,:)*1e-15, Time%model_time, rmask=Grd%mask(:,:,1), &
+            is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  endif
+  if(id_kinetic_energy_clinic > 0) then
+     used = send_data (id_kinetic_energy_clinic, wrk2(:,:,:)*1e-15, Time%model_time, rmask=Grd%mask(:,:,:), &
+            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  endif
+  if(id_kinetic_energy_clinic_intz > 0) then
+     used = send_data (id_kinetic_energy_clinic_intz, wrk2_2d(:,:)*1e-15, Time%model_time, rmask=Grd%mask(:,:,1), &
+            is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  endif
+  if(id_kinetic_energy_tropic > 0) then
+     used = send_data (id_kinetic_energy_tropic, wrk3_2d(:,:)*1e-15, Time%model_time, rmask=Grd%mask(:,:,1), &
+            is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  endif
+
+
+end subroutine diagnose_kinetic_energy_maps
+! </SUBROUTINE> NAME="diagnose_kinetic_energy_maps"
 
 
 !#######################################################################
