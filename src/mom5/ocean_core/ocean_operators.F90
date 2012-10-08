@@ -500,12 +500,14 @@ end function REMAP_BT_TO_BU
 ! <BR/>
 ! DIV_UD(ud) = BDX_ET(uhy(:,:)/dyte(:,:)) + BDY_NT(vhx(:,:)/dxtn(:,:))
 !
+! Cgrid divergence is straightforward divergence operator.
+!
 ! </DESCRIPTION>
 !
 function DIV_UD (ud, halo_in, halo_out )
 
-    integer, intent(in)                                      :: halo_in, halo_out
-    real, intent(in), dimension(isc-halo_in:,jsc-halo_in:,:) :: ud
+    integer, intent(in)                                                  :: halo_in, halo_out
+    real, intent(in), dimension(isc-halo_in:,jsc-halo_in:,:)             :: ud
     real, dimension(isc-halo_out:iec+halo_out,jsc-halo_out:jec+halo_out) :: DIV_UD
     integer :: i, j, jstart, jend, istart, iend
     real    :: uh, uhim, uhjm, uhimjm, vh, vhim, vhjm, vhimjm
@@ -524,15 +526,12 @@ function DIV_UD (ud, halo_in, halo_out )
     if(horz_grid == MOM_CGRID) then
 
           do j=jstart+1,jend
-             i = istart+1
-             uhim = ud(i-1,j,1)*dytn_bt(i-1,j)
-             vhjm = ud(i,j-1,2)*dxte_bt(i,j-1)
              do i=istart+1,iend
-                uh   = ud(i,j,1)*dytn_bt(i,j)
-                vh   = ud(i,j,2)*dxte_bt(i,j)
+                uhim = ud(i-1,j,1)*dat_bt(i-1,j)*dxter_bt(i-1,j)
+                vhjm = ud(i,j-1,2)*dat_bt(i,j-1)*dytnr_bt(i,j-1)
+                uh   = ud(i,j,1)*dat_bt(i,j)*dxter_bt(i,j)
+                vh   = ud(i,j,2)*dat_bt(i,j)*dytnr_bt(i,j)
                 DIV_UD(i,j) = ((uh - uhim) + (vh - vhjm))*datr_bt(i,j)
-                uhim = uh
-                vhjm = vh
              enddo
           enddo
 
