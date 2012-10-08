@@ -1,10 +1,10 @@
 module ocean_pressure_mod
 !  
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="Stephen.Griffies@noaa.gov">
 ! S.M. Griffies 
 ! </CONTACT>
 !
-! <REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <REVIEWER EMAIL="Tony.Rosati@noaa.gov">
 ! A. Rosati 
 ! </REVIEWER>
 !

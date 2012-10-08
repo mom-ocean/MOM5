@@ -16,10 +16,10 @@
 
 module ocean_types_mod
 !
-!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Matt Harrison 
+!<CONTACT EMAIL="Matthew.Harrison@noaa.gov"> Matt Harrison
 !</CONTACT>
 !
-!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+!<CONTACT EMAIL="Stephen.Griffies@noaa.gov">
 ! S. M. Griffies 
 !</CONTACT>
 !

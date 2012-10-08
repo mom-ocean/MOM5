@@ -1,9 +1,9 @@
 module ocean_vert_mix_mod
 !
-!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies 
+!<CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
 !</CONTACT>
 !
-!<REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov"> A. Rosati 
+!<REVIEWER EMAIL="Tony.Rosati@noaa.gov"> A. Rosati
 !</REVIEWER>
 !
 !<OVERVIEW>

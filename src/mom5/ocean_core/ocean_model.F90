@@ -1,9 +1,9 @@
 module ocean_model_mod
 !
-!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Stephen M. Griffies 
+!<CONTACT EMAIL="Stephen.Griffies@noaa.gov"> Stephen M. Griffies
 !</CONTACT>
 !
-!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Matt Harrison 
+!<CONTACT EMAIL="Matthew.Harrison@noaa.gov"> Matt Harrison
 !</CONTACT>
 !
 !<OVERVIEW>

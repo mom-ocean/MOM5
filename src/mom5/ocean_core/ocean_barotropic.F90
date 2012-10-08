@@ -1,18 +1,18 @@
 module ocean_barotropic_mod
 !
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies
+! <CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
 ! </CONTACT>
 !
 ! <CONTACT EMAIL="martin.schmidt@io-warnemuende.de"> Martin Schmidt (OBC)
 ! </CONTACT>
 !
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Zhi Liang (OBC and halos)
+! <CONTACT EMAIL="Zhi.Liang@noaa.gov"> Zhi Liang (OBC and halos)
 ! </CONTACT>
 !
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Harper Simmons (tides)
+! <CONTACT EMAIL="Harper.Simmons@noaa.gov"> Harper Simmons (tides)
 ! </CONTACT>
 !
-! <REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov"> M.J. Harrison 
+! <REVIEWER EMAIL="Matthew.Harrison@noaa.gov"> M.J. Harrison
 ! </REVIEWER>
 !
 !<OVERVIEW>
@@ -51,7 +51,7 @@ module ocean_barotropic_mod
 ! </REFERENCE>
 !
 ! <REFERENCE>
-! S.M. Griffies, M.J. Harrison, R.C. Pacanowski, and A. Rosati 
+! S.M. Griffies, M.J. Harrison, R.C. Pacanowski, and A. Rosati
 ! A Technical Guide to MOM4 (2004)
 ! </REFERENCE>
 !
@@ -6093,7 +6093,7 @@ end subroutine barotropic_chksum
 !  will be equal, and they will be equal to the rigid lid barotropic
 !  streamfunction in the Boussinesq case.  
 !
-!  Original algorithm: Stephen.Griffies
+!  Original algorithm: Stephen.Griffies@noaa.gov
 !
 !  13MAR2007: Change units to 10^9 kg/s, which is a "mass Sv"
 !  This is the natural unit of transport for a mass-based 

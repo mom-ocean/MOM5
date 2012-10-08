@@ -1,9 +1,9 @@
 module ocean_coriolis_mod
 !
-!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> A. Rosati 
+!<CONTACT EMAIL="Tony.Rosati@noaa.gov"> A. Rosati
 !</CONTACT>
 !
-!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies 
+!<CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
 !</CONTACT>
 !
 !<OVERVIEW>

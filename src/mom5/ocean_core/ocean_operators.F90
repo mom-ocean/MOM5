@@ -1,15 +1,15 @@
 module ocean_operators_mod
 !   
-!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies
+!<CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
 !</CONTACT>
 !
-!<REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov"> A. Rosati 
+!<REVIEWER EMAIL="Tony.Rosati@noaa.gov"> A. Rosati
 !</REVIEWER>
 !
-!<REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Zhi Liang 
+!<REVIEWER EMAIL="Zhi.Liang@noaa.gov"> Zhi Liang
 !</REVIEWER>
 !
-!<REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Alexander Pletzer 
+!<REVIEWER EMAIL="Alexander.Pletzer@noaa.gov"> Alexander Pletzer
 !</REVIEWER>
 !
 !<OVERVIEW>

@@ -1,13 +1,13 @@
 module ocean_velocity_mod
 !
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="Stephen.Griffies@noaa.gov">
 ! S.M. Griffies 
 ! </CONTACT>
 !
-!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> A. Rosati
+!<CONTACT EMAIL="Tony.Rosati@noaa.gov"> A. Rosati
 !</CONTACT>
 !
-! <REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <REVIEWER EMAIL="Matthew.Harrison@noaa.gov">
 ! M.J. Harrison 
 ! </REVIEWER>
 !
@@ -1847,7 +1847,7 @@ end subroutine ocean_velocity_chksum
 !
 ! Use rho_dzu weighting to account for nonBoussinesq.  
 !
-! Author: Stephen.Griffies
+! Author: Stephen.Griffies@noaa.gov
 !
 ! </DESCRIPTION>
 !

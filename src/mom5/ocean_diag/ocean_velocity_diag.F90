@@ -1,6 +1,6 @@
 module ocean_velocity_diag_mod
 !
-!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies 
+!<CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
 !</CONTACT>
 !
 !<OVERVIEW>
@@ -1027,7 +1027,7 @@ end subroutine velocity_change
 !
 ! Diagnose topostrophy as per Greg Holloway.  
 ! 
-! Stephen.Griffies
+! Stephen.Griffies@noaa.gov
 ! March 2012 
 !
 ! </DESCRIPTION>
