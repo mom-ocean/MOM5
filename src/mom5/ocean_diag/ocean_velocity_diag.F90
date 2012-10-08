@@ -101,6 +101,11 @@ real :: dtime
 real :: dtimer 
 real :: acor 
 
+! placeholders for Adams-Bashforth Coriolis
+real :: abtau_m0=0.0
+real :: abtau_m1=0.0
+real :: abtau_m2=0.0
+
 ! for Bgrid or Cgrid 
 integer :: horz_grid 
 real, dimension(:,:,:), allocatable :: grd_area
@@ -2136,7 +2141,8 @@ subroutine energy_analysis (Time, Thickness, Ext_mode, Adv_vel, Dens,    &
   if(horz_grid == MOM_BGRID) then 
      call coriolis_force_bgrid(Time, Thickness, Velocity, energy_analysis_step=.true.)
   else 
-     call coriolis_force_cgrid(Time, Thickness, Adv_vel, Velocity, energy_analysis_step=.true.)
+     call coriolis_force_cgrid(Time, Thickness, Adv_vel, Velocity, abtau_m0, abtau_m1, abtau_m2, &
+                               energy_analysis_step=.true.)
   endif 
   do n=1,2
      do k=1,nk
