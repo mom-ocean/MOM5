@@ -234,7 +234,7 @@ integer , dimension(numPressureHistogramBins) :: id_tauctpmodis
 
 real  :: missing_value = -1.0E30
 real  :: missing_value2 = -.000999
-real  :: time_bnds(2,ntsteps)
+double precision  :: time_bnds(2,ntsteps)
 
 real, dimension(:,:,:), allocatable        :: location   
 logical, dimension(:,:,:), allocatable     :: lflag_array
