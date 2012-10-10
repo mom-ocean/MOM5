@@ -248,7 +248,7 @@ make -f $makeFile
 
 if( $status ) then
     echo "Make failed to create  lib_FMS.a"
-    exit $status
+    exit 1
 endif
 
 # Build the Ocean and Ice Components library
@@ -271,7 +271,7 @@ make -f $makeFile
 
 if( $status ) then
     echo "Make failed to create  lib_ocean.a"
-    exit $status
+    exit 1
 endif
 
 if( $type == MOM_solo ) then
@@ -285,8 +285,9 @@ if( $type == MOM_solo ) then
     make -f $makeFile
     if( $status ) then
 	echo "Make failed to create the MOM_solo executable  "
+	exit 1
     endif    
-    exit $status
+    exit
 endif
 
 if( $type == MOM_SIS ) then
@@ -300,8 +301,9 @@ if( $type == MOM_SIS ) then
     make -f $makeFile
     if( $status ) then
 	echo "Make failed to create the MOM_SIS executable  "
+	exit 1
     endif    
-    exit $status
+    exit
 endif
 
 
@@ -540,7 +542,7 @@ make -f $makeFile
 
 if( $status ) then
     echo "Make failed to create  lib_atmos_phys.a"
-    exit $status
+    exit 1
 endif
 
 endif
@@ -601,7 +603,7 @@ make -f $makeFile
 
 if( $status ) then
     echo "Make failed to create  lib_atmos_fv.a"
-    exit $status
+    exit 1
 endif
 
 endif
@@ -637,7 +639,7 @@ make -f $makeFile
 
 if( $status ) then
     echo "Make failed to create  lib_land_lad.a"
-    exit $status
+    exit 1
 endif
 
 endif
@@ -655,8 +657,9 @@ if( $type == CM2M ) then
     make -f $makeFile
     if( $status ) then
 	echo "Make failed to create the CM2M executable  "
+	exit 1
     endif    
-    exit $status
+    exit
 endif
 
 
@@ -736,7 +739,7 @@ make -f $makeFile
 
 if( $status ) then
     echo "Make failed to create  lib_land_lad2.a"
-    exit $status
+    exit 1
 endif
 
 endif
@@ -752,8 +755,9 @@ if( $type == ESM2M ) then
     make -f $makeFile
     if( $status ) then
 	echo "Make failed to create the ESM2M executable  "
+	exit 1
     endif    
-    exit $status
+    exit
 endif
 
 
@@ -802,7 +806,7 @@ make -f $makeFile
 
 if( $status ) then
     echo "Make failed to create  lib_atmos_bg.a"
-    exit $status
+    exit 1
 endif
 
 endif
@@ -821,6 +825,7 @@ if( $type == ICCM ) then
     make -f $makeFile
     if( $status ) then
 	echo "Make failed to create the ICCM executable  "
+	exit 1
     endif    
-    exit $status
+    exit
 endif
