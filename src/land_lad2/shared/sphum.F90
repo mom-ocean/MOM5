@@ -30,7 +30,7 @@ subroutine qscomp(T, p, qsat, DqsatDT )
   if(120.0<T.and.T<373.0) then
      continue
   else
-     write(*,'(a,g)')'temperature out of range',T
+     write(*,'(a,g4.2)')'temperature out of range',T
   endif
   ! calculate saturated specific humidity
   call escomp(T,esat)
