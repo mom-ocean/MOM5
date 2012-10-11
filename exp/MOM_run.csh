@@ -158,7 +158,7 @@ set echo
 
 
 # --- make sure executable is up to date ---
-  set makeFile      = Make_$type
+  set makeFile = Makefile
   cd $executable:h
   make -f $makeFile
   if ( $status != 0 ) then

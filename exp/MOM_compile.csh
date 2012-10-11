@@ -56,6 +56,10 @@ if($static) then
   set cppDefs = "$cppDefs -DMOM_STATIC_ARRAYS -DNI_=360 -DNJ_=200 -DNK_=50 -DNI_LOCAL_=60 -DNJ_LOCAL_=50"
 endif
 
+if ( $type == EBM ) then
+  set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DLAND_BND_TRACERS -DOVERLOAD_C8 -DOVERLOAD_C4 -DOVERLOAD_R4" )
+endif
+
 #
 # Users must ensure the correct environment file exists for their platform.
 #
@@ -68,11 +72,19 @@ source $root/bin/environs.$platform  # environment variables and loadable module
     cc -O -o $mppnccombine -I/usr/local/include -L/usr/local/lib $code_dir/postprocessing/mppnccombine/mppnccombine.c -lnetcdf
   endif
 
+set mkmf_lib = "$mkmf -f -m Makefile -a $code_dir -t $mkmfTemplate"
+set lib_include_dirs = "$root/include $code_dir/shared/include $code_dir/shared/mpp/include"
+
 source ./FMS_compile.csh
 
 cd $root/exp
 source ./ocean_compile.csh
 
+if( $type == EBM) then
+    cd $root/exp
+    source ./atmos_ebm_compile.csh
+    if ( $status ) exit $status
+endif
 if( $type == CM2M | $type == ESM2M | $type == ICCM ) then
     cd $root/exp
     source ./atmos_phys_compile.csh
@@ -83,7 +95,7 @@ if( $type == CM2M | $type == ESM2M ) then
     source ./atmos_fv_compile.csh
     if ( $status ) exit $status
 endif
-if( $type == CM2M | $type == ICCM ) then
+if( $type == CM2M | $type == ICCM | $type == EBM ) then
     cd $root/exp
     source ./land_lad_compile.csh
     if ( $status ) exit $status
@@ -99,39 +111,40 @@ if( $type == ICCM ) then
     if ( $status ) exit $status
 endif
 
-set makeFile = Makefile
-if ( ! -d $executable:h ) mkdir -p $executable:h
+# Build the executable
+set mkmf_exec = "$mkmf -f -m Makefile -a $code_dir -t $mkmfTemplate -p $executable:t"
+mkdir -p $executable:h
 cd $executable:h
 if( $type == MOM_solo ) then
-#   Build the MOM_solo executable   
     set srcList = ( mom5/drivers )
-    $mkmf -f -m $makeFile -a $code_dir -t $mkmfTemplate -p $executable:t -o "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean" -l "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"  $srcList
-
+    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean"
+    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == MOM_SIS ) then
-#   Build the MOM_SIS executable   
     set srcList = ( atmos_null land_null coupler )
-    $mkmf -f -m $makeFile -a $code_dir -t $mkmfTemplate -p $executable:t -o "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean" -l "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"  $srcList
-
+    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean" 
+    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
+else if( $type == EBM ) then
+    set srcList = ( coupler )
+    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_atmos_ebm  -I$executable:h:h/lib_land_lad"
+    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_atmos_ebm/lib_atmos_ebm.a $executable:h:h/lib_land_lad/lib_land_lad.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == CM2M ) then
-#   Build the CM2M executable   
     set srcList = ( coupler )
-    $mkmf -f -m $makeFile -a $code_dir -t $mkmfTemplate -p $executable:t -o "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_atmos_fv -I$executable:h:h/lib_atmos_phys -I$executable:h:h/lib_land_lad" -l "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_atmos_fv/lib_atmos_fv.a $executable:h:h/lib_atmos_phys/lib_atmos_phys.a $executable:h:h/lib_land_lad/lib_land_lad.a $executable:h:h/lib_FMS/lib_FMS.a"  $srcList
-
+    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_atmos_fv -I$executable:h:h/lib_atmos_phys -I$executable:h:h/lib_land_lad"
+    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_atmos_fv/lib_atmos_fv.a $executable:h:h/lib_atmos_phys/lib_atmos_phys.a $executable:h:h/lib_land_lad/lib_land_lad.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == ESM2M ) then
-#   Build the ESM2M executable   
     set srcList = ( coupler )
-    $mkmf -f -m $makeFile -a $code_dir -t $mkmfTemplate -p $executable:t -o "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_atmos_fv -I$executable:h:h/lib_atmos_phys -I$executable:h:h/lib_land_lad2" -l "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_atmos_fv/lib_atmos_fv.a $executable:h:h/lib_atmos_phys/lib_atmos_phys.a $executable:h:h/lib_land_lad2/lib_land_lad2.a $executable:h:h/lib_FMS/lib_FMS.a"  $srcList
-
+    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_atmos_fv -I$executable:h:h/lib_atmos_phys -I$executable:h:h/lib_land_lad2"
+    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_atmos_fv/lib_atmos_fv.a $executable:h:h/lib_atmos_phys/lib_atmos_phys.a $executable:h:h/lib_land_lad2/lib_land_lad2.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == ICCM ) then
-#   Build the ICCM executable   
     set srcList = ( coupler )
-    $mkmf -f -m $makeFile -a $code_dir -t $mkmfTemplate -p $executable:t -o "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_atmos_bg -I$executable:h:h/lib_atmos_phys -I$executable:h:h/lib_land_lad" -l "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_atmos_bg/lib_atmos_bg.a $executable:h:h/lib_atmos_phys/lib_atmos_phys.a $executable:h:h/lib_land_lad/lib_land_lad.a $executable:h:h/lib_FMS/lib_FMS.a"  $srcList
-
+    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_atmos_bg -I$executable:h:h/lib_atmos_phys -I$executable:h:h/lib_land_lad" 
+    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_atmos_bg/lib_atmos_bg.a $executable:h:h/lib_atmos_phys/lib_atmos_phys.a $executable:h:h/lib_land_lad/lib_land_lad.a $executable:h:h/lib_FMS/lib_FMS.a"
 endif
-
-make -f $makeFile
+$mkmf_exec -o "$includes" -l "$libs"  $srcList
+make
 if( $status ) then
-    echo "Make failed to create the $type executable  "
+    echo "Make failed to create the $type executable"
     exit 1
 endif    
+
 exit

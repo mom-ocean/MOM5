@@ -219,16 +219,13 @@ atmos_shared/vert_advection/vert_advection.F90
 EOF_atmos_param
 
 # setup directory structure
-  if ( ! -d $executable:h )             mkdir -p $executable:h
-  if ( ! -d $executable:h:h/lib_atmos_phys )    mkdir -p $executable:h:h/lib_atmos_phys
+mkdir -p $executable:h:h/lib_atmos_phys
 
 # compile libs
-set makeFile      = Make_lib_atmos_phys
 cd $executable:h:h/lib_atmos_phys
+$mkmf_lib -p lib_atmos_phys.a -c "$cppDefs" -o "-I$executable:h:h/lib_FMS" $pathnames_atmos_param $lib_include_dirs
 
-$mkmf -f -m $makeFile -a $code_dir -t $mkmfTemplate -p lib_atmos_phys.a -c "$cppDefs" -o "-I$executable:h:h/lib_FMS" $pathnames_atmos_param $root/include $code_dir/shared/include $code_dir/shared/mpp/include
-
-make -f $makeFile 
+make
 
 if( $status ) then
     echo "Make failed to create  lib_atmos_phys.a"

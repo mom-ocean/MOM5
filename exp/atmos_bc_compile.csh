@@ -29,16 +29,13 @@ atmos_bgrid/tools/bgrid_vert.F90
 EOF_atmos_bg
 
 # setup directory structure
-  if ( ! -d $executable:h )             mkdir -p $executable:h
-  if ( ! -d $executable:h:h/lib_atmos_bg )    mkdir -p $executable:h:h/lib_atmos_bg
+mkdir -p $executable:h:h/lib_atmos_bg
 
 # compile libs
-set makeFile      = Make_lib_atmos_bg
 cd $executable:h:h/lib_atmos_bg
+$mkmf_lib -p lib_atmos_bg.a -c "$cppDefs" -o "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_atmos_phys" $pathnames_atmos_bg $lib_include_dir
 
-$mkmf -f -m $makeFile -a $code_dir -t $mkmfTemplate -p lib_atmos_bg.a -c "$cppDefs" -o "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_atmos_phys" $pathnames_atmos_bg $root/include $code_dir/shared/include $code_dir/shared/mpp/include
-
-make -f $makeFile 
+make
 
 if( $status ) then
     echo "Make failed to create  lib_atmos_bg.a"

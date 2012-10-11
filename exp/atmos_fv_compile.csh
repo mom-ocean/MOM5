@@ -38,19 +38,14 @@ atmos_fv_dynamics/tools/upper.F90
 
 EOF_atmos_fv
 
-# setup directory structure
-  if ( ! -d $executable:h )             mkdir -p $executable:h
-  if ( ! -d $executable:h:h/lib_atmos_phys_fv )    mkdir -p $executable:h:h/lib_atmos_fv
+set lib_name = "lib_atmos_fv"
 
-# compile libs
-set makeFile      = Make_lib_atmos_fv
-cd $executable:h:h/lib_atmos_fv
-
-$mkmf -f -m $makeFile -a $code_dir -t $mkmfTemplate -p lib_atmos_fv.a -c "$cppDefs" -o "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_atmos_phys" $pathnames_atmos_fv $root/include $code_dir/shared/include $code_dir/shared/mpp/include
-
-make -f $makeFile 
+mkdir -p $executable:h:h/$lib_name
+cd $executable:h:h/$lib_name
+$mkmf_lib -p $lib_name.a -c "$cppDefs" -o "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_atmos_phys" $pathnames_atmos_fv $lib_include_dirs
+make
 
 if( $status ) then
-    echo "Make failed to create  lib_atmos_fv.a"
+    echo "Make failed to create $lib_name.a"
     exit 1
 endif

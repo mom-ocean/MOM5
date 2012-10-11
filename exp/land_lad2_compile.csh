@@ -58,20 +58,15 @@ EOF_land_lad2
 
 set srcList = ( )
 
-# setup directory structure
-  if ( ! -d $executable:h )             mkdir -p $executable:h
-  if ( ! -d $executable:h:h/lib_land_lad2 )    mkdir -p $executable:h:h/lib_land_lad2
+set lib_name = "lib_land_lad2"
 
-# compile libs
-set makeFile      = Make_lib_land_lad2
-cd $executable:h:h/lib_land_lad2
-
-$mkmf -f -m $makeFile -a $code_dir -t $mkmfTemplate -p lib_land_lad2.a -c "-DUSE_LOG_DIAG_FIELD_INFO $cppDefs"  -o "-I$executable:h:h/lib_FMS" $srcList $pathnames_land_lad2 $root/include $code_dir/shared/include $code_dir/shared/mpp/include
-
-make -f $makeFile 
+mkdir -p $executable:h:h/$lib_name
+cd $executable:h:h/$lib_name
+$mkmf_lib -p $lib_name.a -c "-DUSE_LOG_DIAG_FIELD_INFO $cppDefs"  -o "-I$executable:h:h/lib_FMS" $srcList $pathnames_land_lad2 $lib_include_dirs
+make
 
 if( $status ) then
-    echo "Make failed to create  lib_land_lad2.a"
+    echo "Make failed to create $lib_name.a"
     exit 1
 endif
 
