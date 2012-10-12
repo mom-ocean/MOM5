@@ -33,7 +33,7 @@ mkdir -p $executable:h:h/lib_atmos_bg
 
 # compile libs
 cd $executable:h:h/lib_atmos_bg
-$mkmf_lib -p lib_atmos_bg.a -c "$cppDefs" -o "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_atmos_phys" $pathnames_atmos_bg $lib_include_dir
+$mkmf_lib -p lib_atmos_bg.a -c "$cppDefs" -o "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_atmos_phys" $pathnames_atmos_bg $lib_include_dirs
 
 make
 
