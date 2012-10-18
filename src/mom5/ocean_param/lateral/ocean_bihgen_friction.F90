@@ -1035,7 +1035,8 @@ subroutine bihgen_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, en
              usqrd = (Velocity%u(i,j,k,1,taum1) - neptune_velocity(i,j,1))**2
              vsqrd = (Velocity%u(i,j,k,2,taum1) - neptune_velocity(i,j,2))**2
              umagr = 1.0/(epsln + usqrd + vsqrd)
-             sin2theta(i,j,k) = 2.0*Velocity%u(i,j,k,1,taum1)*Velocity%u(i,j,k,2,taum1)*umagr
+             sin2theta(i,j,k) = 2.0*(Velocity%u(i,j,k,1,taum1) - neptune_velocity(i,j,1))* &
+                                    (Velocity%u(i,j,k,2,taum1) - neptune_velocity(i,j,2))*umagr
              cos2theta(i,j,k) = (usqrd - vsqrd)*umagr
            endif
         enddo
