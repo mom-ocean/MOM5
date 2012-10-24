@@ -1,7 +1,7 @@
-# Build the Ocean and Ice Components library
+# Build the Ocean library
 # The list of source files that should be compiled for this component.
 
-set srcList = ( mom5/ocean_bgc mom5/ocean_core mom5/ocean_diag mom5/ocean_blobs mom5/ocean_param/neutral mom5/ocean_param/sources mom5/ocean_param/lateral mom5/ocean_param/vertical mom5/ocean_param/gotm-4.0/include mom5/ocean_param/gotm-4.0/turbulence mom5/ocean_param/gotm-4.0/util mom5/ocean_tracers mom5/ocean_wave ocean_shared/generic_tracers  ice_sis ice_param )
+set srcList = ( mom5/ocean_bgc mom5/ocean_core mom5/ocean_diag mom5/ocean_blobs mom5/ocean_param/neutral mom5/ocean_param/sources mom5/ocean_param/lateral mom5/ocean_param/vertical mom5/ocean_param/gotm-4.0/include mom5/ocean_param/gotm-4.0/turbulence mom5/ocean_param/gotm-4.0/util mom5/ocean_tracers mom5/ocean_wave ocean_shared/generic_tracers )
 
 set lib_name = "lib_ocean"
 
