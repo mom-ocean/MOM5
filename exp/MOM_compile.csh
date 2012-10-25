@@ -87,6 +87,15 @@ if( $type != MOM_solo) then
     source ./ice_compile.csh
     if ( $status ) exit $status
 endif
+if( $type == MOM_SIS) then
+    cd $root/exp
+    source ./land_null_compile.csh
+    if ( $status ) exit $status
+
+    cd $root/exp
+    source ./atmos_null_compile.csh
+    if ( $status ) exit $status
+endif
 if( $type == EBM) then
     cd $root/exp
     source ./atmos_ebm_compile.csh
@@ -127,9 +136,9 @@ if( $type == MOM_solo ) then
     set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean"
     set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == MOM_SIS ) then
-    set srcList = ( atmos_null land_null coupler )
-    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_ice" 
-    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_ice/lib_ice.a $executable:h:h/lib_FMS/lib_FMS.a"
+    set srcList = ( coupler )
+    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_ice -I$executable:h:h/lib_atmos_null -I$executable:h:h/lib_land_null"
+    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_ice/lib_ice.a $executable:h:h/lib_atmos_null/lib_atmos_null.a $executable:h:h/lib_land_null/lib_land_null.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == EBM ) then
     set srcList = ( coupler )
     set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_ice -I$executable:h:h/lib_atmos_ebm  -I$executable:h:h/lib_land_lad"
