@@ -123,7 +123,7 @@ if( $type == ESM2M ) then
 endif
 if( $type == ICCM ) then
     cd $root/exp
-    source ./atmos_bc_compile.csh
+    source ./atmos_bg_compile.csh
     if ( $status ) exit $status
 endif
 
