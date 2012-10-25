@@ -218,12 +218,14 @@ atmos_shared/vert_advection/vert_advection.F90
 
 EOF_atmos_param
 
+set srcList = ( atmos_param/diag_integral atmos_param/monin_obukhov )
+
 # setup directory structure
 mkdir -p $executable:h:h/lib_atmos_phys
 
 # compile libs
 cd $executable:h:h/lib_atmos_phys
-$mkmf_lib -p lib_atmos_phys.a -c "$cppDefs" -o "-I$executable:h:h/lib_FMS" $pathnames_atmos_param $lib_include_dirs
+$mkmf_lib -p lib_atmos_phys.a -c "$cppDefs" -o "-I$executable:h:h/lib_FMS" $pathnames_atmos_param $srcList $lib_include_dirs
 
 make
 

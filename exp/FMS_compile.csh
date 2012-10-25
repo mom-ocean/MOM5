@@ -154,11 +154,6 @@ shared/topography/topography.F90
 shared/tracer_manager/tracer_manager.F90
 shared/tridiagonal/tridiagonal.F90
 
-atmos_param/diag_integral/diag_integral.F90
-atmos_param/monin_obukhov/monin_obukhov.F90
-atmos_param/monin_obukhov/monin_obukhov_interfaces.h
-atmos_param/monin_obukhov/monin_obukhov_kernel.F90
-
 EOF_shared
 
 set lib_name = "lib_FMS"
