@@ -521,7 +521,7 @@ function DIV_UD (ud, halo_in, halo_out )
     jstart = jsc - halo_out
     jend   = jec + halo_out
 
-    DIV_UD = 0.d0
+    DIV_UD = 0.0
 
     if(horz_grid == MOM_CGRID) then
 

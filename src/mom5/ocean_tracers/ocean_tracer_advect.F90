@@ -2400,8 +2400,8 @@ function horz_advect_tracer_4th_order(Adv_vel, Tracer_field)
 
      do j=jsc,jec
         do i=isc-1,iec
-           im1   = tmask_fourth(i-1,j,k)*(i-1) + (1.0-tmask_fourth(i-1,j,k))*i
-           ip2   = tmask_fourth(i+2,j,k)*(i+2) + (1.0-tmask_fourth(i+2,j,k))*(i+1)    
+           im1   = int(tmask_fourth(i-1,j,k)*(i-1) + (1.0-tmask_fourth(i-1,j,k))*i)
+           ip2   = int(tmask_fourth(i+2,j,k)*(i+2) + (1.0-tmask_fourth(i+2,j,k))*(i+1))
            flux_x(i,j,k) = Grd%dyte(i,j)*Adv_vel%uhrho_et(i,j,k)*  &
                 (a4*(tracer_fourth(i+1,j,k)+tracer_fourth(i,j,k)) + &
                  b4*(tracer_fourth(ip2,j,k)+tracer_fourth(im1,j,k)))
@@ -2410,8 +2410,8 @@ function horz_advect_tracer_4th_order(Adv_vel, Tracer_field)
 
      do j=jsc-1,jec
         do i=isc,iec
-           jm1   = tmask_fourth(i,j-1,k)*(j-1) + (1.0-tmask_fourth(i,j-1,k))*j
-           jp2   = tmask_fourth(i,j+2,k)*(j+2) + (1.0-tmask_fourth(i,j+2,k))*(j+1)    
+           jm1   = int(tmask_fourth(i,j-1,k)*(j-1) + (1.0-tmask_fourth(i,j-1,k))*j)
+           jp2   = int(tmask_fourth(i,j+2,k)*(j+2) + (1.0-tmask_fourth(i,j+2,k))*(j+1))
            flux_y(i,j,k) = Grd%dxtn(i,j)*Adv_vel%vhrho_nt(i,j,k)*&
                 (a4*(tracer_fourth(i,j+1,k)+tracer_fourth(i,j,k)) + &
                  b4*(tracer_fourth(i,jp2,k)+tracer_fourth(i,jm1,k)))
@@ -2484,8 +2484,8 @@ function horz_advect_tracer_6th_order(Adv_vel, Tracer_field)
         do i=isc-1,iec
            if (tmask_sixth(i-2,j,k)*tmask_sixth(i-1,j,k) == 0 .or. &
                tmask_sixth(i+3,j,k)*tmask_sixth(i+2,j,k) == 0) then
-               im1   = tmask_sixth(i-1,j,k)*(i-1) + (1.0-tmask_sixth(i-1,j,k))*i
-               ip2   = tmask_sixth(i+2,j,k)*(i+2) + (1.0-tmask_sixth(i+2,j,k))*(i+1)    
+               im1   = int(tmask_sixth(i-1,j,k)*(i-1) + (1.0-tmask_sixth(i-1,j,k))*i)
+               ip2   = int(tmask_sixth(i+2,j,k)*(i+2) + (1.0-tmask_sixth(i+2,j,k))*(i+1))
                flux_x(i,j,k) = Grd%dyte(i,j)*Adv_vel%uhrho_et(i,j,k)   &
                     *(  a4*(tracer_sixth(i+1,j,k)+tracer_sixth(i,j,k)) &
                       + b4*(tracer_sixth(ip2,j,k)+tracer_sixth(im1,j,k)))
@@ -2502,8 +2502,8 @@ function horz_advect_tracer_6th_order(Adv_vel, Tracer_field)
         do i=isc,iec
            if (tmask_sixth(i,j-2,k)*tmask_sixth(i,j-1,k) == 0 .or. &
                tmask_sixth(i,j+3,k)*tmask_sixth(i,j+2,k) == 0) then
-               jm1   = tmask_sixth(i,j-1,k)*(j-1) + (1.0-tmask_sixth(i,j-1,k))*j
-               jp2   = tmask_sixth(i,j+2,k)*(j+2) + (1.0-tmask_sixth(i,j+2,k))*(j+1)    
+               jm1   = int(tmask_sixth(i,j-1,k)*(j-1) + (1.0-tmask_sixth(i,j-1,k))*j)
+               jp2   = int(tmask_sixth(i,j+2,k)*(j+2) + (1.0-tmask_sixth(i,j+2,k))*(j+1))
                flux_y(i,j,k) = Grd%dxtn(i,j)*Adv_vel%vhrho_nt(i,j,k) &
                *(  a4*(tracer_sixth(i,j+1,k)+tracer_sixth(i,j,k))    &
                  + b4*(tracer_sixth(i,jp2,k)+tracer_sixth(i,jm1,k)))

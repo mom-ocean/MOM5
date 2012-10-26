@@ -3287,7 +3287,7 @@ subroutine compute_eta_tend_gm90 (Time, Thickness, Dens,  &
   real, dimension(isd:,jsd:,:),       intent(in) :: agm_array
 
   integer :: i, j, k, kp1, tau
-  integer :: extended_mask
+  real    :: extended_mask
   real    :: absslope, absslopex, absslopey
   real    :: drho_dz, drho_dz_rhor2, divergence
   real    :: global_mean 
@@ -3469,7 +3469,7 @@ subroutine cabbeling_thermob_tendency (Time, Thickness, T_prog, Dens,   &
   real, dimension(isd:,jsd:,:),       intent(in) :: aredi_array
 
   integer :: i, j, k, kp1, tau
-  integer :: extended_mask
+  real    :: extended_mask
   real    :: drho_dz, strat_mask
   real    :: temporary 
   real    :: global_mean 

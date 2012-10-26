@@ -2942,9 +2942,9 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
 
     !--- local variables -----------------------------------------------
     integer :: it, iu, jt, ju, m
-    integer :: k, i, j, sign, tlevel, istrt, iend, ii, jj, dbg
+    integer :: k, i, j, tlevel, istrt, iend, ii, jj, dbg
     integer :: i1, i2, j1, j2, n, nn, im, jm, id, jd, ic, jc
-    real    :: cgrid, var, cmax, uout, uin, rel_var, adv_obc, adv, alpha
+    real    :: cgrid, var, cmax, uout, uin, rel_var, adv_obc, adv, alpha, sign
     real, dimension(:,:), pointer :: cclin
     real, dimension(:,:), pointer :: dg
     real, dimension(:,:), pointer :: ddt

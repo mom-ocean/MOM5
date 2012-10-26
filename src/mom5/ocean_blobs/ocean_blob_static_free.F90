@@ -77,7 +77,7 @@ type(ocean_domain_type), pointer :: Dom => NULL()
 
 logical :: module_is_initialized=.false.
 
-integer, dimension(:,:,:), allocatable :: ocean_mask
+real, dimension(:,:,:), allocatable :: ocean_mask
 integer :: num_prog_tracers=0
 integer :: index_temp=-1
 integer :: index_salt=-1

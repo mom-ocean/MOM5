@@ -4098,14 +4098,14 @@ contains
           5.9415e-3 * max(epsln, Salt(i,j,k))**(1.5) - 0.02 - (48.76 - 2.8 - 0.5304 * Temp(i,j,k)) *   &
           (PRESS - 1.013) / (191.46 * TK) + (1e-3 * (11.76 - 0.3692 * Temp(i,j,k))) * (PRESS - 1.013) *&
           (PRESS - 1.013) / (382.92 * TK)
-       topaz%co3_sol_arag(i,j,k) = 10**(-PKSPA) / (2.937d-4 * max(5.0, Salt(i,j,k)))
+       topaz%co3_sol_arag(i,j,k) = 10**(-PKSPA) / (2.937e-4 * max(5.0, Salt(i,j,k)))
        topaz%omega_arag(i,j,k) = topaz%f_co3_ion(i,j,k) / topaz%co3_sol_arag(i,j,k)
        PKSPC = 171.9065 + 0.077993 * TK - 2839.319 / TK - 71.595 * log10(TK) - (-0.77712 + 2.8426e-3 * &
           TK + 178.34 / TK) * sqrt(max(epsln, Salt(i,j,k))) + 0.07711 * max(epsln, Salt(i,j,k)) -      &
           4.1249e-3 * max(epsln, Salt(i,j,k))**(1.5) - 0.02 - (48.76 - 0.5304 * Temp(i,j,k)) *         &
           (PRESS - 1.013) / (191.46 * TK) + (1e-3 * (11.76 - 0.3692 * Temp(i,j,k))) * (PRESS - 1.013) *&
           (PRESS - 1.013) / (382.92 * TK)
-       topaz%co3_sol_calc(i,j,k) = 10**(-PKSPC) / (2.937d-4 * max(5.0, Salt(i,j,k)))
+       topaz%co3_sol_calc(i,j,k) = 10**(-PKSPC) / (2.937e-4 * max(5.0, Salt(i,j,k)))
        topaz%omega_calc(i,j,k) = topaz%f_co3_ion(i,j,k) / topaz%co3_sol_calc(i,j,k)
     enddo; enddo ; enddo !} i,j,k
 

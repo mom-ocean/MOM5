@@ -5769,13 +5769,13 @@ subroutine compute_latent_heat_fusion(salinity)
 
 real, dimension(isd:,jsd:), intent(in) :: salinity
 
-real, parameter  :: c0  =  3.334265169240710d5
-real, parameter  :: c1  = -2.789444646733159d0
-real, parameter  :: c3  = -4.984585692734338d3
-real, parameter  :: c6  =  1.195857305019339d3
-real, parameter  :: c10 = -5.792068522727968d2
-real, parameter  :: c15 =  6.836527214265952d2
-real, parameter  :: c21 = -2.371103254714944d2
+real, parameter  :: c0  =  3.334265169240710e5
+real, parameter  :: c1  = -2.789444646733159
+real, parameter  :: c3  = -4.984585692734338e3
+real, parameter  :: c6  =  1.195857305019339e3
+real, parameter  :: c10 = -5.792068522727968e2
+real, parameter  :: c15 =  6.836527214265952e2
+real, parameter  :: c21 = -2.371103254714944e2
 
 real    :: x 
 integer :: i,j

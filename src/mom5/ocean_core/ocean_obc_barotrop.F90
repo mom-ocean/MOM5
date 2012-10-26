@@ -1076,7 +1076,7 @@ contains
           list = 0
           ntotal = 0
           Obc%bound(m)%index = -1
-          sindex = 1e5; eindex = -1e5
+          sindex = 100000; eindex = -100000
           do n = 0, npes-1
              if(on_bound(n)) then
                 list = list+1
@@ -1196,7 +1196,7 @@ contains
           list = 0
           ntotal = 0
           Obc%bound(m)%index = -1
-          sindex = 1e5; eindex = -1e5
+          sindex = 100000; eindex = -100000
           do n = 0, npes-1
              if(on_bound(n)) then
                 list = list+1

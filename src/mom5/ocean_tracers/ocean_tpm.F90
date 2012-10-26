@@ -542,7 +542,7 @@ if (switch_interval < 0) then
 endif
 
 days           = int(switch_interval)
-seconds        = (switch_interval - days)*86400
+seconds        = int((switch_interval - days)*86400)
 interval_time  = set_time (seconds, days)
 
 if (interval_time <= dt_time) then

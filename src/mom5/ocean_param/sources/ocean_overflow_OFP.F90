@@ -1589,7 +1589,7 @@ id_OFP_n2_prd_depth    = register_diag_field ('ocean_model', 'OFP_n2_prd_depth',
    allocate (depth_zto(isc-OFP_xhalo:iec+OFP_xhalo,jsc-OFP_yhalo:jec+OFP_yhalo,1:nk))
 !
 
-   kmto      = 0.0
+   kmto      = 0
    dato      = 0.0
    dxto      = 0.0
    dyto      = 0.0
