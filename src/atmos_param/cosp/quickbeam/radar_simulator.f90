@@ -75,7 +75,8 @@
   integer, intent(in) :: me
   type(mie), intent(in) :: mt
   type(class_param), intent(inout) :: hp
-  real*8, intent(in) :: freq,k2
+  real*8, intent(in) :: freq
+  real*8, intent(inout) :: k2
   integer, intent(in) ::  do_ray,use_gas_abs,use_mie_table, &
     nhclass,nprof,ngate,nsizes
   real*8, dimension(nsizes), intent(in) :: D
@@ -110,7 +111,8 @@
   real*8, dimension(:), allocatable :: &
   Di, Deq, &      		! discrete drop sizes (um)
   Ni, Ntemp, &    		! discrete concentrations (cm^-3 um^-1)
-  rhoi				! discrete densities (kg m^-3)
+  rhoi, &			! discrete densities (kg m^-3)
+  xx_rhoi                       ! to expand parameter xx to array parameter
   
   real*8, dimension(ngate) :: &
   z_vol, &			! effective reflectivity factor (mm^6/m^3)
@@ -270,17 +272,18 @@
 	  select case(hp%dtype(tp))
           case(4)
 	    ns = 1
-	    allocate(Di(ns),Ni(ns),rhoi(ns),xxa(ns),Deq(ns))
+	    allocate(Di(ns),Ni(ns),rhoi(ns),xx_rhoi(ns),xxa(ns),Deq(ns))
 	    if (use_mie_table == 1) allocate(mt_qext(ns),mt_qbsca(ns),Ntemp(ns))
 	    Di = hp%p1(tp)
 	    Ni = 0.
 	  case default
  	    ns = nsizes            
-	    allocate(Di(ns),Ni(ns),rhoi(ns),xxa(ns),Deq(ns))
+	    allocate(Di(ns),Ni(ns),rhoi(ns),xx_rhoi(ns),xxa(ns),Deq(ns))
 	    if (use_mie_table == 1) allocate(mt_qext(ns),mt_qbsca(ns),Ntemp(ns))	    
  	    Di = D
  	    Ni = 0.
 	  end select
+          xx_rhoi = xx
 
 !         :: create a DSD (using scaling factor if applicable)
 	  ! hp%scaled(tp,iRe_type)=.false.   ! turn off N scaling
@@ -361,7 +364,7 @@
 	      end select
 
           call zeff(freq,Di,Ni,ns,k2,mt_ttl(itt),0,do_ray, &
-	        ze,zr,kr,mt_qext,mt_qbsca,xx)
+	        ze,zr,kr,mt_qext,mt_qbsca,xx_rhoi)
 	    
 	    else
 
@@ -386,7 +389,7 @@
 	      end select
 
 		   call zeff(freq,Di,Ni,ns,k2,mt_tti(itt),1,do_ray, &
-	        ze,zr,kr,mt_qext,mt_qbsca,xx)
+	        ze,zr,kr,mt_qext,mt_qbsca,xx_rhoi)
 
 	    endif
 
@@ -412,7 +415,7 @@
 
 		!endif
 
-	  deallocate(Di,Ni,rhoi,xxa,Deq)
+	  deallocate(Di,Ni,rhoi,xx_rhoi,xxa,Deq)
   	  if (use_mie_table == 1) deallocate(mt_qext,mt_qbsca,Ntemp)
 
 	  else ! can use z scaling
