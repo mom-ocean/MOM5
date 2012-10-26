@@ -2246,7 +2246,7 @@ subroutine update_ocean_tracer (Time, Dens, Adv_vel, Thickness, pme, diff_cbt, &
         call mpp_clock_end(id_clock_bih_tracer)
 
         call mpp_clock_begin(id_clock_vert_diffuse)
-          call vert_diffuse(Time, Thickness, Dens, n, T_prog(n), diff_cbt)
+          call vert_diffuse(Time, Thickness, n, T_prog(n), diff_cbt)
         call mpp_clock_end(id_clock_vert_diffuse)
        
         ! --add pme contributions to the k=1 cell.
@@ -5236,7 +5236,7 @@ subroutine watermass_diag(Time, T_prog, T_diag, Dens, Thickness, pme)
 
       ! note that all thickness arrays are at taup1, so we 
       ! compute mass(taup1) and mass_of_layer(taup1).  
-      call diagnose_mass_of_layer (Grd%dat, Thickness%depth_zt, Thickness%depth_zwt, &
+      call diagnose_mass_of_layer (Grd%dat, &
                                    Thickness%dzt, Thickness%dztlo, Thickness%dztup,  &
                                    Thickness%rho_dzt(:,:,:,taup1),                   &
                                    wrk3, neutralrho_nk, Dens%neutralrho_bounds, nrho_mass)    

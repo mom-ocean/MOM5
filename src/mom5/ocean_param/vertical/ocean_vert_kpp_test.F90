@@ -961,10 +961,9 @@ end subroutine ocean_vert_kpp_test_init
 !
 ! </DESCRIPTION>
 !
-subroutine vert_mix_kpp_test (aidif, Time, Thickness, Velocity, T_prog, T_diag, Dens, &
+subroutine vert_mix_kpp_test (Time, Thickness, Velocity, T_prog, T_diag, Dens, &
            swflx, sw_frac_zt, pme, river, visc_cbu, visc_cbt, diff_cbt, hblt_depth)
 
-  real,                            intent(in)    :: aidif
   type(ocean_time_type),           intent(in)    :: Time
   type(ocean_thickness_type),      intent(in)    :: Thickness
   type(ocean_velocity_type),       intent(in)    :: Velocity
@@ -1218,7 +1217,7 @@ subroutine vert_mix_kpp_test (aidif, Time, Thickness, Velocity, T_prog, T_diag, 
 
       ! compute interior mixing coefficients everywhere, due to constant 
       ! internal wave activity, static instability, and local shear instability.
-      call ri_iwmix(Time, Thickness, Dens%rho(:,:,:,tau), visc_cbt, diff_cbt)
+      call ri_iwmix(visc_cbt, diff_cbt)
 
       if (double_diffusion) then
         call ddmix (Time, T_prog, Dens, diff_cbt)  
@@ -1555,7 +1554,7 @@ subroutine vert_mix_kpp_test (aidif, Time, Thickness, Velocity, T_prog, T_diag, 
 
            enddo   ! enddo for n-loop 
 
-           call watermass_diag(Time, T_prog, Dens, Thickness)
+           call watermass_diag(Time, T_prog, Dens)
 
        endif   ! endif for non_local_kpp
 
@@ -2178,11 +2177,8 @@ end subroutine wscale
 !
 ! </DESCRIPTION>
 !
-subroutine ri_iwmix(Time, Thickness, rho, visc_cbt, diff_cbt)
+subroutine ri_iwmix(visc_cbt, diff_cbt)
 
-  type(ocean_time_type),          intent(in)    :: Time
-  type(ocean_thickness_type),     intent(in)    :: Thickness
-  real, dimension(isd:,jsd:,:),   intent(in)    :: rho
   real, dimension(isd:,jsd:,:),   intent(inout) :: visc_cbt
   real, dimension(isd:,jsd:,:,:), intent(inout) :: diff_cbt
   
@@ -2800,12 +2796,11 @@ end subroutine watermass_diag_init
 ! Diagnose effects from KPP nonlocal on the watermass transformation.
 ! </DESCRIPTION>
 !
-subroutine watermass_diag(Time, T_prog, Dens, Thickness)
+subroutine watermass_diag(Time, T_prog, Dens)
 
   type(ocean_time_type),          intent(in) :: Time
   type(ocean_prog_tracer_type),   intent(in) :: T_prog(:)
   type(ocean_density_type),       intent(in) :: Dens
-  type(ocean_thickness_type),     intent(in) :: Thickness
 
   integer :: i,j,k,tau
   real, dimension(isd:ied,jsd:jed) :: eta_tend

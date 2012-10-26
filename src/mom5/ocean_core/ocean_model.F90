@@ -1254,7 +1254,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
 
 #ifdef ENABLE_ODA    
-    call init_oda(Domain, Grid, Time, T_prog(:), Velocity, Ext_mode)
+    call init_oda(Domain, Grid, Time, T_prog(:))
 #endif
 
     call ocean_drifters_init(Domain, Grid, Time, T_prog(:), Velocity, Adv_vel)
@@ -1452,7 +1452,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
        ! calculate bottom momentum fluxes and bottom tracer fluxes
        call mpp_clock_begin(id_bbc)
-       call get_ocean_bbc(Time, Thickness, Ext_mode, Dens, Velocity, T_prog(1:num_prog_tracers), Waves)
+       call get_ocean_bbc(Time, Thickness, Dens, Velocity, T_prog(1:num_prog_tracers), Waves)
        call mpp_clock_end(id_bbc)
 
        ! add shortwave heating to T_prog%th_tendency 
@@ -1526,7 +1526,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
        ! add discharge of dense shelf water into abyss to T_prog%th_tendency and mass using NCAR OFP scheme 
        call mpp_clock_begin(id_overflow_OFP)
-       call overflow_OFP (Time, Thickness, Ext_mode, Velocity, T_prog(1:num_prog_tracers), &
+       call overflow_OFP (Time, Thickness, T_prog(1:num_prog_tracers), &
                           Dens, index_temp, index_salt)
        call mpp_clock_end(id_overflow_OFP)
 
@@ -1562,7 +1562,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
           call mpp_clock_end(id_bottom_smooth)
        endif
        ! get prescribed OBC data from files
-       if (have_obc) call ocean_obc_prepare(Time, Thickness, Ext_mode, T_prog(1:num_prog_tracers))
+       if (have_obc) call ocean_obc_prepare(Time, T_prog(1:num_prog_tracers))
 
        ! computed vertical integral of mass forcing used for eta and pbot update
        call mpp_clock_begin(id_mass_forcing)
@@ -1853,7 +1853,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     ! modifications to prognostic variables using ocean data assimilation 
 #ifdef ENABLE_ODA
     call mpp_clock_begin(id_oda)
-    call oda(Time, T_prog(1:num_prog_tracers), Velocity, Ext_mode)
+    call oda(Time, T_prog(1:num_prog_tracers))
     call mpp_clock_end(id_oda)
 #endif
 

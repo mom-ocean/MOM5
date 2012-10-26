@@ -1402,7 +1402,7 @@ subroutine vert_mix_kpp_mom4p0 (aidif, Time, Thickness, Velocity, T_prog, T_diag
 
            enddo   ! enddo for n-loop 
 
-           call watermass_diag(Time, T_prog, Dens, Thickness)
+           call watermass_diag(Time, T_prog, Dens)
 
 
        endif  ! endif for non_local_kpp
@@ -2621,12 +2621,11 @@ end subroutine watermass_diag_init
 ! Diagnose effects from KPP nonlocal on the watermass transformation.
 ! </DESCRIPTION>
 !
-subroutine watermass_diag(Time, T_prog, Dens, Thickness)
+subroutine watermass_diag(Time, T_prog, Dens)
 
   type(ocean_time_type),          intent(in) :: Time
   type(ocean_prog_tracer_type),   intent(in) :: T_prog(:)
   type(ocean_density_type),       intent(in) :: Dens
-  type(ocean_thickness_type),     intent(in) :: Thickness
 
   integer :: i,j,k,tau
   real, dimension(isd:ied,jsd:jed) :: eta_tend

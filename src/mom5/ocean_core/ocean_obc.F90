@@ -2055,11 +2055,9 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
   !      
   !   </DESCRIPTION>
   !<PUBLICROUTINE>
-  subroutine ocean_obc_prepare(Time, Thickness, Ext_mode, T_prog)
+  subroutine ocean_obc_prepare(Time, T_prog)
   !</PUBLICROUTINE>
     type(ocean_time_type), intent(in)             :: Time 
-    type(ocean_thickness_type), intent(inout)     :: Thickness
-    type(ocean_external_mode_type), intent(inout) :: Ext_mode
     type(ocean_prog_tracer_type), intent(inout)   :: T_prog(:)
 
     integer                                       :: m, n
@@ -2068,7 +2066,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
 
 !   prepare the new data needed for time interpolation of external data.
 
-    call ocean_obc_prepare_baro(Time, Ext_mode)
+    call ocean_obc_prepare_baro(Time)
     do m = 1, nobc
 
        !--- if on current pe there is no point on the bound, then just return
@@ -4014,7 +4012,7 @@ end subroutine ocean_obc_restart
     integer :: stdoutunit 
     stdoutunit=stdout() 
 
-    call ocean_obc_end_baro(Time, have_obc)
+    call ocean_obc_end_baro(Time)
     do m = 1, nobc
       if(obc_out_unit(m) .NE. stdoutunit ) then
          call mpp_close(obc_out_unit(m))

@@ -429,16 +429,15 @@ contains
   !  </DESCRIPTION>
   !  <TEMPLATE>
   !   call ocean_generic_column_physics(Thickness, hblt_depth, Time, Grid, dtts, Disd,Djsd, T_prog, T_diag,&
-  !                                     sw_pen,opacity, diff_cbt, Dens, river, Velocity )
+  !                                     sw_pen,opacity, diff_cbt, river, Velocity )
   !  </TEMPLATE>
   ! </SUBROUTINE>
   subroutine ocean_generic_column_physics(Thickness, hblt_depth, Time, Grid, dtts, Disd,Djsd, T_prog, T_diag,&
-       sw_pen,opacity, diff_cbt, Dens, Velocity)
+       sw_pen,opacity, diff_cbt, Velocity)
     integer,                  intent(in)                            :: Disd,Djsd
     type(ocean_grid_type), intent(in)                               :: Grid
     type(ocean_time_type), intent(in)                               :: Time
     type(ocean_thickness_type), intent(in)                          :: Thickness
-    type(ocean_density_type), intent(in)                            :: Dens
     type(ocean_Velocity_type), intent(in)                           :: Velocity
     real, intent(in), dimension(Disd:,Djsd:)                        :: hblt_depth,sw_pen
     real, intent(in), dimension(Disd:,Djsd:,:)                      :: opacity

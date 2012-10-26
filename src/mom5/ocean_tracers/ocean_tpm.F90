@@ -1356,7 +1356,7 @@ integer :: index_salt=-1
 !       Call subroutines to perform initialization operations
 !
 
-call ocean_tempsalt_init (Domain, Grid, Time, Ocean_options, index_temp, index_salt, debug)  
+call ocean_tempsalt_init (Domain, Grid, Ocean_options, index_temp, index_salt, debug)  
 
 call ocean_frazil_init (Domain, Grid, Time, Time_steps, Ocean_options, &
                         index_temp, index_salt, debug)  
@@ -1797,7 +1797,7 @@ endif  !}
 
 if (do_generic_tracer) then 
    call ocean_generic_column_physics(Thickness, hblt_depth, Time, &
-        Grid, dtts, Domain%isd,Domain%jsd, T_prog, T_diag,sw_pen,opacity, diff_cbt, Dens, Velocity)
+        Grid, dtts, Domain%isd,Domain%jsd, T_prog, T_diag,sw_pen,opacity, diff_cbt, Velocity)
 endif
 
 #endif 

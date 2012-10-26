@@ -1842,10 +1842,9 @@ contains
   !      
   !   </DESCRIPTION>
   !<PUBLICROUTINE>
-  subroutine ocean_obc_prepare(Time, Ext_mode)
+  subroutine ocean_obc_prepare(Time)
   !</PUBLICROUTINE>
     type(ocean_time_type), intent(in)             :: Time 
-    type(ocean_external_mode_type), intent(inout) :: Ext_mode
 
     integer                                       :: m, n, i, j, taum1, tau
     integer                                       :: nn, id, jd
@@ -2176,7 +2175,7 @@ contains
        ! Calculate the phase speed
        if(iand(Obc%bound(m)%bcond_eta, IOW) == IOW) then
           ! Original momp1 Orlanski like formulation by Martin Schmidt.
-          call phase_speed_IOW(Obc%bound(m), Obc%eta(m), eta, taum1, tau, taup1, dt)
+          call phase_speed_IOW(Obc%bound(m), Obc%eta(m), eta, taum1, taup1, dt)
           ! Get the sea level due to radiation
           do n = 1, Obc%bound(m)%nlod
              i = Obc%bound(m)%ilod(n)   ! i boundary location
@@ -2900,10 +2899,9 @@ end subroutine ocean_obc_restart
   !      Contains open boundary information
   !   </OUT>
 
-  subroutine ocean_obc_end(Time, have_obc)
+  subroutine ocean_obc_end(Time)
 
     type(ocean_time_type), intent(in) :: Time
-    logical, intent(inout)            :: have_obc
     integer(LONG_KIND)                :: ctrop_chksum
     integer :: m
 
@@ -2948,12 +2946,12 @@ end subroutine ocean_obc_restart
 
   !#######################################################################
   !<SUBROUTINE NAME="phase_speed_IOW">
-  subroutine phase_speed_IOW(Bound, Data, eta, taum1, tau, taup1, tstep, init)
+  subroutine phase_speed_IOW(Bound, Data, eta, taum1, taup1, tstep, init)
 
     type(obc_bound_type),         intent(inout) :: Bound
     type(obc_data_type_2d) ,      intent(in)    :: Data
     real, dimension(isd:,jsd:,:), intent(in)    :: eta
-    integer,                      intent(in)    :: taum1, tau, taup1
+    integer,                      intent(in)    :: taum1, taup1
     real, intent(in)                            :: tstep
     logical, intent(in), optional               :: init
 

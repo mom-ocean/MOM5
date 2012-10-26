@@ -180,7 +180,7 @@ contains
        call ocean_shortwave_csiro_init(Grid, Domain, Time, Ocean_options)       
        num_schemes = num_schemes+1
     elseif(use_shortwave_jerlov) then 
-       call ocean_shortwave_jerlov_init(Grid, Domain, Time, vert_coordinate, Ocean_options)       
+       call ocean_shortwave_jerlov_init(Grid, Domain, vert_coordinate, Ocean_options)       
        num_schemes = num_schemes+1
     elseif(use_shortwave_ext) then 
       call mpp_error(NOTE, &
@@ -293,7 +293,7 @@ subroutine sw_source (Time, Thickness, Dens, T_diag, swflx, swflx_vis, Temp, sw_
   elseif(use_shortwave_csiro) then 
      call sw_source_csiro (Time, Thickness, T_diag(:), swflx, index_irr, Temp, sw_frac_zt)
   elseif(use_shortwave_jerlov) then 
-     call sw_source_jerlov (Time, Thickness, T_diag(:), swflx, swflx_vis, index_irr, Temp, sw_frac_zt, opacity)
+     call sw_source_jerlov (Thickness, T_diag(:), swflx, swflx_vis, index_irr, Temp, sw_frac_zt, opacity)
   elseif(use_shortwave_ext) then
      call sw_source_ext(Time, Thickness, T_diag(:),  swflx, Temp, sw_frac_zt)
   endif 

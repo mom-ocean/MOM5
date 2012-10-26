@@ -1699,12 +1699,10 @@ id_OFP_n2_prd_depth    = register_diag_field ('ocean_model', 'OFP_n2_prd_depth',
 !
 ! </DESCRIPTION>
 !
-subroutine overflow_OFP (Time, Thickness, Ext_mode, Velocity, T_prog, Dens, index_temp, index_salt)
+subroutine overflow_OFP (Time, Thickness, T_prog, Dens, index_temp, index_salt)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_thickness_type),     intent(inout) :: Thickness
-  type(ocean_external_mode_type), intent(inout) :: Ext_mode
-  type(ocean_velocity_type),      intent(inout) :: Velocity
   type(ocean_prog_tracer_type),   intent(inout) :: T_prog(:)
   type(ocean_density_type),       intent(in)    :: Dens
   integer,                        intent(in)    :: index_temp

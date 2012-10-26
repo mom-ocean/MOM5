@@ -1039,7 +1039,7 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
 
    ! specify coefficients for the polynomical equations of state 
    ! and perform some pointwise tests.  
-   call density_coeffs_init(Time, Dens)
+   call density_coeffs_init()
 
    filename = 'ocean_density.res.nc'    
    id_restart_rho = register_restart_field(Den_restart, filename, 'rho', Dens%rho(:,:,:,taup1), &
@@ -1526,10 +1526,7 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
 ! Initialize the EOS coefficients, and write some test values.  
 ! </DESCRIPTION>
 !
-  subroutine density_coeffs_init(Time, Dens)
-
-    type(ocean_time_type),   intent(in) :: Time
-    type(ocean_density_type),intent(in) :: Dens
+  subroutine density_coeffs_init()
 
     integer :: stdoutunit
     real    :: rho_neutralrho

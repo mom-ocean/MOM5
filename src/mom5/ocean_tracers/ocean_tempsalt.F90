@@ -292,11 +292,10 @@ contains
 ! Initialize the temperature/salinity module.
 ! </DESCRIPTION>
 !
-subroutine ocean_tempsalt_init(Domain, Grid, Time, Ocean_options, itemp, isalt, debug)
+subroutine ocean_tempsalt_init(Domain, Grid, Ocean_options, itemp, isalt, debug)
 
   type(ocean_domain_type),    intent(in), target   :: Domain
   type(ocean_grid_type),      intent(in), target   :: Grid
-  type(ocean_time_type),      intent(in)           :: Time
   type(ocean_options_type),   intent(inout)        :: Ocean_options
   integer,                    intent(inout)        :: itemp
   integer,                    intent(inout)        :: isalt

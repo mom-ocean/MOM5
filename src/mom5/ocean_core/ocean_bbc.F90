@@ -597,11 +597,10 @@ end subroutine ocean_bbc_init
 !
 ! </DESCRIPTION>
 !
-subroutine get_ocean_bbc(Time, Thickness, Ext_mode, Dens, Velocity, T_prog, Waves)
+subroutine get_ocean_bbc(Time, Thickness, Dens, Velocity, T_prog, Waves)
 
 type(ocean_time_type),          intent(in)    :: Time
 type(ocean_thickness_type),     intent(in)    :: Thickness
-type(ocean_external_mode_type), intent(in)    :: Ext_mode
 type(ocean_density_type),       intent(in)    :: Dens 
 type(ocean_velocity_type),      intent(inout) :: Velocity
 type(ocean_prog_tracer_type),   intent(inout) :: T_prog(:)
