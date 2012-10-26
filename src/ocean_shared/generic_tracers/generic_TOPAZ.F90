@@ -759,8 +759,6 @@ contains
   subroutine generic_TOPAZ_register(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
 
-    character(len=fm_string_len), parameter :: sub_name = 'generic_TOPAZ_register'
-
     !Specify all prognostic and diagnostic tracers of this modules.
     call user_add_tracers(tracer_list)
 
@@ -786,8 +784,6 @@ contains
   ! </SUBROUTINE>
   subroutine generic_TOPAZ_init(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
-    character(len=fm_string_len), parameter :: sub_name = 'generic_TOPAZ_init'
-
     !Specify and initialize all parameters used by this package
     call user_add_params
 
@@ -2725,8 +2721,6 @@ contains
     type(g_tracer_type), pointer :: tracer_list
 
 
-    character(len=fm_string_len), parameter :: sub_name = 'user_add_tracers'
-
     !
     !Add here only the parameters that are required at the time of registeration 
     !(to make flux exchanging Ocean tracers known for all PE's) 
@@ -3209,8 +3203,6 @@ contains
   subroutine generic_TOPAZ_update_from_coupler(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
 
-    character(len=fm_string_len), parameter :: sub_name = 'generic_CFC_update_from_coupler'
-
     real, dimension(:,:)  ,pointer    :: stf_alk,dry_no3,wet_no3
 
     !
@@ -3395,7 +3387,6 @@ contains
     real, dimension(:,ilb:,jlb:,:), intent(in) :: opacity_band
 
 
-    character(len=fm_string_len), parameter :: sub_name = 'generic_TOPAZ_update_from_source'
     integer :: isc,iec,jsc,jec,isd,ied,jsd,jed,nk,ntau,i,j,k,kblt,n,k_100
     real, dimension(:,:,:) ,pointer :: grid_tmask
     integer, dimension(:,:),pointer :: mask_coast,grid_kmt
@@ -6063,8 +6054,6 @@ contains
     real, dimension(:,:,:,:), pointer :: o2_field,dic_field,po4_field,sio4_field,alk_field
     real, dimension(:,:,:), ALLOCATABLE :: htotal_field,co3_ion_field
     real, dimension(:,:), ALLOCATABLE :: co2_alpha,co2_csurf,co2_sc_no,o2_alpha,o2_csurf,o2_sc_no
-    character(len=fm_string_len), parameter :: sub_name = 'generic_TOPAZ_set_boundary_values'
-
 
     !
     !
@@ -6253,7 +6242,6 @@ contains
 
 
   subroutine generic_TOPAZ_end
-    character(len=fm_string_len), parameter :: sub_name = 'generic_TOPAZ_end'
     call user_deallocate_arrays
   end subroutine generic_TOPAZ_end
 

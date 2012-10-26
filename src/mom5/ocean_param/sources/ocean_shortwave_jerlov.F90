@@ -247,14 +247,6 @@ contains
     integer,                  intent(in)         :: ver_coordinate
     type(ocean_options_type), intent(inout)      :: Ocean_options
 
-    character(len=48),  parameter :: sub_name = 'ocean_shortwave_jerlov_init'
-    character(len=256), parameter :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                    '(' // trim(sub_name) // '): '
-    character(len=256), parameter :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                   '(' // trim(sub_name) // '): '
-    character(len=256), parameter :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                   '(' // trim(sub_name) // '): '
-
     real    :: coef1, coef2, efold1, efold2, depth
     integer :: unit, io_status, ierr, k, nopt
 

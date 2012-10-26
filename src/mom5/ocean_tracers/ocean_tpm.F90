@@ -336,14 +336,6 @@ real, intent(in)                        :: dtts
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'do_time_calc'
-character(len=256), parameter   :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                  '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                 '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                 '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !       Local variables
@@ -595,14 +587,6 @@ type(ocean_prog_tracer_type), dimension(:), intent(inout)       :: T_prog
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_tpm_bbc'
-character(len=256), parameter   :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                  '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                 '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                 '(' // trim(sub_name) // '):'
-
 !
 !       set some indices and flags dependent on time
 !
@@ -681,14 +665,6 @@ type(ocean_thickness_type), intent(in)                  :: Thickness
 !     local parameters
 !-----------------------------------------------------------------------
 !
-
-character(len=64), parameter    :: sub_name = 'ocean_tpm_end'
-character(len=256), parameter   :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                  '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                 '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                 '(' // trim(sub_name) // '):'
 
 !
 !       call subroutines to finish up the run
@@ -793,14 +769,6 @@ type(ocean_grid_type), intent(in)                       :: Grid
 !     local parameters
 !-----------------------------------------------------------------------
 !
-
-character(len=64), parameter    :: sub_name = 'ocean_tpm_init_sfc'
-character(len=256), parameter   :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                  '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                 '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                 '(' // trim(sub_name) // '):'
 
 !
 !-----------------------------------------------------------------------
@@ -925,14 +893,6 @@ integer, intent(in)                                     :: jec_bnd
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_tpm_sum_sfc'
-character(len=256), parameter   :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                  '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                 '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                 '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !       Local variables
@@ -1042,14 +1002,6 @@ integer, intent(in)                     :: jec_bnd
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_tpm_avg_sfc'
-character(len=256), parameter   :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                  '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                 '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                 '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !       Local variables
@@ -1143,14 +1095,6 @@ type(ocean_public_type), intent(inout)  :: Ocean
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_tpm_zero_sfc'
-character(len=256), parameter   :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                  '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                 '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                 '(' // trim(sub_name) // '):'
-
 
 #ifdef USE_OCEAN_BGC 
 
@@ -1215,14 +1159,6 @@ implicit none
 !     local parameters
 !-----------------------------------------------------------------------
 !
-
-character(len=64), parameter    :: sub_name = 'ocean_tpm_sfc_end'
-character(len=256), parameter   :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                  '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                 '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                 '(' // trim(sub_name) // '):'
 
 
 #ifdef USE_OCEAN_BGC 
@@ -1294,14 +1230,6 @@ real, dimension(Domain%isd:,Domain%jsd:), intent(in)            :: runoff
 !     local parameters
 !-----------------------------------------------------------------------
 !
-
-character(len=64), parameter    :: sub_name = 'ocean_tpm_sbc'
-character(len=256), parameter   :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                  '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                 '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                 '(' // trim(sub_name) // '):'
 
 !
 !-----------------------------------------------------------------------
@@ -1412,14 +1340,6 @@ integer :: index_salt=-1
 !     local parameters
 !-----------------------------------------------------------------------
 !
-character(len=64), parameter    :: sub_name = 'ocean_tpm_init'
-character(len=256), parameter   :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                  '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                 '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                 '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !       local variables
@@ -1501,14 +1421,6 @@ implicit none
 !     local parameters
 !-----------------------------------------------------------------------
 !
-
-character(len=64), parameter    :: sub_name = 'ocean_tpm_flux_init'
-character(len=256), parameter   :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                  '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                 '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                 '(' // trim(sub_name) // '):'
 
 !
 !-----------------------------------------------------------------------
@@ -1598,14 +1510,6 @@ real, intent(in)                                                :: dtts
 !     local parameters
 !-----------------------------------------------------------------------
 !
-
-character(len=64), parameter    :: sub_name = 'ocean_tpm_source'
-character(len=256), parameter   :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                  '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                 '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                 '(' // trim(sub_name) // '):'
 
 
 !
@@ -1705,14 +1609,6 @@ type(ocean_thickness_type), intent(in)                  :: Thickness
 !     local parameters
 !-----------------------------------------------------------------------
 !
-
-character(len=64), parameter    :: sub_name = 'ocean_tpm_start'
-character(len=256), parameter   :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                  '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                 '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                 '(' // trim(sub_name) // '):'
 
 !
 !       call subroutines to start the tracer packages
@@ -1856,14 +1752,6 @@ real, intent(in), dimension(Domain%isd:,Domain%jsd:)            :: river
 !     local parameters
 !-----------------------------------------------------------------------
 !
-
-character(len=64), parameter    :: sub_name = 'ocean_tpm_tracer'
-character(len=256), parameter   :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                  '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                 '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                 '(' // trim(sub_name) // '):'
 
 !
 !       call subroutines to perform functions required each time-step

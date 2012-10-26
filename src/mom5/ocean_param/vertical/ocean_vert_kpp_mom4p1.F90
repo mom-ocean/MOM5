@@ -1591,8 +1591,6 @@ subroutine bldepth(Thickness, sw_frac_zt)
   real, parameter :: c0     = 0.0
   real, parameter :: cekman = 0.7  ! constant for Ekman depth
   real, parameter :: cmonob = 1.0  ! constant for Monin-Obukhov depth
-  real, parameter :: hbf    = 1.0  ! fraction of bld which absorbed solar radiation 
-                                   ! contributes to surface buoyancy forcing
   real, parameter :: vtc_fac = 200.! factor after Danabasoglu et al. (A.3) 
 
 ! find bulk Richardson number at every grid level until > Ricr

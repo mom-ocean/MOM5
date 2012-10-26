@@ -175,10 +175,6 @@ type(ocean_residency_instance_type), dimension(:), pointer      :: array
 character(len=64), parameter    :: sub_name = 'ocean_residency_get_instances'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
 !
 !-----------------------------------------------------------------------
@@ -361,8 +357,6 @@ character(len=*), intent(in), optional          :: caller
 !
 
 character(len=256)      :: error_header
-character(len=256)      :: warn_header
-character(len=256)      :: note_header
 character(len=128)      :: caller_str
 integer                 :: i
 integer                 :: j
@@ -384,10 +378,6 @@ endif  !}
 
 error_header = '==>Error from ' // trim(mod_name) //   &
                '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
-warn_header = '==>Warning from ' // trim(mod_name) //  &
-              '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
-note_header = '==>Note from ' // trim(mod_name) //     &
-              '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
   
 !
 ! check that the array is as long as depth dimension
@@ -605,8 +595,6 @@ integer                         :: n
 real, dimension(:), allocatable :: west_bnd
 real, dimension(:), allocatable :: east_bnd
 character(len=256)              :: error_header
-character(len=256)              :: warn_header
-character(len=256)              :: note_header
 character(len=128)              :: caller_str
 real                            :: restore_region_value_use
 real                            :: integrate_region_value_use
@@ -626,10 +614,6 @@ endif  !}
 
 error_header = '==>Error from ' // trim(mod_name) //   &
                '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
-warn_header = '==>Warning from ' // trim(mod_name) //  &
-              '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
-note_header = '==>Note from ' // trim(mod_name) //     &
-              '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
 
 !
 !       set some default values in case they have not been set in the argument list
@@ -985,8 +969,6 @@ integer                 :: k
 integer                 :: n
 logical                 :: restore_region
 character(len=256)      :: error_header
-character(len=256)      :: warn_header
-character(len=256)      :: note_header
 character(len=128)      :: caller_str
 real                    :: restore_region_value_use
 real                    :: integrate_region_value_use
@@ -1005,10 +987,6 @@ endif  !}
 
 error_header = '==>Error from ' // trim(mod_name) //   &
                '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
-warn_header = '==>Warning from ' // trim(mod_name) //  &
-              '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
-note_header = '==>Note from ' // trim(mod_name) //     &
-              '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
 
 !
 !       check that an even number of bounds have been given

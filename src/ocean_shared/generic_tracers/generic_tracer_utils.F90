@@ -673,7 +673,6 @@ contains
     !       Local parameters
     !
 
-    character(len=fm_string_len), parameter  :: sub_name = 'g_tracer_add'
     character(len=fm_string_len) :: flux_name
     !
     !       Local variables
@@ -1332,7 +1331,6 @@ contains
     integer,dimension(isd:,jsd:),intent(in) :: grid_kmt
     type(time_type),             intent(in) :: init_time 
 
-    character(len=fm_string_len), parameter :: sub_name = 'g_tracer_set_common'
     integer :: i,j
 
     !Here we assume that all the tracers in the list have the same following properties
@@ -1401,8 +1399,6 @@ contains
     real, optional, dimension(:,:,:),pointer    :: grid_tmask
     integer, optional, dimension(:,:),  pointer :: grid_mask_coast
     integer, optional, dimension(:,:),  pointer :: grid_kmt
-
-    character(len=fm_string_len), parameter :: sub_name = 'g_tracer_get_common'
 
     !Here we assume that all the tracers in the list have the same following properties
 

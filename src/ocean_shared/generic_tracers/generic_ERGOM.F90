@@ -842,7 +842,6 @@ contains
   subroutine generic_ERGOM_register(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
 
-    character(len=fm_string_len), parameter :: sub_name = 'generic_ERGOM_register'
     character(len=fm_string_len) :: errorstring
     integer :: ioun, io_status, ierr, i, j
     logical :: found
@@ -995,7 +994,6 @@ contains
   subroutine generic_ERGOM_init(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
 
-    character(len=fm_string_len), parameter :: sub_name = 'generic_ERGOM_init'
     integer :: ioun, io_status, ierr
     
     id_init   =   mpp_clock_id('(ERGOM init) '           ,grain=CLOCK_ROUTINE)
@@ -1787,7 +1785,6 @@ contains
   subroutine user_add_tracers(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
 
-    character(len=fm_string_len), parameter :: sub_name = 'user_add_tracers'
     integer                                 :: i, n
     character(len=fm_string_len)            :: mystring
 
@@ -1956,7 +1953,6 @@ contains
   !   initialize the list of 2d tracers with a length of zero
   !
   subroutine user_init_2d_tracer_list
-    character(len=fm_string_len), parameter :: sub_name = 'user_init_2d_tracer_list'
     allocate(tracers_2d(0))
   end subroutine user_init_2d_tracer_list
   !
@@ -1969,7 +1965,6 @@ contains
     type(g_tracer_type), pointer :: tracer_list
     character(len=*), intent(in) :: name, longname, units
 
-    character(len=fm_string_len), parameter :: sub_name = 'user_add_2d_tracer'
     integer                      :: m, n, dummy
     character(len=fm_string_len) :: temp_string
     type(tracer_2d), ALLOCATABLE, dimension(:) :: temp_tracers_2d
@@ -2133,7 +2128,6 @@ contains
   ! </SUBROUTINE>
   subroutine generic_ERGOM_update_from_coupler(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
-    character(len=fm_string_len), parameter :: sub_name = 'generic_ERGOM_update_from_coupler'
     !
     !Nothing specific to be done for CFC's
     !
@@ -2456,7 +2450,6 @@ contains
     real, dimension(:,ilb:,jlb:,:), intent(in) :: opacity_band
     real, dimension(ilb:,jlb:),     intent(in) :: current_wave_stress
 
-    character(len=fm_string_len), parameter :: sub_name = 'generic_ERGOM_update_from_source'
     integer :: isc,iec, jsc,jec,isd,ied,jsd,jed,nk,ntau, i, j, k , kblt, n, m
     real, dimension(:,:,:) ,pointer :: grid_tmask
     integer, dimension(:,:),pointer :: mask_coast,grid_kmt
@@ -3439,8 +3432,6 @@ contains
     real, dimension(:,:), ALLOCATABLE :: nitrogen_alpha, nitrogen_csurf, nitrogen_sc_no
     real, dimension(:,:), ALLOCATABLE :: o2_alpha,       o2_csurf      , o2_sc_no
 
-    character(len=fm_string_len), parameter :: sub_name = 'generic_ERGOM_set_boundary_values'
-
 
     !nnz: Can we treat these as source and move block to user_update_from_source?
     !
@@ -3661,8 +3652,6 @@ contains
     real                               :: velocity, wpos, wneg
     integer                            :: k, i, j, kp1
     integer                            :: isc,iec,jsc,jec,isd,ied,jsd,jed,nk,ntau
-    character(len=fm_string_len), parameter :: sub_name = 'generic_ERGOM_vmove'
-    
     call g_tracer_get_common(isc,iec,jsc,jec,isd,ied,jsd,jed,nk,ntau,&
          grid_tmask=tmask, grid_kmt=kmt)
 
@@ -3700,7 +3689,6 @@ contains
   ! </SUBROUTINE>
 
   subroutine generic_ERGOM_end
-    character(len=fm_string_len), parameter :: sub_name = 'generic_ERGOM_end'
     call user_deallocate_arrays
   end subroutine generic_ERGOM_end
   

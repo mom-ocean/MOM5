@@ -102,7 +102,6 @@ contains
   subroutine generic_CFC_register(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
 
-    character(len=fm_string_len), parameter :: sub_name = 'generic_CFC_register'
 
     !Specify all prognostic and diagnostic tracers of this modules.
     call user_add_tracers(tracer_list)
@@ -131,8 +130,6 @@ contains
 
   subroutine generic_CFC_init(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
-
-    character(len=fm_string_len), parameter :: sub_name = 'generic_CFC_init'
 
     !Specify and initialize all parameters used by this package
     call user_add_params
@@ -226,8 +223,6 @@ contains
     type(g_tracer_type), pointer :: tracer_list
 
 
-    character(len=fm_string_len), parameter :: sub_name = 'user_add_tracers'
-
 
     call g_tracer_start_param_list(package_name)!nnz: Does this append?
     call g_tracer_add_param('ice_restart_file'   , param%ice_restart_file   , 'ice_ocmip2_cfc.res.nc')
@@ -293,7 +288,6 @@ contains
   ! </SUBROUTINE>
   subroutine generic_CFC_update_from_coupler(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
-    character(len=fm_string_len), parameter :: sub_name = 'generic_CFC_update_from_copler'
     !
     !Nothing specific to be done for CFC's
     !
@@ -359,8 +353,6 @@ contains
     real, dimension(:,:,:,:), pointer :: g_cfc_11_field,g_cfc_12_field
     real, dimension(:,:), ALLOCATABLE :: g_cfc_11_alpha,g_cfc_11_csurf,g_cfc_12_alpha,g_cfc_12_csurf
     real, dimension(:,:), ALLOCATABLE :: sc_no_11,sc_no_12
-
-    character(len=fm_string_len), parameter :: sub_name = 'generic_CFC_set_boundary_values'
 
 
     !nnz: Can we treat these as source and move block to user_update_from_source?
@@ -474,7 +466,6 @@ contains
   ! </SUBROUTINE>
 
   subroutine generic_CFC_end
-    character(len=fm_string_len), parameter :: sub_name = 'generic_CFC_end'
 
   end subroutine generic_CFC_end
 

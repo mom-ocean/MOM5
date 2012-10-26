@@ -5482,8 +5482,8 @@ function advect_tracer_mdppm_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
   real                                     :: mskm2,mskm1,msk0,mskp1,mskp2
   real                                     :: qmp,qlc
   real                                     :: dM4m,dM4p,qav,qul,qmd,qmin,qmax,x,y,z,w
-  real,parameter                           :: oneSixth=1./6., r24=1./24., r12=1./12.
-  real,parameter                           :: fourThirds=4./3., twoThirds=2./3.
+  real,parameter                           :: oneSixth=1./6., r12=1./12.
+  real,parameter                           :: twoThirds=2./3.
   real,dimension(isc-4:iec+4,jsc-4:jec+4)  :: da, aL, aR, a6, d1m, d1p, d1mm, d1pp
   real,dimension(isc-4:iec+4,jsc-4:jec+4,nk) :: dak
   real                                     :: dakm1, dakp1
@@ -6071,8 +6071,8 @@ function advect_tracer_mdppm(Time, Adv_vel, Tracer, Thickness, Tracer_field, dti
   real                                     :: mskm2,mskm1,msk0,mskp1,mskp2
   real                                     :: qmp,qlc
   real                                     :: dM4m,dM4p,qav,qul,qmd,qmin,qmax,x,y,z,w
-  real,parameter                           :: oneSixth=1./6., r24=1./24., r12=1./12.
-  real,parameter                           :: fourThirds=4./3., twoThirds=2./3.
+  real,parameter                           :: oneSixth=1./6., r12=1./12.
+  real,parameter                           :: twoThirds=2./3.
   real,dimension(isc-4:iec+4,jsc-4:jec+4)  :: da, aL, aR, a6, d1m, d1p, d1mm, d1pp
   real,dimension(isc-4:iec+4,jsc-4:jec+4,nk) :: dak
   real                                     :: dakm1, dakp1
@@ -6771,12 +6771,9 @@ function advect_tracer_mdmdt_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
   real                                     :: mskm2,mskm1,msk0,mskp1,mskp2
   real                                     :: qmp,qlc
   real                                     :: dM4m,dM4p,qav,qul,qmd,qmin,qmax,x,y,z,w
-  real,parameter                           :: oneSixth=1./6., r24=1./24., r12=1./12.
-  real,parameter                           :: fourThirds=4./3., twoThirds=2./3.
   real,dimension(isc-4:iec+4,jsc-4:jec+4)  :: da, aL, aR, a6, d1m, d1p, d1mm, d1pp
   real,dimension(isc-4:iec+4,jsc-4:jec+4,nk) :: dak
   real                                     :: dakm1, dakp1
-  real,parameter                           :: sweby_limiter=1.0
   real :: tmin0,tmax0
 
   real :: Phi, Qippp, Qipp, Qip, Qi, Qim, Qimm, Qimmm
