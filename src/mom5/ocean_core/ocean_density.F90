@@ -1039,7 +1039,7 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
 
    ! specify coefficients for the polynomical equations of state 
    ! and perform some pointwise tests.  
-   call density_coeffs_init(Time, Dens, use_blobs)
+   call density_coeffs_init(Time, Dens)
 
    filename = 'ocean_density.res.nc'    
    id_restart_rho = register_restart_field(Den_restart, filename, 'rho', Dens%rho(:,:,:,taup1), &
@@ -1526,11 +1526,10 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
 ! Initialize the EOS coefficients, and write some test values.  
 ! </DESCRIPTION>
 !
-  subroutine density_coeffs_init(Time, Dens, use_blobs)
+  subroutine density_coeffs_init(Time, Dens)
 
     type(ocean_time_type),   intent(in) :: Time
     type(ocean_density_type),intent(in) :: Dens
-    logical,                 intent(in) :: use_blobs
 
     integer :: stdoutunit
     real    :: rho_neutralrho
@@ -4103,7 +4102,7 @@ end subroutine compute_density_diagnostics
        pressure(:,:,:) = press(:,:,:)
     endif 
 
-    call calc_cabbeling_thermobaricity(rho, salinity, theta, pressure, Time, &
+    call calc_cabbeling_thermobaricity(rho, salinity, theta, pressure, &
     density_theta, density_salinity, density_press, cabbeling_param, thermobaric_param)
 
     if(id_cabbeling > 0) then  
@@ -4134,14 +4133,13 @@ end subroutine compute_density_diagnostics
 !
 ! </DESCRIPTION>
 !
-  subroutine calc_cabbeling_thermobaricity(rho, salinity, theta, press, Time, &
+  subroutine calc_cabbeling_thermobaricity(rho, salinity, theta, press, &
              density_theta, density_salinity, density_press, cabbeling_param, thermobaric_param)
 
     real, dimension(isd:,jsd:,:), intent(in)    :: rho
     real, dimension(isd:,jsd:,:), intent(in)    :: salinity
     real, dimension(isd:,jsd:,:), intent(in)    :: theta
     real, dimension(isd:,jsd:,:), intent(in)    :: press
-    type(ocean_time_type),        intent(in)    :: Time
     real, dimension(isd:,jsd:,:), intent(in)    :: density_theta
     real, dimension(isd:,jsd:,:), intent(in)    :: density_salinity
     real, dimension(isd:,jsd:,:), intent(in)    :: density_press

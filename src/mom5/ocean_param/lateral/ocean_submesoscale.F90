@@ -1225,18 +1225,18 @@ end subroutine ocean_submesoscale_init
       call compute_submeso_skewsion(Thickness, Dens, Time, T_prog)
   elseif(submeso_advect_flux) then
       if(submeso_advect_upwind) then  
-         call compute_submeso_upwind(Thickness, Dens, Time, T_prog)
+         call compute_submeso_upwind(Time, T_prog)
       elseif(submeso_advect_sweby) then 
-         call compute_submeso_sweby(Thickness, Dens, Time, T_prog)
+         call compute_submeso_sweby(Thickness, Time, T_prog)
       endif 
   endif
-  call watermass_diag(Time, T_prog, Dens, Thickness)
+  call watermass_diag(Time, T_prog, Dens)
 
 
   if(submeso_diffusion) then 
       call compute_submeso_diffusion(Thickness, Dens, Time, T_prog)
   endif 
-  call watermass_diag_diffusion(Time, T_prog, Dens, Thickness)
+  call watermass_diag_diffusion(Time, T_prog, Dens)
 
 
 end subroutine submeso_restrat
@@ -2863,10 +2863,8 @@ end subroutine compute_flux_z
 !
 ! </DESCRIPTION>
 !
-subroutine compute_submeso_upwind(Thickness, Dens, Time, T_prog)
+subroutine compute_submeso_upwind(Time, T_prog)
 
-  type(ocean_thickness_type),   intent(in)    :: Thickness
-  type(ocean_density_type),     intent(in)    :: Dens
   type(ocean_time_type),        intent(in)    :: Time
   type(ocean_prog_tracer_type), intent(inout) :: T_prog(:)
 
@@ -3031,10 +3029,9 @@ end subroutine compute_submeso_upwind
 !
 ! </DESCRIPTION>
 !
-subroutine compute_submeso_sweby(Thickness, Dens, Time, T_prog)
+subroutine compute_submeso_sweby(Thickness, Time, T_prog)
 
   type(ocean_thickness_type),   intent(in)    :: Thickness
-  type(ocean_density_type),     intent(in)    :: Dens
   type(ocean_time_type),        intent(in)    :: Time
   type(ocean_prog_tracer_type), intent(inout) :: T_prog(:)
 
@@ -4136,12 +4133,11 @@ end subroutine watermass_diag_init
 ! Diagnose effects from submesoscale on watermass transformation.  
 ! </DESCRIPTION>
 !
-subroutine watermass_diag(Time, T_prog, Dens, Thickness)
+subroutine watermass_diag(Time, T_prog, Dens)
 
   type(ocean_time_type),          intent(in) :: Time
   type(ocean_prog_tracer_type),   intent(in) :: T_prog(:)
   type(ocean_density_type),       intent(in) :: Dens
-  type(ocean_thickness_type),     intent(in) :: Thickness
 
   integer :: i,j,k,tau
   real,  dimension(isd:ied,jsd:jed) :: eta_tend
@@ -4360,12 +4356,11 @@ end subroutine watermass_diag
 ! on watermass transformation.  
 ! </DESCRIPTION>
 !
-subroutine watermass_diag_diffusion(Time, T_prog, Dens, Thickness)
+subroutine watermass_diag_diffusion(Time, T_prog, Dens)
 
   type(ocean_time_type),          intent(in) :: Time
   type(ocean_prog_tracer_type),   intent(in) :: T_prog(:)
   type(ocean_density_type),       intent(in) :: Dens
-  type(ocean_thickness_type),     intent(in) :: Thickness
 
   integer :: i,j,k,tau
   real,  dimension(isd:ied,jsd:jed) :: eta_tend

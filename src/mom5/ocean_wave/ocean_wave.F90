@@ -289,7 +289,7 @@ subroutine ocean_wave_init(Grid, Domain, Waves, Time, Time_steps, Ocean_options,
   enddo
   call mpp_min (gridmin)
 ! readthe initial field or the restart file
-  call read_wave(Time, Waves)
+  call read_wave(Waves)
 
   wave_damp = wavedamp/rho_ice  
 
@@ -726,8 +726,7 @@ end subroutine ocean_wave_filter
 !  Read wave restart information. 
 ! </DESCRIPTION>
 
-subroutine read_wave(Time, Waves)
-  type(ocean_time_type), intent(in)    :: Time
+subroutine read_wave(Waves)
   type(ocean_wave_type), intent(inout) :: Waves
 
   character*128 file_name
@@ -766,8 +765,7 @@ end subroutine read_wave
 !  Save wave restart information. 
 ! </DESCRIPTION>
 
-subroutine ocean_wave_restart(Time, Waves, time_stamp)
-  type(ocean_time_type), intent(in)           :: Time
+subroutine ocean_wave_restart(Waves, time_stamp)
   type(ocean_wave_type), intent(inout)        :: Waves
   character(len=*),      intent(in), optional :: time_stamp
   
@@ -807,7 +805,7 @@ subroutine ocean_wave_end(Time, Waves)
     return
   endif 
 
-  call ocean_wave_restart(Time, Waves)
+  call ocean_wave_restart(Waves)
 
   write(stdoutunit,*) ' '
   write(stdoutunit,*) &

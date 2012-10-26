@@ -1166,7 +1166,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
                                      
     ! initialize diagnostic tracers 
     T_diag => ocean_diag_tracer_init(Time, Thickness, vert_coordinate_type, num_diag_tracers,&
-                                     cmip_units, use_blobs, debug=debug)    
+                                     use_blobs)
 
     call ocean_advection_velocity_init(Grid, Domain, Time, Time_steps, Thickness, Adv_vel, &
                                        vert_coordinate_class, horz_grid, have_obc, use_blobs, debug=debug)
@@ -1221,10 +1221,10 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     call ocean_bih_friction_init(Grid, Domain, Time, Ocean_options, dtime_u, have_obc, horz_grid, debug=debug)    
     call ocean_momentum_source_init(Grid, Domain, Time, Ocean_options, debug=debug)    
     call ocean_form_drag_init(Grid, Domain, Time, Time_steps, Ocean_options, debug=debug)    
-    call ocean_tracer_advect_init(Grid, Domain, Time, Dens, T_prog(:), dtime_t, have_obc, debug=debug)
+    call ocean_tracer_advect_init(Grid, Domain, Time, Dens, T_prog(:), have_obc, debug=debug)
     call ocean_velocity_advect_init(Grid, Domain, Time, have_obc, horz_grid, debug=debug)
     call ocean_convect_init(Grid, Domain, Time, Dens, T_prog(:), Ocean_options, dtime_t)
-    call ocean_sbc_init(Grid, Domain, Time, T_prog(:), T_diag(:), Velocity, Ocean, Dens, &
+    call ocean_sbc_init(Grid, Domain, Time, T_prog(:), T_diag(:), Ocean, Dens, &
                         time_tendency, dtime_t, horz_grid)
     call ocean_bbc_init(Grid, Domain, Time, Dens, T_prog(:), Velocity, Ocean_options, vert_coordinate_type, horz_grid)
     call ocean_shortwave_init(Grid, Domain, Time, Dens, vert_coordinate, Ocean_options)
@@ -1446,7 +1446,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
        ! compute "flux adjustments" (e.g., surface tracer restoring, flux correction)
        call mpp_clock_begin(id_flux_adjust)
-       call flux_adjust(Time, T_diag(1:num_diag_tracers), Dens, Thickness, Ext_mode, &
+       call flux_adjust(Time, T_diag(1:num_diag_tracers), Dens, Ext_mode, &
                         T_prog(1:num_prog_tracers), Velocity, river, melt, pme)
        call mpp_clock_end(id_flux_adjust)
 
@@ -1485,7 +1485,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
        ! compute ocean tendencies from tracer packages
        call mpp_clock_begin(id_otpm_source)
        call ocean_tpm_source(isd, ied, jsd, jed, Domain, Grid, T_prog(:), T_diag(:), &
-            Time, Thickness, Dens, opacity, surf_blthick, dtts)
+            Time, Thickness, Dens, surf_blthick, dtts)
        call mpp_clock_end(id_otpm_source)
 
        ! set ocean surface boundary conditions for the tracer packages
@@ -1698,7 +1698,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
        ! update to time=taup1 the value of tracer concentrations
        call mpp_clock_begin(id_tracer)
-       call update_ocean_tracer(Time, Dens, Adv_vel, Thickness, pme, diff_cbt, Dens%pressure_at_depth, &
+       call update_ocean_tracer(Time, Dens, Adv_vel, Thickness, pme, diff_cbt, &
             T_prog(1:num_prog_tracers), T_diag(1:num_diag_tracers), Lagrangian_system, Velocity,       &
             Ext_mode, EL_diag(:), use_blobs)
        call mpp_clock_end(id_tracer)
@@ -1722,7 +1722,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
        ! perform extra calculations for the ocean tracer packages
        call mpp_clock_begin(id_otpm_tracer)
        call ocean_tpm_tracer(Domain, T_prog(:), T_diag(:), Grid, Time, Thickness, Dens, dtts, &
-            surf_blthick, swflx_vis, opacity, diff_cbt, river, Velocity)
+            surf_blthick, swflx_vis, opacity, diff_cbt, Velocity)
        call mpp_clock_end(id_otpm_tracer)
 
        ! fill processor halos for tracers(taup1).
@@ -1765,13 +1765,12 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
     ! vertical integral of forcing used for barotropic dynamics 
     call mpp_clock_begin(id_barotropic_forcing)
-    call ocean_barotropic_forcing(Time, Thickness, Velocity, Ext_mode) 
+    call ocean_barotropic_forcing(Time, Velocity, Ext_mode) 
     call mpp_clock_end(id_barotropic_forcing)
 
     ! update (udrho,vdrho) and eta_t_bar or pbot_t_bar using barotropic timesteps 
     call mpp_clock_begin(id_barotropic_update)
-    call update_ocean_barotropic (Time, Dens, Thickness, Velocity, Adv_vel, &
-                                  T_prog(index_temp), T_prog(index_salt),   &
+    call update_ocean_barotropic (Time, Dens, Thickness, Adv_vel, &
                                   Ext_mode, patm, pme, river)
     call mpp_clock_end(id_barotropic_update)
 
@@ -1818,7 +1817,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     if(horz_grid == MOM_BGRID) then 
        call update_ocean_velocity_bgrid(Time, Thickness, barotropic_split, vert_coordinate_class, Ext_mode, Velocity) 
     else 
-       call update_ocean_velocity_cgrid(Time, Thickness, barotropic_split, vert_coordinate_class, Adv_vel, Ext_mode, Velocity) 
+       call update_ocean_velocity_cgrid(Time, Thickness, Adv_vel, Ext_mode, Velocity) 
     endif 
     call mpp_clock_end(id_velocity)
 
@@ -2060,7 +2059,7 @@ end subroutine ocean_model_data1D_get
     call ocean_thickness_end(Time, Grid, Thickness)
     call ocean_density_end(Time, Dens, use_blobs)
     if(have_obc) call ocean_obc_end(Time, have_obc)
-    call ocean_sfc_end(Ocean_sfc)
+    call ocean_sfc_end()
     call ocean_vert_mix_end(Time)
     call ocean_drifters_end(Grid)
     call ocean_wave_end(Time, Waves)
@@ -2194,7 +2193,7 @@ end subroutine ocean_model_data1D_get
      character(len=*), intent(in), optional :: timestamp
 
      call ocean_tracer_restart(Time, T_prog, timestamp)
-     call ocean_tracer_advect_restart(T_prog, timestamp)
+     call ocean_tracer_advect_restart(T_prog)
      call ocean_nphysics_restart(timestamp)
      call ocean_nphysics_new_restart(timestamp)
      call ocean_bih_friction_restart(timestamp)

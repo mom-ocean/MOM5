@@ -1228,7 +1228,7 @@ call close_file (ioun)
     !
     call g_tracer_add_param('tracer_debug',  bling%tracer_debug, .false.)
     !
-    call g_tracer_end_param_list(package_name)
+    call g_tracer_end_param_list()
     !===========
     !Block Ends: g_tracer_add_param
     !===========
@@ -1252,7 +1252,7 @@ call close_file (ioun)
     call g_tracer_add_param('ocean_restart_file' , bling%ocean_restart_file, 'ocean_bling.res.nc')
     call g_tracer_add_param('IC_file'       , bling%IC_file       , '')
 
-    call g_tracer_end_param_list(package_name)
+    call g_tracer_end_param_list()
 
     ! Set Restart files
     call g_tracer_set_files(ice_restart_file    = bling%ice_restart_file,&

@@ -206,7 +206,7 @@ contains
     !  pressure gradients, in units of kg m-3.
     call g_tracer_add_param('RHO_0', param%Rho_0, 1035.0)
 
-    call g_tracer_end_param_list(package_name)
+    call g_tracer_end_param_list()
     !===========
     !Block Ends: g_tracer_add_param
     !===========
@@ -228,7 +228,7 @@ contains
     call g_tracer_add_param('ice_restart_file'   , param%ice_restart_file   , 'ice_ocmip2_cfc.res.nc')
     call g_tracer_add_param('ocean_restart_file' , param%ocean_restart_file , 'ocmip2_cfc.res.nc' )
     call g_tracer_add_param('IC_file'       , param%IC_file       , '')
-    call g_tracer_end_param_list(package_name)
+    call g_tracer_end_param_list()
 
     ! Set Restart files
     call g_tracer_set_files(ice_restart_file=param%ice_restart_file, ocean_restart_file=param%ocean_restart_file )

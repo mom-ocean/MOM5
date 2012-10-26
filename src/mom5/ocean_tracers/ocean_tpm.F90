@@ -1481,7 +1481,7 @@ end subroutine ocean_tpm_flux_init  !}
 !
 
 subroutine ocean_tpm_source(isd, ied, jsd, jed, Domain, Grid, T_prog, T_diag,   &
-     Time, Thickness, Dens, opacity, hblt_depth, dtts)
+     Time, Thickness, Dens, hblt_depth, dtts)
 
 implicit none
 
@@ -1503,7 +1503,6 @@ type(ocean_time_type), intent(in)                               :: Time
 type(ocean_thickness_type), intent(in)                          :: Thickness
 type(ocean_density_type), intent(in)                            :: Dens
 real, intent(in), dimension(isd:,jsd:)                          :: hblt_depth
-real, intent(in), dimension(isd:,jsd:,:)                        :: opacity 
 real, intent(in)                                                :: dtts
 !
 !-----------------------------------------------------------------------
@@ -1722,7 +1721,7 @@ end subroutine ocean_tpm_start  !}
 !
 
 subroutine ocean_tpm_tracer(Domain, T_prog, T_diag, Grid, Time, Thickness, Dens, dtts, hblt_depth,&
-                            sw_pen, opacity, diff_cbt, river, Velocity)  !{
+                            sw_pen, opacity, diff_cbt, Velocity)  !{
 
 implicit none
 
@@ -1745,7 +1744,6 @@ real, intent(in), dimension(Domain%isd:,Domain%jsd:)            :: hblt_depth
 real, intent(in), dimension(Domain%isd:,Domain%jsd:)            :: sw_pen
 real, intent(in), dimension(Domain%isd:,Domain%jsd:,:)          :: opacity
 real, intent(in), dimension(Domain%isd:,Domain%jsd:,:,:)        :: diff_cbt
-real, intent(in), dimension(Domain%isd:,Domain%jsd:)            :: river
 
 !
 !-----------------------------------------------------------------------

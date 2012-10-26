@@ -336,7 +336,7 @@ subroutine sw_source (Time, Thickness, Dens, T_diag, swflx, swflx_vis, Temp, sw_
                                 Time%model_time,rmask=Grd%tmask(:,:,:),                   &
                                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
 
-  call watermass_diag(Time, Temp, Dens, Thickness)
+  call watermass_diag(Time, Temp, Dens)
 
 
 end subroutine sw_source
@@ -471,12 +471,11 @@ end subroutine watermass_diag_init
 ! Diagnose effects from shortwave heating on watermass transformation.  
 ! </DESCRIPTION>
 !
-subroutine watermass_diag(Time, Temp, Dens, Thickness)
+subroutine watermass_diag(Time, Temp, Dens)
 
   type(ocean_time_type),          intent(in) :: Time
   type(ocean_prog_tracer_type),   intent(in) :: Temp
   type(ocean_density_type),       intent(in) :: Dens
-  type(ocean_thickness_type),     intent(in) :: Thickness
 
   integer :: i,j,k,tau
   real, dimension(isd:ied,jsd:jed) :: eta_tend

@@ -1412,12 +1412,10 @@ end subroutine update_ocean_velocity_bgrid
 !
 ! </DESCRIPTION>
 !
-subroutine update_ocean_velocity_cgrid(Time, Thickness, barotropic_split, vert_coordinate_class, Adv_vel, Ext_mode, Velocity)
+subroutine update_ocean_velocity_cgrid(Time, Thickness, Adv_vel, Ext_mode, Velocity)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_thickness_type),     intent(in)    :: Thickness
-  integer,                        intent(in)    :: barotropic_split
-  integer,                        intent(in)    :: vert_coordinate_class
   type(ocean_adv_vel_type),       intent(in)    :: Adv_vel
   type(ocean_external_mode_type), intent(inout) :: Ext_mode
   type(ocean_velocity_type),      intent(inout) :: Velocity

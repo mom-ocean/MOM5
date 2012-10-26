@@ -670,7 +670,7 @@ subroutine rivermix (Time, Thickness, Dens, T_prog, river, runoff, calving, &
          enddo
       enddo
       if(river_discharge) then 
-          call river_discharge_tracer(Time, Thickness, Dens, T_prog(1:num_prog_tracers), river)
+          call river_discharge_tracer(Time, Thickness, T_prog(1:num_prog_tracers), river)
       endif
 
       do n=1,num_prog_tracers 
@@ -680,7 +680,7 @@ subroutine rivermix (Time, Thickness, Dens, T_prog, river, runoff, calving, &
                   is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
          endif
       enddo
-      call watermass_diag_river(Time, Thickness, Dens, T_prog, river, runoff, calving, &
+      call watermass_diag_river(Time, Dens, T_prog, river, &
        T_prog(index_temp)%wrk1(:,:,:),T_prog(index_salt)%wrk1(:,:,:))
 
 
@@ -697,7 +697,7 @@ subroutine rivermix (Time, Thickness, Dens, T_prog, river, runoff, calving, &
          enddo
       enddo
       if(runoff_discharge) then
-          call runoff_calving_discharge_tracer(Time, Thickness, Dens, &
+          call runoff_calving_discharge_tracer(Time, Thickness, &
           T_prog(1:num_prog_tracers), runoff, runoff_insertion_thickness, 1)
       endif 
       do n=1,num_prog_tracers 
@@ -707,7 +707,7 @@ subroutine rivermix (Time, Thickness, Dens, T_prog, river, runoff, calving, &
                     is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
          endif
       enddo
-      call watermass_diag_runoff(Time, Thickness, Dens, T_prog, river, runoff, calving, &
+      call watermass_diag_runoff(Time, Dens, T_prog, calving, &
       T_prog(index_temp)%wrk1(:,:,:),T_prog(index_salt)%wrk1(:,:,:))
 
       do n=1,num_prog_tracers  
@@ -720,7 +720,7 @@ subroutine rivermix (Time, Thickness, Dens, T_prog, river, runoff, calving, &
          enddo
       enddo
       if(calving_discharge) then
-          call runoff_calving_discharge_tracer(Time, Thickness, Dens, &
+          call runoff_calving_discharge_tracer(Time, Thickness, &
           T_prog(1:num_prog_tracers), calving, calving_insertion_thickness, 2)
       endif 
       do n=1,num_prog_tracers 
@@ -730,7 +730,7 @@ subroutine rivermix (Time, Thickness, Dens, T_prog, river, runoff, calving, &
                   is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
          endif
       enddo
-      call watermass_diag_calving(Time, Thickness, Dens, T_prog, river, runoff, calving, &
+      call watermass_diag_calving(Time, Dens, T_prog, calving, &
       T_prog(index_temp)%wrk1(:,:,:),T_prog(index_salt)%wrk1(:,:,:))
 
   endif  ! discharge_combine_runoff_calve
@@ -764,11 +764,10 @@ end subroutine rivermix
 !
 ! </DESCRIPTION>
 !
-subroutine river_discharge_tracer (Time, Thickness, Dens, T_prog, river)
+subroutine river_discharge_tracer (Time, Thickness, T_prog, river)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_thickness_type),     intent(in)    :: Thickness
-  type(ocean_density_type),       intent(in)    :: Dens
   type(ocean_prog_tracer_type),   intent(inout) :: T_prog(:)
   real, dimension(isd:,jsd:),     intent(in)    :: river
 
@@ -946,12 +945,11 @@ end subroutine river_discharge_tracer
 !
 ! </DESCRIPTION>
 !
-subroutine runoff_calving_discharge_tracer (Time, Thickness, Dens, T_prog, &
+subroutine runoff_calving_discharge_tracer (Time, Thickness, T_prog, &
            river, insertion_thickness, runoff_type)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_thickness_type),     intent(in)    :: Thickness
-  type(ocean_density_type),       intent(in)    :: Dens
   type(ocean_prog_tracer_type),   intent(inout) :: T_prog(:)
   real, dimension(isd:,jsd:),     intent(in)    :: river
   real,                           intent(in)    :: insertion_thickness
@@ -2093,16 +2091,13 @@ end subroutine watermass_diag_init
 ! watermass diagnostics for river = runoff + calving. 
 ! </DESCRIPTION>
 !
-subroutine watermass_diag_river(Time, Thickness, Dens, T_prog, river, runoff, calving, &
+subroutine watermass_diag_river(Time, Dens, T_prog, river, &
                           temp_wrk, salt_wrk)
 
   type(ocean_time_type),        intent(in)  :: Time
-  type(ocean_thickness_type),   intent(in)  :: Thickness
   type(ocean_density_type),     intent(in)  :: Dens
   type(ocean_prog_tracer_type), intent(in)  :: T_prog(:)
   real, dimension(isd:,jsd:),   intent(in)  :: river
-  real, dimension(isd:,jsd:),   intent(in)  :: runoff
-  real, dimension(isd:,jsd:),   intent(in)  :: calving 
   real, dimension(isd:,jsd:,:), intent(in)  :: temp_wrk
   real, dimension(isd:,jsd:,:), intent(in)  :: salt_wrk
 
@@ -2549,16 +2544,13 @@ end subroutine watermass_diag_river
 ! watermass diagnostics for liquid runoff 
 ! </DESCRIPTION>
 !
-subroutine watermass_diag_runoff(Time, Thickness, Dens, T_prog, river, runoff, calving, &
+subroutine watermass_diag_runoff(Time, Dens, T_prog, runoff, &
                           temp_wrk, salt_wrk)
 
   type(ocean_time_type),        intent(in)  :: Time
-  type(ocean_thickness_type),   intent(in)  :: Thickness
   type(ocean_density_type),     intent(in)  :: Dens
   type(ocean_prog_tracer_type), intent(in)  :: T_prog(:)
-  real, dimension(isd:,jsd:),   intent(in)  :: river
   real, dimension(isd:,jsd:),   intent(in)  :: runoff
-  real, dimension(isd:,jsd:),   intent(in)  :: calving 
   real, dimension(isd:,jsd:,:), intent(in)  :: temp_wrk
   real, dimension(isd:,jsd:,:), intent(in)  :: salt_wrk
 
@@ -3009,15 +3001,12 @@ end subroutine watermass_diag_runoff
 ! watermass diagnostics for solid calving.
 ! </DESCRIPTION>
 !
-subroutine watermass_diag_calving(Time, Thickness, Dens, T_prog, river, runoff, calving, &
+subroutine watermass_diag_calving(Time, Dens, T_prog, calving, &
                           temp_wrk, salt_wrk)
 
   type(ocean_time_type),        intent(in)  :: Time
-  type(ocean_thickness_type),   intent(in)  :: Thickness
   type(ocean_density_type),     intent(in)  :: Dens
   type(ocean_prog_tracer_type), intent(in)  :: T_prog(:)
-  real, dimension(isd:,jsd:),   intent(in)  :: river
-  real, dimension(isd:,jsd:),   intent(in)  :: runoff
   real, dimension(isd:,jsd:),   intent(in)  :: calving 
   real, dimension(isd:,jsd:,:), intent(in)  :: temp_wrk
   real, dimension(isd:,jsd:,:), intent(in)  :: salt_wrk

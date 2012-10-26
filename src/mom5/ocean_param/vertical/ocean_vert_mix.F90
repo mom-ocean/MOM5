@@ -2884,7 +2884,7 @@ subroutine vert_mix_coeff(Time, Thickness, Velocity, T_prog,   &
   elseif(MIX_SCHEME == VERTMIX_CHEN) then 
     call mpp_clock_begin(id_clock_vert_chen)
     call vert_mix_chen(Time, Thickness, Velocity, T_prog, Dens, &
-                       swflx, pme, river, visc_cbu, visc_cbt, diff_cbt)
+                       swflx, pme, visc_cbu, visc_cbt, diff_cbt)
     call mpp_clock_end(id_clock_vert_chen)
 
   elseif(MIX_SCHEME == VERTMIX_GOTM .and. horz_grid == MOM_BGRID) then 
@@ -3303,7 +3303,7 @@ subroutine vert_diffuse_implicit(diff_cbt, index_salt, Time, Thickness, Dens, T_
      endif
 
      ! diagnose some pieces of implicit vertical diffusion 
-     call vert_diffuse_implicit_diag(Time, Thickness, Dens, T_prog, diff_cbt, wrk1_vmix, n)
+     call vert_diffuse_implicit_diag(Time, Thickness, T_prog, diff_cbt, wrk1_vmix, n)
 
   enddo  ! enddo for num_prog_tracers 
 
@@ -5039,11 +5039,10 @@ end subroutine watermass_diag
 !
 ! </DESCRIPTION>
 !
-subroutine vert_diffuse_implicit_diag(Time, Thickness, Dens, T_prog, diff_cbt, work, n)
+subroutine vert_diffuse_implicit_diag(Time, Thickness, T_prog, diff_cbt, work, n)
 
   type(ocean_time_type),          intent(in) :: Time  
   type(ocean_thickness_type),     intent(in) :: Thickness
-  type(ocean_density_type),       intent(in) :: Dens
   type(ocean_prog_tracer_type),   intent(in) :: T_prog(:)
   real, dimension(isd:,jsd:,:,:), intent(in) :: diff_cbt
   real, dimension(isd:,jsd:,:),   intent(in) :: work

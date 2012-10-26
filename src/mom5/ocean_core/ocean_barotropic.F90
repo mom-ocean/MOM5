@@ -2805,16 +2805,13 @@ end subroutine eta_and_pbot_tendency
 ! 
 ! </DESCRIPTION>
 !
-subroutine update_ocean_barotropic (Time, Dens, Thickness, Velocity, Adv_vel, &
-                                    Theta, Salinity, Ext_mode, patm, pme, river)
+subroutine update_ocean_barotropic (Time, Dens, Thickness, Adv_vel, &
+                                    Ext_mode, patm, pme, river)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_density_type),       intent(in)    :: Dens
   type(ocean_thickness_type),     intent(in)    :: Thickness 
-  type(ocean_velocity_type),      intent(in)    :: Velocity
   type(ocean_adv_vel_type),       intent(in)    :: Adv_vel
-  type(ocean_prog_tracer_type),   intent(in)    :: Theta
-  type(ocean_prog_tracer_type),   intent(in)    :: Salinity 
   type(ocean_external_mode_type), intent(inout) :: Ext_mode
   real, dimension(isd:,jsd:),     intent(in)    :: patm
   real, dimension(isd:,jsd:),     intent(in)    :: pme
@@ -2878,15 +2875,15 @@ subroutine update_ocean_barotropic (Time, Dens, Thickness, Velocity, Adv_vel, &
       
       if(horz_grid == MOM_BGRID) then 
          if(vert_coordinate_class==DEPTH_BASED) then 
-           call pred_corr_tropic_depth_bgrid (Time, Thickness, Velocity, Ext_mode, patm, pme, river)
+           call pred_corr_tropic_depth_bgrid (Time, Thickness, Ext_mode, patm, pme, river)
          elseif(vert_coordinate_class==PRESSURE_BASED ) then 
-           call pred_corr_tropic_press_bgrid (Time, Thickness, Velocity, Ext_mode, pme, river)
+           call pred_corr_tropic_press_bgrid (Time, Thickness, Ext_mode, pme, river)
          endif  
       else 
          if(vert_coordinate_class==DEPTH_BASED) then 
-           call pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, patm, pme, river)
+           call pred_corr_tropic_depth_cgrid (Time, Thickness, Ext_mode, patm, pme, river)
          elseif(vert_coordinate_class==PRESSURE_BASED ) then 
-           call pred_corr_tropic_press_cgrid (Time, Thickness, Velocity, Ext_mode, pme, river)
+           call pred_corr_tropic_press_cgrid (Time, Thickness, Ext_mode, pme, river)
          endif  
       endif 
 
@@ -3033,7 +3030,7 @@ subroutine update_ocean_barotropic (Time, Dens, Thickness, Velocity, Adv_vel, &
 
 
   ! diagnose contributions to sea level
-  call eta_terms_diagnose(Time, Dens, Thickness, Theta, Salinity, Adv_vel, Ext_mode, pme, river)
+  call eta_terms_diagnose(Time, Dens, Thickness, Ext_mode, pme, river)
 
 
   ! send diagnostics to diag_manager     
@@ -3162,10 +3159,9 @@ end subroutine update_ocean_barotropic
 !
 ! </DESCRIPTION>
 !
-subroutine ocean_barotropic_forcing(Time, Thickness, Velocity, Ext_mode)
+subroutine ocean_barotropic_forcing(Time, Velocity, Ext_mode)
 
   type(ocean_time_type),          intent(in)    :: Time 
-  type(ocean_thickness_type),     intent(in)    :: Thickness
   type(ocean_velocity_type),      intent(inout) :: Velocity
   type(ocean_external_mode_type), intent(inout) :: Ext_mode
 
@@ -3388,11 +3384,10 @@ end subroutine ocean_mass_forcing
 !
 ! </DESCRIPTION>
 !
-subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Velocity, Ext_mode, patm, pme, river)
+subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Ext_mode, patm, pme, river)
 
   type(ocean_time_type),          intent(in)    :: Time 
   type(ocean_thickness_type),     intent(in)    :: Thickness 
-  type(ocean_velocity_type),      intent(in)    :: Velocity
   type(ocean_external_mode_type), intent(inout) :: Ext_mode
   real, dimension(isd:,jsd:),     intent(in)    :: patm
   real, dimension(isd:,jsd:),     intent(in)    :: pme
@@ -3838,11 +3833,10 @@ end subroutine pred_corr_tropic_depth_bgrid
 !
 ! </DESCRIPTION>
 !
-subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, patm, pme, river)
+subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Ext_mode, patm, pme, river)
 
   type(ocean_time_type),          intent(in)    :: Time 
   type(ocean_thickness_type),     intent(in)    :: Thickness 
-  type(ocean_velocity_type),      intent(in)    :: Velocity
   type(ocean_external_mode_type), intent(inout) :: Ext_mode
   real, dimension(isd:,jsd:),     intent(in)    :: patm
   real, dimension(isd:,jsd:),     intent(in)    :: pme
@@ -4285,11 +4279,10 @@ end subroutine pred_corr_tropic_depth_cgrid
 !
 ! </DESCRIPTION>
 !
-subroutine pred_corr_tropic_press_bgrid (Time, Thickness, Velocity, Ext_mode, pme, river)
+subroutine pred_corr_tropic_press_bgrid (Time, Thickness, Ext_mode, pme, river)
 
   type(ocean_time_type),          intent(in)    :: Time 
   type(ocean_thickness_type),     intent(in)    :: Thickness 
-  type(ocean_velocity_type),      intent(in)    :: Velocity
   type(ocean_external_mode_type), intent(inout) :: Ext_mode
   real, dimension(isd:,jsd:),     intent(in)    :: pme
   real, dimension(isd:,jsd:),     intent(in)    :: river
@@ -4725,11 +4718,10 @@ end subroutine pred_corr_tropic_press_bgrid
 !
 ! </DESCRIPTION>
 !
-subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Velocity, Ext_mode, pme, river)
+subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Ext_mode, pme, river)
 
   type(ocean_time_type),          intent(in)    :: Time 
   type(ocean_thickness_type),     intent(in)    :: Thickness 
-  type(ocean_velocity_type),      intent(in)    :: Velocity
   type(ocean_external_mode_type), intent(inout) :: Ext_mode
   real, dimension(isd:,jsd:),     intent(in)    :: pme
   real, dimension(isd:,jsd:),     intent(in)    :: river
@@ -6247,14 +6239,11 @@ end subroutine psi_compute
 !
 ! </DESCRIPTION>
 !
-subroutine eta_terms_diagnose(Time, Dens, Thickness, Theta, Salinity, Adv_vel, Ext_mode, pme, river)
+subroutine eta_terms_diagnose(Time, Dens, Thickness, Ext_mode, pme, river)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_density_type),       intent(in)    :: Dens
   type(ocean_thickness_type),     intent(in)    :: Thickness
-  type(ocean_prog_tracer_type),   intent(in)    :: Theta
-  type(ocean_prog_tracer_type),   intent(in)    :: Salinity 
-  type(ocean_adv_vel_type),       intent(in)    :: Adv_vel
   type(ocean_external_mode_type), intent(inout) :: Ext_mode 
   real, dimension(isd:,jsd:),     intent(in)    :: pme
   real, dimension(isd:,jsd:),     intent(in)    :: river

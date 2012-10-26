@@ -2704,7 +2704,7 @@ contains
     call g_tracer_add_param('r_bio_tau',  topaz%r_bio_tau,1.0 / topaz%bio_tau)
 
 
-    call g_tracer_end_param_list(package_name)
+    call g_tracer_end_param_list()
     !===========
     !Block Ends: g_tracer_add_param
     !===========
@@ -2741,7 +2741,7 @@ contains
     call g_tracer_add_param('ocean_restart_file' , topaz%ocean_restart_file , 'ocean_topaz.res.nc' )
     call g_tracer_add_param('IC_file'       , topaz%IC_file       , '')
     !
-    call g_tracer_end_param_list(package_name)
+    call g_tracer_end_param_list()
 
     ! Set Restart files
     call g_tracer_set_files(ice_restart_file    = topaz%ice_restart_file,&

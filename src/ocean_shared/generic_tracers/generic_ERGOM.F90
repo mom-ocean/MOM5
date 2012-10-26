@@ -1768,7 +1768,7 @@ contains
 
     
 
-    call g_tracer_end_param_list(package_name)
+    call g_tracer_end_param_list()
     
     !=====================================================================
     !Block Ends: g_tracer_add_param
@@ -1792,7 +1792,7 @@ contains
     call g_tracer_add_param('ice_restart_file'   , ergom%ice_restart_file   , 'ice_ergom.res.nc')
     call g_tracer_add_param('ocean_restart_file' , ergom%ocean_restart_file , 'ocean_ergom.res.nc' )
     call g_tracer_add_param('IC_file'            , ergom%IC_file       , '')
-    call g_tracer_end_param_list(package_name)
+    call g_tracer_end_param_list()
 
     ! Set Restart files
     call g_tracer_set_files(ice_restart_file=ergom%ice_restart_file, ocean_restart_file=ergom%ocean_restart_file )

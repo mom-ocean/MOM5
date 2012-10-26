@@ -500,8 +500,7 @@ contains
   !  </IN>
   ! </SUBROUTINE>
 
-  subroutine g_tracer_end_param_list(package_name)
-    character(len=fm_string_len) :: package_name
+  subroutine g_tracer_end_param_list()
 
   end subroutine g_tracer_end_param_list
 

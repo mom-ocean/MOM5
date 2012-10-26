@@ -3488,7 +3488,7 @@ subroutine cabbeling_thermob_tendency (Time, Thickness, T_prog, Dens,   &
   ! get the cabbeling and thermobaricity parameters from ocean_density.F90 
   call calc_cabbeling_thermobaricity(Dens%rho(:,:,:,tau), T_prog(index_salt)%field(:,:,:,tau),          &
                                     T_prog(index_temp)%field(:,:,:,tau), Dens%pressure_at_depth(:,:,:), &
-                                    Time, Dens%drhodT(:,:,:), Dens%drhodS(:,:,:), Dens%drhodP(:,:,:),   &
+                                    Dens%drhodT(:,:,:), Dens%drhodS(:,:,:), Dens%drhodP(:,:,:),   &
                                     cabbeling_param, thermobaric_param)
 
   ! compute gradient of the pressure field 
