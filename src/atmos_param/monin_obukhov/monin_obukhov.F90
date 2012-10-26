@@ -871,6 +871,8 @@ call monin_obukhov_diff(vonkarm,                           &
           & neutral, stable_option, rich_crit, zeta_trans, &
           & ni, nj, nk, z1, u_star1, b_star1, k_m1, k_h1, ier)
 
+k_m = k_m1(1,1,1); k_h = k_h1(1,1,1)
+
 end subroutine mo_diff_0d_1
 
 !=======================================================================
