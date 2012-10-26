@@ -876,11 +876,11 @@ real,parameter:: twopi=2.*pi
             ! determined by matching log-profiles of outer and wave-boundary layer, see Kuhrts et al. (2004) Eq. (1,2)
             ! Waves%-quantities are defined at the t-grid. 
                 
-	    ! put wave_u onto the u-grid
+            ! put wave_u onto the u-grid
             wave_u_u = max(wave_u(i,j),   wave_u(i+1,j), &
                            wave_u(i,j+1), wave_u(i+1,j+1))
             
-	    if (wave_u_u > epsln) then
+            if (wave_u_u > epsln) then
 
                 ! put wave_p onto the u-grid
                 wave_p_u = max(Waves%wave_p(i,j),   Waves%wave_p(i+1,j), &

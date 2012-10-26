@@ -206,9 +206,9 @@ module ocean_barotropic_mod
 !  </DATA> 
 !  <DATA NAME="smooth_eta_diag_biharmonic" TYPE="logical">
 !  For spatially smoothing the diagnosed eta_t field
-!  using a biharmonic operator.  This option is used for	
+!  using a biharmonic operator.  This option is used for
 !  PRESSURE_BASED vertical coordinates, in which case
-!  the free surface is diagnosed rather than prognosed.	
+!  the free surface is diagnosed rather than prognosed.
 !  Also, smoothing is not needed in general for Cgrid MOM,
 !  since the gravity wave null mode only appears for the Bgrid.
 !  Default smooth_eta_diag_biharmonic=.false.
@@ -925,7 +925,7 @@ namelist /ocean_barotropic_nml/ write_a_restart,                                
          truncate_eta, verbose_truncate, eta_max, frac_crit_cell_height,        &
          verbose_init, debug_this_module, diag_step,                            &
          eta_offset, pbot_offset,                                               &
-	 initsum_with_bar_mom4p0, initsum_with_bar_mom4p1,                      &
+         initsum_with_bar_mom4p0, initsum_with_bar_mom4p1,                      &
          ideal_initial_eta, ideal_initial_eta_amplitude,                        &
          ideal_initial_eta_xwidth, ideal_initial_eta_ywidth,                    &
          udrho_bt_lap, udrho_bt_bih, udrho_lap, udrho_bih,                      &
@@ -1214,8 +1214,8 @@ subroutine ocean_barotropic_init(Grid, Domain, Time, Time_steps, Ocean_options, 
           & must be false when ocean_barotropic_nml variable barotropic_halo is greater than 1')
      if(use_legacy_barotropic_halos) then
          call mpp_error(WARNING,'ocean_barotropic_mod(ocean_barotropic_init):barotropic_halo>1 requires &
-	  & use_legacy_barotropic_halos=.false. -> MOM setting it to .false.')
-	 use_legacy_barotropic_halos=.false.
+              & use_legacy_barotropic_halos=.false. -> MOM setting it to .false.')
+         use_legacy_barotropic_halos=.false.
      endif
 
      allocate(Dom_bt)
@@ -1233,7 +1233,7 @@ subroutine ocean_barotropic_init(Grid, Domain, Time, Time_steps, Ocean_options, 
   if(pred_corr_gamma == 0.0 .and. horz_grid == MOM_CGRID) then
      call mpp_error(WARNING,'ocean_barotropic_mod: MOM_CGRID requires pred_corr_gamma > 0.0. &
           &Model is setting pred_corr_gamma to default 0.2.')
-	 pred_corr_gamma = 0.2
+     pred_corr_gamma = 0.2
   endif
 
 
@@ -3447,17 +3447,17 @@ subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Velocity, Ext_mode, pa
   if(initsum_with_bar) then 
     do j=jsd,jed
        do i=isd,ied
-    	  Ext_mode%eta_t_bar(i,j,taup1) = Ext_mode%eta_t_bar(i,j,tau) 
-    	  Ext_mode%udrho(i,j,1,taup1)	= 0.0
-    	  Ext_mode%udrho(i,j,2,taup1)	= 0.0
+          Ext_mode%eta_t_bar(i,j,taup1) = Ext_mode%eta_t_bar(i,j,tau) 
+          Ext_mode%udrho(i,j,1,taup1) = 0.0
+          Ext_mode%udrho(i,j,2,taup1) = 0.0
        enddo
     enddo
   else
     do j=jsd,jed
        do i=isd,ied
-    	  Ext_mode%eta_t_bar(i,j,taup1) = Ext_mode%eta_t(i,j,tau) 
-    	  Ext_mode%udrho(i,j,1,taup1)	= 0.0
-    	  Ext_mode%udrho(i,j,2,taup1)	= 0.0
+          Ext_mode%eta_t_bar(i,j,taup1) = Ext_mode%eta_t(i,j,tau) 
+          Ext_mode%udrho(i,j,1,taup1) = 0.0
+          Ext_mode%udrho(i,j,2,taup1) = 0.0
        enddo
     enddo
   endif
@@ -3606,18 +3606,18 @@ subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Velocity, Ext_mode, pa
         do j=jsd,jed
            do i=isd,ied
 
-              urhod_tmp1 =  udrho_bt(i,j,1,fstau)	    &
+              urhod_tmp1 =  udrho_bt(i,j,1,fstau)    &
               + dtbt*( 0.5*Grd%f(i,j)*udrho_bt(i,j,2,fstau) &
-              + Ext_mode%press_force(i,j,1)		    &
-              + Ext_mode%forcing_bt(i,j,1)		    &
-              + wrk1_v2d_bt(i,j,1) 			    &
+              + Ext_mode%press_force(i,j,1)    &
+              + Ext_mode%forcing_bt(i,j,1)    &
+              + wrk1_v2d_bt(i,j,1)     &
               + friction_lap(i,j,1) + friction_bih(i,j,1) )
 
-              urhod_tmp2 =  udrho_bt(i,j,2,fstau)	    &
+              urhod_tmp2 =  udrho_bt(i,j,2,fstau)    &
               + dtbt*(-0.5*Grd%f(i,j)*udrho_bt(i,j,1,fstau) &
-              + Ext_mode%press_force(i,j,2)		    &
-              + Ext_mode%forcing_bt(i,j,2)		    &
-              + wrk1_v2d_bt(i,j,2) 			    &
+              + Ext_mode%press_force(i,j,2)    &
+              + Ext_mode%forcing_bt(i,j,2)    &
+              + wrk1_v2d_bt(i,j,2)     &
               + friction_lap(i,j,2) + friction_bih(i,j,2) )
 
               udrho_bt(i,j,1,fstaup1) = cori2(i,j)*(urhod_tmp1 + cori1(i,j)*urhod_tmp2)
@@ -3630,16 +3630,16 @@ subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Velocity, Ext_mode, pa
         do j=jsd_now,jed_now
            do i=isd_now,ied_now
 
-              urhod_tmp1 =  udrho_bt(i,j,1,fstau)	   &
+              urhod_tmp1 =  udrho_bt(i,j,1,fstau)   &
               + dtbt*( 0.5*f_bt(i,j)*udrho_bt(i,j,2,fstau) &
-              + press_force_bt(i,j,1)		           &
-              + forcing_bt(i,j,1)		           &
+              + press_force_bt(i,j,1)           &
+              + forcing_bt(i,j,1)           &
               + wrk1_v2d_bt(i,j,1) )
 
-              urhod_tmp2 =  udrho_bt(i,j,2,fstau)	   &
+              urhod_tmp2 =  udrho_bt(i,j,2,fstau)  &
               + dtbt*(-0.5*f_bt(i,j)*udrho_bt(i,j,1,fstau) &
-              + press_force_bt(i,j,2)		           &
-              + forcing_bt(i,j,2)		           &
+              + press_force_bt(i,j,2)           &
+              + forcing_bt(i,j,2)           &
               + wrk1_v2d_bt(i,j,2) )
 
               udrho_bt(i,j,1,fstaup1) = cori2(i,j)*(urhod_tmp1 + cori1(i,j)*urhod_tmp2)
@@ -3689,7 +3689,7 @@ subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Velocity, Ext_mode, pa
          smooth_eta_t_bt_biharmonic .or.  &
          (do_update .AND. .not. use_legacy_barotropic_halos .AND. barotropic_halo.gt.1) )  then
             ! update eta_t_bt together with OBC-specific variables. This saves network latency time.
-	    if (have_obc) call mpp_update_domains_obc (Dom_bt)
+        if (have_obc) call mpp_update_domains_obc (Dom_bt)
             call mpp_update_domains (eta_t_bt(:,:,fstaup1), Dom_bt%domain2d, complete=.true.)
      endif
      
@@ -3912,17 +3912,17 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, pa
   if(initsum_with_bar) then 
     do j=jsd,jed
        do i=isd,ied
-    	  Ext_mode%eta_t_bar(i,j,taup1) = Ext_mode%eta_t_bar(i,j,tau) 
-    	  Ext_mode%udrho(i,j,1,taup1)	= 0.0
-    	  Ext_mode%udrho(i,j,2,taup1)	= 0.0
+          Ext_mode%eta_t_bar(i,j,taup1) = Ext_mode%eta_t_bar(i,j,tau) 
+          Ext_mode%udrho(i,j,1,taup1) = 0.0
+          Ext_mode%udrho(i,j,2,taup1) = 0.0
        enddo
     enddo
   else
     do j=jsd,jed
        do i=isd,ied
-    	  Ext_mode%eta_t_bar(i,j,taup1) = Ext_mode%eta_t(i,j,tau) 
-    	  Ext_mode%udrho(i,j,1,taup1)	= 0.0
-    	  Ext_mode%udrho(i,j,2,taup1)	= 0.0
+          Ext_mode%eta_t_bar(i,j,taup1) = Ext_mode%eta_t(i,j,tau) 
+          Ext_mode%udrho(i,j,1,taup1) = 0.0
+          Ext_mode%udrho(i,j,2,taup1) = 0.0
        enddo
     enddo
   endif
@@ -4108,15 +4108,15 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, pa
            udrho_bt(i,j,1,fstaup1) = udrho_bt(i,j,1,fstau) &
            + dtbt*tmasken_bt(i,j,1)*(                      &
                 coriolis_accel_bt(i,j,1)                   &
-              + press_force_bt(i,j,1)		           &
-              + forcing_bt(i,j,1)		           &
+              + press_force_bt(i,j,1)           &
+              + forcing_bt(i,j,1)           &
               + wrk1_v2d_bt(i,j,1) )
 
            udrho_bt(i,j,2,fstaup1) = udrho_bt(i,j,2,fstau) &
            + dtbt*tmasken_bt(i,j,2)*(                      &
                 coriolis_accel_bt(i,j,2)                   &
-              + press_force_bt(i,j,2)	                   &
-              + forcing_bt(i,j,2)		           &
+              + press_force_bt(i,j,2)                  &
+              + forcing_bt(i,j,2)           &
               + wrk1_v2d_bt(i,j,2) )
 
         enddo
@@ -4150,8 +4150,8 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, pa
      if (update_domains_for_obc  .or.  &
          (do_update .AND. barotropic_halo.gt.1) )  then
             ! update eta_t_bt together with OBC-specific variables. This saves network latency time.
-	    if (have_obc) call mpp_update_domains_obc (Dom_bt)
-            call mpp_update_domains (eta_t_bt(:,:,fstaup1), Dom_bt%domain2d, complete=.true.)
+        if (have_obc) call mpp_update_domains_obc (Dom_bt)
+        call mpp_update_domains (eta_t_bt(:,:,fstaup1), Dom_bt%domain2d, complete=.true.)
      endif
      
      ! accumulate for time average 

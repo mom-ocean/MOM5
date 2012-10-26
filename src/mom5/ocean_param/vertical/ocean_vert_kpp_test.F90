@@ -505,8 +505,8 @@ namelist /ocean_vert_kpp_test_nml/ use_this_module, shear_instability, double_di
                                    limit_with_hekman, limit_ghats, hbl_with_rit,          &
                                    radiation_large, radiation_zero, radiation_iow,        &
                                    use_sbl_bottom_flux, wsfc_combine_runoff_calve,        &
-			           bvf_from_below, variable_vtc, use_max_shear,           &  
-   			           linear_hbl, smooth_ri_kmax_eq_kmu
+                                   bvf_from_below, variable_vtc, use_max_shear,           &  
+                                   linear_hbl, smooth_ri_kmax_eq_kmu
                                  
 
 contains
@@ -882,18 +882,18 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_test_nml')
                      missing_value=missing_value, range=(/-1.e10,1.e10/))
      endif
      id_wbot(n)   = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_wbot_KPP', &
-     		  Grd%tracer_axes(1:2), Time%model_time,				   &
-     		  'tracer flux through sbl-bottom', trim(T_prog(n)%flux_units), 	   &
-     		  missing_value=missing_value, range=(/-1.e10,1.e10/))
+          Grd%tracer_axes(1:2), Time%model_time,   &
+          'tracer flux through sbl-bottom', trim(T_prog(n)%flux_units),    &
+          missing_value=missing_value, range=(/-1.e10,1.e10/))
   enddo
   id_ghats(1) = register_diag_field ('ocean_model', 'temp_ghats_KPP', &
-  	       Grd%tracer_axes(1:3), Time%model_time,		      &
-  	       'nonlocal term ghats * diff_cbt from KPP', 'none',     &
-  	       missing_value=missing_value, range=(/-1.e10,1.e10/))
+       Grd%tracer_axes(1:3), Time%model_time,      &
+       'nonlocal term ghats * diff_cbt from KPP', 'none',     &
+       missing_value=missing_value, range=(/-1.e10,1.e10/))
   id_ghats(2) = register_diag_field ('ocean_model', 'salt_ghats_KPP', &
-  	       Grd%tracer_axes(1:3), Time%model_time,	              &
-  	       'nonlocal term ghats * diff_cbt from KPP', 'none',     &
-  	       missing_value=missing_value, range=(/-1.e10,1.e10/))
+       Grd%tracer_axes(1:3), Time%model_time,              &
+       'nonlocal term ghats * diff_cbt from KPP', 'none',     &
+       missing_value=missing_value, range=(/-1.e10,1.e10/))
 
   id_diff_cbt_kpp_t = register_diag_field('ocean_model','diff_cbt_kpp_t',         &
        Grd%tracer_axes(1:3),Time%model_time, 'vert diffusivity from kpp for temp',&
@@ -1677,7 +1677,7 @@ subroutine bldepth(Thickness, sw_frac_zt)
           Rib(i,j,:) = 0.0
           kbl(i,j)   = MAX(Grd%kmt(i,j),2)
           hbl(i,j)   = Thickness%depth_zt(i,j,kbl(i,j))
-          iwet	     = iwet + min(Grd%kmt(i,j),1)
+          iwet       = iwet + min(Grd%kmt(i,j),1)
         enddo
       enddo
 
@@ -1715,14 +1715,14 @@ subroutine bldepth(Thickness, sw_frac_zt)
               ! compute the turbulent shear contribution to Rib
               ! eqn. (23)
               if (bvf_from_below) then
-	         bvfr = sqrt(abs(0.5*                            &
-                   ( dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) +  &
-                     dbloc(i,j,klp1) / Thickness%dzwt(i,j,klp1) ) ))
+                 bvfr = sqrt(abs(0.5*                            &
+                      ( dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) +  &
+                      dbloc(i,j,klp1) / Thickness%dzwt(i,j,klp1) ) ))
               else
-	         bvfr = sqrt(abs(0.5*                              &
-                    ( dbloc(i,j,klm1) / Thickness%dzwt(i,j,klm1) +  &
-                     dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) ) ))
-	      endif
+                 bvfr = sqrt(abs(0.5*                              &
+                      ( dbloc(i,j,klm1) / Thickness%dzwt(i,j,klm1) +  &
+                      dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) ) ))
+              endif
     
               ! to ensure bitwise compatible with earlier code where default was vtc_flag=0.0 
               Vtsq =   Thickness%depth_zt(i,j,kl) * ws(i,j) * bvfr  &
@@ -1753,7 +1753,7 @@ subroutine bldepth(Thickness, sw_frac_zt)
                   if(((rit(i,j,kl-1).lt.0).or.(rit(i,j,kl).lt.0)).and.hbl_with_rit) then  
 
                       ! Rib(i,j,ku) is not relevant, because locally unstable
-                      Rib(i,j,ku) =  Ricr*0.1			    
+                      Rib(i,j,ku) =  Ricr*0.1
 
                   else
 
@@ -1817,14 +1817,14 @@ subroutine bldepth(Thickness, sw_frac_zt)
                 ! compute the turbulent shear contribution to Rib
                 ! eqn. (23).
                 if (bvf_from_below) then
-	          bvfr = sqrt(abs(0.5*                              &
-                    ( dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) +    &
-                      dbloc(i,j,klp1) / Thickness%dzwt(i,j,klp1) ) ))
+                   bvfr = sqrt(abs(0.5*                              &
+                        ( dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) +    &
+                        dbloc(i,j,klp1) / Thickness%dzwt(i,j,klp1) ) ))
                 else
-	          bvfr = sqrt(abs(0.5*                              &
-                    ( dbloc(i,j,klm1) / Thickness%dzwt(i,j,klm1) +  &
-                      dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) ) ))
-	        endif
+                   bvfr = sqrt(abs(0.5*                              &
+                        ( dbloc(i,j,klm1) / Thickness%dzwt(i,j,klm1) +  &
+                        dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) ) ))
+                endif
     
                 ! to ensure bitwise compatible with earlier code where default was vtc_flag=0.0 
                 Vtsq =   Thickness%depth_zt(i,j,kl) * ws(i,j) * bvfr  &
@@ -1856,7 +1856,7 @@ subroutine bldepth(Thickness, sw_frac_zt)
                   if(((rit(i,j,kl-1).lt.0).or.(rit(i,j,kl).lt.0)).and.hbl_with_rit) then  
 
                       ! Rib(i,j,ku) is not relevant, because locally unstable
-                      Rib(i,j,kdn) =  Ricr*0.1			    
+                      Rib(i,j,kdn) =  Ricr*0.1
 
                   else
 
@@ -1878,8 +1878,8 @@ subroutine bldepth(Thickness, sw_frac_zt)
                       else
                          hbl(i,j) = (-b_co + sqrt(sqrt_arg)) / (c2*a_co)
                       endif
-		      
-		      kbl(i,j) = kl
+
+                      kbl(i,j) = kl
                       iwet     = iwet - 1
 
                   endif

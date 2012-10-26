@@ -626,21 +626,21 @@ subroutine ocean_passive_tracer_init(T_prog, T_diag, rho, &
   do nt=1,num_prog_tracers 
      do n=1,instances 
         
-	if(trim(T_prog(nt)%name)=='passive_'//trim(passive(n)%name)) then 
+        if(trim(T_prog(nt)%name)=='passive_'//trim(passive(n)%name)) then 
 
            if( passive(n)%restore ) then 
 
-	      T_diag(passive(n)%diag_index)%field = 0.
-	      do k=1,nk
+              T_diag(passive(n)%diag_index)%field = 0.
+              do k=1,nk
                 do j=jsd,jed
                   do i=isd,ied
                      if (T_prog(nt)%field(i,j,k,tau) > 0.00001) then 
                         ! set a mask to 1 if restoring is required
-			T_diag(passive(n)%diag_index)%field(i,j,k) = 1.
-			T_prog(nt)%field(i,j,k,1) = passive(n)%init_value
-			T_prog(nt)%field(i,j,k,2) = passive(n)%init_value
-			T_prog(nt)%field(i,j,k,3) = passive(n)%init_value
-		     endif
+                        T_diag(passive(n)%diag_index)%field(i,j,k) = 1.
+                        T_prog(nt)%field(i,j,k,1) = passive(n)%init_value
+                        T_prog(nt)%field(i,j,k,2) = passive(n)%init_value
+                        T_prog(nt)%field(i,j,k,3) = passive(n)%init_value
+                     endif
                   enddo
                 enddo
               enddo
@@ -657,7 +657,7 @@ subroutine ocean_passive_tracer_init(T_prog, T_diag, rho, &
            if(trim(passive(n)%init_condition)=='temp_surface') then 
               isotherm=passive(n)%init_surface
               call surface_init(isotherm, 'temp', T_prog(index_temp)%field(:,:,:,tau), & 
-	                        T_prog(nt)%field(:,:,:,1))
+                   T_prog(nt)%field(:,:,:,1))
               write(stdoutunit,'(a,a,a,f12.3)')                                        &
                 '==>From passive_tracer_surface_init: passive tracer ',T_prog(nt)%name,&
                 ' initialized to isotherm (C) = ',isotherm
@@ -670,7 +670,7 @@ subroutine ocean_passive_tracer_init(T_prog, T_diag, rho, &
                    enddo
                 enddo
              enddo
-	   endif
+          endif
            if(trim(passive(n)%init_condition)=='rho_surface') then 
              isorho=passive(n)%init_surface
              call surface_init(isorho, 'rho', rho, T_prog(nt)%field(:,:,:,1))
@@ -1195,14 +1195,14 @@ subroutine update_tracer_passive(num_prog_tracers, T_prog, T_diag, dtts, taup1)
         do n=1,instances 
 
            if( trim(T_prog(nt)%name)=='passive_'//trim(passive(n)%name) .and. passive(n)%restore ) then 
-	      do k=1,nk
+              do k=1,nk
                 do j=jsd,jed
                   do i=isd,ied
 
-	             mask = T_diag(passive(n)%diag_index)%field(i,j,k)
+                     mask = T_diag(passive(n)%diag_index)%field(i,j,k)
                      temp_t = T_prog(nt)%field(i,j,k,taup1)
-        	     T_prog(nt)%field(i,j,k,taup1) = mask * passive(n)%init_value &
-		     + (1.- mask) * T_prog(nt)%field(i,j,k,taup1)
+                     T_prog(nt)%field(i,j,k,taup1) = mask * passive(n)%init_value &
+                          + (1.- mask) * T_prog(nt)%field(i,j,k,taup1)
 
                      ! store the tendency as source for computing tracer conservation diagnostics
                      T_prog(nt)%source(i,j,k) = T_prog(nt)%source(i,j,k) &

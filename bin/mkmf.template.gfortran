@@ -20,7 +20,7 @@ MAKEFLAGS += --jobs=$(shell grep '^processor' /proc/cpuinfo | wc -l)
 
 FPPFLAGS := 
 
-FFLAGS := -fcray-pointer -fdefault-real-8 -Waliasing -ffree-line-length-none -fno-range-check -Waliasing -Wampersand -Warray-bounds -Wcharacter-truncation -Wconversion -Wline-truncation -Wunderflow -Wsurprising -Wline-truncation -Wintrinsics-std -Wintrinsics-std -Wsurprising -Wunderflow -Wintrinsic-shadow -Wno-align-commons
+FFLAGS := -fcray-pointer -fdefault-real-8 -Waliasing -ffree-line-length-none -fno-range-check -Waliasing -Wampersand -Warray-bounds -Wcharacter-truncation -Wconversion -Wline-truncation -Wunderflow -Wsurprising -Wline-truncation -Wintrinsics-std -Wintrinsics-std -Wsurprising -Wno-tabs -Wunderflow -Wintrinsic-shadow -Wno-align-commons
 FFLAGS += -I/usr/include/mpich2 -I/usr/include
 FFLAGS += -DGFORTRAN
 #FFLAGS += -I/net2/nnz/opt/netcdf-4.1.1/include

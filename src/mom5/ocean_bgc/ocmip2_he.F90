@@ -722,21 +722,21 @@ do n = 1, instances  !{
     used = send_data(he(n)%id_sfc_flux_he_4_atm,        &
          t_prog(he(n)%ind_he_4_atm)%stf(:,:),           &
          model_time, rmask = grid_tmask(:,:,1),         &
-	 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
   endif !}
 
   if (he(n)%id_sfc_flux_he_3_man .gt. 0) then !{
     used = send_data(he(n)%id_sfc_flux_he_3_man,        &
          t_prog(he(n)%ind_he_3_man)%stf(:,:),           &
          model_time, rmask = grid_tmask(:,:,1),         &
-	 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
   endif !}
 
   if (he(n)%id_sfc_flux_he_4_man .gt. 0) then !{
     used = send_data(he(n)%id_sfc_flux_he_4_man,        &
          t_prog(he(n)%ind_he_4_man)%stf(:,:),           &
          model_time, rmask = grid_tmask(:,:,1),         &
-	 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
   endif !}
 
 enddo  !} n
@@ -2400,10 +2400,10 @@ integer                                 :: k
 integer                                 :: n
 character(len=fm_field_name_len+1)      :: suffix
 character(len=256)                      :: caller_str
-real				        :: total_he_3_atm
-real 				        :: total_he_4_atm
-real 				        :: total_he_3_man
-real			  	        :: total_he_4_man
+real                                    :: total_he_3_atm
+real                                    :: total_he_4_atm
+real                                    :: total_he_3_man
+real                                    :: total_he_4_man
 
   integer :: stdoutunit 
   stdoutunit=stdout() 

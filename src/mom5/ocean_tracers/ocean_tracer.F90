@@ -2668,8 +2668,8 @@ subroutine ocean_tracer_end(Time, T_prog, T_diag, use_blobs)
      call tracer_prog_chksum(Time, T_prog(n), taup1, chksum)
      if (mpp_pe() == mpp_root_pe()) write(unit,*) trim(T_prog(n)%name)//' taup1 chksum =', chksum
      if (use_blobs) then
-	fieldsum = mpp_chksum(Grd%tmask(isc:iec,jsc:jec,:)*T_prog(n)%fieldT(isc:iec,jsc:jec,:))
-     	if (mpp_pe() == mpp_root_pe()) write(stdoutunit,*) trim(T_prog(n)%name)//' Total field  =', fieldsum
+        fieldsum = mpp_chksum(Grd%tmask(isc:iec,jsc:jec,:)*T_prog(n)%fieldT(isc:iec,jsc:jec,:))
+        if (mpp_pe() == mpp_root_pe()) write(stdoutunit,*) trim(T_prog(n)%name)//' Total field  =', fieldsum
      endif
 
   enddo

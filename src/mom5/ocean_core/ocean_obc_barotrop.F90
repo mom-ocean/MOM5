@@ -635,7 +635,7 @@ end interface
   real, allocatable, dimension (:,:)        :: t_mask, u_mask, ht_bt
   real, allocatable, dimension (:,:),target :: dxu_bt, dyu_bt
   real, allocatable, dimension (:,:),target :: eta_t_tm1, eta_tm1
-  real, allocatable, dimension (:,:)        :: ctrop 	     ! needed for restart of phase speed
+  real, allocatable, dimension (:,:)        :: ctrop      ! needed for restart of phase speed
 
 contains
 
@@ -945,7 +945,7 @@ contains
        call check_eta_OBC(Obc%bound(m)%bcond_eta, obc_eta(m))
        if (index(trim(obc_eta(m)),'RAYMND') /= 0) then
          if (.not.use_legacy_barotropic_halos) call mpp_error(FATAL,' barotropic OBC method RAYMND ' &
-	    //'does not work without use_legacy_barotropic_halos')
+              //'does not work without use_legacy_barotropic_halos')
        endif
        
 
@@ -1003,7 +1003,7 @@ contains
                 if (js(m) .ge. jsc .and. js(m) .le. jec) Obc%bound(m)%report = .true.
 !--- open obc.out file to be ready for writing.
                 if (debug_this_module .or. Obc%bound(m)%report) &
-		   call mpp_open( obc_out_unit(m), 'obc_b_'//trim(Obc%bound(m)%name)//'.out', &
+                     call mpp_open( obc_out_unit(m), 'obc_b_'//trim(Obc%bound(m)%name)//'.out', &
                                   action=MPP_OVERWR, threading=MPP_MULTI,                     &
                                   fileset=MPP_MULTI, nohdrs=.TRUE. )  
                 Obc%bound(m)%is       = is(m)
@@ -1630,7 +1630,7 @@ contains
     write(stdoutunit,*) 'Total number of OBC: ', nobc
     do m = 1, nobc
        write(stdoutunit,*) ' Setup of OBC ',m,', ',Obc%bound(m)%name,':'
-       write(stdoutunit,*) ' direction	 : ', trim(direction(m))
+       write(stdoutunit,*) ' direction: ', trim(direction(m))
        write(stdoutunit,*) ' ==> See files obc_'//trim(Obc%bound(m)%name)//'.out.* for more information.'
        write(stdoutunit,*) '     Enable debug_this_module for details on domain decomposition.'
        
@@ -1641,7 +1641,7 @@ contains
        write(obc_out_unit(m),*) ' points        : ', Obc%bound(m)%np
 ! if debugging is on each PE has an output file open otherwise this info is useless
        if(debug_this_module) then
-         write(obc_out_unit(m),*) ' pe - name	       :', trim(pe_name)
+         write(obc_out_unit(m),*) ' pe - name       :', trim(pe_name)
          write(obc_out_unit(m),*) ' ocean-domain, comp :', isc, iec, jsc, jec
          write(obc_out_unit(m),*) ' ocean-domain, data :', isd, ied, jsd, jed
          write(obc_out_unit(m),*) ' obc - domain, comp :', Obc%bound(m)%is, Obc%bound(m)%ie, Obc%bound(m)%js, Obc%bound(m)%je
@@ -1905,9 +1905,9 @@ contains
             enddo
           endif
           used = send_data(Obc%bound(m)%id_eta_data, &
-	                  wrk(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1),  &
-                          Time%model_time,                               &
-			  rmask=t_mask(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je))
+               wrk(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1),  &
+               Time%model_time,                               &
+               rmask=t_mask(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je))
         endif
       enddo
 !      call mpp_clock_end(id_obc)
@@ -1935,13 +1935,13 @@ contains
        !--- if on current pe there is no point on the bound, then just return
        if(.not. Obc%bound(m)%on_bound) cycle
        if(Obc%bound(m)%obc_consider_convu) then
-	 call ocean_obc_update_boundary_2d(divud, 'T')
+          call ocean_obc_update_boundary_2d(divud, 'T')
        else
-         call ocean_obc_zero_boundary_2d(divud, 'T')
-	 call ocean_obc_update_boundary_2d(divud, 'T')
-         if(debug_this_module) then
-            write(obc_out_unit(m),*) 'Setting div_ud to zero for OBC ', trim(Obc%bound(m)%name)
-         endif
+          call ocean_obc_zero_boundary_2d(divud, 'T')
+          call ocean_obc_update_boundary_2d(divud, 'T')
+          if(debug_this_module) then
+             write(obc_out_unit(m),*) 'Setting div_ud to zero for OBC ', trim(Obc%bound(m)%name)
+          endif
        endif
 
     enddo
@@ -2597,9 +2597,9 @@ contains
              js = jstr(n)   ! Start of j halo loop
              je = jend(n)   ! End of j halo loop
              do jj = js, je
-             	do ii = is, ie
-             	   field(ii,jj) = 0.0
-             	enddo
+                do ii = is, ie
+                   field(ii,jj) = 0.0
+                enddo
              enddo
           enddo
 !       else if (uptype(m) .eq. NOGRAD) then   ! No-gradient
@@ -2630,17 +2630,17 @@ contains
              enddo
           else
              do n = 1, Obc%bound(m)%nlod
-             	i = ilod(n)    ! Internal i boundary location
-             	j = jlod(n)    ! Internal j boundary location
-             	is = istr(n)   ! Start of i halo loop
-             	ie = iend(n)   ! End of i halo loop
-             	js = jstr(n)   ! Start of j halo loop
-             	je = jend(n)   ! End of j halo loop
+                i = ilod(n)    ! Internal i boundary location
+                j = jlod(n)    ! Internal j boundary location
+                is = istr(n)   ! Start of i halo loop
+                ie = iend(n)   ! End of i halo loop
+                js = jstr(n)   ! Start of j halo loop
+                je = jend(n)   ! End of j halo loop
                 do jj = js, je
-             	   do ii = is, ie
-             	      field(ii,jj) = field(i,j)
-             	   enddo
-             	enddo
+                   do ii = is, ie
+                      field(ii,jj) = field(i,j)
+                   enddo
+                enddo
              enddo
           endif
 !      else if (uptype(m) .eq. INGRAD) then  ! No-gradient to internal point
@@ -2673,12 +2673,12 @@ contains
              enddo
           else
              do n = 1, Obc%bound(m)%nlod
-             	i = oi1(n)     ! Internal i boundary location
-             	j = oj1(n)     ! Internal j boundary location
-             	is = istr(n)   ! Start of i halo loop
-             	ie = iend(n)   ! End of i halo loop
-             	js = jstr(n)   ! Start of j halo loop
-             	je = jend(n)   ! End of j halo loop
+                i = oi1(n)     ! Internal i boundary location
+                j = oj1(n)     ! Internal j boundary location
+                is = istr(n)   ! Start of i halo loop
+                ie = iend(n)   ! End of i halo loop
+                js = jstr(n)   ! Start of j halo loop
+                je = jend(n)   ! End of j halo loop
                 do jj = js, je
                    do ii = is, ie
                       field(ii,jj) = field(i,j)

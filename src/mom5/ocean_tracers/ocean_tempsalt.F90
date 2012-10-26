@@ -280,7 +280,7 @@ namelist /ocean_tempsalt_nml/ debug_this_module, temperature_variable, pottemp_2
                               t_min_limit, t_max_limit, s_min_limit, s_max_limit,                 &
                               reinit_ts_with_ideal, reinit_ts_with_ideal_efold,                   &
                               reinit_ts_with_ideal_tvalue, reinit_ts_with_ideal_svalue,           &
-			      teos10
+                              teos10
                 
 contains
 

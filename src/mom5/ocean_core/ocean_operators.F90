@@ -216,7 +216,7 @@ subroutine ocean_operators_init(Grid, Domain, Thickness, hor_grid)
     integer :: ioun, io_status, ierr
 
     stdoutunit=stdout()
-    stdlogunit = stdlog()	
+    stdlogunit = stdlog()
 
 #ifdef INTERNAL_FILE_NML
     read (input_nml_file, nml=ocean_operators_nml, iostat=io_status)

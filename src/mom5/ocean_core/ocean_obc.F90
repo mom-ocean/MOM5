@@ -1013,7 +1013,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
                 if (js(m) .ge. jsc .and. js(m) .le. jec) Obc%bound(m)%report = .true.
 !--- open obc.out file to be ready for writing.
                 if (debug_this_module .or. Obc%bound(m)%report) &
-         	   call mpp_open( obc_out_unit(m), 'obc_'//trim(Obc%bound(m)%name)//'.out', action=MPP_OVERWR, &
+                     call mpp_open( obc_out_unit(m), 'obc_'//trim(Obc%bound(m)%name)//'.out', action=MPP_OVERWR, &
                                   threading=MPP_MULTI, fileset=MPP_MULTI, nohdrs=.TRUE. )  
                 Obc%bound(m)%is       = is(m)
                 Obc%bound(m)%ie       = ie(m)
@@ -1573,7 +1573,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
     write(stdoutunit,*) 'Total number of OBC: ', nobc
     do m = 1, nobc
        write(stdoutunit,*) ' Setup of OBC ',m,', ',Obc%bound(m)%name,':'
-       write(stdoutunit,*) ' direction	 : ', trim(direction(m))
+       write(stdoutunit,*) ' direction : ', trim(direction(m))
        write(stdoutunit,*) ' ==> See files obc_'//trim(Obc%bound(m)%name)//'.out.* for more information.'
        write(stdoutunit,*) '     Enable debug_this_module for details on domain decomposition.'
        
@@ -1584,7 +1584,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
        write(obc_out_unit(m),*) ' points        : ', Obc%bound(m)%np
 ! if debugging is on each PE has an output file open otherwise this info is useless
        if(debug_this_module) then
-         write(obc_out_unit(m),*) ' pe - name	       :', trim(pe_name)
+         write(obc_out_unit(m),*) ' pe - name          :', trim(pe_name)
          write(obc_out_unit(m),*) ' ocean-domain, comp :', isc, iec, jsc, jec
          write(obc_out_unit(m),*) ' ocean-domain, data :', isd, ied, jsd, jed
          write(obc_out_unit(m),*) ' obc - domain, comp :', Obc%bound(m)%is, Obc%bound(m)%ie, Obc%bound(m)%js, Obc%bound(m)%je
@@ -1927,22 +1927,22 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
          ie_u = Obc%bound(m)%ieg + Obc%bound(m)%imap
          js_u = Obc%bound(m)%jsg + Obc%bound(m)%jmap
          je_u = Obc%bound(m)%jeg + Obc%bound(m)%jmap
-	 Obc%bound(m)%id_xu = diag_axis_init ('xu_'//trim(Obc%bound(m)%name),Grd%grid_x_u(is_u:ie_u), &
+         Obc%bound(m)%id_xu = diag_axis_init ('xu_'//trim(Obc%bound(m)%name),Grd%grid_x_u(is_u:ie_u), &
               'degrees_E','x','ucell longitude',set_name='ocean', Domain2=obc_diag_domain(m), aux='geolon_u')
          Obc%bound(m)%id_yu = diag_axis_init ('yu_'//trim(Obc%bound(m)%name),Grd%grid_y_u(js_u:je_u), &
               'degrees_N','y','ucell latitude',set_name='ocean', Domain2=obc_diag_domain(m), aux='geolat_u')
-         Obc%bound(m)%id_ctrop = register_diag_field ('ocean_model', 'ctrop_p_'//trim(Obc%bound(m)%name),		   &
+         Obc%bound(m)%id_ctrop = register_diag_field ('ocean_model', 'ctrop_p_'//trim(Obc%bound(m)%name),                  &
                           (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yt/), Time%model_time, 'barotr phase speed on open bounds',&
-                         'm/s', missing_value=missing_value, range=(/-1.e8,1.e8/))	   
+                         'm/s', missing_value=missing_value, range=(/-1.e8,1.e8/))   
          if (Obc%bound(m)%direction == WEST .or. Obc%bound(m)%direction == EAST) then
             Obc%bound(m)%id_transport = register_diag_field ('ocean_model', 'obc_transport_int_z_'//trim(Obc%bound(m)%name),&
                                  (/Obc%bound(m)%id_xu, Obc%bound(m)%id_yt/),Time%model_time,                                &
-				 'z-integral of horizontal transport on obc',                                               &
+                                 'z-integral of horizontal transport on obc',                                               &
                                  'm^2/s', missing_value=missing_value, range=(/-1.e18,1.e18/))
          else
             Obc%bound(m)%id_transport = register_diag_field ('ocean_model', 'obc_transport_int_z_'//trim(Obc%bound(m)%name),&
                                  (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yu/),Time%model_time,                                &
-				 'z-integral of horizontal transport on obc',                                               &
+                                 'z-integral of horizontal transport on obc',                                               &
                                  'm^2/s', missing_value=missing_value, range=(/-1.e18,1.e18/))
          endif
 
@@ -1953,88 +1953,88 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
          allocate(Obc%bound(m)%id_tracer_data(nt))
          do n = 1, nt
            Obc%bound(m)%id_cclin(n) = register_diag_field & 
-	     ('ocean_model', 'cclin_'//trim(T_prog(n)%name)//'_'//trim(Obc%bound(m)%name), &
-             (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yt,Grd%tracer_axes_depth(3)/), Time%model_time, 'phase speed on obc',&
-             'm/s', missing_value=missing_value, range=(/-1.e18,1.e18/))
+                ('ocean_model', 'cclin_'//trim(T_prog(n)%name)//'_'//trim(Obc%bound(m)%name), &
+                (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yt,Grd%tracer_axes_depth(3)/), Time%model_time, 'phase speed on obc',&
+                'm/s', missing_value=missing_value, range=(/-1.e18,1.e18/))
            Obc%bound(m)%id_tracer_data(n) = register_diag_field &
-  	     ('ocean_model', 'tracer_data_'//trim(T_prog(n)%name)//'_'//trim(Obc%bound(m)%name),                        &
-             (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yt,Grd%tracer_axes_depth(3)/), Time%model_time, 'tracer data on obc',&
-             trim(T_prog(n)%units), missing_value=missing_value, range=(/-1.e18,1.e18/))
+                ('ocean_model', 'tracer_data_'//trim(T_prog(n)%name)//'_'//trim(Obc%bound(m)%name),                        &
+                (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yt,Grd%tracer_axes_depth(3)/), Time%model_time, 'tracer data on obc',&
+                trim(T_prog(n)%units), missing_value=missing_value, range=(/-1.e18,1.e18/))
            if (Obc%bound(m)%direction == WEST .or. Obc%bound(m)%direction == EAST) then
              if(trim(T_prog(n)%name) == 'temp') then
                Obc%bound(m)%id_tracer_flux(n) = register_diag_field &
-	       ('ocean_model', 'obc_heat_flux_'//trim(Obc%bound(m)%name),          &
-               (/Obc%bound(m)%id_xu, Obc%bound(m)%id_yt,Grd%tracer_axes_depth(3)/),&
-               Time%model_time, 'total horizontal tracer flux on obc',         &
-               'Watt/m', missing_value=missing_value, range=(/-1.e18,1.e18/))
+                    ('ocean_model', 'obc_heat_flux_'//trim(Obc%bound(m)%name),          &
+                    (/Obc%bound(m)%id_xu, Obc%bound(m)%id_yt,Grd%tracer_axes_depth(3)/),&
+                    Time%model_time, 'total horizontal tracer flux on obc',         &
+                    'Watt/m', missing_value=missing_value, range=(/-1.e18,1.e18/))
                
-	       Obc%bound(m)%id_tracer_flux_dif(n) = register_diag_field &
-	       ('ocean_model', 'obc_heat_flux_dif_'//trim(Obc%bound(m)%name),          &
-               (/Obc%bound(m)%id_xu, Obc%bound(m)%id_yt,Grd%tracer_axes_depth(3)/),&
-               Time%model_time, 'horizontal tracer diffusion flux on obc',         &
-               'Watt/m', missing_value=missing_value, range=(/-1.e18,1.e18/))
+               Obc%bound(m)%id_tracer_flux_dif(n) = register_diag_field &
+                    ('ocean_model', 'obc_heat_flux_dif_'//trim(Obc%bound(m)%name),          &
+                    (/Obc%bound(m)%id_xu, Obc%bound(m)%id_yt,Grd%tracer_axes_depth(3)/),&
+                    Time%model_time, 'horizontal tracer diffusion flux on obc',         &
+                    'Watt/m', missing_value=missing_value, range=(/-1.e18,1.e18/))
 
-	       Obc%bound(m)%id_tracer_flux_adv(n) = register_diag_field &
-	       ('ocean_model', 'obc_heat_flux_adv_'//trim(Obc%bound(m)%name),          &
-               (/Obc%bound(m)%id_xu, Obc%bound(m)%id_yt,Grd%tracer_axes_depth(3)/),&
-               Time%model_time, 'horizontal tracer advection flux on obc',         &
-               'Watt/m', missing_value=missing_value, range=(/-1.e18,1.e18/))
+               Obc%bound(m)%id_tracer_flux_adv(n) = register_diag_field &
+                    ('ocean_model', 'obc_heat_flux_adv_'//trim(Obc%bound(m)%name),          &
+                    (/Obc%bound(m)%id_xu, Obc%bound(m)%id_yt,Grd%tracer_axes_depth(3)/),&
+                    Time%model_time, 'horizontal tracer advection flux on obc',         &
+                    'Watt/m', missing_value=missing_value, range=(/-1.e18,1.e18/))
              else
                Obc%bound(m)%id_tracer_flux(n) = register_diag_field & 
-	       ('ocean_model', 'obc_'//trim(T_prog(n)%name)//'_flux_'//trim(Obc%bound(m)%name), &
-               (/Obc%bound(m)%id_xu, Obc%bound(m)%id_yt,Grd%tracer_axes_depth(3)/),             &
-                Time%model_time, 'total horizontal tracer flux on obc',                     &
-               ' kg/m/sec', missing_value=missing_value, range=(/-1.e18,1.e18/))
+                    ('ocean_model', 'obc_'//trim(T_prog(n)%name)//'_flux_'//trim(Obc%bound(m)%name), &
+                    (/Obc%bound(m)%id_xu, Obc%bound(m)%id_yt,Grd%tracer_axes_depth(3)/),             &
+                    Time%model_time, 'total horizontal tracer flux on obc',                     &
+                    ' kg/m/sec', missing_value=missing_value, range=(/-1.e18,1.e18/))
                
-	       Obc%bound(m)%id_tracer_flux_dif(n) = register_diag_field & 
-	       ('ocean_model', 'obc_'//trim(T_prog(n)%name)//'_flux_dif_'//trim(Obc%bound(m)%name), &
-               (/Obc%bound(m)%id_xu, Obc%bound(m)%id_yt,Grd%tracer_axes_depth(3)/),             &
-                Time%model_time, 'horizontal tracer diffusion flux on obc',                     &
-               ' kg/m/sec', missing_value=missing_value, range=(/-1.e18,1.e18/))
+               Obc%bound(m)%id_tracer_flux_dif(n) = register_diag_field & 
+                    ('ocean_model', 'obc_'//trim(T_prog(n)%name)//'_flux_dif_'//trim(Obc%bound(m)%name), &
+                    (/Obc%bound(m)%id_xu, Obc%bound(m)%id_yt,Grd%tracer_axes_depth(3)/),             &
+                    Time%model_time, 'horizontal tracer diffusion flux on obc',                     &
+                    ' kg/m/sec', missing_value=missing_value, range=(/-1.e18,1.e18/))
                
-	       Obc%bound(m)%id_tracer_flux_adv(n) = register_diag_field & 
-	       ('ocean_model', 'obc_'//trim(T_prog(n)%name)//'_flux_adv_'//trim(Obc%bound(m)%name), &
-               (/Obc%bound(m)%id_xu, Obc%bound(m)%id_yt,Grd%tracer_axes_depth(3)/),             &
-                Time%model_time, 'horizontal tracer advection flux on obc',                     &
-               ' kg/m/sec', missing_value=missing_value, range=(/-1.e18,1.e18/))
+               Obc%bound(m)%id_tracer_flux_adv(n) = register_diag_field & 
+                    ('ocean_model', 'obc_'//trim(T_prog(n)%name)//'_flux_adv_'//trim(Obc%bound(m)%name), &
+                    (/Obc%bound(m)%id_xu, Obc%bound(m)%id_yt,Grd%tracer_axes_depth(3)/),             &
+                    Time%model_time, 'horizontal tracer advection flux on obc',                     &
+                    ' kg/m/sec', missing_value=missing_value, range=(/-1.e18,1.e18/))
              endif
            else
              if(trim(T_prog(n)%name) == 'temp') then
                Obc%bound(m)%id_tracer_flux(n) = register_diag_field &
-	       ('ocean_model', 'obc_heat_flux_'//trim(Obc%bound(m)%name),           &
-               (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yu,Grd%tracer_axes_depth(3)/), &
-                Time%model_time, 'totel horizontal tracer flux on obc',         &
-               'Watt/m', missing_value=missing_value, range=(/-1.e18,1.e18/))
+                    ('ocean_model', 'obc_heat_flux_'//trim(Obc%bound(m)%name),           &
+                    (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yu,Grd%tracer_axes_depth(3)/), &
+                    Time%model_time, 'totel horizontal tracer flux on obc',         &
+                    'Watt/m', missing_value=missing_value, range=(/-1.e18,1.e18/))
                
-	       Obc%bound(m)%id_tracer_flux_dif(n) = register_diag_field &
-	       ('ocean_model', 'obc_heat_flux_dif_'//trim(Obc%bound(m)%name),           &
-               (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yu,Grd%tracer_axes_depth(3)/), &
-                Time%model_time, 'horizontal tracer diffusion flux on obc',         &
-               'Watt/m', missing_value=missing_value, range=(/-1.e18,1.e18/))
+               Obc%bound(m)%id_tracer_flux_dif(n) = register_diag_field &
+                    ('ocean_model', 'obc_heat_flux_dif_'//trim(Obc%bound(m)%name),           &
+                    (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yu,Grd%tracer_axes_depth(3)/), &
+                    Time%model_time, 'horizontal tracer diffusion flux on obc',         &
+                    'Watt/m', missing_value=missing_value, range=(/-1.e18,1.e18/))
                
-	       Obc%bound(m)%id_tracer_flux_adv(n) = register_diag_field &
-	       ('ocean_model', 'obc_heat_flux_adv_'//trim(Obc%bound(m)%name),           &
-               (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yu,Grd%tracer_axes_depth(3)/), &
-                Time%model_time, 'horizontal tracer advection flux on obc',         &
-               'Watt/m', missing_value=missing_value, range=(/-1.e18,1.e18/))
+               Obc%bound(m)%id_tracer_flux_adv(n) = register_diag_field &
+                    ('ocean_model', 'obc_heat_flux_adv_'//trim(Obc%bound(m)%name),           &
+                    (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yu,Grd%tracer_axes_depth(3)/), &
+                    Time%model_time, 'horizontal tracer advection flux on obc',         &
+                    'Watt/m', missing_value=missing_value, range=(/-1.e18,1.e18/))
              else
-               Obc%bound(m)%id_tracer_flux(n) = register_diag_field & 
-	       ('ocean_model', 'obc_'//trim(T_prog(n)%name)//'_flux_'//trim(Obc%bound(m)%name), &
-               (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yu,Grd%tracer_axes_depth(3)/),             &
-                Time%model_time, 'total horizontal tracer flux on obc',                     &
-               ' kg/m/sec', missing_value=missing_value, range=(/-1.e18,1.e18/))
+                Obc%bound(m)%id_tracer_flux(n) = register_diag_field & 
+                     ('ocean_model', 'obc_'//trim(T_prog(n)%name)//'_flux_'//trim(Obc%bound(m)%name), &
+                     (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yu,Grd%tracer_axes_depth(3)/),             &
+                     Time%model_time, 'total horizontal tracer flux on obc',                     &
+                     ' kg/m/sec', missing_value=missing_value, range=(/-1.e18,1.e18/))
 
-               Obc%bound(m)%id_tracer_flux_dif(n) = register_diag_field & 
-	       ('ocean_model', 'obc_'//trim(T_prog(n)%name)//'_flux_dif_'//trim(Obc%bound(m)%name), &
-               (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yu,Grd%tracer_axes_depth(3)/),             &
-                Time%model_time, 'horizontal tracer diffusion flux on obc',                     &
-               ' kg/m/sec', missing_value=missing_value, range=(/-1.e18,1.e18/))
+                Obc%bound(m)%id_tracer_flux_dif(n) = register_diag_field & 
+                     ('ocean_model', 'obc_'//trim(T_prog(n)%name)//'_flux_dif_'//trim(Obc%bound(m)%name), &
+                     (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yu,Grd%tracer_axes_depth(3)/),             &
+                     Time%model_time, 'horizontal tracer diffusion flux on obc',                     &
+                     ' kg/m/sec', missing_value=missing_value, range=(/-1.e18,1.e18/))
 
-               Obc%bound(m)%id_tracer_flux_adv(n) = register_diag_field & 
-	       ('ocean_model', 'obc_'//trim(T_prog(n)%name)//'_flux_adv_'//trim(Obc%bound(m)%name), &
-               (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yu,Grd%tracer_axes_depth(3)/),             &
-                Time%model_time, 'horizontal tracer advection flux on obc',                     &
-               ' kg/m/sec', missing_value=missing_value, range=(/-1.e18,1.e18/))
+                Obc%bound(m)%id_tracer_flux_adv(n) = register_diag_field & 
+                     ('ocean_model', 'obc_'//trim(T_prog(n)%name)//'_flux_adv_'//trim(Obc%bound(m)%name), &
+                     (/Obc%bound(m)%id_xt, Obc%bound(m)%id_yu,Grd%tracer_axes_depth(3)/),             &
+                     Time%model_time, 'horizontal tracer advection flux on obc',                     &
+                     ' kg/m/sec', missing_value=missing_value, range=(/-1.e18,1.e18/))
              endif
            endif
          enddo
@@ -2264,7 +2264,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
           ! Update eta at global halo point to make a no-gradient
           call ocean_obc_update_boundary(visc_cbt, 'T')
           call ocean_obc_update_boundary(diff_cbt, 'T')
-	  if (PRESENT(field1)) then
+          if (PRESENT(field1)) then
             do k= 1, nk
               do n = 1, Obc%bound(m)%nloc
                 i = Obc%bound(m)%iloc(n)   ! i boundary location
@@ -2275,8 +2275,8 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
               enddo
             enddo
             call ocean_obc_update_boundary(field1, 'T')
-	  endif
-	  if (PRESENT(field2)) then
+         endif
+         if (PRESENT(field2)) then
             do k= 1, nk
               do n = 1, Obc%bound(m)%nloc
                 i = Obc%bound(m)%iloc(n)   ! i boundary location
@@ -2287,7 +2287,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
               enddo
             enddo
             call ocean_obc_update_boundary(field2, 'T')
-	  endif
+         endif
        else if(iand(Obc%bound(m)%bcond_mix, INGRAD) == INGRAD) then
           ! Set an interior gradient
           do k= 1, nk
@@ -2303,7 +2303,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
           ! Update eta at global halo point to make a no-gradient
           call ocean_obc_update_boundary(visc_cbt, 'T', 'i')
           call ocean_obc_update_boundary(diff_cbt, 'T', 'i')
-	  if (PRESENT(field1)) then
+          if (PRESENT(field1)) then
             do k= 1, nk
               do n = 1, Obc%bound(m)%nloc
                 i = Obc%bound(m)%iloc(n)   ! i boundary location
@@ -2314,8 +2314,8 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
               enddo
             enddo
             call ocean_obc_update_boundary(field1, 'T')
-	  endif
-	  if (PRESENT(field2)) then
+         endif
+         if (PRESENT(field2)) then
             do k= 1, nk
               do n = 1, Obc%bound(m)%nloc
                 i = Obc%bound(m)%iloc(n)   ! i boundary location
@@ -2326,7 +2326,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
               enddo
             enddo
             call ocean_obc_update_boundary(field2, 'T')
-	  endif
+         endif
        else if(iand(Obc%bound(m)%bcond_mix, CLAMPD) == CLAMPD) then
           ! Set to zero. No vertical diffusion is performed in this case.
           do k= 1, nk
@@ -2340,7 +2340,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
           ! Update eta at global halo point to make a no-gradient
           call ocean_obc_update_boundary(visc_cbt, 'T', 'z')
           call ocean_obc_update_boundary(diff_cbt, 'T', 'z')
-	  if (PRESENT(field1)) then
+          if (PRESENT(field1)) then
             do k= 1, nk
               do n = 1, Obc%bound(m)%nloc
                 i = Obc%bound(m)%iloc(n)   ! i boundary location
@@ -2349,8 +2349,8 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
               enddo
             enddo
             call ocean_obc_update_boundary(field1, 'T')
-	  endif
-	  if (PRESENT(field2)) then
+         endif
+         if (PRESENT(field2)) then
             do k= 1, nk
               do n = 1, Obc%bound(m)%nloc
                 i = Obc%bound(m)%iloc(n)   ! i boundary location
@@ -2359,7 +2359,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
               enddo
             enddo
             call ocean_obc_update_boundary(field2, 'T')
-	  endif
+         endif
        endif
     enddo
 
@@ -3061,14 +3061,14 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
        if(Obc%bound(m)%id_cclin(tn) > 0) then
          wrk = 0.
          do n = 1, Obc%bound(m)%nloc
-	    i = Obc%bound(m)%iloc(n)   ! i boundary location
-	    j = Obc%bound(m)%jloc(n)   ! j boundary location
+            i = Obc%bound(m)%iloc(n)   ! i boundary location
+            j = Obc%bound(m)%jloc(n)   ! j boundary location
             wrk(i,j,:) = cclin(n,:)
-	 enddo
+         enddo
          used = send_data(Obc%bound(m)%id_cclin(tn), &
-	                  wrk(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1:nk),  &
-                          Time%model_time,           &
-			  rmask=Grd%tmask(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1:nk))
+              wrk(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1:nk),  &
+              Time%model_time,           &
+              rmask=Grd%tmask(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1:nk))
        endif
        if(debug_this_module .and. dbg == 1) then
           k = 1
@@ -3292,16 +3292,16 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
          if(Obc%bound(m)%id_tracer_data(tn) > 0) then
            wrk = 0.
            do n = 1, Obc%bound(m)%nloc
-	     i = Obc%bound(m)%iloc(n)   ! i boundary location
-	     j = Obc%bound(m)%jloc(n)   ! j boundary location
-             id = Obc%bound(m)%d1i(n)
-             jd = Obc%bound(m)%d1j(n)
-             wrk(i,j,:) = Obc%tracer(m,tn)%data(id,jd,:)*Grd%tmask(i,j,:)
-	   enddo
+              i = Obc%bound(m)%iloc(n)   ! i boundary location
+              j = Obc%bound(m)%jloc(n)   ! j boundary location
+              id = Obc%bound(m)%d1i(n)
+              jd = Obc%bound(m)%d1j(n)
+              wrk(i,j,:) = Obc%tracer(m,tn)%data(id,jd,:)*Grd%tmask(i,j,:)
+           enddo
            used = send_data(Obc%bound(m)%id_tracer_data(tn), &
-	                  wrk(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1:nk),  &
-                          Time%model_time,                   &
-			  rmask=Grd%tmask(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1:nk))
+                wrk(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1:nk),  &
+                Time%model_time,                   &
+                rmask=Grd%tmask(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1:nk))
          endif
        endif
  
@@ -3500,9 +3500,9 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
              js = jstr(n)   ! Start of j halo loop
              je = jend(n)   ! End of j halo loop
              do jj = js, je
-             	do ii = is, ie
-             	   field(ii,jj) = 0.0
-             	enddo
+                do ii = is, ie
+                   field(ii,jj) = 0.0
+                enddo
              enddo
           enddo
 !       else if (uptype(m) .eq. NOGRAD) then   ! No-gradient
@@ -3533,17 +3533,17 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
              enddo
           else
              do n = 1, Obc%bound(m)%nlod
-             	i = iloc(n)    ! Internal i boundary location
-             	j = jloc(n)    ! Internal j boundary location
-             	is = istr(n)   ! Start of i halo loop
-             	ie = iend(n)   ! End of i halo loop
-             	js = jstr(n)   ! Start of j halo loop
-             	je = jend(n)   ! End of j halo loop
+                i = iloc(n)    ! Internal i boundary location
+                j = jloc(n)    ! Internal j boundary location
+                is = istr(n)   ! Start of i halo loop
+                ie = iend(n)   ! End of i halo loop
+                js = jstr(n)   ! Start of j halo loop
+                je = jend(n)   ! End of j halo loop
                 do jj = js, je
-             	   do ii = is, ie
-             	      field(ii,jj) = field(i,j)
-             	   enddo
-             	enddo
+                   do ii = is, ie
+                      field(ii,jj) = field(i,j)
+                   enddo
+                enddo
              enddo
           endif
 !      else if (uptype(m) .eq. INGRAD) then  ! No-gradient to internal point
@@ -3576,12 +3576,12 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
              enddo
           else
              do n = 1, Obc%bound(m)%nlod
-             	i = oi1(n)     ! Internal i boundary location
-             	j = oj1(n)     ! Internal j boundary location
-             	is = istr(n)   ! Start of i halo loop
-             	ie = iend(n)   ! End of i halo loop
-             	js = jstr(n)   ! Start of j halo loop
-             	je = jend(n)   ! End of j halo loop
+                i = oi1(n)     ! Internal i boundary location
+                j = oj1(n)     ! Internal j boundary location
+                is = istr(n)   ! Start of i halo loop
+                ie = iend(n)   ! End of i halo loop
+                js = jstr(n)   ! Start of j halo loop
+                je = jend(n)   ! End of j halo loop
                 do jj = js, je
                    do ii = is, ie
                       field(ii,jj) = field(i,j)
@@ -4067,9 +4067,9 @@ end subroutine ocean_obc_restart
           uhjm = uh
         enddo
         if(Obc%bound(m)%id_transport > 0) used = send_data(Obc%bound(m)%id_transport, &
-	                  mass_flux(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je),  &
-                          Time%model_time,                               &
-			  rmask=Grd%tmask(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1))
+             mass_flux(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je),  &
+             Time%model_time,                               &
+             rmask=Grd%tmask(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1))
       case(EAST)
         i = Obc%bound(m)%is-1
         j = Obc%bound(m)%js-1
@@ -4080,9 +4080,9 @@ end subroutine ocean_obc_restart
           uhjm = uh
         enddo
         if(Obc%bound(m)%id_transport > 0) used = send_data(Obc%bound(m)%id_transport, &
-	                  mass_flux(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je),  &
-                          Time%model_time,                               &
-			  rmask=Grd%tmask(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1))
+             mass_flux(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je),  &
+             Time%model_time,                               &
+             rmask=Grd%tmask(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1))
       case(SOUTH)
         j = Obc%bound(m)%js
         i = Obc%bound(m)%is-1
@@ -4093,9 +4093,9 @@ end subroutine ocean_obc_restart
           vhim = vh
         enddo
         if(Obc%bound(m)%id_transport > 0) used = send_data(Obc%bound(m)%id_transport, &
-	                  mass_flux(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je),  &
-                          Time%model_time,                               &
-			  rmask=Grd%tmask(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1))
+             mass_flux(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je),  &
+             Time%model_time,                               &
+             rmask=Grd%tmask(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1))
       case(NORTH)
         j = Obc%bound(m)%js-1
         i = Obc%bound(m)%is-1
@@ -4106,9 +4106,9 @@ end subroutine ocean_obc_restart
           vhim = vh
         enddo
         if(Obc%bound(m)%id_transport > 0) used = send_data(Obc%bound(m)%id_transport, &
-	                  mass_flux(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je),  &
-                          Time%model_time,                               &
-			  rmask=Grd%tmask(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1))
+             mass_flux(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je),  &
+             Time%model_time,                               &
+             rmask=Grd%tmask(Obc%bound(m)%is:Obc%bound(m)%ie,Obc%bound(m)%js:Obc%bound(m)%je,1))
       end select
     enddo
 
@@ -4141,10 +4141,10 @@ end subroutine ocean_obc_restart
             tracer_flux(i,j) = tracer_flux(i,j) + Tracer%otf(m)%flux(j,k)
           enddo
         enddo
-!    	if(Obc%bound(m)%id_tracer_flux(n) > 0 .and. send_out)                    &
-!	       used = send_data(Obc%bound(m)%id_tracer_flux(n), &
-! 	       Tracer%conversion*Tracer%otf(m)%flux(Obc%bound(m)%js:Obc%bound(m)%je,1:nk), &
-!    	       Time%model_time, rmask=Grd%tmask(i:i,Obc%bound(m)%js:Obc%bound(m)%je,1:nk))
+!        if(Obc%bound(m)%id_tracer_flux(n) > 0 .and. send_out)                    &
+!             used = send_data(Obc%bound(m)%id_tracer_flux(n), &
+!             Tracer%conversion*Tracer%otf(m)%flux(Obc%bound(m)%js:Obc%bound(m)%je,1:nk), &
+!             Time%model_time, rmask=Grd%tmask(i:i,Obc%bound(m)%js:Obc%bound(m)%je,1:nk))
       case(EAST)
         i = Obc%bound(m)%is-1
         do k=1,nk
@@ -4191,52 +4191,52 @@ end subroutine ocean_obc_restart
 ! dir is the direction of the flux not of the boundary
     if (dir == 'z') then
        do m = 1, nobc
-    	 if(.not. Obc%bound(m)%on_bound) cycle
-    	 select case( Obc%bound(m)%direction )
-    	 case(WEST)	   
-    	   i = Obc%bound(m)%is
-    	   do j = Obc%bound(m)%js, Obc%bound(m)%je
-    	     Tracer%otf(m)%flux(j,:) = Tracer%otf(m)%flux(j,:) + flux(i,j,:)
-    	   enddo
-    	   if(Obc%bound(m)%id_tracer_flux_dif(n) > 0 .and. caller == 'dif')             &
-	          used = send_data(Obc%bound(m)%id_tracer_flux_dif(n), &
- 	   	  Tracer%conversion*flux(i:i,Obc%bound(m)%js:Obc%bound(m)%je,1:nk), &
-    		  Time%model_time, rmask=Grd%tmask(i:i,Obc%bound(m)%js:Obc%bound(m)%je,1:nk))
-    	   if(Obc%bound(m)%id_tracer_flux_adv(n) > 0 .and. caller == 'adv')             &
-	          used = send_data(Obc%bound(m)%id_tracer_flux_adv(n), &
- 	   	  Tracer%conversion*flux(i:i,Obc%bound(m)%js:Obc%bound(m)%je,1:nk), &
-    		  Time%model_time, rmask=Grd%tmask(i:i,Obc%bound(m)%js:Obc%bound(m)%je,1:nk))
-    	 case(EAST)
-    	   i = Obc%bound(m)%is-1
-    	   do j = Obc%bound(m)%js, Obc%bound(m)%je
-    	     Tracer%otf(m)%flux(j,:) = Tracer%otf(m)%flux(j,:) - flux(i,j,:) ! negative for eastward flux
-    	   enddo
-    	   if(Obc%bound(m)%id_tracer_flux(n) > 0) used = send_data(Obc%bound(m)%id_tracer_flux(n), &
- 	   	  Tracer%conversion*flux(i:i,Obc%bound(m)%js:Obc%bound(m)%je,1:nk), &
-    		  Time%model_time, rmask=Grd%tmask(i:i,Obc%bound(m)%is:Obc%bound(m)%ie,1:nk))
-    	 end select
+          if(.not. Obc%bound(m)%on_bound) cycle
+          select case( Obc%bound(m)%direction )
+          case(WEST)
+             i = Obc%bound(m)%is
+             do j = Obc%bound(m)%js, Obc%bound(m)%je
+                Tracer%otf(m)%flux(j,:) = Tracer%otf(m)%flux(j,:) + flux(i,j,:)
+             enddo
+             if(Obc%bound(m)%id_tracer_flux_dif(n) > 0 .and. caller == 'dif')             &
+                  used = send_data(Obc%bound(m)%id_tracer_flux_dif(n), &
+                  Tracer%conversion*flux(i:i,Obc%bound(m)%js:Obc%bound(m)%je,1:nk), &
+                  Time%model_time, rmask=Grd%tmask(i:i,Obc%bound(m)%js:Obc%bound(m)%je,1:nk))
+             if(Obc%bound(m)%id_tracer_flux_adv(n) > 0 .and. caller == 'adv')             &
+                  used = send_data(Obc%bound(m)%id_tracer_flux_adv(n), &
+                  Tracer%conversion*flux(i:i,Obc%bound(m)%js:Obc%bound(m)%je,1:nk), &
+                  Time%model_time, rmask=Grd%tmask(i:i,Obc%bound(m)%js:Obc%bound(m)%je,1:nk))
+          case(EAST)
+             i = Obc%bound(m)%is-1
+             do j = Obc%bound(m)%js, Obc%bound(m)%je
+                Tracer%otf(m)%flux(j,:) = Tracer%otf(m)%flux(j,:) - flux(i,j,:) ! negative for eastward flux
+             enddo
+             if(Obc%bound(m)%id_tracer_flux(n) > 0) used = send_data(Obc%bound(m)%id_tracer_flux(n), &
+                  Tracer%conversion*flux(i:i,Obc%bound(m)%js:Obc%bound(m)%je,1:nk), &
+                  Time%model_time, rmask=Grd%tmask(i:i,Obc%bound(m)%is:Obc%bound(m)%ie,1:nk))
+          end select
        enddo
     elseif (dir == 'm') then
        do m = 1, nobc
-    	 if(.not. Obc%bound(m)%on_bound) cycle
-    	 select case( Obc%bound(m)%direction )
-    	 case(SOUTH)
-    	   j = Obc%bound(m)%js
-    	   do i = Obc%bound(m)%is, Obc%bound(m)%ie
-    	     Tracer%otf(m)%flux(i,:) = Tracer%otf(m)%flux(i,:) + flux(i,j,:)
-    	   enddo
-    	   if(Obc%bound(m)%id_tracer_flux(n) > 0) used = send_data(Obc%bound(m)%id_tracer_flux(n), &
- 	   	  Tracer%conversion*flux(Obc%bound(m)%is:Obc%bound(m)%ie,j:j,1:nk), &
-    		  Time%model_time, rmask=Grd%tmask(Obc%bound(m)%is:Obc%bound(m)%ie,j:j,1:nk))
-    	 case(NORTH)
-    	   j = Obc%bound(m)%js-1
-    	   do i = Obc%bound(m)%is, Obc%bound(m)%ie
-    	     Tracer%otf(m)%flux(i,:) = Tracer%otf(m)%flux(i,:) - flux(i,j,:) ! negative for northward flux
-    	   enddo
-    	   if(Obc%bound(m)%id_tracer_flux(n) > 0) used = send_data(Obc%bound(m)%id_tracer_flux(n), &
- 	   	  Tracer%conversion*flux(Obc%bound(m)%is:Obc%bound(m)%ie,j:j,1:nk), &
-    		  Time%model_time, rmask=Grd%tmask(Obc%bound(m)%is:Obc%bound(m)%ie,j:j,1:nk))
-    	 end select
+          if(.not. Obc%bound(m)%on_bound) cycle
+          select case( Obc%bound(m)%direction )
+          case(SOUTH)
+             j = Obc%bound(m)%js
+             do i = Obc%bound(m)%is, Obc%bound(m)%ie
+                Tracer%otf(m)%flux(i,:) = Tracer%otf(m)%flux(i,:) + flux(i,j,:)
+             enddo
+             if(Obc%bound(m)%id_tracer_flux(n) > 0) used = send_data(Obc%bound(m)%id_tracer_flux(n), &
+                  Tracer%conversion*flux(Obc%bound(m)%is:Obc%bound(m)%ie,j:j,1:nk), &
+                  Time%model_time, rmask=Grd%tmask(Obc%bound(m)%is:Obc%bound(m)%ie,j:j,1:nk))
+          case(NORTH)
+             j = Obc%bound(m)%js-1
+             do i = Obc%bound(m)%is, Obc%bound(m)%ie
+                Tracer%otf(m)%flux(i,:) = Tracer%otf(m)%flux(i,:) - flux(i,j,:) ! negative for northward flux
+             enddo
+             if(Obc%bound(m)%id_tracer_flux(n) > 0) used = send_data(Obc%bound(m)%id_tracer_flux(n), &
+                  Tracer%conversion*flux(Obc%bound(m)%is:Obc%bound(m)%ie,j:j,1:nk), &
+                  Time%model_time, rmask=Grd%tmask(Obc%bound(m)%is:Obc%bound(m)%ie,j:j,1:nk))
+          end select
        enddo
     endif
         

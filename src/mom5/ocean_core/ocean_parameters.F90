@@ -242,7 +242,7 @@ subroutine ocean_parameters_init(cp_ocean)
     integer :: ioun, io_status, ierr
 
     stdoutunit = stdout()
-    stdlogunit = stdlog()	
+    stdlogunit = stdlog()
 
 #ifdef INTERNAL_FILE_NML
     read (input_nml_file, nml=ocean_parameters_nml, iostat=io_status)
