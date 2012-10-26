@@ -1232,7 +1232,7 @@ subroutine ocean_barotropic_init(Grid, Domain, Time, Time_steps, Ocean_options, 
 
   if(pred_corr_gamma == 0.0 .and. horz_grid == MOM_CGRID) then
      call mpp_error(WARNING,'ocean_barotropic_mod: MOM_CGRID requires pred_corr_gamma > 0.0. &
-         Model is setting pred_corr_gamma to default 0.2.')
+          &Model is setting pred_corr_gamma to default 0.2.')
 	 pred_corr_gamma = 0.2
   endif
 
