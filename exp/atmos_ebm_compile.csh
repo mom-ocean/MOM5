@@ -8,7 +8,7 @@ mkdir -p $executable:h:h/$lib_name
 
 # compile libs
 cd $executable:h:h/$lib_name
-$mkmf_lib -p $lib_name.a -c "$cppDefs" -o "-I$executable:h:h/lib_FMS" $lib_include_dirs
+$mkmf_lib -p $lib_name.a -c "$cppDefs" -o "-I$executable:h:h/lib_FMS" $srcList $lib_include_dirs
 
 make
 
