@@ -385,7 +385,7 @@ integer                                         :: km_c_max
 integer                                         :: po4_star_id
 real, allocatable, dimension(:,:,:)             :: po4_star_t
 character*128                                   :: po4_star_file    
-character*32                                    :: po4_star_name    
+character*128                                   :: po4_star_name
 real, allocatable, dimension(:,:)               :: sc_no_term
 type(biotic_type), allocatable, dimension(:)    :: biotic
 integer                                         :: instances

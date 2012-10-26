@@ -202,7 +202,7 @@ private shelfbowl_init
 type passive_type
   real, allocatable , dimension(:,:,:) :: mask
   character(len=fm_field_name_len) :: name
-  character(len=30)                :: init_condition 
+  character(len=128)               :: init_condition
   integer                          :: index, diag_index
   real                             :: init_surface
   real                             :: init_value

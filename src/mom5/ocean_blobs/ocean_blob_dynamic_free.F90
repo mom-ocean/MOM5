@@ -330,7 +330,7 @@ subroutine blob_dynamic_free_init(Grid, Domain, Time, T_prog, Blob_domain,      
   integer :: n
   integer :: ioun, ierr, io_status
   integer :: stdoutunit,stdlogunit
-  character(10) :: myname, myunit
+  character(32) :: myname, myunit
 
   stdoutunit=stdout();stdlogunit=stdlog() 
 

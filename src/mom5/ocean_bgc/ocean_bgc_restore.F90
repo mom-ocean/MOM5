@@ -486,34 +486,34 @@ real                                    :: htotal_scale_lo_in
 
 character*128                                   :: alk_star_file    
 integer                                         :: alk_star_id
-character*32                                    :: alk_star_name    
+character*128                                   :: alk_star_name
 real, allocatable, dimension(:,:,:)             :: alk_star_t
 integer                                         :: dep_wet_id
 character*128                                   :: dep_wet_file    
-character*32                                    :: dep_wet_name    
+character*128                                   :: dep_wet_name
 real, allocatable, dimension(:,:)               :: dep_wet_t
 integer                                         :: dep_dry_id
 character*128                                   :: dep_dry_file    
-character*32                                    :: dep_dry_name    
+character*128                                   :: dep_dry_name
 real, allocatable, dimension(:,:)               :: dep_dry_t
 character*128                                   :: fed_star_file    
 integer                                         :: fed_star_id
-character*32                                    :: fed_star_name    
+character*128                                   :: fed_star_name
 real, allocatable, dimension(:,:,:)             :: fed_star_t
 integer                                         :: id_o2_sat
 integer                                         :: km_c_max
 character*128                                   :: no3_star_file    
 integer                                         :: no3_star_id
-character*32                                    :: no3_star_name    
+character*128                                   :: no3_star_name
 real, allocatable, dimension(:,:,:)             :: no3_star_t
 character*128                                   :: po4_star_file    
 integer                                         :: po4_star_id
-character*32                                    :: po4_star_name    
+character*128                                   :: po4_star_name
 real, allocatable, dimension(:,:,:)             :: po4_star_t
 real, allocatable, dimension(:,:)               :: sc_no_term
 character*128                                   :: sio4_star_file    
 integer                                         :: sio4_star_id
-character*32                                    :: sio4_star_name    
+character*128                                   :: sio4_star_name
 real, allocatable, dimension(:,:,:)             :: sio4_star_t
 type(biotic_type), allocatable, dimension(:)    :: biotic
 integer                                         :: instances

@@ -246,17 +246,17 @@ character(len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
 
 integer                               :: src_he3_id
 character*128                         :: src_he3_file    
-character*32                          :: src_he3_name    
+character*128                         :: src_he3_name
 real, allocatable, dimension(:,:)     :: src_he3_t
 
 integer                               :: src_he4_id
 character*128                         :: src_he4_file    
-character*32                          :: src_he4_name    
+character*128                         :: src_he4_name
 real, allocatable, dimension(:,:)     :: src_he4_t
 
 integer                               :: src_he_depth_id
 character*128                         :: src_he_depth_file    
-character*32                          :: src_he_depth_name    
+character*128                         :: src_he_depth_name
 real, allocatable, dimension(:,:)     :: src_he_depth_t
 
 ! for restart

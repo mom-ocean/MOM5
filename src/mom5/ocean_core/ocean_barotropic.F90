@@ -1791,7 +1791,7 @@ end subroutine ocean_barotropic_init
 subroutine barotropic_diag_init(Time)
 
   type(ocean_time_type), intent(in) :: Time
-  character(len=40)  :: model_type 
+  character(len=48)  :: model_type
 
 
   ! static fields for diagnostic manager 

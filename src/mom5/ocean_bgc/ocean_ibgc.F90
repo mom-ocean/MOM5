@@ -426,7 +426,7 @@ type ibgc_type  !{
   real                                  :: sal_global
   real                                  :: frac_14catm_const = 0.0
   character(len=128)                    :: frac_14catm_file = ' '
-  character(len=32)                     :: frac_14catm_name = ' '
+  character(len=128)                    :: frac_14catm_name = ' '
   integer                               :: frac_14catm_id = 0
 
   real, _ALLOCATABLE, dimension(:,:,:)  :: jideal_n  _NULL

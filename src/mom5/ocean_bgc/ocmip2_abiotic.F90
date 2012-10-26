@@ -186,7 +186,7 @@ type abiotic_type  !{
   real                                  :: dic_global = 0.0
   real, _ALLOCATABLE, dimension(:,:)    :: dic_global_wrk  _NULL
   character(len=128)                    :: frac_14catm_file = ' '
-  character(len=32)                     :: frac_14catm_name = ' '
+  character(len=128)                    :: frac_14catm_name = ' '
   integer                               :: frac_14catm_id = 0
   real, _ALLOCATABLE, dimension(:,:)    :: frac_14catm  _NULL
   real                                  :: frac_14catm_const = 0.0

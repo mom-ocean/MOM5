@@ -88,7 +88,7 @@ type, public                                                    :: ocean_residen
   integer                                                       :: id_restore_region = -1
   integer                                                       :: id_change = -1
   logical                                                       :: int_found = .false.
-  character(len=fm_field_name_len)                              :: int_module_name = ' '
+  character(len=128)                                            :: int_module_name = ' '
   real, dimension(:), pointer                                   :: int_params => NULL()
   logical, dimension(:), pointer                                :: int_flags => NULL()
   character(len=fm_string_len), dimension(:), pointer           :: int_strings => NULL()
@@ -110,7 +110,7 @@ type, public                                                    :: ocean_residen
   real, dimension(:), pointer                                   :: bottom_bnd => NULL()
   integer                                                       :: num_geog_regions = 0
   integer                                                       :: id_restore_region = -1
-  character(len=fm_field_name_len)                              :: module_name = ' '
+  character(len=128)                                            :: module_name = ' '
   real, dimension(:), pointer                                   :: params => NULL()
   logical, dimension(:), pointer                                :: flags => NULL()
   character(len=fm_string_len), dimension(:), pointer           :: strings => NULL()
