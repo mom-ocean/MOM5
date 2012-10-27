@@ -53,7 +53,7 @@ use ocean_types_mod,      only: ocean_prog_tracer_type
 use ocean_types_mod,      only: ocean_density_type
 use ocean_types_mod,      only: ocean_time_type, ocean_time_steps_type
 use ocean_workspace_mod,  only: wrk1
-
+use ocean_util_mod,       only: diagnose_3d
 
 implicit none
 
@@ -301,21 +301,14 @@ end subroutine ocean_vert_const_init
   enddo
 
 
-  if (id_diff_cbt_const > 0) used = send_data(id_diff_cbt_const, diff_cbt(:,:,:,1), &
-                                    Time%model_time, rmask=Grd%tmask(:,:,:),        &
-                                    is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-  if (id_visc_cbt_const > 0) used = send_data(id_visc_cbt_const, visc_cbt(:,:,:), &
-                                    Time%model_time, rmask=Grd%tmask(:,:,:),      &
-                                    is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grd, id_diff_cbt_const, diff_cbt(:,:,:,1))
+  call diagnose_3d(Time, Grd, id_visc_cbt_const, visc_cbt(:,:,:))
 
   if (id_visc_cbu_const > 0) used = send_data(id_visc_cbu_const, visc_cbu(:,:,:), &
                                     Time%model_time, rmask=Grd%umask(:,:,:),      &
                                     is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
 
-  if (id_density_delta_z > 0) used = send_data(id_density_delta_z, wrk1(:,:,:), &
-                                     Time%model_time, rmask=Grd%tmask(:,:,:),   &
-                                     is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grd, id_density_delta_z, wrk1(:,:,:))
 
 
 end subroutine vert_mix_const

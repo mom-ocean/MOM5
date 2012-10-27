@@ -336,6 +336,7 @@ use ocean_parameters_mod, only: von_karman, rho0, rho0r, omega_earth, grav
 use ocean_types_mod,      only: ocean_time_type, ocean_domain_type, ocean_grid_type, ocean_options_type
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_thickness_type, ocean_density_type, ocean_velocity_type 
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk1_2d
+use ocean_util_mod,       only: diagnose_2d, diagnose_3d
 
 implicit none
 
@@ -853,31 +854,19 @@ ierr = check_nml_error(io_status,'ocean_vert_tidal_nml')
     id_drag_diss_efold = register_static_field ('ocean_model', 'drag_diss_efold',&
          Grid%tracer_axes(1:2), 'e-folding depth for drag dissipation scheme',   &
          'm', missing_value=missing_value, range=(/-1.0,1e10/))
-    if (id_drag_diss_efold > 0) then 
-        used = send_data (id_drag_diss_efold, wrk1_2d(:,:), &
-               Time%model_time, rmask=Grd%tmask(:,:,1),     &
-               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-    endif
+    call diagnose_2d(Time, Grd, id_drag_diss_efold, wrk1_2d(:,:))
 
     ! static input of leewave breaking from Nikurashin
     id_leewave_dissipation = register_static_field ('ocean_model', 'leewave_dissipation',&
          Grid%tracer_axes(1:2), 'specified energy flux input from breaking leewaves',    &
          'W/m^2', missing_value=missing_value, range=(/-1e1,1e15/))
-    if (id_leewave_dissipation > 0) then 
-        used = send_data (id_leewave_dissipation, leewave_dissipation(:,:),&
-               Time%model_time, rmask=Grd%tmask(:,:,1),                    &
-               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-    endif
+    call diagnose_2d(Time, Grd, id_leewave_dissipation, leewave_dissipation(:,:))
 
     ! tide speed for breaking internal wave dissipation scheme
     id_tide_speed_wave = register_static_field ('ocean_model', 'tide_speed_wave',                     &
          Grid%tracer_axes(1:2), 'tide speed from tide model for breaking internal wave mixing scheme',&
          'm/s', missing_value=missing_value, range=(/-1e1,1e9/))
-    if (id_tide_speed_wave > 0) then 
-        used = send_data (id_tide_speed_wave, tide_speed_t(:,:), &
-               Time%model_time, rmask=Grd%tmask(:,:,1),          &
-               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-    endif
+    call diagnose_2d(Time, Grd, id_tide_speed_wave, tide_speed_t(:,:))
 
     ! tide speed scale for barotropic bottom drag dissipation scheme 
     id_tide_speed_drag = register_static_field ('ocean_model', 'tide_speed_drag',              &
@@ -903,21 +892,13 @@ ierr = check_nml_error(io_status,'ocean_vert_tidal_nml')
     id_roughness_amp = register_static_field ('ocean_model', 'roughness_amp',                  &
          Grid%tracer_axes(1:2), 'roughness amplitude for breaking internal wave mixing scheme',&
          'metre', missing_value=missing_value, range=(/-1e1,1e9/))
-    if (id_roughness_amp > 0) then 
-        used = send_data (id_roughness_amp, roughness_amp(:,:), &
-               Time%model_time, rmask=Grd%tmask(:,:,1),         &
-               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-    endif
+    call diagnose_2d(Time, Grd, id_roughness_amp, roughness_amp(:,:))
 
     ! static roughness length 
     id_roughness_length = register_static_field ('ocean_model', 'roughness_length',         &
          Grid%tracer_axes(1:2), 'roughness length for breaking internal wave mixing scheme',&
          'metre', missing_value=missing_value, range=(/-1e1,1e9/))
-    if (id_roughness_length > 0) then 
-        used = send_data (id_roughness_length, roughness_length(:,:), &
-               Time%model_time, rmask=Grd%tmask(:,:,1),               &
-               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-    endif
+    call diagnose_2d(TIme, Grd, id_roughness_length, roughness_length(:,:))
 
 
     id_roughness_klevel = register_diag_field ('ocean_model', 'roughness_klevel',                    &
@@ -1095,39 +1076,21 @@ end subroutine ocean_vert_tidal_init
             enddo
          enddo
       enddo
-      if (id_power_diss_wave > 0) then 
-          used = send_data (id_power_diss_wave, wrk1(:,:,:), &
-               Time%model_time, rmask=Grd%tmask(:,:,:),      &
-               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-      endif
-      if (id_power_diss_drag > 0) then 
-          used = send_data (id_power_diss_drag, wrk2(:,:,:), &
-               Time%model_time, rmask=Grd%tmask(:,:,:),      &
-               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-      endif
-      if (id_power_diss_leewave > 0) then 
-          used = send_data (id_power_diss_leewave, wrk3(:,:,:), &
-               Time%model_time, rmask=Grd%tmask(:,:,:),         &
-               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-      endif
+      call diagnose_3d(Time, Grd, id_power_diss_wave, wrk1(:,:,:))
+      call diagnose_3d(Time, Grd, id_power_diss_drag, wrk2(:,:,:))
+      call diagnose_3d(Time, Grd, id_power_diss_leewave, wrk3(:,:,:))
       if (id_power_diss_tides > 0) then 
-          used = send_data (id_power_diss_tides, wrk1(:,:,:)+wrk2(:,:,:),&
-               Time%model_time, rmask=Grd%tmask(:,:,:),                  &
-               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_power_diss_tides, wrk1(:,:,:)+wrk2(:,:,:))
       endif
   endif
 
   if (id_diff_cbt_tides > 0) then 
-      used = send_data (id_diff_cbt_tides, diff_cbt_wave(:,:,:)+diff_cbt_drag(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:),                                & 
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_diff_cbt_tides, diff_cbt_wave(:,:,:)+diff_cbt_drag(:,:,:))
   endif 
 
   ! recall unit Prandtl number 
   if (id_visc_cbt_tides > 0) then  
-      used = send_data (id_visc_cbt_tides, diff_cbt_wave(:,:,:)+diff_cbt_drag(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:),                                & 
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_visc_cbt_tides, diff_cbt_wave(:,:,:)+diff_cbt_drag(:,:,:))
   endif 
 
   if (id_visc_cbu_tides > 0) then
@@ -1263,22 +1226,9 @@ end subroutine vert_mix_tidal
 
 
   ! diagnostics 
-
-  if (id_roughness_klevel > 0) then 
-      used = send_data (id_roughness_klevel, wrk1_2d(:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,1),     &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if (id_bvfreq_bottom > 0) then 
-      used = send_data (id_bvfreq_bottom, bvfreq_bottom(:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,1),        &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if (id_bvfreq > 0) then 
-      used = send_data (id_bvfreq, bvfreq(:,:,:),     &
-             Time%model_time, rmask=Grd%tmask(:,:,:), &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
+  call diagnose_2d(TIme, Grd, id_roughness_klevel, wrk1_2d(:,:))
+  call diagnose_2d(Time, Grd, id_bvfreq_bottom, bvfreq_bottom(:,:))
+  call diagnose_3d(Time, Grd, id_bvfreq, bvfreq(:,:,:))
 
 
 end subroutine compute_bvfreq
@@ -1454,41 +1404,13 @@ end subroutine compute_bvfreq
 
   ! send some diagnostics 
 
-  if (id_mix_efficiency > 0) then 
-      used = send_data (id_mix_efficiency, mix_efficiency(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:),            &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-  if (id_energy_flux > 0) then 
-      used = send_data (id_energy_flux, energy_flux(:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,1),     &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if (id_power_waves > 0) then 
-      used = send_data (id_power_waves, Grd%dat(:,:)*energy_flux(:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,1),                  &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if (id_diff_cbt_wave > 0) then 
-      used = send_data (id_diff_cbt_wave, diff_wave(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),       & 
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-  if (id_diff_cbt_leewave > 0) then 
-      used = send_data (id_diff_cbt_leewave, diff_leewave(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),             & 
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-  if (id_visc_cbt_wave > 0) then 
-      used = send_data (id_visc_cbt_wave, diff_wave(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),       & 
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-  if (id_visc_cbt_leewave > 0) then 
-      used = send_data (id_visc_cbt_leewave, diff_leewave(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),             & 
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
+  call diagnose_3d(Time, Grd, id_mix_efficiency, mix_efficiency(:,:,:))
+  call diagnose_2d(Time, Grd, id_energy_flux, energy_flux(:,:))
+  call diagnose_2d(Time, Grd, id_power_waves, Grd%dat(:,:)*energy_flux(:,:))
+  call diagnose_3d(Time, Grd, id_diff_cbt_wave, diff_wave(:,:,:))
+  call diagnose_3d(Time, Grd, id_diff_cbt_leewave, diff_leewave(:,:,:))
+  call diagnose_3d(Time, Grd, id_visc_cbt_wave, diff_wave(:,:,:))
+  call diagnose_3d(Time, Grd, id_visc_cbt_leewave, diff_leewave(:,:,:))
   if (id_visc_cbu_wave > 0) then 
       used = send_data (id_visc_cbu_wave, wrk1(:,:,:), &
              Time%model_time, rmask=Grd%umask(:,:,:),  &
@@ -1637,16 +1559,8 @@ end subroutine vert_mix_wave
   enddo
 
 
-  if (id_rinumber_drag > 0) then 
-      used = send_data (id_rinumber_drag, wrk2(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:), &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-  if (id_diff_cbt_drag > 0) then 
-      used = send_data (id_diff_cbt_drag, diff_drag(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),       &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
+  call diagnose_3d(Time, Grd, id_rinumber_drag, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_diff_cbt_drag, diff_drag(:,:,:))
   if (id_visc_cbu_drag > 0) then 
       used = send_data (id_visc_cbu_drag, wrk3(:,:,:), &
              Time%model_time, rmask=Grd%umask(:,:,:),  &
@@ -1787,16 +1701,8 @@ end subroutine vert_mix_drag_bgrid
   enddo
 
 
-  if (id_rinumber_drag > 0) then 
-      used = send_data (id_rinumber_drag, wrk2(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:), &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-  if (id_diff_cbt_drag > 0) then 
-      used = send_data (id_diff_cbt_drag, diff_drag(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),       &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
+  call diagnose_3d(Time, Grd, id_rinumber_drag, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_diff_cbt_drag, diff_drag(:,:,:))
   if (id_visc_cbu_drag > 0) then 
       used = send_data (id_visc_cbu_drag, wrk3(:,:,:), &
              Time%model_time, rmask=Grd%umask(:,:,:),  &
@@ -1935,21 +1841,9 @@ end subroutine vert_mix_drag_cgrid
       enddo
   endif
 
-  if (id_bvfreq_bottom > 0) then 
-      used = send_data (id_bvfreq_bottom, bvfreq_bottom(:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,1),        &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if (id_bvfreq > 0) then 
-      used = send_data (id_bvfreq, bvfreq(:,:,:),     &
-             Time%model_time, rmask=Grd%tmask(:,:,:), &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-  if (id_mix_efficiency > 0) then 
-      used = send_data (id_mix_efficiency, mix_efficiency(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:),            &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
+  call diagnose_2d(Time, Grd, id_bvfreq_bottom, bvfreq_bottom(:,:))
+  call diagnose_3d(Time, Grd, id_bvfreq, bvfreq(:,:,:))
+  call diagnose_3d(Time, Grd, id_mix_efficiency, mix_efficiency(:,:,:))
 
 end subroutine compute_bvfreq_legacy
 ! </SUBROUTINE> NAME="compute_bvfreq_legacy"
@@ -2083,26 +1977,10 @@ end subroutine compute_bvfreq_legacy
   enddo
 
 
-  if (id_energy_flux > 0) then 
-      used = send_data (id_energy_flux, energy_flux(:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,1),     &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if (id_power_waves > 0) then 
-      used = send_data (id_power_waves, Grd%dat(:,:)*energy_flux(:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,1),                  &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if (id_diff_cbt_wave > 0) then 
-      used = send_data (id_diff_cbt_wave, diff_wave(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),       & 
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-  if (id_visc_cbt_wave > 0) then 
-      used = send_data (id_visc_cbt_wave, diff_wave(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),       & 
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
+  call diagnose_2d(Time, Grd, id_energy_flux, energy_flux(:,:))
+  call diagnose_2d(Time, Grd, id_power_waves, Grd%dat(:,:)*energy_flux(:,:))
+  call diagnose_3d(Time, Grd, id_diff_cbt_wave, diff_wave(:,:,:))
+  call diagnose_3d(Time, Grd, id_visc_cbt_wave, diff_wave(:,:,:))
   if (id_visc_cbu_wave > 0) then 
       used = send_data (id_visc_cbu_wave, wrk1(:,:,:), &
              Time%model_time, rmask=Grd%umask(:,:,:),  &
@@ -2229,22 +2107,9 @@ end subroutine vert_mix_wave_legacy
      enddo
   enddo
 
-
-  if (id_rinumber_drag > 0) then 
-      used = send_data (id_rinumber_drag, wrk2(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:), &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-  if (id_diff_cbt_drag > 0) then 
-      used = send_data (id_diff_cbt_drag, diff_drag(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),       &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-  if (id_visc_cbt_drag > 0) then 
-      used = send_data (id_visc_cbt_drag, diff_drag(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),       &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
+  call diagnose_3d(Time, Grd, id_rinumber_drag, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_diff_cbt_drag, diff_drag(:,:,:))
+  call diagnose_3d(Time, Grd, id_visc_cbt_drag, diff_drag(:,:,:))
   if (id_visc_cbu_drag > 0) then 
       used = send_data (id_visc_cbu_drag, wrk3(:,:,:), &
              Time%model_time, rmask=Grd%umask(:,:,:),  &
