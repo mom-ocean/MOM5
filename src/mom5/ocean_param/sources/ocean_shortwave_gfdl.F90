@@ -169,6 +169,7 @@ use ocean_types_mod,          only: ocean_time_type, ocean_domain_type, ocean_gr
 use ocean_types_mod,          only: ocean_prog_tracer_type, ocean_diag_tracer_type
 use ocean_types_mod,          only: ocean_thickness_type, ocean_options_type
 use ocean_workspace_mod,      only: wrk1, wrk2, wrk3, wrk4 
+use ocean_util_mod,           only: diagnose_2d
 
 implicit none
 
@@ -592,9 +593,7 @@ subroutine sw_source_gfdl(Time, Thickness, T_diag, swflx, swflx_vis, index_irr, 
         sat_chl(i,j) = Grd%tmask(i,j,1)*max(0.0,chl_data(i,j))
       enddo
     enddo
-    if (id_sat_chl > 0) used = send_data (id_sat_chl, sat_chl(:,:), &
-                               Time%model_time,rmask=Grd%tmask(:,:,1), &
-                               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+    call diagnose_2d(Time, Grd, id_sat_chl, sat_chl(:,:))
   endif
 
   ! F_vis is the amount of light in the shortwave verses the long wave. 
@@ -619,9 +618,7 @@ subroutine sw_source_gfdl(Time, Thickness, T_diag, swflx, swflx_vis, index_irr, 
     enddo
 
   endif
-  if (id_f_vis > 0) used = send_data (id_f_vis, f_vis(:,:),        &
-                           Time%model_time,rmask=Grd%tmask(:,:,1), &
-                           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d(Time, Grd, id_f_vis, f_vis(:,:))
 
   ! zero out the fractional decay 
   sw_fk_zt(:,:) = 0.0

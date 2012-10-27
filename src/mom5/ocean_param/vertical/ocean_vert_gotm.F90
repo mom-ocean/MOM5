@@ -157,7 +157,7 @@ use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_adv_vel_type
 use ocean_types_mod,      only: ocean_density_type, ocean_velocity_type
 use ocean_types_mod,      only: ocean_time_type, ocean_time_steps_type, ocean_thickness_type
 use ocean_types_mod,      only: ocean_gotm_type, advect_gotm_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, diagnose_2d, diagnose_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk1_v
 use ocean_obc_mod,        only: ocean_obc_mixing, ocean_obc_zero_boundary
 
@@ -946,24 +946,11 @@ subroutine vert_mix_gotm_bgrid (Time, Thickness, Velocity, T_prog, Dens, visc_cb
 
   ! send diagnostics
   do n=1,num_gotm
-     if(id_gotm_diag(n) > 0) then 
-        used = send_data(id_gotm_diag(n), Gotm(n)%field(:,:,:,tau_gotm), &
-        Time%model_time, rmask=Grd%tmask(:,:,:),                         &
-        is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif 
+     call diagnose_3d(Time, Grd, id_gotm_diag(n), Gotm(n)%field(:,:,:,tau_gotm))
   enddo
 
-  if(id_diff_cbt_gotm > 0) then 
-     used = send_data(id_diff_cbt_gotm, diff_cbt_gotm(:,:,:), &
-            Time%model_time, rmask=Grd%tmask(:,:,:),          &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-
-  if(id_visc_cbt_gotm > 0) then 
-     used = send_data(id_visc_cbt_gotm, visc_cbt_gotm(:,:,:), &
-            Time%model_time, rmask=Grd%tmask(:,:,:),          &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
+  call diagnose_3d(Time, Grd, id_diff_cbt_gotm, diff_cbt_gotm(:,:,:))
+  call diagnose_3d(Time, Grd, id_visc_cbt_gotm, visc_cbt_gotm(:,:,:))
 
   if(id_visc_cbu_gotm > 0) then 
      used = send_data(id_visc_cbu_gotm, wrk1(:,:,:), &
@@ -971,17 +958,8 @@ subroutine vert_mix_gotm_bgrid (Time, Thickness, Velocity, T_prog, Dens, visc_cb
             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
   endif 
 
-  if(id_gotm_nn > 0) then 
-     used = send_data(id_gotm_nn, wrk1_v(:,:,:,1),   &
-            Time%model_time, rmask=Grd%tmask(:,:,:), &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-
-  if(id_gotm_ss > 0) then 
-     used = send_data(id_gotm_ss, wrk1_v(:,:,:,2),   &
-            Time%model_time, rmask=Grd%tmask(:,:,:), &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
+  call diagnose_3d(Time, Grd, id_gotm_nn, wrk1_v(:,:,:,1))
+  call diagnose_3d(Time, Grd, id_gotm_ss, wrk1_v(:,:,:,2))
 
 
  end subroutine vert_mix_gotm_bgrid
@@ -1163,9 +1141,7 @@ subroutine advect_gotm_upwind(Time, Adv_vel, Thickness, pme, river)
 	   enddo
          enddo
        enddo
-       used = send_data(id_gotm_errors(n), wrk1(:,:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,:), 			      &
-              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+       call diagnose_3d(Time, Grd, id_gotm_errors(n), wrk1(:,:,:))
      else
      ! update the scalar Gotm field.  
        do k=1,nk
@@ -1191,11 +1167,7 @@ subroutine advect_gotm_upwind(Time, Adv_vel, Thickness, pme, river)
 
      ! diagnostics 
 
-     if (id_adv_flux_x(n) > 0) then 
-          used = send_data(id_adv_flux_x(n), flux_x(:,:,:), &
-          Time%model_time, rmask=Grd%tmask(:,:,:),          &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif 
+     call diagnose_3d(Time, Grd, id_adv_flux_x(n), flux_x(:,:,:))
 
      if (id_adv_flux_x_int_z(n) > 0) then 
          tmp_flux(:,:) = 0.0
@@ -1206,14 +1178,10 @@ subroutine advect_gotm_upwind(Time, Adv_vel, Thickness, pme, river)
                enddo
             enddo
          enddo
-         used = send_data(id_adv_flux_x_int_z(n), tmp_flux(:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,1),           &
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         call diagnose_2d(Time, Grd, id_adv_flux_x_int_z(n), tmp_flux(:,:))
      endif
 
-     if (id_adv_flux_y(n) > 0) used = send_data(id_adv_flux_y(n), flux_y(:,:,:), &
-          Time%model_time, rmask=Grd%tmask(:,:,:),                               &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_adv_flux_y(n), flux_y(:,:,:))
 
      if (id_adv_flux_y_int_z(n) > 0) then 
          tmp_flux(:,:) = 0.0
@@ -1224,17 +1192,10 @@ subroutine advect_gotm_upwind(Time, Adv_vel, Thickness, pme, river)
                enddo
             enddo
          enddo
-         used = send_data(id_adv_flux_y_int_z(n), tmp_flux(:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,1),           &
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         call diagnose_2d(Time, Grd, id_adv_flux_y_int_z(n), tmp_flux(:,:))
      endif
 
-     if (id_adv_flux_z(n) > 0) then 
-         used = send_data(id_adv_flux_z(n), flux_z(:,:,:), &
-         Time%model_time, rmask=Grd%tmask(:,:,:),          &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif 
-
+     call diagnose_3d(Time, Grd, id_adv_flux_z(n), flux_z(:,:,:))
 
   enddo  ! n-loop
 
@@ -1353,11 +1314,7 @@ subroutine advect_gotm_sweby(Time, Adv_vel, Thickness, pme, river)
 
      call mpp_update_domains (advect_gotm(n)%field, Dom_advect_gotm%domain2d, flags=XUPDATE)
 
-     if (id_adv_flux_z(n) > 0) then 
-         used = send_data(id_adv_flux_z(n), flux_z(:,:,:), &
-         Time%model_time, rmask=Grd%tmask(:,:,:),          &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif 
+     call diagnose_3d(Time, Grd, id_adv_flux_z(n), flux_z(:,:,:))
 
   enddo ! end of n-loop for Gotm
 
@@ -1416,11 +1373,7 @@ subroutine advect_gotm_sweby(Time, Adv_vel, Thickness, pme, river)
 
      call mpp_update_domains (advect_gotm(n)%field, Dom_advect_gotm%domain2d, flags=YUPDATE)
 
-     if (id_adv_flux_x(n) > 0) then 
-          used = send_data(id_adv_flux_x(n), flux_x(:,:,:), &
-          Time%model_time, rmask=Grd%tmask(:,:,:), &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif 
+     call diagnose_3d(Time, Grd, id_adv_flux_x(n), flux_x(:,:,:))
 
      if (id_adv_flux_x_int_z(n) > 0) then 
          tmp_flux(:,:) = 0.0
@@ -1431,9 +1384,7 @@ subroutine advect_gotm_sweby(Time, Adv_vel, Thickness, pme, river)
                enddo
             enddo
          enddo
-         used = send_data(id_adv_flux_x_int_z(n), tmp_flux(:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,1), &
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         call diagnose_2d(Time, Grd, id_adv_flux_x_int_z(n), tmp_flux(:,:))
      endif
 
   enddo ! end of n-loop for Gotm
@@ -1555,9 +1506,7 @@ subroutine advect_gotm_sweby(Time, Adv_vel, Thickness, pme, river)
 	   enddo
          enddo
        enddo
-       used = send_data(id_gotm_errors(n), wrk1(:,:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,:), 			      &
-              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+       call diagnose_3d(Time, Grd, id_gotm_errors(n), wrk1(:,:,:))
      else
      ! update the scalar Gotm field.  
        do k=1,nk
@@ -1581,9 +1530,7 @@ subroutine advect_gotm_sweby(Time, Adv_vel, Thickness, pme, river)
        enddo
      endif
      
-     if (id_adv_flux_y(n) > 0) used = send_data(id_adv_flux_y(n), flux_y(:,:,:), &
-          Time%model_time, rmask=Grd%tmask(:,:,:),                               &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_adv_flux_y(n), flux_y(:,:,:))
 
      if (id_adv_flux_y_int_z(n) > 0) then 
          tmp_flux(:,:) = 0.0
@@ -1594,9 +1541,7 @@ subroutine advect_gotm_sweby(Time, Adv_vel, Thickness, pme, river)
                enddo
             enddo
          enddo
-         used = send_data(id_adv_flux_y_int_z(n), tmp_flux(:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,1),           &
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         call diagnose_2d(Time, Grd,id_adv_flux_y_int_z(n), tmp_flux(:,:))
      endif
 
   enddo ! end of n-loop

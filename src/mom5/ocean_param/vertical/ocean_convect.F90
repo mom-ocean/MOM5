@@ -96,6 +96,7 @@ use ocean_tracer_util_mod,only: rebin_onto_rho
 use ocean_types_mod,      only: ocean_time_type, ocean_grid_type, ocean_domain_type, ocean_options_type
 use ocean_types_mod,      only: ocean_density_type, ocean_prog_tracer_type, ocean_thickness_type
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk6
+use ocean_util_mod,       only: diagnose_3d
 
 
 implicit none
@@ -1603,9 +1604,7 @@ subroutine convection_diag (Time, Thickness, T_prog, Dens)
               enddo
            enddo
         enddo
-        used = send_data(id_convect(n),wrk1(:,:,:),     &
-               Time%model_time, rmask=Grd%tmask(:,:,:), &
-               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+        call diagnose_3d(Time, Grd, id_convect(n),wrk1(:,:,:))
      endif
 
   enddo
@@ -1806,22 +1805,9 @@ subroutine watermass_diag(Time, T_prog, Dens, Thickness)
      enddo
   enddo
 
-  if(id_neut_rho_convect > 0) then 
-      used = send_data (id_neut_rho_convect, wrk4(:,:,:),&
-           Time%model_time,rmask=Grd%tmask(:,:,:),       &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-
-  if (id_wdian_rho_convect > 0) then 
-      used = send_data (id_wdian_rho_convect, wrk5(:,:,:), &
-           Time%model_time,rmask=Grd%tmask(:,:,:),         &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_tform_rho_convect > 0) then 
-      used = send_data (id_tform_rho_convect, wrk6(:,:,:), &
-           Time%model_time,rmask=Grd%tmask(:,:,:),         &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_neut_rho_convect, wrk4(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_rho_convect, wrk5(:,:,:))
+  call diagnose_3d(Time, Grd, id_tform_rho_convect, wrk6(:,:,:))
 
   if (id_neut_rho_convect_on_nrho > 0) then
       nrho_work(:,:,:) = 0.0
@@ -1870,22 +1856,9 @@ subroutine watermass_diag(Time, T_prog, Dens, Thickness)
      enddo
   enddo
 
-  if(id_neut_temp_convect > 0) then 
-      used = send_data (id_neut_temp_convect, wrk4(:,:,:),&
-           Time%model_time,rmask=Grd%tmask(:,:,:),        &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-
-  if (id_wdian_temp_convect > 0) then 
-      used = send_data (id_wdian_temp_convect, wrk5(:,:,:), &
-           Time%model_time,rmask=Grd%tmask(:,:,:),          &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_tform_temp_convect > 0) then 
-      used = send_data (id_tform_temp_convect, wrk6(:,:,:), &
-           Time%model_time,rmask=Grd%tmask(:,:,:),          &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_neut_temp_convect, wrk4(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_temp_convect, wrk5(:,:,:))
+  call diagnose_3d(Time, Grd, id_tform_temp_convect, wrk6(:,:,:))
 
   if (id_neut_temp_convect_on_nrho > 0) then
       nrho_work(:,:,:) = 0.0
@@ -1934,22 +1907,9 @@ subroutine watermass_diag(Time, T_prog, Dens, Thickness)
      enddo
   enddo
 
-  if(id_neut_salt_convect > 0) then 
-      used = send_data (id_neut_salt_convect, wrk4(:,:,:),&
-           Time%model_time,rmask=Grd%tmask(:,:,:),        &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-
-  if (id_wdian_salt_convect > 0) then 
-      used = send_data (id_wdian_salt_convect, wrk5(:,:,:), &
-           Time%model_time,rmask=Grd%tmask(:,:,:),          &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_tform_salt_convect > 0) then 
-      used = send_data (id_tform_salt_convect, wrk6(:,:,:), &
-           Time%model_time,rmask=Grd%tmask(:,:,:),          &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_neut_salt_convect, wrk4(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_salt_convect, wrk5(:,:,:))
+  call diagnose_3d(Time, Grd, id_tform_salt_convect, wrk6(:,:,:))
 
   if (id_neut_salt_convect_on_nrho > 0) then
       nrho_work(:,:,:) = 0.0
