@@ -132,7 +132,7 @@ use ocean_types_mod,     only: ocean_time_type, ocean_time_steps_type
 use ocean_types_mod,     only: ocean_density_type, ocean_lagrangian_type
 use ocean_workspace_mod, only: wrk1, wrk1_2d, wrk2_2d
 use ocean_obc_mod,       only: ocean_obc_adjust_advel
-use ocean_util_mod,      only: write_timestamp
+use ocean_util_mod,      only: write_timestamp, diagnose_2d, diagnose_3d
 
 implicit none
 
@@ -696,9 +696,7 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
 
   if (id_wt > 0)  then
       if(vert_coordinate_class==DEPTH_BASED) then 
-          used = send_data (id_wt, rho0r*Adv_vel%wrho_bt(:,:,1:nk), &
-                 Time%model_time, rmask=Grd%tmask(:,:,:),           &
-                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_wt, rho0r*Adv_vel%wrho_bt(:,:,1:nk))
       else 
           wrk1(:,:,:) = 0.0
           do k=1,nk
@@ -710,21 +708,13 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
                 enddo
              enddo
           enddo
-          used = send_data (id_wt, wrk1(:,:,:),           &
-                 Time%model_time, rmask=Grd%tmask(:,:,:), &
-                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+          call diagnose_3d(Time, Grd, id_wt, wrk1(:,:,:))
       endif
   endif
 
-  if (id_uhrho_et > 0) used = send_data (id_uhrho_et, Adv_vel%uhrho_et(:,:,:), &
-                           Time%model_time, rmask=Grd%tmask(:,:,:), &
-                           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_vhrho_nt > 0) used = send_data (id_vhrho_nt, Adv_vel%vhrho_nt(:,:,:), &
-                           Time%model_time, rmask=Grd%tmask(:,:,:), &
-                           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_wrho_bt > 0) used =  send_data (id_wrho_bt, Adv_vel%wrho_bt(:,:,1:nk), &
-                           Time%model_time, rmask=Grd%tmask(:,:,:),&
-                           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grd, id_uhrho_et, Adv_vel%uhrho_et(:,:,:))
+  call diagnose_3d(Time, Grd, id_vhrho_nt, Adv_vel%vhrho_nt(:,:,:))
+  call diagnose_3d(Time, Grd, id_wrho_bt, Adv_vel%wrho_bt(:,:,1:nk))
   if (id_uhrho_eu > 0) used = send_data (id_uhrho_eu, Adv_vel%uhrho_eu(:,:,:), &
                            Time%model_time, rmask=Grd%umask(:,:,:), &
                            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
@@ -735,11 +725,7 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
                            Time%model_time, rmask=Grd%umask(:,:,:), &
                            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
 
-  if(id_horz_diverge_t > 0) then 
-      used = send_data (id_horz_diverge_t, Adv_vel%diverge_t(:,:,:),  &
-                 Time%model_time, rmask=Grd%tmask(:,:,:),             &
-                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_horz_diverge_t, Adv_vel%diverge_t(:,:,:))
   if(id_horz_diverge_u > 0) then 
       used = send_data (id_horz_diverge_u, Adv_vel%diverge_u(:,:,:), &
                  Time%model_time, rmask=Grd%umask(:,:,:),            &
@@ -772,9 +758,7 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
             enddo
          enddo
       enddo
-      used = send_data (id_courant_uet, wrk1(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:), &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_courant_uet, wrk1(:,:,:))
   endif
   if (id_courant_vnt > 0) then 
       do k=1,nk  
@@ -784,9 +768,7 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
             enddo
          enddo
       enddo
-      used = send_data (id_courant_vnt, wrk1(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:), &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_courant_vnt, wrk1(:,:,:))
   endif
   if (id_courant_wbt > 0) then 
       do k=1,nk
@@ -796,9 +778,7 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
             enddo
          enddo
       enddo
-      used = send_data (id_courant_wbt, wrk1(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:), &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_courant_wbt, wrk1(:,:,:))
   endif
   if (id_courant_ueu > 0) then 
       do k=1,nk
@@ -857,11 +837,7 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
             wrk1_2d(i,j) = c2dbars*grav*wrk1_2d(i,j)
          enddo
       enddo
-      if(id_eta_tend_press > 0) then 
-          used = send_data (id_eta_tend_press, wrk1_2d(:,:),&
-                 Time%model_time, rmask=Grd%tmask(:,:,1),   &
-                 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-      endif
+      call diagnose_2d(Time, Grd, id_eta_tend_press, wrk1_2d(:,:))
       if(id_eta_tend_press_glob > 0) then  
           wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
           global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
