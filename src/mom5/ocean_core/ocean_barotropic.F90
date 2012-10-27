@@ -478,7 +478,7 @@ use ocean_types_mod,        only: ocean_external_mode_type, ocean_options_type
 use ocean_types_mod,        only: ocean_velocity_type, ocean_density_type
 use ocean_types_mod,        only: ocean_adv_vel_type, ocean_prog_tracer_type
 use ocean_types_mod,        only: ocean_lagrangian_type
-use ocean_util_mod,         only: write_timestamp
+use ocean_util_mod,         only: write_timestamp, diagnose_2d
 use ocean_workspace_mod,    only: wrk1_2d, wrk2_2d, wrk3_2d, wrk4_2d, wrk1_v2d, wrk2_v2d
 
 implicit none
@@ -2587,23 +2587,11 @@ subroutine eta_and_pbot_diagnose (Time, Dens, Thickness, patm, pme, river, Ext_m
 
   ! diagnostics 
 
-  if (id_eta_t > 0) then 
-      used = send_data (id_eta_t, Ext_mode%eta_t(:,:,tau),      &
-                        Time%model_time, rmask=Grd%tmask(:,:,1),&
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-
+  call diagnose_2d(Time, Grd, id_eta_t, Ext_mode%eta_t(:,:,tau))
   if (id_eta_t_sq > 0) then
-      used = send_data (id_eta_t_sq, Ext_mode%eta_t(:,:,tau)*Ext_mode%eta_t(:,:,tau),&
-                        Time%model_time, rmask=Grd%tmask(:,:,1),                     &
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_eta_t_sq, Ext_mode%eta_t(:,:,tau)*Ext_mode%eta_t(:,:,tau))
   endif 
-
-  if (id_eta_t_mod > 0) then
-      used = send_data (id_eta_t_mod, wrk1_2d(:,:),             &
-                        Time%model_time, rmask=Grd%tmask(:,:,1),&
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
+  call diagnost_2d(Time, Grd, id_eta_t_mod, wrk1_2d(:,:))
 
   if (id_eta_u > 0) then 
       used = send_data (id_eta_u, Ext_mode%eta_u(:,:,tau),      &
@@ -2612,15 +2600,11 @@ subroutine eta_and_pbot_diagnose (Time, Dens, Thickness, patm, pme, river, Ext_m
   endif 
 
   if (id_pbot_t > 0) then 
-      used = send_data (id_pbot_t, c2dbars*Ext_mode%pbot_t(:,:,tau),&
-                        Time%model_time, rmask=Grd%tmask(:,:,1),    &
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_pbot_t, c2dbars*Ext_mode%pbot_t(:,:,tau))
   endif 
 
   if (id_anompb > 0) then 
-      used = send_data (id_anompb, c2dbars*Ext_mode%anompb(:,:,tau),&
-                        Time%model_time, rmask=Grd%tmask(:,:,1),    &
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_anompb, c2dbars*Ext_mode%anompb(:,:,tau))
   endif 
 
   if (id_pbot_u > 0) then 
@@ -2631,11 +2615,8 @@ subroutine eta_and_pbot_diagnose (Time, Dens, Thickness, patm, pme, river, Ext_m
  
 
   ! remove inverse barometer from atmos and sea ice to get effective sea level 
-  if (id_sea_level > 0) then 
-       used = send_data (id_sea_level,                              &
-       Ext_mode%eta_t(:,:,tau)+grav_rho0r*Ext_mode%patm_t(:,:,tau), &
-       Time%model_time, rmask=Grd%tmask(:,:,1),                     &
-       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  if (id_sea_level > 0) then
+     call diagnose_2d(Time, Grd, id_sea_level, Ext_mode%eta_t(:,:,tau)+grav_rho0r*Ext_mode%patm_t(:,:,tau))
   endif 
 
   if (id_sea_level_sq > 0) then 
@@ -2645,9 +2626,7 @@ subroutine eta_and_pbot_diagnose (Time, Dens, Thickness, patm, pme, river, Ext_m
              wrk1_2d(i,j) = (Ext_mode%eta_t(i,j,tau)+grav_rho0r*Ext_mode%patm_t(i,j,tau))**2
           enddo
        enddo
-       used = send_data (id_sea_level_sq, wrk1_2d(:,:),&
-       Time%model_time, rmask=Grd%tmask(:,:,1),        &
-       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+       call diagnose_2d(Time, Grd, id_sea_level_sq, wrk1_2d(:,:))
   endif 
 
   if(id_eta_global>0) then 
@@ -2661,17 +2640,8 @@ subroutine eta_and_pbot_diagnose (Time, Dens, Thickness, patm, pme, river, Ext_m
       used = send_data (id_eta_global, eta_global, Time%model_time)
   endif 
 
-  if(id_patm_for_sea_lev > 0) then 
-      used = send_data(id_patm_for_sea_lev,Ext_mode%patm_for_sea_lev(:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,1),                     &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-
-  if(id_sea_lev_for_coupler > 0) then 
-      used = send_data(id_sea_lev_for_coupler,Thickness%sea_lev(:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,1),                &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
+  call diagnose_2d(Time, Grd, id_patm_for_sea_lev, Ext_mode%patm_for_sea_lev(:,:))
+  call diagnose_2d(Time, Grd, id_sea_lev_for_coupler, Thickness%sea_lev(:,:))
 
   if(id_eta_t_tendency > 0) then 
        wrk1_2d(:,:)= 0.0       
@@ -2680,11 +2650,8 @@ subroutine eta_and_pbot_diagnose (Time, Dens, Thickness, patm, pme, river, Ext_m
              wrk1_2d(i,j) = (Ext_mode%eta_t(i,j,taup1)-Ext_mode%eta_t(i,j,tau))*dtimer
           enddo
        enddo
-      used = send_data(id_eta_t_tendency,wrk1_2d(:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,1), &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+       call diagnose_2d(Time, Grd, id_eta_t_tendency, wrk1_2d(:,:))
   endif 
-
 
 
 end subroutine eta_and_pbot_diagnose
@@ -2760,19 +2727,12 @@ subroutine eta_and_pbot_tendency(Time, pme, river, Ext_mode, use_blobs)
   endif 
 
 
-  if (id_deta_dt > 0)  used = send_data (id_deta_dt, Ext_mode%deta_dt(:,:), &
-                              Time%model_time, rmask=Grd%tmask(:,:,1),      &
-                              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-
-  if (id_dpbot_dt > 0) used = send_data (id_dpbot_dt, Ext_mode%dpbot_dt(:,:), &
-                              Time%model_time, rmask=Grd%tmask(:,:,1),        &
-                              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d(Time, Grd, id_deta_dt, Ext_mode%deta_dt(:,:))
+  call diagnose_2d(Time, Grd, id_dpbot_dt, Ext_mode%dpbot_dt(:,:))
 
   ! mass flux per area from pme divided by density factor to convert to m/sec
   if (id_pme_velocity > 0) then
-      used = send_data(id_pme_velocity, pme(:,:)*rho_water_r, &
-             Time%model_time, rmask=Grd%tmask(:,:,1),         &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_pme_velocity, pme(:,:)*rho_water_r)
   endif
 
 
@@ -3037,11 +2997,7 @@ subroutine update_ocean_barotropic (Time, Dens, Thickness, Velocity, Adv_vel, &
 
 
   ! send diagnostics to diag_manager     
-  if (id_eta_t_bar > 0) then
-      used = send_data (id_eta_t_bar, Ext_mode%eta_t_bar(:,:,tau), &
-                        Time%model_time, rmask=Grd%tmask(:,:,1),   &
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
+  call diagnose_2d(Time, Grd, id_eta_t_bar, Ext_mode%eta_t_bar(:,:,tau))
   
   if (id_urhod > 0) then 
       used = send_data (id_urhod, Ext_mode%udrho(:,:,1,tau),        &
@@ -3055,17 +3011,8 @@ subroutine update_ocean_barotropic (Time, Dens, Thickness, Velocity, Adv_vel, &
                         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
   endif
 
-  if (id_conv_rho_ud_t > 0) then 
-      used = send_data (id_conv_rho_ud_t, Ext_mode%conv_rho_ud_t(:,:,tau), &
-                        Time%model_time, rmask=Grd%tmask(:,:,1),           &
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-
-  if (id_ps > 0) then 
-      used = send_data (id_ps, Ext_mode%ps(:,:),                 &
-                         Time%model_time, rmask=Grd%tmask(:,:,1),&
-                         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
+  call diagnose_2d(Time, Grd, id_conv_rho_ud_t, Ext_mode%conv_rho_ud_t(:,:,tau))
+  call diagnose_2d(Time, Grd, id_ps, Ext_mode%ps(:,:))
 
   if (id_psx > 0) then 
       used = send_data (id_psx, Ext_mode%grad_ps(:,:,1),            &
@@ -3079,11 +3026,7 @@ subroutine update_ocean_barotropic (Time, Dens, Thickness, Velocity, Adv_vel, &
                         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
   endif 
 
-  if (id_pb > 0) then 
-      used = send_data (id_pb, wrk1_2d(:,:),                    &
-                        Time%model_time, rmask=Grd%tmask(:,:,1),&
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
+  call diagnose_2d(Time, Grd, id_pb, wrk1_2d(:,:))
 
   if (id_grad_anompbx > 0)  then 
       used = send_data (id_grad_anompbx, Ext_mode%grad_anompb(:,:,1),&
@@ -3108,16 +3051,8 @@ subroutine update_ocean_barotropic (Time, Dens, Thickness, Velocity, Adv_vel, &
   psiv = 0.0
   if (need_data(id_psiu, next_time) .or. need_data(id_psiv, next_time)) then 
       call psi_compute(Time, Adv_vel, psiu, psiv)
-      if(id_psiu > 0) then 
-         used = send_data (id_psiu, psiu(:,:),                      &
-                           Time%model_time, rmask=Grd%tmask(:,:,1), &
-                           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-      endif 
-      if(id_psiv > 0) then 
-         used = send_data (id_psiv, psiv(:,:),                      &
-                           Time%model_time, rmask=Grd%tmask(:,:,1), &
-                           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-      endif
+      call diagnose_2d(Time, Grd, id_psiu, psiu(:,:))
+      call diagnose_2d(Time, Grd, id_psiv, psiv(:,:))
   endif
 
 
@@ -3340,17 +3275,8 @@ subroutine ocean_mass_forcing(Time, Thickness, Ext_mode)
   ! atmospheric pressure on velocity cell point 
   Ext_mode%patm_u(:,:) = Grd%umask(:,:,1)*REMAP_BT_TO_BU(Ext_mode%patm_t(:,:,taup1))
  
-  if (id_ext_mode_source > 0) then
-      used = send_data (id_ext_mode_source, Ext_mode%source(:,:),&
-                        Time%model_time, rmask=Grd%tmask(:,:,1), &
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)  
-  endif 
-
-  if (id_patm_t > 0) then 
-      used   = send_data (id_patm_t, Ext_mode%patm_t(:,:,taup1),  &
-                          Time%model_time, rmask=Grd%tmask(:,:,1),&
-                          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
+  call diagnose_2d(Time, Grd, id_ext_mode_source, Ext_mode%source(:,:))
+  call diagnose_2d(Time, Grd, id_patm_t, Ext_mode%patm_t(:,:,taup1))
 
   if (id_patm_u > 0) then 
       used   = send_data (id_patm_u, Ext_mode%patm_u(:,:),        &
@@ -3358,12 +3284,7 @@ subroutine ocean_mass_forcing(Time, Thickness, Ext_mode)
                           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
   endif 
 
-  if (id_dpatm_dt > 0) then 
-      used = send_data (id_dpatm_dt, Ext_mode%dpatm_dt(:,:),    &
-                        Time%model_time, rmask=Grd%tmask(:,:,1),&
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-
+  call diagnose_2d(Time, Grd, id_dpatm_dt, Ext_mode%dpatm_dt(:,:))
 
 end subroutine ocean_mass_forcing
 ! </SUBROUTINE> NAME="ocean_mass_forcing"
@@ -3713,21 +3634,9 @@ subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Velocity, Ext_mode, pa
      endif
 
      if(itime==1) then
-         if (id_conv_ud_pred_bt1 > 0) then
-             used = send_data (id_conv_ud_pred_bt1, wrk1_2d(:,:), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),      &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_conv_ud_corr_bt1 > 0) then
-             used = send_data (id_conv_ud_corr_bt1, wrk2_2d(:,:), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),      &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_eta_t_bt1 > 0) then
-             used = send_data (id_eta_t_bt1, eta_t_bt(:,:,fstaup1), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),        &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
+        call diagnose_2d(Time, Grd, id_conv_ud_pred_bt1, wrk1_2d(:,:))
+        call diagnose_2d(Time, Grd, id_conv_ud_corr_bt1, wrk2_2d(:,:))
+        call diagnose_2d(Time, Grd, id_eta_t_bt1, eta_t_bt(:,:,fstaup1))
          if (id_psx_bt1 > 0) then
              used = send_data (id_psx_bt1, press_force_bt(:,:,1), &
                     Time%model_time, rmask=Grd%tmasken(:,:,1,1),  &
@@ -3751,21 +3660,9 @@ subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Velocity, Ext_mode, pa
      endif
 
      if(itime==2) then
-         if (id_conv_ud_pred_bt > 0) then
-             used = send_data (id_conv_ud_pred_bt, wrk1_2d(:,:), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_conv_ud_corr_bt > 0) then
-             used = send_data (id_conv_ud_corr_bt, wrk2_2d(:,:), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_eta_t_bt > 0) then
-             used = send_data (id_eta_t_bt, eta_t_bt(:,:,fstaup1), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),       &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
+        call diagnose_2d(Time, Grd, id_conv_ud_pred_bt, wrk1_2d(:,:))
+        call diagnose_2d(Time, Grd, id_conv_ud_corr_bt, wrk2_2d(:,:))
+        call diagnose_2d(Time, Grd, id_eta_t_bt, eta_t_bt(:,:,fstaup1))
          if (id_psx_bt > 0) then
              used = send_data (id_psx_bt, press_force_bt(:,:,1), &
                     Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
@@ -3785,7 +3682,7 @@ subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Velocity, Ext_mode, pa
              used = send_data (id_vdrho_bt, udrho_bt(:,:,2,fstaup1), &
                     Time%model_time, rmask=Grd%tmasken(:,:,1,2),     &
                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
+         endif         
          if (id_udrho_bt_lap > 0) then
              used = send_data (id_udrho_bt_lap, friction_lap(:,:,1), &
                     Time%model_time, rmask=Grd%umask(:,:,1),         &
@@ -4175,21 +4072,9 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, pa
 
      ! take a sample from the barotropic loop itime=1
      if(itime==1) then
-         if (id_conv_ud_pred_bt1 > 0) then
-             used = send_data (id_conv_ud_pred_bt1, wrk1_2d(:,:), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),      &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_conv_ud_corr_bt1 > 0) then
-             used = send_data (id_conv_ud_corr_bt1, wrk2_2d(:,:), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),      &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_eta_t_bt1 > 0) then
-             used = send_data (id_eta_t_bt1, eta_t_bt(:,:,fstaup1), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),        &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
+        call diagnose_2d(Time, Grd, id_conv_ud_pred_bt1, wrk1_2d(:,:))
+        call diagnose_2d(Time, Grd, id_conv_ud_corr_bt1, wrk2_2d(:,:))
+        call diagnose_2d(Time, Grd, id_eta_t_bt1, eta_t_bt(:,:,fstaup1))
          if (id_psx_bt1 > 0) then
              used = send_data (id_psx_bt1, press_force_bt(:,:,1), &
                     Time%model_time, rmask=Grd%tmasken(:,:,1,1),  &
@@ -4214,21 +4099,9 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, pa
 
      ! take a sample from the barotropic loop itime=2
      if(itime==2) then
-         if (id_conv_ud_pred_bt > 0) then
-             used = send_data (id_conv_ud_pred_bt, wrk1_2d(:,:), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_conv_ud_corr_bt > 0) then
-             used = send_data (id_conv_ud_corr_bt, wrk2_2d(:,:), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_eta_t_bt > 0) then
-             used = send_data (id_eta_t_bt, eta_t_bt(:,:,fstaup1), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),       &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
+        call diagnose_2d(Time, Grd, id_conv_ud_pred_bt, wrk1_2d(:,:))
+        call diagnose_2d(Time, Grd, id_conv_ud_corr_bt, wrk2_2d(:,:))
+        call diagnose_2d(Time, Grd, id_eta_t_bt, eta_t_bt(:,:,fstaup1))
          if (id_psx_bt > 0) then
              used = send_data (id_psx_bt, press_force_bt(:,:,1), &
                     Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
@@ -4595,16 +4468,8 @@ subroutine pred_corr_tropic_press_bgrid (Time, Thickness, Velocity, Ext_mode, pm
 
      ! take a sample from the barotropic loop
      if(itime==1) then
-         if (id_conv_ud_pred_bt1 > 0) then
-             used = send_data (id_conv_ud_pred_bt1, wrk1_2d(:,:), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),      &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_conv_ud_corr_bt1 > 0) then
-             used = send_data (id_conv_ud_corr_bt1, wrk2_2d(:,:), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),      &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
+        call diagnose_2d(Time, Grd, id_conv_ud_pred_bt1, wrk1_2d(:,:))
+        call diagnose_2d(Time, Grd, id_conv_ud_corr_bt1, wrk2_2d(:,:))
          if (id_psx_bt1 > 0) then
              used = send_data (id_psx_bt1, press_force_bt(:,:,1), &
                     Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
@@ -4625,24 +4490,12 @@ subroutine pred_corr_tropic_press_bgrid (Time, Thickness, Velocity, Ext_mode, pm
                     Time%model_time, rmask=Grd%tmasken(:,:,1,2),   &
                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
          endif
-         if (id_anompb_bt1 > 0) then
-             used = send_data (id_anompb_bt1, anompb_bt(isd:ied,jsd:jed,fstaup1), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),                      &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
+         call diagnose_2d(Time, Grd, id_anompb_bt1, anompb_bt(isd:ied,jsd:jed,fstaup1))
      endif
 
      if(itime==2) then
-         if (id_conv_ud_pred_bt > 0) then
-             used = send_data (id_conv_ud_pred_bt, wrk1_2d(:,:), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_conv_ud_corr_bt > 0) then
-             used = send_data (id_conv_ud_corr_bt, wrk2_2d(:,:), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
+        call diagnose_2d(Time, Grd, id_conv_ud_pred_bt, wrk1_2d(:,:))
+        call diagnose_2d(Time, Grd, id_conv_ud_corr_bt, wrk2_2d(:,:))
          if (id_psx_bt > 0) then
              used = send_data (id_psx_bt, press_force_bt(:,:,1), &
                     Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
@@ -4663,11 +4516,7 @@ subroutine pred_corr_tropic_press_bgrid (Time, Thickness, Velocity, Ext_mode, pm
                     Time%model_time, rmask=Grd%tmasken(:,:,1,2),     &
                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
          endif
-         if (id_anompb_bt > 0) then
-             used = send_data (id_anompb_bt, anompb_bt(isd:ied,jsd:jed,fstaup1), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),                     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
+         call diagnose_2d(Time, Grd, id_anompb_bt, anompb_bt(isd:ied,jsd:jed,fstaup1))
          if (id_udrho_bt_lap > 0) then
              used = send_data (id_udrho_bt_lap, friction_lap(isd:ied,jsd:jed,1), &
                     Time%model_time, rmask=Grd%umask(:,:,1),                     &
@@ -5037,16 +4886,8 @@ subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Velocity, Ext_mode, pm
 
      ! take a sample from the barotropic loop
      if(itime==1) then
-         if (id_conv_ud_pred_bt1 > 0) then
-             used = send_data (id_conv_ud_pred_bt1, wrk1_2d(:,:), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),      &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_conv_ud_corr_bt1 > 0) then
-             used = send_data (id_conv_ud_corr_bt1, wrk2_2d(:,:), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),      &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
+        call diagnose_2d(Time, Grd, id_conv_ud_pred_bt1, wrk1_2d(:,:))
+        call diagnose_2d(Time, Grd, id_conv_ud_corr_bt1, wrk2_2d(:,:))
          if (id_psx_bt1 > 0) then
              used = send_data (id_psx_bt1, press_force_bt(:,:,1), &
                     Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
@@ -5067,29 +4908,13 @@ subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Velocity, Ext_mode, pm
                     Time%model_time, rmask=Grd%tmasken(:,:,1,2),   &
                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
          endif
-         if (id_anompb_bt1 > 0) then
-             used = send_data (id_anompb_bt1, anompb_bt(isd:ied,jsd:jed,fstaup1), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),                      &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
+         call diagnose_2d(Time, Grd, id_anompb_bt1, anompb_bt(isd:ied,jsd:jed,fstaup1))
      endif
 
      if(itime==2) then
-         if (id_conv_ud_pred_bt > 0) then
-             used = send_data (id_conv_ud_pred_bt, wrk1_2d(:,:), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_conv_ud_corr_bt > 0) then
-             used = send_data (id_conv_ud_corr_bt, wrk2_2d(:,:), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_eta_t_bt > 0) then
-             used = send_data (id_eta_t_bt, eta_t_bt(:,:,fstaup1), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),       &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
+        call diagnose_2d(Time, Grd, id_conv_ud_pred_bt, wrk1_2d(:,:))
+        call diagnose_2d(Time, Grd, id_conv_ud_corr_bt, wrk2_2d(:,:))
+        call diagnose_2d(Time, Grd, id_eta_t_bt, eta_t_bt(:,:,fstaup1))
          if (id_psx_bt > 0) then
              used = send_data (id_psx_bt, press_force_bt(:,:,1), &
                     Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
@@ -5110,11 +4935,7 @@ subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Velocity, Ext_mode, pm
                     Time%model_time, rmask=Grd%tmasken(:,:,1,2),     &
                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
          endif
-         if (id_anompb_bt > 0) then
-             used = send_data (id_anompb_bt, anompb_bt(isd:ied,jsd:jed,fstaup1), &
-                    Time%model_time, rmask=Grd%tmask(:,:,1),                     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
+         call diagnose_2d(Time, Grd, id_anompb_bt, anompb_bt(isd:ied,jsd:jed,fstaup1))
      endif
 
      if( barotropic_halo > 1 ) then
@@ -5172,9 +4993,7 @@ subroutine eta_smooth_diagnosed(Time, eta, smoothing_eta_t_mod)
      return
   else 
      if (id_eta_smoother > 0) then 
-        used = send_data (id_eta_smoother, tmp(:,:)*dtimer,& 
-        Time%model_time, rmask=Grd%tmask(:,:,1),           &
-        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)  
+        call diagnose_2d(Time, Grd, id_eta_smoother, tmp(:,:)*dtimer)
      endif 
   endif 
 
@@ -5284,9 +5103,7 @@ subroutine ocean_eta_smooth(Time, Thickness, Ext_mode, T_prog)
      enddo
   enddo
   
-  if (id_eta_smoother > 0) used = send_data (id_eta_smoother, tmp(:,:)*rho0r,  & 
-                                  Time%model_time, rmask=Grd%tmask(:,:,1),     &
-                                  is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)  
+  if (id_eta_smoother > 0) call diagnose_2d(Time, Grd, id_eta_smoother, tmp(:,:)*rho0r)
 
   ! T_prog%eta_smooth has dimensions tracer concentration * (kg/m^3)*(m/s).
   ! note that tracer filter is zero when eta_t is zero, as we wish since in 
@@ -5323,9 +5140,7 @@ subroutine ocean_eta_smooth(Time, Thickness, Ext_mode, T_prog)
       enddo
   endif
 
-  if (id_smooth_mask > 0) used  = send_data (id_smooth_mask, smooth_mask(:,:), & 
-                                  Time%model_time, rmask=Grd%tmask(:,:,1),     &
-                                  is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)  
+  call diagnose_2d(Time, Grd, id_smooth_mask, smooth_mask(:,:))
 
 end subroutine ocean_eta_smooth
 ! </SUBROUTINE> NAME="ocean_eta_smooth"
@@ -5450,9 +5265,7 @@ subroutine ocean_pbot_smooth(Time, Thickness, Ext_mode, T_prog)
   enddo
 
   if (id_pbot_smoother > 0) then
-   used  = send_data (id_pbot_smoother, grav*c2dbars*Ext_mode%pbot_smooth(:,:), & 
-                      Time%model_time, rmask=Grd%tmask(:,:,1),                  &
-                      is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)  
+     call diagnose_2d(Time, Grd, id_pbot_smoother, grav*c2dbars*Ext_mode%pbot_smooth(:,:))
   endif 
 
 
@@ -5497,11 +5310,7 @@ subroutine ocean_pbot_smooth(Time, Thickness, Ext_mode, T_prog)
       enddo
   endif
 
-  if (id_smooth_mask > 0) then 
-    used  = send_data (id_smooth_mask, smooth_mask(:,:), & 
-    Time%model_time, rmask=Grd%tmask(:,:,1),             &
-    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)  
-  endif 
+  call diagnose_2d(Time, Grd, id_smooth_mask, smooth_mask(:,:))
 
 end subroutine ocean_pbot_smooth
 ! </SUBROUTINE> NAME="ocean_pbot_smooth"
@@ -6362,9 +6171,7 @@ subroutine eta_terms_diagnose(Time, Dens, Thickness, Theta, Salinity, Adv_vel, E
   enddo
   call mpp_update_domains(Ext_mode%eta_nonbouss(:,:,taup1), Dom%domain2d)
 
-  if(id_eta_nonbouss > 0)  used = send_data (id_eta_nonbouss, Ext_mode%eta_nonbouss(:,:,tau),&
-       Time%model_time, rmask=Grd%tmask(:,:,1),                                              &
-       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d(Time, Grd, id_eta_nonbouss, Ext_mode%eta_nonbouss(:,:,tau))
 
   if(id_eta_nonbouss_global>0) then 
       do j=jsd,jed
@@ -6379,35 +6186,16 @@ subroutine eta_terms_diagnose(Time, Dens, Thickness, Theta, Salinity, Adv_vel, E
 
   ! tendencies contributing to eta evolution 
  
-  if(id_eta_nonbouss_tend > 0) used = send_data (id_eta_nonbouss_tend,                       &
-       Grd%tmask(:,:,1)*(Ext_mode%eta_nonbouss(:,:,taup1)-Ext_mode%eta_nonbouss(:,:,taum1)), &
-       Time%model_time, rmask=Grd%tmask(:,:,1),                                              & 
-       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  if(id_eta_dynamic_tend > 0) used = send_data (id_eta_dynamic_tend, eta_dynamic_tend(:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,1),                                             &
-       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  if(id_eta_water_tend > 0)   used = send_data (id_eta_water_tend, eta_water_tend(:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,1),                                         &
-       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  if(id_eta_nonsteric_tend > 0)  used = send_data (id_eta_nonsteric_tend, eta_nonsteric_tend(:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,1),                                                    &
-       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  if(id_eta_source_tend > 0)  used = send_data (id_eta_source_tend, eta_source_tend(:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,1),                                           &
-       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  if(id_eta_smooth_tend > 0)  used = send_data (id_eta_smooth_tend, eta_smooth_tend(:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,1),                                           &
-       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  if(id_eta_steric_tend > 0)  used = send_data (id_eta_steric_tend, eta_steric_tend(:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,1),                                           &
-       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  if(id_eta_steric_tend_A > 0)  used = send_data (id_eta_steric_tend_A, wrk1_v2d(:,:,1), &
-       Time%model_time, rmask=Grd%tmask(:,:,1),                                          &
-       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  if(id_eta_steric_tend_B > 0)  used = send_data (id_eta_steric_tend_B, wrk1_v2d(:,:,2), &
-       Time%model_time, rmask=Grd%tmask(:,:,1),                                          &
-       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-
+  if(id_eta_nonbouss_tend > 0) call diagnose_2d(Time, Grd, id_eta_nonbouss_tend, &
+       Grd%tmask(:,:,1)*(Ext_mode%eta_nonbouss(:,:,taup1)-Ext_mode%eta_nonbouss(:,:,taum1)))
+  call diagnose_2d(Time, Grd, id_eta_dynamic_tend, eta_dynamic_tend(:,:))
+  call diagnose_2d(Time, Grd, id_eta_water_tend, eta_water_tend(:,:))
+  call diagnose_2d(Time, Grd, id_eta_nonsteric_tend, eta_nonsteric_tend(:,:))
+  call diagnose_2d(Time, Grd, id_eta_source_tend, eta_source_tend(:,:))
+  call diagnose_2d(Time, Grd, id_eta_smooth_tend, eta_smooth_tend(:,:))
+  call diagnose_2d(Time, Grd, id_eta_steric_tend, eta_steric_tend(:,:))
+  call diagnose_2d(Time, Grd, id_eta_steric_tend_A, wrk1_v2d(:,:,1))
+  call diagnose_2d(Time, Grd, id_eta_steric_tend_B, wrk1_v2d(:,:,2))
 
   ! area averaged tendencies 
   if(id_eta_nonbouss_tend_global > 0) then 
@@ -6486,9 +6274,7 @@ subroutine eta_terms_diagnose(Time, Dens, Thickness, Theta, Salinity, Adv_vel, E
             endif
          enddo
       enddo
-      used = send_data (id_rhobarz, wrk1_2d(:,:),  &
-           Time%model_time, rmask=Grd%tmask(:,:,1),&
-           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_rhobarz, wrk1_2d(:,:))
   endif
 
   ! global average in-situ density 
@@ -6934,11 +6720,7 @@ subroutine get_tidal_forcing(Time, dayr)
 
   eta_eq_tidal(:,:) = eta_eq_tidal(:,:)*Grd%tmask(:,:,1) 
 
-  if (id_eta_eq_tidal > 0) then 
-    used = send_data (id_eta_eq_tidal, eta_eq_tidal(:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,1),       &
-           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec) 
-  endif 
+  call diagnose_2d(Time, Grd, id_eta_eq_tidal, eta_eq_tidal(:,:))
 
 
 end subroutine get_tidal_forcing
