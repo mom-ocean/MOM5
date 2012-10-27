@@ -463,6 +463,7 @@ use ocean_types_mod,          only: ocean_external_mode_type, ocean_velocity_typ
 use ocean_types_mod,          only: ice_ocean_boundary_type, ocean_density_type
 use ocean_types_mod,          only: ocean_public_type
 use ocean_workspace_mod,      only: wrk1_2d, wrk2_2d, wrk3_2d, wrk1
+use ocean_util_mod,           only: diagnose_2d
   
 implicit none
 
@@ -1505,26 +1506,17 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
   id_ideal_runoff = register_static_field('ocean_model','ideal_runoff',     & 
        Grd%tracer_axes(1:2),'prescribed static runoff flux', 'kg/(m^2 sec)',&
        missing_value=missing_value,range=(/-1e20,1e20/))
-  if (id_ideal_runoff > 0) then
-      used = send_data(id_ideal_runoff, ideal_runoff(:,:), Time%model_time, &
-           rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+  call diagnose_2d(Time, Grd, id_ideal_runoff, ideal_runoff(:,:))
 
   id_ideal_calving = register_static_field('ocean_model','ideal_calving',    &
        Grd%tracer_axes(1:2),'prescribed static calving flux', 'kg/(m^2 sec)',&
        missing_value=missing_value,range=(/-1e20,1e20/))
-  if (id_ideal_calving > 0) then
-      used = send_data(id_ideal_calving, ideal_calving(:,:), Time%model_time, &
-           rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+  call diagnose_2d(Time, Grd, id_ideal_calving, ideal_calving(:,:))
 
   id_restore_mask = register_static_field('ocean_model','restore_mask', &
        Grd%tracer_axes(1:2),'restoring mask', 'none' ,                  &
        missing_value=missing_value,range=(/-10.,10./))
-  if (id_restore_mask > 0) then
-      used = send_data(id_restore_mask, restore_mask(:,:), Time%model_time, &
-           rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+  call diagnose_2d(Time, Grd, id_restore_mask, restore_mask(:,:))
 
 
   ! register dynamic fields 
@@ -3940,9 +3932,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
 
   ! salt from restoring 
   if (id_stf_restore(index_salt) > 0) then
-      used = send_data(id_stf_restore(index_salt), flx_restore(:,:)*T_prog(index_salt)%conversion,&
-             Time%model_time, rmask=Grd%tmask(:,:,1),                                             &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_stf_restore(index_salt), flx_restore(:,:)*T_prog(index_salt)%conversion)
   endif
   ! total salt from restoring
   if (id_total_ocean_stf_restore(index_salt) > 0) then 
@@ -3953,9 +3943,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
 
   ! salt from correction 
   if (id_stf_correct(index_salt) > 0) then
-      used = send_data(id_stf_correct(index_salt), flx_correct(:,:)*T_prog(index_salt)%conversion,&
-             Time%model_time, rmask=Grd%tmask(:,:,1),                                             &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_stf_correct(index_salt), flx_correct(:,:)*T_prog(index_salt)%conversion)
   endif
   ! total salt from correction 
   if (id_total_ocean_stf_correct(index_salt) > 0) then 
@@ -3997,9 +3985,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
 
   ! salt from all surface fluxes 
   if (id_stf_total(index_salt) > 0) then
-      used = send_data(id_stf_total(index_salt), T_prog(index_salt)%stf(:,:)*T_prog(index_salt)%conversion,&
-             Time%model_time, rmask=Grd%tmask(:,:,1),                                                      &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_stf_total(index_salt), T_prog(index_salt)%stf(:,:)*T_prog(index_salt)%conversion)
   endif
   ! total salt from all fluxes 
   if (id_total_ocean_stf_sum(index_salt) > 0) then 
@@ -4010,11 +3996,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
   endif
 
   ! pme from salt restoring
-  if (id_pme_restore > 0) then
-      used = send_data(id_pme_restore, pme_restore(:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,1),    &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+  call diagnose_2d(Time, Grd, id_pme_restore, pme_restore(:,:))
   ! total pme from salt restoring
   if(id_total_ocean_pme_restore > 0) then 
       wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*pme_restore(:,:)
@@ -4023,11 +4005,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
   endif 
 
   ! pme from salt correction 
-  if (id_pme_correct > 0) then
-      used = send_data(id_pme_correct, pme_correct(:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,1),    &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+  call diagnose_2d(Time, Grd, id_pme_correct, pme_correct(:,:))
   ! total pme from salt correction 
   if(id_total_ocean_pme_correct > 0) then 
       wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*pme_correct(:,:)
@@ -4036,11 +4014,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
   endif 
 
   ! pme from all surface terms 
-  if (id_pme_net > 0) then
-      used = send_data(id_pme_net, pme(:,:),          &
-             Time%model_time, rmask=Grd%tmask(:,:,1), &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+  call diagnose_2d(Time, Grd, id_pme_net, pme(:,:))
   ! total pme from all surface terms 
   if(id_total_ocean_pme_net > 0) then 
       wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*pme(:,:)
@@ -4050,10 +4024,8 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
 
   ! heat input from net pme relative to 0 degrees C (W/m2)
   if (id_stf_pme(index_temp) > 0) then
-      used = send_data(id_stf_pme(index_temp),                                    &
-             pme(:,:)*T_prog(index_temp)%tpme(:,:)*T_prog(index_temp)%conversion, &
-             Time%model_time, rmask=Grd%tmask(:,:,1),                             &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_stf_pme(index_temp),       &
+             pme(:,:)*T_prog(index_temp)%tpme(:,:)*T_prog(index_temp)%conversion)
   endif
   ! total heat flux from net pme (Watts)
   if(id_total_ocean_stf_pme(index_temp) > 0) then 
@@ -4064,17 +4036,10 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
   endif
 
   if (id_ice_mask > 0) then
-      used = send_data(id_ice_mask, (1.0-open_ocean_mask(:,:))*Grd%tmask(:,:,1),&
-             Time%model_time,rmask=Grd%tmask(:,:,1),                            &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_ice_mask, (1.0-open_ocean_mask(:,:))*Grd%tmask(:,:,1))
   endif
 
-  if (id_open_ocean_mask > 0) then
-      used = send_data(id_open_ocean_mask, open_ocean_mask(:,:),&
-             Time%model_time,rmask=Grd%tmask(:,:,1),            &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
+  call diagnose_2d(Time, Grd, id_open_ocean_mask, open_ocean_mask(:,:))
   
   ! contribution to sea level from salt restoring flux 
   if(id_eta_tend_salt_restore > 0 .or. id_eta_tend_salt_restore_glob > 0) then 
@@ -4084,11 +4049,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
             wrk1_2d(i,j) = -betasfc(i,j)*flx_restore(i,j)*rhosfc_inv(i,j) 
          enddo
       enddo
-      if(id_eta_tend_salt_restore > 0) then 
-          used = send_data(id_eta_tend_salt_restore, wrk1_2d(:,:), &
-                 Time%model_time, rmask=Grd%tmask(:,:,1),          &
-                 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-      endif
+      call diagnose_2d(Time, Grd, id_eta_tend_salt_restore, wrk1_2d(:,:))
       if(id_eta_tend_salt_restore_glob > 0) then 
          wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
          global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
@@ -4104,11 +4065,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
             wrk1_2d(i,j) = pme_restore(i,j)*rhosfc_inv(i,j) 
          enddo
       enddo
-      if(id_eta_tend_salt_restore > 0) then 
-          used = send_data(id_eta_tend_water_restore, wrk1_2d(:,:),&
-                 Time%model_time, rmask=Grd%tmask(:,:,1),          &
-                 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-      endif
+      call diagnose_2d(Time, Grd, id_eta_tend_water_restore, wrk1_2d(:,:))
       if(id_eta_tend_water_restore_glob > 0) then 
          wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
          global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
@@ -4175,9 +4132,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
 
   ! restoring heat flux 
   if (id_stf_restore(index_temp) > 0) then
-      used = send_data(id_stf_restore(index_temp), flx_restore(:,:)*T_prog(index_temp)%conversion, &
-             Time%model_time,rmask=Grd%tmask(:,:,1),                                               &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_stf_restore(index_temp), flx_restore(:,:)*T_prog(index_temp)%conversion)
   endif
 
   ! total of restoring heat flux 
@@ -4189,9 +4144,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
 
   ! flux correction heat flux 
   if (id_stf_correct(index_temp) > 0) then
-      used = send_data(id_stf_correct(index_temp), flx_correct(:,:)*T_prog(index_temp)%conversion, &
-             Time%model_time,rmask=Grd%tmask(:,:,1),                                               &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_stf_correct(index_temp), flx_correct(:,:)*T_prog(index_temp)%conversion)
   endif
 
   ! total of flux correction heat flux 
@@ -4219,10 +4172,8 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
 
   ! net heat from stf   
   if (id_stf_total(index_temp) > 0) then
-      used = send_data(id_stf_total(index_temp),                        &
-             T_prog(index_temp)%stf(:,:)*T_prog(index_temp)%conversion, &
-             Time%model_time, rmask=Grd%tmask(:,:,1),                   &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_stf_total(index_temp),              &
+             T_prog(index_temp)%stf(:,:)*T_prog(index_temp)%conversion)
   endif
 
   ! total of net heat flux 
@@ -4242,11 +4193,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
             wrk1_2d(i,j) = alphasfc(i,j)*flx_restore(i,j)*rhosfc_inv(i,j) 
          enddo
       enddo
-      if(id_eta_tend_heat_restore > 0) then 
-          used = send_data(id_eta_tend_heat_restore, wrk1_2d(:,:),&
-                 Time%model_time, rmask=Grd%tmask(:,:,1),         &
-                 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-      endif
+      call diagnose_2d(Time, Grd, id_eta_tend_heat_restore, wrk1_2d(:,:))
       if(id_eta_tend_heat_restore_glob > 0) then 
          wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
          global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
@@ -4390,11 +4337,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
     ! add pme_restore to pme
     pme(isc:iec,jsc:jec) = pme(isc:iec,jsc:jec) + pme_eta_restore(isc:iec,jsc:jec)
 
-    if(id_pme_eta_restore > 0) then
-     used = send_data(id_pme_eta_restore, pme_eta_restore(:,:), Time%model_time, &
-            rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-    endif       
-     
+    call diagnose_2d(Time, Grd, id_pme_eta_restore, pme_eta_restore(:,:))
 
   endif ! (id_eta_restore > 0 .and. eta_damp_factor > 0.0)
 
@@ -4548,9 +4491,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
          enddo
       enddo
-      used = send_data(id_ekman_heat, wrk1_2d(:,:)*rho_cp,&
-           Time%model_time, rmask=Grd%tmask(:,:,1),       &
-           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_ekman_heat, wrk1_2d(:,:)*rho_cp)
 
   endif
 
@@ -4599,10 +4540,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
       endif
 
-      used = send_data(id_trunoff(index_temp),     &
-           wrk1_2d(:,:),                           &
-           Time%model_time, rmask=Grd%tmask(:,:,1),&
-           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_trunoff(index_temp), wrk1_2d(:,:))
   endif
 
 
@@ -4614,10 +4552,8 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
             if(runoff(i,j) /= 0.0) wrk1_2d(i,j) = 1.0
          enddo
       enddo
-      used = send_data(id_trunoff(index_salt),             &
-             wrk1_2d(:,:)*T_prog(index_salt)%trunoff(:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,1),      &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_trunoff(index_salt),  &
+             wrk1_2d(:,:)*T_prog(index_salt)%trunoff(:,:))
   endif
 
   ! temp of calving solid runoff 
@@ -4648,10 +4584,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
       endif
 
-      used = send_data(id_tcalving(index_temp),    &
-           wrk1_2d(:,:),                           &
-           Time%model_time, rmask=Grd%tmask(:,:,1),&
-           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_tcalving(index_temp), wrk1_2d(:,:))
   endif
 
   ! effective temp of calving, computed as 
@@ -4665,10 +4598,8 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
             endif 
          enddo
       enddo
-      used = send_data(id_temp_calving_eff,                &
-             wrk1_2d(:,:)*T_prog(index_temp)%tcalving(:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,1),       &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_temp_calving_eff,      &
+             wrk1_2d(:,:)*T_prog(index_temp)%tcalving(:,:))
   endif
 
   ! salinity of calving
@@ -4679,10 +4610,8 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
             if(calving(i,j) /= 0.0) wrk1_2d(i,j) = 1.0
          enddo
       enddo
-      used = send_data(id_tcalving(index_salt),            &
-             wrk1_2d(:,:)*T_prog(index_salt)%tcalving(:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,1),      &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_tcalving(index_salt), &
+             wrk1_2d(:,:)*T_prog(index_salt)%tcalving(:,:))
   endif
 
   ! temperature of river 
@@ -4693,10 +4622,8 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
             if(river(i,j) /= 0.0) wrk1_2d(i,j) = 1.0
          enddo
       enddo
-      used = send_data(id_triver(index_temp),            &
-             wrk1_2d(:,:)*T_prog(index_temp)%triver(:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,1),    &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_triver(index_temp), &
+             wrk1_2d(:,:)*T_prog(index_temp)%triver(:,:))
   endif
 
   ! salinity of river 
@@ -4707,31 +4634,23 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
             if(river(i,j) /= 0.0) wrk1_2d(i,j) = 1.0
          enddo
       enddo
-      used = send_data(id_triver(index_salt),            &
-             wrk1_2d(:,:)*T_prog(index_salt)%triver(:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,1),    &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_triver(index_salt), &
+             wrk1_2d(:,:)*T_prog(index_salt)%triver(:,:))
   endif
 
 
   !--------heat related diagnostics ------------------------------------
   !
   ! latent heat of vaporization
-  if (id_latent_heat_vapor > 0) used = send_data(id_latent_heat_vapor, latent_heat_vapor(:,:), &
-                            Time%model_time, rmask=Grd%tmask(:,:,1),                           &
-                            is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d(Time, Grd, id_latent_heat_vapor, latent_heat_vapor(:,:))
   
   ! latent heat of fusion 
-  if (id_latent_heat_fusion > 0) used = send_data(id_latent_heat_fusion, latent_heat_fusion(:,:), &
-                            Time%model_time, rmask=Grd%tmask(:,:,1),                              &
-                            is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d(Time, Grd, id_latent_heat_fusion, latent_heat_fusion(:,:))
   
   ! surface heat flux (W/m2) passed through the coupler 
   if (id_stf_coupler(index_temp) > 0) then
-      used = send_data(id_stf_coupler(index_temp),                     &
-             T_prog(index_temp)%stf(:,:)*T_prog(index_temp)%conversion,&
-             Time%model_time, rmask=Grd%tmask(:,:,1),                  &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_stf_coupler(index_temp),           &
+             T_prog(index_temp)%stf(:,:)*T_prog(index_temp)%conversion)
   endif
   ! total surface heat flux (Watts) passed through coupler 
   if(id_total_ocean_stf_coupler(index_temp) > 0) then 
@@ -4743,10 +4662,8 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
   ! heat input from liquid river runoff relative to 0 degrees C (W/m2)
   if (id_stf_runoff(index_temp) > 0) then
-      used = send_data(id_stf_runoff(index_temp),                                     &
-             T_prog(index_temp)%runoff_tracer_flux(:,:)*T_prog(index_temp)%conversion,&
-             Time%model_time, rmask=Grd%tmask(:,:,1),                                 &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_stf_runoff(index_temp),                           &
+             T_prog(index_temp)%runoff_tracer_flux(:,:)*T_prog(index_temp)%conversion)
   endif
   ! total heat flux from liquid river runoff (Watts), relative to 0C. 
   if(id_total_ocean_stf_runoff(index_temp) > 0) then 
@@ -4758,10 +4675,8 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
   ! heat input from solid calving land ice relative to 0 degrees C (W/m2)
   if (id_stf_calving(index_temp) > 0) then
-      used = send_data(id_stf_calving(index_temp),                                     &
-             T_prog(index_temp)%calving_tracer_flux(:,:)*T_prog(index_temp)%conversion,&
-             Time%model_time, rmask=Grd%tmask(:,:,1),                                  &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_stf_calving(index_temp),                           &
+             T_prog(index_temp)%calving_tracer_flux(:,:)*T_prog(index_temp)%conversion)
   endif
   ! total heat flux from solid calving land ice (Watts), relative to 0C. 
   if(id_total_ocean_stf_calving(index_temp) > 0) then 
@@ -4784,10 +4699,8 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   ! note that frozen precip arrives at 0C, so contributes no heat 
   ! relative to 0C.  Assume temp of liquid precip same as tpme
   if (id_stf_prec(index_temp) > 0) then
-      used = send_data(id_stf_prec(index_temp),                                             &
-             liquid_precip(:,:)*T_prog(index_temp)%tpme(:,:)*T_prog(index_temp)%conversion, &
-             Time%model_time, rmask=Grd%tmask(:,:,1),                                       &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_stf_prec(index_temp),                                   &
+             liquid_precip(:,:)*T_prog(index_temp)%tpme(:,:)*T_prog(index_temp)%conversion)
   endif
   ! total heat flux from liquid precip (Watts)
   if(id_total_ocean_stf_prec(index_temp) > 0) then 
@@ -4801,10 +4714,8 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   ! via evaporation, measured relative to 0 degrees C (W/m2).
   ! Assume temp of evaporating water is same as tpme
   if (id_stf_evap(index_temp) > 0) then
-      used = send_data(id_stf_evap(index_temp),                                          &
-             evaporation(:,:)*T_prog(index_temp)%tpme(:,:)*T_prog(index_temp)%conversion,&
-             Time%model_time, rmask=Grd%tmask(:,:,1),                                    &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_stf_evap(index_temp),                                &
+             evaporation(:,:)*T_prog(index_temp)%tpme(:,:)*T_prog(index_temp)%conversion)
   endif
   ! total heat flux from evaporating water carrying heat away from ocean (Watts)
   if(id_total_ocean_stf_evap(index_temp) > 0) then 
@@ -4827,9 +4738,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                  + evaporation(i,j)*T_prog(index_temp)%tpme(i,j) )
          enddo
       enddo
-      used = send_data(id_net_sfc_heating, wrk1_2d(:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,1),    &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_net_sfc_heating, wrk1_2d(:,:))
   endif
   ! area integrated total net heat flux 
   if(id_total_net_sfc_heating > 0) then 
@@ -4850,9 +4759,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
 
   ! shortwave flux (W/m2)
-  if (id_swflx > 0) used =  send_data(id_swflx, swflx(:,:),          &
-                            Time%model_time, rmask=Grd%tmask(:,:,1), &
-                            is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d(Time, Grd, id_swflx, swflx(:,:))
   ! total shortwave heat transport (Watts)
   if (id_total_ocean_swflx > 0) then 
       wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*swflx(:,:)
@@ -4877,9 +4784,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
 
   ! visible shortwave flux (W/m2)
-  if (id_swflx_vis > 0) used =  send_data(id_swflx_vis, swflx_vis(:,:),  &
-                                Time%model_time, rmask=Grd%tmask(:,:,1), &
-                                is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d(Time, Grd, id_swflx_vis, swflx_vis(:,:))
   ! total visible shortwave (Watts)
   if (id_total_ocean_swflx_vis > 0) then 
       wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*swflx_vis(:,:)
@@ -4897,9 +4802,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
             tmp_flux(ii,jj) = -latent_heat_vapor(ii,jj)*Ice_ocean_boundary%q_flux(i,j)
          enddo
       enddo
-      used = send_data(id_evap_heat, tmp_flux(:,:),    &
-             Time%model_time, rmask=Grd%tmask(:,:,1),  &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_evap_heat, tmp_flux(:,:))
   endif
   ! total evaporative heating (Watts) 
   if (id_total_ocean_evap_heat > 0) then
@@ -4935,11 +4838,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
 
   ! longwave heat flux (W/m2)
-  if (id_lw_heat > 0) then
-      used = send_data(id_lw_heat, longwave(:,:),    &
-             Time%model_time, rmask=Grd%tmask(:,:,1),&
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+  call diagnose_2d(Time, Grd, id_lw_heat, longwave(:,:))
   ! total longwave heating (Watts) 
   if (id_total_ocean_lw_heat > 0) then
       wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*longwave(:,:)
@@ -4972,9 +4871,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
             tmp_flux(ii,jj) = -Ice_ocean_boundary%fprec(i,j)*latent_heat_fusion(ii,jj)
          enddo
       enddo
-      used = send_data(id_fprec_melt_heat, tmp_flux(:,:),    &
-             Time%model_time, rmask=Grd%tmask(:,:,1),  &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_fprec_melt_heat, tmp_flux(:,:))
   endif
   ! total heating from melting the frozen precip (Watts) 
   if (id_total_ocean_fprec_melt_heat > 0) then
@@ -4993,9 +4890,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   ! heat flux from the melting of calved land ice (W/m2)
   if (id_calving_melt_heat > 0) then
       wrk1_2d(:,:) = -calving(:,:)*latent_heat_fusion(:,:)
-      used = send_data(id_calving_melt_heat, wrk1_2d(:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,1),      &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_calving_melt_heat, wrk1_2d(:,:))
   endif
   ! total heating from the melting of calved land ice (Watts)  
   if (id_total_ocean_calving_melt_heat > 0) then
@@ -5005,11 +4900,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
 
   ! sensible heat flux (W/m2)
-  if (id_sens_heat > 0) then
-      used = send_data(id_sens_heat, sensible(:,:),    &
-             Time%model_time, rmask=Grd%tmask(:,:,1),  &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+  call diagnose_2d(Time, Grd, id_sens_heat, sensible(:,:))
   ! total sensible heat transport (Watts) 
   if (id_total_ocean_sens_heat > 0) then
       wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*sensible(:,:)
@@ -5076,10 +4967,8 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   !
   ! salt flux (kg/(m2*sec)) passed through the coupler 
   if (id_stf_coupler(index_salt) > 0) then
-      used = send_data(id_stf_coupler(index_salt),                      &
-             T_prog(index_salt)%stf(:,:)*T_prog(index_salt)%conversion, &
-             Time%model_time, rmask=Grd%tmask(:,:,1),                   &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_stf_coupler(index_salt),            &
+             T_prog(index_salt)%stf(:,:)*T_prog(index_salt)%conversion)
   endif
 
   ! total salt flux (kg/sec) passed through coupler 
@@ -5092,18 +4981,14 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
   ! salt input from liquid river runoff (kg/(m2*sec))
   if (id_stf_runoff(index_salt) > 0) then
-      used = send_data(id_stf_runoff(index_salt),                                     &
-             T_prog(index_salt)%runoff_tracer_flux(:,:)*T_prog(index_salt)%conversion,&
-             Time%model_time, rmask=Grd%tmask(:,:,1),                                 &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_stf_runoff(index_salt),                           &
+             T_prog(index_salt)%runoff_tracer_flux(:,:)*T_prog(index_salt)%conversion)
   endif
 
   ! salt input from calving land ice (kg/(m2*sec))
   if (id_stf_runoff(index_salt) > 0) then
-      used = send_data(id_stf_runoff(index_salt),                                      &
-             T_prog(index_salt)%calving_tracer_flux(:,:)*T_prog(index_salt)%conversion,&
-             Time%model_time, rmask=Grd%tmask(:,:,1),                                  &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_stf_runoff(index_salt),                            &
+             T_prog(index_salt)%calving_tracer_flux(:,:)*T_prog(index_salt)%conversion)
   endif
 
   ! total salt flux from liquid river runoff (kg/sec)
@@ -5124,10 +5009,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
   ! salt input from ice (kg/(m2*sec))
   if (id_salt_flux_ice > 0) then
-      used = send_data(id_salt_flux_ice,             &
-             melt(:,:)*ice_salt_concentration,       &
-             Time%model_time, rmask=Grd%tmask(:,:,1),&
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_salt_flux_ice, melt(:,:)*ice_salt_concentration)
   endif
   ! total salt flux from ice (kg/sec)
   if(id_total_salt_flux_ice > 0) then 
@@ -5159,9 +5041,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   !
   ! total mass flux per area from pme and river (kg/(m2*sec))  
   if (id_pme_river > 0) then
-      used = send_data(id_pme_river, pme(:,:)+river(:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,1),    &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_pme_river, pme(:,:) + river(:,:))
   endif
   ! total mass flux from pme+river (kg/sec)
   if(id_total_ocean_pme_river > 0) then 
@@ -5186,11 +5066,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
 
   ! mass flux per area from pme_sbc (kg/(m2*sec))  
-  if (id_pme_sbc > 0) then
-      used = send_data(id_pme_sbc, pme(:,:),             &
-             Time%model_time, rmask=Grd%tmask(:,:,1),    &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+  call diagnose_2d(Time, Grd, id_pme_sbc, pme(:,:))
 
   ! total mass flux from pme_sbc (kg/sec)
   if(id_total_ocean_pme_sbc > 0) then 
@@ -5200,11 +5076,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
 
   ! mass flux per area from ice melt (kg/(m2*sec))  
-  if (id_melt > 0) then
-      used = send_data(id_melt, melt(:,:),               & 
-             Time%model_time, rmask=Grd%tmask(:,:,1),    &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+  call diagnose_2d(Time, Grd, id_melt, melt(:,:))
 
   ! total mass flux from ice melt (kg/sec)
   if(id_total_ocean_melt > 0) then 
@@ -5232,11 +5104,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
   ! evaporative mass flux (kg/(m2*sec))
   ! evaporation > 0 means liquid water enters ocean. 
-  if (id_evap > 0) then
-      used = send_data(id_evap, evaporation(:,:),     &
-             Time%model_time, rmask=Grd%tmask(:,:,1), &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+  call diagnose_2d(Time, Grd, id_evap, evaporation(:,:))
   ! total mass transport from evap (kg/sec)
   if(id_total_ocean_evap > 0) then 
       wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*evaporation(:,:)
@@ -5260,11 +5128,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
 
   ! frozen precip (kg/(m2*sec))
-  if (id_fprec > 0) then
-      used = send_data(id_fprec, frozen_precip(:,:),  &
-             Time%model_time, rmask=Grd%tmask(:,:,1), &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+  call diagnose_2d(Time, Grd, id_fprec, frozen_precip(:,:))
   ! total frozen precip (kg/sec)
   if (id_total_ocean_fprec > 0) then
       wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*frozen_precip(:,:)
@@ -5274,11 +5138,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
 
   ! liquid precip (kg/(m2*sec))
-  if (id_lprec > 0) then
-      used = send_data(id_lprec,liquid_precip(:,:),    &
-             Time%model_time, rmask=Grd%tmask(:,:,1),  &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+  call diagnose_2d(Time, Grd, id_lprec, liquid_precip(:,:))
   ! total liquid precip (kg/sec)
   if (id_total_ocean_lprec > 0) then
       wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*liquid_precip(:,:)
@@ -5302,9 +5162,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
 
   ! river (mass flux of land water (liquid+solid) ) entering ocean (kg/m^3)*(m/s)
-  if (id_river > 0) used =  send_data(id_river, river(:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,1),             &
-       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)  
+  call diagnose_2d(Time, Grd, id_river, river(:,:))
   ! global sum of river input (kg/sec)
   if(id_total_ocean_river > 0) then 
       wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*river(:,:)
@@ -5328,11 +5186,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
 
   ! calving land ice (kg/(m2*sec)) entering the ocean 
-  if (id_calving > 0) then 
-      used = send_data(id_calving, calving(:,:),   &
-           Time%model_time, rmask=Grd%tmask(:,:,1),&
-           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)  
-  endif
+  call diagnose_2d(Time, Grd, id_calving, calving(:,:))
   ! total mass of calving (kg/sec)
   if (id_total_ocean_calving > 0) then
       wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*calving(:,:)
@@ -5341,11 +5195,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
 
   ! liquid river runoff entering the ocean (kg/m^3)*(m/s)
-  if (id_runoff > 0) then 
-      used = send_data(id_runoff, runoff(:,:),      &
-           Time%model_time, rmask=Grd%tmask(:,:,1), &
-           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)  
-  endif
+  call diagnose_2d(Time, Grd, id_runoff, runoff(:,:))
   ! total liquid river runoff (kg/sec)
   if (id_total_ocean_runoff > 0) then
       wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*runoff(:,:)
@@ -5376,11 +5226,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                 wrk1_2d(i,j) = alphasfc(i,j)*tmp_flux(i,j)*rhosfc_inv(i,j) 
              enddo
           enddo
-          if(id_eta_tend_sw > 0) then 
-              used = send_data(id_eta_tend_sw, wrk1_2d(:,:), &
-                     Time%model_time, rmask=Grd%tmask(:,:,1),&
-                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-          endif
+          call diagnose_2d(Time, Grd, id_eta_tend_sw, wrk1_2d(:,:))
           if(id_eta_tend_sw_glob > 0) then 
               wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
               global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
@@ -5403,11 +5249,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                 wrk1_2d(i,j) = alphasfc(i,j)*tmp_flux(i,j)*rhosfc_inv(i,j) 
              enddo
           enddo
-          if(id_eta_tend_lw > 0) then 
-              used = send_data(id_eta_tend_lw, wrk1_2d(:,:), &
-                     Time%model_time, rmask=Grd%tmask(:,:,1),&
-                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-          endif
+          call diagnose_2d(Time, Grd, id_eta_tend_lw, wrk1_2d(:,:))
           if(id_eta_tend_lw_glob > 0) then 
               wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
               global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
@@ -5429,11 +5271,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                 wrk1_2d(i,j) = alphasfc(i,j)*tmp_flux(i,j)*rhosfc_inv(i,j) 
              enddo
           enddo
-          if(id_eta_tend_sens > 0) then 
-              used = send_data(id_eta_tend_sens, wrk1_2d(:,:), &
-                     Time%model_time, rmask=Grd%tmask(:,:,1),  &
-                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-          endif
+          call diagnose_2d(Time, Grd, id_eta_tend_sens, wrk1_2d(:,:))
           if(id_eta_tend_sens_glob > 0) then 
               wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
               global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
@@ -5456,11 +5294,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                 wrk1_2d(i,j) = alphasfc(i,j)*tmp_flux(i,j)*rhosfc_inv(i,j) 
              enddo
           enddo
-          if(id_eta_tend_evap_heat > 0) then 
-              used = send_data(id_eta_tend_evap_heat, wrk1_2d(:,:), &
-                     Time%model_time, rmask=Grd%tmask(:,:,1),       &
-                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-          endif
+          call diagnose_2d(Time, Grd, id_eta_tend_evap_heat, wrk1_2d(:,:))
           if(id_eta_tend_evap_heat_glob > 0) then 
               wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
               global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
@@ -5484,11 +5318,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                 wrk1_2d(i,j) = alphasfc(i,j)*tmp_flux(i,j)*rhosfc_inv(i,j) 
              enddo
           enddo
-          if(id_eta_tend_fprec_melt > 0) then  
-              used = send_data(id_eta_tend_fprec_melt, wrk1_2d(:,:), &
-                     Time%model_time, rmask=Grd%tmask(:,:,1),        &
-                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-          endif
+          call diagnose_2d(Time, Grd, id_eta_tend_fprec_melt, wrk1_2d(:,:))
           if(id_eta_tend_fprec_melt_glob > 0) then 
               wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
               global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
@@ -5516,11 +5346,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                 wrk1_2d(i,j) = alphasfc(i,j)*tmp_flux(i,j)*rhosfc_inv(i,j) 
              enddo
           enddo
-          if(id_eta_tend_iceberg_melt > 0) then 
-              used = send_data(id_eta_tend_iceberg_melt, wrk1_2d(:,:), &
-                     Time%model_time, rmask=Grd%tmask(:,:,1),          &
-                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-          endif
+          call diagnose_2d(Time, Grd, id_eta_tend_iceberg_melt, wrk1_2d(:,:))
           if(id_eta_tend_iceberg_melt_glob > 0) then 
               wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
               global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
@@ -5536,11 +5362,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                 wrk1_2d(i,j) = alphasfc(i,j)*wrk2_2d(i,j)*rhosfc_inv(i,j) 
              enddo
           enddo
-          if(id_eta_tend_heat_coupler > 0) then 
-              used = send_data(id_eta_tend_heat_coupler, wrk1_2d(:,:), &
-                     Time%model_time, rmask=Grd%tmask(:,:,1),          &
-                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-          endif
+          call diagnose_2d(Time, Grd, id_eta_tend_heat_coupler, wrk1_2d(:,:))
           if(id_eta_tend_heat_coupler_glob > 0) then 
               wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
               global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
@@ -5562,11 +5384,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                 wrk1_2d(i,j) = -betasfc(i,j)*tmp_flux(i,j)*rhosfc_inv(i,j) 
              enddo
           enddo
-          if(id_eta_tend_salt_coupler > 0) then 
-          used = send_data(id_eta_tend_salt_coupler, wrk1_2d(:,:), &
-               Time%model_time, rmask=Grd%tmask(:,:,1),            &
-               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-          endif 
+          call diagnose_2d(Time, Grd, id_eta_tend_salt_coupler, wrk1_2d(:,:))
           if(id_eta_tend_salt_coupler_glob > 0) then 
               wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
               global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
@@ -5593,11 +5411,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                 wrk1_2d(i,j) = tmp_flux(i,j)*rhosfc_inv(i,j) 
              enddo
           enddo
-          if(id_eta_tend_evap > 0) then 
-              used = send_data(id_eta_tend_evap, wrk1_2d(:,:), &
-                     Time%model_time, rmask=Grd%tmask(:,:,1),  &
-                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-          endif
+          call diagnose_2d(Time, Grd, id_eta_tend_evap, wrk1_2d(:,:))
           if(id_eta_tend_evap_glob > 0) then 
               wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
               global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
@@ -5620,11 +5434,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                 wrk1_2d(i,j) = tmp_flux(i,j)*rhosfc_inv(i,j) 
              enddo
           enddo
-          if(id_eta_tend_lprec > 0) then  
-              used = send_data(id_eta_tend_lprec, wrk1_2d(:,:),&
-                     Time%model_time, rmask=Grd%tmask(:,:,1),  &
-                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-          endif
+          call diagnose_2d(Time, Grd, id_eta_tend_lprec, wrk1_2d(:,:))
           if(id_eta_tend_lprec_glob > 0) then 
               wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
               global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
@@ -5647,11 +5457,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                 wrk1_2d(i,j) = tmp_flux(i,j)*rhosfc_inv(i,j) 
              enddo
           enddo
-          if(id_eta_tend_fprec > 0) then 
-              used = send_data(id_eta_tend_fprec, wrk1_2d(:,:),&
-                     Time%model_time, rmask=Grd%tmask(:,:,1),  &
-                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-          endif
+          call diagnose_2d(Time, Grd, id_eta_tend_fprec, wrk1_2d(:,:))
           if(id_eta_tend_fprec_glob > 0) then 
               wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
               global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
@@ -5674,11 +5480,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                 wrk1_2d(i,j) = tmp_flux(i,j)*rhosfc_inv(i,j) 
              enddo
           enddo
-          if(id_eta_tend_runoff > 0) then 
-              used = send_data(id_eta_tend_runoff, wrk1_2d(:,:),&
-                     Time%model_time, rmask=Grd%tmask(:,:,1),   &
-                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-          endif
+          call diagnose_2d(Time, Grd, id_eta_tend_runoff, wrk1_2d(:,:))
           if(id_eta_tend_runoff_glob > 0) then 
               wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
               global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
@@ -5700,11 +5502,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                 wrk1_2d(i,j) = tmp_flux(i,j)*rhosfc_inv(i,j) 
              enddo
           enddo
-          if(id_eta_tend_iceberg > 0) then 
-              used = send_data(id_eta_tend_iceberg, wrk1_2d(:,:),&
-                     Time%model_time, rmask=Grd%tmask(:,:,1),    &
-                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-          endif
+          call diagnose_2d(Time, Grd, id_eta_tend_iceberg, wrk1_2d(:,:))
           if(id_eta_tend_iceberg_glob > 0) then 
               wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
               global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
@@ -5719,11 +5517,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                 wrk3_2d(i,j) = wrk3_2d(i,j)*rhosfc_inv(i,j) 
              enddo
           enddo
-          if(id_eta_tend_water_coupler > 0) then 
-              used = send_data(id_eta_tend_water_coupler, wrk3_2d(:,:),&
-                     Time%model_time, rmask=Grd%tmask(:,:,1),          &
-                     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-          endif
+          call diagnose_2d(Time, Grd, id_eta_tend_water_coupler, wrk3_2d(:,:))
           if(id_eta_tend_water_coupler_glob > 0) then 
               wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk3_2d(:,:)
               global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
