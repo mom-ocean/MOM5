@@ -825,7 +825,7 @@ subroutine ocean_tracer_diagnostics(Time, Thickness, T_prog, T_diag, Dens, &
                            T_prog(index_salt)%field(isd:ied,jsd:jed,:,tau),                    &
                            T_prog(index_temp)%field(isd:ied,jsd:jed,:,tau),                    &
                            Dens%rho(isd:ied,jsd:jed,:,tau),Dens%neutralrho(isd:ied,jsd:jed,:), &
-                           Dens%pressure_at_depth(isd:ied,jsd:jed,:), Time%model_time)
+                           Dens%pressure_at_depth(isd:ied,jsd:jed,:), Time)
   endif
   call mpp_clock_end(id_mixed_layer_depth)
 
@@ -833,7 +833,7 @@ subroutine ocean_tracer_diagnostics(Time, Thickness, T_prog, T_diag, Dens, &
   if(need_data(id_mld_dtheta, next_time)) then 
     call mixed_layer_depth_dtheta(Thickness,                               &
                            T_prog(index_temp)%field(isd:ied,jsd:jed,:,tau),&
-                           Time%model_time)
+                           Time)
   endif
   call mpp_clock_end(id_mixed_layer_depth_dtheta)
 
@@ -1073,7 +1073,7 @@ end subroutine calc_mixed_layer_depth
 ! Also compute neutral density at depth of the mixed layer. 
 ! </DESCRIPTION>
 !
-subroutine mixed_layer_depth(Thickness, salinity, theta, rho, neutralrho, pressure, model_time)
+subroutine mixed_layer_depth(Thickness, salinity, theta, rho, neutralrho, pressure, Time)
 
   type(ocean_thickness_type),   intent(in) :: Thickness
   real, dimension(isd:,jsd:,:), intent(in) :: salinity
@@ -1081,7 +1081,7 @@ subroutine mixed_layer_depth(Thickness, salinity, theta, rho, neutralrho, pressu
   real, dimension(isd:,jsd:,:), intent(in) :: rho
   real, dimension(isd:,jsd:,:), intent(in) :: neutralrho
   real, dimension(isd:,jsd:,:), intent(in) :: pressure 
-  type(time_type),              intent(in) :: model_time
+  type(ocean_time_type),        intent(in) :: Time
 
   integer :: i,j,k,kmt
   real, dimension(isd:ied,jsd:jed) :: hmxl
@@ -1091,15 +1091,11 @@ subroutine mixed_layer_depth(Thickness, salinity, theta, rho, neutralrho, pressu
     '==>Error from ocean_tracer_diag_mod (mixed_layer_depth): module needs initialization ')
   endif 
 
-  call calc_mixed_layer_depth(Thickness, salinity, theta, rho, pressure, model_time, hmxl)
+  call calc_mixed_layer_depth(Thickness, salinity, theta, rho, pressure, Time%model_time, hmxl)
 
-  if(id_mld > 0) then 
-         used = send_data (id_mld, hmxl(:,:), model_time, rmask=Grd%tmask(:,:,1), &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
+  call diagnose_2d(Time, Grd, id_mld, hmxl(:,:))
   if(id_mld_sq > 0) then 
-         used = send_data (id_mld_sq, hmxl(:,:)**2, model_time, rmask=Grd%tmask(:,:,1), &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_mld_sq, hmxl(:,:)**2)
   endif 
 
   ! compute neutral density at depth of hmxl 
@@ -1128,8 +1124,7 @@ subroutine mixed_layer_depth(Thickness, salinity, theta, rho, neutralrho, pressu
 
          enddo
       enddo
-      used = send_data (id_mld_nrho, wrk1_2d(:,:), model_time, rmask=Grd%tmask(:,:,1), &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_mld_nrho, wrk1_2d(:,:))
   endif
 
 
@@ -1157,11 +1152,11 @@ end subroutine mixed_layer_depth
 !
 ! </DESCRIPTION>
 !
-subroutine mixed_layer_depth_dtheta(Thickness, theta, model_time)
+subroutine mixed_layer_depth_dtheta(Thickness, theta, Time)
 
   type(ocean_thickness_type),   intent(in)  :: Thickness
   real, dimension(isd:,jsd:,:), intent(in)  :: theta
-  type(time_type),              intent(in)  :: model_time
+  type(ocean_time_type),        intent(in)  :: Time
 
   real      :: epsln=1.0e-20  ! for divisions 
   real      :: dtheta 
@@ -1206,10 +1201,7 @@ subroutine mixed_layer_depth_dtheta(Thickness, theta, model_time)
      enddo
   enddo
 
-  if(id_mld_dtheta > 0) then 
-         used = send_data (id_mld_dtheta, wrk1_2d(:,:), model_time, rmask=Grd%tmask(:,:,1), &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
+  call diagnose_2d(Time, Grd, id_mld_dtheta, wrk1_2d(:,:))
 
 
 end subroutine mixed_layer_depth_dtheta

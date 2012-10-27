@@ -168,6 +168,7 @@ use ocean_tracer_util_mod, only: tracer_psom_chksum, rebin_onto_rho
 use ocean_types_mod,       only: ocean_domain_type, ocean_grid_type, ocean_density_type, ocean_time_type
 use ocean_types_mod,       only: ocean_prog_tracer_type, ocean_thickness_type, ocean_adv_vel_type
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk1_2d 
+use ocean_util_mod,        only: diagnose_2d, diagnose_3d
 
 implicit none
 
@@ -2023,24 +2024,16 @@ subroutine horz_advect_tracer(Time, Adv_vel, Thickness, Dens, T_prog, Tracer, nt
       ! send some diagnostics 
 
       if (id_horz_advect(ntracer) > 0 .and. Tracer%horz_advect_scheme /= ADVECT_PSOM) then 
-           used = send_data(id_horz_advect(ntracer), Tracer%conversion*Tracer%wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                                        &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_horz_advect(ntracer), Tracer%conversion*Tracer%wrk1(:,:,:))
       endif 
       if (id_psom_advect(ntracer) > 0 .and. Tracer%horz_advect_scheme == ADVECT_PSOM) then 
-           used = send_data(id_psom_advect(ntracer), Tracer%conversion*Tracer%wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                                        &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_psom_advect(ntracer), Tracer%conversion*Tracer%wrk1(:,:,:))
       endif 
       if (id_xflux_adv(ntracer) > 0) then 
-           used = send_data(id_xflux_adv(ntracer), Tracer%conversion*flux_x(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_xflux_adv(ntracer), Tracer%conversion*flux_x(:,:,:))
       endif 
       if (id_yflux_adv(ntracer) > 0) then 
-           used = send_data(id_yflux_adv(ntracer), Tracer%conversion*flux_y(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_yflux_adv(ntracer), Tracer%conversion*flux_y(:,:,:))
       endif 
 
       if (id_xflux_adv_int_z(ntracer) > 0) then 
@@ -2048,9 +2041,7 @@ subroutine horz_advect_tracer(Time, Adv_vel, Thickness, Dens, T_prog, Tracer, nt
           do k=1,nk
              tmp_flux(isc:iec,jsc:jec) = tmp_flux(isc:iec,jsc:jec) +  flux_x(isc:iec,jsc:jec,k) 
           enddo
-          used = send_data(id_xflux_adv_int_z(ntracer), Tracer%conversion*tmp_flux(:,:), &
-               Time%model_time, rmask=Grd%tmask(:,:,1), &
-               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+          call diagnose_2d(Time, Grd, id_xflux_adv_int_z(ntracer), Tracer%conversion*tmp_flux(:,:))
       endif
 
       if (id_yflux_adv_int_z(ntracer) > 0) then 
@@ -2058,9 +2049,7 @@ subroutine horz_advect_tracer(Time, Adv_vel, Thickness, Dens, T_prog, Tracer, nt
           do k=1,nk
              tmp_flux(isc:iec,jsc:jec) = tmp_flux(isc:iec,jsc:jec) +  flux_y(isc:iec,jsc:jec,k) 
           enddo
-          used = send_data(id_yflux_adv_int_z(ntracer), Tracer%conversion*tmp_flux(:,:), &
-               Time%model_time, rmask=Grd%tmask(:,:,1), &
-               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+          call diagnose_2d(Time, Grd, id_yflux_adv_int_z(ntracer), Tracer%conversion*tmp_flux(:,:))
       endif
 
       if (have_obc) then
@@ -2182,9 +2171,7 @@ subroutine vert_advect_tracer(Time, Adv_vel, Dens, Thickness, T_prog, Tracer, nt
       enddo
 
       if(id_tracer_advection(ntracer) > 0) then 
-          used = send_data(id_tracer_advection(ntracer), Tracer%conversion*advect_tendency(:,:,:), &
-               Time%model_time, rmask=Grd%tmask(:,:,:),                                            &
-               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_tracer_advection(ntracer), Tracer%conversion*advect_tendency(:,:,:))
       endif
 
       ! for watermass_diag 
@@ -2209,14 +2196,10 @@ subroutine vert_advect_tracer(Time, Adv_vel, Dens, Thickness, T_prog, Tracer, nt
 
       ! send some more diagnostics 
       if (id_vert_advect(ntracer) > 0) then 
-           used = send_data(id_vert_advect(ntracer), Tracer%conversion*Tracer%wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                                        &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_vert_advect(ntracer), Tracer%conversion*Tracer%wrk1(:,:,:))
       endif 
       if (id_zflux_adv(ntracer) > 0)  then 
-          used = send_data(id_zflux_adv(ntracer), Tracer%conversion*flux_z(:,:,:),&
-          Time%model_time, rmask=Grd%tmask(:,:,:),                                &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_zflux_adv(ntracer), Tracer%conversion*flux_z(:,:,:))
       endif 
 
       if(ntracer == num_prog_tracers) then 
@@ -4233,15 +4216,11 @@ subroutine advect_tracer_sweby_all(Time, Adv_vel, Dens, T_prog, Thickness, dtime
      call mpp_clock_end(id_clock_mdfl_sweby_mpi)
 
      call mpp_clock_begin(id_clock_mdfl_sweby_dia)
-     if (id_zflux_adv(n) > 0) used = send_data(id_zflux_adv(n),&
-         T_prog(n)%conversion*flux_z(:,:,:),                   &
-         Time%model_time, rmask=Grd%tmask(:,:,:),              &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     if (id_zflux_adv(n) > 0) call diagnose_3d(Time, Grd, id_zflux_adv(n), &
+         T_prog(n)%conversion*flux_z(:,:,:))
 
-     if (id_advection_z(n) > 0) used = send_data(id_advection_z(n), &
-         T_prog(n)%conversion*wrk1(:,:,:),                          &
-         Time%model_time, rmask=Grd%tmask(:,:,:),                   &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     if (id_advection_z(n) > 0) call diagnose_3d(Time, Grd, id_advection_z(n), &
+         T_prog(n)%conversion*wrk1(:,:,:))
      call mpp_clock_end(id_clock_mdfl_sweby_dia)
     
   enddo ! end of n-loop for tracers  
@@ -4326,13 +4305,9 @@ subroutine advect_tracer_sweby_all(Time, Adv_vel, Dens, T_prog, Thickness, dtime
      call mpp_clock_end(id_clock_mdfl_sweby_mpi)
 
      call mpp_clock_begin(id_clock_mdfl_sweby_dia)
-     if (id_xflux_adv(n) > 0) used = send_data(id_xflux_adv(n), T_prog(n)%conversion*flux_x(:,:,:), &
-          Time%model_time, rmask=Grd%tmask(:,:,:), &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     if (id_xflux_adv(n) > 0) call diagnose_3d(Time, Grd, id_xflux_adv(n), T_prog(n)%conversion*flux_x(:,:,:))
 
-     if (id_advection_x(n) > 0) used = send_data(id_advection_x(n), T_prog(n)%conversion*wrk1(:,:,:), &
-                                       Time%model_time, rmask=Grd%tmask(:,:,:),                       &
-                                       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     if (id_advection_x(n) > 0) call diagnose_3d(Time, Grd, id_advection_x(n), T_prog(n)%conversion*wrk1(:,:,:))
 
      if (id_xflux_adv_int_z(n) > 0) then 
          tmp_flux(:,:) = 0.0
@@ -4343,9 +4318,7 @@ subroutine advect_tracer_sweby_all(Time, Adv_vel, Dens, T_prog, Thickness, dtime
                enddo
             enddo
          enddo
-         used = send_data(id_xflux_adv_int_z(n), T_prog(n)%conversion*tmp_flux(:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,1), &
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         call diagnose_2d(Time, Grd, id_xflux_adv_int_z(n), T_prog(n)%conversion*tmp_flux(:,:))
      endif
      call mpp_clock_end(id_clock_mdfl_sweby_dia)
 
@@ -4462,15 +4435,11 @@ subroutine advect_tracer_sweby_all(Time, Adv_vel, Dens, T_prog, Thickness, dtime
 
      ! diagnostics 
 
-     if (id_yflux_adv(n) > 0) used = send_data(id_yflux_adv(n), &
-                      T_prog(n)%conversion*flux_y(:,:,:),       &
-                      Time%model_time, rmask=Grd%tmask(:,:,:),  &
-                      is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     if (id_yflux_adv(n) > 0) call diagnose_3d(Time, Grd, id_yflux_adv(n), &
+                      T_prog(n)%conversion*flux_y(:,:,:))
 
-     if (id_advection_y(n) > 0) used = send_data(id_advection_y(n), &
-                      T_prog(n)%conversion*wrk1(:,:,:),             &
-                      Time%model_time, rmask=Grd%tmask(:,:,:),      &
-                      is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     if (id_advection_y(n) > 0) call diagnose_3d(Time, Grd, id_advection_y(n), &
+                      T_prog(n)%conversion*wrk1(:,:,:))
 
      if (id_yflux_adv_int_z(n) > 0) then 
          tmp_flux(:,:) = 0.0
@@ -4481,15 +4450,11 @@ subroutine advect_tracer_sweby_all(Time, Adv_vel, Dens, T_prog, Thickness, dtime
                        enddo
                     enddo
                  enddo
-         used = send_data(id_yflux_adv_int_z(n), T_prog(n)%conversion*tmp_flux(:,:), &
-                 Time%model_time, rmask=Grd%tmask(:,:,1),                            &
-                 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+                 call diagnose_2d(Time, Grd, id_yflux_adv_int_z(n), T_prog(n)%conversion*tmp_flux(:,:))
      endif
 
      if (id_sweby_advect(n) > 0) then 
-          used = send_data(id_sweby_advect(n), T_prog(n)%conversion*T_prog(n)%wrk1(:,:,:), &
-                      Time%model_time, rmask=Grd%tmask(:,:,:),                             &
-                      is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+        call diagnose_3d(Time, Grd, id_sweby_advect(n), T_prog(n)%conversion*T_prog(n)%wrk1(:,:,:))
      endif
 
      advect_tendency(:,:,:) = 0.0
@@ -7535,21 +7500,9 @@ subroutine watermass_diag(Time, Dens, Thickness)
         enddo
      enddo
   enddo
-  if(id_neut_rho_advect > 0) then
-      used = send_data(id_neut_rho_advect, wrk2(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),    &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_wdian_rho_advect > 0) then 
-      used = send_data(id_wdian_rho_advect, wrk3(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_tform_rho_advect > 0) then 
-      used = send_data(id_tform_rho_advect, wrk4(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_neut_rho_advect, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_rho_advect, wrk3(:,:,:))
+  call diagnose_3d(Time, Grd, id_tform_rho_advect, wrk4(:,:,:))
   if(id_neut_rho_advect_on_nrho > 0) then
       nrho_work(:,:,:) = 0.0
       call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work) 
@@ -7585,21 +7538,9 @@ subroutine watermass_diag(Time, Dens, Thickness)
         enddo
      enddo
   enddo
-  if(id_neut_temp_advect > 0) then
-      used = send_data(id_neut_temp_advect, wrk2(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_wdian_temp_advect > 0) then 
-      used = send_data(id_wdian_temp_advect, wrk3(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_tform_temp_advect > 0) then 
-      used = send_data(id_tform_temp_advect, wrk4(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_neut_temp_advect, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_temp_advect, wrk3(:,:,:))
+  call diagnose_3d(Time, Grd, id_tform_temp_advect, wrk4(:,:,:))
   if(id_neut_temp_advect_on_nrho > 0) then
       nrho_work(:,:,:) = 0.0
       call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work) 
@@ -7634,21 +7575,9 @@ subroutine watermass_diag(Time, Dens, Thickness)
         enddo
      enddo
   enddo
-  if(id_neut_salt_advect > 0) then
-      used = send_data(id_neut_salt_advect, wrk2(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_wdian_salt_advect > 0) then 
-      used = send_data(id_wdian_salt_advect, wrk3(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_tform_salt_advect > 0) then 
-      used = send_data(id_tform_salt_advect, wrk4(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_neut_salt_advect, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_salt_advect, wrk3(:,:,:))
+  call diagnose_3d(Time, Grd, id_tform_salt_advect, wrk4(:,:,:))
   if(id_neut_salt_advect_on_nrho > 0) then
       nrho_work(:,:,:) = 0.0
       call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work) 
@@ -7863,14 +7792,10 @@ subroutine compute_adv_diss(Time, Adv_vel, Thickness, T_prog, Tracer, ntracer, d
      enddo
   enddo
 
-  used = send_data(id_tracer_adv_diss(ntracer), wrk4(:,:,:), &
-         Time%model_time, rmask=Grd%tmask(:,:,:),            &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grd, id_tracer_adv_diss(ntracer), wrk4(:,:,:))
 
   if(id_tracer2_advection(ntracer) > 0) then 
-      used = send_data(id_tracer2_advection(ntracer), wrk1(:,:,:)*Tracer%conversion**2, &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                                     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_tracer2_advection(ntracer), wrk1(:,:,:)*Tracer%conversion**2)
   endif
 
   call mpp_clock_end(id_clock_adv_diss)

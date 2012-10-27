@@ -45,7 +45,7 @@ use ocean_types_mod,      only: ocean_domain_type, ocean_grid_type
 use ocean_types_mod,      only: ocean_adv_vel_type, ocean_density_type
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_thickness_type
 use ocean_types_mod,      only: ocean_time_type, ocean_time_steps_type
-use ocean_util_mod,       only: matrix
+use ocean_util_mod,       only: matrix, diagnose_2d, diagnose_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk1_2d
 
 implicit none
@@ -848,9 +848,7 @@ subroutine transport_on_s(Time, Adv_vel)
             enddo
          enddo
     enddo 
-    used = send_data (id_tx_trans, wrk1(:,:,:),     &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+    call diagnose_3d(Time, Grd, id_tx_trans, wrk1(:,:,:))
   endif 
   if (id_tx_trans_int_z > 0) then 
       wrk1_2d(:,:) = 0.0
@@ -861,9 +859,7 @@ subroutine transport_on_s(Time, Adv_vel)
             enddo
          enddo
       enddo
-      used = send_data (id_tx_trans_int_z, wrk1_2d(:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,1),   &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_tx_trans_int_z, wrk1_2d(:,:))
   endif
  
   if (id_ty_trans > 0) then 
@@ -874,9 +870,7 @@ subroutine transport_on_s(Time, Adv_vel)
          enddo 
       enddo
     enddo 
-    used = send_data (id_ty_trans, wrk1(:,:,:),     &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+    call diagnose_3d(Time, Grd, id_ty_trans, wrk1(:,:,:))
   endif 
   if (id_ty_trans_int_z > 0) then 
       wrk1_2d(:,:) = 0.0
@@ -887,9 +881,7 @@ subroutine transport_on_s(Time, Adv_vel)
             enddo
          enddo
       enddo
-      used = send_data (id_ty_trans_int_z, wrk1_2d(:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,1),   &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_ty_trans_int_z, wrk1_2d(:,:))
   endif
 
   if (id_tz_trans > 0) then 
@@ -900,9 +892,7 @@ subroutine transport_on_s(Time, Adv_vel)
          enddo 
       enddo
     enddo 
-    used = send_data (id_tz_trans, wrk1(:,:,:),     &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+    call diagnose_3d(Time, Grd, id_tz_trans, wrk1(:,:,:))
   endif 
   if (id_tz_trans_int_z > 0) then 
       wrk1_2d(:,:) = 0.0
@@ -913,9 +903,7 @@ subroutine transport_on_s(Time, Adv_vel)
             enddo
          enddo
       enddo
-      used = send_data (id_tz_trans_int_z, wrk1_2d(:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,1),   &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(TIme, Grd, id_tz_trans_int_z, wrk1_2d(:,:))
   endif
   if (id_tz_trans_sq > 0) then 
     do k=1,nk
@@ -925,9 +913,7 @@ subroutine transport_on_s(Time, Adv_vel)
          enddo 
       enddo
     enddo 
-    used = send_data (id_tz_trans_sq, wrk1(:,:,:),  &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+    call diagnose_3d(Time, Grd, id_tz_trans_sq, wrk1(:,:,:))
   endif 
 
   ! relevant only for Bgrid 
