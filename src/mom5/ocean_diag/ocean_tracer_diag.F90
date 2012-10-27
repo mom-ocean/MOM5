@@ -130,7 +130,7 @@ use ocean_types_mod,       only: ocean_prog_tracer_type, ocean_diag_tracer_type
 use ocean_types_mod,       only: ocean_external_mode_type, ocean_density_type, ocean_adv_vel_type
 use ocean_types_mod,       only: ocean_time_type, ocean_time_steps_type, ocean_thickness_type
 use ocean_types_mod,       only: ocean_lagrangian_type
-use ocean_util_mod,        only: write_timestamp
+use ocean_util_mod,        only: write_timestamp, diagnose_2d
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4
 use ocean_workspace_mod,   only: wrk1_2d, wrk2_2d, wrk3_2d, wrk4_2d
 use ocean_workspace_mod,   only: wrk1_v, wrk2_v , wrk3_v 
@@ -1410,26 +1410,11 @@ kloop:  do k=1,nk-1
      enddo
   enddo
 
-  if(id_subduction_dhdt > 0) then 
-     used = send_data (id_subduction_dhdt, subduction_dhdt(:,:), &
-     Time%model_time, rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if(id_subduction_horz > 0) then 
-     used = send_data (id_subduction_horz, subduction_horz(:,:), &
-     Time%model_time, rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if(id_subduction_vert > 0) then 
-     used = send_data (id_subduction_vert, subduction_vert(:,:), &
-     Time%model_time, rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if(id_subduction > 0) then 
-     used = send_data (id_subduction, subduction(:,:), &
-     Time%model_time, rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if(id_subduction_mld > 0) then 
-     used = send_data (id_subduction_mld, mld_tau(:,:), &
-     Time%model_time, rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
+  call diagnose_2d(Time, Grd, id_subduction_dhdt, subduction_dhdt(:,:))
+  call diagnose_2d(Time, Grd, id_subduction_horz, subduction_horz(:,:))
+  call diagnose_2d(Time, Grd, id_subduction_vert, subduction_vert(:,:))
+  call diagnose_2d(Time, Grd, id_subduction, subduction(:,:))
+  call diagnose_2d(Time, Grd, id_subduction_mld, mld_tau(:,:))
 
   if(id_subduction_dhdt_nrho > 0) then
      nrho_work(:,:,:) = 0.0
@@ -4037,17 +4022,8 @@ subroutine potrho_mixed_layer (Time, Thickness, Dens)
          potrho_mix_base = potrho_mix_base)
   endif
 
-  if (id_potrho_mix_depth > 0) then 
-      used = send_data (id_potrho_mix_depth, potrho_mix_depth(:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,1), &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
-  if (id_potrho_mix_base > 0) then 
-      used = send_data (id_potrho_mix_base, potrho_mix_base(:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,1), &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+  call diagnose_2d(Time, Grd, id_potrho_mix_depth, potrho_mix_depth(:,:))
+  call diagnose_2d(Time, Grd, id_potrho_mix_base, potrho_mix_base(:,:))
 
 end subroutine potrho_mixed_layer
 ! </SUBROUTINE> NAME="potrho_mixed_layer"
