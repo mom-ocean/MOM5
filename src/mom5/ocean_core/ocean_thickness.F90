@@ -181,7 +181,7 @@ use ocean_tracer_util_mod,only: dzt_min_max
 use ocean_types_mod,      only: ocean_time_type, ocean_domain_type, ocean_external_mode_type
 use ocean_types_mod,      only: ocean_grid_type, ocean_thickness_type, ocean_density_type
 use ocean_types_mod,      only: ocean_time_steps_type, ocean_lagrangian_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, diagnose_2d, diagnose_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk1_2d
 
 implicit none
@@ -3057,13 +3057,8 @@ subroutine update_tcell_thickness (Time, Grid, Ext_mode, Dens, Thickness)
   huge_undulations=.false.
 
   ! write tau values of the vertical grid increments before update to taup1 
-  
-  if (id_dst > 0)     used  = send_data (id_dst, Thickness%dst(:,:,:), &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                       &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk) 
-  if (id_dzt > 0)     used  = send_data (id_dzt, Thickness%dzt(:,:,:), &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                       &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grid, id_dst, Thickness%dst(:,:,:))
+  call diagnose_3d(Time, Grid, id_dzt, Thickness%dzt(:,:,:))
 
   if (id_dzt_pbc > 0) then 
       wrk1_2d(:,:) = 0.0
@@ -3075,41 +3070,19 @@ subroutine update_tcell_thickness (Time, Grid, Ext_mode, Dens, Thickness)
             endif
          enddo
       enddo
-      used  = send_data (id_dzt_pbc, wrk1_2d(:,:),        &
-              Time%model_time, rmask=Grid%tmask(:,:,1),   &
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grid, id_dzt_pbc, wrk1_2d(:,:))
   endif
 
-  if (id_dztlo > 0)     used  = send_data (id_dztlo, Thickness%dztlo(:,:,:),       &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_dztup > 0)     used  = send_data (id_dztup, Thickness%dztup(:,:,:),       &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_dzwt > 0)    used  = send_data (id_dzwt, Thickness%dzwt(:,:,1:nk),        &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_rho_dzt > 0) used  = send_data (id_rho_dzt, Thickness%rho_dzt(:,:,:,tau), &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_dzt_dst > 0) used  = send_data (id_dzt_dst, Thickness%dzt_dst(:,:,:),     &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_depth_zt > 0) used = send_data (id_depth_zt, Thickness%depth_zt(:,:,:),   &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_geodepth_zt > 0) used = send_data (id_geodepth_zt, Thickness%geodepth_zt(:,:,:), &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                          &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_depth_st > 0) used = send_data (id_depth_st, Thickness%depth_st(:,:,:),   &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_depth_swt > 0) used = send_data (id_depth_swt, Thickness%depth_swt(:,:,:),&
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_depth_zwt > 0) used= send_data (id_depth_zwt, Thickness%depth_zwt(:,:,:), &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grid, id_dztlo, Thickness%dztlo(:,:,:))
+  call diagnose_3d(Time, Grid, id_dztup, Thickness%dztup(:,:,:))
+  call diagnose_3d(Time, Grid, id_dzwt, Thickness%dzwt(:,:,1:nk))
+  call diagnose_3d(Time, Grid, id_rho_dzt, Thickness%rho_dzt(:,:,:,tau))
+  call diagnose_3d(Time, Grid, id_dzt_dst, Thickness%dzt_dst(:,:,:))
+  call diagnose_3d(Time, Grid, id_depth_zt, Thickness%depth_zt(:,:,:))
+  call diagnose_3d(Time, Grid, id_geodepth_zt, Thickness%geodepth_zt(:,:,:))
+  call diagnose_3d(Time, Grid, id_depth_st, Thickness%depth_st(:,:,:))
+  call diagnose_3d(Time, Grid, id_depth_swt, Thickness%depth_swt(:,:,:))
+  call diagnose_3d(Time, Grid, id_depth_zwt, Thickness%depth_zwt(:,:,:))
 
   if (id_mass_t > 0) then 
       wrk1(:,:,:) = 0.0
@@ -3120,9 +3093,7 @@ subroutine update_tcell_thickness (Time, Grid, Ext_mode, Dens, Thickness)
             enddo
          enddo
       enddo
-      used  = send_data (id_mass_t, wrk1(:,:,:),       &
-              Time%model_time, rmask=Grid%tmask(:,:,:),&
-              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grid, id_mass_t, wrk1(:,:,:))
   endif
 
 
@@ -3987,9 +3958,7 @@ subroutine rho_dzt_tendency(Time, Grid, Ext_mode, Thickness)
       enddo
   endif 
 
-  if (id_rho_dzt_tendency > 0)  used = send_data (id_rho_dzt_tendency, Thickness%rho_dzt_tendency(:,:,:), &
-                                Time%model_time, rmask=Grid%tmask(:,:,:), &
-                                is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grid, id_rho_dzt_tendency, Thickness%rho_dzt_tendency(:,:,:))
 
   if (id_mass_tendency > 0) then 
       do k=1,nk
@@ -3999,9 +3968,7 @@ subroutine rho_dzt_tendency(Time, Grid, Ext_mode, Thickness)
             enddo
          enddo
       enddo
-      used = send_data (id_mass_tendency, wrk1(:,:,:),&
-           Time%model_time, rmask=Grid%tmask(:,:,:),  &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grid, id_mass_tendency, wrk1(:,:,:))
   endif
 
 
@@ -4458,19 +4425,10 @@ subroutine dzt_dst_update(Time, Grid, Ext_mode, Dens, Thickness)
   tau   = Time%tau
   taup1 = Time%taup1
 
-  if (id_dst > 0)     used  = send_data (id_dst, Thickness%dst(:,:,:),             &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk) 
-  if (id_dzt_dst > 0) used  = send_data (id_dzt_dst, Thickness%dzt_dst(:,:,:),     &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_depth_st > 0) used = send_data (id_depth_st, Thickness%depth_st(:,:,:),   &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_depth_swt > 0) used = send_data (id_depth_swt, Thickness%depth_swt(:,:,:),&
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
+  call diagnose_3d(Time, Grid, id_dst, Thickness%dst(:,:,:))
+  call diagnose_3d(Time, Grid, id_dzt_dst, Thickness%dzt_dst(:,:,:))
+  call diagnose_3d(Time, Grid, id_depth_st, Thickness%depth_st(:,:,:))
+  call diagnose_3d(Time, Grid, id_depth_swt, Thickness%depth_swt(:,:,:))
 
   ! Note: ZSIGMA and PSIGMA not supported by this implementation of the Lagrangian blobs
 
@@ -4599,15 +4557,9 @@ subroutine update_tcell_thick_blob(Time, Grid, Ext_mode, Dens, Thickness)
 
   ! write tau values of the vertical grid increments before update to taup1 
   
-  if (id_dzt > 0)     used  = send_data (id_dzt, Thickness%dztT(:,:,:,tau), &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                            &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_dztL > 0)     used  = send_data (id_dztL, Thickness%dztL(:,:,:),   &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                            &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_dztE > 0)     used  = send_data (id_dztE, Thickness%dzt(:,:,:),    &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                            &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grid, id_dzt, Thickness%dztT(:,:,:,tau))
+  call diagnose_3d(Time, Grid, id_dztL, Thickness%dztL(:,:,:))
+  call diagnose_3d(Time, Grid, id_dztE, Thickness%dzt(:,:,:))
 
   if (id_dzt_pbc > 0) then 
       wrk1_2d(:,:) = 0.0
@@ -4619,63 +4571,29 @@ subroutine update_tcell_thick_blob(Time, Grid, Ext_mode, Dens, Thickness)
             endif
          enddo
       enddo
-      used  = send_data (id_dzt_pbc, wrk1_2d(:,:),        &
-              Time%model_time, rmask=Grid%tmask(:,:,1),   &
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grid, id_dzt_pbc, wrk1_2d(:,:))
   endif
 
-  if (id_dztlo > 0)     used  = send_data (id_dztlo, Thickness%dztloT(:,:,:),      &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_dztloL > 0)     used  = send_data (id_dztloL, Thickness%dztloL(:,:,:),    &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_dztloE > 0)     used  = send_data (id_dztloE, Thickness%dztlo(:,:,:),    &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                  &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grid, id_dztlo, Thickness%dztloT(:,:,:))
+  call diagnose_3d(Time, Grid, id_dztloL, Thickness%dztloL(:,:,:))
+  call diagnose_3d(Time, Grid, id_dztloE, Thickness%dztlo(:,:,:))
+  
+  call diagnose_3d(Time, Grid, id_dztup, Thickness%dztupT(:,:,:))
+  call diagnose_3d(Time, Grid, id_dztupL, Thickness%dztupL(:,:,:))
+  call diagnose_3d(Time, Grid, id_dztupE, Thickness%dztup(:,:,:))
 
-  if (id_dztup > 0)     used  = send_data (id_dztup, Thickness%dztupT(:,:,:),      &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_dztupL > 0)     used  = send_data (id_dztupL, Thickness%dztupL(:,:,:),    &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_dztupE > 0)     used  = send_data (id_dztupE, Thickness%dztup(:,:,:),    &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                  &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grid, id_dzwt, Thickness%dzwtT(:,:,1:nk))
+  call diagnose_3d(Time, Grid, id_dzwtL, Thickness%dzwtL(:,:,1:nk))
+  call diagnose_3d(Time, Grid, id_dzwtE, Thickness%dzwt(:,:,1:nk))
 
-  if (id_dzwt > 0)    used  = send_data (id_dzwt, Thickness%dzwtT(:,:,1:nk),       &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_dzwtL > 0)    used  = send_data (id_dzwtL, Thickness%dzwtL(:,:,1:nk),     &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_dzwtE > 0)    used  = send_data (id_dzwtE, Thickness%dzwt(:,:,1:nk), &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                              &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grid, id_rho_dzt, Thickness%rho_dztT(:,:,:,tau))
+  call diagnose_3d(Time, Grid, id_rho_dztL, Thickness%rho_dztL(:,:,:,tau))
+  call diagnose_3d(Time, Grid, id_rho_dztE, Thickness%rho_dzt(:,:,:,tau))
 
-  if (id_rho_dzt > 0) used  = send_data (id_rho_dzt, Thickness%rho_dztT(:,:,:,tau),&
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_rho_dztL > 0) used  = send_data (id_rho_dztL, Thickness%rho_dztL(:,:,:,tau), &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                      &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_rho_dztE > 0) used  = send_data (id_rho_dztE, Thickness%rho_dzt(:,:,:,tau), &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                     &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-  if (id_depth_zt > 0) used = send_data (id_depth_zt, Thickness%depth_zt(:,:,:),   &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_geodepth_zt > 0) used = send_data (id_geodepth_zt, Thickness%geodepth_zt(:,:,:), &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                          &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_geodepth_zwt > 0) used = send_data (id_geodepth_zwt, Thickness%geodepth_zwt(:,:,:), &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                             &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_depth_zwt > 0) used= send_data (id_depth_zwt, Thickness%depth_zwt(:,:,:), &
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grid, id_depth_zt, Thickness%depth_zt(:,:,:))
+  call diagnose_3d(Time, Grid, id_geodepth_zt, Thickness%geodepth_zt(:,:,:))
+  call diagnose_3d(Time, Grid, id_geodepth_zwt, Thickness%geodepth_zwt(:,:,:))
+  call diagnose_3d(Time, Grid, id_depth_zwt, Thickness%depth_zwt(:,:,:))
 
   ! Note, the coordinate increments for GEOPOTENTIAL and PRESSURE
   ! have been updated in dzt_dst_update

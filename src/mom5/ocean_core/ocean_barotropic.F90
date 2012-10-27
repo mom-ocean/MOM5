@@ -2591,7 +2591,7 @@ subroutine eta_and_pbot_diagnose (Time, Dens, Thickness, patm, pme, river, Ext_m
   if (id_eta_t_sq > 0) then
      call diagnose_2d(Time, Grd, id_eta_t_sq, Ext_mode%eta_t(:,:,tau)*Ext_mode%eta_t(:,:,tau))
   endif 
-  call diagnost_2d(Time, Grd, id_eta_t_mod, wrk1_2d(:,:))
+  call diagnose_2d(Time, Grd, id_eta_t_mod, wrk1_2d(:,:))
 
   if (id_eta_u > 0) then 
       used = send_data (id_eta_u, Ext_mode%eta_u(:,:,tau),      &
