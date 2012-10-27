@@ -78,7 +78,7 @@ use ocean_types_mod,      only: ocean_domain_type, ocean_grid_type
 use ocean_types_mod,      only: ocean_time_type, ocean_velocity_type
 use ocean_types_mod,      only: ocean_thickness_type, ocean_density_type
 use ocean_types_mod,      only: ocean_lagrangian_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, diagnose_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk1_zw, wrk2_zw, wrk1_v, wrk2_v, wrk1_2d
 use ocean_workspace_mod,  only: wrk3, wrk4
 use ocean_obc_mod,        only: store_ocean_obc_pressure_grad
@@ -409,9 +409,7 @@ subroutine pressure_force(Time, Thickness, Dens, Velocity, L_system, rho)
 
   ! send some diagnostics 
 
-  if(id_geopotential > 0) used = send_data( id_geopotential, -grav*Thickness%geodepth_zt(:,:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,:),                                                  &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  if(id_geopotential > 0) call diagnose_3d(Time, Grd, id_geopotential, -grav*Thickness%geodepth_zt(:,:,:))
 
   if (id_press_force(1) > 0) then 
        used = send_data( id_press_force(1), Velocity%press_force(:,:,:,1), &
@@ -570,11 +568,7 @@ subroutine press_grad_force_depth_bgrid(Time, Thickness, Velocity, rho)
 
   ! diagnostics 
 
-  if(id_anompress > 0) then 
-      used = send_data( id_anompress, wrk1(:,:,:),  &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_anompress, wrk1(:,:,:))
 
   ! (dzurhoprime_geograd_x_klev,dzurhoprime_geograd_y_klev)
   if (id_rhoprime_geograd_klev(1) > 0) then 
@@ -722,11 +716,7 @@ subroutine press_grad_force_press_bgrid(Time, Thickness, Dens, Velocity, rho)
 
   ! diagnostics 
 
-  if(id_anomgeopot > 0) then 
-      used = send_data( id_anomgeopot, wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_anomgeopot, wrk1(:,:,:))
 
   ! (dzurhoprime_pgrad_x_klev,dzurhoprime_pgrad_y_klev)
   if (id_rhoprime_pgrad_klev(1) > 0) then 
@@ -844,11 +834,7 @@ subroutine press_grad_force_depth_cgrid(Time, Thickness, Velocity, rho)
   enddo
 
   ! diagnostics 
-  if(id_anompress > 0) then 
-      used = send_data( id_anompress, wrk1(:,:,:),   &
-             Time%model_time, rmask=Grd%tmask(:,:,:),&
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_anompress, wrk1(:,:,:))
 
   if (id_rhoprime_geograd_klev(1) > 0) then 
      do k=1,nk
@@ -858,9 +844,7 @@ subroutine press_grad_force_depth_cgrid(Time, Thickness, Velocity, rho)
            enddo
         enddo
      enddo
-     used=send_data(id_rhoprime_geograd_klev(1),wrk1_v(:,:,:,1),&
-                    Time%model_time, rmask=Grd%tmask(:,:,:),    &
-                    is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_rhoprime_geograd_klev(1), wrk1_v(:,:,:,1))
   endif
   if (id_rhoprime_geograd_klev(2) > 0) then 
      do k=1,nk
@@ -870,9 +854,7 @@ subroutine press_grad_force_depth_cgrid(Time, Thickness, Velocity, rho)
            enddo
         enddo
      enddo
-     used=send_data(id_rhoprime_geograd_klev(2),wrk1_v(:,:,:,2),&
-                    Time%model_time, rmask=Grd%tmask(:,:,:),    &
-                    is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_rhoprime_geograd_klev(2), wrk1_v(:,:,:,2))
   endif
   if (id_pgrad_klev(1) > 0) then 
      do k=1,nk
@@ -882,9 +864,7 @@ subroutine press_grad_force_depth_cgrid(Time, Thickness, Velocity, rho)
            enddo
         enddo
      enddo
-     used = send_data(id_pgrad_klev(1), wrk2_v(:,:,:,1),      &
-                      Time%model_time, rmask=Grd%tmask(:,:,:),&
-                      is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_pgrad_klev(1), wrk2_v(:,:,:,1))
   endif
   if (id_pgrad_klev(2) > 0) then 
      do k=1,nk
@@ -894,9 +874,7 @@ subroutine press_grad_force_depth_cgrid(Time, Thickness, Velocity, rho)
            enddo
         enddo
      enddo
-     used = send_data(id_pgrad_klev(2), wrk2_v(:,:,:,2),      &
-                      Time%model_time, rmask=Grd%tmask(:,:,:),&
-                      is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_pgrad_klev(2), wrk2_v(:,:,:,2))
   endif
 
 
@@ -980,33 +958,13 @@ subroutine press_grad_force_press_cgrid(Time, Thickness, Dens, Velocity, rho)
   enddo
 
   ! diagnostics 
-  if(id_anomgeopot > 0) then 
-      used = send_data( id_anomgeopot, wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_anomgeopot, wrk1(:,:,:))
 
-  if (id_rhoprime_pgrad_klev(1) > 0) then 
-      used = send_data(id_rhoprime_pgrad_klev(1),wrk1_v(:,:,:,1), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),               &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_rhoprime_pgrad_klev(2) > 0) then 
-      used = send_data(id_rhoprime_pgrad_klev(2),wrk1_v(:,:,:,2), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),               &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_rhoprime_pgrad_klev(1), wrk1_v(:,:,:,1))
+  call diagnose_3d(Time, Grd, id_rhoprime_pgrad_klev(2), wrk1_v(:,:,:,2))
 
-  if (id_rho_geogradprime_klev(1) > 0) then 
-      used=send_data(id_rho_geogradprime_klev(1),wrk2_v(:,:,:,1), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),               &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_rho_geogradprime_klev(2) > 0) then 
-      used=send_data(id_rho_geogradprime_klev(2),wrk2_v(:,:,:,2), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),               &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_rho_geogradprime_klev(1), wrk2_v(:,:,:,1))
+  call diagnose_3d(Time, Grd, id_rho_geogradprime_klev(2), wrk2_v(:,:,:,2))
 
 
 end subroutine press_grad_force_press_cgrid
@@ -1299,11 +1257,7 @@ subroutine press_grad_force_depth_blob(Time, Thickness, Velocity, L_system, rho)
   ! ( Pa=N/m^2=kg/(m*s^2) )
   wrk1(:,:,:) = hydrostatic_pressure_blob(Thickness, rho_anomup(:,:,:), rho_anomlo(:,:,:))  
 
-  if(id_anompress > 0) then 
-      used = send_data( id_anompress, wrk1(:,:,:),  &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_anompress, wrk1(:,:,:))
 
   diff_geo_x(:,:) = 0.0
   diff_geo_y(:,:) = 0.0
@@ -1475,11 +1429,7 @@ subroutine press_grad_force_press_blob(Time, Thickness, Dens, Velocity, L_system
   ! compute geopotential anomaly (m^2/s^2) at T-cell point 
   wrk1(:,:,:) = geopotential_anomaly_blob(Thickness, rho_anomup(:,:,:), rho_anomlo(:,:,:)) 
 
-  if(id_anomgeopot > 0) then 
-      used = send_data( id_anomgeopot, wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_anomgeopot, wrk1(:,:,:))
 
   diff_press_x(:,:) = 0.0
   diff_press_y(:,:) = 0.0
