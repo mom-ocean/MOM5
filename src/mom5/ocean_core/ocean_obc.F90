@@ -675,11 +675,10 @@ contains
   !      if true, open boudanry exists. 
   !   </INOUT>
   !<PUBLICROUTINE>
-  subroutine ocean_obc_init(have_obc, Time, Time_steps, Domain, Grid, Ocean_options, ver_coordinate, debug)
+  subroutine ocean_obc_init(have_obc, Time_steps, Domain, Grid, Ocean_options, ver_coordinate, debug)
   !</PUBLICROUTINE>
 
     logical, intent(inout)                       :: have_obc
-    type(ocean_time_type), intent(in)            :: Time
     type(ocean_time_steps_type), intent(in)      :: Time_steps
     type (ocean_domain_type),intent(in),  target :: Domain
     type(ocean_grid_type), intent(inout), target :: Grid
@@ -1662,7 +1661,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
        write(obc_out_unit(m),*) '-----------------------------------------------------------------'
     enddo
 
-    call ocean_obc_check_topog(Grid%ht, Grid%hu, Grid%kmt, Grid%kmu)
+    call ocean_obc_check_topog(Grid%kmt)
     
     call ocean_obc_set_mask
 
@@ -2916,9 +2915,6 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
   !   <IN NAME="time" TYPE="type(time_type)">
   !     model time
   !   </IN>
-  !   <IN NAME="name" TYPE="character(len=*)">
-  !     tracer name.
-  !   </IN>
   !   <IN NAME="n" TYPE="integer">
   !     tracer number
   !   </IN>
@@ -2926,7 +2922,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
   !      Tracer field
   !   </INOUT>
   !<PUBLICROUTINE>
-  subroutine ocean_obc_tracer(tracer, adv_vet, adv_vnt, Thickness, pme, taum1, tau, taup1, time, name, tn)
+  subroutine ocean_obc_tracer(tracer, adv_vet, adv_vnt, Thickness, pme, taum1, tau, taup1, time, tn)
     !</PUBLICROUTINE>
     real, dimension(isd:,jsd:,:,:), intent(inout) :: tracer            ! tracer
     real, dimension(isd:,jsd:,:), target, intent(in) :: adv_vet           ! advection velocity on east face of t-cell
@@ -2935,7 +2931,6 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
     real, dimension(isd:,jsd:),        intent(in) :: pme               ! pme
     integer,                           intent(in) :: taum1, tau, taup1 ! time step index
     type(ocean_time_type),                   intent(in) :: time              ! model time
-    character(len=*),                  intent(in) :: name              ! name of the tracer
     integer, intent(in)                           :: tn                ! only when n=1, the max phase speed will be calculated
 
     !--- local variables -----------------------------------------------
@@ -3834,11 +3829,8 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
 
   !#####################################################################
   !<SUBROUTINE NAME="ocean_obc_check_topog">
-  subroutine ocean_obc_check_topog(ht, hu, kmt, kmu)
-    real, dimension(isd:,jsd:),    intent(inout) :: ht
-    real, dimension(isd:,jsd:),    intent(inout) :: hu
+  subroutine ocean_obc_check_topog(kmt)
     integer, dimension(isd:,jsd:), intent(inout) :: kmt
-    integer, dimension(isd:,jsd:), intent(inout) :: kmu
     
     integer :: m, ib, jb, i, j
 
@@ -4246,11 +4238,10 @@ end subroutine ocean_obc_restart
   !#######################################################################
   !<SUBROUTINE NAME="store_ocean_obc_pressure_grad">
   ! Store the pressure gradient across the boundary.
-  subroutine store_ocean_obc_pressure_grad(Thickness, pressure_gradient, tau)
+  subroutine store_ocean_obc_pressure_grad(Thickness, pressure_gradient)
 
    type(ocean_thickness_type), intent(in)            :: Thickness
    real, dimension(isc:iec,jsc:jec,nk,2), intent(in) :: pressure_gradient
-   integer, intent(in)                               :: tau
    integer                                           :: i, j, k, m
 
     do m = 1, nobc

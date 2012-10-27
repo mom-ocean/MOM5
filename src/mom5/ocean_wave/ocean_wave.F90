@@ -349,7 +349,7 @@ subroutine ocean_wave_model(Time, Waves, Ice_ocean_boundary)
 
   ! wavediag is needed to initialize wave_p      
   if (first_call) then
-    call ocean_wave_diag(Time, Waves) 
+    call ocean_wave_diag(Waves) 
     first_call=.false.
     if(debug_this_module) write(stdoutunit,*) 'first start of ocean_wave_model'
   endif
@@ -378,8 +378,8 @@ subroutine ocean_wave_model(Time, Waves, Ice_ocean_boundary)
   do nww=1,ndtt      
     tau_w=abs(tau_w-1)
     taup1_w=abs(taup1_w-1)  
-    call ocean_wave_diag(Time, Waves)  
-    call ocean_wave_prop(Time, Waves, Ice_ocean_boundary)  
+    call ocean_wave_diag(Waves)  
+    call ocean_wave_prop(Waves, Ice_ocean_boundary)  
 !    call ocean_wave_prop(Time)  
   enddo      
 ! filtering xmom and ymom       
@@ -416,8 +416,7 @@ end subroutine ocean_wave_model
 ! wave propagation
 ! </DESCRIPTION>
 !
-subroutine ocean_wave_prop(Time, Waves, Ice_ocean_boundary)
-  type(ocean_time_type),          intent(in)    :: Time 
+subroutine ocean_wave_prop(Waves, Ice_ocean_boundary)
   type(ocean_wave_type),          intent(inout) :: Waves
   type(ice_ocean_boundary_type),  intent(in)    :: Ice_ocean_boundary
 
@@ -560,8 +559,7 @@ end subroutine ocean_wave_prop
 ! wave diagnostics
 ! </DESCRIPTION>
 !
-subroutine ocean_wave_diag(Time, Waves)
-  type(ocean_time_type), intent(in)    :: Time 
+subroutine ocean_wave_diag(Waves)
   type(ocean_wave_type), intent(inout) :: Waves
 
   real, parameter   :: const1=0.01788735, const2=14343.09    

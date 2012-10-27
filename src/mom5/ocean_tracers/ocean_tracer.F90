@@ -2312,7 +2312,7 @@ subroutine update_ocean_tracer (Time, Dens, Adv_vel, Thickness, pme, diff_cbt, &
 
         if(have_obc) then
            call ocean_obc_tracer(T_prog(n)%field, Adv_vel%uhrho_et, Adv_vel%vhrho_nt, &
-           Thickness, pme, taum1, tau, taup1, Time, T_prog(n)%name, n)
+           Thickness, pme, taum1, tau, taup1, Time, n)
         endif
 
         if (debug_this_module) then

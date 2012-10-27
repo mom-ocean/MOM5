@@ -994,7 +994,7 @@ end subroutine  ocean_po4_pre_source  !}
 ! </DESCRIPTION>
 
 subroutine ocean_po4_pre_start(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,      &
-     T_prog, taup1, model_time, grid_dat, grid_tmask, grid_kmt,                 &
+     T_prog, taup1, grid_dat, grid_tmask, grid_kmt,                 &
      grid_xt, grid_yt, rho_dzt)  !{
 
 !
@@ -1035,7 +1035,6 @@ integer, intent(in)                                     :: jsd
 integer, intent(in)                                     :: jed
 type(ocean_prog_tracer_type), dimension(:), intent(in)  :: T_prog
 integer, intent(in)                                     :: taup1
-type(time_type), intent(in)                             :: model_time
 real, dimension(isd:,jsd:), intent(in)                  :: grid_dat
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 integer, dimension(isd:,jsd:), intent(in)               :: grid_kmt
@@ -1415,10 +1414,10 @@ do n = 1, instances  !{
            t_prog(indsal)%field(isd:ied,jsd:jed,:,Time%tau),            &
            t_prog(indtemp)%field(isd:ied,jsd:jed,:,Time%tau),           &
            Dens%rho(isd:ied,jsd:jed,:,Time%tau),                        &
-           Dens%pressure_at_depth(isd:ied,jsd:jed,:), Time%model_time,  &
+           Dens%pressure_at_depth(isd:ied,jsd:jed,:), &
            po4_pre(n)%ml_depth)
    else
-      call calc_potrho_mixed_layer(Time, Thickness, Dens,               &
+      call calc_potrho_mixed_layer(Thickness, Dens,               &
             potrho_mix_depth= po4_pre(n)%ml_depth)
    endif
 

@@ -1090,7 +1090,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     call ocean_workspace_init(Domain, Grid)
     call set_ocean_hgrid_arrays(Domain, Grid)
     call ocean_topog_init(Domain, Grid, 'INPUT/grid_spec.nc', vert_coordinate_type)
-    call ocean_obc_init(have_obc, Time, Time_steps, Domain, Grid, Ocean_options, &
+    call ocean_obc_init(have_obc, Time_steps, Domain, Grid, Ocean_options, &
           vert_coordinate, debug=debug)
     call set_ocean_vgrid_arrays(Time, Domain, Grid, have_obc)
     call ocean_util_init(Domain, Grid)
@@ -1226,11 +1226,11 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     call ocean_convect_init(Grid, Domain, Time, Dens, T_prog(:), Ocean_options, dtime_t)
     call ocean_sbc_init(Grid, Domain, Time, T_prog(:), T_diag(:), Ocean, Dens, &
                         time_tendency, dtime_t, horz_grid)
-    call ocean_bbc_init(Grid, Domain, Time, Dens, T_prog(:), Velocity, Ocean_options, vert_coordinate_type, horz_grid)
+    call ocean_bbc_init(Grid, Domain, Time, T_prog(:), Velocity, Ocean_options, vert_coordinate_type, horz_grid)
     call ocean_shortwave_init(Grid, Domain, Time, Dens, vert_coordinate, Ocean_options)
     call ocean_sponges_tracer_init(Grid, Domain, Time, T_prog(:), dtime_t, Ocean_options)
-    call ocean_sponges_velocity_init(Grid, Domain, Time, Velocity, dtime_u, Ocean_options)
-    call ocean_sponges_eta_init(Grid, Domain, Time, Ext_mode, dtime_t, Ocean_options)
+    call ocean_sponges_velocity_init(Grid, Domain, Time, dtime_u, Ocean_options)
+    call ocean_sponges_eta_init(Grid, Domain, Time, dtime_t, Ocean_options)
     call ocean_xlandmix_init(Grid, Domain, Time, Dens, T_prog(:), Ocean_options, dtime_t)    
     call ocean_xlandinsert_init(Grid, Domain, Time, Dens, T_prog(:), Ocean_options, dtts)    
     call ocean_riverspread_init(Grid, Domain, Ocean_options, dtime_t)
@@ -1828,7 +1828,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     ! perform some numerical diagnostics (e.g., tracer and mass conservation, CFL checks, etc.)
     call mpp_clock_begin(id_diagnostics)
     call ocean_diagnostics(Time, Thickness, T_prog(1:num_prog_tracers), T_diag(1:num_diag_tracers), &
-                           Adv_vel, Ext_mode, Dens, Velocity, Lagrangian_system, &
+                           Adv_vel, Ext_mode, Dens, Velocity, &
                            pme, melt, runoff, calving, visc_cbt)
     call mpp_clock_end(id_diagnostics)
 

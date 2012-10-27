@@ -245,13 +245,12 @@ contains
 ! Initialize the bottom boundary condition module
 ! </DESCRIPTION>
 !
-subroutine ocean_bbc_init(Grid, Domain, Time, Dens, T_prog, Velocity, &
+subroutine ocean_bbc_init(Grid, Domain, Time, T_prog, Velocity, &
                           Ocean_options, vert_coordinate_type, hor_grid)
 
 type(ocean_grid_type),   target, intent(in)    :: Grid
 type(ocean_domain_type), target, intent(in)    :: Domain
 type(ocean_time_type),           intent(in)    :: Time
-type(ocean_density_type),        intent(in)    :: Dens
 type(ocean_prog_tracer_type),    intent(inout) :: T_prog(:)
 type(ocean_velocity_type),       intent(inout) :: Velocity
 type(ocean_options_type),        intent(inout) :: Ocean_options

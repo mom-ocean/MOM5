@@ -2391,7 +2391,7 @@ subroutine compute_eady_rate(Time, Thickness, T_prog, Dens, eady_termx, eady_ter
            Dens%rho_salinity(isd:ied,jsd:jed,:,tau),        &
            Dens%rho(isd:ied,jsd:jed,:,tau),                 &
            Dens%pressure_at_depth(isd:ied,jsd:jed,:),       &
-           Time%model_time, eady_mld)
+           eady_mld)
 
       do j=jsc,jec
          do i=isc,iec

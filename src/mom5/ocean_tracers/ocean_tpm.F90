@@ -1682,7 +1682,7 @@ endif  !}
 if (do_ocean_po4_pre) then  !{
   call ocean_po4_pre_start(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,     &
                              Domain%isd, Domain%ied, Domain%jsd, Domain%jed,            &
-                             T_prog, Time%taup1, Time%model_time,                       &
+                             T_prog, Time%taup1,                                        &
                              Grid%dat, Grid%tmask, Grid%kmt, Grid%xt, Grid%yt,          &
                              Thickness%rho_dzt)
 endif  !}

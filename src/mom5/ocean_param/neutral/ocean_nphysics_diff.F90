@@ -888,7 +888,7 @@ contains
        call calc_mixed_layer_depth(Thickness,    &
             T_salt%field(:,:,:,tau), T_temp%field(:,:,:,tau), &
             Dens%rho(:,:,:,tau), Dens%pressure_at_depth(:,:,:), &
-            Time%model_time, ml_depth)
+            ml_depth)
        ml_depth(COMP) = Grid%tmask(COMP,1)*min(ml_depth(COMP), Grid%ht(COMP))
 
        ! do not believe growth_rate at k=1, so always skip its contribution

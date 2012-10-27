@@ -1018,7 +1018,7 @@ subroutine ocean_explicit_accel_b(visc_cbu, visc_cbt, Time, Thickness, Adv_vel, 
          call coriolis_force_bgrid(Time, Thickness, Velocity, energy_analysis_step=.false.)
       else 
          call vert_friction_cgrid(Time, Thickness, Velocity, visc_cbt, energy_analysis_step=.false.)
-         call coriolis_force_cgrid(Time, Thickness, Adv_vel, Velocity, abtau_m0, abtau_m1, abtau_m2, &
+         call coriolis_force_cgrid(Time, Adv_vel, Velocity, abtau_m0, abtau_m1, abtau_m2, &
                                    energy_analysis_step=.false.)
       endif 
 

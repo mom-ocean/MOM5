@@ -1282,7 +1282,7 @@ subroutine compute_bldepth(Time, Thickness, Dens, T_prog, surf_blthick)
            T_prog(index_temp)%field(isd:ied,jsd:jed,:,tau), &
            Dens%rho(isd:ied,jsd:jed,:,tau),                 &
            Dens%pressure_at_depth(isd:ied,jsd:jed,:),       &
-           Time%model_time, hblt, smooth_mld_input=.false.)
+           hblt, smooth_mld_input=.false.)
 
       do j=jsc,jec
          do i=isc,iec

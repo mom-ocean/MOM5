@@ -194,12 +194,12 @@ do n = 1, num_instances  !{
              t_prog(indsal)%field(isd:ied,jsd:jed,:,time%tau),                  &
              t_prog(indtemp)%field(isd:ied,jsd:jed,:,time%tau),                 &
              dens%rho(isd:ied,jsd:jed,:,Time%tau),                              &
-             dens%pressure_at_depth(isd:ied,jsd:jed,:), time%model_time,        &
+             dens%pressure_at_depth(isd:ied,jsd:jed,:),         &
              mld)
 
       elseif (instance(n)%region(nn)%strings(1) .eq. 'mld_potrho') then  !}{
 
-        call calc_potrho_mixed_layer(time, thickness, dens,                     &
+        call calc_potrho_mixed_layer(thickness, dens,                     &
              potrho_mix_depth = mld)
 
       endif  !}

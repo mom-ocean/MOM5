@@ -405,7 +405,7 @@ subroutine pressure_force(Time, Thickness, Dens, Velocity, L_system, rho)
   endif
 
   ! for open boundaries 
-  if (have_obc) call store_ocean_obc_pressure_grad(Thickness, Velocity%press_force, tau) 
+  if (have_obc) call store_ocean_obc_pressure_grad(Thickness, Velocity%press_force) 
 
   ! send some diagnostics 
 
