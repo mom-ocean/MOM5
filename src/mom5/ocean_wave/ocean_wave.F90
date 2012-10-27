@@ -57,7 +57,7 @@ use ocean_types_mod,        only: ocean_domain_type, ocean_grid_type, ocean_opti
 use ocean_types_mod,        only: ocean_time_type, ocean_time_steps_type
 use ocean_parameters_mod,   only: missing_value
 use ocean_workspace_mod,    only: wrk1_2d, wrk2_2d, wrk3_2d, wrk4_2d
-use ocean_util_mod,         only: write_timestamp
+use ocean_util_mod,         only: write_timestamp, diagnose_2d
 use ocean_types_mod,        only: ice_ocean_boundary_type
 use wave_types_mod,         only: ocean_wave_type
 use data_override_mod,      only: data_override
@@ -387,20 +387,13 @@ subroutine ocean_wave_model(Time, Waves, Ice_ocean_boundary)
   if(filter_wave_mom) call ocean_wave_filter(Waves, dtts)	    
 !  endif
 
-  if (id_windx > 0) used = send_data(id_windx, windx(:,:), Time%model_time, &
-			   rmask=Grd%tmask(:,:,1) ,is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  if (id_windy > 0) used = send_data(id_windy, windy(:,:), Time%model_time,& 
-			   rmask=Grd%tmask(:,:,1),is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  if (id_xmom  > 0) used = send_data(id_xmom, Waves%xmom(:,:,taup1_w)*grav, Time%model_time, &
-			   rmask=Grd%tmask(:,:,1),is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  if (id_ymom  > 0) used = send_data(id_ymom, Waves%ymom(:,:,taup1_w)*grav, Time%model_time, &
-			   rmask=Grd%tmask(:,:,1),is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  if (id_height> 0) used = send_data(id_height, Waves%height(:,:), Time%model_time, &
-			   rmask=Grd%tmask(:,:,1),is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  if (id_wave_p> 0) used = send_data(id_wave_p, Waves%wave_p(:,:), Time%model_time, &
-			   rmask=Grd%tmask(:,:,1),is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  if (id_wave_k> 0) used = send_data(id_wave_k, Waves%wave_k(:,:), Time%model_time, &
-			   rmask=Grd%tmask(:,:,1),is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d(Time, Grd, id_windx, windx(:,:))
+  call diagnose_2d(Time, Grd, id_windy, windy(:,:))
+  if (id_xmom  > 0) call diagnose_2d(Time, Grd, id_xmom, Waves%xmom(:,:,taup1_w)*grav)
+  if (id_ymom  > 0) call diagnose_2d(Time, Grd, id_ymom, Waves%ymom(:,:,taup1_w)*grav)
+  call diagnose_2d(Time, Grd, id_height, Waves%height(:,:))
+  call diagnose_2d(Time, Grd, id_wave_p, Waves%wave_p(:,:))
+  call diagnose_2d(Time, Grd, id_wave_k, Waves%wave_k(:,:))
   
   if(debug_this_module) write(stdoutunit,*) 'ending ocean_wave_model'
     

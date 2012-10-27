@@ -80,6 +80,7 @@ use ocean_parameters_mod, only: missing_value
 use ocean_types_mod,      only: ocean_grid_type, ocean_domain_type, ocean_time_type
 use ocean_types_mod,      only: ocean_thickness_type, ocean_prog_tracer_type, ocean_options_type
 use ocean_workspace_mod,  only: wrk1 
+use ocean_util_mod,       only: diagnose_3d
 
 
 implicit none
@@ -443,17 +444,13 @@ subroutine bih_tracer (Time, Thickness, Tracer, ntracer, diag_flag)
           do k=1,nk
             fx(:,:,k) = fx(:,:,k)*Grd%dyte(:,:)
           enddo
-          used = send_data(id_xflux_diff(ntracer), fx(:,:,:)*Tracer%conversion, &
-                 Time%model_time, rmask=Grd%tmask(:,:,:),                       &
-                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)           
+          call diagnose_3d(Time, Grd, id_xflux_diff(ntracer), fx(:,:,:)*Tracer%conversion)
       endif
       if (id_yflux_diff(ntracer) > 0) then
           do k=1,nk
             fy(:,:,k) = fy(:,:,k)*Grd%dxtn(:,:)
           enddo
-          used = send_data(id_yflux_diff(ntracer), fy(:,:,:)*Tracer%conversion, &
-                 Time%model_time, rmask=Grd%tmask(:,:,:),                       &
-                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)           
+          call diagnose_3d(Time, Grd, id_yflux_diff(ntracer), fy(:,:,:)*Tracer%conversion)
       endif
       if (id_h_diffuse(ntracer) > 0) then
           used = send_data(id_h_diffuse(ntracer), wrk1(isc:iec,jsc:jec,:)*Tracer%conversion, &

@@ -216,7 +216,7 @@ use ocean_types_mod,      only: ocean_time_type, ocean_grid_type
 use ocean_types_mod,      only: ocean_domain_type, ocean_adv_vel_type 
 use ocean_types_mod,      only: ocean_thickness_type, ocean_velocity_type
 use ocean_types_mod,      only: ocean_options_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, diagnose_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4
 use ocean_workspace_mod,  only: wrk1_2d, wrk1_v2d  
 use ocean_workspace_mod,  only: wrk1_v, wrk2_v, wrk3_v
@@ -928,14 +928,10 @@ subroutine lapcgrid_friction(Time, Thickness, Adv_vel, Velocity, lap_viscosity, 
   ! write diagnostics here since use wrk arrays, some of which are reused later 
   if(.not. energy_analysis_step) then 
      if (id_aiso_smag > 0) then
-        used = send_data (id_aiso_smag, onehalf*(wrk1(:,:,:)+wrk2(:,:,:)),&
-                          Time%model_time, rmask=Grd%tmask(:,:,:),        & 
-                          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk) 
+        call diagnose_3d(Time, Grd, id_aiso_smag, onehalf*(wrk1(:,:,:)+wrk2(:,:,:)))
      endif 
      if (id_aaniso_smag > 0) then
-        used = send_data (id_aaniso_smag, onehalf*(wrk3(:,:,:)+wrk4(:,:,:)),&
-                          Time%model_time, rmask=Grd%tmask(:,:,:),          & 
-                          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk) 
+        call diagnose_3d(Time, Grd, id_aaniso_smag, onehalf*(wrk3(:,:,:)+wrk4(:,:,:)))
      endif  
   endif 
 
@@ -971,14 +967,8 @@ subroutine lapcgrid_friction(Time, Thickness, Adv_vel, Velocity, lap_viscosity, 
      enddo
   enddo
   if(.not. energy_analysis_step) then 
-     if (id_sin2theta > 0) then
-        used = send_data (id_sin2theta, wrk1(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),& 
-                          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk) 
-     endif 
-     if (id_cos2theta > 0) then
-        used = send_data (id_cos2theta, wrk2(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),& 
-                          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk) 
-     endif 
+     call diagnose_3d(Time, Grd, id_sin2theta, wrk1(:,:,:))
+     call diagnose_3d(Time, Grd, id_cos2theta, wrk2(:,:,:))
   endif 
 
 
@@ -1103,24 +1093,20 @@ subroutine lapcgrid_friction(Time, Thickness, Adv_vel, Velocity, lap_viscosity, 
 
 
    if (id_aiso > 0) then 
-      wrk1(:,:,:) = onehalf*(aiso_xx(:,:,:)+aiso_xy(:,:,:))      
-      used = send_data (id_aiso, wrk1(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),&
-                        is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      wrk1(:,:,:) = onehalf*(aiso_xx(:,:,:)+aiso_xy(:,:,:))    
+      call diagnose_3d(Time, Grd, id_aiso, wrk1(:,:,:))
    endif 
    if (id_aaniso > 0) then 
       wrk1(:,:,:) = onehalf*(aaniso_xx(:,:,:)+aaniso_xy(:,:,:))      
-      used = send_data (id_aaniso, wrk1(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),&
-                        is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_aaniso, wrk1(:,:,:))
    endif 
    if (id_along > 0) then 
       wrk1(:,:,:) = onehalf*(aiso_xx(:,:,:)+aiso_xy(:,:,:) + onehalf*(aaniso_xx(:,:,:)+aaniso_xy(:,:,:)))
-      used = send_data (id_along,  wrk1(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),&
-                        is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_along,  wrk1(:,:,:))
    endif 
    if (id_across > 0) then 
       wrk1(:,:,:) = onehalf*(aiso_xx(:,:,:)+aiso_xy(:,:,:) - onehalf*(aaniso_xx(:,:,:)+aaniso_xy(:,:,:)))
-      used = send_data (id_across,  wrk1(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),&
-                        is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_across,  wrk1(:,:,:))
    endif 
    if (id_lap_fric_u > 0) then 
       used = send_data(id_lap_fric_u, wrk3_v(isc:iec,jsc:jec,:,1), &
@@ -1135,16 +1121,8 @@ subroutine lapcgrid_friction(Time, Thickness, Adv_vel, Velocity, lap_viscosity, 
                         Time%model_time, rmask=Grd%umask(:,:,1),     &
                         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
    endif 
-   if (id_horz_lap_diss > 0) then 
-       used = send_data(id_horz_lap_diss, dissipate(:,:,:),&
-       Time%model_time, rmask=Grd%tmask(:,:,:),            &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-   endif 
-   if (id_stress_xx_lap > 0) then 
-       used = send_data(id_stress_xx_lap, stress_xx(:,:,:),&
-       Time%model_time, rmask=Grd%tmask(:,:,:),            &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-   endif 
+   call diagnose_3d(Time, Grd, id_horz_lap_diss, dissipate(:,:,:))
+   call diagnose_3d(Time, Grd, id_stress_xx_lap, stress_xx(:,:,:))
    if (id_stress_xy_lap > 0) then 
        used = send_data(id_stress_xy_lap, stress_xy(:,:,:),&
        Time%model_time, rmask=Grd%umask(:,:,:),            &

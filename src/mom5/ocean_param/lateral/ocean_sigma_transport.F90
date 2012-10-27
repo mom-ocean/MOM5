@@ -207,7 +207,7 @@ use ocean_tracer_util_mod, only: rebin_onto_rho
 use ocean_types_mod,       only: ocean_domain_type, ocean_grid_type, ocean_time_type
 use ocean_types_mod,       only: ocean_prog_tracer_type, ocean_adv_vel_type
 use ocean_types_mod,       only: ocean_options_type, ocean_thickness_type, ocean_density_type
-use ocean_util_mod,        only: write_timestamp
+use ocean_util_mod,        only: write_timestamp, diagnose_2d, diagnose_3d
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk6
 
 implicit none
@@ -1474,32 +1474,20 @@ subroutine sigma_transport (Time, Thickness, Dens, T_prog, Adv_vel, bott_blthick
      enddo
 
      ! send tracer concentration to diagnostic manager 
-     if (id_tracer_sigma(n) > 0) then 
-         used = send_data (id_tracer_sigma(n), tracer_sigma(:,:,n), &
-              Time%model_time, rmask=Grd%tmask(:,:,1),              &
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-     endif
+     call diagnose_2d(Time, Grd, id_tracer_sigma(n), tracer_sigma(:,:,n))
 
      ! send tendency to diagnostic manager 
      if (id_sigma_diff(n) > 0) then 
-         used = send_data (id_sigma_diff(n), T_prog(n)%conversion*wrk2(:,:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,:),                         &
-              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+        call diagnose_3d(Time, Grd, id_sigma_diff(n), T_prog(n)%conversion*wrk2(:,:,:))
      endif
      if (id_sigma_adv(n) > 0) then 
-         used = send_data (id_sigma_adv(n), T_prog(n)%conversion*wrk3(:,:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,:),                        &
-              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+        call diagnose_3d(Time, Grd, id_sigma_adv(n), T_prog(n)%conversion*wrk3(:,:,:))
      endif
      if (id_sigma_diff_2d(n) > 0) then 
-         used = send_data (id_sigma_diff_2d(n), T_prog(n)%conversion*tchg_diff(:,:,n), &
-              Time%model_time, rmask=Grd%tmask(:,:,1),                                 &
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+        call diagnose_2d(Time, Grd, id_sigma_diff_2d(n), T_prog(n)%conversion*tchg_diff(:,:,n))
      endif
      if (id_sigma_adv_2d(n) > 0) then 
-         used = send_data (id_sigma_adv_2d(n), T_prog(n)%conversion*tchg_adv(:,:,n), &
-              Time%model_time, rmask=Grd%tmask(:,:,1),                                &
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+        call diagnose_2d(Time, Grd, id_sigma_adv_2d(n), T_prog(n)%conversion*tchg_adv(:,:,n))
      endif
 
 
@@ -1509,18 +1497,14 @@ subroutine sigma_transport (Time, Thickness, Dens, T_prog, Adv_vel, bott_blthick
          do k=1,nk
             wrk2(:,:,k) = wrk1(:,:,k)*tmp(:,:) 
          enddo
-         used = send_data (id_sigma_diff_xflux(n), wrk2(:,:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,:),          & 
-              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_sigma_diff_xflux(n), wrk2(:,:,:))
      endif
      if(id_sigma_diff_yflux(n) > 0) then 
          tmp(:,:) = -T_prog(n)%conversion*Grd%dxtn(:,:)*fy_diff(:,:,n)
          do k=1,nk
             wrk2(:,:,k) = wrk1(:,:,k)*tmp(:,:) 
          enddo
-         used = send_data (id_sigma_diff_yflux(n), wrk2(:,:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,:),          & 
-              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_sigma_diff_yflux(n), wrk2(:,:,:))
      endif
 
      ! advective fluxes have minus sign built in
@@ -1529,46 +1513,34 @@ subroutine sigma_transport (Time, Thickness, Dens, T_prog, Adv_vel, bott_blthick
          do k=1,nk
             wrk3(:,:,k) = wrk1(:,:,k)*tmp(:,:) 
          enddo
-         used = send_data (id_sigma_adv_xflux(n), wrk3(:,:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,:),         & 
-              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_sigma_adv_xflux(n), wrk3(:,:,:))
      endif
      if(id_sigma_adv_yflux(n) > 0) then 
          tmp(:,:) = T_prog(n)%conversion*Grd%dxtn(:,:)*fy_adv(:,:,n)
          do k=1,nk
             wrk3(:,:,k) = wrk1(:,:,k)*tmp(:,:) 
          enddo
-         used = send_data (id_sigma_adv_yflux(n), wrk3(:,:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,:),         & 
-              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_sigma_adv_yflux(n), wrk3(:,:,:))
      endif
 
      ! vertically integrated flux from sigma transport = flux in sigma layer. 
      if(id_sigma_diff_xflux_int_z(n) > 0) then 
          tmp(:,:) = -T_prog(n)%conversion*Grd%dyte(:,:)*fx_diff(:,:,n)
-         used = send_data (id_sigma_diff_xflux_int_z(n), tmp(:,:),  &
-              Time%model_time, rmask=Grd%tmask(:,:,1),              & 
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         call diagnose_2d(Time, Grd, id_sigma_diff_xflux_int_z(n), tmp(:,:))
      endif
      if(id_sigma_diff_yflux_int_z(n) > 0) then 
          tmp(:,:) = -T_prog(n)%conversion*Grd%dxtn(:,:)*fy_diff(:,:,n)
-         used = send_data (id_sigma_diff_yflux_int_z(n), tmp(:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,1),             & 
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         call diagnose_2d(Time, Grd, id_sigma_diff_yflux_int_z(n), tmp(:,:))
      endif
 
      ! advective fluxes have minus sign built in
      if(id_sigma_adv_xflux_int_z(n) > 0) then 
          tmp(:,:) = T_prog(n)%conversion*Grd%dyte(:,:)*fx_adv(:,:,n)
-         used = send_data (id_sigma_adv_xflux_int_z(n), tmp(:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,1),            & 
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         call diagnose_2d(Time, Grd, id_sigma_adv_xflux_int_z(n), tmp(:,:))
      endif
      if(id_sigma_adv_yflux_int_z(n) > 0) then 
          tmp(:,:) = T_prog(n)%conversion*Grd%dxtn(:,:)*fy_adv(:,:,n)
-         used = send_data (id_sigma_adv_yflux_int_z(n), tmp(:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,1),            & 
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         call diagnose_2d(Time, Grd, id_sigma_adv_yflux_int_z(n), tmp(:,:))
      endif
 
 
@@ -1592,11 +1564,7 @@ subroutine sigma_transport (Time, Thickness, Dens, T_prog, Adv_vel, bott_blthick
              Time%model_time,  rmask=tmask_sigma(:,:),                &
              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
   endif
-  if (id_weight_sigma  > 0) then 
-      used = send_data (id_weight_sigma, wrk1(:,:,:),  &
-             Time%model_time,  rmask=Grd%tmask(:,:,:), &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_weight_sigma, wrk1(:,:,:))
 
   if (id_sigma_uhrho  > 0) then 
       used = send_data (id_sigma_uhrho, sigma_uhrho(:,:), &
@@ -1881,21 +1849,9 @@ subroutine watermass_diag(Time, Dens)
      enddo
   enddo
 
-  if(id_neut_rho_sigma > 0) then 
-      used = send_data (id_neut_rho_sigma, wrk3(:,:,:),&
-           Time%model_time,rmask=Grd%tmask(:,:,:),     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_wdian_rho_sigma > 0) then 
-      used = send_data (id_wdian_rho_sigma, wrk4(:,:,:),&
-           Time%model_time,rmask=Grd%tmask(:,:,:),      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_tform_rho_sigma > 0) then 
-      used = send_data (id_tform_rho_sigma, wrk5(:,:,:),&
-           Time%model_time,rmask=Grd%tmask(:,:,:),      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_neut_rho_sigma, wrk3(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_rho_sigma, wrk4(:,:,:))
+  call diagnose_3d(Time, Grd, id_tform_rho_sigma, wrk5(:,:,:))
   if (id_neut_rho_sigma_on_nrho > 0) then
       nrho_work(:,:,:) = 0.0
       call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk3, nrho_work) 
@@ -1926,11 +1882,7 @@ subroutine watermass_diag(Time, Dens)
             enddo
          enddo
       enddo
-      if(id_eta_tend_sigma > 0) then 
-          used = send_data (id_eta_tend_sigma, eta_tend(:,:),&
-               Time%model_time, rmask=Grd%tmask(:,:,1),      &
-               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-      endif
+      call diagnose_2d(Time, Grd, id_eta_tend_sigma, eta_tend(:,:))
       if(id_eta_tend_sigma_glob > 0) then 
           eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
           eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r

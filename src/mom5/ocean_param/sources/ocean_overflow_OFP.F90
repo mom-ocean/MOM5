@@ -119,7 +119,7 @@ use ocean_tracer_util_mod,only: rebin_onto_rho
 use ocean_types_mod,      only: ocean_domain_type, ocean_grid_type, ocean_time_type, ocean_options_type
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_density_type, ocean_thickness_type
 use ocean_types_mod,      only: ocean_velocity_type, ocean_external_mode_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, diagnose_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk1_v
 
 implicit none
@@ -2848,16 +2848,8 @@ subroutine watermass_diag(Time, Dens, T_prog, index_temp, index_salt, wrk1v)
      enddo
   enddo
 
-  if(id_neut_rho_overofp > 0) then 
-      used = send_data (id_neut_rho_overofp,wrk1(:,:,:), Time%model_time,&
-           rmask=Grd%tmask(:,:,:),                                       &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_wdian_rho_overofp > 0) then 
-      used = send_data (id_wdian_rho_overofp, wrk2(:,:,:), &
-           Time%model_time,rmask=Grd%tmask(:,:,:),         &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_neut_rho_overofp,wrk1(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_rho_overofp, wrk2(:,:,:))
   if (id_neut_rho_overofp_on_nrho > 0) then 
       nrho_work(:,:,:) = 0.0
       call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work) 
@@ -2900,16 +2892,8 @@ subroutine watermass_diag(Time, Dens, T_prog, index_temp, index_salt, wrk1v)
      enddo
   enddo
 
-  if(id_neut_temp_overofp > 0) then 
-      used = send_data (id_neut_temp_overofp,wrk1(:,:,:), Time%model_time,&
-           rmask=Grd%tmask(:,:,:),                                        &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_wdian_temp_overofp > 0) then 
-      used = send_data (id_wdian_temp_overofp, wrk2(:,:,:), &
-           Time%model_time,rmask=Grd%tmask(:,:,:),          &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_neut_temp_overofp,wrk1(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_temp_overofp, wrk2(:,:,:))
   if (id_neut_temp_overofp_on_nrho > 0) then 
       nrho_work(:,:,:) = 0.0
       call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work) 
@@ -2951,16 +2935,8 @@ subroutine watermass_diag(Time, Dens, T_prog, index_temp, index_salt, wrk1v)
      enddo
   enddo
 
-  if(id_neut_salt_overofp > 0) then 
-      used = send_data (id_neut_salt_overofp,wrk1(:,:,:), Time%model_time,&
-           rmask=Grd%tmask(:,:,:),                                        &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_wdian_salt_overofp > 0) then 
-      used = send_data (id_wdian_salt_overofp, wrk2(:,:,:), &
-           Time%model_time,rmask=Grd%tmask(:,:,:),          &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_neut_salt_overofp,wrk1(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_salt_overofp, wrk2(:,:,:))
   if (id_neut_salt_overofp_on_nrho > 0) then 
       nrho_work(:,:,:) = 0.0
       call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work) 

@@ -159,7 +159,7 @@ use ocean_types_mod,               only: ocean_density_type, ocean_lagrangian_ty
 use ocean_types_mod,               only: ocean_prog_tracer_type, ocean_thickness_type
 use ocean_types_mod,               only: ocean_blob_type, blob_grid_type, ocean_adv_vel_type
 use ocean_types_mod,               only: ocean_external_mode_type, ocean_velocity_type
-use ocean_util_mod,                only: write_timestamp
+use ocean_util_mod,                only: write_timestamp, diagnose_3d
 use ocean_workspace_mod,           only: wrk1
 
 implicit none
@@ -1641,10 +1641,8 @@ subroutine ocean_blob_cell_update(Time, Thickness, Dens, T_prog, Ext_mode, L_sys
   enddo
 
   ! Diagnostics
-  if (id_mass_in>0)  used = send_data(id_mass_in,  mass_in(:,:,:),  Time%model_time, rmask=Grd%tmask(:,:,:), &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_mass_out>0) used = send_data(id_mass_out, mass_out(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:), &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grd, id_mass_in,  mass_in(:,:,:))
+  call diagnose_3d(Time, Grd, id_mass_out, mass_out(:,:,:))
 
   if (debug_this_module) then 
      stdoutunit = stdout()
@@ -2029,23 +2027,14 @@ subroutine ocean_blob_implicit(Time, Thickness, T_prog, Dens, Adv_vel, &
 
   if (id_prop_cell_mass>0) then
      wrk1(:,:,:) = Thickness%rho_dztL(:,:,:,taup1)/Thickness%rho_dztT(:,:,:,taup1)
-     used = send_data(id_prop_cell_mass, wrk1(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:), &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_prop_cell_mass, wrk1(:,:,:))
   endif
 
   do n=0,num_prog_tracers
-     if (id_entrainment(n)>0) used = send_data(id_entrainment(n), EL_diag(n)%entrainment(:,:,:), &
-          Time%model_time, rmask=Grd%tmask(:,:,:),                                               &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     if (id_detrainment(n)>0) used = send_data(id_detrainment(n), EL_diag(n)%detrainment(:,:,:), &
-          Time%model_time, rmask=Grd%tmask(:,:,:),                                               &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     if (id_new(n)>0)         used = send_data(id_new(n),         EL_diag(n)%new(:,:,:),         &
-          Time%model_time, rmask=Grd%tmask(:,:,:),                                               &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     if (id_dstry(n)>0)       used = send_data(id_dstry(n),       EL_diag(n)%dstry(:,:,:),       &
-          Time%model_time, rmask=Grd%tmask(:,:,:),                                               &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_entrainment(n), EL_diag(n)%entrainment(:,:,:))
+     call diagnose_3d(Time, Grd, id_detrainment(n), EL_diag(n)%detrainment(:,:,:))
+     call diagnose_3d(Time, Grd, id_new(n), EL_diag(n)%new(:,:,:))
+     call diagnose_3d(Time, Grd, id_dstry(n), EL_diag(n)%dstry(:,:,:))
   enddo
 
 end subroutine ocean_blob_implicit
