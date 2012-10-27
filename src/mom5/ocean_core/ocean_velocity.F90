@@ -185,7 +185,7 @@ use ocean_types_mod,           only: ocean_time_type, ocean_time_steps_type
 use ocean_types_mod,           only: ocean_density_type, ocean_thickness_type, ocean_velocity_type
 use ocean_types_mod,           only: ocean_adv_vel_type, ocean_external_mode_type, ocean_options_type
 use ocean_types_mod,           only: ocean_lagrangian_type
-use ocean_util_mod,            only: write_timestamp
+use ocean_util_mod,            only: write_timestamp, diagnose_2d, diagnose_3d
 use ocean_velocity_advect_mod, only: horz_advection_of_velocity, vert_advection_of_velocity
 use ocean_velocity_diag_mod,   only: kinetic_energy, potential_energy 
 use ocean_vert_mix_mod,        only: vert_friction_bgrid, vert_friction_implicit_bgrid
@@ -1095,13 +1095,8 @@ subroutine ocean_implicit_accel(visc_cbu, visc_cbt, visc_cbu_form_drag, Time, Th
            Time%model_time, rmask=Grd%umask(:,:,:),                               &
            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
   else
-      if (id_accel(1) > 0) used = send_data(id_accel(1), Velocity%accel(:,:,:,1), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                               &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-      if (id_accel(2) > 0) used = send_data(id_accel(2), Velocity%accel(:,:,:,2), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                               &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_accel(1), Velocity%accel(:,:,:,1))
+     call diagnose_3d(Time, Grd, id_accel(2), Velocity%accel(:,:,:,2))
   endif
 
 
@@ -1346,9 +1341,7 @@ subroutine update_ocean_velocity_bgrid(Time, Thickness, barotropic_split, &
                            Time%model_time, rmask=Grd%umask(:,:,1),      &
                            is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
 
-  if (id_converge_rho_ud_t > 0) used = send_data (id_converge_rho_ud_t, Ext_mode%conv_rho_ud_t(:,:,tau), &
-                                   Time%model_time, rmask=Grd%tmask(:,:,1),                              &
-                                   is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d(Time, Grd, id_converge_rho_ud_t, Ext_mode%conv_rho_ud_t(:,:,tau))
 
   if(id_speed > 0) then 
       do k=1,nk
@@ -1558,9 +1551,7 @@ subroutine update_ocean_velocity_cgrid(Time, Thickness, barotropic_split, vert_c
                            Time%model_time, rmask=Grd%mask(:,:,1),             &
                            is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
 
-  if (id_converge_rho_ud_t > 0) used = send_data (id_converge_rho_ud_t, Ext_mode%conv_rho_ud_t(:,:,tau), &
-                                   Time%model_time, rmask=Grd%tmask(:,:,1),                              &
-                                   is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d(Time, Grd, id_converge_rho_ud_t, Ext_mode%conv_rho_ud_t(:,:,tau))
 
   if(id_speed > 0) then 
       do k=1,nk
