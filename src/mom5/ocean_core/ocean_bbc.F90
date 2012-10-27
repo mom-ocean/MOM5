@@ -141,6 +141,7 @@ use ocean_types_mod,      only: ocean_external_mode_type
 use ocean_workspace_mod,  only: wrk1_2d, wrk2_2d
 use wave_types_mod,       only: ocean_wave_type
 use ocean_wave_mod,       only: wave_model_is_initialised
+use ocean_util_mod,       only: diagnose_2d
 
 implicit none
 
@@ -535,10 +536,7 @@ id_geo_heat = register_static_field ('ocean_model', 'geo_heat',   &
               Grd%tracer_axes(1:2), 'Geothermal heating', 'W/m^2',&     
               missing_value=missing_value, range=(/-10.0,1e6/),   &
               standard_name='upward_geothermal_heat_flux_at_sea_floor')
-if (id_geo_heat > 0) then 
-    used = send_data (id_geo_heat, geo_heat(:,:)*cp_ocean, Time%model_time, &
-           rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-endif
+call diagnose_2d(Time, Grd, id_geo_heat, geo_heat(:,:)*cp_ocean)
 
 id_eta_tend_geoheat = register_diag_field('ocean_model',             &
        'eta_tend_geoheat', Grd%tracer_axes(1:2),Time%model_time   ,  &
@@ -759,11 +757,7 @@ if (id_eta_tend_geoheat > 0 .or. id_eta_tend_geoheat_glob > 0) then
        enddo
     enddo
 
-    if(id_eta_tend_geoheat > 0) then  
-        used = send_data(id_eta_tend_geoheat, wrk1_2d(:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,1),      &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-    endif
+    call diagnose_2d(Time, Grd, id_eta_tend_geoheat, wrk1_2d(:,:))
     if(id_eta_tend_geoheat_glob > 0) then  
         wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
         global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
@@ -950,18 +944,9 @@ real,parameter:: twopi=2.*pi
   enddo
 
   ! diagnostics 
-  if (id_cur_wav_dr > 0) then 
-    used = send_data(id_cur_wav_dr, Velocity%current_wave_stress(:,:), Time%model_time, &
-           rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if (id_wave_s > 0) then 
-    used = send_data(id_wave_s, wave_s(:,:), Time%model_time, &
-           rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if (id_wave_u > 0) then 
-    used = send_data(id_wave_u, wave_u(:,:), Time%model_time, &
-           rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
+  call diagnose_2d(Time, Grd, id_cur_wav_dr, Velocity%current_wave_stress(:,:))
+  call diagnose_2d(Time, Grd, id_wave_s, wave_s(:,:))
+  call diagnose_2d(Time, Grd, id_wave_u, wave_u(:,:))
   if (id_iter > 0) then 
     used = send_data(id_iter, wrk2_2d(:,:), Time%model_time, &
            rmask=Grd%umask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
