@@ -93,7 +93,7 @@ use ocean_parameters_mod,  only: TERRAIN_FOLLOWING
 use ocean_tracer_util_mod, only: rebin_onto_rho
 use ocean_types_mod,       only: ocean_domain_type, ocean_grid_type, ocean_time_type, ocean_options_type
 use ocean_types_mod,       only: ocean_prog_tracer_type, ocean_density_type, ocean_thickness_type
-use ocean_util_mod,        only: write_timestamp, diagnose_2d, diagnose_3d
+use ocean_util_mod,        only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_sum
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk1_v
 
 implicit none
@@ -1251,11 +1251,7 @@ subroutine watermass_diag(Time, Dens, Thickness)
          enddo
       enddo
       call diagnose_2d(Time, Grd, id_eta_tend_mixdown, eta_tend(:,:))
-      if(id_eta_tend_mixdown_glob > 0) then 
-          eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
-          eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-          used          = send_data (id_eta_tend_mixdown_glob, eta_tend_glob, Time%model_time)
-      endif
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_mixdown_glob, eta_tend, cellarea_r)
   endif
 
 

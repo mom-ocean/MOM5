@@ -116,7 +116,6 @@ use fms_mod,             only: FATAL, WARNING
 use fms_io_mod,          only: register_restart_field, save_restart
 use fms_io_mod,          only: restore_state, restart_file_type
 use mpp_domains_mod,     only: mpp_update_domains
-use mpp_domains_mod,     only: mpp_global_sum, NON_BITWISE_EXACT_SUM
 use mpp_mod,             only: input_nml_file, mpp_error, mpp_chksum, stdout, stdlog
 use mpp_mod,             only: mpp_min, mpp_max, mpp_error, mpp_pe
 
@@ -132,7 +131,7 @@ use ocean_types_mod,     only: ocean_time_type, ocean_time_steps_type
 use ocean_types_mod,     only: ocean_density_type, ocean_lagrangian_type
 use ocean_workspace_mod, only: wrk1, wrk1_2d, wrk2_2d
 use ocean_obc_mod,       only: ocean_obc_adjust_advel
-use ocean_util_mod,      only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_3d_u
+use ocean_util_mod,      only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_3d_u, diagnose_sum
 
 implicit none
 
@@ -820,11 +819,7 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
          enddo
       enddo
       call diagnose_2d(Time, Grd, id_eta_tend_press, wrk1_2d(:,:))
-      if(id_eta_tend_press_glob > 0) then  
-          wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-          global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-          used         = send_data (id_eta_tend_press_glob, global_mean, Time%model_time)
-      endif
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_press_glob, wrk1_2d, cellarea_r)
   endif
 
 end subroutine ocean_advection_velocity

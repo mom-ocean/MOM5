@@ -22,7 +22,7 @@ module ocean_util_mod
 
 use constants_mod,       only: epsln
 use diag_manager_mod,    only: send_data, register_diag_field 
-use mpp_domains_mod,     only: mpp_update_domains
+use mpp_domains_mod,     only: mpp_update_domains, mpp_global_sum, NON_BITWISE_EXACT_SUM
 use mpp_mod,             only: stdout, stdlog, FATAL
 use mpp_mod,             only: mpp_error, mpp_pe, mpp_root_pe, mpp_min, mpp_max, mpp_chksum
 use time_manager_mod,    only: time_type, get_date
@@ -68,6 +68,7 @@ public diagnose_2d_int
 public diagnose_3d
 public diagnose_3d_u
 public diagnose_3d_int
+public diagnose_sum
 public register_2d_t_field
 public register_3d_t_field
 public register_3d_xte_field
@@ -945,6 +946,26 @@ subroutine diagnose_3d_int(Time, Grid, id_name, data)
 end subroutine diagnose_3d_int
 ! </SUBROUTINE> NAME="diagnose_3d_int"
 
+subroutine diagnose_sum(Time, Grid, Dom, id_name, data, factor)
+
+  type(ocean_time_type), intent(in) :: Time
+  type(ocean_grid_type), intent(in) :: Grid
+  type(ocean_domain_type), intent(in) :: Dom
+  integer, intent(in) :: id_name
+  real, dimension(isd:,jsd:), intent(in) :: data
+  real, intent(in) :: factor
+
+  real, dimension(isd:ied,jsd:jed) :: work
+  real :: total
+  logical :: used
+
+  if(id_name > 0) then 
+     work(:,:) = Grid%tmask(:,:,1)*Grid%dat(:,:)*data(:,:)
+     total = mpp_global_sum(Dom%domain2d, work(:,:), NON_BITWISE_EXACT_SUM)*factor
+     used = send_data (id_name, total, Time%model_time)
+  endif
+
+end subroutine diagnose_sum
 
 function register_2d_t_field(Grid, Time, name, desc, units, range)
 

@@ -88,7 +88,7 @@ use field_manager_mod, only: get_field_methods, method_type, get_field_info
 use fms_mod,           only: stdout, stdlog, FATAL, NOTE, WARNING
 use fms_mod,           only: write_version_number, open_namelist_file, check_nml_error, close_file
 use mpp_domains_mod,   only: mpp_update_domains 
-use mpp_domains_mod,   only: mpp_global_sum, BITWISE_EXACT_SUM, NON_BITWISE_EXACT_SUM
+use mpp_domains_mod,   only: BITWISE_EXACT_SUM
 use mpp_mod,           only: input_nml_file, mpp_error
 
 use ocean_domains_mod,    only: get_local_indices, get_global_indices, set_ocean_domain
@@ -98,7 +98,7 @@ use ocean_types_mod,      only: ocean_domain_type, ocean_grid_type, ocean_time_t
 use ocean_types_mod,      only: ocean_thickness_type, ocean_external_mode_type 
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_options_type, ocean_density_type 
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk1_v
-use ocean_util_mod,       only: diagnose_2d, diagnose_3d
+use ocean_util_mod,       only: diagnose_2d, diagnose_3d, diagnose_sum
 
 implicit none
 
@@ -1464,11 +1464,7 @@ subroutine watermass_diag(Time, Dens, Thickness)
          enddo
       enddo
       call diagnose_2d(Time, Grd, id_eta_tend_xinsert, eta_tend(:,:))
-      if(id_eta_tend_xinsert_glob > 0) then 
-          eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
-          eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-          used          = send_data (id_eta_tend_xinsert_glob, eta_tend_glob, Time%model_time)
-      endif
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_xinsert_glob, eta_tend, cellarea_r)
   endif
 
 

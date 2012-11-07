@@ -463,7 +463,7 @@ use ocean_types_mod,          only: ocean_external_mode_type, ocean_velocity_typ
 use ocean_types_mod,          only: ice_ocean_boundary_type, ocean_density_type
 use ocean_types_mod,          only: ocean_public_type
 use ocean_workspace_mod,      only: wrk1_2d, wrk2_2d, wrk3_2d, wrk1
-use ocean_util_mod,           only: diagnose_2d, diagnose_2d_u, diagnose_3d_u
+use ocean_util_mod,           only: diagnose_2d, diagnose_2d_u, diagnose_3d_u, diagnose_sum
 
 implicit none
 
@@ -3935,22 +3935,14 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
      call diagnose_2d(Time, Grd, id_stf_restore(index_salt), flx_restore(:,:)*T_prog(index_salt)%conversion)
   endif
   ! total salt from restoring
-  if (id_total_ocean_stf_restore(index_salt) > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*flx_restore(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_stf_restore(index_salt), total_stuff*1e-15, Time%model_time)
-  endif 
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_stf_restore(index_salt), flx_restore, 1e-15)
 
   ! salt from correction 
   if (id_stf_correct(index_salt) > 0) then
      call diagnose_2d(Time, Grd, id_stf_correct(index_salt), flx_correct(:,:)*T_prog(index_salt)%conversion)
   endif
   ! total salt from correction 
-  if (id_total_ocean_stf_correct(index_salt) > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*flx_correct(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_stf_correct(index_salt), total_stuff*1e-15, Time%model_time)
-  endif 
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_stf_correct(index_salt), flx_correct, 1e-15)
 
   if(id_tform_rho_pbl_adjsalt_on_nrho > 0) then
       nrho_work(:,:,:) = 0.0
@@ -3988,39 +3980,22 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
      call diagnose_2d(Time, Grd, id_stf_total(index_salt), T_prog(index_salt)%stf(:,:)*T_prog(index_salt)%conversion)
   endif
   ! total salt from all fluxes 
-  if (id_total_ocean_stf_sum(index_salt) > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:) &
-                     *T_prog(index_salt)%stf(:,:)*T_prog(index_salt)%conversion
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_stf_sum(index_salt), total_stuff*1e-15, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_stf_sum(index_salt), T_prog(index_salt)%stf, 1e-15*T_prog(index_salt)%conversion)
 
   ! pme from salt restoring
   call diagnose_2d(Time, Grd, id_pme_restore, pme_restore(:,:))
   ! total pme from salt restoring
-  if(id_total_ocean_pme_restore > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*pme_restore(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_pme_restore, total_stuff*1e-15, Time%model_time)
-  endif 
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_pme_restore, pme_restore, 1e-15)
 
   ! pme from salt correction 
   call diagnose_2d(Time, Grd, id_pme_correct, pme_correct(:,:))
   ! total pme from salt correction 
-  if(id_total_ocean_pme_correct > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*pme_correct(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_pme_correct, total_stuff*1e-15, Time%model_time)
-  endif 
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_pme_correct, pme_correct, 1e-15)
 
   ! pme from all surface terms 
   call diagnose_2d(Time, Grd, id_pme_net, pme(:,:))
   ! total pme from all surface terms 
-  if(id_total_ocean_pme_net > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*pme(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_pme_net, total_stuff*1e-15, Time%model_time)
-  endif 
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_pme_net, pme, 1e-15)
 
   ! heat input from net pme relative to 0 degrees C (W/m2)
   if (id_stf_pme(index_temp) > 0) then
@@ -4029,10 +4004,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
   endif
   ! total heat flux from net pme (Watts)
   if(id_total_ocean_stf_pme(index_temp) > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:) &
-                     *pme(:,:)*T_prog(index_temp)%tpme(:,:)*T_prog(index_temp)%conversion
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_stf_pme(index_temp), total_stuff*1e-15, Time%model_time)
+     call diagnose_sum(Time, Grd, Dom, id_total_ocean_stf_pme(index_temp), pme(:,:)*T_prog(index_temp)%tpme(:,:), 1e-15*T_prog(index_temp)%conversion)
   endif
 
   if (id_ice_mask > 0) then
@@ -4050,11 +4022,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
          enddo
       enddo
       call diagnose_2d(Time, Grd, id_eta_tend_salt_restore, wrk1_2d(:,:))
-      if(id_eta_tend_salt_restore_glob > 0) then 
-         wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-         global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-         used         = send_data (id_eta_tend_salt_restore_glob, global_mean, Time%model_time)
-      endif
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_salt_restore_glob, wrk1_2d, cellarea_r)
   endif
 
   ! contribution to sea level from water restoring flux 
@@ -4066,11 +4034,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
          enddo
       enddo
       call diagnose_2d(Time, Grd, id_eta_tend_water_restore, wrk1_2d(:,:))
-      if(id_eta_tend_water_restore_glob > 0) then 
-         wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-         global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-         used         = send_data (id_eta_tend_water_restore_glob, global_mean, Time%model_time)
-      endif
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_water_restore_glob, wrk1_2d, cellarea_r)
   endif
 
 
@@ -4136,11 +4100,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
   endif
 
   ! total of restoring heat flux 
-  if(id_total_ocean_stf_restore(index_temp) > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*flx_restore(:,:)*T_prog(index_temp)%conversion
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_stf_restore(index_temp), total_stuff*1e-15, Time%model_time)
-  endif 
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_stf_restore(index_temp), flx_restore(:,:), 1e-15*T_prog(index_temp)%conversion)
 
   ! flux correction heat flux 
   if (id_stf_correct(index_temp) > 0) then
@@ -4148,11 +4108,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
   endif
 
   ! total of flux correction heat flux 
-  if(id_total_ocean_stf_correct(index_temp) > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*flx_correct(:,:)*T_prog(index_temp)%conversion
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_stf_correct(index_temp), total_stuff*1e-15, Time%model_time)
-  endif 
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_stf_correct(index_temp), flx_correct(:,:), 1e-15*T_prog(index_temp)%conversion)
 
   if(id_tform_rho_pbl_adjheat_on_nrho > 0) then
       nrho_work(:,:,:) = 0.0
@@ -4177,12 +4133,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
   endif
 
   ! total of net heat flux 
-  if(id_total_ocean_stf_sum(index_temp) > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:) &
-                     *T_prog(index_temp)%stf(:,:)*T_prog(index_temp)%conversion
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_stf_sum(index_temp), total_stuff*1e-15, Time%model_time)
-  endif 
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_stf_sum(index_temp), T_prog(index_temp)%stf(:,:), 1e-15*T_prog(index_temp)%conversion)
 
 
   ! contribution to sea level from temperature restoring flux 
@@ -4194,11 +4145,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
          enddo
       enddo
       call diagnose_2d(Time, Grd, id_eta_tend_heat_restore, wrk1_2d(:,:))
-      if(id_eta_tend_heat_restore_glob > 0) then 
-         wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-         global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-         used         = send_data (id_eta_tend_heat_restore_glob, global_mean, Time%model_time)
-      endif
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_heat_restore_glob, wrk1_2d, cellarea_r)
   endif
 
 
@@ -4641,12 +4588,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
              T_prog(index_temp)%stf(:,:)*T_prog(index_temp)%conversion)
   endif
   ! total surface heat flux (Watts) passed through coupler 
-  if(id_total_ocean_stf_coupler(index_temp) > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:) &
-                    *T_prog(index_temp)%stf(:,:)*T_prog(index_temp)%conversion
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_stf_coupler(index_temp), total_stuff*1e-15, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_stf_coupler(index_temp), T_prog(index_temp)%stf(:,:), 1e-15*T_prog(index_temp)%conversion)
 
   ! heat input from liquid river runoff relative to 0 degrees C (W/m2)
   if (id_stf_runoff(index_temp) > 0) then
@@ -4654,12 +4596,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
              T_prog(index_temp)%runoff_tracer_flux(:,:)*T_prog(index_temp)%conversion)
   endif
   ! total heat flux from liquid river runoff (Watts), relative to 0C. 
-  if(id_total_ocean_stf_runoff(index_temp) > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:) &
-                     *T_prog(index_temp)%runoff_tracer_flux(:,:)*T_prog(index_temp)%conversion
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_stf_runoff(index_temp), total_stuff*1e-15, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_stf_runoff(index_temp), T_prog(index_temp)%runoff_tracer_flux(:,:), 1e-15*T_prog(index_temp)%conversion)
 
   ! heat input from solid calving land ice relative to 0 degrees C (W/m2)
   if (id_stf_calving(index_temp) > 0) then
@@ -4667,20 +4604,12 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
              T_prog(index_temp)%calving_tracer_flux(:,:)*T_prog(index_temp)%conversion)
   endif
   ! total heat flux from solid calving land ice (Watts), relative to 0C. 
-  if(id_total_ocean_stf_calving(index_temp) > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:) &
-         *T_prog(index_temp)%calving_tracer_flux(:,:)*T_prog(index_temp)%conversion
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_stf_calving(index_temp), total_stuff*1e-15, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_stf_calving(index_temp), T_prog(index_temp)%calving_tracer_flux(:,:), 1e-15*T_prog(index_temp)%conversion)
 
   ! total heat flux from liquid runoff + solid calving land ice (Watts), relative to 0C. 
+
   if(id_total_ocean_river_heat > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)                                                 &
-         *(T_prog(index_temp)%calving_tracer_flux(:,:)+T_prog(index_temp)%runoff_tracer_flux(:,:)) &
-         *T_prog(index_temp)%conversion
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_river_heat, total_stuff*1e-15, Time%model_time)
+     call diagnose_sum(Time, Grd, Dom, id_total_ocean_river_heat, T_prog(index_temp)%calving_tracer_flux(:,:) + T_prog(index_temp)%runoff_tracer_flux, 1e-15*T_prog(index_temp)%conversion)
   endif
 
   ! heat input from liquid precip relative to 0 degrees C (W/m2).
@@ -4692,10 +4621,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
   ! total heat flux from liquid precip (Watts)
   if(id_total_ocean_stf_prec(index_temp) > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:) &
-                     *liquid_precip(:,:)*T_prog(index_temp)%tpme(:,:)*T_prog(index_temp)%conversion
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_stf_prec(index_temp), total_stuff*1e-15, Time%model_time)
+     call diagnose_sum(Time, Grd, Dom, id_total_ocean_stf_prec(index_temp), liquid_precip(:,:)*T_prog(index_temp)%tpme(:,:), 1e-15*T_prog(index_temp)%conversion)
   endif
 
   ! heat sent away from ocean due to water mass leaving ocean
@@ -4707,10 +4633,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
   ! total heat flux from evaporating water carrying heat away from ocean (Watts)
   if(id_total_ocean_stf_evap(index_temp) > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:) &
-                     *evaporation(:,:)*T_prog(index_temp)%tpme(:,:)*T_prog(index_temp)%conversion
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_stf_evap(index_temp), total_stuff*1e-15, Time%model_time)
+     call diagnose_sum(Time, Grd, Dom, id_total_ocean_stf_evap(index_temp), evaporation(:,:)*T_prog(index_temp)%tpme(:,:), 1e-15*T_prog(index_temp)%conversion)
   endif
 
   ! net heat flux from radiation+latent+sensible (as passed through coupler) + mass transport 
@@ -4742,18 +4665,13 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                  + evaporation(i,j)*T_prog(index_temp)%tpme(i,j) )
          enddo
       enddo
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_net_sfc_heating, total_stuff*1e-15, Time%model_time)
+      call diagnose_sum(Time, Grd, Dom, id_total_net_sfc_heating, wrk1_2d, 1e-15)
   endif
 
   ! shortwave flux (W/m2)
   call diagnose_2d(Time, Grd, id_swflx, swflx(:,:))
   ! total shortwave heat transport (Watts)
-  if (id_total_ocean_swflx > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*swflx(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_swflx, total_stuff*1e-15, Time%model_time)
-  endif 
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_swflx, swflx, 1e-15)
   ! swflx impacts on water mass transformation in neutral density classes 
   if(id_tform_rho_pbl_sw_on_nrho > 0) then
       nrho_work(:,:,:) = 0.0
@@ -4774,11 +4692,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   ! visible shortwave flux (W/m2)
   call diagnose_2d(Time, Grd, id_swflx_vis, swflx_vis(:,:))
   ! total visible shortwave (Watts)
-  if (id_total_ocean_swflx_vis > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*swflx_vis(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_swflx_vis, total_stuff*1e-15, Time%model_time)
-  endif 
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_swflx_vis, swflx_vis, 1e-15)
 
 
   ! evaporative heat flux (W/m2) (<0 cools ocean)
@@ -4801,9 +4715,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
             tmp_flux(ii,jj) = -latent_heat_vapor(ii,jj)*Ice_ocean_boundary%q_flux(i,j)
          enddo
       enddo
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*tmp_flux(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_evap_heat, total_stuff*1e-15, Time%model_time)
+      call diagnose_sum(Time, Grd, Dom, id_total_ocean_evap_heat, tmp_flux, 1e-15)
   endif
 
   ! latent heat (liquid-vapor and solid-liquid) 
@@ -4828,11 +4740,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   ! longwave heat flux (W/m2)
   call diagnose_2d(Time, Grd, id_lw_heat, longwave(:,:))
   ! total longwave heating (Watts) 
-  if (id_total_ocean_lw_heat > 0) then
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*longwave(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_lw_heat, total_stuff*1e-15, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_lw_heat, longwave, 1e-15)
   ! longwave impacts on water mass transformation in neutral density classes 
   if(id_tform_rho_pbl_lw_on_nrho > 0) then
       nrho_work(:,:,:) = 0.0
@@ -4870,9 +4778,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
             tmp_flux(ii,jj) = -Ice_ocean_boundary%fprec(i,j)*latent_heat_fusion(ii,jj)
          enddo
       enddo
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*tmp_flux(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_fprec_melt_heat, total_stuff*1e-15, Time%model_time)
+      call diagnose_sum(Time, Grd, Dom, id_total_ocean_fprec_melt_heat, tmp_flux, 1e-15)
   endif
 
   ! heat flux from the melting of calved land ice (W/m2)
@@ -4882,19 +4788,13 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
   ! total heating from the melting of calved land ice (Watts)  
   if (id_total_ocean_calving_melt_heat > 0) then
-      wrk1_2d(:,:) = -latent_heat_fusion(:,:)*Grd%tmask(:,:,1)*Grd%dat(:,:)*calving(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_calving_melt_heat, total_stuff*1e-15, Time%model_time)
+     call diagnose_sum(Time, Grd, Dom, id_total_ocean_calving_melt_heat, -calving(:,:)*latent_heat_fusion(:,:), 1e-15)
   endif
 
   ! sensible heat flux (W/m2)
   call diagnose_2d(Time, Grd, id_sens_heat, sensible(:,:))
   ! total sensible heat transport (Watts) 
-  if (id_total_ocean_sens_heat > 0) then
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*sensible(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_sens_heat, total_stuff*1e-15, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_sens_heat, sensible, 1e-15)
   ! sensible heat impacts on water mass transformation in neutral density classes 
   if(id_tform_rho_pbl_sens_on_nrho > 0) then
       nrho_work(:,:,:) = 0.0
@@ -4960,12 +4860,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
 
   ! total salt flux (kg/sec) passed through coupler 
-  if(id_total_ocean_stf_coupler(index_salt) > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:) &
-                    *T_prog(index_salt)%stf(:,:)*T_prog(index_salt)%conversion
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_stf_coupler(index_salt), total_stuff*1e-15, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_stf_coupler(index_salt), T_prog(index_salt)%stf(:,:), 1e-15*T_prog(index_salt)%conversion)
 
   ! salt input from liquid river runoff (kg/(m2*sec))
   if (id_stf_runoff(index_salt) > 0) then
@@ -4980,32 +4875,17 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
 
   ! total salt flux from liquid river runoff (kg/sec)
-  if(id_total_ocean_stf_runoff(index_salt) > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:) &
-                    *T_prog(index_salt)%runoff_tracer_flux(:,:)*T_prog(index_salt)%conversion
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_stf_runoff(index_salt), total_stuff*1e-15, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_stf_runoff(index_salt), T_prog(index_salt)%runoff_tracer_flux(:,:), 1e-15*T_prog(index_salt)%conversion)
 
   ! total salt flux from calving land ice (kg/sec)
-  if(id_total_ocean_stf_calving(index_salt) > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:) &
-                    *T_prog(index_salt)%calving_tracer_flux(:,:)*T_prog(index_salt)%conversion
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_stf_calving(index_salt), total_stuff*1e-15, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_stf_calving(index_salt), T_prog(index_salt)%calving_Tracer_flux(:,:), 1e-15*T_prog(index_salt)%conversion)
 
   ! salt input from ice (kg/(m2*sec))
   if (id_salt_flux_ice > 0) then
      call diagnose_2d(Time, Grd, id_salt_flux_ice, melt(:,:)*ice_salt_concentration)
   endif
   ! total salt flux from ice (kg/sec)
-  if(id_total_salt_flux_ice > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:) &
-                    *melt(:,:)*ice_salt_concentration
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_salt_flux_ice, total_stuff*1e-15, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_total_salt_flux_ice, melt, 1e-15*ice_salt_concentration)
 
   ! salt flux impacts on water mass transformation in neutral density classes 
   if(id_tform_rho_pbl_salt_on_nrho > 0) then
@@ -5033,9 +4913,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
   ! total mass flux from pme+river (kg/sec)
   if(id_total_ocean_pme_river > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*(pme(:,:)+river(:,:))
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_pme_river, total_stuff*1e-15, Time%model_time)
+     call diagnose_sum(Time, Grd, Dom,id_total_ocean_pme_river, pme(:,:) + river(:,:), 1e-15)
   endif
   ! bin pme+river into neutral density classes 
   if(id_mass_pmepr_on_nrho > 0) then
@@ -5057,21 +4935,13 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   call diagnose_2d(Time, Grd, id_pme_sbc, pme(:,:))
 
   ! total mass flux from pme_sbc (kg/sec)
-  if(id_total_ocean_pme_sbc > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*pme(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_pme_sbc, total_stuff*1e-15, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_pme_sbc, pme, 1e-15)
 
   ! mass flux per area from ice melt (kg/(m2*sec))  
   call diagnose_2d(Time, Grd, id_melt, melt(:,:))
 
   ! total mass flux from ice melt (kg/sec)
-  if(id_total_ocean_melt > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*melt(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_melt, total_stuff*1e-15, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_melt, melt, 1e-15)
 
   ! bin ice melt/form into neutral density classes 
   if(id_mass_melt_on_nrho > 0) then
@@ -5094,11 +4964,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   ! evaporation > 0 means liquid water enters ocean. 
   call diagnose_2d(Time, Grd, id_evap, evaporation(:,:))
   ! total mass transport from evap (kg/sec)
-  if(id_total_ocean_evap > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*evaporation(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_evap, total_stuff*1e-15, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_evap, evaporation, 1e-15)
   ! bin evap/condense mass transport into neutral density classes 
   if(id_mass_evap_on_nrho > 0) then
       nrho_work(:,:,:) = 0.0
@@ -5118,21 +4984,13 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   ! frozen precip (kg/(m2*sec))
   call diagnose_2d(Time, Grd, id_fprec, frozen_precip(:,:))
   ! total frozen precip (kg/sec)
-  if (id_total_ocean_fprec > 0) then
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*frozen_precip(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_fprec, total_stuff*1e-15, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_fprec, frozen_precip, 1e-15)
 
 
   ! liquid precip (kg/(m2*sec))
   call diagnose_2d(Time, Grd, id_lprec, liquid_precip(:,:))
   ! total liquid precip (kg/sec)
-  if (id_total_ocean_lprec > 0) then
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*liquid_precip(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_lprec, total_stuff*1e-15, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_lprec, liquid_precip, 1e-15)
   ! bin precip (liquid and frozen) mass transport into neutral density classes 
   if(id_mass_precip_on_nrho > 0) then
       nrho_work(:,:,:) = 0.0
@@ -5152,11 +5010,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   ! river (mass flux of land water (liquid+solid) ) entering ocean (kg/m^3)*(m/s)
   call diagnose_2d(Time, Grd, id_river, river(:,:))
   ! global sum of river input (kg/sec)
-  if(id_total_ocean_river > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*river(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_river, total_stuff*1e-15, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_river, river, 1e-15)
   ! bin river (liquid and frozen) runoff into neutral density classes 
   if(id_mass_river_on_nrho > 0) then
       nrho_work(:,:,:) = 0.0
@@ -5176,21 +5030,12 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   ! calving land ice (kg/(m2*sec)) entering the ocean 
   call diagnose_2d(Time, Grd, id_calving, calving(:,:))
   ! total mass of calving (kg/sec)
-  if (id_total_ocean_calving > 0) then
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*calving(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_calving, total_stuff*1e-15, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_calving, calving, 1e-15)
 
   ! liquid river runoff entering the ocean (kg/m^3)*(m/s)
   call diagnose_2d(Time, Grd, id_runoff, runoff(:,:))
   ! total liquid river runoff (kg/sec)
-  if (id_total_ocean_runoff > 0) then
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*runoff(:,:)
-      total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
-      used = send_data (id_total_ocean_runoff, total_stuff*1e-15, Time%model_time)
-  endif
-
+  call diagnose_sum(Time, Grd, Dom, id_total_ocean_runoff, runoff, 1e-15)
 
 
   !----------------------------------------------------------------------
@@ -5215,11 +5060,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
              enddo
           enddo
           call diagnose_2d(Time, Grd, id_eta_tend_sw, wrk1_2d(:,:))
-          if(id_eta_tend_sw_glob > 0) then 
-              wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-              global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-              used         = send_data (id_eta_tend_sw_glob, global_mean, Time%model_time)
-          endif
+          call diagnose_sum(Time, Grd, Dom, id_eta_tend_sw_glob, wrk1_2d, cellarea_r)
       endif
 
 
@@ -5238,11 +5079,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
              enddo
           enddo
           call diagnose_2d(Time, Grd, id_eta_tend_lw, wrk1_2d(:,:))
-          if(id_eta_tend_lw_glob > 0) then 
-              wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-              global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-              used         = send_data (id_eta_tend_lw_glob, global_mean, Time%model_time)
-          endif
+          call diagnose_sum(Time, Grd, Dom, id_eta_tend_lw_glob, wrk1_2d, cellarea_r)
       endif
 
       ! sensible heat contribution to sea level 
@@ -5260,11 +5097,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
              enddo
           enddo
           call diagnose_2d(Time, Grd, id_eta_tend_sens, wrk1_2d(:,:))
-          if(id_eta_tend_sens_glob > 0) then 
-              wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-              global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-              used         = send_data (id_eta_tend_sens_glob, global_mean, Time%model_time)
-          endif
+          call diagnose_sum(Time, Grd, Dom, id_eta_tend_sens_glob, wrk1_2d, cellarea_r)
       endif
 
       ! latent heat from vaporization contribution to sea level 
@@ -5283,11 +5116,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
              enddo
           enddo
           call diagnose_2d(Time, Grd, id_eta_tend_evap_heat, wrk1_2d(:,:))
-          if(id_eta_tend_evap_heat_glob > 0) then 
-              wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-              global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-              used         = send_data (id_eta_tend_evap_heat_glob, global_mean, Time%model_time)
-          endif
+          call diagnose_sum(Time, Grd, Dom, id_eta_tend_evap_heat, wrk1_2d, cellarea_r)
       endif
 
       ! latent heat from melting frozen precip contribution to sea level.
@@ -5307,11 +5136,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
              enddo
           enddo
           call diagnose_2d(Time, Grd, id_eta_tend_fprec_melt, wrk1_2d(:,:))
-          if(id_eta_tend_fprec_melt_glob > 0) then 
-              wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-              global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-              used         = send_data (id_eta_tend_fprec_melt_glob, global_mean, Time%model_time)
-          endif
+          call diagnose_sum(Time, Grd, Dom, id_eta_tend_fprec_melt_glob, wrk1_2d, cellarea_r)
       endif
 
       ! latent heat from melting icebergs contribution to sea level  
@@ -5335,11 +5160,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
              enddo
           enddo
           call diagnose_2d(Time, Grd, id_eta_tend_iceberg_melt, wrk1_2d(:,:))
-          if(id_eta_tend_iceberg_melt_glob > 0) then 
-              wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-              global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-              used         = send_data (id_eta_tend_iceberg_melt_glob, global_mean, Time%model_time)
-          endif
+          call diagnose_sum(Time, Grd, Dom, id_eta_tend_iceberg_melt_glob, wrk1_2d, cellarea_r)
       endif
 
       ! sum of sfc heat contributions to sea level from heat passed through coupler
@@ -5351,11 +5172,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
              enddo
           enddo
           call diagnose_2d(Time, Grd, id_eta_tend_heat_coupler, wrk1_2d(:,:))
-          if(id_eta_tend_heat_coupler_glob > 0) then 
-              wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-              global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-              used         = send_data (id_eta_tend_heat_coupler_glob, global_mean, Time%model_time)
-          endif
+          call diagnose_sum(Time, Grd, Dom, id_eta_tend_heat_coupler_glob, wrk1_2d, cellarea_r)
       endif
 
 
@@ -5373,11 +5190,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
              enddo
           enddo
           call diagnose_2d(Time, Grd, id_eta_tend_salt_coupler, wrk1_2d(:,:))
-          if(id_eta_tend_salt_coupler_glob > 0) then 
-              wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-              global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-              used         = send_data (id_eta_tend_salt_coupler_glob, global_mean, Time%model_time)
-          endif
+          call diagnose_sum(Time, Grd, Dom, id_eta_tend_salt_coupler_glob, wrk1_2d, cellarea_r)
       endif
 
 
@@ -5400,11 +5213,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
              enddo
           enddo
           call diagnose_2d(Time, Grd, id_eta_tend_evap, wrk1_2d(:,:))
-          if(id_eta_tend_evap_glob > 0) then 
-              wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-              global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-              used         = send_data (id_eta_tend_evap_glob, global_mean, Time%model_time)
-          endif
+          call diagnose_sum(Time, Grd, Dom, id_eta_tend_evap_glob, wrk1_2d, cellarea_r)
       endif
 
 
@@ -5423,11 +5232,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
              enddo
           enddo
           call diagnose_2d(Time, Grd, id_eta_tend_lprec, wrk1_2d(:,:))
-          if(id_eta_tend_lprec_glob > 0) then 
-              wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-              global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-              used         = send_data (id_eta_tend_lprec_glob, global_mean, Time%model_time)
-          endif
+          call diagnose_sum(Time, Grd, Dom, id_eta_tend_lprec_glob, wrk1_2d, cellarea_r)
       endif
 
 
@@ -5446,11 +5251,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
              enddo
           enddo
           call diagnose_2d(Time, Grd, id_eta_tend_fprec, wrk1_2d(:,:))
-          if(id_eta_tend_fprec_glob > 0) then 
-              wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-              global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-              used         = send_data (id_eta_tend_fprec_glob, global_mean, Time%model_time)
-          endif
+          call diagnose_sum(Time, Grd, Dom, id_eta_tend_fprec_glob, wrk1_2d, cellarea_r)
       endif
 
 
@@ -5469,11 +5270,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
              enddo
           enddo
           call diagnose_2d(Time, Grd, id_eta_tend_runoff, wrk1_2d(:,:))
-          if(id_eta_tend_runoff_glob > 0) then 
-              wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-              global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-              used         = send_data (id_eta_tend_runoff_glob, global_mean, Time%model_time)
-          endif
+          call diagnose_sum(Time, Grd, Dom, id_eta_tend_runoff_glob, wrk1_2d, cellarea_r)
       endif
 
       ! iceberg contribution to sea level 
@@ -5491,11 +5288,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
              enddo
           enddo
           call diagnose_2d(Time, Grd, id_eta_tend_iceberg, wrk1_2d(:,:))
-          if(id_eta_tend_iceberg_glob > 0) then 
-              wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-              global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-              used         = send_data (id_eta_tend_iceberg_glob, global_mean, Time%model_time)
-          endif
+          call diagnose_sum(Time, Grd, Dom, id_eta_tend_iceberg_glob, wrk1_2d, cellarea_r)
       endif
 
       ! sum of the water fluxes passed through coupler contribution to sea level 
@@ -5506,11 +5299,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
              enddo
           enddo
           call diagnose_2d(Time, Grd, id_eta_tend_water_coupler, wrk3_2d(:,:))
-          if(id_eta_tend_water_coupler_glob > 0) then 
-              wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk3_2d(:,:)
-              global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-              used         = send_data (id_eta_tend_water_coupler_glob, global_mean, Time%model_time)
-          endif
+          call diagnose_sum(Time, Grd, Dom, id_eta_tend_water_coupler_glob, wrk1_2d, cellarea_r)
       endif
 
 

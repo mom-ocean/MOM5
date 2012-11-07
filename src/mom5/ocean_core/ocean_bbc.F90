@@ -126,7 +126,6 @@ use fms_mod,              only: open_namelist_file, check_nml_error, write_versi
 use fms_mod,              only: close_file, read_data
 use mpp_mod,              only: input_nml_file, mpp_error, FATAL, WARNING, stdout, stdlog
 use mpp_domains_mod,      only: mpp_update_domains, BGRID_NE
-use mpp_domains_mod,      only: mpp_global_sum, NON_BITWISE_EXACT_SUM
 
 use ocean_domains_mod,    only: get_local_indices
 use ocean_parameters_mod, only: missing_value, TERRAIN_FOLLOWING
@@ -141,7 +140,7 @@ use ocean_types_mod,      only: ocean_external_mode_type
 use ocean_workspace_mod,  only: wrk1_2d, wrk2_2d
 use wave_types_mod,       only: ocean_wave_type
 use ocean_wave_mod,       only: wave_model_is_initialised
-use ocean_util_mod,       only: diagnose_2d, diagnose_2d_u
+use ocean_util_mod,       only: diagnose_2d, diagnose_2d_u, diagnose_sum
 
 implicit none
 
@@ -758,11 +757,7 @@ if (id_eta_tend_geoheat > 0 .or. id_eta_tend_geoheat_glob > 0) then
     enddo
 
     call diagnose_2d(Time, Grd, id_eta_tend_geoheat, wrk1_2d(:,:))
-    if(id_eta_tend_geoheat_glob > 0) then  
-        wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-        global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-        used         = send_data (id_eta_tend_geoheat_glob, global_mean, Time%model_time)
-    endif
+    call diagnose_sum(Time, Grd, Dom, id_eta_tend_geoheat_glob, wrk1_2d, cellarea_r)
 
 endif
 

@@ -423,7 +423,6 @@ use mpp_mod,          only: input_nml_file, mpp_pe, mpp_min, mpp_error, stdout, 
 use mpp_mod,          only: mpp_chksum
 use mpp_mod,          only: mpp_clock_id, mpp_clock_begin, mpp_clock_end, CLOCK_ROUTINE
 use mpp_domains_mod,  only: mpp_update_domains, EUPDATE, NUPDATE
-use mpp_domains_mod,  only: mpp_global_sum, NON_BITWISE_EXACT_SUM
 use time_manager_mod, only: time_type, increment_time
 
 use ocean_domains_mod,           only: get_local_indices, set_ocean_domain
@@ -439,7 +438,7 @@ use ocean_types_mod,             only: ocean_time_type, ocean_thickness_type, oc
 use ocean_types_mod,             only: tracer_3d_0_nk_type, tracer_3d_1_nk_type 
 use ocean_util_mod,              only: write_timestamp, write_chksum_3d, write_chksum_2d, write_chksum_header
 use ocean_util_mod,              only: write_line, write_note, write_warning
-use ocean_util_mod,              only: diagnose_2d, diagnose_3d
+use ocean_util_mod,              only: diagnose_2d, diagnose_3d, diagnose_sum
 use ocean_workspace_mod,         only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk6
 use ocean_workspace_mod,         only: wrk1_v, wrk2_v, wrk3_v, wrk1_2d, wrk2_2d, wrk3_2d
 
@@ -3403,11 +3402,7 @@ subroutine compute_eta_tend_gm90 (Time, Thickness, Dens,  &
       if(id_eta_tend_gm90 > 0) then   
          call diagnose_2d(Time, Grd, id_eta_tend_gm90, -1.0*wrk1_2d(:,:))
       endif 
-      if(id_eta_tend_gm90_glob > 0) then  
-         wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-         global_mean  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-         used         = send_data (id_eta_tend_gm90_glob, -1.0*global_mean, Time%model_time)
-      endif 
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_gm90_glob, wrk1_2d, -1.0*cellarea_r)
   endif
 
   call mpp_clock_end(id_clock_eta_tend_gm90)
@@ -3578,16 +3573,8 @@ subroutine cabbeling_thermob_tendency (Time, Thickness, T_prog, Dens,   &
   call diagnose_2d(Time, Grd, id_cabbeling_tend_intz,   wrk1_2d(:,:))
   call diagnose_2d(Time, Grd, id_thermobaric_tend_intz, wrk2_2d(:,:))
 
-  if(id_cabbeling_tend_intz_glob > 0) then 
-      wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-      global_mean  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-      used         = send_data (id_cabbeling_tend_intz_glob, global_mean, Time%model_time)
-  endif
-  if(id_thermobaric_tend_intz_glob > 0) then 
-      wrk2_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk2_2d(:,:)
-      global_mean  = mpp_global_sum(Dom%domain2d,wrk2_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-      used         = send_data (id_thermobaric_tend_intz_glob, global_mean, Time%model_time)
-  endif
+  call diagnose_sum(Time, Grd, Dom, id_cabbeling_tend_intz_glob, wrk1_2d, cellarea_r)
+  call diagnose_sum(Time, Grd, Dom, id_thermobaric_tend_intz_glob, wrk2_2d, cellarea_r)
 
   if(wdianeutral_smooth) then 
      if(id_wdian_cabbeling > 0 .or. id_wdian_cabbeling_on_nrho > 0 .or. &
@@ -4366,11 +4353,7 @@ subroutine watermass_diag(Time, T_prog, Dens, tendency_redi_temp, tendency_redi_
               enddo
            enddo
            call diagnose_2d(Time, Grd, id_eta_tend_ndiff_tend, eta_tend(:,:))
-           if(id_eta_tend_ndiff_tend_glob > 0) then 
-               eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
-               eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-               used          = send_data (id_eta_tend_ndiff_tend_glob, eta_tend_glob, Time%model_time)
-           endif
+           call diagnose_sum(Time, Grd, Dom, id_eta_tend_ndiff_tend_glob, eta_tend, cellarea_r)
        endif
 
    endif   ! endif for ndiffuse
@@ -4532,11 +4515,7 @@ subroutine watermass_diag(Time, T_prog, Dens, tendency_redi_temp, tendency_redi_
               enddo
            enddo
            call diagnose_2d(Time, Grd, id_eta_tend_gm_tend, eta_tend(:,:))
-           if(id_eta_tend_gm_tend_glob > 0) then 
-               eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
-               eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-               used          = send_data (id_eta_tend_gm_tend_glob, eta_tend_glob, Time%model_time)
-           endif
+           call diagnose_sum(Time, Grd, Dom, id_eta_tend_gm_tend_glob, eta_tend, cellarea_r)
        endif
 
 
@@ -4730,11 +4709,7 @@ subroutine watermass_diag_ndiffuse(Time, Dens, tendency_redi_temp, tendency_redi
             enddo
          enddo
          call diagnose_2d(Time, Grd, id_eta_tend_ndiff_tend, eta_tend(:,:))
-         if(id_eta_tend_ndiff_tend_glob > 0) then 
-             eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
-             eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-             used          = send_data (id_eta_tend_ndiff_tend_glob, eta_tend_glob, Time%model_time)
-         endif
+         call diagnose_sum(Time, Grd, Dom, id_eta_tend_ndiff_tend_glob, eta_tend, cellarea_r)
      endif
 
   endif !endif for the neut_rho, wdian, and tform diagnostics iftest  
@@ -4927,11 +4902,7 @@ subroutine watermass_diag_sdiffuse(Time, Dens, tendency_gm_temp, tendency_gm_sal
             enddo
          enddo
          call diagnose_2d(Time, Grd, id_eta_tend_gm_tend, eta_tend(:,:))
-         if(id_eta_tend_gm_tend_glob > 0) then 
-             eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
-             eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-             used          = send_data (id_eta_tend_gm_tend_glob, eta_tend_glob, Time%model_time)
-         endif
+         call diagnose_sum(Time, Grd, Dom, id_eta_tend_gm_tend_glob, eta_tend, cellarea_r)
      endif
 
   endif !endif for the neut_rho, wdian, and tform diagnostics iftest  

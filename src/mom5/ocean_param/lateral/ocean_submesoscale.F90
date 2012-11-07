@@ -240,7 +240,7 @@ use ocean_tracer_util_mod,only: rebin_onto_rho
 use ocean_types_mod,      only: tracer_2d_type, tracer_3d_0_nk_type, tracer_3d_1_nk_type
 use ocean_types_mod,      only: ocean_time_type, ocean_domain_type, ocean_grid_type, ocean_options_type
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_thickness_type, ocean_density_type
-use ocean_util_mod,       only: write_timestamp, diagnose_2d, diagnose_3d
+use ocean_util_mod,       only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_sum
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk1_2d, wrk2_2d, wrk1_v
 
 implicit none
@@ -4089,11 +4089,7 @@ subroutine watermass_diag(Time, T_prog, Dens, Thickness)
          enddo
       enddo
       call diagnose_2d(Time, Grd, id_eta_tend_submeso_tend, eta_tend(:,:))
-      if(id_eta_tend_submeso_tend_glob > 0) then 
-          eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
-          eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-          used          = send_data (id_eta_tend_submeso_tend_glob, eta_tend_glob, Time%model_time)
-      endif
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_submeso_tend_glob, eta_tend, cellarea_r)
   endif
 
 
@@ -4273,11 +4269,7 @@ subroutine watermass_diag_diffusion(Time, T_prog, Dens, Thickness)
          enddo
       enddo
       call diagnose_2d(Time, Grd, id_eta_tend_subdiff_tend, eta_tend(:,:))
-      if(id_eta_tend_subdiff_tend_glob > 0) then 
-          eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
-          eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-          used          = send_data (id_eta_tend_submeso_tend_glob, eta_tend_glob, Time%model_time)
-      endif
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_subdiff_tend_glob, eta_tend, cellarea_r)
   endif
 
 

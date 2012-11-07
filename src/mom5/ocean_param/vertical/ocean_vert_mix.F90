@@ -237,7 +237,6 @@ use field_manager_mod,   only: MODEL_OCEAN, parse, find_field_index, get_field_m
 use fms_mod,             only: open_namelist_file, check_nml_error, close_file, write_version_number
 use fms_mod,             only: FATAL, WARNING, NOTE, stdout, stdlog
 use mpp_domains_mod,     only: mpp_update_domains
-use mpp_domains_mod,     only: mpp_global_sum, NON_BITWISE_EXACT_SUM
 use mpp_mod,             only: input_nml_file, mpp_error, mpp_chksum
 use mpp_mod,             only: mpp_clock_id, mpp_clock_begin, mpp_clock_end, CLOCK_ROUTINE
 
@@ -253,7 +252,7 @@ use ocean_types_mod,           only: ocean_grid_type, ocean_domain_type, ocean_t
 use ocean_types_mod,           only: ocean_time_type, ocean_time_steps_type, ocean_options_type
 use ocean_types_mod,           only: ocean_velocity_type, ocean_adv_vel_type, ocean_density_type
 use ocean_types_mod,           only: ocean_prog_tracer_type, ocean_diag_tracer_type
-use ocean_util_mod,            only: invtri, invtri_bmf, write_timestamp, diagnose_2d, diagnose_3d, diagnose_3d_u, diagnose_2d_u
+use ocean_util_mod,            only: invtri, invtri_bmf, write_timestamp, diagnose_2d, diagnose_3d, diagnose_3d_u, diagnose_2d_u, diagnose_sum
 use ocean_vert_const_mod,      only: ocean_vert_const_init, vert_mix_const 
 use ocean_vert_chen_mod,       only: ocean_vert_chen_init, vert_mix_chen, ocean_vert_chen_end 
 use ocean_vert_chen_mod,       only: ocean_vert_chen_restart
@@ -3040,13 +3039,7 @@ subroutine vert_mix_coeff(Time, Thickness, Velocity, T_prog,   &
       enddo
 
       call diagnose_2d(Time, Grd, id_eta_tend_diff_cbt_flx, wrk1_2d(:,:))
-
-      if(id_eta_tend_diff_cbt_flx_glob > 0) then 
-         wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-         global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-         used         = send_data (id_eta_tend_diff_cbt_flx_glob, global_mean, Time%model_time)
-      endif 
-
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_diff_cbt_flx_glob, wrk1_2d, cellarea_r)
       
   endif  ! id_eta_tend_diff_cbt_flx > 0 .or. id_eta_tend_diff_cbt_flx_glob > 0 
 
@@ -5153,11 +5146,7 @@ subroutine vert_diffuse_watermass_diag(Time, Thickness, Dens, T_prog, diff_cbt)
          enddo
       enddo
       call diagnose_2d(Time, Grd, id_eta_tend_diff_cbt_tend, eta_tend(:,:))
-      if(id_eta_tend_diff_cbt_tend_glob > 0) then 
-          eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
-          eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-          used          = send_data (id_eta_tend_diff_cbt_tend_glob, eta_tend_glob, Time%model_time)
-      endif
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_diff_cbt_tend_glob, eta_tend, cellarea_r)
   endif
 
 
@@ -5344,11 +5333,7 @@ subroutine vert_diffuse_watermass_diag(Time, Thickness, Dens, T_prog, diff_cbt)
          enddo
       enddo
       call diagnose_2d(Time, Grd, id_eta_tend_k33_tend, eta_tend(:,:))
-      if(id_eta_tend_k33_tend_glob > 0) then 
-          eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
-          eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-          used          = send_data (id_eta_tend_k33_tend_glob, eta_tend_glob, Time%model_time)
-      endif
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_k33_tend_glob, eta_tend, cellarea_r)
   endif
 
   ! fill diagnostic arrays for temp contributions
@@ -5533,11 +5518,7 @@ subroutine vert_diffuse_watermass_diag(Time, Thickness, Dens, T_prog, diff_cbt)
          enddo
       enddo
       call diagnose_2d(TIme, Grd, id_eta_tend_diff_wave_tend, eta_tend(:,:))
-      if(id_eta_tend_diff_wave_tend_glob > 0) then 
-          eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
-          eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-          used          = send_data (id_eta_tend_diff_wave_tend_glob, eta_tend_glob, Time%model_time)
-      endif
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_diff_wave_tend_glob, eta_tend, cellarea_r)
   endif
 
 
@@ -5723,11 +5704,7 @@ subroutine vert_diffuse_watermass_diag(Time, Thickness, Dens, T_prog, diff_cbt)
          enddo
       enddo
       call diagnose_2d(Time, Grd, id_eta_tend_diff_drag_tend, eta_tend(:,:))
-      if(id_eta_tend_diff_drag_tend_glob > 0) then 
-          eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
-          eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-          used          = send_data (id_eta_tend_diff_drag_tend_glob, eta_tend_glob, Time%model_time)
-      endif
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_diff_drag_tend_glob, eta_tend, cellarea_r)
   endif
 
 
@@ -5912,11 +5889,7 @@ subroutine vert_diffuse_watermass_diag(Time, Thickness, Dens, T_prog, diff_cbt)
          enddo
       enddo
       call diagnose_2d(Time, Grd, id_eta_tend_diff_lee_tend, eta_tend(:,:))
-      if(id_eta_tend_diff_lee_tend_glob > 0) then 
-          eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
-          eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-          used          = send_data (id_eta_tend_diff_lee_tend_glob, eta_tend_glob, Time%model_time)
-      endif
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_diff_lee_tend_glob, eta_tend, cellarea_r)
   endif
 
 
@@ -6102,11 +6075,7 @@ subroutine vert_diffuse_watermass_diag(Time, Thickness, Dens, T_prog, diff_cbt)
          enddo
       enddo
       call diagnose_2d(Time, Grd, id_eta_tend_diff_back_tend, eta_tend(:,:))
-      if(id_eta_tend_diff_back_tend_glob > 0) then 
-          eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
-          eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-          used          = send_data (id_eta_tend_diff_back_tend_glob, eta_tend_glob, Time%model_time)
-      endif
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_diff_back_tend_glob, eta_tend, cellarea_r)
   endif
 
 
