@@ -930,10 +930,7 @@ subroutine xlandmix_mass (Time, Thickness)
 
   call mpp_update_domains (Thickness%mass_source(:,:,1), Dom%domain2d)
 
-  if(id_xland_mass > 0) then 
-    used = send_data (id_xland_mass, xland_mass(isc:iec,jsc:jec), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1)) 
-  endif  
+  call diagnose_2d(Time, Grd, id_xland_mass, xland_mass(:,:))
 
 end subroutine xlandmix_mass
 ! </SUBROUTINE> NAME="xlandmix_mass"

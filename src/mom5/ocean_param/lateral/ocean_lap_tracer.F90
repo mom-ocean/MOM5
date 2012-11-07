@@ -318,11 +318,7 @@ ierr = check_nml_error(io_status,'ocean_lap_tracer_nml')
   id_ah_laplacian = register_static_field ('ocean_model', 'ah_laplacian',&
                     Grd%tracer_axes(1:3),'static laplacian diffusivity', &
                     'm^2/sec', missing_value=missing_value, range=(/-10.0,1.e20/))
-  if (id_ah_laplacian > 0) then
-      used = send_data (id_ah_laplacian, diff_cet(isc:iec,jsc:jec,:), &
-             Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
-  endif
-
+  call diagnose_3d(Time, Grd, id_ah_laplacian, diff_cet(:,:,:))
 
   ! register for diagnostics manager 
   allocate (id_xflux_diff(num_prog_tracers))
@@ -460,8 +456,7 @@ subroutine lap_tracer (Time, Thickness, Tracer, ntracer, diag_flag)
           call diagnose_3d(Time, Grd, id_yflux_diff(ntracer), -1.0*fy(:,:,:)*Tracer%conversion)
       endif
       if (id_h_diffuse(ntracer) > 0) then
-          used = send_data(id_h_diffuse(ntracer), wrk1(isc:iec,jsc:jec,:)*Tracer%conversion, &
-                 Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))           
+         call diagnose_3d(Time, Grd, id_h_diffuse(ntracer), wrk1(:,:,:)*Tracer%conversion)
       endif
 
   endif

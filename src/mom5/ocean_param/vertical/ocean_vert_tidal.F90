@@ -836,8 +836,7 @@ ierr = check_nml_error(io_status,'ocean_vert_tidal_nml')
                      'm^2/s',missing_value=missing_value, range=(/-10.0,1e6/))
     if (id_tide_diff_cbt_back > 0) then 
         wrk1(:,:,:) = background_diffusivity*Grid%tmask(:,:,:)
-        used = send_data (id_tide_diff_cbt_back, wrk1(isc:iec,jsc:jec,:), &
-               Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,:))
+        call diagnose_3d(Time, Grd, id_tide_diff_cbt_back, wrk1(:,:,:))
     endif
 
     id_tide_visc_cbu_back = -1

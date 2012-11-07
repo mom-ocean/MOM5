@@ -587,10 +587,7 @@ subroutine ocean_thickness_init  (Time, Time_steps, Domain, Grid, Ext_mode, Thic
   id_rescale_rho0_mask= register_static_field ('ocean_model', 'rescale_rho0_mask',        &
    Grid%tracer_axes(1:2),'fraction of rho0 used for specifying pressure and pstar levels',&
    'dimensionles',missing_value=missing_value, range=(/-1.e1,1.e8/))
-  if (id_rescale_rho0_mask > 0) then
-      used = send_data (id_rescale_rho0_mask, rescale_rho0_mask(isc:iec,jsc:jec), &
-      Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,1))
-  endif 
+  call diagnose_2d(Time, Grid, id_rescale_rho0_mask, rescale_rho0_mask(:,:))
 
 
   ! rho0_profile for setting dst with pressure based vertical coordinate models 
@@ -1494,8 +1491,7 @@ subroutine ocean_thickness_init_adjust(Grid, Time, Dens, Ext_mode, Thickness)
 
   if (file_exist('INPUT/ocean_thickness.res.nc'))  then 
       if (id_pbot0 > 0) then 
-          used = send_data (id_pbot0, c2dbars*Thickness%pbot0(isc:iec,jsc:jec), &
-               Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,1))
+         call diagnose_2d(Time, Grid, id_pbot0, c2dbars*Thickness%pbot0(:,:))
       endif
       return 
   endif
@@ -1527,8 +1523,7 @@ subroutine ocean_thickness_init_adjust(Grid, Time, Dens, Ext_mode, Thickness)
       endif
 
       if (id_pbot0 > 0) then 
-          used = send_data (id_pbot0, c2dbars*Thickness%pbot0(isc:iec,jsc:jec), &
-               Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,1))
+         call diagnose_2d(Time, Grid, id_pbot0, c2dbars*Thickness%pbot0(:,:))
       endif
 
       return
@@ -2003,18 +1998,15 @@ subroutine ocean_thickness_init_adjust(Grid, Time, Dens, Ext_mode, Thickness)
   id_rescale_mass= register_static_field ('ocean_model', 'rescale_mass', Grid%tracer_axes(1:2),        &
                                           'rescale_mass factor as function of Grid%ht and initial rho',&
                                           'dimensionless', missing_value=missing_value, range=(/-1.e8,1.e8/))
-  if (id_rescale_mass > 0) used = send_data (id_rescale_mass, rescale_mass(isc:iec,jsc:jec), &
-       Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,1))
+  call diagnose_2d(Time, Grid, id_rescale_mass, rescale_mass(:,:))
 
   id_ht_mod = register_static_field ('ocean_model', 'ht_mod', Grid%tracer_axes(1:2),  &
                                      'modified bottom depth for pressure model', 'm', &
                                      missing_value=missing_value, range=(/-1.e1,1.e8/))
-  if (id_ht_mod > 0) used = send_data (id_ht_mod, ht_mod(isc:iec,jsc:jec), &
-       Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,1))
+  call diagnose_2d(Time, Grid, id_ht_mod, ht_mod(:,:))
 
   if (id_pbot0 > 0) then 
-      used = send_data (id_pbot0, c2dbars*Thickness%pbot0(isc:iec,jsc:jec), &
-           Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,1))
+     call diagnose_2d(Time, Grid, id_pbot0, c2dbars*Thickness%pbot0(:,:))
   endif
 
   if(debug_this_module) then 

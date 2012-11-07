@@ -276,7 +276,7 @@ use ocean_types_mod,      only: ocean_time_type, ocean_grid_type
 use ocean_types_mod,      only: ocean_domain_type, ocean_adv_vel_type 
 use ocean_types_mod,      only: ocean_thickness_type, ocean_velocity_type
 use ocean_types_mod,      only: ocean_options_type
-use ocean_util_mod,       only: write_timestamp, diagnose_2d_u, diagnose_3d_u
+use ocean_util_mod,       only: write_timestamp, diagnose_2d_u, diagnose_3d_u, diagnose_2d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk1_2d, wrk1_v, wrk2_v, wrk3_v, wrk1_v2d  
 
 implicit none
@@ -894,11 +894,7 @@ ierr = check_nml_error(io_status,'ocean_lapgen_friction_nml')
   id_aiso_diverge = register_static_field('ocean_model', 'aiso_lap_diverge', &
               Grd%tracer_axes(1:2), 'U-cell visc for divergence damping',    &
               'm^2/sec', missing_value=missing_value, range=(/-10.0,1.e10/))
-  if (id_aiso_diverge > 0) then 
-    used = send_data (id_aiso_diverge, aiso_diverge(isc:iec,jsc:jec), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
-  endif 
-
+  call diagnose_2d(Time, Grd, id_aiso_diverge, aiso_diverge(:,:))
 
   ! other viscosities for diagnostic output 
 

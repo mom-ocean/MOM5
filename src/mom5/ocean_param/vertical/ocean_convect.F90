@@ -96,7 +96,7 @@ use ocean_tracer_util_mod,only: rebin_onto_rho
 use ocean_types_mod,      only: ocean_time_type, ocean_grid_type, ocean_domain_type, ocean_options_type
 use ocean_types_mod,      only: ocean_density_type, ocean_prog_tracer_type, ocean_thickness_type
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk6
-use ocean_util_mod,       only: diagnose_3d
+use ocean_util_mod,       only: diagnose_3d, diagnose_2d
 
 
 implicit none
@@ -567,11 +567,8 @@ subroutine convection_full_scalar (Time, Thickness, T_prog, Dens)
     enddo     ! i=isc,iec
   enddo       ! j=jsc,jec
 
-  
-  if (id_ktot > 0) used = send_data (id_ktot, ktot(isc:iec,jsc:jec), &
-                          Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
-  if (id_kven > 0) used = send_data (id_kven, kven(isc:iec,jsc:jec), &
-                          Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
+  call diagnose_2d(Time, Grd, id_ktot, ktot(:,:))
+  call diagnose_2d(Time, Grd, id_kven, kven(:,:))
 
   call convection_diag(Time, Thickness, T_prog, Dens)
 
@@ -920,10 +917,8 @@ subroutine convection_full_vector (Time, Thickness, T_prog, Dens)
 
   ! write diagnostics 
   call convection_diag(Time, Thickness, T_prog, Dens)
-  if (id_ktot > 0) used = send_data (id_ktot, ktot(isc:iec,jsc:jec), &
-                          Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
-  if (id_kven > 0) used = send_data (id_kven, kven(isc:iec,jsc:jec), &
-                          Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
+  call diagnose_2d(Time, Grd, id_ktot, ktot(:,:))
+  call diagnose_2d(Time, Grd, id_kven, kven(:,:))
 
 
 end subroutine convection_full_vector
@@ -1234,10 +1229,8 @@ subroutine convection_full_scalar_preteos10 (Time, Thickness, T_prog, Dens)
 
   ! diagnostics   
   call convection_diag(Time, Thickness, T_prog, Dens)
-  if (id_ktot > 0) used = send_data (id_ktot, ktot(isc:iec,jsc:jec), &
-                          Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
-  if (id_kven > 0) used = send_data (id_kven, kven(isc:iec,jsc:jec), &
-                          Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
+  call diagnose_2d(Time, Grd, id_ktot, ktot(:,:))
+  call diagnose_2d(Time, Grd, id_kven, kven(:,:))
 
 
 end subroutine convection_full_scalar_preteos10
@@ -1562,10 +1555,8 @@ subroutine convection_full_vector_preteos10 (Time, Thickness, T_prog, Dens)
 
   ! diagnostics 
   call convection_diag(Time, Thickness, T_prog, Dens)
-  if (id_ktot > 0) used = send_data (id_ktot, ktot(isc:iec,jsc:jec), &
-                          Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
-  if (id_kven > 0) used = send_data (id_kven, kven(isc:iec,jsc:jec), &
-                          Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
+  call diagnose_2d(Time, Grd, id_ktot, ktot(:,:))
+  call diagnose_2d(Time, Grd, id_kven, kven(:,:))
 
 
 end subroutine convection_full_vector_preteos10

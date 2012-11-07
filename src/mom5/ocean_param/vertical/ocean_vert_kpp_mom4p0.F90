@@ -905,21 +905,11 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p0_nml')
   id_f_int_tide  = register_static_field('ocean_model','f_int_tide',Grd%tracer_axes(1:3), &
        'verical distriibution function for energy flux', ' ', missing_value=-10.0, range=(/-10.0,1.e3/))
 
-
- if (id_tidal_vel_amp > 0) used = send_data(id_tidal_vel_amp, tidal_vel_amp(isc:iec,jsc:jec), &
-                                   Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
-
- if (id_tidal_fric_turb > 0) used = send_data(id_tidal_fric_turb, tidal_fric_turb(isc:iec,jsc:jec,:), &
-                                    Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
-
- if (id_rough_amp > 0) used = send_data(id_rough_amp, rough_amp(isc:iec,jsc:jec), &
-                                   Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
-
- if (id_eflux_int_tide_bf > 0) used = send_data(id_eflux_int_tide_bf, eflux_int_tide_bf(isc:iec,jsc:jec), &
-                                   Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
-
- if (id_f_int_tide > 0) used = send_data(id_f_int_tide, f_int_tide(isc:iec,jsc:jec,:), &
-                                   Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
+  call diagnose_2d(Time, Grd, id_tidal_vel_amp, tidal_vel_amp(:,:))
+  call diagnose_3d(Time, Grd, id_tidal_fric_turb, tidal_fric_turb(:,:,:))
+  call diagnose_2d(Time, Grd, id_rough_amp, rough_amp(:,:))
+  call diagnose_2d(Time, Grd, id_eflux_int_tide_bf, eflux_int_tide_bf(:,:))
+  call diagnose_3d(Time, Grd, id_f_int_tide, f_int_tide(:,:,:))
 
  call watermass_diag_init(Time,Dens)
 

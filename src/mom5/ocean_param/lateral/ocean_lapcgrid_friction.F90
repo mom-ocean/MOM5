@@ -216,7 +216,7 @@ use ocean_types_mod,      only: ocean_time_type, ocean_grid_type
 use ocean_types_mod,      only: ocean_domain_type, ocean_adv_vel_type 
 use ocean_types_mod,      only: ocean_thickness_type, ocean_velocity_type
 use ocean_types_mod,      only: ocean_options_type
-use ocean_util_mod,       only: write_timestamp, diagnose_3d, diagnose_2d_u, diagnose_3d_u
+use ocean_util_mod,       only: write_timestamp, diagnose_3d, diagnose_2d_u, diagnose_3d_u, diagnose_2d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4
 use ocean_workspace_mod,  only: wrk1_2d, wrk1_v2d  
 use ocean_workspace_mod,  only: wrk1_v, wrk2_v, wrk3_v
@@ -599,9 +599,7 @@ subroutine ocean_lapcgrid_friction_init(Grid, Domain, Time, Ocean_options, d_tim
   id_visc_crit_lap = register_static_field ('ocean_model', 'visc_crit_lap', &
                      Grd%tracer_axes(1:2), 'critical viscosity',            &
                      'm^2/sec',missing_value=missing_value, range=(/0.0,1.e20/))
-  if (id_visc_crit_lap > 0) used = send_data (id_visc_crit_lap, visc_crit(isc:iec,jsc:jec), &
-                            Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
-
+  call diagnose_2d(Time, Grd, id_visc_crit_lap, visc_crit(:,:))
 
   ! compute some smag fields and parameters 
 
@@ -700,8 +698,7 @@ subroutine ocean_lapcgrid_friction_init(Grid, Domain, Time, Ocean_options, d_tim
      id_tmask_next_to_land = register_static_field('ocean_model', 'tmask_next_to_land_lap',&
             Grd%tracer_axes(1:3),'T-cell mask for cells next to land for lapcgrid module', &
             'dimensionless', missing_value=missing_value, range=(/-10.0,10.0/))
-     used = send_data (id_tmask_next_to_land, tmask_next_to_land(isc:iec,jsc:jec,:), &
-            Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
+     call diagnose_3d(Time, Grd, id_tmask_next_to_land, tmask_next_to_land(:,:,:))
   endif 
 
 
@@ -714,22 +711,16 @@ subroutine ocean_lapcgrid_friction_init(Grid, Domain, Time, Ocean_options, d_tim
                    'm^2/sec', missing_value=missing_value, range=(/-10.0,1.e10/))
 
   if (id_along_back > 0) then 
-    used = send_data (id_along_back, aiso_back(isc:iec,jsc:jec,:)+0.5*aaniso_back(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
+     call diagnose_3d(Time, Grd, id_along_back, aiso_back(:,:,:)+0.5*aaniso_back(:,:,:))
   endif 
   if (id_across_back > 0) then 
-    used = send_data (id_across_back, aiso_back(isc:iec,jsc:jec,:)-0.5*aaniso_back(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
+     call diagnose_3d(Time, Grd, id_across_back, aiso_back(:,:,:)-0.5*aaniso_back(:,:,:))
   endif 
 
   id_aiso_diverge = register_static_field('ocean_model', 'aiso_lap_diverge', &
               Grd%tracer_axes(1:2), 'T-cell visc for divergence damping',    &
               'm^2/sec', missing_value=missing_value, range=(/-10.0,1.e10/))
-  if (id_aiso_diverge > 0) then 
-    used = send_data (id_aiso_diverge, aiso_diverge(isc:iec,jsc:jec), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
-  endif 
-
+  call diagnose_2d(Time, Grd, id_aiso_diverge, aiso_diverge(:,:))
 
   ! other viscosities for diagnostic output 
 

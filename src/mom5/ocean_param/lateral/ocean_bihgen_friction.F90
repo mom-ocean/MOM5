@@ -239,7 +239,7 @@ use ocean_operators_mod,  only: BAY, BAX, BDX_EU, BDY_NU, FDX_U, FDY_U, FMX, FMY
 use ocean_parameters_mod, only: missing_value, oneeigth, omega_earth, rho0, rho0r
 use ocean_types_mod,      only: ocean_time_type, ocean_grid_type, ocean_domain_type, ocean_adv_vel_type
 use ocean_types_mod,      only: ocean_thickness_type, ocean_velocity_type, ocean_options_type
-use ocean_util_mod,       only: write_timestamp, diagnose_3d_u, diagnose_2d_u
+use ocean_util_mod,       only: write_timestamp, diagnose_3d_u, diagnose_2d_u, diagnose_2d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk1_v, wrk2_v, wrk3_v, wrk1_v2d
 
 implicit none
@@ -2044,10 +2044,7 @@ subroutine compute_neptune_velocity(Time)
   id_neptune_fu   = register_static_field('ocean_model', 'neptune_fu',                            &
                     Grd%tracer_axes(1:2),'Coriolis parameter used for  neptune parameterization', &
                     '1/sec', missing_value=missing_value, range=(/-1.e3,1.e3/))
-  if (id_neptune_fu  > 0) then 
-    used = send_data (id_neptune_fu, neptune_fu(isc:iec,jsc:jec), &
-                      Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
-  endif 
+  call diagnose_2d(Time, Grd, id_neptune_fu, neptune_fu(:,:))
 
 end subroutine compute_neptune_velocity
 ! </SUBROUTINE> NAME="compute_neptune_velocity"

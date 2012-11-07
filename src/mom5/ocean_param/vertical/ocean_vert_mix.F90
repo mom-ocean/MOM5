@@ -1030,10 +1030,7 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
        'static background vertical diffusivity diff_cbt', 'm^2/s',missing_value=missing_value,     &
        range=(/-10.0,1e6/),                                                                        &
        standard_name='ocean_vertical_tracer_diffusivity_due_to_background')
-  if (id_diff_cbt_back > 0) then 
-    used = send_data (id_diff_cbt_back, diff_cbt_back(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
-  endif
+  call diagnose_3d(Time, Grd, id_diff_cbt_back, diff_cbt_back(:,:,:))
 
   ! power dissipated by background mixing acting against stratification 
     id_power_diss_back = register_diag_field ('ocean_model', 'power_diss_back',                                 &
@@ -1242,11 +1239,7 @@ subroutine diff_cbt_table_init(Time)
   id_diff_cbt_table = register_static_field ('ocean_model', 'diff_cbt_table', &
                       Grd%tracer_axes(1:3), 'diff_cbt from table', 'm^2/s',   &
                       missing_value=missing_value, range=(/-10.0,1e6/))
-  if (id_diff_cbt_table > 0) then 
-      used = send_data (id_diff_cbt_table, wrk2(isc:iec,jsc:jec,:), &
-             Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
-  endif
-
+  call diagnose_3d(Time, Grd, id_diff_cbt_table, wrk2(:,:,:))
 
 end subroutine diff_cbt_table_init
 ! </SUBROUTINE> NAME="diff_cbt_table_init"
@@ -1364,8 +1357,7 @@ subroutine bryan_lewis_init(Time, Ocean_options)
             wrk1(i,j,:) = diff_bryan_lewis_00(:)*Grd%tmask(i,j,:)
          enddo
       enddo
-      used = send_data (id_diff_bryan_lewis_00, wrk1(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
+      call diagnose_3d(Time, Grd, id_diff_bryan_lewis_00, wrk1(:,:,:))
   endif
 
   id_diff_bryan_lewis_90 = -1
@@ -1378,8 +1370,7 @@ subroutine bryan_lewis_init(Time, Ocean_options)
             wrk1(i,j,:) = diff_bryan_lewis_90(:)*Grd%tmask(i,j,:)
          enddo
       enddo
-      used = send_data (id_diff_bryan_lewis_90, wrk1(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
+      call diagnose_3d(Time, Grd, id_diff_bryan_lewis_90, wrk1(:,:,:))
   endif
 
 
@@ -1479,10 +1470,7 @@ subroutine hwf_init(Time, Ocean_options)
   id_hwf_diffusivity = register_static_field ('ocean_model', 'hwf_diffusivity',     &
                        Grd%tracer_axes(1:3), 'HWF background vertical diffusivity', &
                        'm^2/s',missing_value=missing_value, range=(/-10.0,1e6/))
-  if (id_hwf_diffusivity > 0) then 
-      used = send_data (id_hwf_diffusivity, wrk1(isc:iec,jsc:jec,:), &
-             Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
-  endif
+  call diagnose_3d(Time, Grd, id_hwf_diffusivity, wrk1(:,:,:))
 
 end subroutine hwf_init
 ! </SUBROUTINE> NAME="hwf_init"
@@ -1541,10 +1529,7 @@ subroutine diff_cbt_tanh_init(Time, Ocean_options)
   id_diff_cbt_tanh = register_static_field ('ocean_model', 'diff_cbt_tanh',          &
                        Grd%tracer_axes(1:3), 'Tanh background vertical diffusivity', &
                        'm^2/s',missing_value=missing_value, range=(/-10.0,1e6/))
-  if (id_diff_cbt_tanh > 0) then 
-      used = send_data (id_diff_cbt_tanh, wrk1(isc:iec,jsc:jec,:), &
-             Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
-  endif
+  call diagnose_3d(Time, Grd, id_diff_cbt_tanh, wrk1(:,:,:))
 
 end subroutine diff_cbt_tanh_init
 ! </SUBROUTINE> NAME="diff_cbt_tanh_init"
@@ -1607,8 +1592,7 @@ subroutine vert_friction_init(Time)
            enddo
         enddo
      enddo
-     used = send_data (id_visc_cbt_back, wrk1(isc:iec,jsc:jec,:), &
-                       Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
+     call diagnose_3d(Time, Grd, id_visc_cbt_back, wrk1(:,:,:))
   endif
 
   if(aidif < 1.0) then 
@@ -3178,9 +3162,7 @@ subroutine vert_diffuse (Time, Thickness, Dens, ntracer, Tracer, diff_cbt, diag_
       endif
 
       if (id_vdiffuse(ntracer) > 0) then
-          used = send_data( id_vdiffuse(ntracer),                          &
-               wrk1(isc:iec,jsc:jec,:)*Tracer%conversion, Time%model_time, &
-               rmask = Grd%tmask(isc:iec,jsc:jec,:))           
+         call diagnose_3d(Time, Grd, id_vdiffuse(ntracer), wrk1(:,:,:)*Tracer%conversion)
       endif
 
   endif       ! endif for send_diagnostics
@@ -3576,11 +3558,8 @@ subroutine vert_friction_cgrid (Time, Thickness, Velocity, visc_cbt, energy_anal
          enddo
       enddo
 
-     if (id_vfrict_expl_u > 0) used = send_data (id_vfrict_expl_u, wrk1_v(isc:iec,jsc:jec,:,1), &  
-                                      Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
-
-     if (id_vfrict_expl_v > 0) used = send_data (id_vfrict_expl_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-                                      Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
+      call diagnose_3d(Time, Grd, id_vfrict_expl_u, wrk1_v(:,:,:,1))
+      call diagnose_3d(Time, Grd, id_vfrict_expl_v, wrk1_v(:,:,:,2))
 
      if (id_visc_cbu > 0 .and. aidif /= 1.0) then
          wrk1(:,:,:) = 0.0

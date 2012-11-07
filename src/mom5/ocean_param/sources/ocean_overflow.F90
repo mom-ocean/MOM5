@@ -404,33 +404,27 @@ contains
     ! register/send diagnostics 
     id_over_slope_x = register_static_field ('ocean_model', 'over_slope_x', Grd%tracer_axes_flux_x(1:2), &
                  '|d(ht)/dx| on T-cell face', 'm/m', missing_value=missing_value, range=(/-1.e9,1.e9/))
-    if (id_over_slope_x > 0) used = send_data (id_over_slope_x, slope_x(isc:iec,jsc:jec), &
-                               Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
+    call diagnose_2d(Time, Grd, id_over_slope_x, slope_x(:,:))
 
     id_over_slope_y = register_static_field ('ocean_model', 'over_slope_y', Grd%tracer_axes_flux_y(1:2), &
                  '|d(ht)/dy| on T-cell face', 'm/m', missing_value=missing_value, range=(/-1.e9,1.e9/))
-    if (id_over_slope_y > 0) used = send_data (id_over_slope_y, slope_y(isc:iec,jsc:jec), &
-                               Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
+    call diagnose_2d(Time, Grd, id_over_slope_y, slope_y(:,:))
 
     id_topog_step_1 = register_static_field ('ocean_model', 'topog_step_1', Grd%tracer_axes(1:2), &
                  'topog_step_1', 'dimensionless', missing_value=missing_value, range=(/-1.0,1.0/))
-    if (id_topog_step_1 > 0) used = send_data (id_topog_step_1, topog_step(isc:iec,jsc:jec,1), &
-                                    Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
+    call diagnose_2d(Time, Grd, id_topog_step_1, topog_step(:,:,1))
 
     id_topog_step_2 = register_static_field ('ocean_model', 'topog_step_2', Grd%tracer_axes(1:2), &
                  'topog_step_2', 'dimensionless', missing_value=missing_value, range=(/-1.0,1.0/))
-    if (id_topog_step_2 > 0) used = send_data (id_topog_step_2, topog_step(isc:iec,jsc:jec,2), &
-                                    Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
+    call diagnose_2d(Time, Grd, id_topog_step_2, topog_step(:,:,2))
 
     id_topog_step_3 = register_static_field ('ocean_model', 'topog_step_3', Grd%tracer_axes(1:2), &
                  'topog_step_3', 'dimensionless', missing_value=missing_value, range=(/-1.0,1.0/))
-    if (id_topog_step_3 > 0) used = send_data (id_topog_step_3, topog_step(isc:iec,jsc:jec,3), &
-                                    Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
+    call diagnose_2d(Time, Grd, id_topog_step_3, topog_step(:,:,3))
 
     id_topog_step_4 = register_static_field ('ocean_model', 'topog_step_4', Grd%tracer_axes(1:2), &
                  'topog_step_4', 'dimensionless', missing_value=missing_value, range=(/-1.0,1.0/))
-    if (id_topog_step_4 > 0) used = send_data (id_topog_step_4, topog_step(isc:iec,jsc:jec,4), &
-                                    Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
+    call diagnose_2d(Time, Grd, id_topog_step_4, topog_step(:,:,4))
 
 
     id_overflow_xflux = register_diag_field ('ocean_model', 'overflow_xflux', Grd%tracer_axes_flux_x(1:2), &

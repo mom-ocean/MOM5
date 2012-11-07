@@ -181,7 +181,7 @@ use ocean_types_mod,      only: ocean_time_type, ocean_grid_type
 use ocean_types_mod,      only: ocean_domain_type, ocean_adv_vel_type 
 use ocean_types_mod,      only: ocean_thickness_type, ocean_velocity_type
 use ocean_types_mod,      only: ocean_options_type
-use ocean_util_mod,       only: write_timestamp, diagnose_3d, diagnose_3d_u
+use ocean_util_mod,       only: write_timestamp, diagnose_3d, diagnose_3d_u, diagnose_2d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4
 use ocean_workspace_mod,  only: wrk1_2d, wrk1_v2d  
 use ocean_workspace_mod,  only: wrk1_v, wrk2_v, wrk3_v
@@ -702,15 +702,13 @@ ierr = check_nml_error(io_status,'ocean_bihcgrid_friction_nml')
      id_tmask_next_to_land = register_static_field('ocean_model', 'tmask_next_to_land_bih',&
             Grd%tracer_axes(1:3),'mask for cells next to land for bihcgrid module',        &
             'dimensionless', missing_value=missing_value, range=(/-10.0,10.0/))
-     used = send_data (id_tmask_next_to_land, tmask_next_to_land(isc:iec,jsc:jec,:), &
-            Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
+     call diagnose_3d(Time, Grd, id_tmask_next_to_land, tmask_next_to_land(:,:,:))
   endif 
 
   id_visc_crit_bih = register_static_field ('ocean_model', 'visc_crit_bih',&
                      Grd%tracer_axes(1:2), 'critical viscosity', 'm^4/sec',&
                      missing_value=missing_value, range=(/0.0,1.e20/))
-  if (id_visc_crit_bih > 0) used = send_data (id_visc_crit_bih, visc_crit(isc:iec,jsc:jec), &
-                            Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
+  call diagnose_2d(Time, Grd, id_visc_crit_bih, visc_crit(:,:))
 
 
   ! ensure that background viscosities are not too large 
@@ -817,24 +815,14 @@ ierr = check_nml_error(io_status,'ocean_bihcgrid_friction_nml')
                    'U-cell background cross-stream bih visc', 'm^4/sec',                         &
                    missing_value=missing_value, range=(/-10.0,1.e20/))
 
-  if (id_aiso_back > 0) then 
-    used = send_data (id_aiso_back, aiso_back(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
-  endif 
-  if (id_aaniso_back > 0) then 
-    used = send_data (id_aaniso_back, aaniso_back(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
-  endif 
+  call diagnose_3d(Time, Grd, id_aiso_back, aiso_back(:,:,:))
+  call diagnose_3d(Time, Grd, id_aaniso_back, aaniso_back(:,:,:))
   if (id_along_back > 0) then 
-    used = send_data (id_along_back, aiso_back(isc:iec,jsc:jec,:)+0.5*aaniso_back(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
+     call diagnose_3d(Time, Grd, id_along_back, aiso_back(:,:,:)+0.5*aaniso_back(:,:,:))
   endif 
   if (id_across_back > 0) then 
-    used = send_data (id_across_back, aiso_back(isc:iec,jsc:jec,:)-0.5*aaniso_back(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
+     call diagnose_3d(Time, Grd, id_across_back, aiso_back(:,:,:)-0.5*aaniso_back(:,:,:))
   endif 
-
-
 
 end subroutine ocean_bihcgrid_friction_init
 ! </SUBROUTINE>  NAME="ocean_bihcgrid_friction_init"
@@ -1387,10 +1375,7 @@ subroutine ncar_boundary_scale_read(Time)
   id_ncar_rescale = register_static_field('ocean_model', 'ncar_rescale', Grd%tracer_axes(1:3),&
                     'rescaling used for the background viscosity', 'dimensionless',           &
                      missing_value=missing_value, range=(/-10.0,1.e10/))
-  if (id_ncar_rescale > 0) then 
-    used = send_data (id_ncar_rescale, ncar_rescale(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
-  endif 
+  call diagnose_3d(Time, Grd, id_ncar_rescale, ncar_rescale(:,:,:))
 
   ! need these viscosities in the halo regions
   call mpp_update_domains (aiso_back(:,:,:),   Dom%domain2d)    
@@ -1576,11 +1561,7 @@ subroutine ncar_boundary_scale_create(Time)
   id_ncar_rescale = register_static_field('ocean_model', 'ncar_rescale', Grd%tracer_axes(1:3),&
                     'rescaling used for the background viscosity', 'dimensionless',           &
                      missing_value=missing_value, range=(/-10.0,1.e10/))
-  if (id_ncar_rescale > 0) then 
-    used = send_data (id_ncar_rescale, ncar_rescale(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
-  endif 
-
+  call diagnose_3d(Time, Grd, id_ncar_rescale, ncar_rescale(:,:,:))
 
   ! need these viscosities in the halo regions
   call mpp_update_domains (aiso_back(:,:,:),   Dom%domain2d)    
@@ -1876,18 +1857,12 @@ subroutine compute_neptune_velocity(Time)
   id_neptune_bih_u = register_static_field('ocean_model', 'neptune_bih_u',                &
                    Grd%tracer_axes(1:2), 'Zonal velocity from neptune biharmonic scheme', &
                    'm/sec', missing_value=missing_value, range=(/-1.e10,1.e10/))
-  if (id_neptune_bih_u > 0) then 
-    used = send_data (id_neptune_bih_u, neptune_velocity(isc:iec,jsc:jec,1), &
-                      Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
-  endif 
+  call diagnose_2d(Time, Grd, id_neptune_bih_u, neptune_velocity(:,:,1))
 
   id_neptune_bih_v = register_static_field('ocean_model', 'neptune_bih_v',                     &
                    Grd%tracer_axes(1:2), 'Meridional velocity from neptune biharmonic scheme', &
                    'm/sec', missing_value=missing_value, range=(/-1.e10,1.e10/))
-  if (id_neptune_bih_v  > 0) then 
-    used = send_data (id_neptune_bih_v, neptune_velocity(isc:iec,jsc:jec,2), &
-                      Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
-  endif 
+  call diagnose_2d(Time, Grd, id_neptune_bih_v, neptune_velocity(:,:,2))
 
 
 end subroutine compute_neptune_velocity

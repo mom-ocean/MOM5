@@ -91,7 +91,7 @@ use ocean_types_mod,           only: ocean_grid_type, ocean_domain_type
 use ocean_types_mod,           only: ocean_prog_tracer_type, ocean_diag_tracer_type
 use ocean_types_mod,           only: ocean_velocity_type, ocean_density_type
 use ocean_types_mod,           only: ocean_time_type, ocean_time_steps_type, ocean_thickness_type
-use ocean_util_mod,            only: write_timestamp
+use ocean_util_mod,            only: write_timestamp, diagnose_2d
 use ocean_vert_util_mod,       only: ri_for_cgrid
 use ocean_workspace_mod,       only: wrk1, wrk1_v
 
@@ -725,16 +725,12 @@ subroutine kraus_turner(Time, Velocity, T_prog, Dens, swflx, pme, mixmask)
     enddo
   enddo
 
-  if (id_wmix > 0) used =  &
-    send_data (id_wmix, wind_mixing(isc:iec,jsc:jec), Time%model_time,rmask=Grd%tmask(isc:iec,jsc:jec,1))
-  if (id_bte > 0) used =  &
-    send_data (id_bte, bulk_tke(isc:iec,jsc:jec), Time%model_time,rmask=Grd%tmask(isc:iec,jsc:jec,1))
-  if (id_dbloc > 0) used =  &
-    send_data (id_dbloc, dbloc(isc:iec,jsc:jec), Time%model_time,rmask=Grd%tmask(isc:iec,jsc:jec,1))
-  if (id_tke > 0) used =  &
-    send_data (id_tke, tke(isc:iec,jsc:jec), Time%model_time,rmask=Grd%tmask(isc:iec,jsc:jec,1))
-  if (id_hbl > 0) used =  &
-    send_data (id_hbl, hbl(isc:iec,jsc:jec), Time%model_time,rmask=Grd%tmask(isc:iec,jsc:jec,1))
+  call diagnose_2d(Time, Grd, id_wmix, wind_mixing(:,:))
+  call diagnose_2d(Time, Grd, id_bte, bulk_tke(:,:))
+  call diagnose_2d(Time, Grd, id_dbloc, dbloc(:,:))
+  call diagnose_2d(Time, Grd, id_tke, tke(:,:))
+  call diagnose_2d(Time, Grd, id_hbl, hbl(:,:))
+
 end subroutine kraus_turner
 ! </SUBROUTINE> NAME="kraus_turner"
 
