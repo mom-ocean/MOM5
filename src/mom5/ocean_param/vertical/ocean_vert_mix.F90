@@ -252,7 +252,7 @@ use ocean_types_mod,           only: ocean_grid_type, ocean_domain_type, ocean_t
 use ocean_types_mod,           only: ocean_time_type, ocean_time_steps_type, ocean_options_type
 use ocean_types_mod,           only: ocean_velocity_type, ocean_adv_vel_type, ocean_density_type
 use ocean_types_mod,           only: ocean_prog_tracer_type, ocean_diag_tracer_type
-use ocean_util_mod,            only: invtri, invtri_bmf, write_timestamp, diagnose_2d, diagnose_3d, diagnose_3d_u, diagnose_2d_u, diagnose_sum
+use ocean_util_mod,            only: invtri, invtri_bmf, write_timestamp, diagnose_2d, diagnose_3d, diagnose_3d_u, diagnose_2d_u, diagnose_sum, diagnose_2d_en
 use ocean_vert_const_mod,      only: ocean_vert_const_init, vert_mix_const 
 use ocean_vert_chen_mod,       only: ocean_vert_chen_init, vert_mix_chen, ocean_vert_chen_end 
 use ocean_vert_chen_mod,       only: ocean_vert_chen_restart
@@ -3583,15 +3583,7 @@ subroutine vert_friction_cgrid (Time, Thickness, Velocity, visc_cbt, energy_anal
                enddo
             enddo
          enddo
-
-         if (id_wind_power(1) > 0) then 
-            used = send_data (id_wind_power(1), wrk1_v2d(isc:iec,jsc:jec,1), &
-                              Time%model_time, rmask=Grd%tmasken(isc:iec,jsc:jec,1,1))
-         endif 
-         if (id_wind_power(2) > 0) then 
-            used = send_data (id_wind_power(2), wrk1_v2d(isc:iec,jsc:jec,2), &
-                              Time%model_time, rmask=Grd%tmasken(isc:iec,jsc:jec,1,2))
-         endif 
+         call diagnose_2d_en(Time, Grd, id_wind_power(1), id_wind_power(2), wrk1_v2d(:,:,:))
      endif
 
      ! power dissipated to bottom drag 
@@ -3608,14 +3600,7 @@ subroutine vert_friction_cgrid (Time, Thickness, Velocity, visc_cbt, energy_anal
                enddo
             enddo
          enddo
-         if (id_bottom_power(1) > 0) then 
-             used = send_data (id_bottom_power(1), wrk1_v2d(isc:iec,jsc:jec,1), &
-                  Time%model_time, rmask=Grd%tmasken(isc:iec,jsc:jec,1,1))
-         endif
-         if (id_bottom_power(2) > 0) then 
-             used = send_data (id_bottom_power(2), wrk1_v2d(isc:iec,jsc:jec,2), &
-                  Time%model_time, rmask=Grd%tmasken(isc:iec,jsc:jec,1,2))
-         endif
+         call diagnose_2d_en(Time, Grd, id_bottom_power(1), id_bottom_power(2), wrk1_v2d(:,:,:))
      endif
 
   endif !  endif for energy analysis step

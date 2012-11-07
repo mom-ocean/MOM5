@@ -68,7 +68,7 @@ use ocean_types_mod,      only: ocean_grid_type, ocean_domain_type
 use ocean_types_mod,      only: ocean_time_type, ocean_time_steps_type
 use ocean_types_mod,      only: ocean_velocity_type, ocean_adv_vel_type
 use ocean_types_mod,      only: ocean_options_type, ocean_thickness_type
-use ocean_util_mod,       only: write_timestamp, diagnose_2d_u, diagnose_3d_u
+use ocean_util_mod,       only: write_timestamp, diagnose_2d_u, diagnose_3d_u, diagnose_3d_en
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk1_v  
 
 implicit none
@@ -601,10 +601,8 @@ subroutine coriolis_force_cgrid(Time, Thickness, Adv_vel, Velocity, abtau_m0, ab
            enddo
         enddo
      enddo
-     if (id_hrho_cor_u > 0) used = send_data( id_hrho_cor_u, wrk1_v(isc:iec,jsc:jec,:,1), &
-         Time%model_time, rmask=Grd%tmasken(isc:iec,jsc:jec,:,2))
-     if (id_hrho_cor_v > 0) used = send_data( id_hrho_cor_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-         Time%model_time, rmask=Grd%tmasken(isc:iec,jsc:jec,:,2))
+
+     call diagnose_3d_en(Time, Grd, id_hrho_cor_u, id_hrho_cor_v, wrk1_v(:,:,:,:))
   endif
 
 end subroutine coriolis_force_cgrid

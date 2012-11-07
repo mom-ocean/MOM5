@@ -64,9 +64,11 @@ public write_summary
 
 public diagnose_2d
 public diagnose_2d_u
+public diagnose_2d_en
 public diagnose_2d_int
 public diagnose_3d
 public diagnose_3d_u
+public diagnose_3d_en
 public diagnose_3d_int
 public diagnose_sum
 public register_2d_t_field
@@ -766,6 +768,30 @@ end subroutine diagnose_3d_u
 ! </SUBROUTINE> NAME="diagnose_3d_u"
 
 !#######################################################################
+! <SUBROUTINE NAME="diagnose_3d_en">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 3D data using the grid tmasken.
+! </DESCRIPTION>
+!
+subroutine diagnose_3d_en(Time, Grid, id_name1, id_name2, data, nk_lim, use_mask, abs_max, abs_min)
+    type(ocean_time_type),        intent(in) :: Time
+    type(ocean_grid_type),        intent(in) :: Grid
+    integer,                      intent(in) :: id_name1
+    integer,                      intent(in) :: id_name2
+    real, dimension(isd:,jsd:,:,:), intent(in) :: data
+    integer,                      intent(in), optional :: nk_lim
+    logical,                      intent(in), optional :: use_mask
+    real,                         intent(in), optional :: abs_max
+    real,                         intent(in), optional :: abs_min
+
+    call diagnose_3d_mask(Time, Grid%tmasken(:,:,:,1), id_name1, data(:,:,:,1), nk_lim, use_mask, abs_max, abs_min)
+    call diagnose_3d_mask(Time, Grid%tmasken(:,:,:,2), id_name2, data(:,:,:,2), nk_lim, use_mask, abs_max, abs_min)
+
+end subroutine diagnose_3d_en
+! </SUBROUTINE> NAME="diagnose_3d_en"
+
+!#######################################################################
 ! <SUBROUTINE NAME="diagnose_3d_mask">
 !
 ! <DESCRIPTION>
@@ -870,6 +896,28 @@ subroutine diagnose_2d_u(Time, Grid, id_name, data, abs_max, abs_min)
 
   end subroutine diagnose_2d_u
 ! </SUBROUTINE> NAME="diagnose_2d_u"
+
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_2d_en">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 2D data using the grid tmasken.
+! </DESCRIPTION>
+!
+subroutine diagnose_2d_en(Time, Grid, id_name1, id_name2, data, abs_max, abs_min)
+    type(ocean_time_type),      intent(in) :: Time
+    type(ocean_grid_type),      intent(in) :: Grid
+    integer,                    intent(in) :: id_name1
+    integer,                    intent(in) :: id_name2
+    real, dimension(isd:,jsd:,:), intent(in) :: data
+    real,                       intent(in), optional :: abs_max
+    real,                       intent(in), optional :: abs_min
+
+    call diagnose_2d_mask(Time, Grid%tmasken(:,:,1,1), id_name1, data(:,:,1), abs_max, abs_min)
+    call diagnose_2d_mask(Time, Grid%tmasken(:,:,1,2), id_name2, data(:,:,2), abs_max, abs_min)
+
+  end subroutine diagnose_2d_en
+! </SUBROUTINE> NAME="diagnose_2d_en"
 
 !#######################################################################
 ! <SUBROUTINE NAME="diagnose_2d_mask">

@@ -83,7 +83,7 @@ use ocean_types_mod,      only: ocean_grid_type, ocean_domain_type
 use ocean_types_mod,      only: ocean_velocity_type, ocean_adv_vel_type
 use ocean_types_mod,      only: ocean_time_type, ocean_thickness_type
 use ocean_workspace_mod,  only: wrk1_v, wrk1_2d, wrk2_2d   
-use ocean_util_mod,       only: write_timestamp, diagnose_2d_u, diagnose_3d_u
+use ocean_util_mod,       only: write_timestamp, diagnose_2d_u, diagnose_3d_u, diagnose_3d_en
 
 implicit none
 
@@ -457,10 +457,7 @@ subroutine horz_advection_centered(Time, Thickness, Adv_vel, Velocity, energy_an
          enddo
       enddo
 
-      if (id_hadv_u > 0) used = send_data( id_hadv_u, wrk1_v(isc:iec,jsc:jec,:,1), &
-                                Time%model_time, rmask=Grd%tmasken(isc:iec,jsc:jec,:,1))
-      if (id_hadv_v > 0) used = send_data( id_hadv_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-                                Time%model_time, rmask=Grd%tmasken(isc:iec,jsc:jec,:,2))
+      call diagnose_3d_en(Time, Grd, id_hadv_u, id_hadv_v, wrk1_v(:,:,:,:))
 
       if(debug_this_module) then 
           write(stdoutunit,*) ' '

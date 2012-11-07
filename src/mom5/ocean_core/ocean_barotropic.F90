@@ -478,7 +478,7 @@ use ocean_types_mod,        only: ocean_external_mode_type, ocean_options_type
 use ocean_types_mod,        only: ocean_velocity_type, ocean_density_type
 use ocean_types_mod,        only: ocean_adv_vel_type, ocean_prog_tracer_type
 use ocean_types_mod,        only: ocean_lagrangian_type
-use ocean_util_mod,         only: write_timestamp, diagnose_2d, diagnose_2d_u
+use ocean_util_mod,         only: write_timestamp, diagnose_2d, diagnose_2d_u, diagnose_2d_en
 use ocean_workspace_mod,    only: wrk1_2d, wrk2_2d, wrk3_2d, wrk4_2d, wrk1_v2d, wrk2_v2d
 
 implicit none
@@ -2991,47 +2991,12 @@ subroutine update_ocean_barotropic (Time, Dens, Thickness, Velocity, Adv_vel, &
 
   ! send diagnostics to diag_manager     
   call diagnose_2d(Time, Grd, id_eta_t_bar, Ext_mode%eta_t_bar(:,:,tau))
-  
-  if (id_urhod > 0) then 
-      used = send_data (id_urhod, Ext_mode%udrho(:,:,1,tau),        &
-                        Time%model_time, rmask=Grd%tmasken(:,:,1,1),&
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-
-  if (id_vrhod > 0) then 
-      used = send_data (id_vrhod, Ext_mode%udrho(:,:,2,tau),        &
-                        Time%model_time, rmask=Grd%tmasken(:,:,1,2),&
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
+  call diagnose_2d_en(Time, Grd, id_urhod, id_vrhod, Ext_mode%udrho(:,:,:,tau))
   call diagnose_2d(Time, Grd, id_conv_rho_ud_t, Ext_mode%conv_rho_ud_t(:,:,tau))
   call diagnose_2d(Time, Grd, id_ps, Ext_mode%ps(:,:))
-
-  if (id_psx > 0) then 
-      used = send_data (id_psx, Ext_mode%grad_ps(:,:,1),            &
-                        Time%model_time, rmask=Grd%tmasken(:,:,1,1),&
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-
-  if (id_psy > 0) then
-      used = send_data (id_psy, Ext_mode%grad_ps(:,:,2),            &
-                        Time%model_time, rmask=Grd%tmasken(:,:,1,2),&
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-
+  call diagnose_2d_en(Time, Grd, id_psx, id_psy, Ext_mode%grad_ps(:,:,:))
   call diagnose_2d(Time, Grd, id_pb, wrk1_2d(:,:))
-
-  if (id_grad_anompbx > 0)  then 
-      used = send_data (id_grad_anompbx, Ext_mode%grad_anompb(:,:,1),&
-                        Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
-  if (id_grad_anompby > 0) then
-      used = send_data (id_grad_anompby, Ext_mode%grad_anompb(:,:,2),&
-                        Time%model_time, rmask=Grd%tmasken(:,:,1,2), &
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
+  call diagnose_2d_en(Time, Grd, id_grad_anompbx, id_grad_anompby, Ext_mode%grad_anompb(:,:,:2))
 
   ! compute barotropic energetics  
   next_time = increment_time(Time%model_time, int(dtts), 0)
@@ -3169,48 +3134,10 @@ subroutine ocean_barotropic_forcing(Time, Thickness, Velocity, Ext_mode)
       enddo
   endif
 
-  if (id_nonlin_forcing_u_bt > 0) then 
-       used = send_data (id_nonlin_forcing_u_bt, wrk1_v2d(:,:,1),    &
-                         Time%model_time, rmask=Grd%tmasken(:,:,1,1),&
-                         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if (id_nonlin_forcing_v_bt > 0) then 
-       used = send_data (id_nonlin_forcing_v_bt, wrk1_v2d(:,:,2),    &
-                         Time%model_time, rmask=Grd%tmasken(:,:,1,2),&
-                         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if (id_forcing_u_bt > 0) then 
-       used = send_data (id_forcing_u_bt, Ext_mode%forcing_bt(:,:,1),&
-                         Time%model_time, rmask=Grd%tmasken(:,:,1,1),&
-                         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if (id_forcing_v_bt > 0) then 
-       used = send_data (id_forcing_v_bt, Ext_mode%forcing_bt(:,:,2),&
-                         Time%model_time, rmask=Grd%tmasken(:,:,1,2),&
-                         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if (id_udrho_lap > 0) then
-      used = send_data (id_udrho_lap, friction_lap(:,:,1),&
-             Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-  if (id_udrho_bih > 0) then
-      used = send_data (id_udrho_bih, friction_bih(:,:,1),&
-             Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-  if (id_vdrho_lap > 0) then
-      used = send_data (id_vdrho_lap, friction_lap(:,:,2),&
-             Time%model_time, rmask=Grd%tmasken(:,:,1,2), &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-  if (id_vdrho_bih > 0) then
-      used = send_data (id_vdrho_bih, friction_bih(:,:,2),&
-             Time%model_time, rmask=Grd%tmasken(:,:,1,2), &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
-
+  call diagnose_2d_en(Time, Grd, id_nonlin_forcing_u_bt, id_nonlin_forcing_v_bt, wrk1_v2d(:,:,:))
+  call diagnose_2d_en(Time, Grd, id_forcing_u_bt, id_forcing_v_bt, Ext_mode%forcing_bt(:,:,:))
+  call diagnose_2d_en(Time, Grd, id_udrho_lap, id_vdrho_lap, friction_lap(:,:,:))
+  call diagnose_2d_en(Time, Grd, id_udrho_bih, id_vdrho_bih, friction_bih(:,:,:))
 
 end subroutine ocean_barotropic_forcing
 ! </SUBROUTINE> NAME="ocean_barotropic_forcing"
@@ -3624,56 +3551,20 @@ subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Velocity, Ext_mode, pa
         call diagnose_2d(Time, Grd, id_conv_ud_pred_bt1, wrk1_2d(:,:))
         call diagnose_2d(Time, Grd, id_conv_ud_corr_bt1, wrk2_2d(:,:))
         call diagnose_2d(Time, Grd, id_eta_t_bt1, eta_t_bt(:,:,fstaup1))
-         if (id_psx_bt1 > 0) then
-             used = send_data (id_psx_bt1, press_force_bt(:,:,1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),  &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_psy_bt1 > 0) then
-             used = send_data (id_psy_bt1, press_force_bt(:,:,2), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),  &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_udrho_bt1 > 0) then
-             used = send_data (id_udrho_bt1, udrho_bt(:,:,1,fstaup1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),      &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_vdrho_bt1 > 0) then
-             used = send_data (id_vdrho_bt1, udrho_bt(:,:,2,fstaup1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),      &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
+        call diagnose_2d_en(Time, Grd, id_psx_bt1, id_psy_bt1, press_force_bt(:,:,:))
+        call diagnose_2d_en(Time, Grd, id_udrho_bt1, id_vdrho_bt1, udrho_bt(:,:,:,fstaup1))
      endif
 
      if(itime==2) then
         call diagnose_2d(Time, Grd, id_conv_ud_pred_bt, wrk1_2d(:,:))
         call diagnose_2d(Time, Grd, id_conv_ud_corr_bt, wrk2_2d(:,:))
         call diagnose_2d(Time, Grd, id_eta_t_bt, eta_t_bt(:,:,fstaup1))
-         if (id_psx_bt > 0) then
-             used = send_data (id_psx_bt, press_force_bt(:,:,1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_psy_bt > 0) then
-             used = send_data (id_psy_bt, press_force_bt(:,:,2), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,2), &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_udrho_bt > 0) then
-             used = send_data (id_udrho_bt, udrho_bt(:,:,1,fstaup1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_vdrho_bt > 0) then
-             used = send_data (id_vdrho_bt, udrho_bt(:,:,2,fstaup1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif         
-         call diagnose_2d_u(Time, Grd, id_udrho_bt_lap, friction_lap(:,:,1))
-         call diagnose_2d_u(Time, Grd, id_udrho_bt_bih, friction_bih(:,:,1))
-         call diagnose_2d_u(Time, Grd, id_vdrho_bt_lap, friction_lap(:,:,2))
-         call diagnose_2d_u(Time, Grd, id_vdrho_bt_bih, friction_bih(:,:,2))
+        call diagnose_2d_en(Time, Grd, id_psx_bt, id_psy_bt, press_force_bt(:,:,:))
+        call diagnose_2d_en(Time, Grd, id_udrho_bt, id_vdrho_bt, udrho_bt(:,:,:,fstaup1))
+        call diagnose_2d_u(Time, Grd, id_udrho_bt_lap, friction_lap(:,:,1))
+        call diagnose_2d_u(Time, Grd, id_udrho_bt_bih, friction_bih(:,:,1))
+        call diagnose_2d_u(Time, Grd, id_vdrho_bt_lap, friction_lap(:,:,2))
+        call diagnose_2d_u(Time, Grd, id_vdrho_bt_bih, friction_bih(:,:,2))
      endif
      if( barotropic_halo > 1 ) then
         offset = offset + 1
@@ -4046,26 +3937,8 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, pa
         call diagnose_2d(Time, Grd, id_conv_ud_pred_bt1, wrk1_2d(:,:))
         call diagnose_2d(Time, Grd, id_conv_ud_corr_bt1, wrk2_2d(:,:))
         call diagnose_2d(Time, Grd, id_eta_t_bt1, eta_t_bt(:,:,fstaup1))
-         if (id_psx_bt1 > 0) then
-             used = send_data (id_psx_bt1, press_force_bt(:,:,1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),  &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_psy_bt1 > 0) then
-             used = send_data (id_psy_bt1, press_force_bt(:,:,2), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),  &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_udrho_bt1 > 0) then
-             used = send_data (id_udrho_bt1, udrho_bt(:,:,1,fstaup1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),      &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_vdrho_bt1 > 0) then
-             used = send_data (id_vdrho_bt1, udrho_bt(:,:,2,fstaup1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),      &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
+        call diagnose_2d_en(Time, Grd, id_psx_bt1, id_psy_bt1, press_force_bt(:,:,:))
+        call diagnose_2d_en(Time, Grd, id_udrho_bt1, id_vdrho_bt1, udrho_bt(:,:,:,fstaup1))
      endif
 
      ! take a sample from the barotropic loop itime=2
@@ -4073,26 +3946,8 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Velocity, Ext_mode, pa
         call diagnose_2d(Time, Grd, id_conv_ud_pred_bt, wrk1_2d(:,:))
         call diagnose_2d(Time, Grd, id_conv_ud_corr_bt, wrk2_2d(:,:))
         call diagnose_2d(Time, Grd, id_eta_t_bt, eta_t_bt(:,:,fstaup1))
-         if (id_psx_bt > 0) then
-             used = send_data (id_psx_bt, press_force_bt(:,:,1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_psy_bt > 0) then
-             used = send_data (id_psy_bt, press_force_bt(:,:,2), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,2), &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_udrho_bt > 0) then
-             used = send_data (id_udrho_bt, udrho_bt(:,:,1,fstaup1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_vdrho_bt > 0) then
-             used = send_data (id_vdrho_bt, udrho_bt(:,:,2,fstaup1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
+        call diagnose_2d_en(Time, Grd, id_psx_bt, id_psy_bt, press_force_bt(:,:,:))
+        call diagnose_2d_en(Time, Grd, id_udrho_bt, id_vdrho_bt, udrho_bt(:,:,:,fstaup1))
      endif
 
      if( barotropic_halo > 1 ) then
@@ -4441,57 +4296,21 @@ subroutine pred_corr_tropic_press_bgrid (Time, Thickness, Velocity, Ext_mode, pm
      if(itime==1) then
         call diagnose_2d(Time, Grd, id_conv_ud_pred_bt1, wrk1_2d(:,:))
         call diagnose_2d(Time, Grd, id_conv_ud_corr_bt1, wrk2_2d(:,:))
-         if (id_psx_bt1 > 0) then
-             used = send_data (id_psx_bt1, press_force_bt(:,:,1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_psy_bt1 > 0) then
-             used = send_data (id_psy_bt1, press_force_bt(:,:,2), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,2), &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_udrho_bt1 > 0) then
-             used = send_data (id_udrho_bt1, udrho_bt(:,:,1,fstaup1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),   &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_vdrho_bt1 > 0) then
-             used = send_data (id_vdrho_bt1, udrho_bt(:,:,2,fstaup1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),   &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         call diagnose_2d(Time, Grd, id_anompb_bt1, anompb_bt(isd:ied,jsd:jed,fstaup1))
+        call diagnose_2d_en(Time, Grd, id_psx_bt1, id_psy_bt1, press_force_bt(:,:,:))
+        call diagnose_2d_en(Time, Grd, id_udrho_bt1, id_vdrho_bt1, udrho_bt(:,:,:,fstaup1))
+        call diagnose_2d(Time, Grd, id_anompb_bt1, anompb_bt(isd:ied,jsd:jed,fstaup1))
      endif
 
      if(itime==2) then
         call diagnose_2d(Time, Grd, id_conv_ud_pred_bt, wrk1_2d(:,:))
         call diagnose_2d(Time, Grd, id_conv_ud_corr_bt, wrk2_2d(:,:))
-         if (id_psx_bt > 0) then
-             used = send_data (id_psx_bt, press_force_bt(:,:,1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_psy_bt > 0) then
-             used = send_data (id_psy_bt, press_force_bt(:,:,2), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,2), &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_udrho_bt > 0) then
-             used = send_data (id_udrho_bt, udrho_bt(:,:,1,fstaup1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_vdrho_bt > 0) then
-             used = send_data (id_vdrho_bt, udrho_bt(:,:,2,fstaup1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         call diagnose_2d(Time, Grd, id_anompb_bt, anompb_bt(isd:ied,jsd:jed,fstaup1))
-         call diagnose_2d_u(Time, Grd, id_udrho_bt_lap, friction_lap(isd:ied,jsd:jed,1))
-         call diagnose_2d_u(Time, Grd, id_udrho_bt_bih, friction_bih(isd:ied,jsd:jed,1))
-         call diagnose_2d_u(Time, Grd, id_vdrho_bt_lap, friction_lap(isd:ied,jsd:jed,2))
-         call diagnose_2d_u(Time, Grd, id_vdrho_bt_bih, friction_bih(isd:ied,jsd:jed,2))
+        call diagnose_2d_en(Time, Grd, id_psx_bt, id_psy_bt, press_force_bt(:,:,:))
+        call diagnose_2d_en(Time, Grd, id_udrho_bt, id_vdrho_bt, udrho_bt(:,:,:,fstaup1))
+        call diagnose_2d(Time, Grd, id_anompb_bt, anompb_bt(isd:ied,jsd:jed,fstaup1))
+        call diagnose_2d_u(Time, Grd, id_udrho_bt_lap, friction_lap(isd:ied,jsd:jed,1))
+        call diagnose_2d_u(Time, Grd, id_udrho_bt_bih, friction_bih(isd:ied,jsd:jed,1))
+        call diagnose_2d_u(Time, Grd, id_vdrho_bt_lap, friction_lap(isd:ied,jsd:jed,2))
+        call diagnose_2d_u(Time, Grd, id_vdrho_bt_bih, friction_bih(isd:ied,jsd:jed,2))
      endif
 
      if( barotropic_halo > 1 ) then
@@ -4843,54 +4662,18 @@ subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Velocity, Ext_mode, pm
      if(itime==1) then
         call diagnose_2d(Time, Grd, id_conv_ud_pred_bt1, wrk1_2d(:,:))
         call diagnose_2d(Time, Grd, id_conv_ud_corr_bt1, wrk2_2d(:,:))
-         if (id_psx_bt1 > 0) then
-             used = send_data (id_psx_bt1, press_force_bt(:,:,1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_psy_bt1 > 0) then
-             used = send_data (id_psy_bt1, press_force_bt(:,:,2), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,2), &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_udrho_bt1 > 0) then
-             used = send_data (id_udrho_bt1, udrho_bt(:,:,1,fstaup1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),   &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_vdrho_bt1 > 0) then
-             used = send_data (id_vdrho_bt1, udrho_bt(:,:,2,fstaup1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),   &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         call diagnose_2d(Time, Grd, id_anompb_bt1, anompb_bt(isd:ied,jsd:jed,fstaup1))
+        call diagnose_2d_en(Time, Grd, id_psx_bt1, id_psy_bt1, press_force_bt(:,:,:))
+        call diagnose_2d_en(Time, Grd, id_udrho_bt1, id_vdrho_bt1, udrho_bt(:,:,:,fstaup1))
+        call diagnose_2d(Time, Grd, id_anompb_bt1, anompb_bt(isd:ied,jsd:jed,fstaup1))
      endif
 
      if(itime==2) then
         call diagnose_2d(Time, Grd, id_conv_ud_pred_bt, wrk1_2d(:,:))
         call diagnose_2d(Time, Grd, id_conv_ud_corr_bt, wrk2_2d(:,:))
         call diagnose_2d(Time, Grd, id_eta_t_bt, eta_t_bt(:,:,fstaup1))
-         if (id_psx_bt > 0) then
-             used = send_data (id_psx_bt, press_force_bt(:,:,1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,1), &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_psy_bt > 0) then
-             used = send_data (id_psy_bt, press_force_bt(:,:,2), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,2), &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_udrho_bt > 0) then
-             used = send_data (id_udrho_bt, udrho_bt(:,:,1,fstaup1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,1),     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         if (id_vdrho_bt > 0) then
-             used = send_data (id_vdrho_bt, udrho_bt(:,:,2,fstaup1), &
-                    Time%model_time, rmask=Grd%tmasken(:,:,1,2),     &
-                    is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-         endif
-         call diagnose_2d(Time, Grd, id_anompb_bt, anompb_bt(isd:ied,jsd:jed,fstaup1))
+        call diagnose_2d_en(Time, Grd, id_psx_bt, id_psy_bt, press_force_bt(:,:,:))
+        call diagnose_2d_en(Time, Grd, id_udrho_bt, id_vdrho_bt, udrho_bt(:,:,:,fstaup1))
+        call diagnose_2d(Time, Grd, id_anompb_bt, anompb_bt(isd:ied,jsd:jed,fstaup1))
      endif
 
      if( barotropic_halo > 1 ) then

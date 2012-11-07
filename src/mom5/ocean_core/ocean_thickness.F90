@@ -181,7 +181,7 @@ use ocean_tracer_util_mod,only: dzt_min_max
 use ocean_types_mod,      only: ocean_time_type, ocean_domain_type, ocean_external_mode_type
 use ocean_types_mod,      only: ocean_grid_type, ocean_thickness_type, ocean_density_type
 use ocean_types_mod,      only: ocean_time_steps_type, ocean_lagrangian_type
-use ocean_util_mod,       only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_2d_u, diagnose_3d_u
+use ocean_util_mod,       only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_2d_u, diagnose_3d_u, diagnose_2d_en
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk1_2d
 
 implicit none
@@ -3458,13 +3458,7 @@ subroutine update_ucell_thickness (Time, Grid, Ext_mode, Thickness)
      call diagnose_3d_u(Time, Grid, id_dzwu, Thickness%dzwu(:,:,1:nk))
      call diagnose_3d_u(Time, Grid, id_rho_dzu, Thickness%rho_dzu(:,:,:,tau))
      call diagnose_2d_u(Time, Grid, id_mass_u, Thickness%mass_u(:,:,tau))
-     if (id_mass_en(1) > 0) used    = send_data (id_mass_en(1), Thickness%mass_en(:,:,1),&
-          Time%model_time, rmask=Grid%tmasken(:,:,1,1),                                  &
-          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-     if (id_mass_en(2) > 0) used    = send_data (id_mass_en(2), Thickness%mass_en(:,:,2),&
-          Time%model_time, rmask=Grid%tmasken(:,:,1,2),                                  &
-          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-
+     call diagnose_2d_en(Time, Grid, id_mass_en(1), id_mass_en(2), Thickness%mass_en(:,:,:))
   endif
 
   if (id_dzten(1) > 0) used  = send_data (id_dzten(1), Thickness%dzten(:,:,:,1),&
@@ -3484,12 +3478,7 @@ subroutine update_ucell_thickness (Time, Grid, Ext_mode, Thickness)
   call diagnose_3d_u(Time, Grid, id_depth_zwu, Thickness%depth_zwu(:,:,:))
 
   call diagnose_2d_u(Time, Grid, id_thicku, Thickness%thicku(:,:,tau))
-  if (id_thicken(1) > 0) used    = send_data (id_thicken(1), Thickness%thicken(:,:,1),&
-       Time%model_time, rmask=Grid%tmasken(:,:,1,1),                                  &
-       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  if (id_thicken(2) > 0) used    = send_data (id_thicken(2), Thickness%thicken(:,:,2),&
-       Time%model_time, rmask=Grid%tmasken(:,:,1,2),                                  &
-       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d_en(Time, Grid, id_thicken(1), id_thicken(2), Thickness%thicken(:,:,:))
 
   if (use_blobs) then
      do j=jsd,jec

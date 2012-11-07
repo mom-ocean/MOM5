@@ -79,7 +79,7 @@ use ocean_types_mod,           only: ocean_time_type, ocean_time_steps_type, oce
 use ocean_types_mod,           only: ocean_adv_vel_type, ocean_external_mode_type
 use ocean_types_mod,           only: ocean_velocity_type, ocean_density_type
 use ocean_types_mod,           only: ocean_lagrangian_type
-use ocean_util_mod,            only: write_timestamp, matrix, diagnose_3d, diagnose_3d_u
+use ocean_util_mod,            only: write_timestamp, matrix, diagnose_3d, diagnose_3d_u, diagnose_3d_en
 use ocean_velocity_advect_mod, only: horz_advection_of_velocity, vert_advection_of_velocity
 use ocean_vert_mix_mod,        only: vert_friction_bgrid, vert_friction_cgrid
 use ocean_workspace_mod,       only: wrk1, wrk2, wrk3
@@ -3094,14 +3094,7 @@ subroutine stokes_coriolis_force(Time, Thickness, Velocity)
      endif
   endif
 
-  if (id_stokes_force_x > 0) used = send_data(id_stokes_force_x, wrk1_v(:,:,:,1),&
-                            Time%model_time, rmask=Grd%tmasken(:,:,:,1),         &
-                            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-  if (id_stokes_force_y > 0) used = send_data(id_stokes_force_y, wrk1_v(:,:,:,2),&
-                            Time%model_time, rmask=Grd%tmasken(:,:,:,2),         &
-                            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
+  call diagnose_3d_en(Time, Grd, id_stokes_force_x, id_stokes_force_y, wrk1_v(:,:,:,:))
 
 end subroutine stokes_coriolis_force
 ! </SUBROUTINE> NAME="stokes_coriolis_force"
