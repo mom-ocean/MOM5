@@ -103,7 +103,7 @@ use ocean_operators_mod,  only: BDX_EU, BDY_NU, FDX_U, FDY_U, FDX_NT, FDY_ET
 use ocean_parameters_mod, only: missing_value
 use ocean_types_mod,      only: ocean_time_type, ocean_grid_type, ocean_domain_type
 use ocean_types_mod,      only: ocean_thickness_type, ocean_velocity_type, ocean_options_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, diagnose_3d_u, diagnose_2d_u
 use ocean_workspace_mod,  only: wrk1_v
 
 implicit none
@@ -278,10 +278,7 @@ ierr = check_nml_error(io_status,'ocean_bihcst_friction_nml')
   id_aiso = register_static_field ('ocean_model', 'aiso_bih', Grd%vel_axes_uv(1:2),      &
             'bih viscosity','m^4/sec',missing_value=missing_value, range=(/-10.0,1.e20/),&
             standard_name='ocean_momentum_xy_biharmonic_diffusivity')
-  if (id_aiso > 0) then 
-    used = send_data (id_aiso, visc_cu(isc:iec,jsc:jec,1), &
-           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
-  endif 
+  call diagnose_2d_u(Time, Grd, id_aiso, visc_cu(:,:,1))
 
   id_bih_fric_u = register_diag_field ('ocean_model', 'bih_fric_u', Grd%vel_axes_uv(1:3), &
                   Time%model_time,'Thickness and rho wghtd horz bih-frict on u',          &
@@ -423,10 +420,8 @@ subroutine bihcst_friction(Time, Thickness, Velocity, bih_viscosity, energy_anal
       enddo
 
       ! diagnostics 
-      if (id_bih_fric_u > 0) used = send_data(id_bih_fric_u, wrk1_v(isc:iec,jsc:jec,:,1), &
-           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-      if (id_bih_fric_v > 0) used = send_data(id_bih_fric_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
+      call diagnose_3d_u(Time, Grd, id_bih_fric_u, wrk1_v(:,:,:,1))
+      call diagnose_3d_u(Time, Grd, id_bih_fric_v, wrk1_v(:,:,:,2))
   endif
 
   if(debug_this_module) then

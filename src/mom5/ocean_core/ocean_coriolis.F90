@@ -429,10 +429,8 @@ subroutine coriolis_force_bgrid(Time, Thickness, Velocity, energy_analysis_step)
          enddo
       enddo
 
-      if (id_cor_u > 0) used = send_data(id_cor_u, wrk1_v(isc:iec,jsc:jec,:,1), &
-                               Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-      if (id_cor_v > 0) used = send_data(id_cor_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-                               Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
+      call diagnose_3d_u(Time, Grd, id_cor_u, wrk1_v(:,:,:,1))
+      call diagnose_3d_u(Time, Grd, id_cor_v, wrk1_v(:,:,:,2))
 
       ! weight acceleration with thickness and density of velocity cell
       do n=1,2
@@ -446,10 +444,8 @@ subroutine coriolis_force_bgrid(Time, Thickness, Velocity, energy_analysis_step)
          enddo
       enddo
 
-      if (id_hrho_cor_u > 0) used = send_data( id_hrho_cor_u, wrk1_v(isc:iec,jsc:jec,:,1), &
-           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-      if (id_hrho_cor_v > 0) used = send_data( id_hrho_cor_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
+      call diagnose_3d_u(Time, Grd, id_hrho_cor_u, wrk1_v(:,:,:,1))
+      call diagnose_3d_u(TIme, Grd, id_hrho_cor_v, wrk1_v(:,:,:,2))
   endif
 
 

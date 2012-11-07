@@ -64,6 +64,7 @@ use ocean_types_mod,      only: ocean_domain_type, ocean_grid_type
 use ocean_types_mod,      only: ocean_thickness_type, ocean_time_type
 use ocean_types_mod,      only: ocean_velocity_type, ocean_options_type
 use ocean_workspace_mod,  only: wrk1_v, wrk2
+use ocean_util_mod,       only: diagnose_3d_u
 
 implicit none
 
@@ -292,11 +293,8 @@ subroutine momentum_source(Time, Thickness, Velocity, energy_analysis_step)
             enddo
          enddo
       enddo
-
-      if (id_rayleigh_drag_u > 0) used = send_data(id_rayleigh_drag_u, wrk1_v(isc:iec,jsc:jec,:,1), &
-                                    Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-      if (id_rayleigh_drag_v > 0) used = send_data(id_rayleigh_drag_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-                                    Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
+      call diagnose_3d_u(Time, Grd, id_rayleigh_drag_u, wrk1_v(:,:,:,1))
+      call diagnose_3d_u(Time, Grd, id_rayleigh_drag_v, wrk1_v(:,:,:,2))
       if (id_rayleigh_drag_power > 0) then 
           wrk2(:,:,:) = 0.0
           do n=1,2
@@ -308,8 +306,7 @@ subroutine momentum_source(Time, Thickness, Velocity, energy_analysis_step)
                 enddo
              enddo
           enddo
-          used = send_data(id_rayleigh_drag_power, wrk2(isc:iec,jsc:jec,:), &
-               Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
+          call diagnose_3d_u(Time, Grd, id_rayleigh_drag_power, wrk2(:,:,:))
       endif
 
   endif 
@@ -432,15 +429,8 @@ subroutine rayleigh_damp_table_init(Time)
                      Grd%vel_axes_uv(1:3), 'Inverse Rayleigh damping time', '1/s',&
                      missing_value=missing_value, range=(/-1.0,1e6/))
 
-  if (id_rayleigh_damp_table > 0) then 
-      used = send_data (id_rayleigh_damp_table, wrk2(isc:iec,jsc:jec,:), &
-             Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-  endif
-
-  if (id_rayleigh_damp > 0) then 
-      used = send_data (id_rayleigh_damp, rayleigh_damp(isc:iec,jsc:jec,:), &
-             Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-  endif
+  call diagnose_3d_u(Time, Grd, id_rayleigh_damp_table, wrk2(:,:,:))
+  call diagnose_3d_u(TIme, Grd, id_rayleigh_damp, rayleigh_damp(:,:,:))
 
   id_rayleigh_drag_u = register_diag_field ('ocean_model', 'rayleigh_drag_u',  &
                        Grd%vel_axes_uv(1:3), Time%model_time,                  &

@@ -1278,14 +1278,8 @@ subroutine bihcgrid_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, 
       call diagnose_3d(Time, Grd, id_across,  wrk1(:,:,:))
    endif 
 
-   if (id_bih_fric_u > 0) then 
-      used = send_data(id_bih_fric_u, wrk3_v(isc:iec,jsc:jec,:,1), &
-                       Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-   endif
-   if (id_bih_fric_v > 0) then 
-      used = send_data(id_bih_fric_v, wrk3_v(isc:iec,jsc:jec,:,2), &
-                       Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-   endif 
+   call diagnose_3d_u(Time, Grd, id_bih_fric_u, wrk3_v(:,:,:,1))
+   call diagnose_3d_u(Time, Grd, id_bih_fric_v, wrk3_v(:,:,:,2))
 
    if (id_horz_bih_diss > 0) then 
       wrk1(:,:,:) = 0.0  

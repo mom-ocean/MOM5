@@ -83,7 +83,7 @@ use ocean_types_mod,      only: ocean_grid_type, ocean_domain_type
 use ocean_types_mod,      only: ocean_velocity_type, ocean_adv_vel_type
 use ocean_types_mod,      only: ocean_time_type, ocean_thickness_type
 use ocean_workspace_mod,  only: wrk1_v, wrk1_2d, wrk2_2d   
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, diagnose_2d_u, diagnose_3d_u
 
 implicit none
 
@@ -585,10 +585,8 @@ subroutine horz_advection_upwind(Time, Thickness, Adv_vel, Velocity, energy_anal
          enddo
       enddo
 
-      if (id_hadv_u > 0) used = send_data( id_hadv_u, wrk1_v(isc:iec,jsc:jec,:,1), &
-                                Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-      if (id_hadv_v > 0) used = send_data( id_hadv_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-                                Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
+      call diagnose_3d_u(Time, Grd, id_hadv_u, wrk1_v(:,:,:,1))
+      call diagnose_3d_u(Time, Grd, id_hadv_v, wrk1_v(:,:,:,2))
 
       if(debug_this_module) then 
           write(stdoutunit,*) ' '
@@ -673,15 +671,10 @@ subroutine vert_advection_of_velocity(Time, Adv_vel, Velocity, pme, river, &
       enddo
   endif
 
-  if (id_surf_accel(1) > 0) used = send_data( id_surf_accel(1), surf_accel(isc:iec,jsc:jec,1), &
-       Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
-  if (id_surf_accel(2) > 0) used = send_data( id_surf_accel(2), surf_accel(isc:iec,jsc:jec,2), &
-       Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
-  if (id_pme_u  > 0)        used = send_data( id_pme_u, pme_u(isc:iec,jsc:jec), &
-       Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
-  if (id_river_u  > 0)      used = send_data( id_river_u, river_u(isc:iec,jsc:jec), &
-       Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
-
+  call diagnose_2d_u(Time, Grd, id_surf_accel(1), surf_accel(:,:,1))
+  call diagnose_2d_u(Time, Grd, id_surf_accel(2), surf_accel(:,:,2))
+  call diagnose_2d_u(Time, Grd, id_pme_u, pme_u(:,:))
+  call diagnose_2d_u(Time, Grd, id_river_u, river_u(:,:))
 
 end subroutine vert_advection_of_velocity
 ! </SUBROUTINE> NAME="vert_advection_of_velocity"
@@ -836,14 +829,8 @@ subroutine vert_advection_centered(Time, Adv_vel, Velocity, pme, pme_u, river, r
          enddo
       enddo
 
-      if (id_vadv_u > 0) then 
-          used = send_data( id_vadv_u, wrk1_v(isc:iec,jsc:jec,:,1), &
-          Time%model_time, rmask=Grd%tmasken(isc:iec,jsc:jec,:,1))
-      endif 
-      if (id_vadv_v > 0) then 
-          used = send_data( id_vadv_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-          Time%model_time, rmask=Grd%tmasken(isc:iec,jsc:jec,:,2))
-      endif 
+      call diagnose_3d_u(Time, Grd, id_vadv_u, wrk1_v(:,:,:,1))
+      call diagnose_3d_u(Time, Grd, id_vadv_v, wrk1_v(:,:,:,2))
 
       if(debug_this_module) then
           write(stdoutunit,*) ' '
@@ -955,10 +942,9 @@ subroutine vert_advection_upwind(Time, Adv_vel, Velocity, pme_u, river_u, &
          enddo
       enddo
 
-      if (id_vadv_u > 0)        used = send_data( id_vadv_u, wrk1_v(isc:iec,jsc:jec,:,1), &
-                                       Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-      if (id_vadv_v > 0)        used = send_data( id_vadv_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-                                       Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
+      call diagnose_3d_u(Time, Grd, id_vadv_u, wrk1_v(:,:,:,1))
+      call diagnose_3d_u(Time, Grd, id_vadv_v, wrk1_v(:,:,:,2))
+
       if(debug_this_module) then
           write(stdoutunit,*) ' '
           write(stdoutunit,*) 'From ocean_velocity_advect_mod: vert_advection_upwind chksums'

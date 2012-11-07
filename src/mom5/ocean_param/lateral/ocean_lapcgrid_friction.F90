@@ -1108,14 +1108,8 @@ subroutine lapcgrid_friction(Time, Thickness, Adv_vel, Velocity, lap_viscosity, 
       wrk1(:,:,:) = onehalf*(aiso_xx(:,:,:)+aiso_xy(:,:,:) - onehalf*(aaniso_xx(:,:,:)+aaniso_xy(:,:,:)))
       call diagnose_3d(Time, Grd, id_across,  wrk1(:,:,:))
    endif 
-   if (id_lap_fric_u > 0) then 
-      used = send_data(id_lap_fric_u, wrk3_v(isc:iec,jsc:jec,:,1), &
-                       Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-   endif
-   if (id_lap_fric_v > 0) then 
-      used = send_data(id_lap_fric_v, wrk3_v(isc:iec,jsc:jec,:,2), &
-                       Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-   endif 
+   call diagnose_3d_u(Time, Grd, id_lap_fric_u, wrk3_v(:,:,:,1))
+   call diagnose_3d_u(Time, Grd, id_lap_fric_v, wrk3_v(:,:,:,2))
    call diagnose_2d_u(Time, Grd, id_viscosity_scaling, viscosity_scaling(:,:))
    call diagnose_3d(Time, Grd, id_horz_lap_diss, dissipate(:,:,:))
    call diagnose_3d(Time, Grd, id_stress_xx_lap, stress_xx(:,:,:))
@@ -1440,26 +1434,17 @@ subroutine compute_neptune_velocity(Time)
   id_neptune_lap_u = register_static_field('ocean_model', 'neptune_lap_u',                &
                      Grd%tracer_axes(1:2), 'Zonal velocity from neptune Laplacian scheme',&
                      'm/sec', missing_value=missing_value, range=(/-1.e10,1.e10/))
-  if (id_neptune_lap_u > 0) then 
-    used = send_data (id_neptune_lap_u, neptune_velocity(isc:iec,jsc:jec,1),&
-                      Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
-  endif 
+  call diagnose_2d_u(Time, Grd, id_neptune_lap_u, neptune_velocity(:,:,1))
 
   id_neptune_lap_v = register_static_field('ocean_model', 'neptune_lap_v',                   &
                    Grd%tracer_axes(1:2), 'Meridional velocity from neptune Laplacian scheme',&
                    'm/sec', missing_value=missing_value, range=(/-1.e10,1.e10/))
-  if (id_neptune_lap_v  > 0) then 
-    used = send_data (id_neptune_lap_v, neptune_velocity(isc:iec,jsc:jec,2),&
-                      Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
-  endif 
+  call diagnose_2d_u(Time, Grd, id_neptune_lap_v, neptune_velocity(:,:,2))
 
   id_neptune_psi   = register_static_field('ocean_model', 'neptune_psi',            &
                      Grd%vel_axes_uv(1:2), 'Transport for neptune parameterization',&
                      'm^3/sec', missing_value=missing_value, range=(/-1.e12,1.e12/))
-  if (id_neptune_psi  > 0) then 
-    used = send_data (id_neptune_psi, neptune_psi(isc:iec,jsc:jec),&
-                      Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
-  endif 
+  call diagnose_2d_u(Time, Grd, id_neptune_psi, neptune_psi(:,:))
 
 
 end subroutine compute_neptune_velocity

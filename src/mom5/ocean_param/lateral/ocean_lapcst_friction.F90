@@ -89,7 +89,7 @@ use ocean_operators_mod,  only: BDX_EU, BDY_NU, FDX_U, FDY_U, FDX_NT, FDY_ET
 use ocean_parameters_mod, only: missing_value
 use ocean_types_mod,      only: ocean_time_type, ocean_grid_type, ocean_domain_type
 use ocean_types_mod,      only: ocean_thickness_type, ocean_velocity_type, ocean_options_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, diagnose_3d_u, diagnose_2d_u
 use ocean_workspace_mod,  only: wrk1_v, wrk1  
 
 implicit none
@@ -320,8 +320,7 @@ ierr = check_nml_error(io_status,'ocean_lapcst_friction_nml')
             'laplacian viscosity', 'm^2/sec',missing_value=missing_value,          &
             range=(/-10.0,1.e10/),                                                 &
             standard_name='ocean_momentum_xy_laplacian_diffusivity')
-  if (id_visc > 0) used = send_data (id_visc, visc_cu(isc:iec,jsc:jec,1),     &
-                          Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
+  call diagnose_2d_u(Time, Grd, id_visc, visc_cu(:,:,1))
 
   id_lap_fric_u = register_diag_field('ocean_model','lap_fric_u',Grd%vel_axes_uv(1:3), &
                   Time%model_time,'Thickness and rho wghtd horz lap frict on u',       &
@@ -458,11 +457,8 @@ subroutine lapcst_friction(Time, Thickness, Velocity, lap_viscosity, energy_anal
 
 
       ! diagnostics
-      if (id_lap_fric_u > 0) used = send_data(id_lap_fric_u, wrk1_v(isc:iec,jsc:jec,:,1), &
-           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-      if (id_lap_fric_v > 0) used = send_data(id_lap_fric_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-
+      call diagnose_3d_u(Time, Grd, id_lap_fric_u, wrk1_v(:,:,:,1))
+      call diagnose_3d_u(Time, Grd, id_lap_fric_v, wrk1_v(:,:,:,2))
   endif
 
   if(debug_this_module) then
