@@ -181,7 +181,7 @@ use ocean_types_mod,      only: ocean_time_type, ocean_grid_type
 use ocean_types_mod,      only: ocean_domain_type, ocean_adv_vel_type 
 use ocean_types_mod,      only: ocean_thickness_type, ocean_velocity_type
 use ocean_types_mod,      only: ocean_options_type
-use ocean_util_mod,       only: write_timestamp, diagnose_3d
+use ocean_util_mod,       only: write_timestamp, diagnose_3d, diagnose_3d_u
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4
 use ocean_workspace_mod,  only: wrk1_2d, wrk1_v2d  
 use ocean_workspace_mod,  only: wrk1_v, wrk2_v, wrk3_v
@@ -1301,17 +1301,8 @@ subroutine bihcgrid_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, 
    endif 
 
    call diagnose_3d(Time, Grd, id_stress_xx_bih, stress_xx(:,:,:))
-   if (id_stress_xy_bih > 0) then 
-       used = send_data(id_stress_xy_bih, stress_xy(:,:,:),&
-       Time%model_time, rmask=Grd%umask(:,:,:),            &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-   endif 
-   if (id_stress_yx_bih > 0) then 
-       used = send_data(id_stress_yx_bih, stress_yx(:,:,:),&
-       Time%model_time, rmask=Grd%umask(:,:,:),            &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-   endif 
-
+   call diagnose_3d_u(Time, Grd, id_stress_xy_bih, stress_xy(:,:,:))
+   call diagnose_3d_u(Time, Grd, id_stress_yx_bih, stress_yx(:,:,:))
 
    if(debug_this_module) then
       write(stdoutunit,*) ' ' 

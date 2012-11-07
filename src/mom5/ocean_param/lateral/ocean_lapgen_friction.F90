@@ -276,7 +276,7 @@ use ocean_types_mod,      only: ocean_time_type, ocean_grid_type
 use ocean_types_mod,      only: ocean_domain_type, ocean_adv_vel_type 
 use ocean_types_mod,      only: ocean_thickness_type, ocean_velocity_type
 use ocean_types_mod,      only: ocean_options_type
-use ocean_util_mod,       only: write_timestamp, diagnose_2d_u
+use ocean_util_mod,       only: write_timestamp, diagnose_2d_u, diagnose_3d_u
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk1_2d, wrk1_v, wrk2_v, wrk3_v, wrk1_v2d  
 
 implicit none
@@ -1361,18 +1361,10 @@ subroutine lapgen_friction(Time, Thickness, Adv_vel, Velocity, &
       call mpp_update_domains (lap_viscosity(:,:), Dom%domain2d)    
 
 
-      if (id_aiso > 0)    used = send_data (id_aiso, aiso(:,:,:),         &
-                                 Time%model_time, rmask=Grd%umask(:,:,:), &
-                                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-      if (id_aaniso > 0)  used = send_data (id_aaniso, wrk1(:,:,:),       &
-                                 Time%model_time, rmask=Grd%umask(:,:,:), &
-                                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-      if (id_along > 0)   used = send_data (id_along,  aiso(:,:,:)+0.5*wrk1(:,:,:),  &
-                                 Time%model_time, rmask=Grd%umask(:,:,:),            &
-                                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-      if (id_across > 0)  used = send_data (id_across, aiso(:,:,:)-0.5*wrk1(:,:,:),  &
-                                 Time%model_time, rmask=Grd%umask(:,:,:),            &
-                                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d_u(Time, Grd, id_aiso, aiso(:,:,:))
+      call diagnose_3d_u(Time, Grd, id_aaniso, wrk1(:,:,:))
+      if (id_along > 0)  call diagnose_3d_u(Time, Grd, id_along,  aiso(:,:,:)+0.5*wrk1(:,:,:))
+      if (id_across > 0) call diagnose_3d_u(Time, Grd, id_across, aiso(:,:,:)-0.5*wrk1(:,:,:))
 
       if (id_lap_fric_u > 0) used = send_data(id_lap_fric_u, wrk1_v(isc:iec,jsc:jec,:,1), &
                                     Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))

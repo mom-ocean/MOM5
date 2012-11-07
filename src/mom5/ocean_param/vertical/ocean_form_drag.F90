@@ -219,7 +219,7 @@ use ocean_workspace_mod,  only: wrk1, wrk2, wrk3
 use ocean_workspace_mod,  only: wrk1_v, wrk2_v, wrk3_v
 use ocean_workspace_mod,  only: wrk1_v2d, wrk2_v2d
 use ocean_workspace_mod,  only: wrk1_2d, wrk2_2d, wrk3_2d, wrk4_2d
-use ocean_util_mod,       only: diagnose_2d_u
+use ocean_util_mod,       only: diagnose_2d_u, diagnose_3d_u
 
 implicit none
 
@@ -834,30 +834,13 @@ subroutine compute_visc_form_drag(Time, Thickness, Velocity, Dens, &
   endif
 
   ! send some diagnostics 
-  if (id_N_squared > 0) then
-      used = send_data (id_N_squared, N_squared(:,:,:), &
-           Time%model_time, rmask=Grd%umask(:,:,:),     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d_u(Time, Grd, id_N_squared, N_squared(:,:,:))
   call diagnose_2d_u(Time, Grd, id_ksurf_blayer_form_drag, wrk3_2d(:,:))
   call diagnose_2d_u(Time, Grd, id_surface_blayer_form_drag, surface_blayerU(:,:))
-  if (id_f2overN2 > 0) then
-      used = send_data (id_f2overN2, wrk1(:,:,:),   &
-           Time%model_time, rmask=Grd%umask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d_u(Time, Grd, id_f2overN2, wrk1(:,:,:))
   call diagnose_2d_u(Time, Grd, id_f2overNb2, wrk4_2d(:,:))
-  if (id_visc_cbu_form_drag_u > 0) then
-      used = send_data (id_visc_cbu_form_drag_u, visc_cbu_form_drag(:,:,:,1), &
-             Time%model_time, rmask=Grd%umask(:,:,:),                         &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_visc_cbu_form_drag_v > 0) then
-      used = send_data (id_visc_cbu_form_drag_v, visc_cbu_form_drag(:,:,:,2), &
-             Time%model_time, rmask=Grd%umask(:,:,:),                         &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-
+  call diagnose_3d_u(Time, Grd, id_visc_cbu_form_drag_u, visc_cbu_form_drag(:,:,:,1))
+  call diagnose_3d_u(Time, Grd, id_visc_cbu_form_drag_v, visc_cbu_form_drag(:,:,:,2))
 
   ! diagnose the eddy induced velocity 
   if(id_form_drag_velocity_u  > 0 .or. id_form_drag_velocity_v  > 0 .or. &
@@ -909,27 +892,11 @@ subroutine compute_visc_form_drag(Time, Thickness, Velocity, Dens, &
          enddo
 
       enddo
-
-      if (id_form_drag_velocity_fu > 0) then
-          used = send_data (id_form_drag_velocity_fu, wrk2_v(:,:,:,1), &
-               Time%model_time, rmask=Grd%umask(:,:,:),                &
-               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-      endif
-      if (id_form_drag_velocity_fv > 0) then
-          used = send_data (id_form_drag_velocity_fv, wrk2_v(:,:,:,2), &
-               Time%model_time, rmask=Grd%umask(:,:,:),                &
-               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-      endif
-      if (id_form_drag_velocity_u > 0) then
-          used = send_data (id_form_drag_velocity_u, wrk1_v(:,:,:,1), &
-               Time%model_time, rmask=Grd%umask(:,:,:),               &
-               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-      endif
-      if (id_form_drag_velocity_v > 0) then
-          used = send_data (id_form_drag_velocity_v, wrk1_v(:,:,:,2), &
-               Time%model_time, rmask=Grd%umask(:,:,:),               &
-               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-      endif
+      
+      call diagnose_3d_u(Time, Grd, id_form_drag_velocity_fu, wrk2_v(:,:,:,1))
+      call diagnose_3d_u(Time, Grd, id_form_drag_velocity_fv, wrk2_v(:,:,:,2))
+      call diagnose_3d_u(Time, Grd, id_form_drag_velocity_u, wrk1_v(:,:,:,1))
+      call diagnose_3d_u(Time, Grd, id_form_drag_velocity_v, wrk1_v(:,:,:,2))
 
   endif
 
@@ -1146,14 +1113,8 @@ subroutine form_drag_accel(Time, Thickness, Velocity, energy_analysis_step)
          enddo
       enddo
 
-      if (id_form_drag_aiki_u > 0) then
-          used = send_data(id_form_drag_aiki_u, wrk1_v(isc:iec,jsc:jec,:,1), &
-                           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-      endif 
-      if (id_form_drag_aiki_v > 0) then 
-         used = send_data(id_form_drag_aiki_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-                          Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-      endif 
+      call diagnose_3d_u(Time, Grd, id_form_drag_aiki_u, wrk1_v(isc:iec,jsc:jec,:,1))
+      call diagnose_3d_u(Time, Grd, id_form_drag_aiki_v, wrk1_v(isc:iec,jsc:jec,:,2))
       if (id_form_drag_aiki_power > 0) then 
           wrk2(:,:,:) = 0.0
           do n=1,2
@@ -1165,8 +1126,7 @@ subroutine form_drag_accel(Time, Thickness, Velocity, energy_analysis_step)
                 enddo
              enddo
           enddo
-          used = send_data(id_form_drag_aiki_power, wrk2(isc:iec,jsc:jec,:), &
-                 Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
+          call diagnose_3d_u(Time, Grd, id_form_drag_aiki_power, wrk2(isc:iec,jsc:jec,:))
       endif
 
       if (id_form_drag_aiki_coeff > 0) then
@@ -1177,9 +1137,7 @@ subroutine form_drag_accel(Time, Thickness, Velocity, energy_analysis_step)
                 enddo
              enddo
           enddo
-          used = send_data (id_form_drag_aiki_coeff, wrk2(:,:,:), &
-               Time%model_time, rmask=Grd%umask(:,:,:),           &
-               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+          call diagnose_3d_u(Time, Grd, id_form_drag_aiki_coeff, wrk2(:,:,:))
       endif
 
 

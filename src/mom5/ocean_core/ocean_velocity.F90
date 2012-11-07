@@ -185,7 +185,7 @@ use ocean_types_mod,           only: ocean_time_type, ocean_time_steps_type
 use ocean_types_mod,           only: ocean_density_type, ocean_thickness_type, ocean_velocity_type
 use ocean_types_mod,           only: ocean_adv_vel_type, ocean_external_mode_type, ocean_options_type
 use ocean_types_mod,           only: ocean_lagrangian_type
-use ocean_util_mod,            only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_2d_u
+use ocean_util_mod,            only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_2d_u, diagnose_3d_u
 use ocean_velocity_advect_mod, only: horz_advection_of_velocity, vert_advection_of_velocity
 use ocean_velocity_diag_mod,   only: kinetic_energy, potential_energy 
 use ocean_vert_mix_mod,        only: vert_friction_bgrid, vert_friction_implicit_bgrid
@@ -1087,13 +1087,8 @@ subroutine ocean_implicit_accel(visc_cbu, visc_cbt, visc_cbu_form_drag, Time, Th
   ! since implicit_accel is the last piece of accel computed, it is 
   ! time to now output the full acceleration to diagnostics manager. 
   if(horz_grid == MOM_BGRID) then 
-      if (id_accel(1) > 0) used = send_data(id_accel(1), Velocity%accel(:,:,:,1), &
-           Time%model_time, rmask=Grd%umask(:,:,:),                               &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-      if (id_accel(2) > 0) used = send_data(id_accel(2), Velocity%accel(:,:,:,2), &
-           Time%model_time, rmask=Grd%umask(:,:,:),                               &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d_u(Time, Grd, id_accel(1), Velocity%accel(:,:,:,1))
+     call diagnose_3d_u(Time, Grd, id_accel(2), Velocity%accel(:,:,:,2))
   else
      call diagnose_3d(Time, Grd, id_accel(1), Velocity%accel(:,:,:,1))
      call diagnose_3d(Time, Grd, id_accel(2), Velocity%accel(:,:,:,2))
@@ -1325,13 +1320,8 @@ subroutine update_ocean_velocity_bgrid(Time, Thickness, barotropic_split, &
   endif
 
   ! send diagnostics to diagnostics manager 
-  if (id_u(1) > 0) used = send_data (id_u(1), Velocity%u(:,:,:,1,tau), &
-                       Time%model_time, rmask=Grd%umask(:,:,:),  &
-                       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-  if (id_u(2) > 0) used = send_data (id_u(2), Velocity%u(:,:,:,2,tau), &
-                       Time%model_time, rmask=Grd%umask(:,:,:),  &
-                       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d_u(Time, Grd, id_u(1), Velocity%u(:,:,:,1,tau))
+  call diagnose_3d_u(Time, Grd, id_u(2), Velocity%u(:,:,:,2,tau))
 
   call diagnose_2d_u(Time, Grd, id_usurf(1), Velocity%u(:,:,1,1,tau))
   call diagnose_2d_u(Time, Grd, id_usurf(2), Velocity%u(:,:,1,2,tau))
@@ -1346,9 +1336,7 @@ subroutine update_ocean_velocity_bgrid(Time, Thickness, barotropic_split, &
             enddo
          enddo
       enddo
-      used = send_data (id_speed, wrk1(:,:,:),        &
-             Time%model_time, rmask=Grd%umask(:,:,:), &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d_u(Time, Grd, id_speed, wrk1(:,:,:))
   endif
 
   if(id_ubott(1) > 0 .or. id_ubott(2) > 0) then 
@@ -1892,9 +1880,7 @@ subroutine remap_s_to_depth(Thickness, Time, array_in, nvelocity)
      enddo
   enddo
 
-  used = send_data (id_u_on_depth(nvelocity), wrk3(:,:,:), &
-  Time%model_time,rmask=Grd%umask_depth(:,:,:),            &
-  is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d_u(Time, Grd, id_u_on_depth(nvelocity), wrk3(:,:,:))
 
 
 end subroutine remap_s_to_depth

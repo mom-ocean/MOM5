@@ -71,7 +71,7 @@ use ocean_types_mod,      only: ocean_velocity_type, ocean_density_type
 use ocean_types_mod,      only: ocean_time_steps_type, ocean_time_type, ocean_thickness_type
 use ocean_vert_util_mod,  only: ri_for_cgrid 
 use ocean_workspace_mod,  only: wrk1, wrk1_v
-use ocean_util_mod,       only: diagnose_3d
+use ocean_util_mod,       only: diagnose_3d, diagnose_3d_u
 
 implicit none
 
@@ -436,10 +436,7 @@ end subroutine ocean_vert_pp_init
 
   call diagnose_3d(Time, Grd, id_diff_cbt_pp, diff_cbt(:,:,:,1))
   call diagnose_3d(Time, Grd, id_visc_cbt_pp, visc_cbt(:,:,:))
-
-  if (id_visc_cbu_pp > 0) used = send_data(id_visc_cbu_pp, visc_cbu(:,:,:), &
-                                 Time%model_time, rmask=Grd%umask(:,:,:),   &
-                                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d_u(Time, Grd, id_visc_cbu_pp, visc_cbu(:,:,:))
 
 end subroutine vert_mix_pp
 ! </SUBROUTINE> NAME="vert_mix_pp"

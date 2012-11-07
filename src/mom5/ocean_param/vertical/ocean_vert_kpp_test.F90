@@ -266,7 +266,7 @@ use ocean_types_mod,       only: ocean_time_type, ocean_time_steps_type, ocean_t
 use ocean_vert_util_mod,   only: ri_for_bgrid, ri_for_cgrid
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4, wrk5
 use ocean_workspace_mod,   only: wrk1_v
-use ocean_util_mod,        only: diagnose_2d, diagnose_3d
+use ocean_util_mod,        only: diagnose_2d, diagnose_3d, diagnose_3d_u
 
 
 implicit none
@@ -1557,11 +1557,7 @@ subroutine vert_mix_kpp_test (aidif, Time, Thickness, Velocity, T_prog, T_diag, 
        call diagnose_3d(Time, Grd, id_diff_cbt_kpp_t, diff_cbt(:,:,:,1))
        call diagnose_3d(Time, Grd, id_diff_cbt_kpp_s, diff_cbt(:,:,:,2))
        call diagnose_3d(Time, Grd, id_visc_cbt_kpp, visc_cbt(:,:,:))
-
-       if (id_visc_cbu_kpp > 0) used = send_data(id_visc_cbu_kpp, visc_cbu(:,:,:), &
-            Time%model_time, rmask=Grd%umask(:,:,:),    &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
+       call diagnose_3d_u(Time, Grd, id_visc_cbu_kpp, visc_cbu(:,:,:))
        call diagnose_2d(Time, Grd, id_hblt, hblt(:,:))
 
 

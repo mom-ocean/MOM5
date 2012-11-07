@@ -79,7 +79,7 @@ use ocean_types_mod,           only: ocean_time_type, ocean_time_steps_type, oce
 use ocean_types_mod,           only: ocean_adv_vel_type, ocean_external_mode_type
 use ocean_types_mod,           only: ocean_velocity_type, ocean_density_type
 use ocean_types_mod,           only: ocean_lagrangian_type
-use ocean_util_mod,            only: write_timestamp, matrix, diagnose_3d
+use ocean_util_mod,            only: write_timestamp, matrix, diagnose_3d, diagnose_3d_u
 use ocean_velocity_advect_mod, only: horz_advection_of_velocity, vert_advection_of_velocity
 use ocean_vert_mix_mod,        only: vert_friction_bgrid, vert_friction_cgrid
 use ocean_workspace_mod,       only: wrk1, wrk2, wrk3
@@ -1075,8 +1075,7 @@ subroutine compute_topostrophy (Time, Velocity)
 
      endif 
 
-     used = send_data (id_topostrophy, wrk1(:,:,:), Time%model_time, rmask=Grd%umask(:,:,:),&
-                       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d_u(Time, Grd, id_topostrophy, wrk1(:,:,:))
   endif 
 
 
@@ -1129,9 +1128,7 @@ subroutine compute_vorticity(Time, Velocity)
               enddo
            enddo
         enddo
-        used = send_data (id_vorticity_z, wrk1(:,:,:),            &   
-                          Time%model_time, rmask=Grd%umask(:,:,:),&
-                          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+        call diagnose_3d_u(Time, Grd, id_vorticity_z, wrk1(:,:,:))
 
      endif 
 
@@ -1907,11 +1904,7 @@ subroutine vert_dissipation (Time, Thickness, Velocity, visc_cbu, visc_cbt, visc
                enddo
             enddo
          enddo
-         if(id_vert_lap_diss > 0) then 
-             used = send_data (id_vert_lap_diss, wrk1(:,:,:), &
-             Time%model_time, rmask=Grd%umask(:,:,:),         &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-         endif
+         call diagnose_3d_u(Time, Grd, id_vert_lap_diss, wrk1(:,:,:))
       
       else  ! Cgrid
 

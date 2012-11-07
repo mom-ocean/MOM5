@@ -68,7 +68,7 @@ use ocean_types_mod,      only: ocean_grid_type, ocean_domain_type
 use ocean_types_mod,      only: ocean_time_type, ocean_time_steps_type
 use ocean_types_mod,      only: ocean_velocity_type, ocean_adv_vel_type
 use ocean_types_mod,      only: ocean_options_type, ocean_thickness_type
-use ocean_util_mod,       only: write_timestamp, diagnose_2d_u
+use ocean_util_mod,       only: write_timestamp, diagnose_2d_u, diagnose_3d_u
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk1_v  
 
 implicit none
@@ -523,14 +523,8 @@ subroutine coriolis_force_bgrid_implicit(Time, Velocity)
   endif
 
   ! send to diagnostics manager  
-  if (id_ucori_impl > 0) used = send_data(id_ucori_impl, wrk1_v(:,:,:,1), &
-                                Time%model_time, rmask=Grd%umask(:,:,:),  &
-                                is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)  
-
-  if (id_vcori_impl > 0) used = send_data(id_vcori_impl, wrk1_v(:,:,:,2), &
-                                Time%model_time, rmask=Grd%umask(:,:,:),  &
-                                is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)  
-
+  call diagnose_3d_u(Time, Grd, id_ucori_impl, wrk1_v(:,:,:,1))
+  call diagnose_3d_u(Time, Grd, id_vcori_impl, wrk1_v(:,:,:,2))
 
 end subroutine coriolis_force_bgrid_implicit
 ! </SUBROUTINE> NAME="coriolis_force_bgrid_implicit"

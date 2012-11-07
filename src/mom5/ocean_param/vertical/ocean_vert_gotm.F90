@@ -157,7 +157,7 @@ use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_adv_vel_type
 use ocean_types_mod,      only: ocean_density_type, ocean_velocity_type
 use ocean_types_mod,      only: ocean_time_type, ocean_time_steps_type, ocean_thickness_type
 use ocean_types_mod,      only: ocean_gotm_type, advect_gotm_type
-use ocean_util_mod,       only: write_timestamp, diagnose_2d, diagnose_3d
+use ocean_util_mod,       only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_3d_u
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk1_v
 use ocean_obc_mod,        only: ocean_obc_mixing, ocean_obc_zero_boundary
 
@@ -951,13 +951,7 @@ subroutine vert_mix_gotm_bgrid (Time, Thickness, Velocity, T_prog, Dens, visc_cb
 
   call diagnose_3d(Time, Grd, id_diff_cbt_gotm, diff_cbt_gotm(:,:,:))
   call diagnose_3d(Time, Grd, id_visc_cbt_gotm, visc_cbt_gotm(:,:,:))
-
-  if(id_visc_cbu_gotm > 0) then 
-     used = send_data(id_visc_cbu_gotm, wrk1(:,:,:), &
-            Time%model_time, rmask=Grd%umask(:,:,:), &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-
+  call diagnose_3d_u(Time, Grd, id_visc_cbu_gotm, wrk1(:,:,:))
   call diagnose_3d(Time, Grd, id_gotm_nn, wrk1_v(:,:,:,1))
   call diagnose_3d(Time, Grd, id_gotm_ss, wrk1_v(:,:,:,2))
 

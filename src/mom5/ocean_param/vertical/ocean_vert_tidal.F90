@@ -336,7 +336,7 @@ use ocean_parameters_mod, only: von_karman, rho0, rho0r, omega_earth, grav
 use ocean_types_mod,      only: ocean_time_type, ocean_domain_type, ocean_grid_type, ocean_options_type
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_thickness_type, ocean_density_type, ocean_velocity_type 
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk1_2d
-use ocean_util_mod,       only: diagnose_2d, diagnose_3d, diagnose_2d_u
+use ocean_util_mod,       only: diagnose_2d, diagnose_3d, diagnose_2d_u, diagnose_3d_u
 
 implicit none
 
@@ -1099,9 +1099,7 @@ end subroutine ocean_vert_tidal_init
             enddo
          enddo
       enddo
-      used = send_data (id_visc_cbu_tides, wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%umask(:,:,:),  &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d_u(Time, Grd, id_visc_cbu_tides, wrk1(:,:,:))
   endif
 
 
@@ -1403,16 +1401,8 @@ end subroutine compute_bvfreq
   call diagnose_3d(Time, Grd, id_diff_cbt_leewave, diff_leewave(:,:,:))
   call diagnose_3d(Time, Grd, id_visc_cbt_wave, diff_wave(:,:,:))
   call diagnose_3d(Time, Grd, id_visc_cbt_leewave, diff_leewave(:,:,:))
-  if (id_visc_cbu_wave > 0) then 
-      used = send_data (id_visc_cbu_wave, wrk1(:,:,:), &
-             Time%model_time, rmask=Grd%umask(:,:,:),  &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-  if (id_visc_cbu_leewave > 0) then 
-      used = send_data (id_visc_cbu_leewave, wrk2(:,:,:), &
-             Time%model_time, rmask=Grd%umask(:,:,:),     &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
+  call diagnose_3d_u(Time, Grd, id_visc_cbu_wave, wrk1(:,:,:))
+  call diagnose_3d_u(Time, Grd, id_visc_cbu_leewave, wrk2(:,:,:))
 
 
 end subroutine vert_mix_wave
@@ -1553,12 +1543,7 @@ end subroutine vert_mix_wave
 
   call diagnose_3d(Time, Grd, id_rinumber_drag, wrk2(:,:,:))
   call diagnose_3d(Time, Grd, id_diff_cbt_drag, diff_drag(:,:,:))
-  if (id_visc_cbu_drag > 0) then 
-      used = send_data (id_visc_cbu_drag, wrk3(:,:,:), &
-             Time%model_time, rmask=Grd%umask(:,:,:),  &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-
+  call diagnose_3d_u(Time, Grd, id_visc_cbu_drag, wrk3(:,:,:))
 
 end subroutine vert_mix_drag_bgrid
 ! </SUBROUTINE> NAME="vert_mix_drag_bgrid"
@@ -1695,12 +1680,7 @@ end subroutine vert_mix_drag_bgrid
 
   call diagnose_3d(Time, Grd, id_rinumber_drag, wrk2(:,:,:))
   call diagnose_3d(Time, Grd, id_diff_cbt_drag, diff_drag(:,:,:))
-  if (id_visc_cbu_drag > 0) then 
-      used = send_data (id_visc_cbu_drag, wrk3(:,:,:), &
-             Time%model_time, rmask=Grd%umask(:,:,:),  &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-
+  call diagnose_3d_u(Time, Grd, id_visc_cbu_drag, wrk3(:,:,:))
 
 end subroutine vert_mix_drag_cgrid
 ! </SUBROUTINE> NAME="vert_mix_drag_cgrid"
@@ -1973,12 +1953,7 @@ end subroutine compute_bvfreq_legacy
   call diagnose_2d(Time, Grd, id_power_waves, Grd%dat(:,:)*energy_flux(:,:))
   call diagnose_3d(Time, Grd, id_diff_cbt_wave, diff_wave(:,:,:))
   call diagnose_3d(Time, Grd, id_visc_cbt_wave, diff_wave(:,:,:))
-  if (id_visc_cbu_wave > 0) then 
-      used = send_data (id_visc_cbu_wave, wrk1(:,:,:), &
-             Time%model_time, rmask=Grd%umask(:,:,:),  &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-
+  call diagnose_3d_u(Time, Grd, id_visc_cbu_wave, wrk1(:,:,:))
 
 end subroutine vert_mix_wave_legacy
 ! </SUBROUTINE> NAME="vert_mix_wave_legacy"
@@ -2102,11 +2077,7 @@ end subroutine vert_mix_wave_legacy
   call diagnose_3d(Time, Grd, id_rinumber_drag, wrk2(:,:,:))
   call diagnose_3d(Time, Grd, id_diff_cbt_drag, diff_drag(:,:,:))
   call diagnose_3d(Time, Grd, id_visc_cbt_drag, diff_drag(:,:,:))
-  if (id_visc_cbu_drag > 0) then 
-      used = send_data (id_visc_cbu_drag, wrk3(:,:,:), &
-             Time%model_time, rmask=Grd%umask(:,:,:),  &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
+  call diagnose_3d_u(Time, Grd, id_visc_cbu_drag, wrk3(:,:,:))
 
 
 end subroutine vert_mix_drag_legacy

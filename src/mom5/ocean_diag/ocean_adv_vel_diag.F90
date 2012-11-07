@@ -45,7 +45,7 @@ use ocean_types_mod,      only: ocean_domain_type, ocean_grid_type
 use ocean_types_mod,      only: ocean_adv_vel_type, ocean_density_type
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_thickness_type
 use ocean_types_mod,      only: ocean_time_type, ocean_time_steps_type
-use ocean_util_mod,       only: matrix, diagnose_2d, diagnose_3d
+use ocean_util_mod,       only: matrix, diagnose_2d, diagnose_3d, diagnose_3d_u
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk1_2d
 
 implicit none
@@ -925,9 +925,7 @@ subroutine transport_on_s(Time, Adv_vel)
          enddo 
       enddo
     enddo 
-    used = send_data (id_ux_trans, wrk1(:,:,:),     &
-           Time%model_time, rmask=Grd%umask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+    call diagnose_3d_u(Time, Grd, id_ux_trans, wrk1(:,:,:))
   endif 
 
   ! relevant only for Bgrid 
@@ -939,9 +937,7 @@ subroutine transport_on_s(Time, Adv_vel)
          enddo 
       enddo
     enddo 
-    used = send_data (id_uy_trans, wrk1(:,:,:),     &
-           Time%model_time, rmask=Grd%umask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+    call diagnose_3d_u(Time, Grd, id_uy_trans, wrk1(:,:,:))
   endif 
 
   ! relevant only for Bgrid 
@@ -953,9 +949,7 @@ subroutine transport_on_s(Time, Adv_vel)
          enddo 
       enddo 
     enddo 
-    used = send_data (id_uz_trans, wrk1(:,:,:),     &
-           Time%model_time, rmask=Grd%umask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+    call diagnose_3d_u(Time, Grd, id_uz_trans, wrk1(:,:,:))
   endif 
 
 end subroutine transport_on_s

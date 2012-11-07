@@ -66,6 +66,7 @@ public diagnose_2d
 public diagnose_2d_u
 public diagnose_2d_int
 public diagnose_3d
+public diagnose_3d_u
 public diagnose_3d_int
 public register_2d_t_field
 public register_3d_t_field
@@ -736,6 +737,50 @@ subroutine diagnose_3d(Time, Grid, id_name, data, nk_lim, use_mask, abs_max, abs
     real,                         intent(in), optional :: abs_max
     real,                         intent(in), optional :: abs_min
 
+    call diagnose_3d_mask(Time, Grid%tmask(:,:,:), id_name, data, nk_lim, use_mask, abs_max, abs_min)
+
+end subroutine diagnose_3d
+! </SUBROUTINE> NAME="diagnose_3d"
+
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_3d_u">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 3D data using the grid umask.
+! </DESCRIPTION>
+!
+subroutine diagnose_3d_u(Time, Grid, id_name, data, nk_lim, use_mask, abs_max, abs_min)
+    type(ocean_time_type),        intent(in) :: Time
+    type(ocean_grid_type),        intent(in) :: Grid
+    integer,                      intent(in) :: id_name
+    real, dimension(isd:,jsd:,:), intent(in) :: data
+    integer,                      intent(in), optional :: nk_lim
+    logical,                      intent(in), optional :: use_mask
+    real,                         intent(in), optional :: abs_max
+    real,                         intent(in), optional :: abs_min
+
+    call diagnose_3d_mask(Time, Grid%umask(:,:,:), id_name, data, nk_lim, use_mask, abs_max, abs_min)
+
+end subroutine diagnose_3d_u
+! </SUBROUTINE> NAME="diagnose_3d_u"
+
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_3d_mask">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 3D data using the given mask.
+! </DESCRIPTION>
+!
+subroutine diagnose_3d_mask(Time, mask, id_name, data, nk_lim, use_mask, abs_max, abs_min)
+    type(ocean_time_type),        intent(in) :: Time
+    real, dimension(isd:,jsd:,:), intent(in) :: mask
+    integer,                      intent(in) :: id_name
+    real, dimension(isd:,jsd:,:), intent(in) :: data
+    integer,                      intent(in), optional :: nk_lim
+    logical,                      intent(in), optional :: use_mask
+    real,                         intent(in), optional :: abs_max
+    real,                         intent(in), optional :: abs_min
+
     logical :: use_mask_, used
     integer :: nk_lim_
     real, dimension(isd:ied,jsd:jed,nk) :: threshold_mask
@@ -772,7 +817,7 @@ subroutine diagnose_3d(Time, Grid, id_name, data, nk_lim, use_mask, abs_max, abs
              where (abs(data(COMP,:)) < abs_min) threshold_mask(COMP,:) = 0.0
           endif
           used = send_data(id_name, data(:,:,:),                              &
-               Time%model_time, rmask=Grid%tmask(:,:,:)*threshold_mask(:,:,:),&
+               Time%model_time, rmask=mask(:,:,:)*threshold_mask(:,:,:),&
                is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk_lim_)
        else
           used = send_data(id_name, data(:,:,:), &
@@ -781,8 +826,8 @@ subroutine diagnose_3d(Time, Grid, id_name, data, nk_lim, use_mask, abs_max, abs
        endif
     endif
 
-end subroutine diagnose_3d
-! </SUBROUTINE> NAME="diagnose_3d"
+end subroutine diagnose_3d_mask
+! </SUBROUTINE> NAME="diagnose_3d_mask"
 
 
 !#######################################################################

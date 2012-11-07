@@ -239,7 +239,7 @@ use ocean_operators_mod,  only: BAY, BAX, BDX_EU, BDY_NU, FDX_U, FDY_U, FMX, FMY
 use ocean_parameters_mod, only: missing_value, oneeigth, omega_earth, rho0, rho0r
 use ocean_types_mod,      only: ocean_time_type, ocean_grid_type, ocean_domain_type, ocean_adv_vel_type
 use ocean_types_mod,      only: ocean_thickness_type, ocean_velocity_type, ocean_options_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, diagnose_3d_u
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk1_v, wrk2_v, wrk3_v, wrk1_v2d
 
 implicit none
@@ -1394,25 +1394,12 @@ subroutine bihgen_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, en
       enddo
       call mpp_update_domains (bih_viscosity(:,:), Dom%domain2d)    
 
-      if (id_aiso > 0)    used = send_data (id_aiso, aiso(:,:,:), &
-           Time%model_time, rmask=Grd%umask(:,:,:),               &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d_u(Time, Grd, id_aiso, aiso(:,:,:))
+      call diagnose_3d_u(Time, Grd, id_visc_diverge, visc_diverge(:,:,:))
+      call diagnose_3d_u(Time, Grd, id_aaniso, wrk1(:,:,:))
 
-      if (id_visc_diverge > 0)    used = send_data (id_visc_diverge, visc_diverge(:,:,:), &
-           Time%model_time, rmask=Grd%umask(:,:,:),                                       &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-      if (id_aaniso > 0)  used = send_data (id_aaniso, wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%umask(:,:,:),                 &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-      if (id_along > 0)   used = send_data (id_along,  aiso(:,:,:)+0.5*wrk1(:,:,:),  &
-           Time%model_time, rmask=Grd%umask(:,:,:),                                  &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-      if (id_across > 0)  used = send_data (id_across, aiso(:,:,:)-0.5*wrk1(:,:,:),  &
-           Time%model_time, rmask=Grd%umask(:,:,:),                                  &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      if (id_along > 0)  call diagnose_3d_u(Time, Grd, id_along,  aiso(:,:,:)+0.5*wrk1(:,:,:))
+      if (id_across > 0) call diagnose_3d_u(Time, Grd, id_across, aiso(:,:,:)-0.5*wrk1(:,:,:))
 
       if (id_horz_bih_diss > 0)  then
           do k=1,nk
@@ -1424,9 +1411,7 @@ subroutine bihgen_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, en
                 enddo
              enddo
           enddo
-          used = send_data (id_horz_bih_diss, wrk2(:,:,:),&
-          Time%model_time, rmask=Grd%umask(:,:,:),        &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+          call diagnose_3d_u(Time, Grd, id_horz_bih_diss, wrk2(:,:,:))
       endif 
 
       if (id_bih_fric_u > 0) then 

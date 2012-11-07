@@ -253,7 +253,7 @@ use ocean_types_mod,           only: ocean_grid_type, ocean_domain_type, ocean_t
 use ocean_types_mod,           only: ocean_time_type, ocean_time_steps_type, ocean_options_type
 use ocean_types_mod,           only: ocean_velocity_type, ocean_adv_vel_type, ocean_density_type
 use ocean_types_mod,           only: ocean_prog_tracer_type, ocean_diag_tracer_type
-use ocean_util_mod,            only: invtri, invtri_bmf, write_timestamp, diagnose_2d, diagnose_3d
+use ocean_util_mod,            only: invtri, invtri_bmf, write_timestamp, diagnose_2d, diagnose_3d, diagnose_3d_u, diagnose_2d_u
 use ocean_vert_const_mod,      only: ocean_vert_const_init, vert_mix_const 
 use ocean_vert_chen_mod,       only: ocean_vert_chen_init, vert_mix_chen, ocean_vert_chen_end 
 use ocean_vert_chen_mod,       only: ocean_vert_chen_restart
@@ -1591,8 +1591,7 @@ subroutine vert_friction_init(Time)
             wrk1(i,j,:) = visc_cbu_back(:)*Grd%umask(i,j,:)
          enddo
       enddo
-      used = send_data (id_visc_cbu_back, wrk1(isc:iec,jsc:jec,:), &
-             Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
+      call diagnose_3d_u(Time, Grd, id_visc_cbu_back, wrk1(isc:iec,jsc:jec,:))
   endif
 
   id_visc_cbt_back = -1
@@ -2964,13 +2963,7 @@ subroutine vert_mix_coeff(Time, Thickness, Velocity, T_prog,   &
 
   call diagnose_3d(Time, Grd, id_diff_cbt_t, diff_cbt(:,:,:,1))
   call diagnose_3d(Time, Grd, id_diff_cbt_s, diff_cbt(:,:,:,2))
-
-  if (id_visc_cbu_diabatic > 0) then
-     used = send_data (id_visc_cbu_diabatic, visc_cbu(:,:,:), &
-            Time%model_time, rmask=Grd%umask(:,:,:),          &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-
+  call diagnose_3d_u(Time, Grd, id_visc_cbu_diabatic, visc_cbu(:,:,:))
   call diagnose_3d(Time, Grd, id_visc_cbt_diabatic, visc_cbt(:,:,:))
 
 
@@ -3409,16 +3402,11 @@ subroutine vert_friction_bgrid (Time, Thickness, Velocity, visc_cbu, energy_anal
          enddo
       enddo
 
-     if (id_vfrict_expl_u > 0) used = send_data (id_vfrict_expl_u, wrk1_v(isc:iec,jsc:jec,:,1), &  
-                                      Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-
-     if (id_vfrict_expl_v > 0) used = send_data (id_vfrict_expl_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-                                      Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
+      call diagnose_3d_u(Time, Grd, id_vfrict_expl_u, wrk1_v(isc:iec,jsc:jec,:,1))
+      call diagnose_3d_u(Time, Grd, id_vfrict_expl_v, wrk1_v(isc:iec,jsc:jec,:,2))
 
      if (id_visc_cbu > 0 .and. aidif /= 1.0) then
-        used = send_data (id_visc_cbu, visc_cbu(:,:,:), &
-            Time%model_time, rmask=Grd%umask(:,:,:),    &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+        call diagnose_3d_u(Time, Grd, id_visc_cbu, visc_cbu(:,:,:))
      endif 
 
 
@@ -3434,14 +3422,8 @@ subroutine vert_friction_bgrid (Time, Thickness, Velocity, visc_cbu, energy_anal
                enddo
             enddo
          enddo
-         if (id_wind_power(1) > 0) then 
-            used = send_data (id_wind_power(1), wrk1_v2d(isc:iec,jsc:jec,1), &
-                              Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
-         endif 
-         if (id_wind_power(2) > 0) then 
-            used = send_data (id_wind_power(2), wrk1_v2d(isc:iec,jsc:jec,2), &
-                              Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
-         endif 
+         call diagnose_2d_u(Time, Grd, id_wind_power(1), wrk1_v2d(:,:,1))
+         call diagnose_2d_u(Time, Grd, id_wind_power(2), wrk1_v2d(:,:,2))
      endif
 
      ! power dissipated to bottom drag 
@@ -3458,14 +3440,8 @@ subroutine vert_friction_bgrid (Time, Thickness, Velocity, visc_cbu, energy_anal
                enddo
             enddo
          enddo
-         if (id_bottom_power(1) > 0) then 
-             used = send_data (id_bottom_power(1), wrk1_v2d(isc:iec,jsc:jec,1), &
-                  Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
-         endif
-         if (id_bottom_power(2) > 0) then 
-             used = send_data (id_bottom_power(2), wrk1_v2d(isc:iec,jsc:jec,2), &
-                  Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
-         endif
+         call diagnose_2d_u(Time, Grd, id_bottom_power(1), wrk1_v2d(:,:,1))
+         call diagnose_2d_u(Time, Grd, id_bottom_power(2), wrk1_v2d(:,:,2))
      endif
 
   endif !  endif for energy analysis step 
@@ -3616,9 +3592,7 @@ subroutine vert_friction_cgrid (Time, Thickness, Velocity, visc_cbt, energy_anal
                enddo
            enddo
         enddo
-        used = send_data (id_visc_cbu, wrk1(:,:,:),    &
-               Time%model_time, rmask=Grd%umask(:,:,:),&
-               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+        call diagnose_3d_u(Time, Grd, id_visc_cbu, wrk1(:,:,:))
      endif 
 
      if (id_visc_cbt > 0 .and. aidif /= 1.0) then
@@ -3840,33 +3814,19 @@ subroutine vert_friction_implicit_bgrid(visc_cbu, visc_cbu_form_drag, Time, Thic
   ! by rho_dzu.  we do not perform this multiplication in the lines above, in order
   ! to preserve bitwise reproducing older results.  so we only perform the extra 
   ! multiply here in the case that we save the vfrict_impl for diagnostics.  
-  if (id_vfrict_impl_u > 0) used = send_data(id_vfrict_impl_u,                                    &
-                                    Thickness%rho_dzu(:,:,:,taup1)*Velocity%vfrict_impl(:,:,:,1), &
-                                    Time%model_time, rmask=Grd%umask(:,:,:),                      &
-                                    is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_vfrict_impl_v > 0) used = send_data(id_vfrict_impl_v,                                    &
-                                    Thickness%rho_dzu(:,:,:,taup1)*Velocity%vfrict_impl(:,:,:,2), &
-                                    Time%model_time, rmask=Grd%umask(:,:,:),                      &
-                                    is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)  
+  if (id_vfrict_impl_u > 0) call diagnose_3d_u(Time, Grd, id_vfrict_impl_u,                       &
+                                    Thickness%rho_dzu(:,:,:,taup1)*Velocity%vfrict_impl(:,:,:,1))
+  if (id_vfrict_impl_v > 0) call diagnose_3d_u(Time, Grd, id_vfrict_impl_v,                       &
+                                    Thickness%rho_dzu(:,:,:,taup1)*Velocity%vfrict_impl(:,:,:,2))
 
   else !diagnostics without the bug fix
-
-  if (id_vfrict_impl_u > 0) used = send_data(id_vfrict_impl_u,                                    &
-                                    Velocity%vfrict_impl(:,:,:,1), &
-                                    Time%model_time, rmask=Grd%umask(:,:,:),                      &
-                                    is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_vfrict_impl_v > 0) used = send_data(id_vfrict_impl_v,                                    &
-                                    Velocity%vfrict_impl(:,:,:,2), &
-                                    Time%model_time, rmask=Grd%umask(:,:,:),                      &
-                                    is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)  
-
+     call diagnose_3d_u(Time, Grd, id_vfrict_impl_u, Velocity%vfrict_impl(:,:,:,1))
+     call diagnose_3d_u(Time, Grd, id_vfrict_impl_v, Velocity%vfrict_impl(:,:,:,2))
   endif
 
   ! take n=1 as representative of the form drag contribution to viscosity
   if (id_visc_cbu > 0 .and. aidif == 1.0) then
-        used = send_data (id_visc_cbu, visc_cbu(:,:,:)+visc_cbu_form_drag(:,:,:,1), &
-            Time%model_time, rmask=Grd%umask(:,:,:),                                &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d_u(Time, Grd, id_visc_cbu, visc_cbu(:,:,:)+visc_cbu_form_drag(:,:,:,1))
   endif 
 
 end subroutine vert_friction_implicit_bgrid
@@ -4031,9 +3991,7 @@ subroutine vert_friction_implicit_cgrid (visc_cbt, visc_cbu_form_drag, Time, Thi
              enddo
          enddo
       enddo
-      used = send_data (id_visc_cbu, wrk1(:,:,:),    &
-             Time%model_time, rmask=Grd%umask(:,:,:),&
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d_u(Time, Grd, id_visc_cbu, wrk1(:,:,:))
   endif 
   if (id_visc_cbt > 0 .and. aidif == 1.0) then
      call diagnose_3d(Time, Grd, id_visc_cbt, visc_cbt(:,:,:))
@@ -4187,12 +4145,7 @@ subroutine vmix_min_dissipation(Time, Dens, diff_cbt, visc_cbu, visc_cbt)
   call diagnose_3d(Time, Grd, id_vmix_min_diss, wrk3(:,:,:))
   call diagnose_3d(Time, Grd, id_diff_cbt_t_before_min, wrk1_v(:,:,:,1))
   call diagnose_3d(TIme, Grd, id_diff_cbt_s_before_min, wrk1_v(:,:,:,2))
-  if (id_visc_cbu_before_min > 0) then 
-      used = send_data (id_visc_cbu_before_min, wrk2(:,:,:),&
-           Time%model_time, rmask=Grd%umask(:,:,:),         &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-
+  call diagnose_3d_u(Time, Grd, id_visc_cbu_before_min, wrk2(:,:,:))
 
 end subroutine vmix_min_dissipation
 ! </SUBROUTINE> NAME="vmix_min_dissipation"

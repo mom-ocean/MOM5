@@ -463,7 +463,7 @@ use ocean_types_mod,          only: ocean_external_mode_type, ocean_velocity_typ
 use ocean_types_mod,          only: ice_ocean_boundary_type, ocean_density_type
 use ocean_types_mod,          only: ocean_public_type
 use ocean_workspace_mod,      only: wrk1_2d, wrk2_2d, wrk3_2d, wrk1
-use ocean_util_mod,           only: diagnose_2d, diagnose_2d_u
+use ocean_util_mod,           only: diagnose_2d, diagnose_2d_u, diagnose_3d_u
 
 implicit none
 
@@ -4493,14 +4493,8 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
 
   !--------stokes drift velocity and decay depth----------------------
-  if (id_ustokes  > 0) used =  send_data(id_ustokes, Velocity%stokes_drift(:,:,:,1), &
-                               Time%model_time, rmask=Grd%umask(:,:,:),              &
-                               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-  if (id_vstokes  > 0) used =  send_data(id_vstokes, Velocity%stokes_drift(:,:,:,2), &
-                               Time%model_time, rmask=Grd%umask(:,:,:),              &
-                               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
+  call diagnose_3d_u(Time, Grd, id_ustokes, Velocity%stokes_drift(:,:,:,1))
+  call diagnose_3d_u(Time, Grd, id_vstokes, Velocity%stokes_drift(:,:,:,2))
   call diagnose_2d_u(Time, Grd, id_stokes_depth, Velocity%stokes_depth(:,:))
 
 

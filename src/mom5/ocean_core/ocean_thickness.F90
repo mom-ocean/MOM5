@@ -181,7 +181,7 @@ use ocean_tracer_util_mod,only: dzt_min_max
 use ocean_types_mod,      only: ocean_time_type, ocean_domain_type, ocean_external_mode_type
 use ocean_types_mod,      only: ocean_grid_type, ocean_thickness_type, ocean_density_type
 use ocean_types_mod,      only: ocean_time_steps_type, ocean_lagrangian_type
-use ocean_util_mod,       only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_2d_u
+use ocean_util_mod,       only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_2d_u, diagnose_3d_u
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk1_2d
 
 implicit none
@@ -3448,57 +3448,23 @@ subroutine update_ucell_thickness (Time, Grid, Ext_mode, Thickness)
   ! write tau values of grid increments before update to taup1 
   
   if (use_blobs) then
-     
-     if (id_dzu > 0)     used = send_data (id_dzu, Thickness%dzuT(:,:,:),              &
-          Time%model_time, rmask=Grid%umask(:,:,:),                                    &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     if (id_dzuL > 0)     used = send_data (id_dzuL, Thickness%dzuL(:,:,:),            &
-          Time%model_time, rmask=Grid%umask(:,:,:),                                    &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     if (id_dzuE > 0)     used = send_data (id_dzuE, Thickness%dzu(:,:,:),             &
-          Time%model_time, rmask=Grid%umask(:,:,:),                                    &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     
-     if (id_dzwu > 0)    used = send_data (id_dzwu, Thickness%dzwuT(:,:,1:nk),         &
-          Time%model_time, rmask=Grid%umask(:,:,:),                                    &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     if (id_dzwuL > 0)    used = send_data (id_dzwuL, Thickness%dzwuL(:,:,1:nk),       &
-          Time%model_time, rmask=Grid%umask(:,:,:),                                    &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     if (id_dzwuE > 0)    used = send_data (id_dzwuE, Thickness%dzwu(:,:,1:nk),        &
-          Time%model_time, rmask=Grid%umask(:,:,:),                                    &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     
-     if (id_rho_dzu > 0) used = send_data (id_rho_dzu, Thickness%rho_dzuT(:,:,:,tau),  &
-          Time%model_time, rmask=Grid%umask(:,:,:),                                    &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     if (id_rho_dzuL > 0) used = send_data (id_rho_dzuL, Thickness%rho_dzuL(:,:,:,tau), &
-          Time%model_time, rmask=Grid%umask(:,:,:),                                     &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     if (id_rho_dzuE > 0) used = send_data (id_rho_dzuE, Thickness%rho_dzu(:,:,:,tau), &
-          Time%model_time, rmask=Grid%umask(:,:,:),                                    &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     
+     call diagnose_3d_u(Time, Grid, id_dzu, Thickness%dzuT(:,:,:))
+     call diagnose_3d_u(Time, Grid, id_dzuL, Thickness%dzuL(:,:,:))
+     call diagnose_3d_u(Time, Grid, id_dzuE, Thickness%dzu(:,:,:))
+     call diagnose_3d_u(Time, Grid, id_dzwu, Thickness%dzwuT(:,:,1:nk))
+     call diagnose_3d_u(Time, Grid, id_dzwuL, Thickness%dzwuL(:,:,1:nk))
+     call diagnose_3d_u(Time, Grid, id_dzwuE, Thickness%dzwu(:,:,1:nk))
+     call diagnose_3d_u(Time, Grid, id_rho_dzu, Thickness%rho_dzuT(:,:,:,tau))
+     call diagnose_3d_u(Time, Grid, id_rho_dzuL, Thickness%rho_dzuL(:,:,:,tau))
+     call diagnose_3d_u(Time, Grid, id_rho_dzuE, Thickness%rho_dzu(:,:,:,tau))
      call diagnose_2d_u(Time, Grid, id_mass_u, Thickness%mass_uT(:,:,tau))
      call diagnose_2d_u(Time, Grid, id_mass_uE, Thickness%mass_u(:,:,tau))
-     
   else
-
-     if (id_dzu > 0)     used = send_data (id_dzu, Thickness%dzu(:,:,:),               &
-          Time%model_time, rmask=Grid%umask(:,:,:),                                    &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     if (id_dzten(1) > 0)     used = send_data (id_dzten(1), Thickness%dzten(:,:,:,1), &
-          Time%model_time, rmask=Grid%tmask(:,:,:),                                    &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     if (id_dzten(2) > 0)     used = send_data (id_dzten(2), Thickness%dzten(:,:,:,2), &
-          Time%model_time, rmask=Grid%tmask(:,:,:),                                    &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     if (id_dzwu > 0)    used = send_data (id_dzwu, Thickness%dzwu(:,:,1:nk),          &
-          Time%model_time, rmask=Grid%umask(:,:,:),                                    &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     if (id_rho_dzu > 0) used = send_data (id_rho_dzu, Thickness%rho_dzu(:,:,:,tau),   &
-          Time%model_time, rmask=Grid%umask(:,:,:),                                    &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d_u(Time, Grid, id_dzu, Thickness%dzu(:,:,:))
+     call diagnose_3d_u(Time, Grid, id_dzten(1), Thickness%dzten(:,:,:,1))
+     call diagnose_3d_u(Time, Grid, id_dzten(2), Thickness%dzten(:,:,:,2))
+     call diagnose_3d_u(Time, Grid, id_dzwu, Thickness%dzwu(:,:,1:nk))
+     call diagnose_3d_u(Time, Grid, id_rho_dzu, Thickness%rho_dzu(:,:,:,tau))
      call diagnose_2d_u(Time, Grid, id_mass_u, Thickness%mass_u(:,:,tau))
      if (id_mass_en(1) > 0) used    = send_data (id_mass_en(1), Thickness%mass_en(:,:,1),&
           Time%model_time, rmask=Grid%tmasken(:,:,1,1),                                  &
@@ -3522,12 +3488,8 @@ subroutine update_ucell_thickness (Time, Grid, Ext_mode, Thickness)
        Time%model_time, rmask=Grid%tmask(:,:,:),                                            &
        is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
 
-  if (id_depth_zu > 0) used = send_data (id_depth_zu, Thickness%depth_zu(:,:,:),    &
-       Time%model_time, rmask=Grid%umask(:,:,:),                                    &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_depth_zwu > 0) used = send_data (id_depth_zwu, Thickness%depth_zwu(:,:,:), &
-       Time%model_time, rmask=Grid%umask(:,:,:),                                    &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d_u(Time, Grid, id_depth_zu, Thickness%depth_zu(:,:,:))
+  call diagnose_3d_u(Time, Grid, id_depth_zwu, Thickness%depth_zwu(:,:,:))
 
   call diagnose_2d_u(Time, Grid, id_thicku, Thickness%thicku(:,:,tau))
   if (id_thicken(1) > 0) used    = send_data (id_thicken(1), Thickness%thicken(:,:,1),&
