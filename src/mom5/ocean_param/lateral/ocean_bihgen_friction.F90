@@ -225,7 +225,7 @@ module ocean_bihgen_friction_mod
 !</NAMELIST>
 !
 use constants_mod,       only: pi, radius, epsln
-use diag_manager_mod,    only: register_diag_field, register_static_field, send_data
+use diag_manager_mod,    only: register_diag_field, register_static_field
 use fms_mod,             only: open_namelist_file, check_nml_error
 use fms_mod,             only: write_version_number, close_file
 use fms_mod,             only: FATAL, NOTE, stdout, stdlog, read_data

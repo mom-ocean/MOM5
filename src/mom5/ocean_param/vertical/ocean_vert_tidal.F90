@@ -322,7 +322,7 @@ module ocean_vert_tidal_mod
 !</NAMELIST>
 
 use constants_mod,     only: pi, epsln
-use diag_manager_mod,  only: register_diag_field, register_static_field, send_data
+use diag_manager_mod,  only: register_diag_field, register_static_field
 use fms_mod,           only: write_version_number, open_namelist_file, close_file, check_nml_error
 use fms_mod,           only: stdout, stdlog, read_data, NOTE, FATAL, WARNING
 use mpp_domains_mod,   only: mpp_update_domains

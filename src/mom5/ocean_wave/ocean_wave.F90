@@ -41,7 +41,7 @@ module ocean_wave_mod
 !</NAMELIST>
 
 use constants_mod,          only: pi, grav
-use diag_manager_mod,       only: register_diag_field, send_data
+use diag_manager_mod,       only: register_diag_field
 use fms_mod,                only: open_namelist_file, check_nml_error, close_file, file_exist
 use fms_mod,                only: write_version_number, FATAL, WARNING, NOTE
 use fms_mod,                only: clock_flag_default

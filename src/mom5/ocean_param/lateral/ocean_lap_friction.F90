@@ -40,7 +40,7 @@ module ocean_lap_friction_mod
 !  </DATA> 
 !</NAMELIST>
 
-use diag_manager_mod,only: register_diag_field, send_data
+use diag_manager_mod,only: register_diag_field
 use fms_mod,         only: open_namelist_file, check_nml_error, write_version_number, close_file
 use fms_mod,         only: FATAL, WARNING, stdout, stdlog
 use fms_mod,         only: file_exist

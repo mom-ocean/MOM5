@@ -39,7 +39,7 @@ module ocean_vert_const_mod
 !</NAMELIST>
 
 use constants_mod,      only: pi
-use diag_manager_mod,   only: register_diag_field, send_data
+use diag_manager_mod,   only: register_diag_field
 use fms_mod,            only: write_version_number, FATAL, NOTE, stdout, stdlog
 use fms_mod,            only: open_namelist_file, check_nml_error, close_file
 use mpp_io_mod,         only: mpp_open, mpp_close, MPP_RDONLY, MPP_ASCII

@@ -260,7 +260,7 @@ module ocean_lapgen_friction_mod
 !</NAMELIST>
 
 use constants_mod,    only: pi, radius, epsln, radian
-use diag_manager_mod, only: register_diag_field, register_static_field, send_data
+use diag_manager_mod, only: register_diag_field, register_static_field
 use fms_mod,          only: open_namelist_file, check_nml_error, write_version_number, close_file
 use mpp_domains_mod,  only: mpp_update_domains, BGRID_NE, mpp_global_field
 use mpp_domains_mod,  only: mpp_start_update_domains, mpp_complete_update_domains
