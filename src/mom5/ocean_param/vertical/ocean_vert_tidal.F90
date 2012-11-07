@@ -336,7 +336,7 @@ use ocean_parameters_mod, only: von_karman, rho0, rho0r, omega_earth, grav
 use ocean_types_mod,      only: ocean_time_type, ocean_domain_type, ocean_grid_type, ocean_options_type
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_thickness_type, ocean_density_type, ocean_velocity_type 
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk1_2d
-use ocean_util_mod,       only: diagnose_2d, diagnose_3d
+use ocean_util_mod,       only: diagnose_2d, diagnose_3d, diagnose_2d_u
 
 implicit none
 
@@ -872,21 +872,13 @@ ierr = check_nml_error(io_status,'ocean_vert_tidal_nml')
     id_tide_speed_drag = register_static_field ('ocean_model', 'tide_speed_drag',              &
          Grid%vel_axes_uv(1:2), 'tide speed from tide model for barotropic drag mixing scheme',&  
          'm/s', missing_value=missing_value, range=(/-1e1,1e9/))
-    if (id_tide_speed_drag > 0) then 
-        used = send_data (id_tide_speed_drag, rescaled_speed_u(:,:), &
-               Time%model_time, rmask=Grd%umask(:,:,1),              &
-               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-    endif
+    call diagnose_2d_u(Time, Grd, id_tide_speed_drag, rescaled_speed_u(:,:))
 
     ! static tide speed mask
     id_tide_speed_mask = register_static_field ('ocean_model', 'tide_speed_mask',           &
          Grid%vel_axes_uv(1:2), 'mask based on tide_speed_drag for barotropic drag mixing', &
          'dimensionless', missing_value=missing_value, range=(/-1e1,1e1/))
-    if (id_tide_speed_mask > 0) then 
-        used = send_data (id_tide_speed_mask, tide_speed_mask(:,:), &
-               Time%model_time, rmask=Grd%umask(:,:,1),             &
-               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-    endif
+    call diagnose_2d_u(Time, Grd, id_tide_speed_mask, tide_speed_mask(:,:))
 
     ! static roughness amplitude 
     id_roughness_amp = register_static_field ('ocean_model', 'roughness_amp',                  &

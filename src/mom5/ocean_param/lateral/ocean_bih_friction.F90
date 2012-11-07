@@ -63,7 +63,7 @@ use ocean_types_mod,             only: ocean_time_type, ocean_grid_type
 use ocean_types_mod,             only: ocean_domain_type, ocean_adv_vel_type
 use ocean_types_mod,             only: ocean_thickness_type, ocean_velocity_type
 use ocean_types_mod,             only: ocean_options_type 
-use ocean_util_mod,              only: write_timestamp
+use ocean_util_mod,              only: write_timestamp, diagnose_2d_u
 
 implicit none
 
@@ -332,12 +332,7 @@ subroutine bih_friction(Time, Thickness, Adv_vel, Velocity, energy_analysis_step
      bih_visc_cnu(:,:) = sqrt(bih_visc_cnu(:,:))
   endif 
 
-   if (id_bih_viscosity > 0) then 
-      used = send_data(id_bih_viscosity, bih_viscosity(:,:), &
-             Time%model_time, rmask=Grd%umask(:,:,1),        &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-   endif 
-
+  call diagnose_2d_u(Time, Grd, id_bih_viscosity, bih_viscosity(:,:))
 
 end subroutine bih_friction
 ! </SUBROUTINE> NAME="bih_friction"

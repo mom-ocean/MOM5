@@ -181,7 +181,7 @@ use ocean_tracer_util_mod,only: dzt_min_max
 use ocean_types_mod,      only: ocean_time_type, ocean_domain_type, ocean_external_mode_type
 use ocean_types_mod,      only: ocean_grid_type, ocean_thickness_type, ocean_density_type
 use ocean_types_mod,      only: ocean_time_steps_type, ocean_lagrangian_type
-use ocean_util_mod,       only: write_timestamp, diagnose_2d, diagnose_3d
+use ocean_util_mod,       only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_2d_u
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk1_2d
 
 implicit none
@@ -3479,12 +3479,8 @@ subroutine update_ucell_thickness (Time, Grid, Ext_mode, Thickness)
           Time%model_time, rmask=Grid%umask(:,:,:),                                    &
           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
      
-     if (id_mass_u > 0) used    = send_data (id_mass_u, Thickness%mass_uT(:,:,tau),    &
-          Time%model_time, rmask=Grid%umask(:,:,1),                                    &
-          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-     if (id_mass_uE > 0) used    = send_data (id_mass_uE, Thickness%mass_u(:,:,tau),  &
-          Time%model_time, rmask=Grid%umask(:,:,1),                                   &
-          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d_u(Time, Grid, id_mass_u, Thickness%mass_uT(:,:,tau))
+     call diagnose_2d_u(Time, Grid, id_mass_uE, Thickness%mass_u(:,:,tau))
      
   else
 
@@ -3503,9 +3499,7 @@ subroutine update_ucell_thickness (Time, Grid, Ext_mode, Thickness)
      if (id_rho_dzu > 0) used = send_data (id_rho_dzu, Thickness%rho_dzu(:,:,:,tau),   &
           Time%model_time, rmask=Grid%umask(:,:,:),                                    &
           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     if (id_mass_u > 0) used    = send_data (id_mass_u, Thickness%mass_u(:,:,tau),     &
-          Time%model_time, rmask=Grid%umask(:,:,1),                                    &
-          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d_u(Time, Grid, id_mass_u, Thickness%mass_u(:,:,tau))
      if (id_mass_en(1) > 0) used    = send_data (id_mass_en(1), Thickness%mass_en(:,:,1),&
           Time%model_time, rmask=Grid%tmasken(:,:,1,1),                                  &
           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
@@ -3535,9 +3529,7 @@ subroutine update_ucell_thickness (Time, Grid, Ext_mode, Thickness)
        Time%model_time, rmask=Grid%umask(:,:,:),                                    &
        is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
 
-  if (id_thicku > 0) used    = send_data (id_thicku, Thickness%thicku(:,:,tau),     &
-       Time%model_time, rmask=Grid%umask(:,:,1),                                    &
-       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d_u(Time, Grid, id_thicku, Thickness%thicku(:,:,tau))
   if (id_thicken(1) > 0) used    = send_data (id_thicken(1), Thickness%thicken(:,:,1),&
        Time%model_time, rmask=Grid%tmasken(:,:,1,1),                                  &
        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)

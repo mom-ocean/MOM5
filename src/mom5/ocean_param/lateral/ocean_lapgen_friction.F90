@@ -276,7 +276,7 @@ use ocean_types_mod,      only: ocean_time_type, ocean_grid_type
 use ocean_types_mod,      only: ocean_domain_type, ocean_adv_vel_type 
 use ocean_types_mod,      only: ocean_thickness_type, ocean_velocity_type
 use ocean_types_mod,      only: ocean_options_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, diagnose_2d_u
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk1_2d, wrk1_v, wrk2_v, wrk3_v, wrk1_v2d  
 
 implicit none
@@ -1393,9 +1393,7 @@ subroutine lapgen_friction(Time, Thickness, Adv_vel, Velocity, &
           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
       endif 
 
-      if (id_viscosity_scaling > 0) used = send_data (id_viscosity_scaling, viscosity_scaling(:,:),&
-                                 Time%model_time, rmask=Grd%umask(:,:,1),                          &
-                                 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d_u(Time, Grd, id_viscosity_scaling, viscosity_scaling(:,:))
 
       if (id_lap_fric_u > 0) then 
          if(use_side_drag_friction) then 

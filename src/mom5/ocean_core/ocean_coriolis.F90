@@ -68,7 +68,7 @@ use ocean_types_mod,      only: ocean_grid_type, ocean_domain_type
 use ocean_types_mod,      only: ocean_time_type, ocean_time_steps_type
 use ocean_types_mod,      only: ocean_velocity_type, ocean_adv_vel_type
 use ocean_types_mod,      only: ocean_options_type, ocean_thickness_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, diagnose_2d_u
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk1_v  
 
 implicit none
@@ -309,23 +309,17 @@ subroutine ocean_coriolis_init(Grid, Domain, Time, Time_steps, Ocean_options, ho
   id_coriolis  = register_static_field ('ocean_model', 'f_coriolis', Grd%vel_axes_uv(1:2), &
                                         'Coriolis frequency on U-cell', '1/s',             &
                                          missing_value=missing_value, range=(/-10.0,10.0/))
-  if (id_coriolis > 0) used = send_data (id_coriolis, Grid%f(:,:), &
-                              Time%model_time, rmask=Grd%umask(:,:,1), &
-                              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d_u(Time, Grd, id_coriolis, Grid%f(:,:))
 
   id_beta  = register_static_field ('ocean_model', 'beta', Grd%vel_axes_uv(1:2), &
                                     'planetary beta', '1/(m*s)',&
                                     missing_value=missing_value, range=(/-10.0,10.0/))
-  if (id_beta > 0) used = send_data (id_beta, Grd%beta(:,:), &
-                          Time%model_time, rmask=Grd%umask(:,:,1), &
-                          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d_u(Time, Grd, id_beta, Grd%beta(:,:))
 
   id_beta_eff  = register_static_field ('ocean_model', 'beta_eff', Grd%vel_axes_uv(1:2), &
                                         'effective beta', '1/(m*s)',&
                                         missing_value=missing_value, range=(/-10.0,10.0/))
-  if (id_beta_eff > 0) used = send_data (id_beta_eff, Grd%beta_eff(:,:), &
-                              Time%model_time, rmask=Grd%umask(:,:,1), &
-                              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d_u(Time, Grd, id_beta_eff, Grd%beta_eff(:,:))
 
   ! diagnostic manager registers for dynamic fields 
   id_cor_u =  register_diag_field ('ocean_model', 'cor_u', Grd%vel_axes_u(1:3), Time%model_time, &

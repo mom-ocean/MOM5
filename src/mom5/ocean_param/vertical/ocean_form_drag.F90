@@ -219,6 +219,7 @@ use ocean_workspace_mod,  only: wrk1, wrk2, wrk3
 use ocean_workspace_mod,  only: wrk1_v, wrk2_v, wrk3_v
 use ocean_workspace_mod,  only: wrk1_v2d, wrk2_v2d
 use ocean_workspace_mod,  only: wrk1_2d, wrk2_2d, wrk3_2d, wrk4_2d
+use ocean_util_mod,       only: diagnose_2d_u
 
 implicit none
 
@@ -486,11 +487,7 @@ ierr = check_nml_error(io_status,'ocean_form_drag_nml')
   id_form_drag_aiki_gradH_scale = register_static_field ('ocean_model', 'form_drag_aiki_gradH_scale', &
                    Grd%vel_axes_uv(1:2), 'Topography scaling for Aiki form drag', 'dimensionless',    &
                     missing_value=missing_value, range=(/-1e6,1e6/))
-  if (id_form_drag_aiki_gradH_scale > 0)  then 
-     used = send_data(id_form_drag_aiki_gradH_scale, gradH_scale(:,:), &
-                      Time%model_time, rmask=Grd%umask(:,:,1),         &
-                      is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
+  call diagnose_2d_u(Time, Grd, id_form_drag_aiki_gradH_scale, gradH_scale(:,:))
 
   id_form_drag_aiki_u = register_diag_field ('ocean_model', 'form_drag_aiki_u', &
                    Grd%vel_axes_u(1:3), Time%model_time,                        &
@@ -842,26 +839,14 @@ subroutine compute_visc_form_drag(Time, Thickness, Velocity, Dens, &
            Time%model_time, rmask=Grd%umask(:,:,:),     &
            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
   endif
-  if (id_ksurf_blayer_form_drag > 0) then
-      used = send_data (id_ksurf_blayer_form_drag, wrk3_2d(:,:), &
-           Time%model_time, rmask=Grd%umask(:,:,1),              &
-           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-  if (id_surface_blayer_form_drag > 0) then
-      used = send_data (id_surface_blayer_form_drag, surface_blayerU(:,:), &
-           Time%model_time, rmask=Grd%umask(:,:,1),                        &
-           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+  call diagnose_2d_u(Time, Grd, id_ksurf_blayer_form_drag, wrk3_2d(:,:))
+  call diagnose_2d_u(Time, Grd, id_surface_blayer_form_drag, surface_blayerU(:,:))
   if (id_f2overN2 > 0) then
       used = send_data (id_f2overN2, wrk1(:,:,:),   &
            Time%model_time, rmask=Grd%umask(:,:,:), &
            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
   endif
-  if (id_f2overNb2 > 0) then
-      used = send_data (id_f2overNb2, wrk4_2d(:,:), &
-           Time%model_time, rmask=Grd%umask(:,:,1), &
-           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+  call diagnose_2d_u(Time, Grd, id_f2overNb2, wrk4_2d(:,:))
   if (id_visc_cbu_form_drag_u > 0) then
       used = send_data (id_visc_cbu_form_drag_u, visc_cbu_form_drag(:,:,:,1), &
              Time%model_time, rmask=Grd%umask(:,:,:),                         &

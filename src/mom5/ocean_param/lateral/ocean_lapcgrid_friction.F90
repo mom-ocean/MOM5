@@ -216,7 +216,7 @@ use ocean_types_mod,      only: ocean_time_type, ocean_grid_type
 use ocean_types_mod,      only: ocean_domain_type, ocean_adv_vel_type 
 use ocean_types_mod,      only: ocean_thickness_type, ocean_velocity_type
 use ocean_types_mod,      only: ocean_options_type
-use ocean_util_mod,       only: write_timestamp, diagnose_3d
+use ocean_util_mod,       only: write_timestamp, diagnose_3d, diagnose_2d_u
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4
 use ocean_workspace_mod,  only: wrk1_2d, wrk1_v2d  
 use ocean_workspace_mod,  only: wrk1_v, wrk2_v, wrk3_v
@@ -1116,11 +1116,7 @@ subroutine lapcgrid_friction(Time, Thickness, Adv_vel, Velocity, lap_viscosity, 
       used = send_data(id_lap_fric_v, wrk3_v(isc:iec,jsc:jec,:,2), &
                        Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
    endif 
-   if (id_viscosity_scaling > 0) then 
-      used = send_data (id_viscosity_scaling, viscosity_scaling(:,:),&
-                        Time%model_time, rmask=Grd%umask(:,:,1),     &
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-   endif 
+   call diagnose_2d_u(Time, Grd, id_viscosity_scaling, viscosity_scaling(:,:))
    call diagnose_3d(Time, Grd, id_horz_lap_diss, dissipate(:,:,:))
    call diagnose_3d(Time, Grd, id_stress_xx_lap, stress_xx(:,:,:))
    if (id_stress_xy_lap > 0) then 

@@ -185,7 +185,7 @@ use ocean_types_mod,           only: ocean_time_type, ocean_time_steps_type
 use ocean_types_mod,           only: ocean_density_type, ocean_thickness_type, ocean_velocity_type
 use ocean_types_mod,           only: ocean_adv_vel_type, ocean_external_mode_type, ocean_options_type
 use ocean_types_mod,           only: ocean_lagrangian_type
-use ocean_util_mod,            only: write_timestamp, diagnose_2d, diagnose_3d
+use ocean_util_mod,            only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_2d_u
 use ocean_velocity_advect_mod, only: horz_advection_of_velocity, vert_advection_of_velocity
 use ocean_velocity_diag_mod,   only: kinetic_energy, potential_energy 
 use ocean_vert_mix_mod,        only: vert_friction_bgrid, vert_friction_implicit_bgrid
@@ -1333,13 +1333,8 @@ subroutine update_ocean_velocity_bgrid(Time, Thickness, barotropic_split, &
                        Time%model_time, rmask=Grd%umask(:,:,:),  &
                        is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
 
-  if (id_usurf(1) > 0) used = send_data (id_usurf(1), Velocity%u(:,:,1,1,tau), &
-                           Time%model_time, rmask=Grd%umask(:,:,1),      &
-                           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-
-  if (id_usurf(2) > 0) used = send_data (id_usurf(2), Velocity%u(:,:,1,2,tau), &
-                           Time%model_time, rmask=Grd%umask(:,:,1),      &
-                           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d_u(Time, Grd, id_usurf(1), Velocity%u(:,:,1,1,tau))
+  call diagnose_2d_u(Time, Grd, id_usurf(2), Velocity%u(:,:,1,2,tau))
 
   call diagnose_2d(Time, Grd, id_converge_rho_ud_t, Ext_mode%conv_rho_ud_t(:,:,tau))
 
@@ -1367,12 +1362,8 @@ subroutine update_ocean_velocity_bgrid(Time, Thickness, barotropic_split, &
             endif
          enddo
       enddo
-      if (id_ubott(1) > 0) used = send_data (id_ubott(1), tmpu(:,:),       &
-                                  Time%model_time, rmask=Grd%umask(:,:,1), &
-                                  is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-      if (id_ubott(2) > 0) used = send_data (id_ubott(2), tmpv(:,:),       &
-                                  Time%model_time, rmask=Grd%umask(:,:,1), &
-                                  is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d_u(Time, Grd, id_ubott(1), tmpu(:,:))
+      call diagnose_2d_u(Time, Grd, id_ubott(2), tmpv(:,:))
   endif
 
   if(id_u_on_depth(1) > 0) then 

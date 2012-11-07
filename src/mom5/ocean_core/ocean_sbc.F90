@@ -463,7 +463,7 @@ use ocean_types_mod,          only: ocean_external_mode_type, ocean_velocity_typ
 use ocean_types_mod,          only: ice_ocean_boundary_type, ocean_density_type
 use ocean_types_mod,          only: ocean_public_type
 use ocean_workspace_mod,      only: wrk1_2d, wrk2_2d, wrk3_2d, wrk1
-use ocean_util_mod,           only: diagnose_2d
+use ocean_util_mod,           only: diagnose_2d, diagnose_2d_u
 
 implicit none
 
@@ -4444,12 +4444,8 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
             endif 
          enddo
       enddo
-      used = send_data(id_tau_curl, wrk2_2d(:,:),               & 
-                       Time%model_time, rmask=Grd%umask(:,:,1), &
-                       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)  
-      used = send_data(id_ekman_we, wrk3_2d(:,:),               & 
-                       Time%model_time, rmask=Grd%umask(:,:,1), &
-                       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)  
+      call diagnose_2d_u(Time, Grd, id_tau_curl, wrk2_2d(:,:))
+      call diagnose_2d_u(Time, Grd, id_ekman_we, wrk3_2d(:,:))
   endif 
 
 
@@ -4505,9 +4501,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                                Time%model_time, rmask=Grd%umask(:,:,:),              &
                                is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
 
-  if (id_stokes_depth > 0) used =  send_data(id_stokes_depth, Velocity%stokes_depth(:,:),&
-                                   Time%model_time, rmask=Grd%umask(:,:,1),              &
-                                   is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d_u(Time, Grd, id_stokes_depth, Velocity%stokes_depth(:,:))
 
 
   !--------runoff/calving/river related diagnostics----------------------

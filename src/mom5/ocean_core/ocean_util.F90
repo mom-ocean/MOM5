@@ -63,6 +63,7 @@ public check_restart
 public write_summary
 
 public diagnose_2d
+public diagnose_2d_u
 public diagnose_2d_int
 public diagnose_3d
 public diagnose_3d_int
@@ -799,6 +800,46 @@ subroutine diagnose_2d(Time, Grid, id_name, data, abs_max, abs_min)
     real,                       intent(in), optional :: abs_max
     real,                       intent(in), optional :: abs_min
 
+    call diagnose_2d_mask(Time, Grid%tmask(:,:,1), id_name, data, abs_max, abs_min)
+
+end subroutine diagnose_2d
+! </SUBROUTINE> NAME="diagnose_2d"
+
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_2d_u">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 2D data using the grid umask.
+! </DESCRIPTION>
+!
+subroutine diagnose_2d_u(Time, Grid, id_name, data, abs_max, abs_min)
+    type(ocean_time_type),      intent(in) :: Time
+    type(ocean_grid_type),      intent(in) :: Grid
+    integer,                    intent(in) :: id_name
+    real, dimension(isd:,jsd:), intent(in) :: data
+    real,                       intent(in), optional :: abs_max
+    real,                       intent(in), optional :: abs_min
+
+    call diagnose_2d_mask(Time, Grid%umask(:,:,1), id_name, data, abs_max, abs_min)
+
+  end subroutine diagnose_2d_u
+! </SUBROUTINE> NAME="diagnose_2d_u"
+
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_2d_mask">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 2D data using a given mask.
+! </DESCRIPTION>
+!
+subroutine diagnose_2d_mask(Time, mask, id_name, data, abs_max, abs_min)
+    type(ocean_time_type),      intent(in) :: Time
+    real, dimension(isd:,jsd:), intent(in) :: mask
+    integer,                    intent(in) :: id_name
+    real, dimension(isd:,jsd:), intent(in) :: data
+    real,                       intent(in), optional :: abs_max
+    real,                       intent(in), optional :: abs_min
+
     logical :: used
     real, dimension(isd:ied,jsd:jed) :: threshold_mask
 
@@ -811,11 +852,11 @@ subroutine diagnose_2d(Time, Grid, id_name, data, abs_max, abs_min)
     endif
 
     if (id_name > 0) used = send_data(id_name, data(:,:),             &
-         Time%model_time, rmask=Grid%tmask(:,:,1)*threshold_mask(:,:),&
+         Time%model_time, rmask=mask(:,:)*threshold_mask(:,:),&
          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
 
-end subroutine diagnose_2d
-! </SUBROUTINE> NAME="diagnose_2d"
+end subroutine diagnose_2d_mask
+! </SUBROUTINE> NAME="diagnose_2d_mask"
 
 !#######################################################################
 ! <SUBROUTINE NAME="diagnose_2d_int">

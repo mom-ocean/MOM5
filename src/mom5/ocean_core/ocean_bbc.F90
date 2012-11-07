@@ -141,7 +141,7 @@ use ocean_types_mod,      only: ocean_external_mode_type
 use ocean_workspace_mod,  only: wrk1_2d, wrk2_2d
 use wave_types_mod,       only: ocean_wave_type
 use ocean_wave_mod,       only: wave_model_is_initialised
-use ocean_util_mod,       only: diagnose_2d
+use ocean_util_mod,       only: diagnose_2d, diagnose_2d_u
 
 implicit none
 
@@ -947,10 +947,7 @@ real,parameter:: twopi=2.*pi
   call diagnose_2d(Time, Grd, id_cur_wav_dr, Velocity%current_wave_stress(:,:))
   call diagnose_2d(Time, Grd, id_wave_s, wave_s(:,:))
   call diagnose_2d(Time, Grd, id_wave_u, wave_u(:,:))
-  if (id_iter > 0) then 
-    used = send_data(id_iter, wrk2_2d(:,:), Time%model_time, &
-           rmask=Grd%umask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
+  call diagnose_2d_u(Time, Grd, id_iter, wrk2_2d(:,:))
 
   if(debug_this_module) then 
       write(stdoutunit,*) 'ocean_wave_model: end wave_drag_diag'
