@@ -286,7 +286,6 @@ use ocean_operators_mod,     only: FAX, FAY, FMX, FMY, BDX_ET, BDY_NT
 use ocean_parameters_mod,    only: missing_value, onehalf, onefourth, oneeigth, DEPTH_BASED
 use ocean_parameters_mod,    only: rho0r, rho0, grav
 use ocean_tracer_diag_mod,   only: diagnose_eta_tend_3dflux 
-use ocean_tracer_util_mod,   only: rebin_onto_rho
 use ocean_types_mod,         only: ocean_grid_type, ocean_domain_type, ocean_density_type
 use ocean_types_mod,         only: ocean_prog_tracer_type, ocean_thickness_type
 use ocean_types_mod,         only: ocean_time_type, ocean_time_steps_type

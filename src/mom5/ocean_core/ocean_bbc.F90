@@ -131,7 +131,6 @@ use ocean_domains_mod,    only: get_local_indices
 use ocean_parameters_mod, only: missing_value, TERRAIN_FOLLOWING
 use ocean_parameters_mod, only: onefourth, rho0, rho0r, cp_ocean, von_karman
 use ocean_parameters_mod, only: MOM_BGRID, MOM_CGRID
-use ocean_tracer_util_mod,only: rebin_onto_rho
 use ocean_types_mod,      only: ocean_velocity_type, ocean_domain_type
 use ocean_types_mod,      only: ocean_grid_type, ocean_prog_tracer_type
 use ocean_types_mod,      only: ocean_time_type, ocean_thickness_type

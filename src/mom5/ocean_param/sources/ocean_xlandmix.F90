@@ -119,7 +119,6 @@ use mpp_mod,           only: input_nml_file, mpp_error
 
 use ocean_domains_mod,    only: get_local_indices, get_global_indices, set_ocean_domain
 use ocean_parameters_mod, only: missing_value, rho0, rho0r, onehalf
-use ocean_tracer_util_mod,only: rebin_onto_rho
 use ocean_types_mod,      only: ocean_domain_type, ocean_grid_type, ocean_external_mode_type
 use ocean_types_mod,      only: ocean_thickness_type, ocean_time_type, ocean_density_type
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_options_type
@@ -171,10 +170,6 @@ real, dimension(:,:,:), allocatable  :: rho_dzt_x       ! mass per area of trace
 integer                              :: unit=6         !processor zero writes to unit 6
 
 logical, dimension(:), allocatable   :: error_xland    !for checking that all xland points are OK.  
-
-!work array on neutral density space
-integer :: neutralrho_nk
-real, dimension(:,:,:), allocatable :: nrho_work 
 
 
 ! internally set for computing watermass diagnostics
@@ -625,11 +620,6 @@ subroutine ocean_xlandmix_init(Grid, Domain, Time, Dens, T_prog, Ocean_options, 
     endif 
   enddo 
 
-  ! for diagnostic binning to neutral density surfaces 
-  neutralrho_nk = size(Dens%neutralrho_ref(:))
-  allocate( nrho_work(isd:ied,jsd:jed,neutralrho_nk) )
-  nrho_work(:,:,:) = 0.0  
- 
   ! register for diag_manager 
   allocate (id_xland(num_prog_tracers))
   id_xland = -1

@@ -66,10 +66,6 @@ private sw_source_ext
 private watermass_diag_init
 private watermass_diag
 
-!work array on neutral density space
-integer :: neutralrho_nk
-real, dimension(:,:,:), allocatable :: nrho_work 
-
 ! internally set for computing watermass diagnostics
 logical :: compute_watermass_diag = .false. 
 
@@ -194,11 +190,6 @@ contains
       call mpp_error(FATAL,&
       '==>shortwave_mod: choose only ONE of the shortwave schemes: GFDL, CSIRO, JERLOV, or External.')
     endif 
-
-    ! for diagnostic binning to neutral density surfaces 
-    neutralrho_nk = size(Dens%neutralrho_ref(:))
-    allocate( nrho_work(isd:ied,jsd:jed,neutralrho_nk) )
-    nrho_work(:,:,:) = 0.0  
 
     ! for diagnostics      
     id_sw_frac = register_diag_field ('ocean_model', 'sw_frac',                       &

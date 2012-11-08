@@ -503,10 +503,6 @@ integer :: num_prog_tracers
 integer :: num_diag_tracers
 integer :: global_sum_flag
 
-!work array on neutral density space
-integer :: neutralrho_nk
-real, dimension(:,:,:),   allocatable :: nrho_work 
-
 
 ! ids for diagnostic manager 
 logical :: used
@@ -943,10 +939,6 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, Velocity, &
   else 
        wind_mask(:,:) = Grd%tmask(:,:,1)
   endif 
-
-  neutralrho_nk = size(Dens%neutralrho_ref(:))
-  allocate( nrho_work(isd:ied,jsd:jed,neutralrho_nk) )
-  nrho_work(:,:,:)  = 0.0  
 
   if(ice_salt_concentration > 0.0) then
      ice_salt_concentration_r = 1.0/(epsln+ice_salt_concentration) 

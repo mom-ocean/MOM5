@@ -339,10 +339,6 @@ logical :: vert_diff_back_via_max=.true.
 ! internally set for computing watermass diagnostics 
 logical :: compute_watermass_diag=.false.
 
-! work array on neutral density space
-integer :: neutralrho_nk
-real, dimension(:,:,:),   allocatable :: nrho_work
-
 ! for Bryan-Lewis background vertical diffusivity profile 
 logical :: use_explicit_vert_diffuse=.true.             ! to use time-explicit vertical tracer diffusion 
 logical :: bryan_lewis_diffusivity=.false.              ! Bryan-Lewis vertical diffusivity 
@@ -771,11 +767,6 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
       call mpp_error(FATAL, &
       '==>Error: ocean_vert_mix_mod: set aidif==0.0 OR aidif==1.0. Other values unsupported.')  
   endif
-
-  ! for diagnostics on neutral density surfaces
-  neutralrho_nk = size(Dens%neutralrho_ref(:))
-  allocate( nrho_work(isd:ied,jsd:jed,neutralrho_nk) )
-  nrho_work(:,:,:) = 0.0
 
   if(vmix_rescale_nonbouss) then 
       if(vert_coordinate_class==DEPTH_BASED) then 
