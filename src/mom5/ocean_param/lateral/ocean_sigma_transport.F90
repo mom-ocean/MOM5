@@ -202,11 +202,10 @@ use ocean_density_mod,     only: density
 use ocean_operators_mod,   only: FMX, FMY, FDX_T, FDY_T, BDX_ET, BDY_NT, LAP_T
 use ocean_parameters_mod,  only: GEOPOTENTIAL, TERRAIN_FOLLOWING
 use ocean_parameters_mod,  only: missing_value, rho0, rho0r
-use ocean_tracer_util_mod, only: rebin_onto_rho
 use ocean_types_mod,       only: ocean_domain_type, ocean_grid_type, ocean_time_type
 use ocean_types_mod,       only: ocean_prog_tracer_type, ocean_adv_vel_type
 use ocean_types_mod,       only: ocean_options_type, ocean_thickness_type, ocean_density_type
-use ocean_util_mod,        only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_sum
+use ocean_util_mod,        only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_sum, diagnose_3d_rho
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk6
 
 implicit none
@@ -221,10 +220,6 @@ private watermass_diag
 
 
 private
-
-! work array on neutral density space
-integer :: neutralrho_nk
-real, dimension(:,:,:),   allocatable :: nrho_work 
 
 ! internally set for computing watermass diagnstics
 logical :: compute_watermass_diag = .false. 
@@ -704,10 +699,6 @@ ierr = check_nml_error(io_status,'ocean_sigma_transport_nml')
   endif
 
   ! diagnostics 
-
-  neutralrho_nk = size(Dens%neutralrho_ref(:))
-  allocate( nrho_work(isd:ied,jsd:jed,neutralrho_nk) )
-  nrho_work(:,:,:) = 0.0  
 
   id_dtopog_dx   = register_static_field ('ocean_model', 'dtopog_dx', Grd%tracer_axes(1:2), &
                   'X-derivative of bottom depth', 'm/m', missing_value=missing_value, range=(/-1.e3,1.e3/))
@@ -1851,26 +1842,9 @@ subroutine watermass_diag(Time, Dens)
   call diagnose_3d(Time, Grd, id_neut_rho_sigma, wrk3(:,:,:))
   call diagnose_3d(Time, Grd, id_wdian_rho_sigma, wrk4(:,:,:))
   call diagnose_3d(Time, Grd, id_tform_rho_sigma, wrk5(:,:,:))
-  if (id_neut_rho_sigma_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk3, nrho_work) 
-      used = send_data (id_neut_rho_sigma_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                         &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if (id_wdian_rho_sigma_on_nrho > 0) then 
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk4, nrho_work) 
-      used = send_data (id_wdian_rho_sigma_on_nrho, nrho_work(:,:,:), &
-           Time%model_time,                                           &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if (id_tform_rho_sigma_on_nrho > 0) then
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk5, nrho_work) 
-      used = send_data (id_tform_rho_sigma_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                          &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
+  call diagnose_3d_rho(Time, Dens, id_neut_rho_sigma_on_nrho, wrk3)
+  call diagnose_3d_rho(Time, Dens, id_wdian_rho_sigma_on_nrho, wrk4)
+  call diagnose_3d_rho(Time, Dens, id_tform_rho_sigma_on_nrho, wrk5)
 
   if(id_eta_tend_sigma > 0 .or. id_eta_tend_sigma_glob > 0) then
       eta_tend(:,:) = 0.0
@@ -1886,17 +1860,8 @@ subroutine watermass_diag(Time, Dens)
   endif
 
 
-
 end subroutine watermass_diag
 ! </SUBROUTINE>  NAME="watermass_diag"
 
 
-
 end module ocean_sigma_transport_mod
-      
-      
-
-
-
-
-

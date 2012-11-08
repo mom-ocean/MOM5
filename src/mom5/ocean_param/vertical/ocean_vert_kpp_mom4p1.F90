@@ -255,13 +255,12 @@ use ocean_density_mod,     only: density, density_delta_z, density_delta_sfc
 use ocean_domains_mod,     only: get_local_indices
 use ocean_parameters_mod,  only: grav, cp_ocean, missing_value, von_karman 
 use ocean_parameters_mod,  only: ZSIGMA, PSIGMA, rho0r, rho0, PRESSURE_BASED
-use ocean_tracer_util_mod, only: rebin_onto_rho
 use ocean_types_mod,       only: ocean_grid_type, ocean_domain_type
 use ocean_types_mod,       only: ocean_prog_tracer_type, ocean_diag_tracer_type
 use ocean_types_mod,       only: ocean_velocity_type, ocean_density_type
 use ocean_types_mod,       only: ocean_time_type, ocean_time_steps_type, ocean_thickness_type
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4, wrk5
-use ocean_util_mod,        only: diagnose_2d, diagnose_3d, diagnose_sum
+use ocean_util_mod,        only: diagnose_2d, diagnose_3d, diagnose_sum, diagnose_3d_rho
 
 implicit none
 
@@ -417,9 +416,6 @@ logical :: calc_visc_on_cgrid=.false.    ! calculate viscosity directly on c-gri
 logical :: smooth_ri_kmax_eq_kmu=.false. ! to set details for smoothing the richardson number
 real    :: shear_instability_flag    = 1.0     ! set to 1.0 if shear_instability=.true.
 
-! work array on neutral density space
-integer :: neutralrho_nk
-real, dimension(:,:,:),   allocatable :: nrho_work 
 
 ! internally set for computing watermass diagnstics
 logical :: compute_watermass_diag = .false. 
@@ -762,11 +758,6 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
   do n = 1, num_prog_tracers  
     wsfc(n)%wsfc(:,:) = 0.0
   enddo  
-
-  ! for diagnostics on neutral density surfaces 
-  neutralrho_nk = size(Dens%neutralrho_ref(:))
-  allocate( nrho_work(isd:ied,jsd:jed,neutralrho_nk) )
-  nrho_work(:,:,:) = 0.0  
 
 !-----------------------------------------------------------------------
 !     initialize some constants for kmix subroutines, and initialize
@@ -2973,27 +2964,9 @@ subroutine watermass_diag(Time, T_prog, Dens, Thickness)
   call diagnose_3d(Time, Grd, id_neut_rho_kpp_nloc, wrk2(:,:,:))
   call diagnose_3d(Time, Grd, id_wdian_rho_kpp_nloc, wrk3(:,:,:))
   call diagnose_3d(Time, Grd, id_tform_rho_kpp_nloc, wrk4(:,:,:))
-  if(id_neut_rho_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work)  
-      used = send_data(id_neut_rho_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                           &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_wdian_rho_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk3, nrho_work)  
-      used = send_data(id_wdian_rho_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                            &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_tform_rho_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk4, nrho_work)  
-      used = send_data(id_tform_rho_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                            &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
+  call diagnose_3d_rho(Time, Dens, id_neut_rho_kpp_nloc_on_nrho, wrk2)
+  call diagnose_3d_rho(Time, Dens, id_wdian_rho_kpp_nloc_on_nrho, wrk3)
+  call diagnose_3d_rho(Time, Dens, id_tform_rho_kpp_nloc_on_nrho, wrk4)
 
   if(id_eta_tend_kpp_nloc > 0 .or. id_eta_tend_kpp_nloc_glob > 0) then
       eta_tend(:,:) = 0.0
@@ -3028,29 +3001,9 @@ subroutine watermass_diag(Time, T_prog, Dens, Thickness)
   call diagnose_3d(Time, Grd, id_neut_temp_kpp_nloc, wrk2(:,:,:))
   call diagnose_3d(Time, Grd, id_wdian_temp_kpp_nloc, wrk3(:,:,:))
   call diagnose_3d(Time, Grd, id_tform_temp_kpp_nloc, wrk4(:,:,:))
-  if(id_neut_temp_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work)  
-      used = send_data(id_neut_temp_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                            &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_wdian_temp_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk3, nrho_work)  
-      used = send_data(id_wdian_temp_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                             &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_tform_temp_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk4, nrho_work)  
-      used = send_data(id_tform_temp_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                             &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-
-
+  call diagnose_3d_rho(Time, Dens, id_neut_temp_kpp_nloc_on_nrho, wrk2)
+  call diagnose_3d_rho(Time, Dens, id_wdian_temp_kpp_nloc_on_nrho, wrk3)
+  call diagnose_3d_rho(Time, Dens, id_tform_temp_kpp_nloc_on_nrho, wrk4)
 
   ! salt related contribution  
   wrk1(:,:,:) = 0.0
@@ -3071,32 +3024,12 @@ subroutine watermass_diag(Time, T_prog, Dens, Thickness)
   call diagnose_3d(Time, Grd, id_neut_salt_kpp_nloc, wrk2(:,:,:))
   call diagnose_3d(Time, Grd, id_wdian_salt_kpp_nloc, wrk3(:,:,:))
   call diagnose_3d(Time, Grd, id_tform_salt_kpp_nloc, wrk4(:,:,:))
-  if(id_neut_salt_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work)  
-      used = send_data(id_neut_salt_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                            &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_wdian_salt_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk3, nrho_work)  
-      used = send_data(id_wdian_salt_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                             &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_tform_salt_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk4, nrho_work)  
-      used = send_data(id_tform_salt_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                             &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-
+  call diagnose_3d_rho(Time, Dens, id_neut_salt_kpp_nloc_on_nrho, wrk2)
+  call diagnose_3d_rho(Time, Dens, id_wdian_salt_kpp_nloc_on_nrho, wrk3)
+  call diagnose_3d_rho(Time, Dens, id_tform_salt_kpp_nloc_on_nrho, wrk4)
 
 end subroutine watermass_diag
 ! </SUBROUTINE>  NAME="watermass_diag"
-
 
 
 end module ocean_vert_kpp_mom4p1_mod

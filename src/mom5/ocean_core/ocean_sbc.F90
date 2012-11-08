@@ -453,7 +453,6 @@ use ocean_parameters_mod,     only: grav, rho_cp, cp_ocean, cp_liquid_runoff, cp
 use ocean_parameters_mod,     only: CONSERVATIVE_TEMP, POTENTIAL_TEMP, PREFORMED_SALT, PRACTICAL_SALT
 use ocean_parameters_mod,     only: MOM_BGRID, MOM_CGRID 
 use ocean_riverspread_mod,    only: spread_river_horz
-use ocean_tracer_util_mod,    only: rebin_onto_rho
 use ocean_tpm_mod,            only: ocean_tpm_sum_sfc, ocean_tpm_avg_sfc, ocean_tpm_sbc
 use ocean_tpm_mod,            only: ocean_tpm_zero_sfc, ocean_tpm_sfc_end
 use ocean_types_mod,          only: ocean_grid_type, ocean_domain_type, ocean_public_type
@@ -463,7 +462,7 @@ use ocean_types_mod,          only: ocean_external_mode_type, ocean_velocity_typ
 use ocean_types_mod,          only: ice_ocean_boundary_type, ocean_density_type
 use ocean_types_mod,          only: ocean_public_type
 use ocean_workspace_mod,      only: wrk1_2d, wrk2_2d, wrk3_2d, wrk1
-use ocean_util_mod,           only: diagnose_2d, diagnose_2d_u, diagnose_3d_u, diagnose_sum
+use ocean_util_mod,           only: diagnose_2d, diagnose_2d_u, diagnose_3d_u, diagnose_sum, diagnose_3d_rho
 
 implicit none
 
@@ -3945,7 +3944,6 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
   call diagnose_sum(Time, Grd, Dom, id_total_ocean_stf_correct(index_salt), flx_correct, 1e-15)
 
   if(id_tform_rho_pbl_adjsalt_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
       wrk1(:,:,:)      = 0.0
       k=1
       do j=jsc,jec
@@ -3954,14 +3952,10 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
                  *Grd%dat(i,j)*Dens%watermass_factor(i,j,k)
          enddo
       enddo
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work) 
-      used = send_data (id_tform_rho_pbl_adjsalt_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                                &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+      call diagnose_3d_rho(Time, Dens, id_tform_rho_pbl_adjsalt_on_nrho, wrk1)
   endif
 
   if(id_mass_pme_adj_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
       wrk1(:,:,:)      = 0.0
       k=1 
       do j=jsc,jec
@@ -3969,10 +3963,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
             wrk1(i,j,k) = Grd%dat(i,j)*(pme_restore(i,j)+pme_correct(i,j))
          enddo
       enddo
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work) 
-      used = send_data (id_mass_pme_adj_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                       &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+      call diagnose_3d_rho(Time, Dens, id_mass_pme_adj_on_nrho, wrk1)
   endif
 
   ! salt from all surface fluxes 
@@ -4111,8 +4102,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
   call diagnose_sum(Time, Grd, Dom, id_total_ocean_stf_correct(index_temp), flx_correct(:,:), 1e-15*T_prog(index_temp)%conversion)
 
   if(id_tform_rho_pbl_adjheat_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      wrk1(:,:,:)      = 0.0
+      wrk1(:,:,:) = 0.0
       k=1
       do j=jsc,jec
          do i=isc,iec
@@ -4120,10 +4110,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity
                           *Grd%dat(i,j)*Dens%watermass_factor(i,j,k)
          enddo
       enddo
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work) 
-      used = send_data (id_tform_rho_pbl_adjheat_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                                &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+      call diagnose_3d_rho(Time, Dens, id_tform_rho_pbl_adjheat_on_nrho, wrk1)
   endif
 
   ! net heat from stf   
@@ -4674,8 +4661,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   call diagnose_sum(Time, Grd, Dom, id_total_ocean_swflx, swflx, 1e-15)
   ! swflx impacts on water mass transformation in neutral density classes 
   if(id_tform_rho_pbl_sw_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      wrk1(:,:,:)      = 0.0
+      wrk1(:,:,:) = 0.0
       k=1
       do j=jsc,jec
          do i=isc,iec
@@ -4683,10 +4669,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                          *Grd%dat(i,j)*Dens%watermass_factor(i,j,k)
          enddo
       enddo
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work) 
-      used = send_data (id_tform_rho_pbl_sw_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                           &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+      call diagnose_3d_rho(Time, Dens, id_tform_rho_pbl_sw_on_nrho, wrk1)
   endif
 
   ! visible shortwave flux (W/m2)
@@ -4721,7 +4704,6 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   ! latent heat (liquid-vapor and solid-liquid) 
   ! impacts on water mass transformation in neutral density classes 
   if(id_tform_rho_pbl_lat_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
       wrk1(:,:,:)      = 0.0
       k=1
       do j=jsc,jec
@@ -4730,10 +4712,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                          *Grd%dat(i,j)*Dens%watermass_factor(i,j,k)
          enddo
       enddo
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work) 
-      used = send_data (id_tform_rho_pbl_lat_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                            &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+      call diagnose_3d_rho(Time, Dens, id_tform_rho_pbl_lat_on_nrho, wrk1)
   endif
 
 
@@ -4743,7 +4722,6 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   call diagnose_sum(Time, Grd, Dom, id_total_ocean_lw_heat, longwave, 1e-15)
   ! longwave impacts on water mass transformation in neutral density classes 
   if(id_tform_rho_pbl_lw_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
       wrk1(:,:,:)      = 0.0
       k=1
       do j=jsc,jec
@@ -4752,10 +4730,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                          *Grd%dat(i,j)*Dens%watermass_factor(i,j,k)
          enddo
       enddo
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work) 
-      used = send_data (id_tform_rho_pbl_lw_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                           &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+      call diagnose_3d_rho(Time, Dens, id_tform_rho_pbl_lw_on_nrho, wrk1)
   endif
 
   ! heat flux from melting the frozen precip (W/m2)
@@ -4797,7 +4772,6 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   call diagnose_sum(Time, Grd, Dom, id_total_ocean_sens_heat, sensible, 1e-15)
   ! sensible heat impacts on water mass transformation in neutral density classes 
   if(id_tform_rho_pbl_sens_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
       wrk1(:,:,:)      = 0.0
       k=1
       do j=jsc,jec
@@ -4806,16 +4780,12 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                          *Grd%dat(i,j)*Dens%watermass_factor(i,j,k)
          enddo
       enddo
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work) 
-      used = send_data (id_tform_rho_pbl_sens_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                             &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+      call diagnose_3d_rho(Time, Dens, id_tform_rho_pbl_sens_on_nrho, wrk1)
   endif
 
   ! contribution from total pbl heat fluxes on 
   ! water mass transformation in neutral density classes 
   if(id_tform_rho_pbl_heat_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
       wrk1(:,:,:)      = 0.0
       k=1
       do j=jsc,jec
@@ -4825,16 +4795,12 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                           *Grd%dat(i,j)*Dens%watermass_factor(i,j,k)
          enddo
       enddo
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work) 
-      used = send_data (id_tform_rho_pbl_heat_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                             &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+      call diagnose_3d_rho(Time, Dens, id_tform_rho_pbl_heat_on_nrho, wrk1)
   endif
 
   ! contribution from total pbl heat and salt fluxes on 
   ! water mass transformation in neutral density classes 
   if(id_tform_rho_pbl_flux_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
       wrk1(:,:,:)      = 0.0
       k=1
       do j=jsc,jec
@@ -4845,10 +4811,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                           *Grd%dat(i,j)*Dens%watermass_factor(i,j,k)
          enddo
       enddo
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work) 
-      used = send_data (id_tform_rho_pbl_flux_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                             &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+      call diagnose_3d_rho(Time, Dens, id_tform_rho_pbl_flux_on_nrho, wrk1)
   endif
 
   !--------salt related diagnostics ------------------------------------
@@ -4889,7 +4852,6 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
   ! salt flux impacts on water mass transformation in neutral density classes 
   if(id_tform_rho_pbl_salt_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
       wrk1(:,:,:)      = 0.0
       k=1
       do j=jsc,jec
@@ -4898,10 +4860,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
                           *Grd%dat(i,j)*Dens%watermass_factor(i,j,k)
          enddo
       enddo
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work) 
-      used = send_data (id_tform_rho_pbl_salt_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                             &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+      call diagnose_3d_rho(Time, Dens, id_tform_rho_pbl_salt_on_nrho, wrk1)
   endif
 
 
@@ -4917,7 +4876,6 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
   ! bin pme+river into neutral density classes 
   if(id_mass_pmepr_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
       wrk1(:,:,:)      = 0.0
       k=1 
       do j=jsc,jec
@@ -4925,10 +4883,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
             wrk1(i,j,k) = Grd%dat(i,j)*(pme(i,j)+river(i,j))
          enddo
       enddo
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work) 
-      used = send_data (id_mass_pmepr_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+      call diagnose_3d_rho(Time, Dens, id_mass_pmepr_on_nrho, wrk1)
   endif
 
   ! mass flux per area from pme_sbc (kg/(m2*sec))  
@@ -4945,7 +4900,6 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
   ! bin ice melt/form into neutral density classes 
   if(id_mass_melt_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
       wrk1(:,:,:)      = 0.0
       k=1
       do j=jsc,jec
@@ -4953,10 +4907,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
             wrk1(i,j,k) = Grd%dat(i,j)*melt(i,j)
          enddo
       enddo
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work) 
-      used = send_data (id_mass_melt_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                    &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+      call diagnose_3d_rho(Time, Dens, id_mass_melt_on_nrho, wrk1)
   endif
 
 
@@ -4967,7 +4918,6 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   call diagnose_sum(Time, Grd, Dom, id_total_ocean_evap, evaporation, 1e-15)
   ! bin evap/condense mass transport into neutral density classes 
   if(id_mass_evap_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
       wrk1(:,:,:)      = 0.0
       k=1
       do j=jsc,jec
@@ -4975,10 +4925,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
             wrk1(i,j,k) = Grd%dat(i,j)*evaporation(i,j)
          enddo
       enddo
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work) 
-      used = send_data (id_mass_evap_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                    &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+      call diagnose_3d_rho(Time, Dens, id_mass_evap_on_nrho, wrk1)
   endif
 
   ! frozen precip (kg/(m2*sec))
@@ -4993,7 +4940,6 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   call diagnose_sum(Time, Grd, Dom, id_total_ocean_lprec, liquid_precip, 1e-15)
   ! bin precip (liquid and frozen) mass transport into neutral density classes 
   if(id_mass_precip_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
       wrk1(:,:,:)      = 0.0
       k=1
       do j=jsc,jec
@@ -5001,10 +4947,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
             wrk1(i,j,k) = Grd%dat(i,j)*(liquid_precip(i,j) + frozen_precip(i,j))
          enddo
       enddo
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work) 
-      used = send_data (id_mass_precip_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+      call diagnose_3d_rho(Time, Dens, id_mass_precip_on_nrho, wrk1)
   endif
 
   ! river (mass flux of land water (liquid+solid) ) entering ocean (kg/m^3)*(m/s)
@@ -5013,7 +4956,6 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   call diagnose_sum(Time, Grd, Dom, id_total_ocean_river, river, 1e-15)
   ! bin river (liquid and frozen) runoff into neutral density classes 
   if(id_mass_river_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
       wrk1(:,:,:)      = 0.0
       k=1
       do j=jsc,jec
@@ -5021,10 +4963,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
             wrk1(i,j,k) = Grd%dat(i,j)*river(i,j)
          enddo
       enddo
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work) 
-      used = send_data (id_mass_river_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+      call diagnose_3d_rho(Time, Dens, id_mass_river_on_nrho, wrk1)
   endif
 
   ! calving land ice (kg/(m2*sec)) entering the ocean 
