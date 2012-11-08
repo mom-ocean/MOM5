@@ -55,7 +55,7 @@ module ocean_coriolis_mod
 !</NAMELIST>
 
 use constants_mod,    only: radius, radian, pi, epsln, omega
-use diag_manager_mod, only: register_static_field, register_diag_field, send_data
+use diag_manager_mod, only: register_static_field, register_diag_field
 use fms_mod,          only: write_version_number, mpp_error, FATAL, WARNING
 use fms_mod,          only: check_nml_error, close_file, open_namelist_file
 use mpp_mod,          only: input_nml_file, mpp_max, stdout, stdlog, mpp_chksum

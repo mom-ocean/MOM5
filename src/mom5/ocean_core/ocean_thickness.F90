@@ -161,7 +161,7 @@ module ocean_thickness_mod
 ! </NAMELIST>
 !
 use constants_mod,     only: epsln, c2dbars
-use diag_manager_mod,  only: register_diag_field, register_static_field, send_data
+use diag_manager_mod,  only: register_diag_field, register_static_field
 use fms_mod,           only: write_version_number, error_mesg, FATAL, WARNING
 use fms_mod,           only: read_data
 use fms_mod,           only: open_namelist_file, close_file, check_nml_error, file_exist
@@ -3461,18 +3461,10 @@ subroutine update_ucell_thickness (Time, Grid, Ext_mode, Thickness)
      call diagnose_2d_en(Time, Grid, id_mass_en(1), id_mass_en(2), Thickness%mass_en(:,:,:))
   endif
 
-  if (id_dzten(1) > 0) used  = send_data (id_dzten(1), Thickness%dzten(:,:,:,1),&
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_dzten(2) > 0) used  = send_data (id_dzten(2), Thickness%dzten(:,:,:,2),&
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_rho_dzten(1) > 0) used  = send_data (id_rho_dzten(1), Thickness%rho_dzten(:,:,:,1),&
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                            &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_rho_dzten(2) > 0) used  = send_data (id_rho_dzten(2), Thickness%rho_dzten(:,:,:,2),&
-       Time%model_time, rmask=Grid%tmask(:,:,:),                                            &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grd, id_dzten(1), Thickness%dzten(:,:,:,1))
+  call diagnose_3d(Time, Grd, id_dzten(2), Thickness%dzten(:,:,:,2))
+  call diagnose_3d(Time, Grd, id_rho_dzten(1), Thickness%rho_dzten(:,:,:,1))
+  call diagnose_3d(Time, Grd, id_rho_dzten(2), Thickness%rho_dzten(:,:,:,2))
 
   call diagnose_3d_u(Time, Grid, id_depth_zu, Thickness%depth_zu(:,:,:))
   call diagnose_3d_u(Time, Grid, id_depth_zwu, Thickness%depth_zwu(:,:,:))
