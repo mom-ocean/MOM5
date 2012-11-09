@@ -446,8 +446,8 @@ private
   character(len=128) :: version = '$Id: ocean_model.F90,v 1.1.2.26.2.1 2012/06/17 12:29:16 smg Exp $'
   character(len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
 
-  type(ocean_external_mode_type), save           :: Ext_mode
-  type(ocean_adv_vel_type),       save           :: Adv_vel
+  type(ocean_external_mode_type), target, save   :: Ext_mode
+  type(ocean_adv_vel_type),       target, save   :: Adv_vel
   type(ocean_density_type),       target, save   :: Dens
   type(ocean_domain_type),        target, save   :: Domain
 
@@ -548,8 +548,14 @@ private
   public mom4_get_Tsurf
   public mom4_get_Ssurf
   public mom4_get_UVsurf
+  public mom4_get_UVsurfB
+  public mom4_get_latlon_UVsurf
   public mom4_get_thickness
   public mom4_get_density
+  public mom4_put_prog_tracer
+  public mom4_get_prog_tracer_index
+  public mom4_get_diag_tracer
+  public mom4_get_diag_tracer_index
   public mom4_get_prog_tracer
   public mom4_get_temperature_index
   public mom4_get_salinity_index
@@ -561,12 +567,17 @@ private
   public mom4_get_ocean_data
   public mom4_get_surface_tmask 
   public mom4_get_latlon_UV
+  public mom4_get_3D_tmask
   public mom4_set_swheat
+  public mom4_set_swheat_fr
+  public mom4_get_pointers_to_variables
+  public mom4_get_streamfunction
 
   public    ocean_model_data_get
   interface ocean_model_data_get
     module procedure ocean_model_data1D_get 
-    module procedure ocean_model_data2D_get 
+    module procedure ocean_model_data2D_get
+    module procedure ocean_model_data3D_get
   end interface
 
   public ice_ocn_bnd_type_chksum
@@ -1121,8 +1132,8 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     allocate(opacity(isd:ied,jsd:jed,nk))    
     allocate(surf_blthick(isd:ied,jsd:jed))    
     allocate(bott_blthick(isd:ied,jsd:jed))    
-    allocate(rossby_radius(isd:ied,jsd:jed))    
-    allocate(swheat(isd:ied,jsd:jed,nk))
+    allocate(rossby_radius(isd:ied,jsd:jed))
+    allocate(swheat(isc:iec,jsc:jec,nk))
 #endif
     diff_cbt                    = 0.0
     visc_cbu                    = 0.0
@@ -1905,12 +1916,30 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
   end subroutine get_ocean_grid_size
 ! </SUBROUTINE> NAME="get_ocean_grid_size"
 
+subroutine ocean_model_data3D_get(OS,Ocean, name, array3D,isc,jsc)
+  type(ocean_state_type),     pointer    :: OS
+  type(ocean_public_type),    intent(in) :: Ocean
+  character(len=*)          , intent(in) :: name
+  real, dimension(isc:,jsc:,:), intent(out):: array3D
+  integer                   , intent(in) :: isc,jsc
+
+  select case(name)
+  case('wrhot')
+     array3D(isc:,jsc:,:) = Adv_vel%wrho_bt(isc:, jsc:, :)
+  case('geodepth_zt')
+     array3D(isc:,jsc:,:) = Thickness%geodepth_zt(isc:iec, jsc:jec, :) 
+  case default
+     call mpp_error(FATAL,'get_ocean_grid_data3D: unknown argument name='//name)
+  end select
+end subroutine ocean_model_data3D_get
+
 subroutine ocean_model_data2D_get(OS,Ocean, name, array2D,isc,jsc)
   type(ocean_state_type),     pointer    :: OS
   type(ocean_public_type),    intent(in) :: Ocean
   character(len=*)          , intent(in) :: name
   real, dimension(isc:,jsc:), intent(out):: array2D
   integer                   , intent(in) :: isc,jsc
+  integer                                :: tau
 
   !Output array2D is allocated on the coupled model compute domain
   !Grid% and T_prog% arrays below are allocated on
@@ -1918,6 +1947,8 @@ subroutine ocean_model_data2D_get(OS,Ocean, name, array2D,isc,jsc)
   !or
   !global domain for static  case
   !Hence we need to start copying them from Domain%isc and Domain%jsc
+
+  tau = Time%taup1
 
   select case(name)
   case('area')
@@ -2404,7 +2435,7 @@ subroutine mom4_get_density(fld)
 
   integer :: i, j, k, tau
 
-  tau = Time%tau
+  tau = Time%taup1
 
   do k=1,nk
      do j=jsc,jec
@@ -2416,6 +2447,80 @@ subroutine mom4_get_density(fld)
   
 end subroutine mom4_get_density
 ! </SUBROUTINE> NAME="mom4_get_density"
+
+!#######################################################################
+! <SUBROUTINE NAME="mom4_get_prog_tracer_index">
+!
+! <DESCRIPTION>
+!
+! Return index from prognostic tracer table, which can then be used to extract data.
+! 
+! </DESCRIPTION>
+!
+subroutine mom4_get_prog_tracer_index(index, name)
+  
+  integer, intent(out)     :: index
+  character(*), intent(in) :: name
+  integer                  :: n
+  
+  do n= 1, num_prog_tracers
+     if (T_prog(n)%name == name) index = n
+  enddo
+  
+end subroutine mom4_get_prog_tracer_index
+! </SUBROUTINE> NAME="mom4_get_prog_tracer_index"
+
+!#######################################################################
+! <SUBROUTINE NAME="mom4_get_diag_tracer_index">
+!
+! <DESCRIPTION>
+!
+! Return index from diagnostic tracer table, which can then be used to extract data.
+! 
+! </DESCRIPTION>
+!
+subroutine mom4_get_diag_tracer_index(index, name)
+  
+  integer, intent(out)     :: index
+  character(*), intent(in) :: name
+  integer                  :: n
+  
+  do n= 1, num_diag_tracers
+     if (T_diag(n)%name == name) index = n
+  enddo
+  
+end subroutine mom4_get_diag_tracer_index
+! </SUBROUTINE> NAME="mom4_get_diag_tracer_index"
+
+!##########################################################################
+! <SUBROUTINE NAME="mom4_put_prog_tracer">
+!
+! <DESCRIPTION>
+!
+! Modify prognostic tracer data.
+! 
+! </DESCRIPTION>
+!
+subroutine mom4_put_prog_tracer(index, fld)
+
+  integer, intent(in) :: index 
+  real, intent(in)   :: fld(Domain%isc:,Domain%jsc:,:)
+
+  integer :: i, j, k, tau
+
+  tau = Time%taup1
+
+  do k=1,nk
+     do j=jsc,jec
+        do i=isc,iec
+           T_prog(index)%field(i,j,k,tau) = fld(i,j,k)
+        enddo
+     enddo
+  enddo
+  call mpp_update_domains(T_prog(index)%field(:,:,:,tau), &
+       Domain%domain2d, complete=T_prog(index)%complete)
+end subroutine mom4_put_prog_tracer
+! </SUBROUTINE> NAME="mom4_put_prog_tracer"
 
 
 !#######################################################################
@@ -2434,7 +2539,7 @@ subroutine mom4_get_prog_tracer(index, fld, units, longname)
 
   integer :: i, j, k, tau
 
-  tau = Time%tau
+  tau = Time%taup1
 
   do k=1,nk
      do j=jsc,jec
@@ -2450,6 +2555,37 @@ subroutine mom4_get_prog_tracer(index, fld, units, longname)
 end subroutine mom4_get_prog_tracer
 ! </SUBROUTINE> NAME="mom4_get_prog_tracer"
 
+!#######################################################################
+! <SUBROUTINE NAME="mom4_get_diag_tracer">
+!
+! <DESCRIPTION>
+! Return diagnostic tracer data.
+! </DESCRIPTION>
+!
+subroutine mom4_get_diag_tracer(index, fld, units, longname)
+
+  integer, intent(in) :: index 
+  real, intent(out)   :: fld(Domain%isc:,Domain%jsc:,:)
+  character(len=*), optional, intent(out)  :: units
+  character(len=*), optional, intent(out)  :: longname
+
+  integer :: i, j, k, tau
+
+  tau = Time%taup1
+
+  do k=1,nk
+     do j=jsc,jec
+        do i=isc,iec
+           fld(i,j,k) = T_diag(index)%field(i,j,k)
+        enddo
+     enddo
+  enddo
+  
+  if(present(units   )) units    = T_diag(index)%units
+  if(present(longname)) longname = T_diag(index)%longname
+  
+end subroutine mom4_get_diag_tracer
+! </SUBROUTINE> NAME="mom4_get_diag_tracer"
 
 !#######################################################################
 ! <SUBROUTINE NAME="mom4_get_temperature_index">
@@ -2551,6 +2687,57 @@ subroutine mom4_get_UVsurf(Ocean, ua, va, ier)
 end subroutine mom4_get_UVsurf
 ! </SUBROUTINE> NAME="mom4_get_UVsurf"
 
+subroutine mom4_get_UVsurfB(Ocean, ua, va, ier)
+
+  type(ocean_public_type)    :: Ocean
+  real, dimension(Domain%isc:,Domain%jsc:), intent(out)        :: ua, va
+  integer, intent(out)     :: ier  ! error code (0=ok)
+  
+  integer :: isc, iec, jsc, jec
+
+  isc = Domain%isc ; iec = Domain%iec
+  jsc = Domain%jsc ; jec = Domain%jec
+  
+  ua(isc:iec, jsc:jec) = Ocean%u_surf(isc:iec, jsc:jec)
+  va(isc:iec, jsc:jec) = Ocean%v_surf(isc:iec, jsc:jec)
+
+  ier = 0
+
+end subroutine mom4_get_UVsurfB
+
+subroutine mom4_get_latlon_UVsurf(Ocean, ua, va, ier)
+
+  type(ocean_public_type)    :: Ocean
+  real, dimension(Domain%isc:,Domain%jsc:), intent(out)        :: ua, va
+  integer, intent(out)     :: ier  ! error code (0=ok)
+
+  integer :: isc, iec, jsc, jec, i1, j1, i, j
+  real    :: u1x, u1y
+  real, dimension(Domain%isc:Domain%iec, Domain%jsc:Domain%jec) :: ub_tmp, vb_tmp
+  
+  isc = Domain%isc ; iec = Domain%iec
+  jsc = Domain%jsc ; jec = Domain%jec
+
+  ub_tmp(isc:iec, jsc:jec) = Ocean%u_surf(isc:iec, jsc:jec)
+  vb_tmp(isc:iec, jsc:jec) = Ocean%v_surf(isc:iec, jsc:jec)
+
+     do j=jsc,jec
+        do i=isc,iec
+           u1x  = ub_tmp(i,j)  
+           u1y  = vb_tmp(i,j)  
+           ub_tmp(i,j) = Grid%cos_rot(i,j)*u1x &
+           &           - Grid%sin_rot(i,j)*u1y
+             
+           vb_tmp(i,j) = Grid%sin_rot(i,j)*u1x &
+           &           + Grid%cos_rot(i,j)*u1y
+        enddo
+     enddo
+  
+  call mom4_U_to_T_2d(ub=ub_tmp, &
+       &              vb=vb_tmp, &
+       &              ua=ua, va=va, ier=ier)
+
+end subroutine mom4_get_latlon_UVsurf
 
 !#######################################################################
 ! <SUBROUTINE NAME="mom4_get_UV">
@@ -2573,7 +2760,7 @@ subroutine mom4_get_UV(ua, va, ier)
 
   integer :: i, j, k, tau
 
-  tau   = Time%tau
+  tau   = Time%taup1
 
   do k=1,nk
 
@@ -2609,7 +2796,7 @@ subroutine mom4_U_to_T_2d(ub, vb, ua, va, ier)
   real, dimension(Domain%isc:, Domain%jsc:), intent(out) :: ua, va
   integer, intent(out) :: ier
 
-  integer :: isc, iec, jsc, jec, i1, j1, i, j
+  integer :: isc, iec, jsc, jec, im, jm, i, j
   real, dimension(Domain%isd:Domain%ied, Domain%jsd:Domain%jed) :: ub_tmp, vb_tmp
 
   ier = 0
@@ -2637,25 +2824,23 @@ subroutine mom4_U_to_T_2d(ub, vb, ua, va, ier)
 
   call mpp_update_domains(ub_tmp, vb_tmp, Domain%domain2d)
 
-  do j = jsc-1, jec-1
-     j1 = j + 1
-     do i = isc-1, iec-1
-        i1 = i + 1
-        ua(i1,j1) = ( &
-             & ub_tmp(i ,j ) * Grid%dtn(i1,j1) * Grid%dte(i1,j1) + &
-             & ub_tmp(i1,j ) * Grid%dtn(i1,j1) * Grid%dtw(i1,j1) + &
-             & ub_tmp(i1,j1) * Grid%dts(i1,j1) * Grid%dtw(i1,j1) + &
-             & ub_tmp(i ,j1) * Grid%dts(i1,j1) * Grid%dte(i1,j1) &
-             & ) / Grid%dat(i1,j1)
-        va(i1,j1) = ( &
-             & vb_tmp(i ,j ) * Grid%dtn(i1,j1) * Grid%dte(i1,j1) + &
-             & vb_tmp(i1,j ) * Grid%dtn(i1,j1) * Grid%dtw(i1,j1) + &
-             & vb_tmp(i1,j1) * Grid%dts(i1,j1) * Grid%dtw(i1,j1) + &
-             & vb_tmp(i ,j1) * Grid%dts(i1,j1) * Grid%dte(i1,j1) &
-             & ) / Grid%dat(i1,j1)
+  do j = jsc, jec
+     jm = j - 1
+     do i = isc, iec
+        im = i - 1
+        ua(i,j) = ( &
+             & ub_tmp(i ,j)  * Grid%dtn(i,j) * Grid%dte(i,j) + &
+             & ub_tmp(im,j)  * Grid%dtn(i,j) * Grid%dtw(i,j) + &
+             & ub_tmp(im,jm) * Grid%dts(i,j) * Grid%dtw(i,j) + &
+             & ub_tmp(i ,jm) * Grid%dts(i,j) * Grid%dte(i,j) ) / Grid%dat(i,j)
+        
+        va(i,j) = ( &
+             & vb_tmp(i ,j)  * Grid%dtn(i,j) * Grid%dte(i,j) + &
+             & vb_tmp(im,j)  * Grid%dtn(i,j) * Grid%dtw(i,j) + &
+             & vb_tmp(im,jm) * Grid%dts(i,j) * Grid%dtw(i,j) + &
+             & vb_tmp(i ,jm) * Grid%dts(i,j) * Grid%dte(i,j) ) / Grid%dat(i,j)
      enddo
   enddo
-
 end subroutine mom4_U_to_T_2d
 ! </SUBROUTINE> NAME="mom4_U_to_T_2d"
 
@@ -2678,10 +2863,10 @@ end subroutine mom4_U_to_T_2d
 !  |       |       |       |     \ | /
 !  |       |im,jm  |i,jm   |      \|/ rot angle
 !  B-------B-------B-------B    ---X-------------> x
-!  |       |       |       |      /|\ 
+!  |       |       |       |      /|\
 !  |       |       |       |     / | \
 !  |---A---|---A---|---A---|       |  \lat  
-!  |       |       |       |       |   \   
+!  |       |       |       |       |   \
 !  |       |       |       |
 !  B-------B-------B-------B
 !
@@ -2712,7 +2897,7 @@ subroutine mom4_get_latlon_UV(ua, va, ier)
   integer :: i, j, k, im, jm, tau
 
   ier = 0
-  tau   = Time%tau
+  tau   = Time%taup1
 
   do k=1,nk
 
@@ -2872,6 +3057,34 @@ subroutine mom4_get_surface_tmask(surfaceTmask)
 end subroutine mom4_get_surface_tmask
 ! </SUBROUTINE> NAME="mom4_get_surface_tmask"
 
+!#######################################################################
+! <SUBROUTINE NAME="mom4_get_3D_tmask">
+!   <OVERVIEW>
+!     Gets the 3D array Grid%tmask(:,:,:)   
+!   </OVERVIEW>
+!   <DESCRIPTION>
+!     This subroutine makes a copy of the 3D array  tmask 
+!     (land/sea mask for T cells based on s-coordinate).
+!   </DESCRIPTION>
+!   <TEMPLATE>
+!     use ocean_model_mod
+!     real, dimension(isc:iec,jsc:jec) :: temp
+!     call mom4_get_3D_tmask(temp)
+!   </TEMPLATE>
+!   <IN NAME="Tmask"  TYPE="real, dimension(isc:iec,jsc:jec,:)" >
+!      Allocated 3D array to contain the tmask at the ocean surface.
+!   </IN>
+!   <OUT NAME="Tmask"  TYPE="real, dimension(isc:iec,jsc:jec,:)" >
+!      3 dimensional array of tmask at the ocean surface. 
+!   </OUT>
+
+subroutine mom4_get_3D_tmask(Tmask)
+  real, dimension(:,:,:) ,intent(inout) :: Tmask 
+
+  Tmask = Grid%tmask(isc:iec,jsc:jec,:)
+
+end subroutine mom4_get_3D_tmask
+
 
 !#######################################################################
 ! <SUBROUTINE NAME="mom4_get_ocean_data">
@@ -2934,6 +3147,10 @@ subroutine mom4_get_ocean_data(Ocean,name,dataArrayPointer)
      if(.not.associated(Ocean%frazil)) &
      call mpp_error(FATAL,'mom4_get_ocean_data: Ocean%frazil is not associated!')  
      dataArrayPointer => Ocean%frazil
+  case('area')
+     if(.not.associated(Ocean%area)) &
+     call mpp_error(FATAL,'mom4_get_ocean_data: Ocean%area is not associated!')
+     dataArrayPointer => Ocean%area
   case default
      call mpp_error(FATAL,'mom4_get_ocean_data: unknown argument name='//name)
   end select

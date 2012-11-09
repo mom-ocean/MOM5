@@ -269,6 +269,7 @@ private
 
 public ocean_vert_kpp_mom4p1_init
 public vert_mix_kpp_mom4p1
+public mom4_get_hblt
 
 private bldepth
 private wscale
@@ -3160,6 +3161,20 @@ subroutine watermass_diag(Time, T_prog, Dens, Thickness)
 end subroutine watermass_diag
 ! </SUBROUTINE>  NAME="watermass_diag"
 
+!#######################################################################
+! <SUBROUTINE NAME="mom4_get_hblt">
+!
+! <DESCRIPTION>
+! Return mixed layer depth.
+! </DESCRIPTION>
+!
+subroutine mom4_get_hblt(fld)
 
+  real, intent(out) :: fld(isc:,jsc:)
+
+  fld(isc:iec, jsc:jec) = hblt(isc:iec, jsc:jec)
+  
+end subroutine mom4_get_hblt
+! </SUBROUTINE> NAME="mom4_get_hblt"
 
 end module ocean_vert_kpp_mom4p1_mod

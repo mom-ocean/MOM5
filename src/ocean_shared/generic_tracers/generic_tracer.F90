@@ -51,6 +51,7 @@ module generic_tracer
   use generic_ERGOM, only : generic_ERGOM_init, generic_ERGOM_update_from_source,generic_ERGOM_update_from_coupler
   use generic_ERGOM, only : generic_ERGOM_set_boundary_values, generic_ERGOM_end, do_generic_ERGOM
   use generic_ERGOM, only : generic_ERGOM_update_from_bottom
+  use generic_GEN,    only : generic_GEN_register, do_generic_GEN, Num_generic_GEN_Tracers
 
   use generic_TOPAZ,  only : generic_TOPAZ_register
   use generic_TOPAZ,  only : generic_TOPAZ_init, generic_TOPAZ_update_from_source,generic_TOPAZ_register_diag
@@ -93,7 +94,7 @@ module generic_tracer
 
   logical, save :: do_generic_tracer = .false.
 
-  namelist /generic_tracer_nml/ do_generic_tracer, do_generic_CFC, do_generic_TOPAZ, do_generic_ERGOM, do_generic_BLING
+  namelist /generic_tracer_nml/ do_generic_tracer, do_generic_CFC, do_generic_TOPAZ, do_generic_ERGOM, do_generic_BLING, do_generic_GEN, Num_generic_GEN_Tracers
 
 contains
 
@@ -119,6 +120,8 @@ contains
     call close_file (ioun)
 #endif
 
+    if(do_generic_GEN) &
+         call generic_GEN_register(tracer_list)
 
     if(do_generic_CFC) &
          call generic_CFC_register(tracer_list)
@@ -186,7 +189,7 @@ contains
     call g_tracer_set_common(isc,iec,jsc,jec,isd,ied,jsd,jed,nk,ntau,axes,grid_tmask,grid_kmt,init_time) 
 
     !Allocate and initialize all registered generic tracers
-    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING) then
+    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING .or. do_generic_GEN) then
        g_tracer => tracer_list        
        !Go through the list of tracers 
        do  
@@ -221,7 +224,7 @@ contains
     
     !Diagnostics register for the fields common to All generic tracers
 
-    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING) then
+    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING .or. do_generic_GEN) then
 
        g_tracer => tracer_list        
        !Go through the list of tracers 
@@ -419,7 +422,7 @@ contains
     type(g_tracer_type), pointer    :: g_tracer,g_tracer_next
 
     !nnz: Should I loop here or inside the sub g_tracer_vertdiff ?    
-    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING) then
+    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING .or. do_generic_GEN) then
 
        g_tracer => tracer_list        
        !Go through the list of tracers 
@@ -458,7 +461,7 @@ contains
     type(g_tracer_type), pointer    :: g_tracer,g_tracer_next
 
     !nnz: Should I loop here or inside the sub g_tracer_vertdiff ?    
-    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING) then
+    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING .or. do_generic_GEN) then
 
        g_tracer => tracer_list        
        !Go through the list of tracers 
@@ -532,7 +535,8 @@ contains
     !Set coupler fluxes from tracer boundary values (%alpha and %csurf)
     !for each tracer in the tracer_list that has been marked by the user routine above
     !
-    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING) call g_tracer_coupler_set(tracer_list,IOB_struc)
+    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING .or. do_generic_GEN) &
+         call g_tracer_coupler_set(tracer_list,IOB_struc)
 
   end subroutine generic_tracer_coupler_set
 
