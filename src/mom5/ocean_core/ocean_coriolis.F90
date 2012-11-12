@@ -618,7 +618,7 @@ subroutine coriolis_force_cgrid(Time, Thickness, Adv_vel, Velocity, abtau_m0, ab
         enddo
      enddo
      if (id_hrho_cor_u > 0) used = send_data( id_hrho_cor_u, wrk1_v(isc:iec,jsc:jec,:,1), &
-         Time%model_time, rmask=Grd%tmasken(isc:iec,jsc:jec,:,2))
+         Time%model_time, rmask=Grd%tmasken(isc:iec,jsc:jec,:,1))
      if (id_hrho_cor_v > 0) used = send_data( id_hrho_cor_v, wrk1_v(isc:iec,jsc:jec,:,2), &
          Time%model_time, rmask=Grd%tmasken(isc:iec,jsc:jec,:,2))
   endif
