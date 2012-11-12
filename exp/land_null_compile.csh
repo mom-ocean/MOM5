@@ -1,5 +1,4 @@
 # Build the null land library
-# The list of source files that should be compiled for this component.
 
 set srcList = ( land_null )
 
