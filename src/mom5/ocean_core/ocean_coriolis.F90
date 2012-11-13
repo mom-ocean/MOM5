@@ -602,6 +602,7 @@ subroutine coriolis_force_cgrid(Time, Thickness, Adv_vel, Velocity, abtau_m0, ab
         enddo
      enddo
 
+
      call diagnose_3d_en(Time, Grd, id_hrho_cor_u, id_hrho_cor_v, wrk1_v(:,:,:,:))
   endif
 
