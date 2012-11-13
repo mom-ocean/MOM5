@@ -1438,7 +1438,7 @@ subroutine nphysicsB (Time, Thickness, Dens, rho, T_prog, &
   ! gm_diffusivity passed to neutral_physics for computing form drag viscosity 
   gm_diffusivity(:,:,:) = agm_array(:,:,:)
 
-  call nphysics_diagnostics(Time, T_prog, Dens, Thickness)
+  call nphysics_diagnostics(Time, T_prog, Dens)
 
 end subroutine nphysicsB
 ! </SUBROUTINE> NAME="nphysicsB"
@@ -3448,12 +3448,11 @@ end subroutine fz_flux_diag
 ! <DESCRIPTION>
 !  Send some diagnostics to diagnostics manager. 
 ! </DESCRIPTION>
-subroutine nphysics_diagnostics(Time, T_prog, Dens, Thickness)
+subroutine nphysics_diagnostics(Time, T_prog, Dens)
 
   type(ocean_time_type),        intent(in)  :: Time
   type(ocean_prog_tracer_type), intent(in)  :: T_prog(:)
   type(ocean_density_type),     intent(in)  :: Dens
-  type(ocean_thickness_type),   intent(in)  :: Thickness
 
   integer :: i, j, k, nn
   integer :: tau

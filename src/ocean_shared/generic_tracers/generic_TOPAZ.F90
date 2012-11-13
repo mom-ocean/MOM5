@@ -759,8 +759,6 @@ contains
   subroutine generic_TOPAZ_register(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
 
-    character(len=fm_string_len), parameter :: sub_name = 'generic_TOPAZ_register'
-
     !Specify all prognostic and diagnostic tracers of this modules.
     call user_add_tracers(tracer_list)
 
@@ -786,8 +784,6 @@ contains
   ! </SUBROUTINE>
   subroutine generic_TOPAZ_init(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
-    character(len=fm_string_len), parameter :: sub_name = 'generic_TOPAZ_init'
-
     !Specify and initialize all parameters used by this package
     call user_add_params
 
@@ -2708,7 +2704,7 @@ contains
     call g_tracer_add_param('r_bio_tau',  topaz%r_bio_tau,1.0 / topaz%bio_tau)
 
 
-    call g_tracer_end_param_list(package_name)
+    call g_tracer_end_param_list()
     !===========
     !Block Ends: g_tracer_add_param
     !===========
@@ -2724,8 +2720,6 @@ contains
   subroutine user_add_tracers(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
 
-
-    character(len=fm_string_len), parameter :: sub_name = 'user_add_tracers'
 
     !
     !Add here only the parameters that are required at the time of registeration 
@@ -2747,7 +2741,7 @@ contains
     call g_tracer_add_param('ocean_restart_file' , topaz%ocean_restart_file , 'ocean_topaz.res.nc' )
     call g_tracer_add_param('IC_file'       , topaz%IC_file       , '')
     !
-    call g_tracer_end_param_list(package_name)
+    call g_tracer_end_param_list()
 
     ! Set Restart files
     call g_tracer_set_files(ice_restart_file    = topaz%ice_restart_file,&
@@ -3209,8 +3203,6 @@ contains
   subroutine generic_TOPAZ_update_from_coupler(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
 
-    character(len=fm_string_len), parameter :: sub_name = 'generic_CFC_update_from_coupler'
-
     real, dimension(:,:)  ,pointer    :: stf_alk,dry_no3,wet_no3
 
     !
@@ -3395,7 +3387,6 @@ contains
     real, dimension(:,ilb:,jlb:,:), intent(in) :: opacity_band
 
 
-    character(len=fm_string_len), parameter :: sub_name = 'generic_TOPAZ_update_from_source'
     integer :: isc,iec,jsc,jec,isd,ied,jsd,jed,nk,ntau,i,j,k,kblt,n,k_100
     real, dimension(:,:,:) ,pointer :: grid_tmask
     integer, dimension(:,:),pointer :: mask_coast,grid_kmt
@@ -4098,14 +4089,14 @@ contains
           5.9415e-3 * max(epsln, Salt(i,j,k))**(1.5) - 0.02 - (48.76 - 2.8 - 0.5304 * Temp(i,j,k)) *   &
           (PRESS - 1.013) / (191.46 * TK) + (1e-3 * (11.76 - 0.3692 * Temp(i,j,k))) * (PRESS - 1.013) *&
           (PRESS - 1.013) / (382.92 * TK)
-       topaz%co3_sol_arag(i,j,k) = 10**(-PKSPA) / (2.937d-4 * max(5.0, Salt(i,j,k)))
+       topaz%co3_sol_arag(i,j,k) = 10**(-PKSPA) / (2.937e-4 * max(5.0, Salt(i,j,k)))
        topaz%omega_arag(i,j,k) = topaz%f_co3_ion(i,j,k) / topaz%co3_sol_arag(i,j,k)
        PKSPC = 171.9065 + 0.077993 * TK - 2839.319 / TK - 71.595 * log10(TK) - (-0.77712 + 2.8426e-3 * &
           TK + 178.34 / TK) * sqrt(max(epsln, Salt(i,j,k))) + 0.07711 * max(epsln, Salt(i,j,k)) -      &
           4.1249e-3 * max(epsln, Salt(i,j,k))**(1.5) - 0.02 - (48.76 - 0.5304 * Temp(i,j,k)) *         &
           (PRESS - 1.013) / (191.46 * TK) + (1e-3 * (11.76 - 0.3692 * Temp(i,j,k))) * (PRESS - 1.013) *&
           (PRESS - 1.013) / (382.92 * TK)
-       topaz%co3_sol_calc(i,j,k) = 10**(-PKSPC) / (2.937d-4 * max(5.0, Salt(i,j,k)))
+       topaz%co3_sol_calc(i,j,k) = 10**(-PKSPC) / (2.937e-4 * max(5.0, Salt(i,j,k)))
        topaz%omega_calc(i,j,k) = topaz%f_co3_ion(i,j,k) / topaz%co3_sol_calc(i,j,k)
     enddo; enddo ; enddo !} i,j,k
 
@@ -6063,8 +6054,6 @@ contains
     real, dimension(:,:,:,:), pointer :: o2_field,dic_field,po4_field,sio4_field,alk_field
     real, dimension(:,:,:), ALLOCATABLE :: htotal_field,co3_ion_field
     real, dimension(:,:), ALLOCATABLE :: co2_alpha,co2_csurf,co2_sc_no,o2_alpha,o2_csurf,o2_sc_no
-    character(len=fm_string_len), parameter :: sub_name = 'generic_TOPAZ_set_boundary_values'
-
 
     !
     !
@@ -6253,7 +6242,6 @@ contains
 
 
   subroutine generic_TOPAZ_end
-    character(len=fm_string_len), parameter :: sub_name = 'generic_TOPAZ_end'
     call user_deallocate_arrays
   end subroutine generic_TOPAZ_end
 

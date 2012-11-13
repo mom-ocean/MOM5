@@ -505,8 +505,8 @@ namelist /ocean_vert_kpp_test_nml/ use_this_module, shear_instability, double_di
                                    limit_with_hekman, limit_ghats, hbl_with_rit,          &
                                    radiation_large, radiation_zero, radiation_iow,        &
                                    use_sbl_bottom_flux, wsfc_combine_runoff_calve,        &
-			           bvf_from_below, variable_vtc, use_max_shear,           &  
-   			           linear_hbl, smooth_ri_kmax_eq_kmu
+                                   bvf_from_below, variable_vtc, use_max_shear,           &  
+                                   linear_hbl, smooth_ri_kmax_eq_kmu
                                  
 
 contains
@@ -882,18 +882,18 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_test_nml')
                      missing_value=missing_value, range=(/-1.e10,1.e10/))
      endif
      id_wbot(n)   = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_wbot_KPP', &
-     		  Grd%tracer_axes(1:2), Time%model_time,				   &
-     		  'tracer flux through sbl-bottom', trim(T_prog(n)%flux_units), 	   &
-     		  missing_value=missing_value, range=(/-1.e10,1.e10/))
+          Grd%tracer_axes(1:2), Time%model_time,   &
+          'tracer flux through sbl-bottom', trim(T_prog(n)%flux_units),    &
+          missing_value=missing_value, range=(/-1.e10,1.e10/))
   enddo
   id_ghats(1) = register_diag_field ('ocean_model', 'temp_ghats_KPP', &
-  	       Grd%tracer_axes(1:3), Time%model_time,		      &
-  	       'nonlocal term ghats * diff_cbt from KPP', 'none',     &
-  	       missing_value=missing_value, range=(/-1.e10,1.e10/))
+       Grd%tracer_axes(1:3), Time%model_time,      &
+       'nonlocal term ghats * diff_cbt from KPP', 'none',     &
+       missing_value=missing_value, range=(/-1.e10,1.e10/))
   id_ghats(2) = register_diag_field ('ocean_model', 'salt_ghats_KPP', &
-  	       Grd%tracer_axes(1:3), Time%model_time,	              &
-  	       'nonlocal term ghats * diff_cbt from KPP', 'none',     &
-  	       missing_value=missing_value, range=(/-1.e10,1.e10/))
+       Grd%tracer_axes(1:3), Time%model_time,              &
+       'nonlocal term ghats * diff_cbt from KPP', 'none',     &
+       missing_value=missing_value, range=(/-1.e10,1.e10/))
 
   id_diff_cbt_kpp_t = register_diag_field('ocean_model','diff_cbt_kpp_t',         &
        Grd%tracer_axes(1:3),Time%model_time, 'vert diffusivity from kpp for temp',&
@@ -961,10 +961,9 @@ end subroutine ocean_vert_kpp_test_init
 !
 ! </DESCRIPTION>
 !
-subroutine vert_mix_kpp_test (aidif, Time, Thickness, Velocity, T_prog, T_diag, Dens, &
+subroutine vert_mix_kpp_test (Time, Thickness, Velocity, T_prog, T_diag, Dens, &
            swflx, sw_frac_zt, pme, river, visc_cbu, visc_cbt, diff_cbt, hblt_depth)
 
-  real,                            intent(in)    :: aidif
   type(ocean_time_type),           intent(in)    :: Time
   type(ocean_thickness_type),      intent(in)    :: Thickness
   type(ocean_velocity_type),       intent(in)    :: Velocity
@@ -1218,7 +1217,7 @@ subroutine vert_mix_kpp_test (aidif, Time, Thickness, Velocity, T_prog, T_diag, 
 
       ! compute interior mixing coefficients everywhere, due to constant 
       ! internal wave activity, static instability, and local shear instability.
-      call ri_iwmix(Time, Thickness, Dens%rho(:,:,:,tau), visc_cbt, diff_cbt)
+      call ri_iwmix(visc_cbt, diff_cbt)
 
       if (double_diffusion) then
         call ddmix (Time, T_prog, Dens, diff_cbt)  
@@ -1555,7 +1554,7 @@ subroutine vert_mix_kpp_test (aidif, Time, Thickness, Velocity, T_prog, T_diag, 
 
            enddo   ! enddo for n-loop 
 
-           call watermass_diag(Time, T_prog, Dens, Thickness)
+           call watermass_diag(Time, T_prog, Dens)
 
        endif   ! endif for non_local_kpp
 
@@ -1653,8 +1652,6 @@ subroutine bldepth(Thickness, sw_frac_zt)
   real, parameter :: c0     = 0.0
   real, parameter :: cekman = 0.7  ! constant for Ekman depth
   real, parameter :: cmonob = 1.0  ! constant for Monin-Obukhov depth
-  real, parameter :: hbf    = 1.0  ! fraction of bld which absorbed solar radiation 
-                                   ! contributes to surface buoyancy forcing
   real, parameter :: vtc_fac = 200.! factor after Danabasoglu et al. (A.3) 
 
 ! find bulk Richardson number at every grid level until > Ricr
@@ -1677,7 +1674,7 @@ subroutine bldepth(Thickness, sw_frac_zt)
           Rib(i,j,:) = 0.0
           kbl(i,j)   = MAX(Grd%kmt(i,j),2)
           hbl(i,j)   = Thickness%depth_zt(i,j,kbl(i,j))
-          iwet	     = iwet + min(Grd%kmt(i,j),1)
+          iwet       = iwet + min(Grd%kmt(i,j),1)
         enddo
       enddo
 
@@ -1715,14 +1712,14 @@ subroutine bldepth(Thickness, sw_frac_zt)
               ! compute the turbulent shear contribution to Rib
               ! eqn. (23)
               if (bvf_from_below) then
-	         bvfr = sqrt(abs(0.5*                            &
-                   ( dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) +  &
-                     dbloc(i,j,klp1) / Thickness%dzwt(i,j,klp1) ) ))
+                 bvfr = sqrt(abs(0.5*                            &
+                      ( dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) +  &
+                      dbloc(i,j,klp1) / Thickness%dzwt(i,j,klp1) ) ))
               else
-	         bvfr = sqrt(abs(0.5*                              &
-                    ( dbloc(i,j,klm1) / Thickness%dzwt(i,j,klm1) +  &
-                     dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) ) ))
-	      endif
+                 bvfr = sqrt(abs(0.5*                              &
+                      ( dbloc(i,j,klm1) / Thickness%dzwt(i,j,klm1) +  &
+                      dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) ) ))
+              endif
     
               ! to ensure bitwise compatible with earlier code where default was vtc_flag=0.0 
               Vtsq =   Thickness%depth_zt(i,j,kl) * ws(i,j) * bvfr  &
@@ -1753,7 +1750,7 @@ subroutine bldepth(Thickness, sw_frac_zt)
                   if(((rit(i,j,kl-1).lt.0).or.(rit(i,j,kl).lt.0)).and.hbl_with_rit) then  
 
                       ! Rib(i,j,ku) is not relevant, because locally unstable
-                      Rib(i,j,ku) =  Ricr*0.1			    
+                      Rib(i,j,ku) =  Ricr*0.1
 
                   else
 
@@ -1817,14 +1814,14 @@ subroutine bldepth(Thickness, sw_frac_zt)
                 ! compute the turbulent shear contribution to Rib
                 ! eqn. (23).
                 if (bvf_from_below) then
-	          bvfr = sqrt(abs(0.5*                              &
-                    ( dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) +    &
-                      dbloc(i,j,klp1) / Thickness%dzwt(i,j,klp1) ) ))
+                   bvfr = sqrt(abs(0.5*                              &
+                        ( dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) +    &
+                        dbloc(i,j,klp1) / Thickness%dzwt(i,j,klp1) ) ))
                 else
-	          bvfr = sqrt(abs(0.5*                              &
-                    ( dbloc(i,j,klm1) / Thickness%dzwt(i,j,klm1) +  &
-                      dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) ) ))
-	        endif
+                   bvfr = sqrt(abs(0.5*                              &
+                        ( dbloc(i,j,klm1) / Thickness%dzwt(i,j,klm1) +  &
+                        dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) ) ))
+                endif
     
                 ! to ensure bitwise compatible with earlier code where default was vtc_flag=0.0 
                 Vtsq =   Thickness%depth_zt(i,j,kl) * ws(i,j) * bvfr  &
@@ -1856,7 +1853,7 @@ subroutine bldepth(Thickness, sw_frac_zt)
                   if(((rit(i,j,kl-1).lt.0).or.(rit(i,j,kl).lt.0)).and.hbl_with_rit) then  
 
                       ! Rib(i,j,ku) is not relevant, because locally unstable
-                      Rib(i,j,kdn) =  Ricr*0.1			    
+                      Rib(i,j,kdn) =  Ricr*0.1
 
                   else
 
@@ -1878,8 +1875,8 @@ subroutine bldepth(Thickness, sw_frac_zt)
                       else
                          hbl(i,j) = (-b_co + sqrt(sqrt_arg)) / (c2*a_co)
                       endif
-		      
-		      kbl(i,j) = kl
+
+                      kbl(i,j) = kl
                       iwet     = iwet - 1
 
                   endif
@@ -2180,11 +2177,8 @@ end subroutine wscale
 !
 ! </DESCRIPTION>
 !
-subroutine ri_iwmix(Time, Thickness, rho, visc_cbt, diff_cbt)
+subroutine ri_iwmix(visc_cbt, diff_cbt)
 
-  type(ocean_time_type),          intent(in)    :: Time
-  type(ocean_thickness_type),     intent(in)    :: Thickness
-  real, dimension(isd:,jsd:,:),   intent(in)    :: rho
   real, dimension(isd:,jsd:,:),   intent(inout) :: visc_cbt
   real, dimension(isd:,jsd:,:,:), intent(inout) :: diff_cbt
   
@@ -2802,12 +2796,11 @@ end subroutine watermass_diag_init
 ! Diagnose effects from KPP nonlocal on the watermass transformation.
 ! </DESCRIPTION>
 !
-subroutine watermass_diag(Time, T_prog, Dens, Thickness)
+subroutine watermass_diag(Time, T_prog, Dens)
 
   type(ocean_time_type),          intent(in) :: Time
   type(ocean_prog_tracer_type),   intent(in) :: T_prog(:)
   type(ocean_density_type),       intent(in) :: Dens
-  type(ocean_thickness_type),     intent(in) :: Thickness
 
   integer :: i,j,k,tau
   real, dimension(isd:ied,jsd:jed) :: eta_tend

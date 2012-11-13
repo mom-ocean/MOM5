@@ -246,17 +246,17 @@ character(len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
 
 integer                               :: src_he3_id
 character*128                         :: src_he3_file    
-character*32                          :: src_he3_name    
+character*128                         :: src_he3_name
 real, allocatable, dimension(:,:)     :: src_he3_t
 
 integer                               :: src_he4_id
 character*128                         :: src_he4_file    
-character*32                          :: src_he4_name    
+character*128                         :: src_he4_name
 real, allocatable, dimension(:,:)     :: src_he4_t
 
 integer                               :: src_he_depth_id
 character*128                         :: src_he_depth_file    
-character*32                          :: src_he_depth_name    
+character*128                         :: src_he_depth_name
 real, allocatable, dimension(:,:)     :: src_he_depth_t
 
 ! for restart
@@ -397,14 +397,6 @@ implicit none
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocmip2_he_bbc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !     local variables
@@ -475,10 +467,6 @@ real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 !
 
 character(len=64), parameter    :: sub_name = 'ocmip2_he_end'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
@@ -649,14 +637,6 @@ type(coupler_2d_bc_type), intent(in)                            :: ice_ocean_bou
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocmip2_he_sbc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !     local variables
@@ -722,21 +702,21 @@ do n = 1, instances  !{
     used = send_data(he(n)%id_sfc_flux_he_4_atm,        &
          t_prog(he(n)%ind_he_4_atm)%stf(:,:),           &
          model_time, rmask = grid_tmask(:,:,1),         &
-	 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
   endif !}
 
   if (he(n)%id_sfc_flux_he_3_man .gt. 0) then !{
     used = send_data(he(n)%id_sfc_flux_he_3_man,        &
          t_prog(he(n)%ind_he_3_man)%stf(:,:),           &
          model_time, rmask = grid_tmask(:,:,1),         &
-	 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
   endif !}
 
   if (he(n)%id_sfc_flux_he_4_man .gt. 0) then !{
     used = send_data(he(n)%id_sfc_flux_he_4_man,        &
          t_prog(he(n)%ind_he_4_man)%stf(:,:),           &
          model_time, rmask = grid_tmask(:,:,1),         &
-	 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
   endif !}
 
 enddo  !} n
@@ -772,8 +752,6 @@ use atmos_ocean_fluxes_mod, only: aof_set_coupler_flux
 character(len=64), parameter    :: sub_name = 'ocmip2_he_flux_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
@@ -965,8 +943,6 @@ implicit none
 character(len=64), parameter    :: sub_name = 'ocmip2_he_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
@@ -1279,14 +1255,6 @@ real, dimension(isd:ied,jsd:jed,nk), intent(in)         :: grid_tmask
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'ocmip2_he_init_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 
 !
 !-----------------------------------------------------------------------
@@ -1574,14 +1542,6 @@ real, dimension(isd:ied,jsd:jed,nk), intent(in)         :: grid_tmask
 !
 !       local parameters
 !
-
-character(len=64), parameter    :: sub_name = 'ocmip2_he_sum_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
 !
 !-----------------------------------------------------------------------
@@ -1879,14 +1839,6 @@ type(coupler_2d_bc_type), intent(inout) :: Ocean_fields
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'ocmip2_he_zero_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !       local variables
@@ -1968,14 +1920,6 @@ real, dimension(isd:ied,jsd:jed,nk), intent(in)         :: grid_tmask
 !
 !       local parameters
 !
-
-character(len=64), parameter    :: sub_name = 'ocmip2_he_avg_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
 !
 !-----------------------------------------------------------------------
@@ -2081,14 +2025,6 @@ implicit none
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'ocmip2_he_sfc_end'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !       local variables
@@ -2165,13 +2101,6 @@ real, dimension(isd:,jsd:,:,:), intent(in)                      :: rho_dzt
 !
 
 character(len=64), parameter    :: sub_name = 'ocmip2_he_source'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 
 !
 !-----------------------------------------------------------------------
@@ -2382,8 +2311,6 @@ real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 character(len=64), parameter    :: sub_name = 'ocmip2_he_start'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
@@ -2400,10 +2327,10 @@ integer                                 :: k
 integer                                 :: n
 character(len=fm_field_name_len+1)      :: suffix
 character(len=256)                      :: caller_str
-real				        :: total_he_3_atm
-real 				        :: total_he_4_atm
-real 				        :: total_he_3_man
-real			  	        :: total_he_4_man
+real                                    :: total_he_3_atm
+real                                    :: total_he_4_atm
+real                                    :: total_he_3_man
+real                                    :: total_he_4_man
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -2735,14 +2662,6 @@ implicit none
 !     local parameters
 !-----------------------------------------------------------------------
 !
-
-character(len=64), parameter    :: sub_name = 'ocmip2_he_tracer'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
 !
 !-----------------------------------------------------------------------

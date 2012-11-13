@@ -952,7 +952,7 @@ subroutine mixdownslope (Time, Thickness, T_prog, Dens, index_temp, index_salt)
 
   enddo  ! nt-end for num_prog_tracers 
 
-  call watermass_diag(Time, Dens, Thickness)
+  call watermass_diag(Time, Dens)
 
   if (debug_this_module) then
       write(stdoutunit,*) ' '
@@ -1183,11 +1183,10 @@ end subroutine watermass_diag_init
 ! Diagnose effects from mixdownslope on the watermass transformation.
 ! </DESCRIPTION>
 !
-subroutine watermass_diag(Time, Dens, Thickness)
+subroutine watermass_diag(Time, Dens)
 
   type(ocean_time_type),         intent(in) :: Time
   type(ocean_density_type),      intent(in) :: Dens
-  type(ocean_thickness_type),    intent(in) :: Thickness
 
   integer :: i,j,k,tau
   real, dimension(isd:ied,jsd:jed) :: eta_tend

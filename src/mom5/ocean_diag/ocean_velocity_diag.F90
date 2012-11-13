@@ -2356,7 +2356,7 @@ subroutine energy_analysis (Time, Thickness, Ext_mode, Adv_vel, Dens,    &
   if(horz_grid == MOM_BGRID) then 
      call coriolis_force_bgrid(Time, Thickness, Velocity, energy_analysis_step=.true.)
   else 
-     call coriolis_force_cgrid(Time, Thickness, Adv_vel, Velocity, abtau_m0, abtau_m1, abtau_m2, &
+     call coriolis_force_cgrid(Time, Adv_vel, Velocity, abtau_m0, abtau_m1, abtau_m2, &
                                energy_analysis_step=.true.)
   endif 
   do n=1,2

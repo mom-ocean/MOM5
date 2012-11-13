@@ -767,7 +767,6 @@ ierr = check_nml_error(io_status,'ocean_tracer_diag_nml')
                                 T_prog(index_temp)%field(isd:ied,jsd:jed,:,tau), &
                                 Dens%rho(isd:ied,jsd:jed,:,tau),                 &
                                 Dens%pressure_at_depth(isd:ied,jsd:jed,:),       &
-                                Time%model_time,                                 &
                                 Dens%mld_subduction(:,:), smooth_mld_for_subduction) 
 
 
@@ -783,7 +782,7 @@ ierr = check_nml_error(io_status,'ocean_tracer_diag_nml')
 ! </DESCRIPTION>
 
 subroutine ocean_tracer_diagnostics(Time, Thickness, T_prog, T_diag, Dens, &
-                                    Ext_mode, Velocity, Adv_vel, L_system, &
+                                    Ext_mode, Velocity, Adv_vel, &
                                     pme, melt, runoff, calving)
 
   type(ocean_time_type),          intent(in)    :: Time
@@ -794,7 +793,6 @@ subroutine ocean_tracer_diagnostics(Time, Thickness, T_prog, T_diag, Dens, &
   type(ocean_external_mode_type), intent(in)    :: Ext_mode
   type(ocean_velocity_type),      intent(in)    :: Velocity
   type(ocean_adv_vel_type),       intent(in)    :: Adv_vel
-  type(ocean_lagrangian_type),    intent(in)    :: L_system
   real, dimension(isd:,jsd:),     intent(in)    :: pme
   real, dimension(isd:,jsd:),     intent(in)    :: melt
   real, dimension(isd:,jsd:),     intent(in)    :: runoff
@@ -909,9 +907,9 @@ subroutine ocean_tracer_diagnostics(Time, Thickness, T_prog, T_diag, Dens, &
           call dzt_min_max(Time, Thickness, 'From ocean_tracer_diag, dzt_min_max information')
           do n = 1,num_prog_tracers
              call tracer_min_max(Time, Thickness, T_prog(n))
-             call tracer_integrals(Time, Thickness, T_prog(n), L_system)
+             call tracer_integrals(Time, Thickness, T_prog(n))
           enddo
-          call tracer_change(Time, Thickness, T_prog, T_diag, Ext_mode, L_system, &
+          call tracer_change(Time, Thickness, T_prog, T_diag, Ext_mode, &
                              pme, melt, runoff, calving)
           call tracer_land_cell_check (Time, T_prog)
       endif
@@ -920,8 +918,8 @@ subroutine ocean_tracer_diagnostics(Time, Thickness, T_prog, T_diag, Dens, &
   
   call mpp_clock_begin(id_conservation)
   if (nint(dtts) /= 0) then 
-    call mass_conservation   (Time, Thickness, Ext_mode, L_system, pme, runoff, calving)
-    call tracer_conservation (Time, Thickness, T_prog, T_diag, L_system, pme, runoff, calving)
+    call mass_conservation   (Time, Thickness, Ext_mode, pme, runoff, calving)
+    call tracer_conservation (Time, Thickness, T_prog, T_diag, pme, runoff, calving)
   endif 
   call mpp_clock_end(id_conservation)
 
@@ -982,14 +980,13 @@ end subroutine ocean_tracer_diagnostics
 ! </DESCRIPTION>
 !
 subroutine calc_mixed_layer_depth(Thickness, salinity, theta, rho, pressure, &
-                                  model_time, hmxl, smooth_mld_input)
+                                  hmxl, smooth_mld_input)
 
   type(ocean_thickness_type),   intent(in)    :: Thickness
   real, dimension(isd:,jsd:,:), intent(in)    :: salinity
   real, dimension(isd:,jsd:,:), intent(in)    :: theta
   real, dimension(isd:,jsd:,:), intent(in)    :: rho
   real, dimension(isd:,jsd:,:), intent(in)    :: pressure 
-  type(time_type),              intent(in)    :: model_time
   real, dimension(isd:,jsd:),   intent(inout) :: hmxl
   logical, optional,            intent(in)    :: smooth_mld_input
 
@@ -1091,7 +1088,7 @@ subroutine mixed_layer_depth(Thickness, salinity, theta, rho, neutralrho, pressu
     '==>Error from ocean_tracer_diag_mod (mixed_layer_depth): module needs initialization ')
   endif 
 
-  call calc_mixed_layer_depth(Thickness, salinity, theta, rho, pressure, model_time, hmxl)
+  call calc_mixed_layer_depth(Thickness, salinity, theta, rho, pressure, hmxl)
 
   if(id_mld > 0) then 
          used = send_data (id_mld, hmxl(:,:), model_time, rmask=Grd%tmask(:,:,1), &
@@ -1274,7 +1271,7 @@ subroutine compute_subduction(Time, Thickness, Velocity, Adv_vel, Dens, salinity
   call calc_mixed_layer_depth(Thickness, salinity, theta,                &
                               Dens%rho(isd:ied,jsd:jed,:,taup1),         &
                               Dens%pressure_at_depth(isd:ied,jsd:jed,:), &
-                              Time%model_time, mld_taup1(:,:),           &
+                              mld_taup1(:,:),           &
                               smooth_mld_for_subduction)
 
   ! update Dens%mld_subduction 
@@ -1507,7 +1504,7 @@ end subroutine compute_subduction
 ! This routine is very useful for detecting bugs in tracer routines.  
 ! 
 ! </DESCRIPTION>
-subroutine tracer_change (Time, Thickness, T_prog, T_diag, Ext_mode, L_system, &
+subroutine tracer_change (Time, Thickness, T_prog, T_diag, Ext_mode, &
                           pme, melt, runoff, calving)
 
   type(ocean_time_type),          intent(in) :: Time
@@ -1515,7 +1512,6 @@ subroutine tracer_change (Time, Thickness, T_prog, T_diag, Ext_mode, L_system, &
   type(ocean_prog_tracer_type),   intent(in) :: T_prog(:) 
   type(ocean_diag_tracer_type),   intent(in) :: T_diag(:) 
   type(ocean_external_mode_type), intent(in) :: Ext_mode
-  type(ocean_lagrangian_type),    intent(in) :: L_system
   real, dimension(isd:,jsd:),     intent(in) :: pme
   real, dimension(isd:,jsd:),     intent(in) :: melt
   real, dimension(isd:,jsd:),     intent(in) :: runoff
@@ -2321,12 +2317,11 @@ end function klevel_total_mass
 ! Compute some integrated tracer diagnostics. 
 ! </DESCRIPTION>
 !
-subroutine tracer_integrals (Time, Thickness, Tracer, L_system)
+subroutine tracer_integrals (Time, Thickness, Tracer)
 
   type(ocean_time_type),        intent(in) :: Time
   type(ocean_thickness_type),   intent(in) :: Thickness
   type(ocean_prog_tracer_type), intent(in) :: Tracer
-  type(ocean_lagrangian_type),  intent(in) :: L_system
   
   real, dimension(isd:ied,jsd:jed)   :: mass_t
   real, dimension(isd:ied,jsd:jed,3) :: T_field
@@ -2544,12 +2539,11 @@ end subroutine tracer_land_cell_check
 !
 ! </DESCRIPTION>
 !
-subroutine mass_conservation (Time, Thickness, Ext_mode, L_system, pme, runoff, calving)
+subroutine mass_conservation (Time, Thickness, Ext_mode, pme, runoff, calving)
 
   type(ocean_time_type),          intent(in) :: Time
   type(ocean_thickness_type),     intent(in) :: Thickness
   type(ocean_external_mode_type), intent(in) :: Ext_mode
-  type(ocean_lagrangian_type),    intent(in) :: L_system
   real, dimension(isd:,jsd:),     intent(in) :: pme
   real, dimension(isd:,jsd:),     intent(in) :: runoff
   real, dimension(isd:,jsd:),     intent(in) :: calving
@@ -2703,13 +2697,12 @@ end subroutine mass_conservation
 !
 ! </DESCRIPTION>
 !
-subroutine tracer_conservation (Time, Thickness, T_prog, T_diag, L_system, pme, runoff, calving)
+subroutine tracer_conservation (Time, Thickness, T_prog, T_diag, pme, runoff, calving)
 
   type(ocean_time_type),          intent(in) :: Time
   type(ocean_thickness_type),     intent(in) :: Thickness
   type(ocean_prog_tracer_type),   intent(in) :: T_prog(:)
   type(ocean_diag_tracer_type),   intent(in) :: T_diag(:)
-  type(ocean_lagrangian_type),    intent(in) :: L_system
   real, dimension(isd:,jsd:),     intent(in) :: pme
   real, dimension(isd:,jsd:),     intent(in) :: runoff
   real, dimension(isd:,jsd:),     intent(in) :: calving
@@ -3945,9 +3938,8 @@ end subroutine diagnose_tracer_zrho_on_rho
 !           
 ! </DESCRIPTION>
 !
-subroutine calc_potrho_mixed_layer (Time, Thickness, Dens, potrho_mix_depth, potrho_mix_base)
+subroutine calc_potrho_mixed_layer (Thickness, Dens, potrho_mix_depth, potrho_mix_base)
 
-  type(ocean_time_type),      intent(in)            :: Time 
   type(ocean_thickness_type), intent(in)            :: Thickness
   type(ocean_density_type),   intent(in)            :: Dens
   real, dimension(isd:,jsd:), intent(out), optional :: potrho_mix_depth
@@ -4027,13 +4019,13 @@ subroutine potrho_mixed_layer (Time, Thickness, Dens)
 
   next_time = increment_time(Time%model_time, int(dtts), 0)
   if (need_data(id_potrho_mix_depth,next_time) .and. id_potrho_mix_base > 0) then
-    call calc_potrho_mixed_layer (Time, Thickness, Dens,        &
+    call calc_potrho_mixed_layer (Thickness, Dens,        &
          potrho_mix_depth = potrho_mix_depth, potrho_mix_base = potrho_mix_base)
   elseif (need_data(id_potrho_mix_depth,next_time)) then
-    call calc_potrho_mixed_layer (Time, Thickness, Dens,        &
+    call calc_potrho_mixed_layer (Thickness, Dens,        &
          potrho_mix_depth = potrho_mix_depth)
   elseif (id_potrho_mix_base > 0) then
-    call calc_potrho_mixed_layer (Time, Thickness, Dens,        &
+    call calc_potrho_mixed_layer (Thickness, Dens,        &
          potrho_mix_base = potrho_mix_base)
   endif
 

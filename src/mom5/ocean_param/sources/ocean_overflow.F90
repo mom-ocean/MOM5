@@ -960,7 +960,7 @@ subroutine overflow (Time, Thickness, T_prog, Dens, index_temp, index_salt)
            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
   endif
 
-  call watermass_diag(Time, Dens, Thickness, wrk1_v)
+  call watermass_diag(Time, Dens, wrk1_v)
 
 
 end subroutine overflow
@@ -1095,11 +1095,10 @@ end subroutine watermass_diag_init
 ! Diagnose effects from overflow on the watermass transformation.
 ! </DESCRIPTION>
 !
-subroutine watermass_diag(Time, Dens, Thickness, wrk1_v)
+subroutine watermass_diag(Time, Dens, wrk1_v)
 
   type(ocean_time_type),           intent(in)    :: Time
   type(ocean_density_type),        intent(in)    :: Dens
-  type(ocean_thickness_type),      intent(in)    :: Thickness
   real, dimension(isd:,jsd:,:,:),  intent(inout) :: wrk1_v
 
   integer :: i,j,k
