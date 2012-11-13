@@ -232,20 +232,9 @@
 !
 !------------------------------------------------------------------
 
-module  ocean_ibgc_mod  !{
+module  ocean_ibgc_mod
 
-!------------------------------------------------------------------
-!
-!       Global definitions
-!
-!------------------------------------------------------------------
-!
-!       Modules
-!
-!----------------------------------------------------------------------
-!
-
-use diag_manager_mod,         only: send_data
+use diag_manager_mod,         only: send_data, register_diag_field, diag_axis_init
 use field_manager_mod,        only: fm_field_name_len, fm_path_name_len, fm_string_len
 use field_manager_mod,        only: fm_get_length, fm_get_value, fm_new_value, fm_get_index
 use mpp_mod,                  only: input_nml_file, stdout, stdlog, mpp_error, mpp_sum, mpp_chksum, FATAL, NOTE
@@ -253,7 +242,7 @@ use fms_mod,                  only: field_exist, file_exist
 use fms_mod,                  only: open_namelist_file, check_nml_error, close_file
 use fms_io_mod,               only: register_restart_field, save_restart, restore_state
 use fms_io_mod,               only: restart_file_type
-use time_manager_mod,         only: get_date, time_type
+use time_manager_mod,         only: get_date, time_type, days_in_year, days_in_month
 use time_interp_external_mod, only: time_interp_external, init_external_field
 use mpp_domains_mod,          only: domain2d
 use constants_mod,            only: WTMCO2, WTMO2
@@ -266,36 +255,12 @@ use fm_util_mod,              only: fm_util_start_namelist, fm_util_end_namelist
 use ocean_types_mod,          only: ocean_prog_tracer_type, ocean_diag_tracer_type
 use ocean_types_mod,          only: ocean_thickness_type, ocean_density_type, ocean_time_type
 use ocmip2_co2calc_mod,       only: ocmip2_co2calc
-use coupler_types_mod,        only: ind_alpha, ind_csurf, coupler_2d_bc_type
-
-
-!
-!----------------------------------------------------------------------
-!
-!       force all variables to be "typed"
-!
-!----------------------------------------------------------------------
-!
+use coupler_types_mod,        only: ind_alpha, ind_csurf, coupler_2d_bc_type, ind_flux
+use atmos_ocean_fluxes_mod,   only: aof_set_coupler_flux
 
 implicit none
 
-!
-!----------------------------------------------------------------------
-!
-!       Make all routines and variables private by default
-!
-!----------------------------------------------------------------------
-!
-
 private
-
-!
-!----------------------------------------------------------------------
-!
-!       Public routines
-!
-!----------------------------------------------------------------------
-!
 
 public  :: ocean_ibgc_bbc
 public  :: ocean_ibgc_end
@@ -312,23 +277,7 @@ public  :: ocean_ibgc_sfc_end
 public  :: ocean_ibgc_tracer
 public  :: ocean_ibgc_restart
 
-!
-!----------------------------------------------------------------------
-!
-!       Private routines
-!
-!----------------------------------------------------------------------
-!
-
 private :: allocate_arrays
-
-!
-!----------------------------------------------------------------------
-!
-!       Private parameters
-!
-!----------------------------------------------------------------------
-!
 
 character(len=32), parameter              :: package_name = 'ocean_ibgc'
 character(len=48), parameter              :: mod_name = 'ocean_ibgc_mod'
@@ -338,10 +287,7 @@ character(len=fm_string_len), parameter   :: default_local_restart_file =  'ocea
 character(len=fm_string_len), parameter   :: default_ice_restart_file   =    'ice_ibgc.res.nc'
 character(len=fm_string_len), parameter   :: default_ocean_restart_file =  'ocean_ibgc_airsea_flux.res.nc'
 
-!
-!       coefficients for O2 saturation
-!
-
+! coefficients for O2 saturation
 real, parameter :: a_0 = 2.00907
 real, parameter :: a_1 = 3.22014
 real, parameter :: a_2 = 4.05010
@@ -369,17 +315,7 @@ real, parameter :: c_0 = -4.88682e-07
 namelist /ocean_ibgc_nml/ do_ideal, do_po4, do_gasses, do_carbon_comp, do_radiocarbon, &
   do_bgc_felim, do_po4f, do_isio4, do_no3_iso
 
-!
-!----------------------------------------------------------------------
-!
-!       Private types
-!
-!----------------------------------------------------------------------
-!
- 
-!
-
-type ibgc_type  !{
+type ibgc_type
 
   real                                  :: kappa_eppley
   real                                  :: kappa_eppley_remin
@@ -607,27 +543,11 @@ type ibgc_type  !{
   character(len=fm_string_len)          :: local_restart_file
   character(len=fm_field_name_len)      :: name
 
-end type ibgc_type  !}
-
-!
-!----------------------------------------------------------------------
-!
-!       Public variables
-!
-!----------------------------------------------------------------------
-!
+end type ibgc_type
 
 logical, public :: do_ocean_ibgc
 integer, public :: indsal
 integer, public :: indtemp
-
-!
-!----------------------------------------------------------------------
-!
-!       Private variables
-!
-!----------------------------------------------------------------------
-!
 
 integer                                 :: package_index
 logical                                 :: module_initialized = .false.
@@ -635,32 +555,18 @@ logical                                 :: module_initialized = .false.
 character(len=128) :: version = '$Id: ocean_ibgc.F90,v 1.1.2.1 2012/05/15 15:55:19 smg Exp $'
 character(len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
 
-!----------------------------------------------------------------------
-!
 !       Input parameters:
 !
 !  htotal_in            = default value for htotal for an initial run
 !  htotal_scale_lo      = scaling parameter to chose htotallo
 !  htotal_scale_hi      = scaling parameter to chose htotalhi
-!
-!----------------------------------------------------------------------
-!
-
 real                                    :: htotal_in
 real, allocatable, dimension(:,:)       :: htotal_scale_hi
 real                                    :: htotal_scale_hi_in
 real, allocatable, dimension(:,:)       :: htotal_scale_lo
 real                                    :: htotal_scale_lo_in
 
-!
-!----------------------------------------------------------------------
-!
-!       Calculated parameters (with possible initial input values):
-!
-!
-!----------------------------------------------------------------------
-!
-
+! Calculated parameters (with possible initial input values):
 integer                                         :: id_o2_sat = -1
 real, allocatable, dimension(:,:)               :: sc_no_term
 type(ibgc_type), allocatable, dimension(:) :: ibgc
@@ -678,13 +584,6 @@ real, allocatable, dimension(:)                 :: tt
 integer                              :: num_restart = 0
 type(restart_file_type), allocatable :: restart(:)
 
-!
-!-----------------------------------------------------------------------
-!
-!       Subroutine and function definitions
-!
-!-----------------------------------------------------------------------
-!
 
 contains
 
@@ -696,15 +595,7 @@ contains
 ! These are arrays that only exist temporarily.
 ! </DESCRIPTION>
 !
-
-subroutine allocate_arrays(isc, iec, jsc, jec, nk, isd, ied, jsd, jed)  !{
-
-implicit none
-
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine allocate_arrays(isc, iec, jsc, jec, nk, isd, ied, jsd, jed)
 
 integer, intent(in)     :: isc
 integer, intent(in)     :: iec
@@ -716,26 +607,8 @@ integer, intent(in)     :: jsd
 integer, intent(in)     :: jed
 integer, intent(in)     :: nk
 
-!
-!       local variables
-!
 
-integer :: i
-integer :: j
-integer :: k
-integer :: l
-integer :: m
-integer :: n
-
-!
-!-----------------------------------------------------------------------
-!     start executable code
-!-----------------------------------------------------------------------
-!     
-
-!
-!       global variables
-!
+integer :: i, j, k, l, m, n
 
 allocate( sc_no_term(isc:iec,jsc:jec) )
 allocate( htotal_scale_lo(isc:iec,jsc:jec) )
@@ -749,10 +622,7 @@ allocate( ts3(isc:iec) )
 allocate( ts4(isc:iec) )
 allocate( ts5(isc:iec) )
 
-!
-!       initialize some arrays
-!
-
+! initialize some arrays
 sc_no_term(:,:)      = 0.0
 htotal_scale_lo(:,:) = 0.0
 htotal_scale_hi(:,:) = 0.0
@@ -765,10 +635,8 @@ ts3(:) = 0.0
 ts4(:) = 0.0
 ts5(:) = 0.0
 
-!
-!       allocate ibgc array elements
-!
-do n = 1, instances  !{
+! allocate ibgc array elements
+do n = 1, instances
 
   allocate( ibgc(n)%sc_co2(isc:iec,jsc:jec) )
   allocate( ibgc(n)%sc_o2(isc:iec,jsc:jec) )
@@ -831,12 +699,12 @@ do n = 1, instances  !{
   allocate( ibgc(n)%jidi14c(isc:iec,jsc:jec,nk) )
   allocate( ibgc(n)%jio2(isc:iec,jsc:jec,nk) )
 
-enddo !} n
+enddo
 
-do n = 1, instances  !{
+do n = 1, instances
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
      ibgc(n)%sc_co2(i,j) = 0.0
      ibgc(n)%sc_o2(i,j) = 0.0
      ibgc(n)%alpha(i,j) = 0.0
@@ -849,7 +717,7 @@ do n = 1, instances  !{
      ibgc(n)%frac_14catm(i,j) = ibgc(n)%frac_14catm_const
      ibgc(n)%pco2surf(i,j) = 0.0
      ibgc(n)%pco2satsurf(i,j) = 0.0
-      do k = 1, nk !{
+      do k = 1, nk
        ibgc(n)%jideal_n(i,j,k) = 0.0
        ibgc(n)%jsuntan(i,j,k) = 0.0
        ibgc(n)%remin_ip(i,j,k) = 0.0
@@ -898,14 +766,14 @@ do n = 1, instances  !{
        ibgc(n)%fpi14c(i,j,k) = 0.0
        ibgc(n)%jidi14c(i,j,k) = 0.0
        ibgc(n)%jio2(i,j,k) = 0.0
-      enddo  !} k
-    enddo  !} i
-  enddo  !} j
+      enddo
+    enddo
+  enddo
 
-enddo  !} n
+enddo
 
 return
-end subroutine  allocate_arrays  !}
+end subroutine  allocate_arrays
 ! </SUBROUTINE> NAME="allocate_arrays"
 
 
@@ -918,40 +786,9 @@ end subroutine  allocate_arrays  !}
 ! </DESCRIPTION>
 !
 
-subroutine ocean_ibgc_bbc  !{
+subroutine ocean_ibgc_bbc
 
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-!
-!-----------------------------------------------------------------------
-!     arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-return
-
-end subroutine  ocean_ibgc_bbc  !}
+end subroutine  ocean_ibgc_bbc
 ! </SUBROUTINE> NAME="ocean_ibgc_bbc"
 
 
@@ -964,21 +801,7 @@ end subroutine  ocean_ibgc_bbc  !}
 ! </DESCRIPTION>
 
 subroutine ocean_ibgc_end(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,      &
-     T_prog, T_diag, grid_dat, grid_tmask, mpp_domain2d, rho_dzt, taup1)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!     Arguments
-!-----------------------------------------------------------------------
-!
+     T_prog, T_diag, grid_dat, grid_tmask, mpp_domain2d, rho_dzt, taup1)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -997,50 +820,22 @@ real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 type(domain2d), intent(in)                              :: mpp_domain2d
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 
-!
-
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
 character(len=64), parameter    :: sub_name = 'ocean_ibgc_end'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-integer :: i
-integer :: j
-integer :: k
-integer :: n
+integer :: i, j, k, n
 character(len=fm_field_name_len+1)      :: suffix
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-!-----------------------------------------------------------------------
-!     statement functions
-!-----------------------------------------------------------------------
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!-----------------------------------------------------------------------
-!       save out additional information for a restart
-!-----------------------------------------------------------------------
-!
+  ! save out additional information for a restart
 
 write(stdoutunit,*)
 call ocean_ibgc_restart
 
-do n = 1, instances  !{
+do n = 1, instances
 
   write(stdoutunit,*) trim(note_header),                         &
        'Writing additional restart information for instance ', &
@@ -1050,10 +845,10 @@ do n = 1, instances  !{
        'Done writing additional restart information for instance ',&
        trim(ibgc(n)%name)
 
-enddo  !} n
+enddo
 
 return
-end subroutine  ocean_ibgc_end  !}
+end subroutine  ocean_ibgc_end
 ! </SUBROUTINE> NAME="ocean_ibgc_end"
 
 
@@ -1066,10 +861,6 @@ subroutine ocean_ibgc_restart(time_stamp)
   character(len=*),             intent(in), optional :: time_stamp
   integer :: n
 
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-
 character(len=64), parameter    :: sub_name = 'ocean_ibgc_restart'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
@@ -1081,16 +872,13 @@ character(len=256), parameter   :: note_header =                                
      call save_restart(restart(n), time_stamp)
   end do
 
-!
-!       perform checksums on restart fields
-!
-
+  ! perform checksums on restart fields
 write (stdoutunit,*)
 write (stdoutunit,*) trim(note_header), ' Saved check sums for extra variables'
-do n = 1, instances  !{
+do n = 1, instances
   write(stdoutunit,*) 'htotal chksum = ', mpp_chksum(ibgc(n)%htotal)
   write(stdoutunit,*) 'htotal_sat chksum = ', mpp_chksum(ibgc(n)%htotal_sat)
-enddo  !} n
+enddo
 write (stdoutunit,*)
 
 end subroutine ocean_ibgc_restart
@@ -1107,18 +895,7 @@ end subroutine ocean_ibgc_restart
 
 subroutine ocean_ibgc_sbc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,        &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd, T_prog, tau, model_time,    &
-     grid_tmask, ice_ocean_boundary_fluxes)  !{
-
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-
-use coupler_types_mod, only       : coupler_2d_bc_type, ind_flux
-use mpp_mod, only                 : mpp_sum
-
-!-----------------------------------------------------------------------
-!     arguments
-!-----------------------------------------------------------------------
+     grid_tmask, ice_ocean_boundary_fluxes)
 
 integer, intent(in)                                       :: isc
 integer, intent(in)                                       :: iec
@@ -1139,21 +916,9 @@ type(time_type), intent(in)                               :: model_time
 real, dimension(isd:,jsd:,:), intent(in)                  :: grid_tmask
 type(coupler_2d_bc_type), intent(in)                      :: ice_ocean_boundary_fluxes
 
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-
-integer :: i
+integer :: i, j, k, n, m
 integer :: i_bnd_off
 integer :: j_bnd_off
-integer :: j
-integer :: k
-integer :: n
-integer :: m
 integer :: kz
 integer :: hour
 integer :: day
@@ -1165,95 +930,84 @@ integer :: second
 integer :: year
 logical :: used
 
-! =====================================================================
-!     begin executable code
-! =====================================================================
-
-!---------------------------------------------------------------------
 !     use the surface fluxes from the coupler
 !       stf is in mol/m^2/s, flux from coupler is positive upwards
-!---------------------------------------------------------------------
-!
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
-if (do_gasses) then                                               !<< GASSES
+if (do_gasses) then
 
-do n = 1, instances  !{
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+do n = 1, instances
+  do j = jsc, jec
+    do i = isc, iec
   t_prog(ibgc(n)%ind_idic)%stf(i,j) =                                     &
    -ice_ocean_boundary_fluxes%bc(ibgc(n)%ind_co2_flux)%field(ind_flux)%values(i-i_bnd_off,j-j_bnd_off)
   t_prog(ibgc(n)%ind_io2)%stf(i,j) =                      &
    -ice_ocean_boundary_fluxes%bc(ibgc(n)%ind_o2_flux)%field(ind_flux)%values(i-i_bnd_off,j-j_bnd_off)
-    enddo  !} i
-  enddo  !} j
-enddo  !} n 
+    enddo
+  enddo
+enddo
 
-!-----------------------------------------------------------------------
-!       Save variables for diagnostics
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
-  if (ibgc(n)%id_sfc_flux_co2 .gt. 0) then !{
+! Save variables for diagnostics
+do n = 1, instances
+  if (ibgc(n)%id_sfc_flux_co2 .gt. 0) then
     used = send_data(ibgc(n)%id_sfc_flux_co2,           &
          t_prog(ibgc(n)%ind_idic)%stf(:,:),             &
          model_time, rmask = grid_tmask(:,:,1),         &
          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif !}
-  if (ibgc(n)%id_sfc_flux_o2 .gt. 0) then !{
+  endif
+  if (ibgc(n)%id_sfc_flux_o2 .gt. 0) then
     used = send_data(ibgc(n)%id_sfc_flux_o2,            &
          t_prog(ibgc(n)%ind_io2)%stf(:,:),              &
          model_time, rmask = grid_tmask(:,:,1),         &
          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif !}
-enddo  !} n
+  endif
+enddo
 
 
-if (do_carbon_comp) then                                      !<< CARBON COMP
-do n = 1, instances  !{
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+if (do_carbon_comp) then
+do n = 1, instances
+  do j = jsc, jec
+    do i = isc, iec
   t_prog(ibgc(n)%ind_idic_sat)%stf(i,j) =               &
    -ice_ocean_boundary_fluxes%bc(ibgc(n)%ind_co2sat_flux)%field(ind_flux)%values(i-i_bnd_off,j-j_bnd_off)
-    enddo  !} i
-  enddo  !} j
-enddo  !} n 
-do n = 1, instances  !{
-  if (ibgc(n)%id_sfc_flux_co2sat .gt. 0) then !{
+    enddo
+  enddo
+enddo
+do n = 1, instances
+  if (ibgc(n)%id_sfc_flux_co2sat .gt. 0) then
     used = send_data(ibgc(n)%id_sfc_flux_co2sat,        &
          t_prog(ibgc(n)%ind_idic_sat)%stf(:,:),         &
          model_time, rmask = grid_tmask(:,:,1),         &
          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif !}
-enddo  !} n
-endif                                                         !CARBON COMP >>
+  endif
+enddo
+endif
 
-if (do_radiocarbon) then                                      !<< RADIOCARBON
-do n = 1, instances  !{
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+if (do_radiocarbon) then
+do n = 1, instances
+  do j = jsc, jec
+    do i = isc, iec
   t_prog(ibgc(n)%ind_idi14c)%stf(i,j) =                  &
    -ice_ocean_boundary_fluxes%bc(ibgc(n)%ind_14co2_flux)%field(ind_flux)%values(i-i_bnd_off,j-j_bnd_off)
-    enddo  !} i
-  enddo  !} j
-enddo  !} n 
-do n = 1, instances  !{
-  if (ibgc(n)%id_sfc_flux_14co2 .gt. 0) then !{
+    enddo
+  enddo
+enddo
+do n = 1, instances
+  if (ibgc(n)%id_sfc_flux_14co2 .gt. 0) then
     used = send_data(ibgc(n)%id_sfc_flux_14co2,         &
          t_prog(ibgc(n)%ind_idi14c)%stf(:,:),           &
          model_time, rmask = grid_tmask(:,:,1),         &
          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif !}
-enddo  !} n
-endif                                                        !RADIOCARBON >>
+  endif
+enddo
+endif
 
-endif                                                             !GASSES >>
+endif
 
 return
 
-end subroutine  ocean_ibgc_sbc  !}
+end subroutine  ocean_ibgc_sbc
 ! </SUBROUTINE> NAME="ocean_ibgc_sbc"
 
 
@@ -1264,29 +1018,13 @@ end subroutine  ocean_ibgc_sbc  !}
 !       Set up any extra fields needed by the ocean-atmosphere gas fluxes
 ! </DESCRIPTION>
 
-subroutine ocean_ibgc_flux_init  !{
-
-use atmos_ocean_fluxes_mod, only: aof_set_coupler_flux
-
-implicit none
-
-
-!
-!       local parameters
-!
+subroutine ocean_ibgc_flux_init
 
 character(len=64), parameter    :: sub_name = 'ocean_ibgc_flux_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!-----------------------------------------------------------------------
-!       arguments
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
 
 integer                                                 :: n
 character(len=fm_field_name_len)                        :: name
@@ -1297,110 +1035,81 @@ character(len=256)                                      :: caller_str
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
 !       First, perform some initialization if this module has not been
 !       initialized because the normal initialization routine will
 !       not have been called as part of the normal ocean model
 !       initialization if this is an Atmosphere pe of a coupled
 !       model running in concurrent mode
-!
+if (.not. module_initialized) then
 
-if (.not. module_initialized) then  !{
-
-!
-!       Initialize the package
-!
-
+   ! Initialize the package
   package_index = otpm_set_tracer_package(package_name,            &
        restart_file = default_restart_file,                        &
        caller = trim(mod_name) // '(' // trim(sub_name) // ')')
 
-!
-!       Check whether to use this package
-!
-
+  ! Check whether to use this package
   path_to_names = '/ocean_mod/tracer_packages/' // trim(package_name) // '/names'
   instances = fm_get_length(path_to_names)
-  if (instances .lt. 0) then  !{
+  if (instances .lt. 0) then
     call mpp_error(FATAL, trim(error_header) // ' Could not get number of instances')
-  endif  !}
-
-!
-!       Check some things
-!
+  endif
 
   write (stdoutunit,*)
-  if (instances .eq. 0) then  !{
+  if (instances .eq. 0) then
     write (stdoutunit,*) trim(note_header), ' No instances'
     do_ocean_ibgc = .false.
-  else  !}{
-    if (instances .eq. 1) then  !{
+  else
+    if (instances .eq. 1) then
       write (stdoutunit,*) trim(note_header), ' ', instances, ' instance'
-    else  !}{
+    else
       write (stdoutunit,*) trim(note_header), ' ', instances, ' instances'
-    endif  !}
+    endif
     do_ocean_ibgc = .true.
-  endif  !}
+  endif
 
   module_initialized = .true.
 
-endif  !}
+endif
 
-!
-!       Return if we do not want to use this package
-!
-
-if (.not. do_ocean_ibgc) then  !{
+! return if we do not want to use this package
+if (.not. do_ocean_ibgc) then
   return
-endif  !}
+endif
 
-if (.not. allocated(ibgc)) then  !{
+if (.not. allocated(ibgc)) then
 
-!
-!       allocate storage for ibgc array
-!
-
+   ! allocate storage for ibgc array
   allocate ( ibgc(instances) )
 
-!
-!       loop over the names, saving them into the ibgc array
-!
+  ! loop over the names, saving them into the ibgc array
+  do n = 1, instances
 
-  do n = 1, instances  !{
-
-    if (fm_get_value(path_to_names, name, index = n)) then  !{
+    if (fm_get_value(path_to_names, name, index = n)) then
       ibgc(n)%name = name
-    else  !}{
+    else
       write (name,*) n
       call mpp_error(FATAL, trim(error_header) //        &
            'Bad field name for index ' // trim(name))
-    endif  !}
+    endif
 
-  enddo  !}
+  enddo
 
-endif  !}
+endif
 
-if (do_gasses) then                                          !<<GASSES
-
-!
-!       Set up the ocean-atmosphere gas flux fields
-!
-
+if (do_gasses) then
+   ! Set up the ocean-atmosphere gas flux fields
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
-do n = 1, instances  !{
+do n = 1, instances
 
   name = ibgc(n)%name
-  if (name(1:1) .eq. '_') then  !{
+  if (name(1:1) .eq. '_') then
     suffix = ' '
-  else  !}{
+  else
     suffix = '_' // name
-  endif  !}
+  endif
 
-!
-!       Coupler fluxes
-!
-
+  ! Coupler fluxes
   ibgc(n)%ind_co2_flux = aof_set_coupler_flux('ico2_flux' // suffix,            &
        flux_type = 'air_sea_gas_flux', implementation = 'ocmip2',               &
        mol_wt = WTMCO2, param = (/ 9.36e-07, 9.7561e-06 /),                     &
@@ -1415,35 +1124,31 @@ do n = 1, instances  !{
        ocean_restart_file = default_ocean_restart_file,                         &
        caller = caller_str)
 
-if (do_carbon_comp) then                                      !<< CARBON COMP
+if (do_carbon_comp) then
   ibgc(n)%ind_co2sat_flux = aof_set_coupler_flux('ico2sat_flux' // suffix,      &
        flux_type = 'air_sea_gas_flux', implementation = 'ocmip2',               &
        mol_wt = WTMCO2, param = (/ 9.36e-07, 9.7561e-06 /),                     &
        ice_restart_file = default_ice_restart_file,                             &
        ocean_restart_file = default_ocean_restart_file,                         &
        caller = caller_str)
-endif                                                         !CARBON COMP >>
+endif
 
-if (do_radiocarbon) then                                      !<< RADIOCARBON
+if (do_radiocarbon) then
   ibgc(n)%ind_14co2_flux = aof_set_coupler_flux('i14co2_flux' // suffix,        &
        flux_type = 'air_sea_gas_flux', implementation = 'ocmip2',               &
        mol_wt = WTMCO2, param = (/ 9.36e-07, 9.7561e-06 /),                     &
        ice_restart_file = default_ice_restart_file,                             &
        ocean_restart_file = default_ocean_restart_file,                         &
        caller = caller_str)
-endif                                                        !RADIOCARBON >>
+endif
 
-!
-!       Coupler fields
-!
+enddo
 
-enddo  !} n
-
-endif                                                             !GASSES >>
+endif
 
 return
 
-end subroutine  ocean_ibgc_flux_init  !}
+end subroutine  ocean_ibgc_flux_init
 ! </SUBROUTINE> NAME="ocean_ibgc_flux_init"
 
 !#######################################################################
@@ -1455,11 +1160,7 @@ end subroutine  ocean_ibgc_flux_init  !}
 !       Save pointers to various "types", such as Grid and Domains.
 ! </DESCRIPTION>
 
-subroutine ocean_ibgc_init  !{
-
-!
-!       local parameters
-!
+subroutine ocean_ibgc_init
 
 character(len=64), parameter    :: sub_name = 'ocean_ibgc_init'
 character(len=256), parameter   :: error_header =                               &
@@ -1468,15 +1169,6 @@ character(len=256), parameter   :: note_header =                                
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 
 real, parameter :: sperd = 24.0 * 3600.0
-
-!
-!-----------------------------------------------------------------------
-!       arguments
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 
 integer                                                 :: ioun
 integer                                                 :: n
@@ -1494,56 +1186,40 @@ character(len=fm_string_len), pointer, dimension(:)     :: good_list
   integer :: stdoutunit,stdlogunit 
   stdoutunit=stdout();stdlogunit=stdlog() 
 
-!
-!       Initialize the package
-!
-
+  ! Initialize the package
 package_index = otpm_set_tracer_package(package_name,                 &
      restart_file = default_restart_file,                             &
      caller = trim(mod_name) // '(' // trim(sub_name) // ')')
 
-!
-!       Check whether to use this package
-!
-
+! Check whether to use this package
 path_to_names = '/ocean_mod/tracer_packages/' // trim(package_name) // '/names'
 instances = fm_get_length(path_to_names)
-if (instances .lt. 0) then  !{
+if (instances .lt. 0) then
   call mpp_error(FATAL, trim(error_header) // 'Could not get number of instances')
-endif  !}
-
-!
-!       Check some things
-!
+endif
 
 write (stdoutunit,*)
-if (instances .eq. 0) then  !{
+if (instances .eq. 0) then
   write (stdoutunit,*) trim(note_header), ' No instances'
   do_ocean_ibgc = .false.
-else  !}{
-  if (instances .eq. 1) then  !{
+else
+  if (instances .eq. 1) then
     write (stdoutunit,*) trim(note_header), ' ', instances, ' instance'
-  else  !}{
+  else
     write (stdoutunit,*) trim(note_header), ' ', instances, ' instances'
-  endif  !}
+  endif
   do_ocean_ibgc = .true.
-endif  !}
+endif
 
 module_initialized = .true.
 
-!
-!       Return if we do not want to use this package,
-!       after changing the list back
-!
-
-if (.not. do_ocean_ibgc) then  !{
+! Return if we do not want to use this package,
+! after changing the list back
+if (.not. do_ocean_ibgc) then
   return
-endif  !}
+endif
 
-!
 ! provide for namelist over-ride
-!
-
 #ifdef INTERNAL_FILE_NML
 read (input_nml_file, nml=ocean_ibgc_nml, iostat=io_status)
 ierr = check_nml_error(io_status,'ocean_ibgc_nml')
@@ -1557,7 +1233,7 @@ write (stdoutunit,'(/)')
 write (stdoutunit, ocean_ibgc_nml)  
 write (stdlogunit, ocean_ibgc_nml)
 
-do n = 1, instances  !{
+do n = 1, instances
 
   if ((do_gasses) .and. ((do_po4) .or. (do_po4f))) then
     write (stdoutunit,*) trim(note_header), 'Doing iBGC gasses'
@@ -1594,292 +1270,202 @@ do n = 1, instances  !{
          'Do_bgc_felim requires do_po4f' // trim(name))
   endif
   
-enddo  !}
+enddo
 
-
-!
 !       Otherwise, go ahead to allocate storage for ibgc array.
-!
-
 allocate ( ibgc(instances) )
 
-!
-!       Loop over the names, saving them into the ibgc array.
-!
+! Loop over the names, saving them into the ibgc array.
+do n = 1, instances
 
-do n = 1, instances  !{
-
-  if (fm_get_value(path_to_names, name, index = n)) then  !{
+  if (fm_get_value(path_to_names, name, index = n)) then
     ibgc(n)%name = name
-  else  !}{
+  else
     write (name,*) n
     call mpp_error(FATAL, trim(error_header) //        &
          'Bad field name for index ' // trim(name))
-  endif  !}
+  endif
 
-enddo  !}
+enddo
 
-!
-!       Set up the field input
-!
-
+! Set up the field input
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
-do n = 1, instances  !{
+do n = 1, instances
 
   name = ibgc(n)%name
-  if (name(1:1) .eq. '_') then  !{
+  if (name(1:1) .eq. '_') then
     suffix = ' '
     long_suffix = ' '
-  else  !}{
+  else
     suffix = '_' // name
     long_suffix = ' (' // trim(name) // ')'
-  endif  !}
+  endif
 
-if (do_ideal) then                                                 !<<IDEAL
-
-!
-!       Ideal_N
-!
-
+if (do_ideal) then
+   ! Ideal_N
   ibgc(n)%ind_ideal_n = otpm_set_prog_tracer('ideal_n' // suffix, package_name,   &
        longname = 'Ideal Nutrient' // trim(long_suffix),                          &
        units = 'mol kg-1', flux_units = 'mol m-2 s-1',                            &
        caller = caller_str)
 
-!
-!       Suntan
-!
-
+  ! Suntan
   ibgc(n)%ind_suntan = otpm_set_prog_tracer('suntan' // suffix, package_name,     &
        longname = 'Suntan' // trim(long_suffix),                                  &
        units = 'J kg-1', flux_units = 'W/kg-1',                                   &
        caller = caller_str)
+endif
 
-endif                                                              !IDEAL >>
-
-if (do_po4) then                                                     !<<PO4
-
-!
-!       PO4
-!
-
+if (do_po4) then
+   ! PO4
   ibgc(n)%ind_ipo4 = otpm_set_prog_tracer('ipo4' // suffix, package_name,         &
        longname = 'Phosphate' // trim(long_suffix),                               &
        units = 'mol/kg', flux_units = 'mol m-2 s-1',                              &
        caller = caller_str)
 
-!
-!       DOP
-!
-
+  ! DOP
   ibgc(n)%ind_idop = otpm_set_prog_tracer('idop' // suffix, package_name,         &
        longname = 'DOP' // trim(long_suffix),                                     &
        units = 'mol/kg', flux_units = 'mol m-2 s-1',                              &
        caller = caller_str)
 
-endif                                                                !PO4 >>
+endif
 
-if (do_po4f) then                                                   !<<PO4f
-
-!
-!       PO4 Fe/Irr lim 
-!
-
+if (do_po4f) then
+   ! PO4 Fe/Irr lim 
   ibgc(n)%ind_ipo4f = otpm_set_prog_tracer('ipo4f' // suffix, package_name,       &
        longname = 'Phosphate Fe/Irr lim' // trim(long_suffix),                    &
        units = 'mol/kg', flux_units = 'mol m-2 s-1',                              &
        caller = caller_str)
-!
-!       DOPf
-!
 
+  ! DOPf
   ibgc(n)%ind_idopf = otpm_set_prog_tracer('idopf' // suffix, package_name,       &
        longname = 'DOPf' // trim(long_suffix),                                    &
        units = 'mol/kg', flux_units = 'mol m-2 s-1',                              &
        caller = caller_str)
-!
-!       Fe Fe/Irr lim 
-!
 
+  ! Fe Fe/Irr lim 
   ibgc(n)%ind_ife = otpm_set_prog_tracer('ife' // suffix, package_name,           &
        longname = 'Iron Fe/Irr lim' // trim(long_suffix),                         &
        units = 'mmol/kg', flux_units = 'mmol m-2 s-1',                            &
        caller = caller_str)
 
-endif                                                               !PO4f >>
+endif
 
-if ((do_po4f) .or. (do_po4)) then                                !<< Any PO4
-
-!
-!       Preformed PO4
-!
-
+if ((do_po4f) .or. (do_po4)) then
+   ! Preformed PO4
   ibgc(n)%ind_ipo4_pre = otpm_set_prog_tracer('ipo4_pre' // suffix, package_name, &
        longname = 'Preformed iPO4' // trim(long_suffix),                          &
        units = 'mol/kg', flux_units = 'mol m-2 s-1',                              &
        caller = caller_str)
-!
-!       Irradiance memory
-!
 
+  ! Irradiance memory
   ibgc(n)%ind_irrmem = otpm_set_diag_tracer('irrmem' // suffix, package_name,   &
        longname = 'Irradiance memory' // trim(long_suffix),               &
        restart_file = default_restart_file,                         &
        units = 'Watts/m^2',const_init_tracer=.true.,    &
        const_init_value=0.0)
 
-!
-!       Chlorophyll
-!
-
+  ! Chlorophyll
   ibgc(n)%ind_ichl = otpm_set_diag_tracer('ichl' // suffix, package_name,         &
        longname = 'Chlorophyll' // trim(long_suffix),                             &
        restart_file = default_restart_file,                                       &
        units = 'ug/kg', const_init_tracer=.true.,                                 &
        const_init_value=0.08)
 
-endif                                                            !Any PO4 >>
+endif
 
-if (do_gasses) then                                               !<< GASSES
-
-!
-!       DIC
-!
-
+if (do_gasses) then
+   ! DIC
   ibgc(n)%ind_idic = otpm_set_prog_tracer('idic' // suffix, package_name,         &
        longname = 'DIC' // trim(long_suffix),                                     &
        units = 'mol/kg', flux_units = 'mol m-2 s-1',                              &
        caller = caller_str)
 
-!
-!       O2
-!
-
+  ! O2
   ibgc(n)%ind_io2 = otpm_set_prog_tracer('io2' // suffix, package_name,           &
        longname = 'O2' // trim(long_suffix),                                      &
        units = 'mol/kg', flux_units = 'mol m-2 s-1',                              &
        caller = caller_str)
 
-if (do_carbon_comp) then                                      !<< CARBON COMP
-!
-!       Saturation DIC
-!
-
+if (do_carbon_comp) then
+   ! Saturation DIC
   ibgc(n)%ind_idic_sat = otpm_set_prog_tracer('idic_sat' // suffix, package_name, &
        longname = 'Saturation DIC' // trim(long_suffix),                          &
        units = 'mol/kg', flux_units = 'mol m-2 s-1',                              &
        caller = caller_str)
 
-!
-!       Preformed DIC
-!
-
+  ! Preformed DIC
   ibgc(n)%ind_idic_pre = otpm_set_prog_tracer('idic_pre' // suffix, package_name, &
        longname = 'Preformed iDIC' // trim(long_suffix),                          &
        units = 'mol/kg', flux_units = 'mol m-2 s-1',                              &
        caller = caller_str)
+endif
 
-endif                                                         !CARBON COMP >>
-
-if (do_radiocarbon) then                                      !<< RADIOCARBON
-!
-!       DI14C
-!
-
+if (do_radiocarbon) then
+  ! DI14C
   ibgc(n)%ind_idi14c = otpm_set_prog_tracer('idi14c' // suffix, package_name,     &
        longname = 'DI14C' // trim(long_suffix),                                   &
        units = 'mol/kg', flux_units = 'mol m-2 s-1',                              &
        caller = caller_str)
 
-!
-!       DO14C
-!
-
+  ! DO14C
   ibgc(n)%ind_ido14c = otpm_set_prog_tracer('ido14c' // suffix, package_name,     &
        longname = 'DO14C' // trim(long_suffix),                                   &
        units = 'mol/kg', flux_units = 'mol m-2 s-1',                              &
        caller = caller_str)
-endif                                                        !RADIOCARBON >>
+endif
 
-endif                                                             !GASSES >>
+endif
 
-if (do_no3_iso) then                                        !<< NO3 ISOTOPES
-
-!
-!       15no3
-!
-
+if (do_no3_iso) then
+   ! 15no3
   ibgc(n)%ind_i15no3 = otpm_set_prog_tracer('i15no3' // suffix, package_name,     &
        longname = '15NO3' // trim(long_suffix),                                   &
        units = 'mol/kg', flux_units = 'mol m-2 s-1',                              &
        caller = caller_str)
 
-!
-!       DO15N
-!
-
+  ! DO15N
   ibgc(n)%ind_ido15n = otpm_set_prog_tracer('ido15n' // suffix, package_name,     &
        longname = 'DO15N' // trim(long_suffix),                                   &
        units = 'mol/kg', flux_units = 'mol m-2 s-1',                              &
        caller = caller_str)
 
-!
-!       n18o3
-!
-
+  ! n18o3
   ibgc(n)%ind_in18o3 = otpm_set_prog_tracer('in18o3' // suffix, package_name,     &
        longname = 'N18O3' // trim(long_suffix),                                   &
        units = 'mol/kg', flux_units = 'mol m-2 s-1',                              &
        caller = caller_str)
 
-endif                                                       !NO3 ISOTOPES >>
+endif
 
-if (do_isio4) then                                                !<< SILICA
-!
-!       SiO4
-!
-
+if (do_isio4) then
+   ! SiO4
   ibgc(n)%ind_isio4 = otpm_set_prog_tracer('isio4' // suffix, package_name,       &
        longname = 'Silicate' // trim(long_suffix),                                &
        units = 'mol/kg', flux_units = 'mol m-2 s-1',                              &
        caller = caller_str)
 
-!
-!       30SiO4
-! 
-
+  ! 30SiO4
   ibgc(n)%ind_i30sio4 = otpm_set_prog_tracer('i30sio4' // suffix, package_name,   &
        longname = '30SiO4' // trim(long_suffix),                                  &
        units = 'mol/kg', flux_units = 'mol m-2 s-1',                              &
        caller = caller_str)
 
-endif                                                             !SILICA >>
+endif
 
-enddo  !} n
+enddo
 
+! Process the namelists
 
-!
-!-----------------------------------------------------------------------
-!       Process the namelists
-!-----------------------------------------------------------------------
-!
-
-!
-!       Add the package name to the list of good namelists, to be used
-!       later for a consistency check
-!
-
-if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) .le. 0) then  !{
+! Add the package name to the list of good namelists, to be used
+! later for a consistency check
+if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) .le. 0) then
   call mpp_error(FATAL, trim(error_header) //                           &
        ' Could not add ' // trim(package_name) // ' to "good_namelists" list')
-endif  !}
+endif
 
-!-----------------------------------------------------------------------
-!       Set up the *global* namelist
-!-----------------------------------------------------------------------
-!
-
+! Set up the *global* namelist
 call fm_util_start_namelist(package_name, '*global*', caller = caller_str, no_overwrite = .true., &
      check = .true.)
 
@@ -1888,41 +1474,32 @@ call fm_util_set_value('htotal_scale_hi_in', 1000.0)
 call fm_util_set_value('htotal_in', 1.0e-08)
 
 call fm_util_end_namelist(package_name, '*global*', caller = caller_str, check = .true.)
-!
-!-----------------------------------------------------------------------
-!       Set up the instance namelists
-!-----------------------------------------------------------------------
-!
 
+! Set up the instance namelists
 t_mask(:) = .true.
 
-do n = 1, instances  !{
+do n = 1, instances
 
-!
-!-----------------------------------------------------------------------
-!       create the instance namelist
-!-----------------------------------------------------------------------
-!
-
+   !       create the instance namelist
   call fm_util_start_namelist(package_name, ibgc(n)%name, caller = caller_str, no_overwrite = .true., &
        check = .true.)
 
   call fm_util_set_value('local_restart_file', default_local_restart_file)
 
-! Global constants
+  ! Global constants
   call fm_util_set_value('kappa_eppley', 0.0378)         ! deg C-1. 
   call fm_util_set_value('kappa_eppley_remin', 0.0249)   ! deg C-1. 
   call fm_util_set_value('irrk', 20.)                    !Light half-saturation constant W m-2
 
-! Ideal Nutrient constants
+  ! Ideal Nutrient constants
   call fm_util_set_value('ideal_n_vmax', 0.007 / sperd)  ! Maximum uptake rate mol kg-1 s-1
   call fm_util_set_value('ideal_n_k', 0.2)               ! Nutrient half-saturation constant mol kg-1
   call fm_util_set_value('ideal_n_r', 0.00025 / sperd)   ! regeneration rate s-1
 
-! Suntan constant
+  ! Suntan constant
   call fm_util_set_value('suntan_fade', 0.01 )           ! Suntan fading rate W m-3 s-1
 
-! Ideal Phosphate constants
+  ! Ideal Phosphate constants
   call fm_util_set_value('ipo4_vmax', 0.010 * 2.16e-6 / sperd) ! Maximum uptake rate mol kg-1 s-1 at 0C
   call fm_util_set_value('ipo4_k', 0.2 * 2.16e-6)        ! Nutrient half-saturation constant mol kg-1
   call fm_util_set_value('idop_frac', 0.65)              ! fraction of total production converted to dissolved pool
@@ -1933,12 +1510,12 @@ do n = 1, instances  !{
 
   call fm_util_set_value('gamma_isi', 0.02 / sperd)      ! remineralization rate for silica
 
-! Ideal Chlorophyll constants
+  ! Ideal Chlorophyll constants
   call fm_util_set_value('uptake_2_chl', 3.e13)          ! convert uptake rate to chl concentration mg-chl s molP-1
   call fm_util_set_value('ichl_lag', 0.5 / sperd)        ! Smoothing timescale for ichl adjustment s-1
   call fm_util_set_value('ichl_highlight', 0.1)          ! Fractional ichl:iP reduction under intense light
 
-! Ideal Iron constants
+  ! Ideal Iron constants
   call fm_util_set_value('ipo4f_vmax', 0.012 * 2.16e-6 / sperd) ! Maximum uptake rate for PO4f mol kg-1 s-1 at 0C
   call fm_util_set_value('ligand_tot', 1. * 1.e-6)       !Ligand concentration mmol kg-1, Parekh 2005
   call fm_util_set_value('ligand_k', 1.e8)               ! Ligand stability constant, kg mmol-1 Dutkiewicz 2005
@@ -1946,12 +1523,12 @@ do n = 1, instances  !{
   call fm_util_set_value('ife_irrsuf', 0.25 * 1.e-6)     !Iron-sufficient-ish Fe concentration for IRRk calc mmol kg-1
   call fm_util_set_value('ife_supply', 0.02  * 1.e-3 / sperd) ! Average global Fe input to surface mmol m-2 s-1
 
-! Ideal isotope fractionations
+  ! Ideal isotope fractionations
 !  call fm_util_set_value('alpha_12c_13c', 1.04)         ! 14C isotope fractionation factor (=2x13c)
   call fm_util_set_value('alpha_14n_15n', 1.005)         ! Nitrogen isotope fractionation factor
   call fm_util_set_value('alpha_28si_30si', 1.001)       ! Silicon isotope fractionation factor
-
-! Gases 
+  
+  ! Gases 
   call fm_util_set_value('o2_2_ip', 170.)                ! Molar O2 to P ratio
   call fm_util_set_value('io2_min', 2.e-6)               ! Minimum O2 concentration
 
@@ -1964,7 +1541,7 @@ do n = 1, instances  !{
   call fm_util_set_value('frac_14catm_name', ' ')
   call fm_util_set_value('frac_14catm_const', ibgc(n)%frac_14catm_const)
 
-!New Wanninkhof numbers
+  !New Wanninkhof numbers
   call fm_util_set_value('sc_co2_0', 2068.9)
   call fm_util_set_value('sc_co2_1', -118.63)
   call fm_util_set_value('sc_co2_2', 2.9311)
@@ -1974,28 +1551,25 @@ do n = 1, instances  !{
   call fm_util_set_value('sc_o2_2', 3.116)
   call fm_util_set_value('sc_o2_3', -0.0306)
 
-
   call fm_util_end_namelist(package_name, ibgc(n)%name, check = .true., caller = caller_str)
 
-enddo  !} n
+enddo
 
-!
-!       Check for any errors in the number of fields in the namelists for this package
-!
 
+! Check for any errors in the number of fields in the namelists for this package
 good_list => fm_util_get_string_array('/ocean_mod/GOOD/namelists/' // trim(package_name) // '/good_values',   &
      caller = trim(mod_name) // '(' // trim(sub_name) // ')')
-if (associated(good_list)) then  !{
+if (associated(good_list)) then
   call fm_util_check_for_bad_fields('/ocean_mod/namelists/' // trim(package_name), good_list,       &
        caller = trim(mod_name) // '(' // trim(sub_name) // ')')
   deallocate(good_list)
-else  !}{
+else
   call mpp_error(FATAL,trim(error_header) // ' Empty "' // trim(package_name) // '" list')
-endif  !}
+endif
 
 return
 
-end subroutine ocean_ibgc_init  !}
+end subroutine ocean_ibgc_init
 ! </SUBROUTINE> NAME="ocean_ibgc_init"
 
 
@@ -2027,21 +1601,7 @@ end subroutine ocean_ibgc_init  !}
 
 subroutine ocean_ibgc_init_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,   &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -2063,20 +1623,9 @@ integer, intent(in)                                     :: taum1
 type(time_type), intent(in)                             :: model_time
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 
-!
-!       local parameters
-!
-
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-integer         :: i
+integer         :: i, j, k, n
 integer         :: i_bnd_off
 integer         :: j_bnd_off
-integer         :: j
-integer         :: k
-integer         :: n
 integer         :: ind
 
 real            :: epsln = 1.0e-30
@@ -2084,21 +1633,17 @@ real            :: epsln = 1.0e-30
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
-if (do_gasses) then                                               !<< GASSES
+if (do_gasses) then
 
-do n = 1, instances  !{
+do n = 1, instances
 
-!
-!       CO2 flux
-!
-
+   ! CO2 flux
   ind = ibgc(n)%ind_co2_flux
 
-! Have ocmip2_co2calc calculate alpha (which is the saturation co2star per atmosphere CO2, 
-! in mol kg-1 atm-1), co2star (the actual co2star, in mol kg-1) and pco2surf (uatm)
-
+  ! Have ocmip2_co2calc calculate alpha (which is the saturation co2star per atmosphere CO2, 
+  ! in mol kg-1 atm-1), co2star (the actual co2star, in mol kg-1) and pco2surf (uatm)
   if (.not. field_exist('INPUT/'//trim(Ocean_fields%bc(ind)%ocean_restart_file),  &
-                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then  !{
+                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then
 
     call ocmip2_co2calc(isd, ied, jsd, jed, isc, iec, jsc, jec,            &
          grid_tmask(isd:ied,jsd:jed,1),                                    &
@@ -2115,13 +1660,12 @@ do n = 1, instances  !{
          pco2surf = ibgc(n)%pco2surf)
 
 
-!  Compute the Schmidt number of CO2 in seawater using the 
-!  formulation presented by Wanninkhof (1992, J. Geophys. Res., 97,
-!  7373-7382). This parameterizes the temperature-dependence of the
-!  gas exchange rate.
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    !  Compute the Schmidt number of CO2 in seawater using the 
+    !  formulation presented by Wanninkhof (1992, J. Geophys. Res., 97,
+    !  7373-7382). This parameterizes the temperature-dependence of the
+    !  gas exchange rate.
+    do j = jsc, jec
+      do i = isc, iec
         ibgc(n)%sc_co2(i,j) =                                              &
              ibgc(n)%sc_co2_0 + t_prog(indtemp)%field(i,j,1,taum1) *       &
              (ibgc(n)%sc_co2_1 + t_prog(indtemp)%field(i,j,1,taum1) *      &
@@ -2129,27 +1673,22 @@ do n = 1, instances  !{
                ibgc(n)%sc_co2_3)) * grid_tmask(i,j,1)
         sc_no_term(i,j) = sqrt(660.0 / (ibgc(n)%sc_co2(i,j) + epsln)) * grid_tmask(i,j,1)
 
-! Send surface CO2* solubility (alpha) to coupler in units of mol m-3 atm-1
+        ! Send surface CO2* solubility (alpha) to coupler in units of mol m-3 atm-1
         Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) = &
              ibgc(n)%alpha(i,j) * sc_no_term(i,j) * rho(i,j,1,taum1)
-! Send surface CO2* concentration (csurf) to coupler in units of mol m-3 
+        ! Send surface CO2* concentration (csurf) to coupler in units of mol m-3 
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) = &
              ibgc(n)%csurf(i,j) * sc_no_term(i,j) * rho(i,j,1,taum1)
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
-  endif  !}
+  endif
 
-!
-!       O2 flux
-!
-
+  ! O2 flux
   ind = ibgc(n)%ind_o2_flux
   if (.not. field_exist('INPUT/'//trim(Ocean_fields%bc(ind)%ocean_restart_file), &
-                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then  !{
+                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then
 
-!
-!---------------------------------------------------------------------
 !  Compute the oxygen saturation concentration at 1 atm total
 !  pressure in mol/m^3 given the temperature (t, in deg C) and
 !  the salinity (s, in permil)
@@ -2165,12 +1704,9 @@ do n = 1, instances  !{
 !
 ! check value: T = 10 deg C, S = 35 permil,
 !              o2_saturation = 0.282015 mol/m^3
-!---------------------------------------------------------------------
-!
-
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         tt(i) = 298.15 - t_prog(indtemp)%field(i,j,k,taum1)
         tk(i) = 273.15 + t_prog(indtemp)%field(i,j,k,taum1)
         ts(i) = log(tt(i) / tk(i))
@@ -2184,30 +1720,24 @@ do n = 1, instances  !{
                  t_prog(indsal)%field(i,j,1,taum1) *                    &
                  (b_0 + b_1*ts(i) + b_2*ts2(i) + b_3*ts3(i) +           &
                   c_0*t_prog(indsal)%field(i,j,1,taum1)))
-      enddo  !} i
-    enddo  !} j 
-  enddo  !} k 
+      enddo
+    enddo
+  enddo
 
-!
-!       convert from ml/l to mol/m^3
-!
-
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! convert from ml/l to mol/m^3
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         o2_sat(i,j,k) = o2_sat(i,j,k) * (1000.0/22391.6)
-      enddo  !} i
-    enddo  !} j 
-  enddo  !} k 
+      enddo
+    enddo
+  enddo
   
-!---------------------------------------------------------------------
-!  Compute the Schmidt number of O2 in seawater using the 
-!  formulation proposed by Keeling et al. (1998, Global Biogeochem.
-!  Cycles, 12, 141-163).
-!---------------------------------------------------------------------
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  !  Compute the Schmidt number of O2 in seawater using the 
+  !  formulation proposed by Keeling et al. (1998, Global Biogeochem.
+  !  Cycles, 12, 141-163).
+    do j = jsc, jec
+      do i = isc, iec
         ibgc(n)%sc_o2(i,j) =                                               &
              ibgc(n)%sc_o2_0 + t_prog(indtemp)%field(i,j,1,taum1) *        &
              (ibgc(n)%sc_o2_1 + t_prog(indtemp)%field(i,j,1,taum1) *       &
@@ -2215,28 +1745,27 @@ do n = 1, instances  !{
                ibgc(n)%sc_o2_3)) * grid_tmask(i,j,1)
         sc_no_term(i,j) = sqrt(660.0 / (ibgc(n)%sc_o2(i,j) + epsln)) * grid_tmask(i,j,1)
         
-! Send the O2 solubility term (alpha) to the coupler, in units of mol m-3.
+        ! Send the O2 solubility term (alpha) to the coupler, in units of mol m-3.
         Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) = &
              o2_sat(i,j,1) * sc_no_term(i,j)
 
-! Send the in situ O2 concentration to the coupler, in units of mol m-3.
+        ! Send the in situ O2 concentration to the coupler, in units of mol m-3.
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =         &
              t_prog(ibgc(n)%ind_io2)%field(i,j,1,taum1) * rho(i,j,1,taum1) *       &
              sc_no_term(i,j)
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
-  endif  !}
+  endif
   
-if (do_carbon_comp) then                                      !<< CARBON COMP
-!     DIC Sat CO2 flux
-!  This is similar to the CO2 flux above, but the Schmidt number term is increased  
-!  by 30x to cause rapid approach to saturation DIC concentrations.
-
+if (do_carbon_comp) then
+   !     DIC Sat CO2 flux
+   !  This is similar to the CO2 flux above, but the Schmidt number term is increased  
+   !  by 30x to cause rapid approach to saturation DIC concentrations.
   ind = ibgc(n)%ind_co2sat_flux
 
   if (.not. field_exist('INPUT/'//trim(Ocean_fields%bc(ind)%ocean_restart_file), &
-                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then  !{
+                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then
 
     call ocmip2_co2calc(isd, ied, jsd, jed, isc, iec, jsc, jec,                &
          grid_tmask(isd:ied,jsd:jed,1),                                        &
@@ -2253,65 +1782,61 @@ if (do_carbon_comp) then                                      !<< CARBON COMP
          pco2surf = ibgc(n)%pco2satsurf)
 
 
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    do j = jsc, jec
+      do i = isc, iec
 
-! Send surface CO2* solubility (alpha) to coupler in units of mol m-3 atm-1
+         ! Send surface CO2* solubility (alpha) to coupler in units of mol m-3 atm-1
         Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) = &
              ibgc(n)%alpha(i,j) * sc_no_term(i,j) * 30. * rho(i,j,1,taum1)
-! Send surface CO2* concentration (csatsurf) to coupler in units of mol m-3.
-! Schmidt number term is removed, replaced by constant multiplier of 1e4.
+        ! Send surface CO2* concentration (csatsurf) to coupler in units of mol m-3.
+        ! Schmidt number term is removed, replaced by constant multiplier of 1e4.
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) = &
              ibgc(n)%csatsurf(i,j) * sc_no_term(i,j) * 30. * rho(i,j,1,taum1)
 
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
   endif
 
-endif                                                         !CARBON COMP >>
+endif
 
-if (do_radiocarbon) then                                      !<< RADIOCARBON
-!
-!      14CO2 flux
-!
-
+if (do_radiocarbon) then
+    ! 14CO2 flux
     ind = ibgc(n)%ind_14co2_flux
 
-! Calculate interpolated frac_14catm (fractionation of atmospheric 14CO2)
-
+    ! Calculate interpolated frac_14catm (fractionation of atmospheric 14CO2)
     if (ibgc(n)%frac_14catm_file .ne. ' ') then
       call time_interp_external(ibgc(n)%frac_14catm_id, model_time, ibgc(n)%frac_14catm)
     endif
 
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    do j = jsc, jec
+      do i = isc, iec
 
-! Calculate surface 14CO2* concentration in mol kg-1, by scaling the total CO2* concentration 
-! by 14C/12C
+         ! Calculate surface 14CO2* concentration in mol kg-1, by scaling the total CO2* concentration 
+         ! by 14C/12C
         ibgc(n)%c14surf(i,j) = ibgc(n)%csurf(i,j) *                              &
              t_prog(ibgc(n)%ind_idi14c)%field(i,j,1,taum1) /                     &
              (t_prog(ibgc(n)%ind_idic)%field(i,j,1,taum1) + epsln)
 
-! Send surface 14CO2* solubility (alpha) to coupler in units of mol m-3 
+        ! Send surface 14CO2* solubility (alpha) to coupler in units of mol m-3 
         Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =  &
              ibgc(n)%alpha(i,j) * sc_no_term(i,j) * rho(i,j,1,taum1) *           &
              (1.0 + ibgc(n)%frac_14catm(i,j) * 1.0e-03)
 
-! Send surface 14CO2* concentration (csurf) to coupler in units of mol m-3 
+        ! Send surface 14CO2* concentration (csurf) to coupler in units of mol m-3 
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =  &
              ibgc(n)%c14surf(i,j) * sc_no_term(i,j) * rho(i,j,1,taum1)
-      enddo  !} i
-    enddo  !} j
-endif                                                        !RADIOCARBON >>
+      enddo
+    enddo
+endif
 
-enddo  !} n
+enddo
 
-endif                                                             !GASSES >>
+endif
 
 return
 
-end subroutine ocean_ibgc_init_sfc  !}
+end subroutine ocean_ibgc_init_sfc
 ! </SUBROUTINE> NAME="ocean_ibgc_init_sfc"
 
 
@@ -2321,23 +1846,9 @@ end subroutine ocean_ibgc_init_sfc  !}
 ! <DESCRIPTION>
 !       Sum surface fields for flux calculations. 
 ! </DESCRIPTION>
-
 subroutine ocean_ibgc_sum_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,    &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -2359,21 +1870,9 @@ integer, intent(in)                                     :: taum1
 type(time_type), intent(in)                             :: model_time
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-integer         :: i
+integer         :: i, j, k, n
 integer         :: i_bnd_off
 integer         :: j_bnd_off
-integer         :: j
-integer         :: k
-integer         :: n
 integer         :: ind
 
 real            :: epsln=1.0e-30
@@ -2381,9 +1880,9 @@ real            :: epsln=1.0e-30
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
-if (do_gasses) then                                               !<< GASSES
+if (do_gasses) then
 
-do n = 1, instances  !{
+do n = 1, instances
 
   ind = ibgc(n)%ind_co2_flux
 
@@ -2401,16 +1900,11 @@ do n = 1, instances  !{
          co2star = ibgc(n)%csurf, alpha = ibgc(n)%alpha,         &
          pco2surf = ibgc(n)%pco2surf)
 
-!
-!---------------------------------------------------------------------
-!  Compute the Schmidt number of CO2 in seawater using the 
-!  formulation presented by Wanninkhof (1992, J. Geophys. Res., 97,
-!  7373-7382).
-!---------------------------------------------------------------------
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    ! Compute the Schmidt number of CO2 in seawater using the 
+    ! formulation presented by Wanninkhof (1992, J. Geophys. Res., 97,
+    ! 7373-7382).
+    do j = jsc, jec
+      do i = isc, iec
         ibgc(n)%sc_co2(i,j) =                                              &
              ibgc(n)%sc_co2_0 + t_prog(indtemp)%field(i,j,1,taum1) *       &
              (ibgc(n)%sc_co2_1 + t_prog(indtemp)%field(i,j,1,taum1) *      &
@@ -2423,17 +1917,12 @@ do n = 1, instances  !{
       Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =           &
            Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) +      &
            ibgc(n)%csurf(i,j) * sc_no_term(i,j) * rho(i,j,1,taum1)
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
-!
-!       O2 flux
-!
-
+    ! O2 flux
     ind = ibgc(n)%ind_o2_flux
 
-!
-!---------------------------------------------------------------------
 !  Compute the oxygen saturation concentration at 1 atm total
 !  pressure in mol/m^3 given the temperature (t, in deg C) and
 !  the salinity (s, in permil)
@@ -2449,12 +1938,9 @@ do n = 1, instances  !{
 !
 ! check value: T = 10 deg C, S = 35 permil,
 !              o2_saturation = 0.282015 mol/m^3
-!---------------------------------------------------------------------
-!
-
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         tt(i) = 298.15 - t_prog(indtemp)%field(i,j,k,taum1)
         tk(i) = 273.15 + t_prog(indtemp)%field(i,j,k,taum1)
         ts(i) = log(tt(i) / tk(i))
@@ -2468,32 +1954,24 @@ do n = 1, instances  !{
                  t_prog(indsal)%field(i,j,1,taum1) *            &
                  (b_0 + b_1*ts(i) + b_2*ts2(i) + b_3*ts3(i) +   &
                   c_0*t_prog(indsal)%field(i,j,1,taum1)))
-      enddo  !} i
-    enddo  !} j 
-  enddo  !} k 
+      enddo
+    enddo
+  enddo
 
-!
-!       convert from ml/l to mol/m^3
-!
-
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! convert from ml/l to mol/m^3
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         o2_sat(i,j,k) = o2_sat(i,j,k) * (1000.0/22391.6)
-      enddo  !} i
-    enddo  !} j 
-  enddo  !} k 
+      enddo
+    enddo
+  enddo
 
-!
-!---------------------------------------------------------------------
-!  Compute the Schmidt number of O2 in seawater using the 
-!  formulation proposed by Keeling et al. (1998, Global Biogeochem.
-!  Cycles, 12, 141-163).
-!---------------------------------------------------------------------
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  !  Compute the Schmidt number of O2 in seawater using the 
+  !  formulation proposed by Keeling et al. (1998, Global Biogeochem.
+  !  Cycles, 12, 141-163).
+    do j = jsc, jec
+      do i = isc, iec
         ibgc(n)%sc_o2(i,j) =                                               &
              ibgc(n)%sc_o2_0 + t_prog(indtemp)%field(i,j,1,taum1) *        &
              (ibgc(n)%sc_o2_1 + t_prog(indtemp)%field(i,j,1,taum1) *       &
@@ -2501,25 +1979,24 @@ do n = 1, instances  !{
                ibgc(n)%sc_o2_3)) * grid_tmask(i,j,1)
         sc_no_term(i,j) = sqrt(660.0 / (ibgc(n)%sc_o2(i,j) + epsln)) * grid_tmask(i,j,1)
 
-! Send the O2 solubility term (alpha) to the coupler, in units of mol m-3.
+        ! Send the O2 solubility term (alpha) to the coupler, in units of mol m-3.
         Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =         &
              Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) +    &
              o2_sat(i,j,1) * sc_no_term(i,j)
 
-! Send the in situ O2 concentration to the coupler, in units of mol m-3.
+        ! Send the in situ O2 concentration to the coupler, in units of mol m-3.
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =         &
              Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) +    &
              t_prog(ibgc(n)%ind_io2)%field(i,j,1,taum1) * rho(i,j,1,taum1) *       &
              sc_no_term(i,j)
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
-if (do_carbon_comp) then                                      !<< CARBON COMP
+if (do_carbon_comp) then
 
-!     DIC Sat CO2 flux
-!  This is similar to the CO2 flux above, but the Schmidt number term is increased  
-!  by 30x to cause rapid approach to saturation DIC concentrations.
-
+   !     DIC Sat CO2 flux
+   !  This is similar to the CO2 flux above, but the Schmidt number term is increased  
+   !  by 30x to cause rapid approach to saturation DIC concentrations.
   ind = ibgc(n)%ind_co2sat_flux
 
       call ocmip2_co2calc(isd, ied, jsd, jed, isc, iec, jsc, jec,          &
@@ -2536,63 +2013,59 @@ if (do_carbon_comp) then                                      !<< CARBON COMP
          co2star = ibgc(n)%csatsurf,          &
          pco2surf = ibgc(n)%pco2satsurf)
 
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    do j = jsc, jec
+      do i = isc, iec
       Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =           &
            Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) +      &
            ibgc(n)%alpha(i,j) * sc_no_term(i,j) * 30. * rho(i,j,1,taum1)
       Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =           &
            Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) +      &
            ibgc(n)%csatsurf(i,j) * sc_no_term(i,j) * 30. * rho(i,j,1,taum1)
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
-endif                                                         !CARBON COMP >>
+endif
 
-if (do_radiocarbon) then                                      !<< RADIOCARBON
-!
-!      14CO2 flux
-!
-
+if (do_radiocarbon) then
+   ! 14CO2 flux
   ind = ibgc(n)%ind_14co2_flux
 
-! Calculate interpolated frac_14catm (fractionation of atmospheric 14CO2)
-
+  ! Calculate interpolated frac_14catm (fractionation of atmospheric 14CO2)
   if (ibgc(n)%frac_14catm_file .ne. ' ') then
     call time_interp_external(ibgc(n)%frac_14catm_id, model_time, ibgc(n)%frac_14catm)
   endif
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
 
-! Calculate surface 14CO2* concentration in mol kg-1, by scaling the total CO2* concentration 
-! by 14C/12C
+       ! Calculate surface 14CO2* concentration in mol kg-1, by scaling the total CO2* concentration 
+       ! by 14C/12C
       ibgc(n)%c14surf(i,j) = ibgc(n)%csurf(i,j) *                             &
            t_prog(ibgc(n)%ind_idi14c)%field(i,j,1,taum1) /                         &
            (t_prog(ibgc(n)%ind_idic)%field(i,j,1,taum1) + epsln)
 
-! Send surface 14CO2* solubility (alpha) to coupler in units of mol m-3 
+      ! Send surface 14CO2* solubility (alpha) to coupler in units of mol m-3 
       Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =           &
            Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) +      &
            ibgc(n)%alpha(i,j) * sc_no_term(i,j) * rho(i,j,1,taum1) *               &
            (1.0 + ibgc(n)%frac_14catm(i,j) * 1.0e-03)
 
-! Send surface 14CO2* concentration (csurf) to coupler in units of mol m-3 
+      ! Send surface 14CO2* concentration (csurf) to coupler in units of mol m-3 
       Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =           &
            Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) +      &
            ibgc(n)%c14surf(i,j) * sc_no_term(i,j)  * rho(i,j,1,taum1)
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-endif                                                        !RADIOCARBON >>
+endif
 
-enddo  !} n
+enddo
 
-endif                                                             !GASSES >>
+endif
 
 return
 
-end subroutine ocean_ibgc_sum_sfc  !}
+end subroutine ocean_ibgc_sum_sfc
 ! </SUBROUTINE> NAME="ocean_ibgc_sum_sfc"
 
 
@@ -2603,31 +2076,16 @@ end subroutine ocean_ibgc_sum_sfc  !}
 !       Sum surface fields for flux calculations. 
 ! </DESCRIPTION>
 
-subroutine ocean_ibgc_zero_sfc(Ocean_fields)   !{
-
-implicit none
-
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine ocean_ibgc_zero_sfc(Ocean_fields)
 
 type(coupler_2d_bc_type), intent(inout) :: Ocean_fields
 
-!-----------------------------------------------------------------------
-!       local parameters
-!-----------------------------------------------------------------------
-
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 integer         :: n
 integer         :: ind
 
-if (do_gasses) then                                               !<< GASSES
+if (do_gasses) then
 
-do n = 1, instances  !{
+do n = 1, instances
 
   ind = ibgc(n)%ind_co2_flux
 
@@ -2639,28 +2097,28 @@ do n = 1, instances  !{
   Ocean_fields%bc(ind)%field(ind_alpha)%values = 0.0
   Ocean_fields%bc(ind)%field(ind_csurf)%values = 0.0
 
-if (do_carbon_comp) then                                      !<< CARBON COMP
+if (do_carbon_comp) then
   ind = ibgc(n)%ind_co2sat_flux
 
   Ocean_fields%bc(ind)%field(ind_alpha)%values = 0.0
   Ocean_fields%bc(ind)%field(ind_csurf)%values = 0.0
-endif                                                         !CARBON COMP >>
+endif
 
-if (do_radiocarbon) then                                      !<< RADIOCARBON
+if (do_radiocarbon) then
   ind = ibgc(n)%ind_14co2_flux
 
   Ocean_fields%bc(ind)%field(ind_alpha)%values = 0.0
   Ocean_fields%bc(ind)%field(ind_csurf)%values = 0.0
-endif                                                        !RADIOCARBON >>
+endif
 
 
-enddo  !} n
+enddo
 
-endif                                                             !GASSES >>
+endif
 
 return
 
-end subroutine ocean_ibgc_zero_sfc  !}
+end subroutine ocean_ibgc_zero_sfc
 ! </SUBROUTINE> NAME="ocean_ibgc_zero_sfc"
 
 
@@ -2672,14 +2130,7 @@ end subroutine ocean_ibgc_zero_sfc  !}
 ! </DESCRIPTION>
 
 subroutine ocean_ibgc_avg_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,    &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)  !{
-
-implicit none
-
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -2698,20 +2149,9 @@ type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 integer                                                 :: Ocean_avg_kount
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 integer         :: i_bnd_off
 integer         :: j_bnd_off
-integer         :: i
-integer         :: j
-integer         :: n
+integer         :: i, j, n
 integer         :: ind
 real            :: divid
 
@@ -2720,73 +2160,73 @@ j_bnd_off = jsc - jsc_bnd
 
 divid = 1./float(Ocean_avg_kount)
 
-if (do_gasses) then                                               !<< GASSES
+if (do_gasses) then
 
-do n = 1, instances  !{
+do n = 1, instances
 
   ind = ibgc(n)%ind_co2_flux
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-      if (grid_tmask(i,j,1) == 1.0) then  !{
+  do j = jsc, jec
+    do i = isc, iec
+      if (grid_tmask(i,j,1) == 1.0) then
         Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) * divid
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) * divid
-      endif  !}
-    enddo  !} i
-  enddo  !} j
+      endif
+    enddo
+  enddo
 
   ind = ibgc(n)%ind_o2_flux
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-      if (grid_tmask(i,j,1) == 1.0) then  !{
+  do j = jsc, jec
+    do i = isc, iec
+      if (grid_tmask(i,j,1) == 1.0) then
         Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) * divid
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) * divid
-      endif  !}
-    enddo  !} i
-  enddo  !} j
+      endif
+    enddo
+  enddo
 
-if (do_carbon_comp) then                                      !<< CARBON COMP
+if (do_carbon_comp) then
   ind = ibgc(n)%ind_co2sat_flux
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-      if (grid_tmask(i,j,1) == 1.0) then  !{
+  do j = jsc, jec
+    do i = isc, iec
+      if (grid_tmask(i,j,1) == 1.0) then
         Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) * divid
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) * divid
-      endif  !}
-    enddo  !} i
-  enddo  !} j
-endif                                                         !CARBON COMP >>
+      endif
+    enddo
+  enddo
+endif
 
-if (do_radiocarbon) then                                      !<< RADIOCARBON
+if (do_radiocarbon) then
   ind = ibgc(n)%ind_14co2_flux
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-      if (grid_tmask(i,j,1) == 1.0) then  !{
+  do j = jsc, jec
+    do i = isc, iec
+      if (grid_tmask(i,j,1) == 1.0) then
         Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) * divid
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) * divid
-      endif  !}
-    enddo  !} i
-  enddo  !} j
-endif                                                        !RADIOCARBON >>
+      endif
+    enddo
+  enddo
+endif
 
-enddo  !} n
+enddo
 
-endif                                                             !GASSES >>
+endif
 
 return
 
-end subroutine ocean_ibgc_avg_sfc  !}
+end subroutine ocean_ibgc_avg_sfc
 ! </SUBROUTINE> NAME="ocean_ibgc_avg_sfc"
 
 
@@ -2797,26 +2237,9 @@ end subroutine ocean_ibgc_avg_sfc  !}
 !       Finish up stuff for surface fields for flux calculations. 
 ! </DESCRIPTION>
 
-subroutine ocean_ibgc_sfc_end  !{
+subroutine ocean_ibgc_sfc_end
 
-implicit none
-
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       arguments
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-return
-
-end subroutine ocean_ibgc_sfc_end  !}
+end subroutine ocean_ibgc_sfc_end
 ! </SUBROUTINE> NAME="ocean_ibgc_sfc_end"
 
 
@@ -2831,22 +2254,7 @@ end subroutine ocean_ibgc_sfc_end  !}
 
 subroutine ocean_ibgc_source(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,      &
      T_prog, T_diag, taum1, model_time, grid_dat, grid_tmask, grid_kmt, depth_zt,   &
-     rho, rho_dzt, dzt, hblt_depth, dtts)  !{
-
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!     Arguments
-!-----------------------------------------------------------------------
-!
+     rho, rho_dzt, dzt, hblt_depth, dtts)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
@@ -2870,21 +2278,7 @@ real, dimension(isd:,jsd:,:,:), intent(in)                      :: rho_dzt
 real, dimension(isd:,jsd:,:), intent(in)                        :: dzt
 real, dimension(isd:,jsd:), intent(in)                          :: hblt_depth
 real, intent(in)                                                :: dtts
-
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-integer :: i
-integer :: j
-integer :: k
-integer :: n
+integer :: i, j, k, n
 
 integer :: ind_ideal_n
 integer :: ind_suntan
@@ -2946,146 +2340,127 @@ real,dimension(isc:iec,jsc:jec,1:nk)             :: cidic
 real,dimension(isc:iec,jsc:jec,1:nk)             :: cido14c
 real,dimension(isc:iec,jsc:jec,nk)               :: grid_tmask_comp
 
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-!
-!-----------------------------------------------------------------------
 ! SOURCES
-!
+
 ! Calculate the source component fluxes for each of the ideal 
 ! nutrient tracers.
-!
-!-----------------------------------------------------------------------
-!
 
 !  Loop over multiple instances
+do n = 1, instances
 
-do n = 1, instances  !{
-
-!---------------------------------------------------------------------
 ! Use shortened naming convention for indices
-!---------------------------------------------------------------------
-
   ind_irr = fm_get_index('/ocean_mod/diag_tracers/irr')
-if (do_ideal) then                                                 !<< IDEAL
+if (do_ideal) then
   ind_ideal_n = ibgc(n)%ind_ideal_n
   ind_suntan = ibgc(n)%ind_suntan
-endif                                                              !IDEAL >>
-if (do_po4) then                                                     !<< PO4
+endif
+if (do_po4) then
   ind_ipo4 = ibgc(n)%ind_ipo4
   ind_idop = ibgc(n)%ind_idop
-endif                                                                !PO4 >>
-if (do_po4f) then                                                   !<< PO4f
+endif
+if (do_po4f) then
   ind_ipo4f = ibgc(n)%ind_ipo4f
   ind_idopf = ibgc(n)%ind_idopf
   ind_ife = ibgc(n)%ind_ife
-endif                                                               !PO4f >>
-if ((do_po4f) .or. (do_po4)) then                                !<< Any PO4
+endif
+if ((do_po4f) .or. (do_po4)) then
   ind_irrmem = ibgc(n)%ind_irrmem
   ind_ichl = ibgc(n)%ind_ichl
-endif                                                            !Any PO4 >>
-if (do_gasses) then                                               !<< GASSES
+endif
+if (do_gasses) then
   ind_io2 = ibgc(n)%ind_io2
   ind_idic = ibgc(n)%ind_idic
-endif                                                             !GASSES >>
-if (do_radiocarbon) then                                      !<< RADIOCARBON
+endif
+if (do_radiocarbon) then
   ind_idi14c = ibgc(n)%ind_idi14c
   ind_ido14c = ibgc(n)%ind_ido14c
-endif                                                        !RADIOCARBON >>
-if (do_no3_iso) then                                        !<< NO3 ISOTOPES
+endif
+if (do_no3_iso) then
   ind_i15no3 = ibgc(n)%ind_i15no3
   ind_in18o3 = ibgc(n)%ind_in18o3
   ind_ido15n = ibgc(n)%ind_ido15n
-endif                                                       !NO3 ISOTOPES >>
-if (do_isio4) then                                                !<< SILICA
+endif
+if (do_isio4) then
   ind_isio4 = ibgc(n)%ind_isio4
   ind_i30sio4 = ibgc(n)%ind_i30sio4
-endif                                                             !SILICA >>
+endif
 
-!---------------------------------------------------------------------
 ! Calculate positive tracer concentrations for relevant variables
-!---------------------------------------------------------------------
-
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
         irr_mix(i,j,k) = t_diag(ind_irr)%field(i,j,k)
-  enddo; enddo ; enddo !} i,j,k
-if (do_ideal) then                                                 !<< IDEAL
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+  enddo; enddo ; enddo
+if (do_ideal) then
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
         cideal_n(i,j,k)  = max(0.0,t_prog(ind_ideal_n)%field(i,j,k,taum1))
-  enddo; enddo ; enddo !} i,j,k
-endif                                                              !IDEAL >>
-if (do_po4) then                                                     !<< PO4
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+  enddo; enddo ; enddo
+endif
+if (do_po4) then
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
         cipo4(i,j,k)  = max(0.0,t_prog(ind_ipo4)%field(i,j,k,taum1))
         cidop(i,j,k)  = max(0.0,t_prog(ind_idop)%field(i,j,k,taum1))
-  enddo; enddo ; enddo !} i,j,k
-endif                                                                !PO4 >>
-if (do_po4f) then                                                   !<< PO4f
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+  enddo; enddo ; enddo
+endif
+if (do_po4f) then
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
         cipo4f(i,j,k)  = max(0.0,t_prog(ind_ipo4f)%field(i,j,k,taum1))
         cidopf(i,j,k)  = max(0.0,t_prog(ind_idopf)%field(i,j,k,taum1))
         cife(i,j,k)  = max(0.0,t_prog(ind_ife)%field(i,j,k,taum1))
-  enddo; enddo ; enddo !} i,j,k
-endif                                                               !PO4f >>
-if ((do_po4f) .or. (do_po4)) then                                !<< Any PO4
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+  enddo; enddo ; enddo
+endif
+if ((do_po4f) .or. (do_po4)) then
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
         cichl(i,j,k)  = max(0.0,t_diag(ind_ichl)%field(i,j,k))
-  enddo; enddo ; enddo !} i,j,k
-endif                                                            !Any PO4 >>
-if (do_gasses) then                                               !<< GASSES
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+  enddo; enddo ; enddo
+endif
+if (do_gasses) then
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
         cidic(i,j,k)  = max(0.0,t_prog(ind_idic)%field(i,j,k,taum1))
-  enddo; enddo ; enddo !} i,j,k
-endif                                                             !GASSES >>
-if (do_radiocarbon) then                                      !<< RADIOCARBON
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+  enddo; enddo ; enddo
+endif
+if (do_radiocarbon) then
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
         cido14c(i,j,k)  = max(0.0,t_prog(ind_ido14c)%field(i,j,k,taum1))
-  enddo; enddo ; enddo !} i,j,k
-endif                                                        !RADIOCARBON >>
-if (do_no3_iso) then                                        !<< NO3 ISOTOPES
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+  enddo; enddo ; enddo
+endif
+if (do_no3_iso) then
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
         cido15n(i,j,k)  = max(0.0,t_prog(ind_ido15n)%field(i,j,k,taum1))
-  enddo; enddo ; enddo !} i,j,k
-endif                                                       !NO3 ISOTOPES >>
-if (do_isio4) then                                                !<< SILICA
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+  enddo; enddo ; enddo
+endif
+if (do_isio4) then
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
         cisio4(i,j,k)  = max(0.0,t_prog(ind_isio4)%field(i,j,k,taum1))
         ci30sio4(i,j,k)  = max(0.0,t_prog(ind_i30sio4)%field(i,j,k,taum1))
-  enddo; enddo ; enddo !} i,j,k
-endif                                                             !SILICA >>
+  enddo; enddo ; enddo
+endif
 
-!-----------------------------------------------------------------------
+
 ! The light used for uptake-limitation is the average irradiance within 
 ! the actively mixed layer, as defined in the KPP routine, plus an
 ! additional layer to account for mixing directly below the boundary.
-!-----------------------------------------------------------------------
-!
-  do j = jsc, jec !{
-    do i = isc, iec   !{
+  do j = jsc, jec
+    do i = isc, iec
       kblt=1
       tmp_irr = irr_mix(i,j,1) * dzt(i,j,1)
       tmp_hblt = dzt(i,j,1)
-      do k = 2, nk  !{
-        if (tmp_hblt .lt. hblt_depth(i,j)) then !{
+      do k = 2, nk
+        if (tmp_hblt .lt. hblt_depth(i,j)) then
           kblt=kblt+1
           tmp_irr = tmp_irr + irr_mix(i,j,k) * dzt(i,j,k)
           tmp_hblt = tmp_hblt + dzt(i,j,k)
-        endif !}
-      enddo !} k
+        endif
+      enddo
       irr_mix(i,j,1:kblt) = tmp_irr / max(1.0e-6,tmp_hblt)
-    enddo !} i
-  enddo !} j
+    enddo
+  enddo
 
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
-!-----------------------------------------------------------------------
-! Temperature functionality of export and remineralization
-!-----------------------------------------------------------------------
-! After Eppley (1972). The eppley constant in use is 0.6 of the normal
-! value (0.0378 rather than 0.063). In addition, the remineralization 
-! temperature dependence is only 2/3 of that used for growth. This was 
-! an arbitrary change, to reduce hypercycling in tropics.
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
+     ! Temperature functionality of export and remineralization
+
+     ! After Eppley (1972). The eppley constant in use is 0.6 of the normal
+     ! value (0.0378 rather than 0.063). In addition, the remineralization 
+     ! temperature dependence is only 2/3 of that used for growth. This was 
+     ! an arbitrary change, to reduce hypercycling in tropics.
 
        expkT(i,j,k) = exp(ibgc(n)%kappa_eppley *                           &
          t_prog(indtemp)%field(i,j,k,taum1))
@@ -3093,20 +2468,17 @@ endif                                                             !SILICA >>
        expkT_remin(i,j,k) = exp(ibgc(n)%kappa_eppley_remin *               &
           t_prog(indtemp)%field(i,j,k,taum1))
 
-  enddo; enddo ; enddo !} i,j,k
+  enddo; enddo ; enddo
 
-if (do_ideal) then                                                 !<< IDEAL
+if (do_ideal) then
+   ! NON-CONSERVATIVE TRACERS
 
-!---------------------------------------------------------------------
-! NON-CONSERVATIVE TRACERS
-!---------------------------------------------------------------------
-! Ideal Nutrient
-!---------------------------------------------------------------------
-! Source function: 
-! dN/dT = -Vmax * expkT * (1 - exp(-IRR/IRRk)) * (N / (N + k)) + expkT * R
-! Do not allow the concentration of Ideal Nutrient to go above 1.
+   ! Ideal Nutrient
 
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+   ! Source function: 
+   ! dN/dT = -Vmax * expkT * (1 - exp(-IRR/IRRk)) * (N / (N + k)) + expkT * R
+   ! Do not allow the concentration of Ideal Nutrient to go above 1.
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
 
       if (cideal_n(i,j,k) .lt. 1.) then
         ibgc(n)%jideal_n(i,j,k) = -ibgc(n)%ideal_n_vmax *                  &
@@ -3121,12 +2493,10 @@ if (do_ideal) then                                                 !<< IDEAL
         grid_tmask(i,j,k)
       endif
 
-!---------------------------------------------------------------------
-! Suntan
-!---------------------------------------------------------------------
-! Source function: dS/dT = IRR / (layer thickness) - f
-! This needs to be fixed - not to be used now.
+      ! Suntan
 
+      ! Source function: dS/dT = IRR / (layer thickness) - f
+      ! This needs to be fixed - not to be used now.
        if (t_prog(ind_suntan)%field(i,j,k,taum1) .gt. 0.0) then
          ibgc(n)%jsuntan(i,j,k) = (t_diag(ind_irr)%field(i,j,k)            &
           - ibgc(n)%suntan_fade) / dzt(i,j,k)  * grid_tmask(i,j,k)
@@ -3135,36 +2505,32 @@ if (do_ideal) then                                                 !<< IDEAL
          / dzt(i,j,k) * grid_tmask(i,j,k)
        endif
 
-  enddo; enddo ; enddo !} i,j,k
+  enddo; enddo ; enddo
 
-endif                                                              !IDEAL >>
+endif
 
-!---------------------------------------------------------------------
 ! CONSERVATIVE TRACERS
-! 
-!---------------------------------------------------------------------
+
 ! UPTAKE
-!---------------------------------------------------------------------
+
 ! Ideal Phosphate
 ! Option provides 2 types of P: normal, and iron-limited.
 
-if (do_po4) then                                                     !<< PO4
+if (do_po4) then
+   ! Ideal Phosphate with DOP
 
-!---------------------------------------------------------------------
-! Ideal Phosphate with DOP
-!---------------------------------------------------------------------
-! Ideal phosphate is done as before, but with a dissolved organic 
-! phosphorus pool, after Yamanaka and Tajika (1997). A fraction (idop_frac) 
-! of the total production (jprod_ip) is instantly converted to the dissolved 
-! pool, while the remainder goes into the sinking particulate pool. This
-! 'dissolved' organic phosphorus should be thought of as the sum of all 
-! non-sinking organic matter, from small molecules to plankton to whales, 
-! and is therefore not directly comparable to real DOP. Thus, the DOP
-! concentrations and distributions should not necessarily match those of 
-! the ocean - iBGC should probably have higher-than-observed concentrations
-! in general, especially in nutrient-rich regions.
+   ! Ideal phosphate is done as before, but with a dissolved organic 
+   ! phosphorus pool, after Yamanaka and Tajika (1997). A fraction (idop_frac) 
+   ! of the total production (jprod_ip) is instantly converted to the dissolved 
+   ! pool, while the remainder goes into the sinking particulate pool. This
+   ! 'dissolved' organic phosphorus should be thought of as the sum of all 
+   ! non-sinking organic matter, from small molecules to plankton to whales, 
+   ! and is therefore not directly comparable to real DOP. Thus, the DOP
+   ! concentrations and distributions should not necessarily match those of 
+   ! the ocean - iBGC should probably have higher-than-observed concentrations
+   ! in general, especially in nutrient-rich regions.
 
- do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+ do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
 
         jprod_ip(i,j,k) = ibgc(n)%ipo4_vmax * expkT(i,j,k) *               &
           (1.0 - exp(- irr_mix(i,j,k) / ibgc(n)%irrk)) *                   &         
@@ -3175,35 +2541,33 @@ if (do_po4) then                                                     !<< PO4
         ibgc(n)%jprod_pip(i,j,k) = jprod_ip(i,j,k) -                       &
           ibgc(n)%jprod_idop(i,j,k)
 
-  enddo; enddo ; enddo !} i,j,k
+  enddo; enddo ; enddo
 
-endif                                                                !PO4 >>
+endif
 
-if (do_po4f) then                                                   !<< PO4f
+if (do_po4f) then
 
-!---------------------------------------------------------------------
-! Iron cycling and growth limitation
-!---------------------------------------------------------------------
-! Iron is input in the upper 100m of the water column at a globally uniform 
-! rate, intended to represent the sum of aeolian deposition and sediment-
-! derived iron, without imposing geographical source distributions.
-!
-! Growth is limited by iron and phosphate concentrations, with iron 
-! limitation expressed as an accentuator of light limitation, in 
-! accordance with iron's role as an accessory in photosynthesis (e.g. 
-! Strzepek et al., 2005). Iron uptake is a product of p uptake and  
-! the iron concentration, to allow flexible stoichiometry and luxury 
-! uptake. 
-!
-! The associated PO4 and DOP are called ipo4f and ipo4d, respectively.
-!
-! Iron taken up by organisms is assumed to be bound within organic matter
-! until remineralized from a sinking particle. Sinking and remineralization 
-! are identical to ipo4. Iron is also scavenged, further below.
-!---------------------------------------------------------------------
-! Iron source: spread over upper 100m and convert to mmol kg-1 s-1 
+   ! Iron cycling and growth limitation
 
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+   ! Iron is input in the upper 100m of the water column at a globally uniform 
+   ! rate, intended to represent the sum of aeolian deposition and sediment-
+   ! derived iron, without imposing geographical source distributions.
+
+   ! Growth is limited by iron and phosphate concentrations, with iron 
+   ! limitation expressed as an accentuator of light limitation, in 
+   ! accordance with iron's role as an accessory in photosynthesis (e.g. 
+   ! Strzepek et al., 2005). Iron uptake is a product of p uptake and  
+   ! the iron concentration, to allow flexible stoichiometry and luxury 
+   ! uptake. 
+
+   ! The associated PO4 and DOP are called ipo4f and ipo4d, respectively.
+
+   ! Iron taken up by organisms is assumed to be bound within organic matter
+   ! until remineralized from a sinking particle. Sinking and remineralization 
+   ! are identical to ipo4. Iron is also scavenged, further below.
+
+   ! Iron source: spread over upper 100m and convert to mmol kg-1 s-1 
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
 
         if (depth_zt(i,j,k) .lt. 100.) then
           ibgc(n)%jife_new(i,j,k) = ibgc(n)%ife_supply * 0.01 /            &
@@ -3212,15 +2576,14 @@ if (do_po4f) then                                                   !<< PO4f
           ibgc(n)%jife_new(i,j,k) = 0.0
         endif
         
-! Growth and uptake
-! dP/dT = -Vmax * expkT * (1 - exp(-IRR/IRRFek) * (P / P + kP)
-! where IRRFek = IRRk * Fesuf / (Fe + x) where x is a small number to 
-! prevent 'infinite' iron limitation.
-! The idea here is that Fe helps phytoplankton harvest light, so that iron 
-! limitation hampers the phytoplankton's ability to grow at a given light 
-! level. With brighter light less iron is required, while with abundant iron 
-! less light is required.
-
+        ! Growth and uptake
+        ! dP/dT = -Vmax * expkT * (1 - exp(-IRR/IRRFek) * (P / P + kP)
+        ! where IRRFek = IRRk * Fesuf / (Fe + x) where x is a small number to 
+        ! prevent 'infinite' iron limitation.
+        ! The idea here is that Fe helps phytoplankton harvest light, so that iron 
+        ! limitation hampers the phytoplankton's ability to grow at a given light 
+        ! level. With brighter light less iron is required, while with abundant iron 
+        ! less light is required.
         ibgc(n)%felim_irrk(i,j,k) = ibgc(n)%irrk *                         &
            ibgc(n)%ife_irrsuf / (cife(i,j,k) + 1.e-8) 
 
@@ -3235,38 +2598,34 @@ if (do_po4f) then                                                   !<< PO4f
         ibgc(n)%jprod_pipf(i,j,k) = jprod_ipf(i,j,k) -                     &
           ibgc(n)%jprod_idopf(i,j,k)
 
-! Biological uptake        
+        ! Biological uptake        
         ibgc(n)%jprod_pife(i,j,k) =   ibgc(n)%jprod_pipf(i,j,k) *          &
           cife(i,j,k) / ibgc(n)%ife_irrsuf
 
-  enddo; enddo ; enddo !} i,j,k
+  enddo; enddo ; enddo
 
-endif                                                               !PO4f >>
-
-if ((do_po4f) .or. (do_po4)) then                                !<< Any PO4
-
-!---------------------------------------------------------------------
-! Does BGC use Fe-limited P, or non-Fe-limited P?
-! Default is non-Fe-limited P (iPO4).
-!---------------------------------------------------------------------
-! This part sets the jprod_ip and po4 to be used for the fluxes of 
-! other elements (chl, isotopes, O2, DIC etc), called *_bgc.
-
-if (do_bgc_felim) then
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
-      jprod_ip_bgc(i,j,k) = jprod_ipf(i,j,k)
-      ibgc(n)%ipo4_bgc(i,j,k) = t_prog(ind_ipo4f)%field(i,j,k,taum1)
-  enddo; enddo ; enddo !} i,j,k
-else
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
-      jprod_ip_bgc(i,j,k) = jprod_ip(i,j,k)
-      ibgc(n)%ipo4_bgc(i,j,k) = t_prog(ind_ipo4)%field(i,j,k,taum1)
-  enddo; enddo ; enddo !} i,j,k
 endif
 
-!-----------------------------------------------------------------------
+if ((do_po4f) .or. (do_po4)) then
+! Does BGC use Fe-limited P, or non-Fe-limited P?
+! Default is non-Fe-limited P (iPO4).
+
+! This part sets the jprod_ip and po4 to be used for the fluxes of 
+! other elements (chl, isotopes, O2, DIC etc), called *_bgc.
+if (do_bgc_felim) then
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
+      jprod_ip_bgc(i,j,k) = jprod_ipf(i,j,k)
+      ibgc(n)%ipo4_bgc(i,j,k) = t_prog(ind_ipo4f)%field(i,j,k,taum1)
+  enddo; enddo ; enddo
+else
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
+      jprod_ip_bgc(i,j,k) = jprod_ip(i,j,k)
+      ibgc(n)%ipo4_bgc(i,j,k) = t_prog(ind_ipo4)%field(i,j,k,taum1)
+  enddo; enddo ; enddo
+endif
+
 ! Ideal Chlorophyll
-!-----------------------------------------------------------------------
+
 ! Chlorophyll is an important determinant of the absorption of shortwave 
 ! radiation in seawater, thereby influencing the circulation. In order to 
 ! capture this effect in a prognostic, interactive sense with the minimum 
@@ -3286,8 +2645,7 @@ endif
 ! nonlinear function of the growth rate, calculate the theta from the
 ! irrmem and iron (if used), and multiply them together to get a
 ! chlorophyll.
-
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
 
         t_diag(ind_irrmem)%field(i,j,k) = t_diag(ind_irrmem)%field(i,j,k)+ &
          (irr_mix(i,j,k) - t_diag(ind_irrmem)%field(i,j,k)) * min(1.0,     &
@@ -3302,21 +2660,18 @@ endif
           (ibgc(n)%ichl_new(i,j,k) - cichl(i,j,k)) *                       &
           min(1.0, ibgc(n)%ichl_lag * dtts)         
 
-  enddo; enddo ; enddo !} i,j,k
+  enddo; enddo ; enddo
 
-endif                                                            !Any PO4 >>
+endif
 
-if (do_no3_iso) then                                        !<< NO3 ISOTOPES
+if (do_no3_iso) then
+   ! Ideal Nitrate isotopes - with DOM
 
-!---------------------------------------------------------------------
-! Ideal Nitrate isotopes - with DOM
-!---------------------------------------------------------------------
-! Identical to implementation without DOM, except that a fraction of the 
-! 15N taken up goes into the DOM pool. 
-! The total uptake fractionation is the same, and there is no fractionation
-! between particulate and dissolved organic forms.
-
-   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+   ! Identical to implementation without DOM, except that a fraction of the 
+   ! 15N taken up goes into the DOM pool. 
+   ! The total uptake fractionation is the same, and there is no fractionation
+   ! between particulate and dissolved organic forms.
+   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
 
        jprod_i15n(i,j,k) = jprod_ip_bgc(i,j,k) *                           &
          t_prog(ind_i15no3)%field(i,j,k,taum1) /                           &
@@ -3333,22 +2688,19 @@ if (do_no3_iso) then                                        !<< NO3 ISOTOPES
          (epsln + ibgc(n)%ipo4_bgc(i,j,k)) /                              &
          ibgc(n)%alpha_14n_15n * grid_tmask(i,j,k)
 
-  enddo; enddo ; enddo !} i,j,k
+  enddo; enddo ; enddo
   
-endif                                                       !NO3 ISOTOPES >>
+endif
 
-if (do_radiocarbon) then                                      !<< RADIOCARBON
-         
-!---------------------------------------------------------------------
-! Ideal Carbon isotopes - with DOM
-!---------------------------------------------------------------------
-! The uptake is done in the same way as N and  Si isotopes, to account for 
-! the biological impact on 14C due to uptake and remineralization of DIC. 
-! Because the convention for D14C notation includes an implicit correction 
-! for mass-dependent fractionation (calculated from the observed d13C of 
-! the same sample), uptake fractionation is not included.
+if (do_radiocarbon) then
+   ! Ideal Carbon isotopes - with DOM
 
-   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+   ! The uptake is done in the same way as N and  Si isotopes, to account for 
+   ! the biological impact on 14C due to uptake and remineralization of DIC. 
+   ! Because the convention for D14C notation includes an implicit correction 
+   ! for mass-dependent fractionation (calculated from the observed d13C of 
+   ! the same sample), uptake fractionation is not included.
+   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
 
        jprod_i14c(i,j,k) = jprod_ip_bgc(i,j,k) * ibgc(n)%c_2_ip *          &
          grid_tmask(i,j,k) * t_prog(ind_idi14c)%field(i,j,k,taum1) /       &
@@ -3360,49 +2712,40 @@ if (do_radiocarbon) then                                      !<< RADIOCARBON
        ibgc(n)%jprod_pi14c(i,j,k) = jprod_i14c(i,j,k) -                    & 
          ibgc(n)%jprod_ido14c(i,j,k)
 
-  enddo; enddo ; enddo !} i,j,k
+  enddo; enddo ; enddo
 
-endif                                                        !RADIOCARBON >>
+endif
 
-if (do_isio4) then                                                !<< SILICA
+if (do_isio4) then
+   ! Ideal Silicate
 
-!---------------------------------------------------------------------
-! Ideal Silicate
-!---------------------------------------------------------------------
-! Uptake function: dN/dT = -Vmax * (1 - exp(-IRR/IRRk) * (N / N + k)
-! Identical to Ideal Phosphate (without DOP), with different constants.
-
-   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+   ! Uptake function: dN/dT = -Vmax * (1 - exp(-IRR/IRRk) * (N / N + k)
+   ! Identical to Ideal Phosphate (without DOP), with different constants.
+   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
 
        ibgc(n)%jprod_pisi(i,j,k) = ibgc(n)%ipo4_vmax * expkT(i,j,k) *      &
           (1.0 - exp(- irr_mix(i,j,k) / ibgc(n)%irrk)) *                   &
           cisio4(i,j,k)  / (cisio4(i,j,k)                                  &
           + ibgc(n)%ipo4_k) * grid_tmask(i,j,k)                              
 
-!---------------------------------------------------------------------
-! Ideal Silicon isotopes
-!---------------------------------------------------------------------
-! The uptake is given by the uptake of SiO4 (total silicate), 
-! multiplied by the rate ratio alpha.
-
+       ! Ideal Silicon isotopes
+       ! The uptake is given by the uptake of SiO4 (total silicate), 
+       ! multiplied by the rate ratio alpha.
        ibgc(n)%jprod_pi30si(i,j,k) = ibgc(n)%jprod_pisi(i,j,k) *           &
          t_prog(ind_i30sio4)%field(i,j,k,taum1) /                          &
          (epsln + t_prog(ind_isio4)%field(i,j,k,taum1)) /                  &
          ibgc(n)%alpha_28si_30si * grid_tmask(i,j,k)                     
 
-  enddo; enddo ; enddo !} i,j,k
+  enddo; enddo ; enddo
 
-endif                                                             !SILICA >>
+endif
 
-!---------------------------------------------------------------------
-! SINKING AND REMINERALIZATION
-!---------------------------------------------------------------------
-! First, convert all ideal particulate production in the first layer to 
-! particulate flux, no remineralization.
-!---------------------------------------------------------------------
+  ! SINKING AND REMINERALIZATION
 
-  do j=jsc,jec  !{
-    do i=isc,iec  !{
+  ! First, convert all ideal particulate production in the first layer to 
+  ! particulate flux, no remineralization.
+  do j=jsc,jec
+    do i=isc,iec
 
       ibgc(n)%fpisi(i,j,1) = ibgc(n)%jprod_pisi(i,j,1) *                   &
         rho_dzt(i,j,1,taum1) * grid_tmask(i,j,1)
@@ -3432,21 +2775,18 @@ endif                                                             !SILICA >>
         rho_dzt(i,j,1,taum1) * grid_tmask(i,j,1)
       ibgc(n)%jremin_pife(i,j,1) = 0.0
 
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
- do k = 2, nk  !{
-    do j = jsc, jec !{
-      do i = isc, iec   !{
+ do k = 2, nk
+    do j = jsc, jec
+      do i = isc, iec
+         ! Rest of water column
 
-!---------------------------------------------------------------------
-! Rest of water column
-!---------------------------------------------------------------------
-! Calculate the remineralization lengthscale matrix, remin, a function of 
-! T and z. Sinking rate (wsink) increases linearly with depth from an 
-! initial value. Everything uses the remin_ip (no DOM) or remin_ip (with 
-! DOM) values except for silica.
-
+         ! Calculate the remineralization lengthscale matrix, remin, a function of 
+         ! T and z. Sinking rate (wsink) increases linearly with depth from an 
+         ! initial value. Everything uses the remin_ip (no DOM) or remin_ip (with 
+         ! DOM) values except for silica.
         wsink(i,j,k) = (ibgc(n)%sinking_acc * depth_zt(i,j,k) +            &
           ibgc(n)%sinking_init) * grid_tmask(i,j,k)
 
@@ -3456,9 +2796,8 @@ endif                                                             !SILICA >>
         ibgc(n)%remin_isi(i,j,k) = ibgc(n)%gamma_isi * expkT_remin(i,j,k)/ &
           (wsink(i,j,k) + epsln)
 
-! Calculate the flux at level k from the flux in the overlying layer and
-! the local remineralization lengthscale.
-        
+        ! Calculate the flux at level k from the flux in the overlying layer and
+        ! the local remineralization lengthscale.
         ibgc(n)%fpisi(i,j,k) = ibgc(n)%fpisi(i,j,k-1) /                    &
           (1.0 + dzt(i,j,k) * ibgc(n)%remin_isi(i,j,k)) * grid_tmask(i,j,k)
 
@@ -3480,12 +2819,7 @@ endif                                                             !SILICA >>
         ibgc(n)%fpife(i,j,k) = ibgc(n)%fpife(i,j,k-1) /                    &
           (1.0 + dzt(i,j,k) * ibgc(n)%remin_ip(i,j,k)) * grid_tmask(i,j,k)
 
-         
-!---------------------------------------------------------------------
-! Calculate regeneration term assuming flux through bottom of grid cell
-!---------------------------------------------------------------------
-
-
+        ! Calculate regeneration term assuming flux through bottom of grid cell
         ibgc(n)%jremin_pisi(i,j,k) = (ibgc(n)%fpisi(i,j,k-1) -             &
           ibgc(n)%fpisi(i,j,k)) * grid_tmask(i,j,k) / rho_dzt(i,j,k,taum1)
 
@@ -3507,12 +2841,8 @@ endif                                                             !SILICA >>
         ibgc(n)%jremin_pife(i,j,k) = (ibgc(n)%fpife(i,j,k-1) -             &
           ibgc(n)%fpife(i,j,k)) * grid_tmask(i,j,k) / rho_dzt(i,j,k,taum1)
 
-!---------------------------------------------------------------------
-! Add production within box to flux assuming flux through bottom of
-! grid cell
-!---------------------------------------------------------------------
-
-
+        ! Add production within box to flux assuming flux through bottom of
+        ! grid cell
         ibgc(n)%fpisi(i,j,k) = (ibgc(n)%fpisi(i,j,k) +                     & 
           ibgc(n)%jprod_pisi(i,j,k) * rho_dzt(i,j,k,taum1)) *              & 
           grid_tmask(i,j,k)
@@ -3541,19 +2871,16 @@ endif                                                             !SILICA >>
           ibgc(n)%jprod_pife(i,j,k) * rho_dzt(i,j,k,taum1)) *              & 
           grid_tmask(i,j,k)
  
-      enddo !} i
-    enddo !} j
-  enddo !} k
+      enddo
+    enddo
+  enddo
 
-!---------------------------------------------------------------------
-! Remineralize everything remaining in the bottom cell
-!---------------------------------------------------------------------
-
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  ! Remineralize everything remaining in the bottom cell
+  do j = jsc, jec
+    do i = isc, iec
       k = grid_kmt(i,j)
 
-      if (k .gt. 0) then !{
+      if (k .gt. 0) then
 
         ibgc(n)%jremin_pisi(i,j,k) = (ibgc(n)%jremin_pisi(i,j,k) +         &
           ibgc(n)%fpisi(i,j,k) / rho_dzt(i,j,k,taum1)) * grid_tmask(i,j,k)
@@ -3576,17 +2903,14 @@ endif                                                             !SILICA >>
         ibgc(n)%jremin_pife(i,j,k) = (ibgc(n)%jremin_pife(i,j,k) +         &
           ibgc(n)%fpife(i,j,k) / rho_dzt(i,j,k,taum1)) * grid_tmask(i,j,k)
 
-      endif !}
+      endif
 
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-!-----------------------------------------------------------------------
-! Remineralize the dissolved organic matter, as a function of the first 
-! order decay constant, and sum the remineralization and uptake sources. 
-!-----------------------------------------------------------------------
-
-   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+   ! Remineralize the dissolved organic matter, as a function of the first 
+   ! order decay constant, and sum the remineralization and uptake sources. 
+   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
 
       ibgc(n)%jremin_idop(i,j,k) = (ibgc(n)%gamma_idop *                   &
         expkT_remin(i,j,k) * cidop(i,j,k)) * grid_tmask(i,j,k)
@@ -3616,35 +2940,28 @@ endif                                                             !SILICA >>
           ibgc(n)%jprod_pi14c(i,j,k) - ibgc(n)%jprod_ido14c(i,j,k)) *      &
           grid_tmask(i,j,k)
           
-  enddo; enddo ; enddo !} i,j,k
+  enddo; enddo ; enddo
 
-if ((do_po4f) .or. (do_po4)) then                                !<< Any PO4
-
-!---------------------------------------------------------------------
+if ((do_po4f) .or. (do_po4)) then
 ! Does BGC use Fe-limited P, or non-Fe-limited P?
 ! Default is non-Fe-limited P (iPO4).
 ! This is done now for jipo4_bgc.
-!---------------------------------------------------------------------
-
 if (do_bgc_felim) then
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
       ibgc(n)%jipo4_bgc(i,j,k) = ibgc(n)%jipo4f(i,j,k)
-  enddo; enddo ; enddo !} i,j,k
+  enddo; enddo ; enddo
 else
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
       ibgc(n)%jipo4_bgc(i,j,k) = ibgc(n)%jipo4(i,j,k)
-  enddo; enddo ; enddo !} i,j,k
+  enddo; enddo ; enddo
 endif
 
-endif                                                            !Any PO4 >>
+endif
 
-if (do_po4f) then                                                   !<< PO4f
+if (do_po4f) then
 
-!-----------------------------------------------------------------------
-! Iron scavenging
-!-----------------------------------------------------------------------
-
-   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+   ! Iron scavenging
+   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
 
 ! Calculate the Ligand complexation throughout the full domain.
 ! This is used for scavenging only; it's assumed that phytoplankton are 
@@ -3663,22 +2980,18 @@ if (do_po4f) then                                                   !<< PO4f
 
         ibgc(n)%ife_free(i,j,k) = cife(i,j,k) - fe_ligand(i,j,k)
 
-! Calculate the loss of Fe due to scavenging. This is done in the
-! absolute simplest way, as a first order rate constant.
-
+        ! Calculate the loss of Fe due to scavenging. This is done in the
+        ! absolute simplest way, as a first order rate constant.
         ibgc(n)%jife_scav(i,j,k) = ibgc(n)%scav_k * ibgc(n)%ife_free(i,j,k)
 
-  enddo; enddo ; enddo !} i,j,k
+  enddo; enddo ; enddo
 
-endif                                                               !PO4f >>
+endif
 
-if (do_gasses) then                                               !<< GASSES
+if (do_gasses) then
+    do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
+! O2
 
-    do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
-
-!-----------------------------------------------------------------------
-!     O2
-!-----------------------------------------------------------------------
 ! Oxygen is produced by photosynthesis and consumed by respiration, the two 
 ! biological processes which simultaneously cause, respectively, the 
 ! consumption and remineralization of inorganic nutrients. Assuming a 
@@ -3690,22 +3003,18 @@ if (do_gasses) then                                               !<< GASSES
 ! concentrations. This is not realistic, and will lead to very large O2
 ! minimum zones.
 
-        if (t_prog(ind_io2)%field(i,j,k,taum1) .gt. ibgc(n)%io2_min) then !{
+        if (t_prog(ind_io2)%field(i,j,k,taum1) .gt. ibgc(n)%io2_min) then
           ibgc(n)%jio2(i,j,k) = -ibgc(n)%o2_2_ip * grid_tmask(i,j,k) *      &
           ibgc(n)%jipo4_bgc(i,j,k)
-        else  !}{
+        else
           ibgc(n)%jio2(i,j,k) = ibgc(n)%o2_2_ip * grid_tmask(i,j,k) *      &
           jprod_ip_bgc(i,j,k)
-        endif  !}
-  enddo; enddo ; enddo !} i,j,k
+        endif
+  enddo; enddo ; enddo
 
-if (do_radiocarbon) then                                      !<< RADIOCARBON
-!-----------------------------------------------------------------------
-!     Radiocarbon
-!-----------------------------------------------------------------------
-! Compute DI14C decay. This depends on the decay rate constant, lambda_14c.
-
-    do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+if (do_radiocarbon) then
+    ! Compute DI14C decay. This depends on the decay rate constant, lambda_14c.
+    do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
 
         ibgc(n)%jdecay_idi14c(i,j,k) =                                     &
           t_prog(ind_idi14c)%field(i,j,k,taum1) * ibgc(n)%lambda_14c *     &
@@ -3715,24 +3024,20 @@ if (do_radiocarbon) then                                      !<< RADIOCARBON
           t_prog(ind_ido14c)%field(i,j,k,taum1) * ibgc(n)%lambda_14c *     &
           grid_tmask(i,j,k)
              
-  enddo; enddo ; enddo !} i,j,k
-endif                                                        !RADIOCARBON >>
+  enddo; enddo ; enddo
+endif
 
-endif                                                             !GASSES >>
+endif
 
-!-----------------------------------------------------------------------
 ! ACCUMULATE SOURCES IN TENDENCY TERMS
 !
 ! Calculate source/sink tendency terms for each prognostic tracer as the
 ! sum of fluxes generated above. These tendency terms are passed to the
 ! ocean model in units of mol m-3.
-!
-!-----------------------------------------------------------------------
 
 ! All prognostic terms go inside this loop
-
-if (do_ideal) then                                                 !<< IDEAL
-   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+if (do_ideal) then
+   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
       t_prog(ind_ideal_n)%th_tendency(i,j,k) =                             &
         t_prog(ind_ideal_n)%th_tendency(i,j,k) + ibgc(n)%jideal_n(i,j,k)   &
         * rho_dzt(i,j,k,taum1)
@@ -3740,11 +3045,11 @@ if (do_ideal) then                                                 !<< IDEAL
       t_prog(ind_suntan)%th_tendency(i,j,k) =                              &
         t_prog(ind_suntan)%th_tendency(i,j,k) + ibgc(n)%jsuntan(i,j,k) *   &
         dzt(i,j,k)  
-  enddo; enddo ; enddo !} i,j,k
-endif                                                              !IDEAL >>
+  enddo; enddo ; enddo
+endif
 
-if (do_po4) then                                                     !<< PO4
-   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+if (do_po4) then
+   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
       t_prog(ind_ipo4)%th_tendency(i,j,k) =                                &
         t_prog(ind_ipo4)%th_tendency(i,j,k) + ibgc(n)%jipo4(i,j,k) *       &
         rho_dzt(i,j,k,taum1)
@@ -3753,11 +3058,11 @@ if (do_po4) then                                                     !<< PO4
         t_prog(ind_idop)%th_tendency(i,j,k) + (ibgc(n)%jprod_idop(i,j,k) - &
         ibgc(n)%jremin_idop(i,j,k) + ibgc(n)%jremin_pip(i,j,k)) *          &
          rho_dzt(i,j,k,taum1)
-  enddo; enddo ; enddo !} i,j,k
-endif                                                               !PO4f >>
+  enddo; enddo ; enddo
+endif
  
-if (do_po4f) then                                                   !<< PO4f
-   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+if (do_po4f) then
+   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
       t_prog(ind_ipo4f)%th_tendency(i,j,k) =                               & 
         t_prog(ind_ipo4f)%th_tendency(i,j,k) + ibgc(n)%jipo4f(i,j,k) *     &
         rho_dzt(i,j,k,taum1)
@@ -3771,11 +3076,11 @@ if (do_po4f) then                                                   !<< PO4f
         t_prog(ind_idopf)%th_tendency(i,j,k) +                             &
         (ibgc(n)%jprod_idopf(i,j,k) - ibgc(n)%jremin_idopf(i,j,k) +        &
         ibgc(n)%jremin_pipf(i,j,k)) * rho_dzt(i,j,k,taum1)
-  enddo; enddo ; enddo !} i,j,k
-endif                                                               !PO4f >>
+  enddo; enddo ; enddo
+endif
  
-if (do_gasses) then                                               !<< GASSES
-   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+if (do_gasses) then
+   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
       t_prog(ind_io2)%th_tendency(i,j,k) =                                 & 
         t_prog(ind_io2)%th_tendency(i,j,k) + ibgc(n)%jio2(i,j,k) *         &
         rho_dzt(i,j,k,taum1)
@@ -3783,11 +3088,11 @@ if (do_gasses) then                                               !<< GASSES
       t_prog(ind_idic)%th_tendency(i,j,k) =                                & 
         t_prog(ind_idic)%th_tendency(i,j,k) + rho_dzt(i,j,k,taum1) *       &
         ibgc(n)%c_2_ip *  ibgc(n)%jipo4_bgc(i,j,k)
-  enddo; enddo ; enddo !} i,j,k
-endif                                                             !GASSES >>
+  enddo; enddo ; enddo
+endif
 
-if (do_radiocarbon) then                                      !<< RADIOCARBON
-   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+if (do_radiocarbon) then
+   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
       t_prog(ind_idi14c)%th_tendency(i,j,k) =                              & 
         t_prog(ind_idi14c)%th_tendency(i,j,k) + (ibgc(n)%jidi14c(i,j,k) -  &
         ibgc(n)%jdecay_idi14c(i,j,k)) * rho_dzt(i,j,k,taum1)
@@ -3797,11 +3102,11 @@ if (do_radiocarbon) then                                      !<< RADIOCARBON
         (ibgc(n)%jprod_ido14c(i,j,k) - ibgc(n)%jremin_ido14c(i,j,k) -      &
         ibgc(n)%jdecay_ido14c(i,j,k)+ibgc(n)%jremin_pi14c(i,j,k)) *        &
         rho_dzt(i,j,k,taum1)
-  enddo; enddo ; enddo !} i,j,k
-endif                                                        !RADIOCARBON >>
+  enddo; enddo ; enddo
+endif
 
-if (do_no3_iso) then                                        !<< NO3 ISOTOPES
-   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+if (do_no3_iso) then
+   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
       t_prog(ind_i15no3)%th_tendency(i,j,k) =                             &
         t_prog(ind_i15no3)%th_tendency(i,j,k) +                           &
         ibgc(n)%ji15no3(i,j,k) * rho_dzt(i,j,k,taum1)
@@ -3815,11 +3120,11 @@ if (do_no3_iso) then                                        !<< NO3 ISOTOPES
         t_prog(ind_in18o3)%th_tendency(i,j,k) +                           &
         (ibgc(n)%jremin_idop(i,j,k) -                                      &
         ibgc(n)%jprod_i18o(i,j,k)) * rho_dzt(i,j,k,taum1)
-  enddo; enddo ; enddo !} i,j,k
-endif                                                       !NO3 ISOTOPES >>
+  enddo; enddo ; enddo
+endif
 
-if (do_isio4) then                                                !<< SILICA
-   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+if (do_isio4) then
+   do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
       t_prog(ind_isio4)%th_tendency(i,j,k) =                               &
         t_prog(ind_isio4)%th_tendency(i,j,k) +                             &
         (ibgc(n)%jremin_pisi(i,j,k) - ibgc(n)%jprod_pisi(i,j,k)) *         &
@@ -3829,20 +3134,16 @@ if (do_isio4) then                                                !<< SILICA
         t_prog(ind_i30sio4)%th_tendency(i,j,k) +                           &
         (ibgc(n)%jremin_pi30si(i,j,k) - ibgc(n)%jprod_pi30si(i,j,k)) *     &
         rho_dzt(i,j,k,taum1)
-  enddo; enddo ; enddo !} i,j,k
-endif                                                             !SILICA >>
+  enddo; enddo ; enddo
+endif
 
-enddo  !} n
+enddo
 
-!-----------------------------------------------------------------------
-!       Save variables for diagnostics
-!-----------------------------------------------------------------------
+! Save variables for diagnostics
 
-!
-!       set up the grid mask on the computational grid so that we
-!       will not need to implicitly copy arrays in the following
-!       subroutine calls
-!
+! set up the grid mask on the computational grid so that we
+! will not need to implicitly copy arrays in the following
+! subroutine calls
 
 grid_tmask_comp = grid_tmask(isc:iec,jsc:jec,:)
 
@@ -3851,7 +3152,7 @@ if (id_o2_sat .gt. 0) then
          model_time, rmask = grid_tmask_comp(:,:,:))
 endif
 
-do n = 1, instances  !{
+do n = 1, instances
 
   if (ibgc(n)%id_sc_co2 .gt. 0) then
     used = send_data(ibgc(n)%id_sc_co2,                         &
@@ -4151,11 +3452,11 @@ do n = 1, instances  !{
            model_time, rmask = grid_tmask_comp(:,:,:))
   endif
 
-enddo  !} n
+enddo
 
 return
 
-end subroutine  ocean_ibgc_source  !}
+end subroutine  ocean_ibgc_source
 ! </SUBROUTINE> NAME="ocean_ibgc_source"
 
 
@@ -4170,24 +3471,8 @@ end subroutine  ocean_ibgc_source  !}
 subroutine ocean_ibgc_start(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,  &
      T_prog, T_diag, tau, model_time, grid_dat, grid_tmask, grid_kmt,           &
      grid_xt, grid_yt, depth_zt, grid_zw, grid_dzt, grid_name, grid_tracer_axes, &
-     mpp_domain2d, rho_dzt)  !{
+     mpp_domain2d, rho_dzt)
 
-!
-!-----------------------------------------------------------------------
-!       modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-use time_manager_mod, only        : days_in_year, days_in_month
-use time_manager_mod, only        : get_date, set_date
-use diag_manager_mod, only        : register_diag_field, diag_axis_init
-use field_manager_mod, only       : fm_get_index
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
 real, parameter :: spery = 365.25 * 24.0 * 3600.0
 
 character(len=64), parameter    :: sub_name = 'ocean_ibgc_start'
@@ -4195,12 +3480,6 @@ character(len=256), parameter   :: error_header =                               
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-
-!
-!-----------------------------------------------------------------------
-!     arguments
-!-----------------------------------------------------------------------
-!
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -4228,12 +3507,6 @@ integer, dimension(3), intent(in)                       :: grid_tracer_axes
 type(domain2d), intent(in)                              :: mpp_domain2d
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
   real                                  :: kappa_eppley
   real                                  :: kappa_eppley_remin
   real                                  :: irrk
@@ -4279,11 +3552,7 @@ real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
   real                                  :: c_2_ip
   real                                  :: sal_global
 
-integer                                         :: i
-integer                                         :: j
-integer                                         :: k
-integer                                         :: l
-integer                                         :: n
+integer                                         :: i, j, k, l, n
 character(len=fm_field_name_len+1)              :: suffix
 character(len=fm_field_name_len+3)              :: long_suffix
 character(len=256)                              :: caller_str
@@ -4295,45 +3564,21 @@ integer                                 :: id_restart
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-
-!
-! =====================================================================
-!       begin of executable code
-! =====================================================================
-!
-!
-!-----------------------------------------------------------------------
-!       give info
-!-----------------------------------------------------------------------
-!
-
-!
-!       Determine indices for temperature and salinity
-!
-
+! Determine indices for temperature and salinity
 indtemp = fm_get_index('/ocean_mod/prog_tracers/temp')
-if (indtemp .le. 0) then  !{
+if (indtemp .le. 0) then
   call mpp_error(FATAL,trim(error_header) // ' Could not get the temperature index')
-endif  !}
+endif
 
 indsal = fm_get_index('/ocean_mod/prog_tracers/salt')
-if (indsal .le. 0) then  !{
+if (indsal .le. 0) then
   call mpp_error(FATAL,trim(error_header) // ' Could not get the salinity index')
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
-!     dynamically allocate the global Ideal Nut arrays
-!-----------------------------------------------------------------------
-!
-
+! dynamically allocate the global Ideal Nut arrays
 call allocate_arrays(isc, iec, jsc, jec, nk, isd, ied, jsd, jed)
 
-!-----------------------------------------------------------------------
-!       save the *global* namelist values
-!-----------------------------------------------------------------------
-!
-
+! save the *global* namelist values
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
 call fm_util_start_namelist(package_name, '*global*', caller = caller_str)
@@ -4344,22 +3589,14 @@ htotal_in          =  fm_util_get_real   ('htotal_in', scalar = .true.)
 
 call fm_util_end_namelist(package_name, '*global*', caller = caller_str)
       
-!
 ! set default values for htotal_scale bounds
-!
-
 htotal_scale_lo(:,:) = htotal_scale_lo_in
 htotal_scale_hi(:,:) = htotal_scale_hi_in
 
-
-!
-!-----------------------------------------------------------------------
-!       read in the namelists for each instance
-!-----------------------------------------------------------------------
-!
+! read in the namelists for each instance
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
-do n = 1, instances  !{
+do n = 1, instances
 
   call fm_util_start_namelist(package_name, ibgc(n)%name, caller = caller_str)
 
@@ -4424,47 +3661,41 @@ do n = 1, instances  !{
   call fm_util_end_namelist(package_name, ibgc(n)%name, caller = caller_str)
 
 
-enddo  !} n
+enddo
 
-if (do_gasses) then                                               !<< GASSES
+if (do_gasses) then
 
-do n = 1, instances  !{
+do n = 1, instances
 
-if (do_radiocarbon) then                                      !<< RADIOCARBON
-!-----------------------------------------------------------------------
-!     Open the frac_14catm (fractionation of atmospheric 14CO2) file
-!
-!       If the file name is blank, then the 14C fractionation is assumed to
-!       be added to the atmospheric concentration
-!-----------------------------------------------------------------------
-
-  if (ibgc(n)%frac_14catm_file .ne. ' ') then  !{
+if (do_radiocarbon) then
+   ! Open the frac_14catm (fractionation of atmospheric 14CO2) file
+   ! If the file name is blank, then the 14C fractionation is assumed to
+   ! be added to the atmospheric concentration
+  if (ibgc(n)%frac_14catm_file .ne. ' ') then
     ibgc(n)%frac_14catm_id = init_external_field(ibgc(n)%frac_14catm_file, &
       ibgc(n)%frac_14catm_name, domain = mpp_domain2d,                     &
       use_comp_domain = .true.)
-    if (ibgc(n)%frac_14catm_id .eq. 0) then  !{
+    if (ibgc(n)%frac_14catm_id .eq. 0) then
       call mpp_error(FATAL, trim(error_header) //                          &
         ' Could not open frac_14catm_file file: ' //                       &
         trim(ibgc(n)%frac_14catm_file) // ' for ' //                       &
         trim(ibgc(n)%frac_14catm_name))
-    endif  !}
-  else  !}{
+    endif
+  else
     call mpp_error(NOTE, trim(error_header) //                             &
       ' Using constant field for atmospheric 14C for instance '            &
       // trim(ibgc(n)%name))
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    do j = jsc, jec
+      do i = isc, iec
         ibgc(n)%frac_14catm(i,j) = ibgc(n)%frac_14catm_const *             &
         grid_tmask(i,j,1)
-      enddo  !} i
-    enddo  !} j
-  endif  !}
-endif                                                        !RADIOCARBON >>
+      enddo
+    enddo
+  endif
+endif
 
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
 !       Read in additional information for a restart.
 !
 !       We must process all of the instances before restoring any files
@@ -4474,33 +3705,25 @@ enddo  !} n
 !
 !       Note that the restart file names here must be different from
 !       those for the tracer values.
-!-----------------------------------------------------------------------
-!
 
 allocate(restart(instances))
 allocate(local_restart_file(instances))
 
 write(stdoutunit,*)
 
-do n = 1, instances  !{
+do n = 1, instances
 
-!
-!       Set the suffix for this instance (if instance name is "_",
-!       then use a blank suffix).
-!
-
-  if (ibgc(n)%name(1:1) .eq. '_') then  !{
+   ! Set the suffix for this instance (if instance name is "_",
+   ! then use a blank suffix).
+  if (ibgc(n)%name(1:1) .eq. '_') then
     suffix = ' '
-  else  !}{
+  else
     suffix = '_' // ibgc(n)%name
-  endif  !}
+  endif
 
-!
-!       Check whether we are already using this restart file, if so,
-!       we do not want to duplicate it in the list of restart files
-!       since we only read each restart file once.
-!
-
+  ! Check whether we are already using this restart file, if so,
+  ! we do not want to duplicate it in the list of restart files
+  ! since we only read each restart file once.
   ind = 0
   do l = 1, num_restart
     if (ibgc(n)%local_restart_file == local_restart_file(l)) then
@@ -4515,44 +3738,35 @@ do n = 1, instances  !{
     local_restart_file(ind) = trim(ibgc(n)%local_restart_file)
   end if
 
-!
-!       Check whether the field already exists in the restart file.
-!       If not, then set a default value.
-!
-
+  ! Check whether the field already exists in the restart file.
+  ! If not, then set a default value.
   fld_exist = field_exist('INPUT/' // trim(ibgc(n)%local_restart_file), 'htotal' // trim(suffix) )
 
-  if ( fld_exist ) then  !{
+  if ( fld_exist ) then
     write (stdoutunit,*) trim(note_header),                       &
          ' Reading additional information for instance ',       &
          trim(ibgc(n)%name)
-  else  !}{
+  else
     write (stdoutunit,*) trim(note_header),                       &
          ' Initializing instance ', trim(ibgc(n)%name)
     ibgc(n)%htotal(:,:) = htotal_in
     ibgc(n)%htotal_sat(:,:) = htotal_in
-  endif  !}
+  endif
 
-!
-!       Register the field for restart
-!
-
+  ! Register the field for restart
   id_restart = register_restart_field(restart(ind), ibgc(n)%local_restart_file,         &
                     'htotal' // trim(suffix), ibgc(n)%htotal,                           &
                     domain=mpp_domain2d, mandatory=fld_exist)
 
-if (do_carbon_comp) then                                      !<< CARBON COMP
+if (do_carbon_comp) then
   id_restart = register_restart_field(restart(ind), ibgc(n)%local_restart_file,         &
                     'htotal_sat' // trim(suffix), ibgc(n)%htotal_sat,                   &
                     domain=mpp_domain2d, mandatory=fld_exist)
-endif                                                         !CARBON COMP >>
+endif
 
-enddo  !} n
+enddo
 
-!
-!       Restore the restart fields if the file exists
-!
-
+! Restore the restart fields if the file exists
 do l = 1, num_restart
   if (file_exist('INPUT/' // trim(local_restart_file(l)))) then
     call restore_state(restart(l))
@@ -4561,61 +3775,50 @@ end do
 
 deallocate(local_restart_file)
 
-!
-!       perform checksums on restart fields
-!
-
+! perform checksums on restart fields
 write (stdoutunit,*)
 write (stdoutunit,*) trim(note_header), ' Starting check sums for extra variables'
-do n = 1, instances  !{
+do n = 1, instances
   write(stdoutunit,*) 'htotal chksum = ', mpp_chksum(ibgc(n)%htotal)
-if (do_carbon_comp) then                                      !<< CARBON COMP
+if (do_carbon_comp) then
   write(stdoutunit,*) 'htotal_sat chksum = ', mpp_chksum(ibgc(n)%htotal_sat)
-endif                                                         !CARBON COMP >>
-enddo  !} n
+endif
+enddo
 write (stdoutunit,*)
 
-!-----------------------------------------------------------------------
-!
-!       initialize some arrays which are held constant for this
-!       simulation
-!
-!-----------------------------------------------------------------------
-!
-
-if (do_radiocarbon) then                                      !<< RADIOCARBON
-do n = 1, instances  !{
-  if (ibgc(n)%half_life_14c .gt. 0.0) then  !{
+! initialize some arrays which are held constant for this
+! simulation
+if (do_radiocarbon) then
+do n = 1, instances
+  if (ibgc(n)%half_life_14c .gt. 0.0) then
     ibgc(n)%lambda_14c = log(2.0) / (ibgc(n)%half_life_14c * spery)
-  else  !}{
+  else
     call mpp_error(FATAL,trim(error_header) // ' Half-life <= 0')
-  endif  !}
-enddo  !} n
-endif                                                        !RADIOCARBON >>
+  endif
+enddo
+endif
 
-endif                                                             !GASSES >>
+endif
 
-!-----------------------------------------------------------------------
 !       Set up diagnostic fields
-!-----------------------------------------------------------------------
-!       Register the global fields
+
+! Register the global fields
 
 suffix = '_' // package_name
 long_suffix = ' (' // trim(package_name) // ')'
 
-!       Register the instance fields
+! Register the instance fields
+do n = 1, instances
 
-do n = 1, instances  !{
-
-  if (instances .eq. 1) then  !{
+  if (instances .eq. 1) then
     suffix = ' '
     long_suffix = ' '
-  else  !}{
+  else
     suffix = '_' // ibgc(n)%name
     long_suffix = ' (' // trim(ibgc(n)%name) // ')'
-  endif  !}
+  endif
 
-if (do_ideal) then                                                 !<< IDEAL
+if (do_ideal) then
   ibgc(n)%id_jideal_n = register_diag_field(trim(diag_name),                                  &
        'jideal_n' // trim(suffix), grid_tracer_axes(1:3),                                     &
        model_time, 'Ideal Nutrient source, layer integral' // trim(long_suffix), 'mol m-2 s-1', &
@@ -4625,9 +3828,9 @@ if (do_ideal) then                                                 !<< IDEAL
        'jsuntan' // trim(suffix), grid_tracer_axes(1:3),                                      &
        model_time, 'Suntan source, layer integral' // trim(long_suffix), 'mol m-2 s-1',       &
        missing_value = -1.0e+10)
-endif                                                              !IDEAL >>
+endif
 
-if (do_po4) then                                                     !<< PO4
+if (do_po4) then
   ibgc(n)%id_remin_ip = register_diag_field(trim(diag_name),                                  &
        'remin_ip' // trim(suffix), grid_tracer_axes(1:3),                                     &
        model_time, 'Remineralization inverse lengthscale for fpip' // trim(long_suffix), 'm-1',       &
@@ -4663,9 +3866,9 @@ if (do_po4) then                                                     !<< PO4
        model_time, 'Ideal PO4 total source, layer integral' // trim(long_suffix), 'mol m-2 s-1', &
        missing_value = -1.0e+10)
 
-endif                                                                !PO4 >>
+endif
 
-if (do_po4f) then                                                   !<< PO4f
+if (do_po4f) then
 
  ibgc(n)%id_jife_new = register_diag_field(trim(diag_name),                                    &
        'jife_new' // trim(suffix), grid_tracer_axes(1:3),                                      &
@@ -4732,9 +3935,9 @@ if (do_po4f) then                                                   !<< PO4f
        model_time, 'Ideal PO4f net source, layer integral' // trim(long_suffix), 'mol m-2 s-1', &
        missing_value = -1.0e+10)
 
-endif                                                               !IRON >>
+endif
 
-if ((do_po4f) .or. (do_po4)) then                                !<< Any PO4
+if ((do_po4f) .or. (do_po4)) then
 
   ibgc(n)%id_ichl_new = register_diag_field(trim(diag_name),                                   &
        'ichl_new' // trim(suffix), grid_tracer_axes(1:3),                                      &
@@ -4751,9 +3954,9 @@ if ((do_po4f) .or. (do_po4)) then                                !<< Any PO4
        model_time, 'Net PO4 source for bgc calculations, layer integral' // trim(long_suffix), 'mol m-2 s-1', &
        missing_value = -1.0e+10)
 
-endif                                                            !Any PO4 >>
+endif
 
-if (do_gasses) then                                               !<< GASSES
+if (do_gasses) then
 
   id_o2_sat = register_diag_field(trim(diag_name),                                             &
        'o2_sat' // trim(suffix), grid_tracer_axes(1:3),                                        &
@@ -4810,7 +4013,7 @@ if (do_gasses) then                                               !<< GASSES
        model_time, 'Total iO2 biological source, layer integral' // trim(long_suffix), 'mol m-2 s-1', &
        missing_value = -1.0e+10)
 
-if (do_carbon_comp) then                                      !<< CARBON COMP
+if (do_carbon_comp) then
 
   ibgc(n)%id_csatsurf = register_diag_field(trim(diag_name),                                   &
        'icsatsurf' // trim(suffix), grid_tracer_axes(1:2),                                     &
@@ -4832,9 +4035,9 @@ if (do_carbon_comp) then                                      !<< CARBON COMP
        model_time, 'Saturation CO2 surface flux' // trim(long_suffix), 'mol m-2 s-1',          &
        missing_value = -1.0e+10)
 
-endif                                                         !CARBON COMP >>
+endif
 
-if (do_radiocarbon) then                                      !<< RADIOCARBON
+if (do_radiocarbon) then
 
   ibgc(n)%id_c14surf = register_diag_field(trim(diag_name),                                    &
        'ic14surf' // trim(suffix), grid_tracer_axes(1:2),                                      &
@@ -4891,11 +4094,11 @@ if (do_radiocarbon) then                                      !<< RADIOCARBON
        model_time, 'Total iDI14C source, layer integral' // trim(long_suffix), 'mol m-2 s-1',  &
        missing_value = -1.0e+10)
 
-endif                                                        !RADIOCARBON >>
+endif
 
-endif                                                             !GASSES >>
+endif
 
-if (do_no3_iso) then                                        !<< NO3 ISOTOPES
+if (do_no3_iso) then
 
    ibgc(n)%id_jprod_pi15n = register_diag_field(trim(diag_name),                              &
        'jprod_pi15n' // trim(suffix), grid_tracer_axes(1:3),                                  &
@@ -4932,9 +4135,9 @@ if (do_no3_iso) then                                        !<< NO3 ISOTOPES
        model_time, 'N18O3 uptake source, layer integral' // trim(long_suffix), 'mol m-2 s-1',  &
        missing_value = -1.0e+10)
 
-endif                                                       !NO3 ISOTOPES >>
+endif
 
-if (do_isio4) then                                                !<< SILICA
+if (do_isio4) then
 
   ibgc(n)%id_remin_isi = register_diag_field(trim(diag_name),                                  &
        'remin_isi' // trim(suffix), grid_tracer_axes(1:3),                                     &
@@ -4971,15 +4174,9 @@ if (do_isio4) then                                                !<< SILICA
        model_time, 'Ideal 30SiO4 remineralization layer integral' // trim(long_suffix), 'mol m-2 s-1', &
        missing_value = -1.0e+10)
 
-endif                                                             !SILICA >>
+endif
 
-enddo  !} n
-
-!
-!-----------------------------------------------------------------------
-!     give info
-!-----------------------------------------------------------------------
-!
+enddo
 
 write(stdoutunit,*)
 write(stdoutunit,*) trim(note_header), 'Tracer runs initialized'
@@ -4987,7 +4184,7 @@ write(stdoutunit,*)
 
 return
 
-end subroutine  ocean_ibgc_start  !}
+end subroutine  ocean_ibgc_start
 ! </SUBROUTINE> NAME="ocean_ibgc_start"
 
 
@@ -5003,32 +4200,9 @@ end subroutine  ocean_ibgc_start  !}
 !
 ! </DESCRIPTION>
 !
-
 subroutine ocean_ibgc_tracer(isc, iec, jsc, jec, isd, ied, jsd, jed, nk,   &
                                 Time, t_prog, Thickness, Dens,             &
-                                depth_zt, hblt_depth)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-use mpp_mod, only : mpp_sum
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-
-!
-!-----------------------------------------------------------------------
-!     arguments
-!-----------------------------------------------------------------------
-!
-
+                                depth_zt, hblt_depth)
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
 integer, intent(in)                                     :: jsc
@@ -5045,76 +4219,62 @@ type(ocean_density_type), intent(in)                       :: Dens
 real, dimension(isd:,jsd:,:), intent(in)                   :: depth_zt
 real, dimension(isd:,jsd:), intent(in)                     :: hblt_depth
 
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-integer :: i
-integer :: j
-integer :: k
-integer :: n
+integer :: i, j, k, n
 integer :: taup1
 
-
-!
-!-----------------------------------------------------------------------
 !     set Preformed phosphate, DIC
 !  Considered doing them differently, with DIC_pre set only in the very 
 ! surface layer, where gas exchange takes place...but for ease of 
 ! interpretation, made them equivalent.
-!-----------------------------------------------------------------------
-!
 taup1 = Time%taup1
 
-if ((do_po4f) .or. (do_po4)) then                                !<< Any PO4
+if ((do_po4f) .or. (do_po4)) then
 
-do n = 1, instances  !{
+do n = 1, instances
 
 if (do_bgc_felim) then
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
          if (depth_zt(i,j,k) <= hblt_depth(i,j)) then
            t_prog(ibgc(n)%ind_ipo4_pre)%field(i,j,k,taup1) =               &
              t_prog(ibgc(n)%ind_ipo4f)%field(i,j,k,taup1) 
          endif
-  enddo; enddo ; enddo !} i,j,k
+  enddo; enddo ; enddo
 else
-  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec   !{      
+  do k = 1, nk ; do j = jsc, jec ; do i = isc, iec
          if (depth_zt(i,j,k) <= hblt_depth(i,j)) then
            t_prog(ibgc(n)%ind_ipo4_pre)%field(i,j,k,taup1) =               &
              t_prog(ibgc(n)%ind_ipo4)%field(i,j,k,taup1) 
          endif
-  enddo; enddo ; enddo !} i,j,k
+  enddo; enddo ; enddo
 endif
 
-enddo !} n
+enddo
 
-endif                                                            !Any PO4 >>
+endif
 
-if (do_carbon_comp) then                                      !<< CARBON COMP
+if (do_carbon_comp) then
 
-do n = 1, instances  !{
+do n = 1, instances
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-      do k = 1,nk  !{
+  do j = jsc, jec
+    do i = isc, iec
+      do k = 1,nk
          if (depth_zt(i,j,k) <= hblt_depth(i,j)) then
            t_prog(ibgc(n)%ind_idic_pre)%field(i,j,k,taup1) =               &
              t_prog(ibgc(n)%ind_idic)%field(i,j,k,taup1) 
          endif
-      enddo  !} k
-    enddo  !} i
-  enddo  !} j
+      enddo
+    enddo
+  enddo
 
-enddo !} n
+enddo
 
-endif                                                         !CARBON COMP >>
+endif
 
 return
 
-end subroutine  ocean_ibgc_tracer  !}
+end subroutine  ocean_ibgc_tracer
 ! </SUBROUTINE> NAME="ocean_ibgc_tracer"
 
 !#######################################################################
-end module  ocean_ibgc_mod  !}
+end module  ocean_ibgc_mod
