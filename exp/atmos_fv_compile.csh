@@ -2,10 +2,8 @@
 
 set srcList = ( atmos_fv_dynamics/tools atmos_fv_dynamics/model atmos_fv_dynamics/driver/coupled atmos_coupled )
 
-# setup directory structure
 set lib_name = "lib_atmos_fv"
 
-# compile libs
 mkdir -p $executable:h:h/$lib_name
 cd $executable:h:h/$lib_name
 $mkmf_lib -p $lib_name.a -c "$cppDefs" -o "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_atmos_phys" $srcList $lib_include_dirs

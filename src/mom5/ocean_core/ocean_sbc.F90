@@ -463,7 +463,8 @@ use ocean_types_mod,          only: ocean_external_mode_type, ocean_velocity_typ
 use ocean_types_mod,          only: ice_ocean_boundary_type, ocean_density_type
 use ocean_types_mod,          only: ocean_public_type
 use ocean_workspace_mod,      only: wrk1_2d, wrk2_2d, wrk3_2d, wrk1
-  
+use ocean_util_mod,           only: diagnose_2d
+
 implicit none
 
 private
@@ -4101,11 +4102,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
             wrk1_2d(i,j) = pme_restore(i,j)*rhosfc_inv(i,j) 
          enddo
       enddo
-      if(id_eta_tend_salt_restore > 0) then 
-          used = send_data(id_eta_tend_water_restore, wrk1_2d(:,:),&
-                 Time%model_time, rmask=Grd%tmask(:,:,1),          &
-                 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-      endif
+      call diagnose_2d(Time, Grd, id_eta_tend_water_restore, wrk1_2d(:,:))
       if(id_eta_tend_water_restore_glob > 0) then 
          wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
          global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
