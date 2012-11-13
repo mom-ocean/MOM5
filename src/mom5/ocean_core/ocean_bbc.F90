@@ -245,13 +245,12 @@ contains
 ! Initialize the bottom boundary condition module
 ! </DESCRIPTION>
 !
-subroutine ocean_bbc_init(Grid, Domain, Time, Dens, T_prog, Velocity, &
+subroutine ocean_bbc_init(Grid, Domain, Time, T_prog, Velocity, &
                           Ocean_options, vert_coordinate_type, hor_grid)
 
 type(ocean_grid_type),   target, intent(in)    :: Grid
 type(ocean_domain_type), target, intent(in)    :: Domain
 type(ocean_time_type),           intent(in)    :: Time
-type(ocean_density_type),        intent(in)    :: Dens
 type(ocean_prog_tracer_type),    intent(inout) :: T_prog(:)
 type(ocean_velocity_type),       intent(inout) :: Velocity
 type(ocean_options_type),        intent(inout) :: Ocean_options
@@ -597,11 +596,10 @@ end subroutine ocean_bbc_init
 !
 ! </DESCRIPTION>
 !
-subroutine get_ocean_bbc(Time, Thickness, Ext_mode, Dens, Velocity, T_prog, Waves)
+subroutine get_ocean_bbc(Time, Thickness, Dens, Velocity, T_prog, Waves)
 
 type(ocean_time_type),          intent(in)    :: Time
 type(ocean_thickness_type),     intent(in)    :: Thickness
-type(ocean_external_mode_type), intent(in)    :: Ext_mode
 type(ocean_density_type),       intent(in)    :: Dens 
 type(ocean_velocity_type),      intent(inout) :: Velocity
 type(ocean_prog_tracer_type),   intent(inout) :: T_prog(:)
@@ -876,11 +874,11 @@ real,parameter:: twopi=2.*pi
             ! determined by matching log-profiles of outer and wave-boundary layer, see Kuhrts et al. (2004) Eq. (1,2)
             ! Waves%-quantities are defined at the t-grid. 
                 
-	    ! put wave_u onto the u-grid
+            ! put wave_u onto the u-grid
             wave_u_u = max(wave_u(i,j),   wave_u(i+1,j), &
                            wave_u(i,j+1), wave_u(i+1,j+1))
             
-	    if (wave_u_u > epsln) then
+            if (wave_u_u > epsln) then
 
                 ! put wave_p onto the u-grid
                 wave_p_u = max(Waves%wave_p(i,j),   Waves%wave_p(i+1,j), &

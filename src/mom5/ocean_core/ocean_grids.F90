@@ -1460,7 +1460,7 @@ subroutine set_ocean_vgrid_arrays (Time, Domain, Grid, obc)
   do j=jsc,jec
     do i=isc,iec
        kzt = Grid%kmt(i,j)
-       if(have_obc) kzt = kzt * Grid%obc_tmask(i,j)
+       if(have_obc) kzt = kzt * int(Grid%obc_tmask(i,j))
        if (kzt .gt. 0) then
            do k=1,kzt
               Grid%tcella(k) = Grid%tcella(k) + Grid%dat(i,j)
@@ -1473,7 +1473,7 @@ subroutine set_ocean_vgrid_arrays (Time, Domain, Grid, obc)
  do j=jsc,jec
     do i=isc,iec
        kzu = Grid%kmu(i,j)
-       if(have_obc) kzu = kzu * Grid%obc_umask(i,j)
+       if(have_obc) kzu = kzu * int(Grid%obc_umask(i,j))
        if (kzu .gt. 0) then
            do k=1,kzu
               Grid%ucella(k) = Grid%ucella(k) + Grid%dau(i,j)

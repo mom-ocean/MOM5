@@ -62,7 +62,7 @@
 !-----------------------------------------------------------------------
 !BOC
 
-  one_over_ctt=1.0D0/ctt
+  one_over_ctt=1.0/ctt
 
   do i=0,nlev
      epsb(i) = one_over_ctt*eps(i)/tke(i)*kb(i)

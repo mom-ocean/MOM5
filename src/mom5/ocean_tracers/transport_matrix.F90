@@ -248,8 +248,6 @@ subroutine transport_matrix_init  !{
 character(len=64), parameter    :: sub_name = 'transport_matrix_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
@@ -392,14 +390,6 @@ subroutine transport_matrix_start(Time, T_prog, isd, ied, jsd, jed, nk, &
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'transport_matrix_start'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !
 !       local variables
 !
@@ -488,14 +478,6 @@ subroutine transport_matrix_store_explicit(Time, T_prog, isd, ied, jsd, jed, nk,
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'transport_matrix_store_explicit'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !
 !       local variables
 !
@@ -559,14 +541,6 @@ subroutine transport_matrix_store_implicit(Time, T_prog, isd, ied, jsd, jed, nk,
 !
 !       local parameters
 !
-
-character(len=64), parameter    :: sub_name = 'transport_matrix_store_implicit'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
 !
 !       local variables

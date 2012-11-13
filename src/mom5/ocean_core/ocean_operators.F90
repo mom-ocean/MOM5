@@ -216,7 +216,7 @@ subroutine ocean_operators_init(Grid, Domain, Thickness, hor_grid)
     integer :: ioun, io_status, ierr
 
     stdoutunit=stdout()
-    stdlogunit = stdlog()	
+    stdlogunit = stdlog()
 
 #ifdef INTERNAL_FILE_NML
     read (input_nml_file, nml=ocean_operators_nml, iostat=io_status)
@@ -521,7 +521,7 @@ function DIV_UD (ud, halo_in, halo_out )
     jstart = jsc - halo_out
     jend   = jec + halo_out
 
-    DIV_UD = 0.d0
+    DIV_UD = 0.0
 
     if(horz_grid == MOM_CGRID) then
 

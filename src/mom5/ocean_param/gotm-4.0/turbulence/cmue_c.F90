@@ -100,8 +100,8 @@
    integer, intent(in)       :: nlev
 
 ! !DEFINED PARAMETERS:
-   REALTYPE, parameter       :: asLimitFact=1.0d0
-   REALTYPE, parameter       :: anLimitFact=0.5d0
+   REALTYPE, parameter       :: asLimitFact=1.0
+   REALTYPE, parameter       :: anLimitFact=0.5
 
 !
 ! !REVISION HISTORY:

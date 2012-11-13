@@ -385,7 +385,7 @@ integer                                         :: km_c_max
 integer                                         :: po4_star_id
 real, allocatable, dimension(:,:,:)             :: po4_star_t
 character*128                                   :: po4_star_file    
-character*32                                    :: po4_star_name    
+character*128                                   :: po4_star_name
 real, allocatable, dimension(:,:)               :: sc_no_term
 type(biotic_type), allocatable, dimension(:)    :: biotic
 integer                                         :: instances
@@ -877,14 +877,6 @@ integer, dimension(isd:,jsd:), intent(in)                       :: grid_kmt
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocmip2_biotic_bbc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !     local variables
@@ -979,10 +971,6 @@ real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 !
 
 character(len=64), parameter    :: sub_name = 'ocmip2_biotic_end'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
@@ -1193,20 +1181,6 @@ type(coupler_2d_bc_type), intent(in)                            :: ice_ocean_bou
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocmip2_biotic_sbc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-real, parameter :: po4_molwt = 31.0
-real, parameter :: dop_molwt = 31.0
-real, parameter :: o2_molwt = 32.0
-real, parameter :: dic_molwt = 12.0
-real, parameter :: alk_molwt = 1.0
-
 !
 !-----------------------------------------------------------------------
 !     local variables
@@ -1294,8 +1268,6 @@ implicit none
 character(len=64), parameter    :: sub_name = 'ocmip2_biotic_flux_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
@@ -1467,8 +1439,6 @@ implicit none
 character(len=64), parameter    :: sub_name = 'ocmip2_biotic_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
@@ -1853,14 +1823,6 @@ real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'ocmip2_biotic_init_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !       local variables
@@ -2057,14 +2019,6 @@ real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'ocmip2_biotic_sum_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !       local variables
@@ -2224,14 +2178,6 @@ type(coupler_2d_bc_type), intent(inout) :: Ocean_fields
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'ocmip2_biotic_zero_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !       local variables
@@ -2300,14 +2246,6 @@ real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'ocmip2_biotic_avg_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !       arguments
@@ -2375,14 +2313,6 @@ implicit none
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'ocmip2_biotic_sfc_end'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !       local variables
@@ -2444,14 +2374,6 @@ real, dimension(isd:,jsd:,:,:), intent(in)                      :: rho_dzt
 !     local parameters
 !-----------------------------------------------------------------------
 !
-
-character(len=64), parameter    :: sub_name = 'ocmip2_biotic_source'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
 !
 !-----------------------------------------------------------------------
@@ -3083,8 +3005,6 @@ real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 character(len=64), parameter    :: sub_name = 'ocmip2_biotic_start'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
@@ -4160,8 +4080,6 @@ real, dimension(isd:,jsd:), intent(in)          :: yt
 character(len=64), parameter    :: sub_name = 'set_array'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 

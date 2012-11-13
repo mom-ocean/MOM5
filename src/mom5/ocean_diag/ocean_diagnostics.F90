@@ -128,7 +128,7 @@ end subroutine ocean_diag_init
 ! </DESCRIPTION>
 !
 subroutine ocean_diagnostics(Time, Thickness, T_prog, T_diag, Adv_vel,&
-                             Ext_mode, Dens, Velocity, L_system,      &  
+                             Ext_mode, Dens, Velocity, &  
                              pme, melt, runoff, calving, visc_cbt)
 
   type(ocean_time_type),          intent(in)    :: Time
@@ -139,7 +139,6 @@ subroutine ocean_diagnostics(Time, Thickness, T_prog, T_diag, Adv_vel,&
   type(ocean_external_mode_type), intent(in)    :: Ext_mode
   type(ocean_density_type),       intent(inout) :: Dens
   type(ocean_velocity_type),      intent(inout) :: Velocity
-  type(ocean_lagrangian_type),    intent(in)    :: L_system
 
   real, dimension(isd:,jsd:),    intent(in) :: pme
   real, dimension(isd:,jsd:),    intent(in) :: melt
@@ -157,7 +156,7 @@ subroutine ocean_diagnostics(Time, Thickness, T_prog, T_diag, Adv_vel,&
 
   call mpp_clock_begin(id_tracer_diag)
   call ocean_tracer_diagnostics(Time, Thickness, T_prog, T_diag, Dens, &
-                                Ext_mode, Velocity, Adv_vel, L_system, &
+                                Ext_mode, Velocity, Adv_vel, &
                                 pme, melt, runoff, calving)
   call mpp_clock_end(id_tracer_diag)
 

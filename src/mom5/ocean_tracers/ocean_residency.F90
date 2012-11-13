@@ -375,8 +375,6 @@ implicit none
 character(len=64), parameter    :: sub_name = 'ocean_residency_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
@@ -655,10 +653,6 @@ real, intent(in), dimension(isd:,jsd:)                          :: hblt_depth
 character(len=64), parameter    :: sub_name = 'ocean_residency_source'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
 !
 !       local variables
@@ -1034,8 +1028,6 @@ integer, dimension(:), intent(in)                       :: grid_tracer_axes
 character(len=64), parameter    :: sub_name = 'ocean_residency_start'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
@@ -1326,14 +1318,6 @@ real, intent(in)                                                :: dtts
 !
 !       local parameters
 !
-
-character(len=64), parameter    :: sub_name = 'ocean_residency_tracer'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
 !
 !       local variables

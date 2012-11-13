@@ -103,12 +103,11 @@ contains
 ! Everything in this subroutine is a user prototype, and should be replacable.
 ! </DESCRIPTION>
 !
-subroutine ocean_sponges_eta_init(Grid, Domain, Time, Ext_mode, dtime, Ocean_options)
+subroutine ocean_sponges_eta_init(Grid, Domain, Time, dtime, Ocean_options)
 
   type(ocean_grid_type),          intent(in), target :: Grid
   type(ocean_domain_type),        intent(in), target :: Domain
   type(ocean_time_type),          intent(in)         :: Time
-  type(ocean_external_mode_type), intent(in)         :: Ext_mode
   real,                           intent(in)         :: dtime
   type(ocean_options_type),       intent(inout)      :: Ocean_options
 

@@ -1022,12 +1022,10 @@ end subroutine diagnose_mass_of_layer_orig
 !
 ! </DESCRIPTION>
 !
-subroutine diagnose_mass_of_layer(area_t, depth_zt, depth_zwt, dzt, dztlo, dztup, rho_dzt, &
+subroutine diagnose_mass_of_layer(area_t, dzt, dztlo, dztup, rho_dzt, &
                                   nrho_level, nrho_nk, nrho_bdy, nrho_layer_mass)
 
   real, dimension(isd:,jsd:),   intent(in)    :: area_t 
-  real, dimension(isd:,jsd:,:), intent(in)    :: depth_zt 
-  real, dimension(isd:,jsd:,:), intent(in)    :: depth_zwt 
   real, dimension(isd:,jsd:,:), intent(in)    :: dzt 
   real, dimension(isd:,jsd:,:), intent(in)    :: dztlo 
   real, dimension(isd:,jsd:,:), intent(in)    :: dztup

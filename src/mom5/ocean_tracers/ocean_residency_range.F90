@@ -171,14 +171,6 @@ integer, dimension(isd:,jsd:), intent(in)                       :: grid_kmt
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_residency_range_source'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !
 !       local variables
 !
@@ -252,8 +244,6 @@ implicit none
 character(len=64), parameter    :: sub_name = 'ocean_residency_range_start'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
