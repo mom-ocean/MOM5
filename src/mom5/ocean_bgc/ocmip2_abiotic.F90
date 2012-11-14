@@ -1,5 +1,5 @@
 #include <fms_platform.h>
-module  ocmip2_abiotic_mod  !{
+module  ocmip2_abiotic_mod
 ! 
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Richard D. Slater
 !</CONTACT>
@@ -45,22 +45,9 @@ module  ocmip2_abiotic_mod  !{
 !
 !------------------------------------------------------------------
 !
-!
-!------------------------------------------------------------------
-!
-!       Global definitions
-!
-!------------------------------------------------------------------
-!
-
-!
-!----------------------------------------------------------------------
-!
-!       Modules
-!
-!----------------------------------------------------------------------
-!
-
+use atmos_ocean_fluxes_mod,   only: aof_set_coupler_flux
+use diag_manager_mod,         only: register_diag_field, diag_axis_init
+use field_manager_mod,        only: fm_get_index
 use time_manager_mod,         only: time_type
 use diag_manager_mod,         only: send_data
 use field_manager_mod,        only: fm_field_name_len, fm_path_name_len, fm_string_len
@@ -81,39 +68,14 @@ use fm_util_mod,        only: fm_util_check_for_bad_fields, fm_util_set_value
 use fm_util_mod,        only: fm_util_get_string, fm_util_get_logical, fm_util_get_integer, fm_util_get_real
 use fm_util_mod,        only: fm_util_get_logical_array, fm_util_get_real_array, fm_util_get_string_array
 use fm_util_mod,        only: fm_util_start_namelist, fm_util_end_namelist
-use coupler_types_mod,  only: ind_alpha, ind_csurf, coupler_2d_bc_type
+use coupler_types_mod,  only: ind_alpha, ind_csurf, coupler_2d_bc_type, ind_flux
 use ocean_types_mod,    only: ocean_prog_tracer_type
 use ocmip2_co2calc_mod, only: ocmip2_co2calc
 
-!
-!----------------------------------------------------------------------
-!
-!       force all variables to be "typed"
-!
-!----------------------------------------------------------------------
-!
-
 implicit none
-
-!
-!----------------------------------------------------------------------
-!
-!       Make all routines and variables private by default
-!
-!----------------------------------------------------------------------
-!
 
 private
 
-!
-!----------------------------------------------------------------------
-!
-!       Public routines
-!
-!----------------------------------------------------------------------
-!
-
-!public  :: ocmip2_abiotic_bbc
 public  :: ocmip2_abiotic_end
 public  :: ocmip2_abiotic_init
 public  :: ocmip2_abiotic_flux_init
@@ -127,23 +89,8 @@ public  :: ocmip2_abiotic_zero_sfc
 public  :: ocmip2_abiotic_sfc_end
 public  :: ocmip2_abiotic_restart
 public  :: ocmip2_abiotic_tracer
-!
-!----------------------------------------------------------------------
-!
-!       Private routines
-!
-!----------------------------------------------------------------------
-!
 
 private :: allocate_arrays
-
-!
-!----------------------------------------------------------------------
-!
-!       Private parameters
-!
-!----------------------------------------------------------------------
-!
 
 character(len=fm_field_name_len), parameter     :: package_name = 'ocmip2_abiotic'
 character(len=48), parameter                    :: mod_name = 'ocmip2_abiotic_mod'
@@ -153,15 +100,6 @@ character(len=fm_string_len), parameter         :: default_local_restart_file = 
 character(len=fm_string_len), parameter         :: default_ice_restart_file = 'ice_ocmip2_abiotic.res.nc'
 character(len=fm_string_len), parameter         :: default_ocean_restart_file = 'ocmip2_abiotic_airsea_flux.res.nc'
 
-!
-!----------------------------------------------------------------------
-!
-!       Private types
-!
-!----------------------------------------------------------------------
-!
- 
-!
 !  sio4_const           = SiO4 concentration (mol/kg)
 !  po4_const            = PO4 concentration (mol/kg)
 !  dic_global           = global annual surface mean DIC concentration
@@ -174,9 +112,7 @@ character(len=fm_string_len), parameter         :: default_ocean_restart_file = 
 !                         concentration (PSU)
 !  sal_global_wrk       = work variable used in calculation of
 !                         sal_global
-!
-
-type abiotic_type  !{
+type abiotic_type
 
   real, _ALLOCATABLE, dimension(:,:)    :: alpha  _NULL
   real, _ALLOCATABLE, dimension(:,:)    :: csurf  _NULL
@@ -232,25 +168,9 @@ type abiotic_type  !{
   real, _ALLOCATABLE, dimension(:,:)    :: vstf_di14c  _NULL
   real, _ALLOCATABLE, dimension(:,:)    :: vstf_dic  _NULL
 
-end type abiotic_type  !}
-
-!
-!----------------------------------------------------------------------
-!
-!       Public variables
-!
-!----------------------------------------------------------------------
-!
+end type abiotic_type
 
 logical, public :: do_ocmip2_abiotic
-
-!
-!----------------------------------------------------------------------
-!
-!       Private variables
-!
-!----------------------------------------------------------------------
-!
 
 integer                 :: indsal
 integer                 :: indtemp
@@ -260,35 +180,21 @@ logical                 :: module_initialized = .false.
 character(len=128)      :: version = '$Id: ocmip2_abiotic.F90,v 1.1.2.1 2012/05/15 15:55:19 smg Exp $'
 character(len=128)      :: tagname = '$Name: mom5_siena_08jun2012_smg $'
 
-!
-!----------------------------------------------------------------------
-!
 !       Input parameters:
 !
 !  htotal_in            = default value for htotal for an initial run
 !  htotal_scale_lo      = scaling parameter to chose htotallo
 !  htotal_scale_hi      = scaling parameter to chose htotalhi
-!
-!----------------------------------------------------------------------
-!
-
 real                                    :: htotal_in
 real, allocatable, dimension(:,:)       :: htotal_scale_hi
 real                                    :: htotal_scale_hi_in
 real, allocatable, dimension(:,:)       :: htotal_scale_lo
 real                                    :: htotal_scale_lo_in
 
-!
-!----------------------------------------------------------------------
-!
 !       Calculated parameters (with possible initial input values):
 !
 !  global_wrk_duration  = total time during calculation of global
 !                         variables
-!
-!----------------------------------------------------------------------
-!
-
 real, allocatable, dimension(:,:)               :: sc_no_term
 type(abiotic_type), allocatable, dimension(:)   :: abiotic
 integer                                         :: instances
@@ -296,14 +202,6 @@ integer                                         :: instances
 ! for restart
 integer                              :: num_restart = 0
 type(restart_file_type), allocatable :: restart(:)
-
-!
-!-----------------------------------------------------------------------
-!
-!       Subroutine and function definitions
-!
-!-----------------------------------------------------------------------
-!
 
 contains
 
@@ -314,16 +212,7 @@ contains
 !     Dynamically allocate arrays
 ! </DESCRIPTION>
 !
-
-subroutine allocate_arrays(isc, iec, jsc, jec, nk, isd, ied, jsd, jed)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine allocate_arrays(isc, iec, jsc, jec, nk, isd, ied, jsd, jed)
 
 integer, intent(in)     :: isc
 integer, intent(in)     :: iec
@@ -335,45 +224,20 @@ integer, intent(in)     :: jsd
 integer, intent(in)     :: jed
 integer, intent(in)     :: nk
 
-!
-!       local variables
-!
+integer :: i, j, k, l, m, n
 
-integer :: i
-integer :: j
-integer :: k
-integer :: l
-integer :: m
-integer :: n
-
-!
-!-----------------------------------------------------------------------
-!     start executable code
-!-----------------------------------------------------------------------
-!     
-
-!
-!       global variables
-!
-
+! global variables
 allocate( sc_no_term(isc:iec,jsc:jec) )
 allocate( htotal_scale_lo(isc:iec,jsc:jec) )
 allocate( htotal_scale_hi(isc:iec,jsc:jec) )
 
-!
-!       initialize some arrays
-!
-
+! initialize some arrays
 sc_no_term(:,:) = 0.0
 htotal_scale_lo(:,:) = 0.0
 htotal_scale_hi(:,:) = 0.0
 
-!
-!       allocate abiotic array elements
-!
-
-do n = 1, instances  !{
-
+! allocate abiotic array elements
+do n = 1, instances
   allocate( abiotic(n)%htotal(isc:iec,jsc:jec) )
   allocate( abiotic(n)%csurf(isc:iec,jsc:jec) )
   allocate( abiotic(n)%c14surf(isc:iec,jsc:jec) )
@@ -385,23 +249,19 @@ do n = 1, instances  !{
   allocate( abiotic(n)%sc_co2(isc:iec,jsc:jec) )
   allocate( abiotic(n)%sal_global_wrk(isc:iec,jsc:jec) )
   allocate( abiotic(n)%jdi14c(isc:iec,jsc:jec,nk) )
+enddo
 
-enddo  !}
+! initialize abiotic array elements
+do n = 1, instances
 
-!
-!       initialize abiotic array elements
-!
-
-do n = 1, instances  !{
-
-  do j = jsd, jed  !{
-    do i = isd, ied  !{
+  do j = jsd, jed
+    do i = isd, ied
       abiotic(n)%po4(i,j) = 0.0
       abiotic(n)%sio4(i,j) = 0.0
-    enddo  !} i
-  enddo  !} j
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+    enddo
+  enddo
+  do j = jsc, jec
+    do i = isc, iec
       abiotic(n)%sc_co2(i,j) = 0.0
       abiotic(n)%htotal(i,j) = 0.0
       abiotic(n)%csurf(i,j) = 0.0
@@ -409,25 +269,25 @@ do n = 1, instances  !{
       abiotic(n)%alpha(i,j) = 0.0
       abiotic(n)%pco2surf(i,j) = 0.0
       abiotic(n)%sal_global_wrk(i,j) = 0.0
-    enddo  !} i
-  enddo  !} j
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+    enddo
+  enddo
+  do j = jsc, jec
+    do i = isc, iec
       abiotic(n)%frac_14catm(i,j) = abiotic(n)%frac_14catm_const
-    enddo  !} i
-  enddo  !} j
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-      do k = 1, nk  !{
+    enddo
+  enddo
+  do j = jsc, jec
+    do i = isc, iec
+      do k = 1, nk
         abiotic(n)%jdi14c(i,j,k) = 0.0
-      enddo  !} k
-    enddo  !} i
-  enddo  !} j
+      enddo
+    enddo
+  enddo
 
-enddo  !} n
+enddo
 
 return
-end subroutine  allocate_arrays  !}
+end subroutine  allocate_arrays
 ! </SUBROUTINE> NAME="allocate_arrays"
 
 
@@ -439,43 +299,9 @@ end subroutine  allocate_arrays  !}
 ! </DESCRIPTION>
 !
 
-subroutine ocmip2_abiotic_bbc  !{
+subroutine ocmip2_abiotic_bbc
 
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-return
-
-end subroutine  ocmip2_abiotic_bbc  !}
+end subroutine  ocmip2_abiotic_bbc
 ! </SUBROUTINE> NAME="ocmip2_abiotic_bbc"
 
 
@@ -488,21 +314,7 @@ end subroutine  ocmip2_abiotic_bbc  !}
 !
 
 subroutine ocmip2_abiotic_end(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,        &
-     T_prog, grid_dat, grid_tmask, mpp_domain2d, rho_dzt, taup1)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     T_prog, grid_dat, grid_tmask, mpp_domain2d, rho_dzt, taup1)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -520,27 +332,12 @@ real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 type(domain2d), intent(in)                              :: mpp_domain2d
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
 character(len=64), parameter    :: sub_name = 'ocmip2_abiotic_end'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-integer                                 :: i
-integer                                 :: j
-integer                                 :: k
+integer                                 :: i, j, k, n
 integer                                 :: lun
-integer                                 :: n
 character(len=fm_field_name_len+1)      :: suffix
 real                                    :: total_di14c
 real                                    :: total_dic
@@ -550,46 +347,29 @@ real, dimension(isd:ied,jsd:jed,nk)     :: wrk
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
-
-!
-!-----------------------------------------------------------------------
-!     statement functions
-!-----------------------------------------------------------------------
-!
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-!
 !       integrate the total concentrations of some tracers
 !       for the end of the run
-!
 
-!
 !       Use taup1 time index for the start of a run, and taup1 time
 !       index for the end of a run so that we are integrating the
 !       same time level and should therefore get identical results
-!
-
-do n = 1, instances  !{
+do n = 1, instances
 
   total_dic = 0.0
   total_di14c = 0.0
 
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         total_dic = total_dic +                                         &
              t_prog(abiotic(n)%ind_dic)%field(i,j,k,taup1) *            &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
         total_di14c = total_di14c +                                     &
              t_prog(abiotic(n)%ind_di14c)%field(i,j,k,taup1) *          &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
   call mpp_sum(total_dic)
   call mpp_sum(total_di14c)
@@ -602,26 +382,26 @@ do n = 1, instances  !{
        '(/'' Total DI14C  = '',es19.12,'' Gmol-C'')')           &
        total_di14c * 1.0e-09
 
-  do k = 1, nk  !{
-    do j = jsd, jed  !{
-      do i = isd, ied  !{
+  do k = 1, nk
+    do j = jsd, jed
+      do i = isd, ied
         wrk(i,j,k) =                                                            &
              t_prog(abiotic(n)%ind_dic)%field(i,j,k,taup1) *                    &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
   total_dic_bitwise = mpp_global_sum(mpp_domain2d, wrk, BITWISE_EXACT_SUM)
 
-  do k = 1, nk  !{
-    do j = jsd, jed  !{
-      do i = isd, ied  !{
+  do k = 1, nk
+    do j = jsd, jed
+      do i = isd, ied
         wrk(i,j,k) =                                                            &
              t_prog(abiotic(n)%ind_di14c)%field(i,j,k,taup1) *                  &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
   total_di14c_bitwise = mpp_global_sum(mpp_domain2d, wrk, BITWISE_EXACT_SUM)
 
   write (stdoutunit,*) '  Instance ', trim(abiotic(n)%name), ' bitwise exact sum'
@@ -632,14 +412,9 @@ do n = 1, instances  !{
        '(/'' Total DI14C  = '',es19.12,'' Gmol-C'')')           &
        total_di14c_bitwise * 1.0e-09
 
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       save out additional information for a restart
-!-----------------------------------------------------------------------
-!
-
+! save out additional information for a restart
 write(stdoutunit,*)
 
 write(stdoutunit,*) trim(note_header),                            &
@@ -650,17 +425,17 @@ call ocmip2_abiotic_restart
 write (stdoutunit,*) trim(note_header),                           &
      'Done writing additional restart information for instances'
 
-do n = 1, instances  !{
+do n = 1, instances
 
   write (stdoutunit,'(/1x,a,es16.9,a,a)')                         &
         'Annual, global, surface mean salinity = ',             &
         abiotic(n)%sal_global, ' (PSU) for instance ',          &
         trim(abiotic(n)%name)
 
-enddo  !} n
+enddo
 
 return
-end subroutine  ocmip2_abiotic_end  !}
+end subroutine  ocmip2_abiotic_end
 ! </SUBROUTINE> NAME="ocmip2_abiotic_end"
 
 
@@ -691,24 +466,7 @@ end subroutine ocmip2_abiotic_restart
 
 subroutine ocmip2_abiotic_sbc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,       &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     T_prog, taum1, model_time, grid_tmask, ice_ocean_boundary_fluxes)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-use coupler_types_mod, only       : coupler_2d_bc_type, ind_flux
-use mpp_mod, only                 : mpp_sum
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     T_prog, taum1, model_time, grid_tmask, ice_ocean_boundary_fluxes)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
@@ -729,83 +487,50 @@ type(time_type), intent(in)                                     :: model_time
 real, dimension(isd:,jsd:,:), intent(in)                        :: grid_tmask
 type(coupler_2d_bc_type), intent(in)                            :: ice_ocean_boundary_fluxes
 
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-integer :: i
+integer :: i, j, k, n, m
 integer :: i_bnd_off
 integer :: j_bnd_off
-integer :: j
-integer :: k
-integer :: n
-integer :: m
 integer :: kz
 logical :: used
 
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-!
-!---------------------------------------------------------------------
 !     use the surface fluxes from the coupler
 !       stf is in mol/m^2/s, flux from coupler is positive upwards
-!---------------------------------------------------------------------
-!
-
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
-do n = 1, instances  !{
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+do n = 1, instances
+  do j = jsc, jec
+    do i = isc, iec
       t_prog(abiotic(n)%ind_dic)%stf(i,j) =                                     &
             -ice_ocean_boundary_fluxes%bc(abiotic(n)%ind_co2_flux)%field(ind_flux)%values(i-i_bnd_off,j-j_bnd_off)
       t_prog(abiotic(n)%ind_di14c)%stf(i,j) =                                   &
             -ice_ocean_boundary_fluxes%bc(abiotic(n)%ind_14co2_flux)%field(ind_flux)%values(i-i_bnd_off,j-j_bnd_off)
-    enddo  !} i
-  enddo  !} j
-enddo  !} n 
+    enddo
+  enddo
+enddo
 
+! Save variables for diagnostics
+do n = 1, instances
 
-!
-!-----------------------------------------------------------------------
-!       Save variables for diagnostics
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
-
-  if (abiotic(n)%id_sfc_flux_co2 .gt. 0) then !{
+  if (abiotic(n)%id_sfc_flux_co2 .gt. 0) then
     used = send_data(abiotic(n)%id_sfc_flux_co2,        &
          t_prog(abiotic(n)%ind_dic)%stf(:,:),           &
          model_time, rmask = grid_tmask(:,:,1),         &
          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif !}
+  endif
 
-  if (abiotic(n)%id_sfc_flux_14co2 .gt. 0) then !{
+  if (abiotic(n)%id_sfc_flux_14co2 .gt. 0) then
     used = send_data(abiotic(n)%id_sfc_flux_14co2,      &
          t_prog(abiotic(n)%ind_di14c)%stf(:,:),         &
          model_time, rmask = grid_tmask(:,:,1),         &
          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif !}
+  endif
 
-enddo  !} n
+enddo
 
 return
 
-end subroutine  ocmip2_abiotic_sbc  !}
+end subroutine  ocmip2_abiotic_sbc
 ! </SUBROUTINE> NAME="ocmip2_abiotic_sbc"
 
 
@@ -815,34 +540,13 @@ end subroutine  ocmip2_abiotic_sbc  !}
 ! <DESCRIPTION>
 !       Set up any extra fields needed by the ocean-atmosphere gas fluxes
 ! </DESCRIPTION>
-
-subroutine ocmip2_abiotic_flux_init  !{
-
-use atmos_ocean_fluxes_mod, only: aof_set_coupler_flux
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!       local parameters
-!
+subroutine ocmip2_abiotic_flux_init
 
 character(len=64), parameter    :: sub_name = 'ocmip2_abiotic_flux_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 
 integer                                                 :: n
 character(len=fm_field_name_len)                        :: name
@@ -853,108 +557,82 @@ character(len=256)                                      :: caller_str
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
 !       First, perform some initialization if this module has not been
 !       initialized because the normal initialization routine will
 !       not have been called as part of the normal ocean model
 !       initialization if this is an Atmosphere pe of a coupled
 !       model running in concurrent mode
-!
-
-if (.not. module_initialized) then  !{
-
-!
-!       Initialize the package
-!
-
+if (.not. module_initialized) then
+   ! Initialize the package
   package_index = otpm_set_tracer_package(package_name,            &
        restart_file = default_restart_file,                        &
        caller = trim(mod_name) // '(' // trim(sub_name) // ')')
 
-!
-!       Check whether to use this package
-!
-
+  ! Check whether to use this package
   path_to_names = '/ocean_mod/tracer_packages/' // trim(package_name) // '/names'
   instances = fm_get_length(path_to_names)
-  if (instances .lt. 0) then  !{
+  if (instances .lt. 0) then
     call mpp_error(FATAL, trim(error_header) // ' Could not get number of instances')
-  endif  !}
+  endif
 
-!
-!       Check some things
-!
-
+  ! Check some things
   write (stdoutunit,*)
-  if (instances .eq. 0) then  !{
+  if (instances .eq. 0) then
     write (stdoutunit,*) trim(note_header), ' No instances'
     do_ocmip2_abiotic = .false.
-  else  !}{
-    if (instances .eq. 1) then  !{
+  else
+    if (instances .eq. 1) then
       write (stdoutunit,*) trim(note_header), ' ', instances, ' instance'
-    else  !}{
+    else
       write (stdoutunit,*) trim(note_header), ' ', instances, ' instances'
-    endif  !}
+    endif
     do_ocmip2_abiotic = .true.
-  endif  !}
+  endif
 
   module_initialized = .true.
 
-endif  !}
+endif
 
-!
-!       Return if we don't want to use this package
-!
 
-if (.not. do_ocmip2_abiotic) then  !{
+! Return if we don't want to use this package
+if (.not. do_ocmip2_abiotic) then
   return
-endif  !}
+endif
 
-if (.not. allocated(abiotic)) then  !{
+if (.not. allocated(abiotic)) then
 
-!
-!       allocate storage for abiotic array
-!
-
+   ! allocate storage for abiotic array
   allocate ( abiotic(instances) )
 
-!
-!       loop over the names, saving them into the abiotic array
-!
+  ! loop over the names, saving them into the abiotic array
+  do n = 1, instances
 
-  do n = 1, instances  !{
-
-    if (fm_get_value(path_to_names, name, index = n)) then  !{
+    if (fm_get_value(path_to_names, name, index = n)) then
       abiotic(n)%name = name
-    else  !}{
+    else
       write (name,*) n
       call mpp_error(FATAL, trim(error_header) //        &
            'Bad field name for index ' // trim(name))
-    endif  !}
+    endif
 
-  enddo  !}
+  enddo
 
-endif  !}
+endif
 
-!
-!       Set up the ocean-atmosphere gas flux fields
-!
 
+! Set up the ocean-atmosphere gas flux fields
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
-do n = 1, instances  !{
+do n = 1, instances
 
   name = abiotic(n)%name
-  if (name(1:1) .eq. '_') then  !{
+  if (name(1:1) .eq. '_') then
     suffix = ' '
-  else  !}{
+  else
     suffix = '_' // name
-  endif  !}
+  endif
 
-!
-!       Coupler fluxes
-!
-
+  ! Coupler fluxes
   abiotic(n)%ind_co2_flux = aof_set_coupler_flux('co2_flux' // suffix,                          &
        flux_type = 'air_sea_gas_flux', implementation = 'ocmip2',                               &
        mol_wt = WTMCO2, param = (/ 9.36e-07, 9.7561e-06 /),                                                      &
@@ -968,16 +646,11 @@ do n = 1, instances  !{
        ice_restart_file = default_ice_restart_file,                                             &
        ocean_restart_file = default_ocean_restart_file,                                         &
        caller = caller_str)
-
-!
-!       Coupler fields
-!
-
-enddo  !} n
+enddo
 
 return
 
-end subroutine  ocmip2_abiotic_flux_init  !}
+end subroutine  ocmip2_abiotic_flux_init
 ! </SUBROUTINE> NAME="ocmip2_abiotic_flux_init"
 
 
@@ -990,31 +663,13 @@ end subroutine  ocmip2_abiotic_flux_init  !}
 !       Save pointers to various "types", such as Grid and Domains.
 ! </DESCRIPTION>
 
-subroutine ocmip2_abiotic_init  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!       local parameters
-!
+subroutine ocmip2_abiotic_init
 
 character(len=64), parameter    :: sub_name = 'ocmip2_abiotic_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 
 integer                                                 :: n
 character(len=fm_field_name_len)                        :: name
@@ -1029,134 +684,96 @@ character(len=fm_string_len), pointer, dimension(:)     :: good_list
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-!       Initialize the package
-!
 
+! Initialize the package
 package_index = otpm_set_tracer_package(package_name,            &
      restart_file = default_restart_file,                        &
      caller = trim(mod_name) // '(' // trim(sub_name) // ')')
 
-!
-!       Check whether to use this package
-!
-
+! Check whether to use this package
 path_to_names = '/ocean_mod/tracer_packages/' // trim(package_name) // '/names'
 instances = fm_get_length(path_to_names)
-if (instances .lt. 0) then  !{
+if (instances .lt. 0) then
   call mpp_error(FATAL, trim(error_header) // ' Could not get number of instances')
-endif  !}
+endif
 
-!
-!       Check some things
-!
-
+! Check some things
 write (stdoutunit,*)
-if (instances .eq. 0) then  !{
+if (instances .eq. 0) then
   write (stdoutunit,*) trim(note_header), ' No instances'
   do_ocmip2_abiotic = .false.
-else  !}{
-  if (instances .eq. 1) then  !{
+else
+  if (instances .eq. 1) then
     write (stdoutunit,*) trim(note_header), ' ', instances, ' instance'
-  else  !}{
+  else
     write (stdoutunit,*) trim(note_header), ' ', instances, ' instances'
-  endif  !}
+  endif
   do_ocmip2_abiotic = .true.
-endif  !}
+endif
 
 module_initialized = .true.
 
-!
-!       Return if we don't want to use this package
-!
-
-if (.not. do_ocmip2_abiotic) then  !{
+! Return if we don't want to use this package
+if (.not. do_ocmip2_abiotic) then
   return
-endif  !}
+endif
 
-!
-!       allocate storage for abiotic array
-!
-
+! allocate storage for abiotic array
 allocate ( abiotic(instances) )
 
-!
-!       loop over the names, saving them into the abiotic array
-!
+! loop over the names, saving them into the abiotic array
+do n = 1, instances
 
-do n = 1, instances  !{
-
-  if (fm_get_value(path_to_names, name, index = n)) then  !{
+  if (fm_get_value(path_to_names, name, index = n)) then
     abiotic(n)%name = name
-  else  !}{
+  else
     write (name,*) n
     call mpp_error(FATAL, trim(error_header) //        &
          'Bad field name for index ' // trim(name))
-  endif  !}
+  endif
 
-enddo  !}
+enddo
 
-!
-!       Set up the field input
-!
-
+! Set up the field input
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
-do n = 1, instances  !{
+do n = 1, instances
 
   name = abiotic(n)%name
-  if (name(1:1) .eq. '_') then  !{
+  if (name(1:1) .eq. '_') then
     suffix = ' '
     long_suffix = ' '
-  else  !}{
+  else
     suffix = '_' // name
     long_suffix = ' (' // trim(name) // ')'
-  endif  !}
+  endif
 
-!
-!       DIC
-!
-
+  ! DIC
   abiotic(n)%ind_dic = otpm_set_prog_tracer('dic' // suffix,            &
        package_name,                                                    &
        longname = 'DIC' // trim(long_suffix),                           &
        units = 'mol/kg', flux_units = 'mol/m^2/s',                      &
        caller = caller_str)
 
-!
-!       DI14C
-!
-
+  ! DI14C
   abiotic(n)%ind_di14c = otpm_set_prog_tracer('di14c' // suffix,        &
        package_name,                                                    &
        longname = 'DI14C' // trim(long_suffix),                         &
        units = 'mol/kg', flux_units = 'mol/m^2/s',                      &
        caller = caller_str)
 
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       Process the namelists
-!-----------------------------------------------------------------------
-!
+! Process the namelists
 
-!
 !       Add the package name to the list of good namelists, to be used
 !       later for a consistency check
-!
-
-if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) .le. 0) then  !{
+if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) .le. 0) then
   call mpp_error(FATAL, trim(error_header) //                           &
        ' Could not add ' // trim(package_name) // ' to "good_namelists" list')
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
-!       Set up the *global* namelist
-!-----------------------------------------------------------------------
-!
-
+! Set up the *global* namelist
 call fm_util_start_namelist(package_name, '*global*', caller = caller_str, no_overwrite = .true., &
      check = .true.)
 
@@ -1166,18 +783,9 @@ call fm_util_set_value('htotal_in', 1.0e-08)
 
 call fm_util_end_namelist(package_name, '*global*', caller = caller_str, check = .true.)
 
-!
-!-----------------------------------------------------------------------
-!       Set up the instance namelists
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
-
-!
-!       create the instance namelist
-!
-
+! Set up the instance namelists
+do n = 1, instances
+   ! create the instance namelist
   call fm_util_start_namelist(package_name, abiotic(n)%name, caller = caller_str, no_overwrite = .true., &
        check = .true.)
 
@@ -1192,12 +800,8 @@ do n = 1, instances  !{
   call fm_util_set_value('dic_global', 2.0e-03)                         ! mol/kg
   call fm_util_set_value('di14c_global', 2.0e-03)                       ! mol/kg
   call fm_util_set_value('local_restart_file', default_local_restart_file)
-!Old Wanninkhof numbers
-!  call fm_util_set_value('sc_co2_0', 2073.1)
-!  call fm_util_set_value('sc_co2_1', -125.62)
-!  call fm_util_set_value('sc_co2_2', 3.6276)
-!  call fm_util_set_value('sc_co2_3', -0.043219)
-!New Wanninkhof numbers
+
+  ! New Wanninkhof numbers
   call fm_util_set_value('sc_co2_0', 2068.9)
   call fm_util_set_value('sc_co2_1', -118.63)
   call fm_util_set_value('sc_co2_2', 2.9311)
@@ -1205,25 +809,22 @@ do n = 1, instances  !{
 
   call fm_util_end_namelist(package_name, abiotic(n)%name, check = .true., caller = caller_str)
 
-enddo  !} n
+enddo
 
-!
-!       Check for any errors in the number of fields in the namelists for this package
-!
-
+! Check for any errors in the number of fields in the namelists for this package
 good_list => fm_util_get_string_array('/ocean_mod/GOOD/namelists/' // trim(package_name) // '/good_values',   &
      caller = trim(mod_name) // '(' // trim(sub_name) // ')')
-if (associated(good_list)) then  !{
+if (associated(good_list)) then
   call fm_util_check_for_bad_fields('/ocean_mod/namelists/' // trim(package_name), good_list,       &
        caller = trim(mod_name) // '(' // trim(sub_name) // ')')
   deallocate(good_list)
-else  !}{
+else
   call mpp_error(FATAL,trim(error_header) // ' Empty "' // trim(package_name) // '" list')
-endif  !}
+endif
 
 return
 
-end subroutine ocmip2_abiotic_init  !}
+end subroutine ocmip2_abiotic_init
 ! </SUBROUTINE> NAME="ocmip2_abiotic_init"
 
 
@@ -1238,21 +839,7 @@ end subroutine ocmip2_abiotic_init  !}
 
 subroutine ocmip2_abiotic_init_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,  &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1274,23 +861,9 @@ integer, intent(in)                                     :: taum1
 type(time_type), intent(in)                             :: model_time
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-integer :: i
+integer :: i, j, m, n, nn
 integer :: i_bnd_off
 integer :: j_bnd_off
-integer :: j
-integer :: m
-integer :: n
-integer :: nn
 integer :: ind
 
 real    :: epsln=1.0e-30
@@ -1298,15 +871,11 @@ real    :: epsln=1.0e-30
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
-do n = 1, instances  !{
-
-!
-!       CO2 flux
-!
-
+do n = 1, instances
+   ! CO2 flux
   ind = abiotic(n)%ind_co2_flux
   if (.not. field_exist('INPUT/'//trim(Ocean_fields%bc(ind)%ocean_restart_file),    &
-                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then  !{
+                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then
 
     call ocmip2_co2calc(isd, ied, jsd, jed, isc, iec, jsc, jec,         &
          grid_tmask(isd:ied,jsd:jed,1),                                 &
@@ -1321,16 +890,11 @@ do n = 1, instances  !{
          co2star = abiotic(n)%csurf, alpha = abiotic(n)%alpha,          &
          pco2surf = abiotic(n)%pco2surf)
 
-!
-!---------------------------------------------------------------------
 !  Compute the Schmidt number of CO2 in seawater using the 
 !  formulation presented by Wanninkhof (1992, J. Geophys. Res., 97,
 !  7373-7382).
-!---------------------------------------------------------------------
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    do j = jsc, jec
+      do i = isc, iec
         abiotic(n)%sc_co2(i,j) =                                                &
              abiotic(n)%sc_co2_0 + t_prog(indtemp)%field(i,j,1,taum1) *         &
              (abiotic(n)%sc_co2_1 + t_prog(indtemp)%field(i,j,1,taum1) *        &
@@ -1341,23 +905,18 @@ do n = 1, instances  !{
              abiotic(n)%alpha(i,j) * rho(i,j,1,taum1) * sc_no_term(i,j)
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =         &
              abiotic(n)%csurf(i,j) * rho(i,j,1,taum1) * sc_no_term(i,j)
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
     ind = abiotic(n)%ind_14co2_flux
 
-!
-!---------------------------------------------------------------------
-!     calculate interpolated frac_14catm (fractionation of atmospheric 14CO2)
-!---------------------------------------------------------------------
-!
-
+    ! calculate interpolated frac_14catm (fractionation of atmospheric 14CO2)
     if (abiotic(n)%frac_14catm_file .ne. ' ') then
       call time_interp_external(abiotic(n)%frac_14catm_id, model_time, abiotic(n)%frac_14catm)
     endif
 
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    do j = jsc, jec
+      do i = isc, iec
         abiotic(n)%c14surf(i,j) = abiotic(n)%csurf(i,j) *                       &
              t_prog(abiotic(n)%ind_di14c)%field(i,j,1,taum1) /                  &
              (t_prog(abiotic(n)%ind_dic)%field(i,j,1,taum1) + 1.0e-40)
@@ -1366,16 +925,16 @@ do n = 1, instances  !{
              (1.0 + abiotic(n)%frac_14catm(i,j) * 1.0e-03)
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) = &
              abiotic(n)%c14surf(i,j) * rho(i,j,1,taum1) * sc_no_term(i,j)
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
-  endif  !}
+  endif
 
-enddo  !} n
+enddo
 
 return
 
-end subroutine ocmip2_abiotic_init_sfc  !}
+end subroutine ocmip2_abiotic_init_sfc
 ! </SUBROUTINE> NAME="ocmip2_abiotic_init_sfc"
 
 
@@ -1385,24 +944,9 @@ end subroutine ocmip2_abiotic_init_sfc  !}
 ! <DESCRIPTION>
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
-
 subroutine ocmip2_abiotic_sum_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,    &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1424,22 +968,9 @@ integer, intent(in)                                     :: taum1
 type(time_type), intent(in)                             :: model_time
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-integer :: i
+integer :: i, j, n, nn
 integer :: i_bnd_off
 integer :: j_bnd_off
-integer :: j
-integer :: n
-integer :: nn
 integer :: ind
 
 real    :: epsln=1.0e-30
@@ -1447,7 +978,7 @@ real    :: epsln=1.0e-30
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
-do n = 1, instances  !{
+do n = 1, instances
 
   ind = abiotic(n)%ind_co2_flux
 
@@ -1464,16 +995,11 @@ do n = 1, instances  !{
        co2star = abiotic(n)%csurf, alpha = abiotic(n)%alpha,            &
        pco2surf = abiotic(n)%pco2surf)
 
-!
-!---------------------------------------------------------------------
 !  Compute the Schmidt number of CO2 in seawater using the 
 !  formulation presented by Wanninkhof (1992, J. Geophys. Res., 97,
 !  7373-7382).
-!---------------------------------------------------------------------
-!
-
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
       abiotic(n)%sc_co2(i,j) =                                                  &
              abiotic(n)%sc_co2_0 + t_prog(indtemp)%field(i,j,1,taum1) *         &
              (abiotic(n)%sc_co2_1 + t_prog(indtemp)%field(i,j,1,taum1) *        &
@@ -1486,23 +1012,18 @@ do n = 1, instances  !{
       Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =           &
            Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) +      &
            abiotic(n)%csurf(i,j) * rho(i,j,1,taum1) * sc_no_term(i,j)
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
   ind = abiotic(n)%ind_14co2_flux
 
-!
-!---------------------------------------------------------------------
-!     calculate interpolated frac_14catm (fractionation of atmospheric 14CO2)
-!---------------------------------------------------------------------
-!
-
+  ! calculate interpolated frac_14catm (fractionation of atmospheric 14CO2)
   if (abiotic(n)%frac_14catm_file .ne. ' ') then
     call time_interp_external(abiotic(n)%frac_14catm_id, model_time, abiotic(n)%frac_14catm)
   endif
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
       abiotic(n)%c14surf(i,j) = abiotic(n)%csurf(i,j) *                                 &
            t_prog(abiotic(n)%ind_di14c)%field(i,j,1,taum1) /                            &
            (t_prog(abiotic(n)%ind_dic)%field(i,j,1,taum1) + 1.0e-40)
@@ -1513,14 +1034,14 @@ do n = 1, instances  !{
       Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =           &
            Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) +      &
            abiotic(n)%c14surf(i,j) * rho(i,j,1,taum1) * sc_no_term(i,j)
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-enddo  !} n
+enddo
 
 return
 
-end subroutine ocmip2_abiotic_sum_sfc  !}
+end subroutine ocmip2_abiotic_sum_sfc
 ! </SUBROUTINE> NAME="ocmip2_abiotic_sum_sfc"
 
 
@@ -1531,33 +1052,14 @@ end subroutine ocmip2_abiotic_sum_sfc  !}
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
 
-subroutine ocmip2_abiotic_zero_sfc(Ocean_fields)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine ocmip2_abiotic_zero_sfc(Ocean_fields)
 
 type(coupler_2d_bc_type), intent(inout) :: Ocean_fields
-
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 
 integer         :: n
 integer         :: ind
 
-do n = 1, instances  !{
-
+do n = 1, instances
   ind = abiotic(n)%ind_co2_flux
 
   Ocean_fields%bc(ind)%field(ind_alpha)%values = 0.0
@@ -1567,12 +1069,11 @@ do n = 1, instances  !{
 
   Ocean_fields%bc(ind)%field(ind_alpha)%values = 0.0
   Ocean_fields%bc(ind)%field(ind_csurf)%values = 0.0
-
-enddo  !} n
+enddo
 
 return
 
-end subroutine ocmip2_abiotic_zero_sfc  !}
+end subroutine ocmip2_abiotic_zero_sfc
 ! </SUBROUTINE> NAME="ocmip2_abiotic_zero_sfc"
 
 
@@ -1584,15 +1085,7 @@ end subroutine ocmip2_abiotic_zero_sfc  !}
 ! </DESCRIPTION>
 
 subroutine ocmip2_abiotic_avg_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,    &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1611,27 +1104,9 @@ type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 integer                                                 :: Ocean_avg_kount
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
 integer :: i_bnd_off
 integer :: j_bnd_off
-integer :: i
-integer :: j
-integer :: n
+integer :: i, j, n
 integer :: ind
 real    :: divid
 
@@ -1640,39 +1115,39 @@ j_bnd_off = jsc - jsc_bnd
 
 divid = 1./float(Ocean_avg_kount)
 
-do n = 1, instances  !{
+do n = 1, instances
 
   ind = abiotic(n)%ind_co2_flux
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-      if (grid_tmask(i,j,1) == 1.0) then  !{
+  do j = jsc, jec
+    do i = isc, iec
+      if (grid_tmask(i,j,1) == 1.0) then
         Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) * divid
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) * divid
-      endif  !}
-    enddo  !} i
-  enddo  !} j
+      endif
+    enddo
+  enddo
 
   ind = abiotic(n)%ind_14co2_flux
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-      if (grid_tmask(i,j,1) == 1.0) then  !{
+  do j = jsc, jec
+    do i = isc, iec
+      if (grid_tmask(i,j,1) == 1.0) then
         Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) * divid
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) * divid
-      endif  !}
-    enddo  !} i
-  enddo  !} j
+      endif
+    enddo
+  enddo
 
-enddo  !} n
+enddo
 
 return
 
-end subroutine ocmip2_abiotic_avg_sfc  !}
+end subroutine ocmip2_abiotic_avg_sfc
 ! </SUBROUTINE> NAME="ocmip2_abiotic_avg_sfc"
 
 
@@ -1683,29 +1158,9 @@ end subroutine ocmip2_abiotic_avg_sfc  !}
 !       Initialize surface fields for flux calculations
 ! </DESCRIPTION>
 
-subroutine ocmip2_abiotic_sfc_end  !{
+subroutine ocmip2_abiotic_sfc_end
 
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-return
-
-end subroutine ocmip2_abiotic_sfc_end  !}
+end subroutine ocmip2_abiotic_sfc_end
 ! </SUBROUTINE> NAME="ocmip2_abiotic_sfc_end"
 
 
@@ -1718,23 +1173,8 @@ end subroutine ocmip2_abiotic_sfc_end  !}
 !     of hooks required in MOM base code)
 ! </DESCRIPTION>
 !
-
 subroutine ocmip2_abiotic_source(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,     &
-     T_prog, taum1, model_time, grid_tmask, rho_dzt)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     T_prog, taum1, model_time, grid_tmask, rho_dzt)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
@@ -1751,82 +1191,39 @@ type(time_type), intent(in)                                     :: model_time
 real, dimension(isd:,jsd:,:), intent(in)                        :: grid_tmask
 real, dimension(isd:,jsd:,:,:), intent(in)                      :: rho_dzt
 
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-integer :: i
-integer :: j
-integer :: k
-integer :: n
+integer :: i, j, k, n
 logical :: used
 real, dimension(isc:iec,jsc:jec,nk)     :: grid_tmask_comp
 
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
+! calculate the source terms for ABIOTICs
 
-!
-!-----------------------------------------------------------------------
-!     calculate the source terms for ABIOTICs
-!-----------------------------------------------------------------------
-!
+! Loop over multiple instances
+do n = 1, instances
+  ! DI14C
 
-!
-!       Loop over multiple instances
-!
-
-do n = 1, instances  !{
-
-!
-!-----------------------------------------------------------------------
-!     DI14C
-!-----------------------------------------------------------------------
-!
-
-!
-!       compute DI14C decay
-!
-
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! compute DI14C decay
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         abiotic(n)%jdi14c(i,j,k) = t_prog(abiotic(n)%ind_di14c)%field(i,j,k,taum1) *    &
              abiotic(n)%lambda
         t_prog(abiotic(n)%ind_di14c)%th_tendency(i,j,k) =                               &
              t_prog(abiotic(n)%ind_di14c)%th_tendency(i,j,k) -                          &
              abiotic(n)%jdi14c(i,j,k) * rho_dzt(i,j,k,taum1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       Save variables for diagnostics
-!-----------------------------------------------------------------------
-!
+! Save variables for diagnostics
 
-!
 !       set up the grid mask on the computational grid so that we
 !       will not need to implicitly copy arrays in the following
 !       subroutine calls
-!
-
 grid_tmask_comp = grid_tmask(isc:iec,jsc:jec,:)
 
-do n = 1, instances  !{
+do n = 1, instances
 
   if (abiotic(n)%id_sc_co2 .gt. 0) then
     used = send_data(abiotic(n)%id_sc_co2,              &
@@ -1889,11 +1286,11 @@ do n = 1, instances  !{
          model_time, rmask = grid_tmask_comp(:,:,:))
   endif
 
-enddo  !} n
+enddo
 
 return
 
-end subroutine  ocmip2_abiotic_source  !}
+end subroutine  ocmip2_abiotic_source
 ! </SUBROUTINE> NAME="ocmip2_abiotic_source"
 
 
@@ -1905,30 +1302,10 @@ end subroutine  ocmip2_abiotic_source  !}
 ! for a given run and allocate diagnostic arrays
 ! </DESCRIPTION>
 !
-
 subroutine ocmip2_abiotic_start(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,     &
      T_prog, taup1, model_time, grid_dat, grid_tmask, grid_kmt,                 &
      grid_xt, grid_yt, grid_zt, grid_zw, grid_dzt, grid_tracer_axes,            &
-     mpp_domain2d, rho_dzt)  !{
-
-!
-!-----------------------------------------------------------------------
-!       modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-!use time_manager_mod, only        : days_in_year, days_in_month
-!use time_manager_mod, only        : set_date
-use diag_manager_mod, only        : register_diag_field, diag_axis_init
-use field_manager_mod, only       : fm_get_index
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     mpp_domain2d, rho_dzt)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1954,12 +1331,6 @@ integer, dimension(3), intent(in)                       :: grid_tracer_axes
 type(domain2d), intent(in)                              :: mpp_domain2d
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
 character(len=64), parameter    :: sub_name = 'ocmip2_abiotic_start'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
@@ -1969,16 +1340,7 @@ character(len=256), parameter   :: note_header =                                
 real, parameter :: sperd = 24.0 * 3600.0
 real, parameter :: spery = 365.25 * sperd
 
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-integer                                         :: i
-integer                                         :: j
-integer                                         :: k
-integer                                         :: n
+integer                                         :: i, j, k, n
 character(len=fm_field_name_len+1)              :: suffix
 character(len=fm_field_name_len+3)              :: long_suffix
 character(len=256)                              :: caller_str
@@ -1996,49 +1358,25 @@ integer                                         :: id_restart
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-! =====================================================================
-!       begin of executable code
-! =====================================================================
-!
-!
-!-----------------------------------------------------------------------
-!       give info
-!-----------------------------------------------------------------------
-!
-
 write(stdoutunit,*) 
 write(stdoutunit,*) trim(note_header),                     &
                   'Starting ', trim(package_name), ' module'
 
-!
 !       Determine indices for temperature and salinity
-!
-
 indtemp = fm_get_index('/ocean_mod/prog_tracers/temp')
-if (indtemp .le. 0) then  !{
+if (indtemp .le. 0) then
   call mpp_error(FATAL,trim(error_header) // ' Could not get the temperature index')
-endif  !}
+endif
 
 indsal = fm_get_index('/ocean_mod/prog_tracers/salt')
-if (indsal .le. 0) then  !{
+if (indsal .le. 0) then
   call mpp_error(FATAL,trim(error_header) // ' Could not get the salinity index')
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
-!     dynamically allocate the global ABIOTIC arrays
-!-----------------------------------------------------------------------
-!
-
+! dynamically allocate the global ABIOTIC arrays
 call allocate_arrays(isc, iec, jsc, jec, nk, isd, ied, jsd, jed)
 
-!
-!-----------------------------------------------------------------------
 !       save the *global* namelist values
-!-----------------------------------------------------------------------
-!
-
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
 call fm_util_start_namelist(package_name, '*global*', caller = caller_str)
@@ -2049,21 +1387,12 @@ htotal_in          =  fm_util_get_real   ('htotal_in', scalar = .true.)
 
 call fm_util_end_namelist(package_name, '*global*', caller = caller_str)
       
-!
 ! set default values for htotal_scale bounds
-!
-
 htotal_scale_lo(:,:) = htotal_scale_lo_in
 htotal_scale_hi(:,:) = htotal_scale_hi_in
 
-!
-!-----------------------------------------------------------------------
 !       read in the namelists for each instance
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
-
+do n = 1, instances
   call fm_util_start_namelist(package_name, abiotic(n)%name, caller = caller_str)
 
   abiotic(n)%frac_14catm_file       = fm_util_get_string ('frac_14catm_file', scalar = .true.)
@@ -2083,42 +1412,34 @@ do n = 1, instances  !{
   abiotic(n)%sc_co2_3               = fm_util_get_real   ('sc_co2_3', scalar = .true.)
 
   call fm_util_end_namelist(package_name, abiotic(n)%name, caller = caller_str)
-
-enddo  !} n
+enddo
       
-do n = 1, instances  !{
+do n = 1, instances
 
-!
-!-----------------------------------------------------------------------
 !     Open the frac_14catm (fractionation of atmospheric 14CO2) file
 !
 !       If the file name is blank, then the 14C fractionation is assumed to
 !       be added to the atmospheric concentration
-!-----------------------------------------------------------------------
-!
-
-  if (abiotic(n)%frac_14catm_file .ne. ' ') then  !{
+  if (abiotic(n)%frac_14catm_file .ne. ' ') then
     abiotic(n)%frac_14catm_id = init_external_field(abiotic(n)%frac_14catm_file,        &
          abiotic(n)%frac_14catm_name, domain = mpp_domain2d, use_comp_domain = .true.)
-    if (abiotic(n)%frac_14catm_id .eq. 0) then  !{
+    if (abiotic(n)%frac_14catm_id .eq. 0) then
       call mpp_error(FATAL, trim(error_header) //                                       &
            ' Could not open frac_14catm_file file: ' //                                 &
            trim(abiotic(n)%frac_14catm_file) // ' for ' // trim(abiotic(n)%frac_14catm_name))
-    endif  !}
-  else  !}{
+    endif
+  else
     call mpp_error(NOTE, trim(error_header) //                                          &
          ' Using constant field for atmospheric 14C for instance ' // trim(abiotic(n)%name))
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    do j = jsc, jec
+      do i = isc, iec
         abiotic(n)%frac_14catm(i,j) = abiotic(n)%frac_14catm_const
-      enddo  !} i
-    enddo  !} j
-  endif  !}
+      enddo
+    enddo
+  endif
 
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
 !       Read in additional information for a restart.
 !
 !       We must process all of the instances before restoring any files
@@ -2128,33 +1449,24 @@ enddo  !} n
 !
 !       Note that the restart file names here must be different from
 !       those for the tracer values.
-!-----------------------------------------------------------------------
-!
-
 allocate(restart(instances))
 allocate(local_restart_file(instances))
 
 write(stdoutunit,*)
 
-do n = 1, instances  !{
+do n = 1, instances
 
-!
-!       Set the suffix for this instance (if instance name is "_",
-!       then use a blank suffix).
-!
-
-  if (abiotic(n)%name(1:1) .eq. '_') then  !{
+   ! Set the suffix for this instance (if instance name is "_",
+   ! then use a blank suffix).
+  if (abiotic(n)%name(1:1) .eq. '_') then
     suffix = ' '
-  else  !}{
+  else
     suffix = '_' // abiotic(n)%name
-  endif  !}
+  endif
 
-!
-!       Check whether we are already using this restart file, if so,
-!       we do not want to duplicate it in the list of restart files
-!       since we only read each restart file once.
-!
-
+  ! Check whether we are already using this restart file, if so,
+  ! we do not want to duplicate it in the list of restart files
+  ! since we only read each restart file once.
   ind = 0
   do l = 1, num_restart
     if (abiotic(n)%local_restart_file == local_restart_file(l)) then
@@ -2169,30 +1481,24 @@ do n = 1, instances  !{
     local_restart_file(ind) = trim(abiotic(n)%local_restart_file)
   end if
 
-!
-!       Check whether the field already exists in the restart file.
-!       If not, then set a default value.
-!
-
+  ! Check whether the field already exists in the restart file.
+  ! If not, then set a default value.
   fld_exist = field_exist('INPUT/' // trim(abiotic(n)%local_restart_file), 'htotal' // trim(suffix) )
 
-  if ( fld_exist ) then  !{
+  if ( fld_exist ) then
     write (stdoutunit,*) trim(note_header),                       &
          'Reading additional information for instance ',        &
          ': Initializing instance ', trim(abiotic(n)%name)
-  else  !}{
+  else
     write (stdoutunit,*) trim(note_header),                       &
          'Initializing instance ', trim(abiotic(n)%name)
     abiotic(n)%htotal(:,:) = htotal_in
     ! abiotic(n)%sal_global is set via the namelist
     abiotic(n)%sal_global_wrk(:,:) = 0.0
     abiotic(n)%global_wrk_duration = 0.0
-  endif  !}
+  endif
 
-!
-!       Register the field for restart
-!
-
+  ! Register the field for restart
   id_restart = register_restart_field(restart(ind), abiotic(n)%local_restart_file,              &
                     'htotal' // trim(suffix), abiotic(n)%htotal,                                &
                     domain=mpp_domain2d, mandatory=fld_exist )
@@ -2206,76 +1512,52 @@ do n = 1, instances  !{
                     'global_wrk_duration' // trim(suffix), abiotic(n)%global_wrk_duration,      &
                     domain = mpp_domain2d, mandatory=fld_exist )
 
-enddo  !}
+enddo
 
-!
-!       Restore the restart fields if the file exists
-!
-
+! Restore the restart fields if the file exists
 do l = 1, num_restart
   if (file_exist('INPUT/' // trim(local_restart_file(l)))) then
     call restore_state(restart(l))
   end if
 end do
 
-!
-!       Print the surface salinities
-!
-
-do n = 1, instances  !{
+! Print the surface salinities
+do n = 1, instances
   write (stdoutunit,'(/1x,a,es16.9,a,a)')                         &
         'Annual, global, surface mean salinity = ',             &
         abiotic(n)%sal_global, ' (PSU) for instance ',          &
         trim(abiotic(n)%name)
-enddo  !} n
+enddo
 
 deallocate(local_restart_file)
 
-!
-!-----------------------------------------------------------------------
-!
-!       initialize some arrays which are held constant for this
-!       simulation
-!
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
+! initialize some arrays which are held constant for this
+! simulation
+do n = 1, instances
   abiotic(n)%po4(:,:) = abiotic(n)%po4_const
   abiotic(n)%sio4(:,:) = abiotic(n)%sio4_const
-enddo  !} n
+enddo
 
-do n = 1, instances  !{
-  if (abiotic(n)%half_life .gt. 0.0) then  !{
+do n = 1, instances
+  if (abiotic(n)%half_life .gt. 0.0) then
     abiotic(n)%lambda = log(2.0) / (abiotic(n)%half_life * spery)
-  else  !}{
+  else
     call mpp_error(FATAL,trim(error_header) // ' Half-life <= 0')
-  endif  !}
-enddo  !} n
+  endif
+enddo
 
-!
-!-----------------------------------------------------------------------
-!     Set up analyses
-!-----------------------------------------------------------------------
-!
+! Set up analyses
 
-!
-!       register the global fields
-!
+! register the instance fields
+do n = 1, instances
 
-!
-!       register the instance fields
-!
-
-do n = 1, instances  !{
-
-  if (abiotic(n)%name(1:1) .eq. '_') then  !{
+  if (abiotic(n)%name(1:1) .eq. '_') then
     suffix = ' '
     long_suffix = ' '
-  else  !}{
+  else
     suffix = '_' // abiotic(n)%name
     long_suffix = ' (' // trim(abiotic(n)%name) // ')'
-  endif  !}
+  endif
 
   abiotic(n)%id_sc_co2 = register_diag_field(trim(diag_name),           &
        'sc_co2' // trim(suffix), grid_tracer_axes(1:2),                 &
@@ -2339,37 +1621,31 @@ do n = 1, instances  !{
        'jdi14c' // trim(suffix), grid_tracer_axes(1:3),                         &
        model_time, 'Restoring production' // trim(long_suffix), 'mol/kg/s',     &
        missing_value = -1.0e+10)
+enddo
 
-enddo  !} n
-
-!
 !       integrate the total concentrations of some tracers
 !       for the start of the run
-!
 
-!
 !       Use taup1 time index for the start of a run, and taup1 time
 !       index for the end of a run so that we are integrating the
 !       same time level and should therefore get identical results
-!
-
-do n = 1, instances  !{
+do n = 1, instances
 
   total_dic = 0.0
   total_di14c = 0.0
 
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         total_dic = total_dic +                                 &
              t_prog(abiotic(n)%ind_dic)%field(i,j,k,taup1) *    &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
         total_di14c = total_di14c +                             &
              t_prog(abiotic(n)%ind_di14c)%field(i,j,k,taup1) *  &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
   call mpp_sum(total_dic)
   call mpp_sum(total_di14c)
@@ -2382,26 +1658,26 @@ do n = 1, instances  !{
        '(/'' Total DI14C  = '',es19.12,'' Gmol-C'')')           &
        total_di14c * 1.0e-09
 
-  do k = 1, nk  !{
-    do j = jsd, jed  !{
-      do i = isd, ied  !{
+  do k = 1, nk
+    do j = jsd, jed
+      do i = isd, ied
         wrk(i,j,k) =                                                            &
              t_prog(abiotic(n)%ind_dic)%field(i,j,k,taup1) *                    &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
   total_dic_bitwise = mpp_global_sum(mpp_domain2d, wrk, BITWISE_EXACT_SUM)
 
-  do k = 1, nk  !{
-    do j = jsd, jed  !{
-      do i = isd, ied  !{
+  do k = 1, nk
+    do j = jsd, jed
+      do i = isd, ied
         wrk(i,j,k) =                                                            &
              t_prog(abiotic(n)%ind_di14c)%field(i,j,k,taup1) *                  &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
   total_di14c_bitwise = mpp_global_sum(mpp_domain2d, wrk, BITWISE_EXACT_SUM)
 
   write (stdoutunit,*) '  Instance ', trim(abiotic(n)%name), ' bitwise exact sum'
@@ -2412,13 +1688,7 @@ do n = 1, instances  !{
        '(/'' Total DI14C  = '',es19.12,'' Gmol-C'')')           &
        total_di14c_bitwise * 1.0e-09
 
-enddo  !} n
-
-!
-!-----------------------------------------------------------------------
-!     give info
-!-----------------------------------------------------------------------
-!
+enddo
 
 write(stdoutunit,*)
 write(stdoutunit,*) trim(note_header), 'Abiotic tracer runs initialized'
@@ -2426,7 +1696,7 @@ write(stdoutunit,*)
 
 return
 
-end subroutine  ocmip2_abiotic_start  !}
+end subroutine  ocmip2_abiotic_start
 ! </SUBROUTINE> NAME="ocmip2_abiotic_start"
 
 
@@ -2438,25 +1708,8 @@ end subroutine  ocmip2_abiotic_start  !}
 ! in order to minimize the number of hooks necessary in the MOM4 basecode
 ! </DESCRIPTION>
 !
-
 subroutine ocmip2_abiotic_tracer(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,     &
-     T_prog, grid_dat, grid_tmask, grid_tcella, taum1, dtts, end_of_year)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-use mpp_mod, only: mpp_sum
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     T_prog, grid_dat, grid_tmask, grid_tcella, taum1, dtts, end_of_year)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -2474,80 +1727,50 @@ real, dimension(nk), intent(in)                         :: grid_tcella
 integer, intent(in)                                     :: taum1
 real, intent(in)                                        :: dtts
 logical, intent(in)                                     :: end_of_year
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-integer :: i
-integer :: j
-integer :: n
+integer :: i, j, n
 real    :: temp
 
-!
-!-----------------------------------------------------------------------
-!     accumulate global annual means
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+! accumulate global annual means
+do n = 1, instances
+  do j = jsc, jec
+    do i = isc, iec
       abiotic(n)%sal_global_wrk(i,j) = abiotic(n)%sal_global_wrk(i,j) +         &
            t_prog(indsal)%field(i,j,1,taum1) *                                  &
            grid_tmask(i,j,1) * grid_dat(i,j) * dtts
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
   abiotic(n)%global_wrk_duration = abiotic(n)%global_wrk_duration + dtts
-enddo  !} n
+enddo
 
-!
-!----------------------------------------------------------------------
-!       calculate global means of at the end of the year
-!----------------------------------------------------------------------
-!
+! calculate global means of at the end of the year
+if (end_of_year) then
 
-if (end_of_year) then  !{
-
-  do n = 1, instances  !{
+  do n = 1, instances
     temp = 0.0
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    do j = jsc, jec
+      do i = isc, iec
         temp = temp + abiotic(n)%sal_global_wrk(i,j)
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
     call mpp_sum(temp)
     abiotic(n)%sal_global = temp / abiotic(n)%global_wrk_duration / grid_tcella(1)
-  enddo  !} n
+  enddo
 
-!
-!----------------------------------------------------------------------
-!       reset work variables to zero
-!----------------------------------------------------------------------
-!
-
-  do n = 1, instances  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! reset work variables to zero
+  do n = 1, instances
+    do j = jsc, jec
+      do i = isc, iec
         abiotic(n)%sal_global_wrk(i,j) = 0.0
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
     abiotic(n)%global_wrk_duration = 0.0
-  enddo  !} n
+  enddo
 
-endif  !}
+endif
 
 return
 
-end subroutine  ocmip2_abiotic_tracer  !}
+end subroutine  ocmip2_abiotic_tracer
 ! </SUBROUTINE> NAME="ocmip2_abiotic_tracer"
 
-end module  ocmip2_abiotic_mod  !}
+end module  ocmip2_abiotic_mod
