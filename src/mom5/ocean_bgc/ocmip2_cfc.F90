@@ -614,7 +614,7 @@ enddo
 
 !       Add the package name to the list of good namelists, to be used
 !       later for a consistency check
-if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) .le. 0) then  !{
+if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) .le. 0) then
   call mpp_error(FATAL, trim(error_header) //                           &
        ' Could not add ' // trim(package_name) // ' to "good_namelists" list')
 endif
@@ -720,7 +720,7 @@ do n = 1, instances
    ! CFC-11 flux
   ind = cfc(n)%ind_cfc_11_flux
   if (.not. field_exist('INPUT/'//trim(Ocean_fields%bc(ind)%ocean_restart_file),    &
-                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then  !{
+                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then
 
 !     Calculate solubilities
 !       Use Warner and Weiss (1985) DSR, vol 32, final result
