@@ -838,7 +838,7 @@ contains
 ! Initialize the ocean sbc module. 
 ! </DESCRIPTION>
 !
-subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, Velocity, &
+subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
                           Ocean_sfc, Dens, time_tendency, dtime_t, hor_grid)
 
   type(ocean_grid_type),          intent(in),    target :: Grid
@@ -846,7 +846,6 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, Velocity, &
   type(ocean_time_type),          intent(in)            :: Time
   type(ocean_prog_tracer_type),   intent(inout), target :: T_prog(:)
   type(ocean_diag_tracer_type),   intent(inout), target :: T_diag(:)
-  type(ocean_velocity_type),      intent(in),    target :: Velocity
   type(ocean_public_type),        intent(inout)         :: Ocean_sfc
   type(ocean_density_type),       intent(in)            :: Dens
   character(len=32),              intent(in)            :: time_tendency 
@@ -2809,8 +2808,7 @@ end subroutine ocean_sfc_restart
 ! T_diag%frazil, which is saved in the diagnostic tracer restart file.  
 ! </DESCRIPTION>
 !
-subroutine ocean_sfc_end(Ocean_sfc)
-  type(ocean_public_type), intent(in), target :: Ocean_sfc
+subroutine ocean_sfc_end()
 
     call ocean_sfc_restart
 
@@ -3673,12 +3671,11 @@ end subroutine get_ocean_sbc
 !
 ! </DESCRIPTION>
 !
-subroutine flux_adjust(Time, T_diag, Dens, Thickness, Ext_mode, T_prog, Velocity, river, melt, pme)
+subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, melt, pme)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_diag_tracer_type),   intent(in)    :: T_diag(:)
   type(ocean_density_type),       intent(in)    :: Dens
-  type(ocean_thickness_type),     intent(in)    :: Thickness
   type(ocean_external_mode_type), intent(in)    :: Ext_mode
   type(ocean_prog_tracer_type),   intent(inout) :: T_prog(:)
   type(ocean_velocity_type),      intent(inout) :: Velocity
@@ -5271,13 +5268,13 @@ subroutine compute_latent_heat_fusion(salinity)
 
 real, dimension(isd:,jsd:), intent(in) :: salinity
 
-real, parameter  :: c0  =  3.334265169240710d5
-real, parameter  :: c1  = -2.789444646733159d0
-real, parameter  :: c3  = -4.984585692734338d3
-real, parameter  :: c6  =  1.195857305019339d3
-real, parameter  :: c10 = -5.792068522727968d2
-real, parameter  :: c15 =  6.836527214265952d2
-real, parameter  :: c21 = -2.371103254714944d2
+real, parameter  :: c0  =  3.334265169240710e5
+real, parameter  :: c1  = -2.789444646733159
+real, parameter  :: c3  = -4.984585692734338e3
+real, parameter  :: c6  =  1.195857305019339e3
+real, parameter  :: c10 = -5.792068522727968e2
+real, parameter  :: c15 =  6.836527214265952e2
+real, parameter  :: c21 = -2.371103254714944e2
 
 real    :: x 
 integer :: i,j

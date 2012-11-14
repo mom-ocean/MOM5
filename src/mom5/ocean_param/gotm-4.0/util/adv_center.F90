@@ -200,7 +200,7 @@
    REALTYPE                            :: Y(0:N)
 !
 ! !DEFINED PARAMETERS:
-   REALTYPE,     parameter             :: one6th=1.0d0/6.0d0
+   REALTYPE,     parameter             :: one6th=1.0/6.0
    integer,      parameter             :: itmax=100
 !
 ! !REVISION HISTORY:

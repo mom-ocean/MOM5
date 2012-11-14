@@ -311,14 +311,6 @@ subroutine ocean_po4_pre_bbc  !{
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_po4_pre_bbc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-
 !
 !-----------------------------------------------------------------------
 !     local variables
@@ -383,14 +375,6 @@ real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 !     local parameters
 !-----------------------------------------------------------------------
 !
-
-character(len=64), parameter    :: sub_name = 'ocean_po4_pre_end'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 
 !
 !-----------------------------------------------------------------------
@@ -489,15 +473,6 @@ subroutine ocean_po4_pre_sbc  !{
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_po4_pre_sbc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-real, parameter :: o2_molwt = 32.0
-
 !
 !-----------------------------------------------------------------------
 !     local variables
@@ -530,14 +505,6 @@ subroutine ocean_po4_pre_flux_init  !{
 !
 !       local parameters
 !
-
-character(len=64), parameter    :: sub_name = 'ocean_po4_pre_flux_init'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
 !
 !-----------------------------------------------------------------------
@@ -576,14 +543,8 @@ subroutine ocean_po4_pre_init  !{
 character(len=64), parameter    :: sub_name = 'ocean_po4_pre_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-
-real, parameter :: rho_avg = 1024.5
-real, parameter :: sperd = 24.0 * 3600.0
-real, parameter :: spery = 365.25 * sperd
 
 !
 !-----------------------------------------------------------------------
@@ -815,14 +776,6 @@ implicit none
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_po4_pre_init_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !       arguments
@@ -863,14 +816,6 @@ implicit none
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_po4_pre_sum_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !       arguments
@@ -904,14 +849,6 @@ implicit none
 !
 !       local parameters
 !
-
-character(len=64), parameter    :: sub_name = 'ocean_po4_pre_zero_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
 !
 !-----------------------------------------------------------------------
@@ -947,14 +884,6 @@ implicit none
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_po4_pre_avg_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !       arguments
@@ -988,14 +917,6 @@ implicit none
 !
 !       local parameters
 !
-
-character(len=64), parameter    :: sub_name = 'ocean_po4_pre_sfc_end'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
 !
 !-----------------------------------------------------------------------
@@ -1038,14 +959,6 @@ subroutine ocean_po4_pre_source  !{
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_po4_pre_source'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-
 !
 !-----------------------------------------------------------------------
 !     local variables
@@ -1081,7 +994,7 @@ end subroutine  ocean_po4_pre_source  !}
 ! </DESCRIPTION>
 
 subroutine ocean_po4_pre_start(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,      &
-     T_prog, taup1, model_time, grid_dat, grid_tmask, grid_kmt,                 &
+     T_prog, taup1, grid_dat, grid_tmask, grid_kmt,                 &
      grid_xt, grid_yt, rho_dzt)  !{
 
 !
@@ -1102,8 +1015,6 @@ use field_manager_mod, only       : fm_get_index
 character(len=64), parameter    :: sub_name = 'ocean_po4_pre_start'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 
@@ -1124,7 +1035,6 @@ integer, intent(in)                                     :: jsd
 integer, intent(in)                                     :: jed
 type(ocean_prog_tracer_type), dimension(:), intent(in)  :: T_prog
 integer, intent(in)                                     :: taup1
-type(time_type), intent(in)                             :: model_time
 real, dimension(isd:,jsd:), intent(in)                  :: grid_dat
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 integer, dimension(isd:,jsd:), intent(in)               :: grid_kmt
@@ -1454,14 +1364,6 @@ use mpp_mod, only : mpp_sum
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_po4_pre_tracer'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-
 !
 !-----------------------------------------------------------------------
 !     arguments
@@ -1512,10 +1414,10 @@ do n = 1, instances  !{
            t_prog(indsal)%field(isd:ied,jsd:jed,:,Time%tau),            &
            t_prog(indtemp)%field(isd:ied,jsd:jed,:,Time%tau),           &
            Dens%rho(isd:ied,jsd:jed,:,Time%tau),                        &
-           Dens%pressure_at_depth(isd:ied,jsd:jed,:), Time%model_time,  &
+           Dens%pressure_at_depth(isd:ied,jsd:jed,:), &
            po4_pre(n)%ml_depth)
    else
-      call calc_potrho_mixed_layer(Time, Thickness, Dens,               &
+      call calc_potrho_mixed_layer(Thickness, Dens,               &
             potrho_mix_depth= po4_pre(n)%ml_depth)
    endif
 
@@ -1636,8 +1538,6 @@ real, dimension(isd:ied,jsd:jed), intent(in)    :: yt
 character(len=64), parameter    :: sub_name = 'set_array'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 

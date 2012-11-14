@@ -888,7 +888,7 @@ subroutine xlandmix (Time, Ext_mode, Dens, Thickness, T_prog)
   call xlandmix_mass(Time, Thickness)
 
   ! call some diagnostics 
-  call watermass_diag(Time, Dens, Thickness, &
+  call watermass_diag(Time, Dens, &
   T_prog(index_temp)%wrk1(:,:,:), T_prog(index_salt)%wrk1(:,:,:))
   
 
@@ -1319,11 +1319,10 @@ end subroutine watermass_diag_init
 ! Diagnose effects from xlandmix on watermass transformation.  
 ! </DESCRIPTION>
 !
-subroutine watermass_diag(Time, Dens, Thickness, theta_tend, salt_tend)
+subroutine watermass_diag(Time, Dens, theta_tend, salt_tend)
 
   type(ocean_time_type),          intent(in) :: Time
   type(ocean_density_type),       intent(in) :: Dens
-  type(ocean_thickness_type),     intent(in) :: Thickness
   real, dimension(isd:,jsd:,:),   intent(in) :: theta_tend
   real, dimension(isd:,jsd:,:),   intent(in) :: salt_tend
 

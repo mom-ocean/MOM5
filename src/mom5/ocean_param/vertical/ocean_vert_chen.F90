@@ -406,7 +406,7 @@ end subroutine ocean_vert_chen_init
 ! </DESCRIPTION>
 !
   subroutine vert_mix_chen(Time, Thickness, Velocity, T_prog, Dens, &
-                           swflx,  pme, river, visc_cbu, visc_cbt, diff_cbt)
+                           swflx,  pme, visc_cbu, visc_cbt, diff_cbt)
 
   type(ocean_time_type),                 intent(in)    :: Time
   type(ocean_thickness_type),            intent(in)    :: Thickness
@@ -415,7 +415,6 @@ end subroutine ocean_vert_chen_init
   type(ocean_density_type),              intent(in)    :: Dens
   real, dimension(isd:,jsd:),            intent(in)    :: swflx
   real, dimension(isd:,jsd:),            intent(in)    :: pme
-  real, dimension(isd:,jsd:),            intent(in)    :: river
   real, dimension(isd:ied,jsd:jed,nk),   intent(inout) :: visc_cbu
   real, dimension(isd:ied,jsd:jed,nk),   intent(inout) :: visc_cbt
   real, dimension(isd:ied,jsd:jed,nk,2), intent(inout) :: diff_cbt

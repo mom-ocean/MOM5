@@ -536,10 +536,9 @@ end subroutine coriolis_force_bgrid_implicit
 ! 
 ! </DESCRIPTION>
 !
-subroutine coriolis_force_cgrid(Time, Thickness, Adv_vel, Velocity, abtau_m0, abtau_m1, abtau_m2, energy_analysis_step)
+subroutine coriolis_force_cgrid(Time, Adv_vel, Velocity, abtau_m0, abtau_m1, abtau_m2, energy_analysis_step)
 
   type(ocean_time_type),      intent(in)    :: Time
-  type(ocean_thickness_type), intent(in)    :: Thickness
   type(ocean_adv_vel_type),   intent(in)    :: Adv_vel
   type(ocean_velocity_type),  intent(inout) :: Velocity
   real,                       intent(in)    :: abtau_m0

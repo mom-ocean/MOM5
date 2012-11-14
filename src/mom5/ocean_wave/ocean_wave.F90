@@ -219,13 +219,13 @@ subroutine ocean_wave_init(Grid, Domain, Waves, Time, Time_steps, Ocean_options,
   call get_global_indices(Domain, isg, ieg, jsg, jeg)
 
   allocate(Waves%xmom(isd:ied,jsd:jed,0:1))
-  allocate(Waves%ymom(isd:ied,jsd:jed,0:1))	
+  allocate(Waves%ymom(isd:ied,jsd:jed,0:1))
   allocate(Waves%wave_k(isd:ied,jsd:jed))
   allocate(Waves%height(isd:ied,jsd:jed))
   allocate(Waves%wave_p(isd:ied,jsd:jed))
 
-  allocate(windx(isd:ied,jsd:jed))	
-  allocate(windy(isd:ied,jsd:jed))	
+  allocate(windx(isd:ied,jsd:jed))
+  allocate(windy(isd:ied,jsd:jed))
   allocate(sn(isd:ied,jsd:jed))
   allocate(cs(isd:ied,jsd:jed))
   allocate(s(isd:ied,jsd:jed))
@@ -289,7 +289,7 @@ subroutine ocean_wave_init(Grid, Domain, Waves, Time, Time_steps, Ocean_options,
   enddo
   call mpp_min (gridmin)
 ! readthe initial field or the restart file
-  call read_wave(Time, Waves)
+  call read_wave(Waves)
 
   wave_damp = wavedamp/rho_ice  
 
@@ -343,13 +343,13 @@ subroutine ocean_wave_model(Time, Waves, Ice_ocean_boundary)
        windy(i,j) = wrk2(i,j)
      enddo
   enddo
-	
+
   call mpp_update_domains (windx, Dom%domain2d)
   call mpp_update_domains (windy, Dom%domain2d)
 
   ! wavediag is needed to initialize wave_p      
   if (first_call) then
-    call ocean_wave_diag(Time, Waves) 
+    call ocean_wave_diag(Waves) 
     first_call=.false.
     if(debug_this_module) write(stdoutunit,*) 'first start of ocean_wave_model'
   endif
@@ -358,10 +358,10 @@ subroutine ocean_wave_model(Time, Waves, Ice_ocean_boundary)
   do j=jsc,jec
      do i=isc,iec
         if (Grd%kmt(i,j) > 0) then
-	  wmax=max(wmax, abs(windx(i,j)), abs(windy(i,j)))
+           wmax=max(wmax, abs(windx(i,j)), abs(windy(i,j)))
 !phase speed
-	  cspeed=gtpi/(Waves%wave_p(i,j)+epsln)	
- 	  wmax=max(wmax,abs(cspeed))        
+           cspeed=gtpi/(Waves%wave_p(i,j)+epsln)
+           wmax=max(wmax,abs(cspeed))        
         endif
      enddo
   enddo
@@ -378,13 +378,13 @@ subroutine ocean_wave_model(Time, Waves, Ice_ocean_boundary)
   do nww=1,ndtt      
     tau_w=abs(tau_w-1)
     taup1_w=abs(taup1_w-1)  
-    call ocean_wave_diag(Time, Waves)  
-    call ocean_wave_prop(Time, Waves, Ice_ocean_boundary)  
+    call ocean_wave_diag(Waves)  
+    call ocean_wave_prop(Waves, Ice_ocean_boundary)  
 !    call ocean_wave_prop(Time)  
   enddo      
 ! filtering xmom and ymom       
 !  if (mod(itt,10).eq.0) then
-  if(filter_wave_mom) call ocean_wave_filter(Waves, dtts)	    
+  if(filter_wave_mom) call ocean_wave_filter(Waves, dtts)
 !  endif
 
   call diagnose_2d(Time, Grd, id_windx, windx(:,:))
@@ -394,7 +394,7 @@ subroutine ocean_wave_model(Time, Waves, Ice_ocean_boundary)
   call diagnose_2d(Time, Grd, id_height, Waves%height(:,:))
   call diagnose_2d(Time, Grd, id_wave_p, Waves%wave_p(:,:))
   call diagnose_2d(Time, Grd, id_wave_k, Waves%wave_k(:,:))
-  
+
   if(debug_this_module) write(stdoutunit,*) 'ending ocean_wave_model'
     
   return
@@ -409,8 +409,7 @@ end subroutine ocean_wave_model
 ! wave propagation
 ! </DESCRIPTION>
 !
-subroutine ocean_wave_prop(Time, Waves, Ice_ocean_boundary)
-  type(ocean_time_type),          intent(in)    :: Time 
+subroutine ocean_wave_prop(Waves, Ice_ocean_boundary)
   type(ocean_wave_type),          intent(inout) :: Waves
   type(ice_ocean_boundary_type),  intent(in)    :: Ice_ocean_boundary
 
@@ -431,52 +430,52 @@ subroutine ocean_wave_prop(Time, Waves, Ice_ocean_boundary)
       c(i,j)    = tmp*Grd%tmask(i,j,1)                                ! m/s
       tmp       = tmp*cm    
       wrk1_2d(i,j) = tmp*Grd%tmask(i,j,1)
-      s(i,j)	= sqrt(tmp)*Grd%tmask(i,j,1)
+      s(i,j)    = sqrt(tmp)*Grd%tmask(i,j,1)
     enddo
-  enddo 	    
+  enddo
 
   do j=jsc,jec
     do i=isc,iec      
-      adv_Txy = 0.5*( wrk1_2d(i,j)  *cs(i,j)  *(sn(i,j)  +abs(sn(i,j  )))  &				  
-        	    + wrk1_2d(i,j+1)*cs(i,j+1)*(sn(i,j+1)-abs(sn(i,j+1)))) &
-               -0.5*( wrk1_2d(i,j-1)*cs(i,j-1)*(sn(i,j-1)+abs(sn(i,j-1)))  &
-        	    + wrk1_2d(i,j)  *cs(i,j)  *(sn(i,j)  -abs(sn(i,j  ))))
+      adv_Txy = 0.5*( wrk1_2d(i,j)  *cs(i,j)  *(sn(i,j)  +abs(sn(i,j  )))  &
+           + wrk1_2d(i,j+1)*cs(i,j+1)*(sn(i,j+1)-abs(sn(i,j+1)))) &
+           -0.5*( wrk1_2d(i,j-1)*cs(i,j-1)*(sn(i,j-1)+abs(sn(i,j-1)))  &
+           + wrk1_2d(i,j)  *cs(i,j)  *(sn(i,j)  -abs(sn(i,j  ))))
 
       adv_Txx = 0.5*( wrk1_2d(i,j)  *cs(i,j)  *(cs(i,j)  +abs(cs(i,j  )))  &
-        	    + wrk1_2d(i+1,j)*cs(i+1,j)*(cs(i+1,j)-abs(cs(i+1,j)))) &
-               -0.5*( wrk1_2d(i-1,j)*cs(i-1,j)*(cs(i-1,j)+abs(cs(i-1,j)))  &
-        	    + wrk1_2d(i,j)  *cs(i,j)  *(cs(i,j)  -abs(cs(i,j  ))))  					 
+           + wrk1_2d(i+1,j)*cs(i+1,j)*(cs(i+1,j)-abs(cs(i+1,j)))) &
+           -0.5*( wrk1_2d(i-1,j)*cs(i-1,j)*(cs(i-1,j)+abs(cs(i-1,j)))  &
+           + wrk1_2d(i,j)  *cs(i,j)  *(cs(i,j)  -abs(cs(i,j  ))))
             
       SIP = Grd%tmask(i+1,j,1)*s(i+1,j)+(1.0-Grd%tmask(i+1,j,1))*&
             (2.0*s(i,j)-s(i-1,j))
       SIM = Grd%tmask(i-1,j,1)*s(i-1,j)+(1.0-Grd%tmask(i-1,j,1))*&
             (2.0*s(i,j)-s(i+1,j))            
-      Waves%xmom(i,j,taup1_w) = Waves%xmom(i,j,tau_w)		 &
-                          - dttw*( 0.25*adv_Txx*Grd%dxtr(i,j)+0.25*adv_Txy*Grd%dytr(i,j)	 &
-	                  + (SIP-SIM)*(SIP+SIM)/16.*Grd%dxtr(i,j))*Grd%tmask(i,j,1)
+      Waves%xmom(i,j,taup1_w) = Waves%xmom(i,j,tau_w) &
+                          - dttw*( 0.25*adv_Txx*Grd%dxtr(i,j)+0.25*adv_Txy*Grd%dytr(i,j) &
+                          + (SIP-SIM)*(SIP+SIM)/16.*Grd%dxtr(i,j))*Grd%tmask(i,j,1)
     enddo
-  enddo 	    
+  enddo
 
   do j=jsc,jec
     do i=isc,iec      
-      adv_Tyy = 0.5*( wrk1_2d(i,j)  *sn(i,j)  *(sn(i,j)  +abs(sn(i,j  )))  &			       
-        	     +wrk1_2d(i,j+1)*sn(i,j+1)*(sn(i,j+1)-abs(sn(i,j+1)))) &
-               -0.5*( wrk1_2d(i,j-1)*sn(i,j-1)*(sn(i,j-1)+abs(sn(i,j-1)))  &
-        	     +wrk1_2d(i,j)  *sn(i,j)  *(sn(i,j)  -abs(sn(i,j  ))))
+      adv_Tyy = 0.5*( wrk1_2d(i,j)  *sn(i,j)  *(sn(i,j)  +abs(sn(i,j  )))  &
+           +wrk1_2d(i,j+1)*sn(i,j+1)*(sn(i,j+1)-abs(sn(i,j+1)))) &
+           -0.5*( wrk1_2d(i,j-1)*sn(i,j-1)*(sn(i,j-1)+abs(sn(i,j-1)))  &
+           +wrk1_2d(i,j)  *sn(i,j)  *(sn(i,j)  -abs(sn(i,j  ))))
       adv_Tyx = 0.5*( wrk1_2d(i,j)  *sn(i,j)  *(cs(i,j)  +abs(cs(i,j  )))  &
-        	    + wrk1_2d(i+1,j)*sn(i+1,j)*(cs(i+1,j)-abs(cs(i+1,j)))) &
-               -0.5*( wrk1_2d(i-1,j)*sn(i-1,j)*(cs(i-1,j)+abs(cs(i-1,j)))  &
-        	    + wrk1_2d(i,j)  *sn(i,j)  *(cs(i,j)  -abs(cs(i,j  ))))  					 
+           + wrk1_2d(i+1,j)*sn(i+1,j)*(cs(i+1,j)-abs(cs(i+1,j)))) &
+           -0.5*( wrk1_2d(i-1,j)*sn(i-1,j)*(cs(i-1,j)+abs(cs(i-1,j)))  &
+           + wrk1_2d(i,j)  *sn(i,j)  *(cs(i,j)  -abs(cs(i,j  )))) 
             
       SJP = Grd%tmask(i,j+1,1)*s(i,j+1)+(1.0-Grd%tmask(i,j+1,1))*&
             (2.0*s(i,j)-s(i,j-1))
       SJM = Grd%tmask(i,j-1,1)*s(i,j-1)+(1.0-Grd%tmask(i,j-1,1))*&
             (2.0*s(i,j)-s(i,j+1))                
-      Waves%ymom(i,j,taup1_w) = Waves%ymom(i,j,tau_w)	       &
-			- dttw*( 0.25*adv_Tyy*Grd%dytr(i,j)+0.25*adv_Tyx*Grd%dxtr(i,j)         &
-		      + (SJP-SJM)*(SJP+SJM)/16.*Grd%dytr(i,j))*Grd%tmask(i,j,1)
+      Waves%ymom(i,j,taup1_w) = Waves%ymom(i,j,tau_w)       &
+           - dttw*( 0.25*adv_Tyy*Grd%dytr(i,j)+0.25*adv_Tyx*Grd%dxtr(i,j)         &
+           + (SJP-SJM)*(SJP+SJM)/16.*Grd%dytr(i,j))*Grd%tmask(i,j,1)
     enddo
-  enddo 	    
+  enddo    
 
   !  calculate the wind input to momentum flux for two directions:
   ! the wind direction (w1) and the wave field direction (w2)
@@ -497,16 +496,16 @@ subroutine ocean_wave_prop(Time, Waves, Ice_ocean_boundary)
       wrk3_2d(i,j) = dttw*(w1*windx(i,j) + w2*cs(i,j))*fac2 *Grd%tmask(i,j,1) 
       wrk4_2d(i,j) = dttw*(w1*windy(i,j) + w2*sn(i,j))*fac2 *Grd%tmask(i,j,1)
     enddo
-  enddo 	    
+  enddo    
 
   if (damp_where_ice) then
 ! Damp the time tendency
      do j=jsc,jec
         do i=isc,iec      
            if (Ice_ocean_boundary%mi(i,j) > 0) then
-	      damp = exp(wave_damp*Ice_ocean_boundary%mi(i,j)) 
+              damp = exp(wave_damp*Ice_ocean_boundary%mi(i,j)) 
               wrk3_2d(i,j) = wrk3_2d(i,j) * damp
-	      wrk4_2d(i,j) = wrk4_2d(i,j) * damp
+              wrk4_2d(i,j) = wrk4_2d(i,j) * damp
            endif 
         enddo
      enddo 
@@ -514,21 +513,21 @@ subroutine ocean_wave_prop(Time, Waves, Ice_ocean_boundary)
    
   do j=jsc,jec
     do i=isc,iec      
-      Waves%xmom(i,j,taup1_w) = Waves%xmom(i,j,taup1_w) + wrk3_2d(i,j) 		       
-      Waves%ymom(i,j,taup1_w) = Waves%ymom(i,j,taup1_w) + wrk4_2d(i,j) 		       
+      Waves%xmom(i,j,taup1_w) = Waves%xmom(i,j,taup1_w) + wrk3_2d(i,j)
+      Waves%ymom(i,j,taup1_w) = Waves%ymom(i,j,taup1_w) + wrk4_2d(i,j)
     enddo
   enddo 
-  	    
+
   if (damp_where_ice) then
 ! This is engeneering needs improvement with resolved ice classes ...
-    do j=jsc,jec	 
+    do j=jsc,jec
       do i=isc,iec
         diff = Ice_ocean_boundary%mi(i,j)-Waves%height(i,j)*rho_ice
         if(diff >= 0.) then
-	   damp = exp(wave_damp*diff)
-	   Waves%xmom(i,j,taup1_w)=Waves%xmom(i,j,taup1_w)*damp   
-	   Waves%ymom(i,j,taup1_w)=Waves%ymom(i,j,taup1_w)*damp   
-	endif
+           damp = exp(wave_damp*diff)
+           Waves%xmom(i,j,taup1_w)=Waves%xmom(i,j,taup1_w)*damp   
+           Waves%ymom(i,j,taup1_w)=Waves%ymom(i,j,taup1_w)*damp   
+        endif
       enddo
     enddo
   endif
@@ -553,14 +552,13 @@ end subroutine ocean_wave_prop
 ! wave diagnostics
 ! </DESCRIPTION>
 !
-subroutine ocean_wave_diag(Time, Waves)
-  type(ocean_time_type), intent(in)    :: Time 
+subroutine ocean_wave_diag(Waves)
   type(ocean_wave_type), intent(inout) :: Waves
 
-  real, parameter	   :: const1=0.01788735, const2=14343.09    
-  real, parameter	   :: flimit=0.760545	    
-  real 		           :: fphilf, uhilf
-  real 		           :: cosm, sinm, depth, omega, omh, cm
+  real, parameter   :: const1=0.01788735, const2=14343.09    
+  real, parameter   :: flimit=0.760545
+  real              :: fphilf, uhilf
+  real              :: cosm, sinm, depth, omega, omh, cm
   real, parameter          :: a0=1., a1=0.666, a2=0.445, a3=-0.105, a4=0.272
   integer :: i, j
     
@@ -575,25 +573,25 @@ subroutine ocean_wave_diag(Time, Waves)
   if (use_TMA) then
     do j=jsd,jed 
       do i=isd,ied 
-    	cm=sqrt(Waves%xmom(i,j,tau_w)**2+Waves%ymom(i,j,tau_w)**2+epsln)
-	cosm=Waves%xmom(i,j,tau_w)/cm
-    	sinm=Waves%ymom(i,j,tau_w)/cm
+         cm=sqrt(Waves%xmom(i,j,tau_w)**2+Waves%ymom(i,j,tau_w)**2+epsln)
+         cosm=Waves%xmom(i,j,tau_w)/cm
+         sinm=Waves%ymom(i,j,tau_w)/cm
 ! The relevant 10m wind is the projection at the wave propagation direction
 ! This is not stated in the paper.
-        uhilf=windx(i,j)*cosm+windy(i,j)*sinm
-        depth=Grd%ht(i,j)
+         uhilf=windx(i,j)*cosm+windy(i,j)*sinm
+         depth=Grd%ht(i,j)
 ! calculate  omega=2*pi*f_p
-  	fphilf=const1*(max(epsln,uhilf)**2/(cm+epsln)**3)**seventh
-  	if (fphilf*uhilf.le.flimit) fphilf=(const2*cm)**(-third)      
-  	Waves%wave_p(i,j)=fphilf
-  	omega = twopi*Waves%wave_p(i,j)  
-  	omh   = omega**2*depth/grav
+         fphilf=const1*(max(epsln,uhilf)**2/(cm+epsln)**3)**seventh
+         if (fphilf*uhilf.le.flimit) fphilf=(const2*cm)**(-third)      
+         Waves%wave_p(i,j)=fphilf
+         omega = twopi*Waves%wave_p(i,j)  
+         omh   = omega**2*depth/grav
       
 ! using Pade approximation for wave number
         Waves%wave_k(i,j)=sqrt(omh**2+omh/((((a4*omh+a3)*omh+a2)*omh+a1)*omh+a0)) &
                    /(depth+epsln)
 ! calculate significant wave height
-! height=4*sigma	 	
+! height=4*sigma
         Waves%height(i,j)=4.0*sqrt(grav*cm/(omega+epsln))   ! cm ist scaled with 1/grav
 ! using TMA approximation, Hughes 1984
         if (omh.le.4.) then
@@ -611,25 +609,25 @@ subroutine ocean_wave_diag(Time, Waves)
 
     do j=jsd,jed 
       do i=isd,ied 
-    	cm=sqrt(Waves%xmom(i,j,tau_w)**2+Waves%ymom(i,j,tau_w)**2+epsln)
-    	cosm=Waves%xmom(i,j,tau_w)/cm
-    	sinm=Waves%ymom(i,j,tau_w)/cm
+         cm=sqrt(Waves%xmom(i,j,tau_w)**2+Waves%ymom(i,j,tau_w)**2+epsln)
+         cosm=Waves%xmom(i,j,tau_w)/cm
+         sinm=Waves%ymom(i,j,tau_w)/cm
 ! The relevant 10m wind is the projection at the wave propagation direction
 ! This is not stated in the paper.
-        uhilf=windx(i,j)*cosm+windy(i,j)*sinm
-        depth=Grd%ht(i,j)
+         uhilf=windx(i,j)*cosm+windy(i,j)*sinm
+         depth=Grd%ht(i,j)
 ! calculate  omega=2*pi*f_p
-  	fphilf=const1*(max(epsln,uhilf)**2/(cm+epsln)**3)**seventh
-  	if (fphilf*uhilf.le.flimit) fphilf=(const2*cm)**(-third)      
-  	Waves%wave_p(i,j)=fphilf
-  	omega = twopi*Waves%wave_p(i,j)  
-  	omh   = omega**2*depth/grav
+         fphilf=const1*(max(epsln,uhilf)**2/(cm+epsln)**3)**seventh
+         if (fphilf*uhilf.le.flimit) fphilf=(const2*cm)**(-third)      
+         Waves%wave_p(i,j)=fphilf
+         omega = twopi*Waves%wave_p(i,j)  
+         omh   = omega**2*depth/grav
       
 ! using Pade approximation for wave number
         Waves%wave_k(i,j)=sqrt(omh**2+omh/((((a4*omh+a3)*omh+a2)*omh+a1)*omh+a0)) &
                    /(depth+epsln)
 ! calculate significant wave height
-! height=4*sigma	 	
+! height=4*sigma
         Waves%height(i,j)=4.0*sqrt(grav*cm/(omega+epsln))
  
       enddo
@@ -675,24 +673,24 @@ subroutine ocean_wave_filter(Waves, dttw)
     do i=isc,iec
       n=0
       wrk1_2d(i,j)=0.0
-      wrk2_2d(i,j)=0.0	      
+      wrk2_2d(i,j)=0.0
       if (Grd%kmt(i,j).gt.0) then
-  	do ium=-1,1
-  	  do jum=-1,1
-	    rm=Grd%tmask(i+ium,j+jum,1)
-	    im=nint(rm)		  
-  	    n=n+im
-  	    wrk1_2d(i,j)=wrk1_2d(i,j)+Waves%xmom(i+ium,j+jum,taup1_w)*rm
-  	    wrk2_2d(i,j)=wrk2_2d(i,j)+Waves%ymom(i+ium,j+jum,taup1_w)*rm
-  	  enddo 	       
-  	enddo
-  	wrk1_2d(i,j)=wrk1_2d(i,j)/float(n)
-  	wrk2_2d(i,j)=wrk2_2d(i,j)/float(n)
-      endif	    
-    enddo
+         do ium=-1,1
+            do jum=-1,1
+               rm=Grd%tmask(i+ium,j+jum,1)
+               im=nint(rm)
+               n=n+im
+               wrk1_2d(i,j)=wrk1_2d(i,j)+Waves%xmom(i+ium,j+jum,taup1_w)*rm
+               wrk2_2d(i,j)=wrk2_2d(i,j)+Waves%ymom(i+ium,j+jum,taup1_w)*rm
+            enddo
+         enddo
+         wrk1_2d(i,j)=wrk1_2d(i,j)/float(n)
+         wrk2_2d(i,j)=wrk2_2d(i,j)/float(n)
+      endif
+   enddo
   enddo
 
-  do j=jsc,jec	   
+  do j=jsc,jec
     do i=isc,iec
       if (Grd%kmt(i,j).gt.0) then
        Waves%xmom(i,j,taup1_w)=wich*Waves%xmom(i,j,taup1_w)+(1.-wich)*wrk1_2d(i,j)
@@ -719,8 +717,7 @@ end subroutine ocean_wave_filter
 !  Read wave restart information. 
 ! </DESCRIPTION>
 
-subroutine read_wave(Time, Waves)
-  type(ocean_time_type), intent(in)    :: Time
+subroutine read_wave(Waves)
   type(ocean_wave_type), intent(inout) :: Waves
 
   character*128 file_name
@@ -728,9 +725,9 @@ subroutine read_wave(Time, Waves)
 
   file_name = 'ocean_wave.res.nc'
   id_restart(1) = register_restart_field(wave_restart, file_name, 'xmom', &
-  	   Waves%xmom(:,:,taup1_w), domain=Dom%domain2d)
+       Waves%xmom(:,:,taup1_w), domain=Dom%domain2d)
   id_restart(2) = register_restart_field(wave_restart, file_name, 'ymom', &
-           Waves%ymom(:,:,taup1_w), domain=Dom%domain2d)       
+       Waves%ymom(:,:,taup1_w), domain=Dom%domain2d)       
   
   file_name = 'INPUT/ocean_wave.res.nc'
   if(.NOT. file_exist(trim(file_name)) ) return
@@ -759,8 +756,7 @@ end subroutine read_wave
 !  Save wave restart information. 
 ! </DESCRIPTION>
 
-subroutine ocean_wave_restart(Time, Waves, time_stamp)
-  type(ocean_time_type), intent(in)           :: Time
+subroutine ocean_wave_restart(Waves, time_stamp)
   type(ocean_wave_type), intent(inout)        :: Waves
   character(len=*),      intent(in), optional :: time_stamp
   
@@ -800,7 +796,7 @@ subroutine ocean_wave_end(Time, Waves)
     return
   endif 
 
-  call ocean_wave_restart(Time, Waves)
+  call ocean_wave_restart(Waves)
 
   write(stdoutunit,*) ' '
   write(stdoutunit,*) &

@@ -175,7 +175,7 @@ contains
        call ocean_shortwave_csiro_init(Grid, Domain, Time, Ocean_options)       
        num_schemes = num_schemes+1
     elseif(use_shortwave_jerlov) then 
-       call ocean_shortwave_jerlov_init(Grid, Domain, Time, vert_coordinate, Ocean_options)       
+       call ocean_shortwave_jerlov_init(Grid, Domain, vert_coordinate, Ocean_options)       
        num_schemes = num_schemes+1
     elseif(use_shortwave_ext) then 
       call mpp_error(NOTE, &
@@ -283,7 +283,7 @@ subroutine sw_source (Time, Thickness, Dens, T_diag, swflx, swflx_vis, Temp, sw_
   elseif(use_shortwave_csiro) then 
      call sw_source_csiro (Time, Thickness, T_diag(:), swflx, index_irr, Temp, sw_frac_zt)
   elseif(use_shortwave_jerlov) then 
-     call sw_source_jerlov (Time, Thickness, T_diag(:), swflx, swflx_vis, index_irr, Temp, sw_frac_zt, opacity)
+     call sw_source_jerlov (Thickness, T_diag(:), swflx, swflx_vis, index_irr, Temp, sw_frac_zt, opacity)
   elseif(use_shortwave_ext) then
      call sw_source_ext(Time, Thickness, T_diag(:),  swflx, Temp, sw_frac_zt)
   endif 
@@ -318,7 +318,7 @@ subroutine sw_source (Time, Thickness, Dens, T_diag, swflx, swflx_vis, Temp, sw_
   call diagnose_3d(Time, Grd, id_sw_heat, Temp%wrk1(:,:,:))
   call diagnose_3d(Time, Grd, id_irradiance, T_diag(index_irr)%field(:,:,:))
 
-  call watermass_diag(Time, Temp, Dens, Thickness)
+  call watermass_diag(Time, Temp, Dens)
 
 
 end subroutine sw_source
@@ -453,12 +453,11 @@ end subroutine watermass_diag_init
 ! Diagnose effects from shortwave heating on watermass transformation.  
 ! </DESCRIPTION>
 !
-subroutine watermass_diag(Time, Temp, Dens, Thickness)
+subroutine watermass_diag(Time, Temp, Dens)
 
   type(ocean_time_type),          intent(in) :: Time
   type(ocean_prog_tracer_type),   intent(in) :: Temp
   type(ocean_density_type),       intent(in) :: Dens
-  type(ocean_thickness_type),     intent(in) :: Thickness
 
   integer :: i,j,k,tau
   real, dimension(isd:ied,jsd:jed) :: eta_tend

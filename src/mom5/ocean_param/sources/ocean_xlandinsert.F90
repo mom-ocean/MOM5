@@ -1082,7 +1082,7 @@ subroutine xlandinsert (Time, Ext_mode, Dens, Thickness, T_prog)
   call xlandinsert_mass(Time, Thickness)
 
   ! call some diagnostics 
-  call watermass_diag(Time, Dens, Thickness)
+  call watermass_diag(Time, Dens)
 
 
 end subroutine xlandinsert
@@ -1379,11 +1379,10 @@ end subroutine watermass_diag_init
 ! Diagnose effects from xlandinsert on watermass transformation.  
 ! </DESCRIPTION>
 !
-subroutine watermass_diag(Time, Dens, Thickness)
+subroutine watermass_diag(Time, Dens)
 
   type(ocean_time_type),          intent(in) :: Time
   type(ocean_density_type),       intent(in) :: Dens
-  type(ocean_thickness_type),     intent(in) :: Thickness
 
   integer :: i,j,k,tau
   real, dimension(isd:ied,jsd:jed) :: eta_tend

@@ -1758,16 +1758,14 @@ end function ocean_prog_tracer_init
 ! Initialization code for diagnostic tracers, returning a pointer to the T_diag array
 ! </DESCRIPTION>
 !
-function ocean_diag_tracer_init (Time, Thickness, vert_coordinate_type, num_diag, cmip_units, use_blobs, debug)   &
+function ocean_diag_tracer_init (Time, Thickness, vert_coordinate_type, num_diag, use_blobs)   &
      result (T_diag)  !{
   
   type(ocean_time_type), intent(in), target :: Time
   type(ocean_thickness_type), intent(in)    :: Thickness
   integer,                     intent(in)   :: vert_coordinate_type 
   integer, intent(out)                      :: num_diag
-  logical, intent(in)                       :: cmip_units
   logical, intent(in)                       :: use_blobs
-  logical, intent(in), optional             :: debug
 
 !
 !       Return type
@@ -2177,7 +2175,7 @@ end function ocean_diag_tracer_init  !}
 ! </DESCRIPTION>
 !
 subroutine update_ocean_tracer (Time, Dens, Adv_vel, Thickness, pme, diff_cbt, &
-                                pressure_at_depth, T_prog, T_diag, L_system,   &
+                                T_prog, T_diag, L_system,   &
                                 Velocity, Ext_mode, EL_diag, use_blobs)
 
   type(ocean_time_type),          intent(in)    :: Time 
@@ -2186,7 +2184,6 @@ subroutine update_ocean_tracer (Time, Dens, Adv_vel, Thickness, pme, diff_cbt, &
   type(ocean_thickness_type),     intent(inout) :: Thickness
   real, dimension(isd:,jsd:),     intent(in)    :: pme
   real, dimension(isd:,jsd:,:,:), intent(in)    :: diff_cbt
-  real, dimension(isd:,jsd:,:),   intent(in)    :: pressure_at_depth
 
   type(ocean_prog_tracer_type),   intent(inout) :: T_prog(:)
   type(ocean_diag_tracer_type),   intent(inout) :: T_diag(:)
@@ -2249,7 +2246,7 @@ subroutine update_ocean_tracer (Time, Dens, Adv_vel, Thickness, pme, diff_cbt, &
         call mpp_clock_end(id_clock_bih_tracer)
 
         call mpp_clock_begin(id_clock_vert_diffuse)
-          call vert_diffuse(Time, Thickness, Dens, n, T_prog(n), diff_cbt)
+          call vert_diffuse(Time, Thickness, n, T_prog(n), diff_cbt)
         call mpp_clock_end(id_clock_vert_diffuse)
        
         ! --add pme contributions to the k=1 cell.
@@ -2315,7 +2312,7 @@ subroutine update_ocean_tracer (Time, Dens, Adv_vel, Thickness, pme, diff_cbt, &
 
         if(have_obc) then
            call ocean_obc_tracer(T_prog(n)%field, Adv_vel%uhrho_et, Adv_vel%vhrho_nt, &
-           Thickness, pme, taum1, tau, taup1, Time, T_prog(n)%name, n)
+           Thickness, pme, taum1, tau, taup1, Time, n)
         endif
 
         if (debug_this_module) then
@@ -2479,7 +2476,7 @@ subroutine update_ocean_tracer (Time, Dens, Adv_vel, Thickness, pme, diff_cbt, &
 
 
   ! send some tracer diagnostics at time tau 
-  call send_tracer_diagnostics(Time, T_prog, T_diag, Dens, Thickness, pme, use_blobs)
+  call send_tracer_diagnostics(Time, T_prog, T_diag, Thickness, use_blobs)
 
   ! compute watermass diagnostics 
   call watermass_diag(Time, T_prog, T_diag, Dens, Thickness, pme)
@@ -2658,8 +2655,8 @@ subroutine ocean_tracer_end(Time, T_prog, T_diag, use_blobs)
      call tracer_prog_chksum(Time, T_prog(n), taup1, chksum)
      if (mpp_pe() == mpp_root_pe()) write(unit,*) trim(T_prog(n)%name)//' taup1 chksum =', chksum
      if (use_blobs) then
-	fieldsum = mpp_chksum(Grd%tmask(isc:iec,jsc:jec,:)*T_prog(n)%fieldT(isc:iec,jsc:jec,:))
-     	if (mpp_pe() == mpp_root_pe()) write(stdoutunit,*) trim(T_prog(n)%name)//' Total field  =', fieldsum
+        fieldsum = mpp_chksum(Grd%tmask(isc:iec,jsc:jec,:)*T_prog(n)%fieldT(isc:iec,jsc:jec,:))
+        if (mpp_pe() == mpp_root_pe()) write(stdoutunit,*) trim(T_prog(n)%name)//' Total field  =', fieldsum
      endif
 
   enddo
@@ -3718,14 +3715,12 @@ end subroutine ocean_tracer_diagnostics_init
 ! 
 ! </DESCRIPTION>
 !
-subroutine send_tracer_diagnostics(Time, T_prog, T_diag, Dens, Thickness, pme, use_blobs)
+subroutine send_tracer_diagnostics(Time, T_prog, T_diag, Thickness, use_blobs)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_prog_tracer_type),   intent(inout) :: T_prog(:)
   type(ocean_diag_tracer_type),   intent(in)    :: T_diag(:)
-  type(ocean_density_type),       intent(in)    :: Dens
   type(ocean_thickness_type),     intent(in)    :: Thickness
-  real,  dimension(isd:,jsd:),    intent(in)    :: pme
   logical,                        intent(in)    :: use_blobs 
 
   integer :: i,j,k,kbot,n
@@ -4714,7 +4709,7 @@ subroutine watermass_diag(Time, T_prog, T_diag, Dens, Thickness, pme)
 
       ! note that all thickness arrays are at taup1, so we 
       ! compute mass(taup1) and mass_of_layer(taup1).  
-      call diagnose_mass_of_layer (Grd%dat, Thickness%depth_zt, Thickness%depth_zwt, &
+      call diagnose_mass_of_layer (Grd%dat, &
                                    Thickness%dzt, Thickness%dztlo, Thickness%dztup,  &
                                    Thickness%rho_dzt(:,:,:,taup1),                   &
                                    wrk3, neutralrho_nk, Dens%neutralrho_bounds, nrho_mass)    

@@ -168,29 +168,29 @@ real :: b0, b1, b2, b3
 real :: c1, c2
 
 ! for TEOS10 freezing temperature 
-real,parameter  ::  v0 =  0.017947064327968736d0
-real,parameter  ::  v1 =  -6.076099099929818d0
-real,parameter  ::  v2 =   4.883198653547851d0
-real,parameter  ::  v3 =  -11.88081601230542d0
-real,parameter  ::  v4 =   13.34658511480257d0
-real,parameter  ::  v5 =  -8.722761043208607d0
-real,parameter  ::  v6 =   2.082038908808201d0
-real,parameter  ::  v7 =  -7.389420998107497d0
-real,parameter  ::  v8 =  -2.110913185058476d0
-real,parameter  ::  v9 =   0.2295491578006229d0
-real,parameter  ::  v10 = -0.9891538123307282d0
-real,parameter  ::  v11 = -0.08987150128406496d0
-real,parameter  ::  v12 =  0.3831132432071728d0
-real,parameter  ::  v13 =  1.054318231187074d0
-real,parameter  ::  v14 =  1.065556599652796d0
-real,parameter  ::  v15 = -0.7997496801694032d0
-real,parameter  ::  v16 =  0.3850133554097069d0
-real,parameter  ::  v17 = -2.078616693017569d0
-real,parameter  ::  v18 =  0.8756340772729538d0
-real,parameter  ::  v19 = -2.079022768390933d0
-real,parameter  ::  v20 =  1.596435439942262d0
-real,parameter  ::  v21 =  0.1338002171109174d0
-real,parameter  ::  v22 =  1.242891021876471d0
+real,parameter  ::  v0 =  0.017947064327968736
+real,parameter  ::  v1 =  -6.076099099929818
+real,parameter  ::  v2 =   4.883198653547851
+real,parameter  ::  v3 =  -11.88081601230542
+real,parameter  ::  v4 =   13.34658511480257
+real,parameter  ::  v5 =  -8.722761043208607
+real,parameter  ::  v6 =   2.082038908808201
+real,parameter  ::  v7 =  -7.389420998107497
+real,parameter  ::  v8 =  -2.110913185058476
+real,parameter  ::  v9 =   0.2295491578006229
+real,parameter  ::  v10 = -0.9891538123307282
+real,parameter  ::  v11 = -0.08987150128406496
+real,parameter  ::  v12 =  0.3831132432071728
+real,parameter  ::  v13 =  1.054318231187074
+real,parameter  ::  v14 =  1.065556599652796
+real,parameter  ::  v15 = -0.7997496801694032
+real,parameter  ::  v16 =  0.3850133554097069
+real,parameter  ::  v17 = -2.078616693017569
+real,parameter  ::  v18 =  0.8756340772729538
+real,parameter  ::  v19 = -2.079022768390933
+real,parameter  ::  v20 =  1.596435439942262
+real,parameter  ::  v21 =  0.1338002171109174
+real,parameter  ::  v22 =  1.242891021876471
 
 
 public compute_frazil_heating
@@ -394,8 +394,8 @@ subroutine ocean_frazil_init (Domain, Grid, Time, Time_steps, Ocean_options, &
           c2 =  1.428571428571429e-05
           tfreeze_check = -2.076426227617581
       elseif(freezing_temp_teos10) then 
-          c1 = 0.014289763856964d0
-          c2 = 0.05700064989972d0
+          c1 = 0.014289763856964
+          c2 = 0.05700064989972
           tfreeze_check = -2.062635500704721
       endif
   else 
@@ -430,7 +430,7 @@ subroutine ocean_frazil_init (Domain, Grid, Time, Time_steps, Ocean_options, &
                 + press*(v7 + press*(v8 + v9*press))                                            &
                 + s*press*(v10 + press*(v12 + press*(v15 + v21*s)) + s*(v13 + v17*press+ v19*s) &
                 + sqrts*(v11 + press*(v14 + v18*press)  + s*(v16 + v20*press+ v22*s)))         &
-                - saturation_fraction*(1e-3)*(2.4 - c1*s)*(1 + c2*(1d0 - s/35.16504d0))
+                - saturation_fraction*(1e-3)*(2.4 - c1*s)*(1 + c2*(1. - s/35.16504))
      write(stdoutunit,'(a,e24.16)')'Check value for freezing temperature(C) at (35psu,200dbar) = ',tfreeze
      write(stdoutunit,'(a,e24.16)')'This value differs from published check value by ', tfreeze-tfreeze_check
   endif 
@@ -563,11 +563,11 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
              do i=isc,iec
                 T_diag(index_frazil)%field(i,j,k) = 0.0
                 if(Grd%tmask(i,j,k) > 0.0) then
-                    s       = 1.d-2*Dens%rho_salinity(i,j,k,taup1)
+                    s       = 1.e-2*Dens%rho_salinity(i,j,k,taup1)
                     sqrts   = sqrt(s)
                     tfreeze =  v0 &
                                + s*(v1 + sqrts*(v2 + sqrts*(v3 + sqrts*(v4 + sqrts*(v5 + v6*sqrts)))))  &
-                               - saturation_fraction*(1e-3)*(2.4 - c1*s)*(1 + c2*(1.d0 - s/35.16504d0))
+                               - saturation_fraction*(1e-3)*(2.4 - c1*s)*(1 + c2*(1. - s/35.16504))
                     if(T_prog(index_temp)%field(i,j,k,taup1) < tfreeze) then
                         T_diag(index_frazil)%field(i,j,k) = &
                              (tfreeze-T_prog(index_temp)%field(i,j,k,taup1)) &
@@ -585,7 +585,7 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
                do i=isc,iec
                   T_diag(index_frazil)%field(i,j,k) = 0.0
                   if(Grd%tmask(i,j,k) > 0.0) then
-                     s       = 1.d-2*Dens%rho_salinity(i,j,k,taup1)
+                     s       = 1.e-2*Dens%rho_salinity(i,j,k,taup1)
                      sqrts   = sqrt(s)
                      press   = Dens%pressure_at_depth(i,j,k)              
                      tfreeze =  v0 &
@@ -593,7 +593,7 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
                                 + press*(v7 + press*(v8 + v9*press))                                            &
                                 + s*press*(v10 + press*(v12 + press*(v15 + v21*s)) + s*(v13 + v17*press+ v19*s) &
                                 + sqrts*(v11 + press*(v14 + v18*press)  + s*(v16 + v20*press+ v22*s)))          &
-                                - saturation_fraction*(1e-3)*(2.4 - c1*s)*(1 + c2*(1d0 - s/35.16504d0))
+                                - saturation_fraction*(1e-3)*(2.4 - c1*s)*(1 + c2*(1. - s/35.16504))
                      if(T_prog(index_temp)%field(i,j,k,taup1) < tfreeze) then
                          T_diag(index_frazil)%field(i,j,k) = &
                               (tfreeze-T_prog(index_temp)%field(i,j,k,taup1)) &

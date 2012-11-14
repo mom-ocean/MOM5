@@ -797,11 +797,10 @@ end subroutine ocean_lapcgrid_friction_init
 !
 ! </DESCRIPTION>
 !
-subroutine lapcgrid_friction(Time, Thickness, Adv_vel, Velocity, lap_viscosity, energy_analysis_step)
+subroutine lapcgrid_friction(Time, Thickness, Velocity, lap_viscosity, energy_analysis_step)
 
   type(ocean_time_type),      intent(in)    :: Time
   type(ocean_thickness_type), intent(in)    :: Thickness
-  type(ocean_adv_vel_type),   intent(in)    :: Adv_vel
   type(ocean_velocity_type),  intent(inout) :: Velocity
   logical,                    intent(in)    :: energy_analysis_step
   real, dimension(isd:,jsd:), intent(inout) :: lap_viscosity

@@ -766,7 +766,7 @@ subroutine vert_mix_gotm_bgrid (Time, Thickness, Velocity, T_prog, Dens, visc_cb
             do i=isc,iec
                active_cells = (Grd%umask(i,j,k+1)   + Grd%umask(i-1,j,k+1)   + &
                                Grd%umask(i,j-1,k+1) + Grd%umask(i-1,j-1,k+1)) * visc_cbt_gotm(i,j,k) +epsln
-	       wrk1_v(i,j,k,2) = (wrk4(i,j,k)   + wrk4(i-1,j,k) + &
+               wrk1_v(i,j,k,2) = (wrk4(i,j,k)   + wrk4(i-1,j,k) + &
                                   wrk4(i,j-1,k) + wrk4(i-1,j-1,k))/active_cells
             enddo
          enddo
@@ -851,7 +851,7 @@ subroutine vert_mix_gotm_bgrid (Time, Thickness, Velocity, T_prog, Dens, visc_cb
                    m       = kb-k
                    tke(k)  = Gotm(index_tke)%field(i,j,m,tau_gotm)
                    eps(k)  = Gotm(index_diss)%field(i,j,m,tau_gotm)
-		   L1d(k)  = cde*tke(k)**1.5/eps(k)
+                   L1d(k)  = cde*tke(k)**1.5/eps(k)
                    num(k)  = visc_cbt_gotm(i,j,m)
                    nuh(k)  = diff_cbt_gotm(i,j,m)
                    NN1d(k) = wrk1_v(i,j,m,1)
@@ -889,7 +889,7 @@ subroutine vert_mix_gotm_bgrid (Time, Thickness, Velocity, T_prog, Dens, visc_cb
 
       if(have_obc) then
          call ocean_obc_mixing(visc_cbt_gotm, diff_cbt_gotm, &
-	     Gotm(index_tke)%field(:,:,:,taup1_gotm), Gotm(index_diss)%field(:,:,:,taup1_gotm))
+              Gotm(index_tke)%field(:,:,:,taup1_gotm), Gotm(index_diss)%field(:,:,:,taup1_gotm))
       endif
 
       ! update visc_cbt_gotm to halos in preparation for 
@@ -1058,7 +1058,7 @@ subroutine advect_gotm_upwind(Time, Adv_vel, Thickness, pme, river)
               fe(i,j)  = Grd%dyte(i,j)*(upos*Gotm(n)%field(i,j,k,taup1_gotm) + uneg*Gotm(n)%field(i+1,j,k,taup1_gotm)) &
                          *Grd%tmask(i,j,k)*Grd%tmask(i+1,j,k)  
               flux_x(i,j,k) = fe(i,j)
-	   enddo
+           enddo
         enddo
 
         ! j-flux
@@ -1119,7 +1119,7 @@ subroutine advect_gotm_upwind(Time, Adv_vel, Thickness, pme, river)
            do i=isc,iec
               gotm_tendency(i,j,k) =   gotm_tendency(i,j,k) - wrk1(i,j,k) - wrk2(i,j,k) &
                                      + Gotm(n)%field(i,j,k,taup1_gotm)*Thickness%mass_source(i,j,k)
-	   enddo
+           enddo
         enddo
      enddo
 
@@ -1131,8 +1131,8 @@ subroutine advect_gotm_upwind(Time, Adv_vel, Thickness, pme, river)
               Gotm(n)%field(i,j,k,taup1_gotm) =                                &
                    (Thickness%rho_dzt(i,j,k,tau)*Gotm(n)%field(i,j,k,taup1_gotm) &
                    + dtime*gotm_tendency(i,j,k)) * Thickness%rho_dztr(i,j,k)
-	      wrk1(i,j,k) = min(Gotm(n)%field(i,j,k,taup1_gotm),0.)
-	   enddo
+              wrk1(i,j,k) = min(Gotm(n)%field(i,j,k,taup1_gotm),0.)
+           enddo
          enddo
        enddo
        call diagnose_3d(Time, Grd, id_gotm_errors(n), wrk1(:,:,:))
@@ -1144,7 +1144,7 @@ subroutine advect_gotm_upwind(Time, Adv_vel, Thickness, pme, river)
               Gotm(n)%field(i,j,k,taup1_gotm) =                                &
                    (Thickness%rho_dzt(i,j,k,tau)*Gotm(n)%field(i,j,k,taup1_gotm) &
                    + dtime*gotm_tendency(i,j,k)) * Thickness%rho_dztr(i,j,k)
-	   enddo
+           enddo
          enddo
        enddo
      endif
@@ -1154,7 +1154,7 @@ subroutine advect_gotm_upwind(Time, Adv_vel, Thickness, pme, river)
          do j=jsc,jec
            do i=isc,iec
               Gotm(n)%field(i,j,k,taup1_gotm) = max(Gotm(n)%field(i,j,k,taup1_gotm), Gotm(n)%min_value) 
-	   enddo
+           enddo
           enddo
        enddo
      endif
@@ -1482,7 +1482,7 @@ subroutine advect_gotm_sweby(Time, Adv_vel, Thickness, pme, river)
            do i=isc,iec
               gotm_tendency(i,j,k) = gotm_tendency(i,j,k) + &
                                      Gotm(n)%field(i,j,k,taup1_gotm)*Thickness%mass_source(i,j,k)
-	   enddo
+           enddo
         enddo
      enddo
 
@@ -1496,8 +1496,8 @@ subroutine advect_gotm_sweby(Time, Adv_vel, Thickness, pme, river)
               Gotm(n)%field(i,j,k,taup1_gotm) =                                &
                    (Thickness%rho_dzt(i,j,k,tau)*Gotm(n)%field(i,j,k,taup1_gotm) &
                    + dtime*gotm_tendency(i,j,k)) * Thickness%rho_dztr(i,j,k)
-	      wrk1(i,j,k) = min(Gotm(n)%field(i,j,k,taup1_gotm),0.)
-	   enddo
+              wrk1(i,j,k) = min(Gotm(n)%field(i,j,k,taup1_gotm),0.)
+           enddo
          enddo
        enddo
        call diagnose_3d(Time, Grd, id_gotm_errors(n), wrk1(:,:,:))
@@ -1509,19 +1509,19 @@ subroutine advect_gotm_sweby(Time, Adv_vel, Thickness, pme, river)
               Gotm(n)%field(i,j,k,taup1_gotm) =                                &
                    (Thickness%rho_dzt(i,j,k,tau)*Gotm(n)%field(i,j,k,taup1_gotm) &
                    + dtime*gotm_tendency(i,j,k)) * Thickness%rho_dztr(i,j,k)
-	   enddo
+           enddo
          enddo
        enddo
      endif
 ! set to minimum value if negative
      if (correct_adv_errors) then
-       do k=1,nk
-         do j=jsc,jec
-           do i=isc,iec
-              Gotm(n)%field(i,j,k,taup1_gotm) = max(Gotm(n)%field(i,j,k,taup1_gotm), Gotm(n)%min_value) 
-	   enddo
-          enddo
-       enddo
+        do k=1,nk
+           do j=jsc,jec
+              do i=isc,iec
+                 Gotm(n)%field(i,j,k,taup1_gotm) = max(Gotm(n)%field(i,j,k,taup1_gotm), Gotm(n)%min_value) 
+              enddo
+           enddo
+        enddo
      endif
      
      call diagnose_3d(Time, Grd, id_adv_flux_y(n), flux_y(:,:,:))

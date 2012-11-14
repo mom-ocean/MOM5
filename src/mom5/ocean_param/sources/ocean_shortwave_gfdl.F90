@@ -268,14 +268,6 @@ contains
     integer,                   intent(in)         :: ver_coordinate
     type(ocean_options_type),  intent(inout)      :: Ocean_options
 
-    character(len=48),  parameter :: sub_name = 'ocean_shortwave_gfdl_init'
-    character(len=256), parameter :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                    '(' // trim(sub_name) // '): '
-    character(len=256), parameter :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                   '(' // trim(sub_name) // '): '
-    character(len=256), parameter :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                   '(' // trim(sub_name) // '): '
-
     integer :: unit, io_status, ierr, i, j
 #ifdef MOM_STATIC_ARRAYS    
     real, dimension(isd:ied,jsd:jed)   :: chl_data

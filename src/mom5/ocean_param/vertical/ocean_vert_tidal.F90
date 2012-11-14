@@ -1024,7 +1024,7 @@ end subroutine ocean_vert_tidal_init
       
   else 
 
-      call compute_bvfreq(Time, Thickness, T_prog, Dens)
+      call compute_bvfreq(Time, Thickness, Dens)
       if(use_wave_dissipation)  then 
           call vert_mix_wave(Time, Thickness, Dens, diff_cbt, visc_cbu, visc_cbt, diff_cbt_wave, diff_cbt_leewave)
       endif
@@ -1115,11 +1115,10 @@ end subroutine vert_mix_tidal
 !
 ! </DESCRIPTION>
 !
-  subroutine compute_bvfreq(Time, Thickness, T_prog, Dens)
+  subroutine compute_bvfreq(Time, Thickness, Dens)
 
   type(ocean_time_type),        intent(in) :: Time
   type(ocean_thickness_type),   intent(in) :: Thickness
-  type(ocean_prog_tracer_type), intent(in) :: T_prog(:)
   type(ocean_density_type),     intent(in) :: Dens
 
   real    :: rho_inv, drhodz, bottom

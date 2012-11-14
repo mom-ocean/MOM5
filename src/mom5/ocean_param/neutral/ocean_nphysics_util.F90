@@ -2383,7 +2383,7 @@ subroutine compute_eady_rate(Time, Thickness, T_prog, Dens, eady_termx, eady_ter
            Dens%rho_salinity(isd:ied,jsd:jed,:,tau),        &
            Dens%rho(isd:ied,jsd:jed,:,tau),                 &
            Dens%pressure_at_depth(isd:ied,jsd:jed,:),       &
-           Time%model_time, eady_mld)
+           eady_mld)
 
       do j=jsc,jec
          do i=isc,iec
@@ -3279,7 +3279,7 @@ subroutine compute_eta_tend_gm90 (Time, Thickness, Dens,  &
   real, dimension(isd:,jsd:,:),       intent(in) :: agm_array
 
   integer :: i, j, k, kp1, tau
-  integer :: extended_mask
+  real    :: extended_mask
   real    :: absslope, absslopex, absslopey
   real    :: drho_dz, drho_dz_rhor2, divergence
   real    :: global_mean 
@@ -3457,7 +3457,7 @@ subroutine cabbeling_thermob_tendency (Time, Thickness, T_prog, Dens,   &
   real, dimension(isd:,jsd:,:),       intent(in) :: aredi_array
 
   integer :: i, j, k, kp1, tau
-  integer :: extended_mask
+  real    :: extended_mask
   real    :: drho_dz, strat_mask
   real    :: temporary 
   real    :: global_mean 
@@ -3476,7 +3476,7 @@ subroutine cabbeling_thermob_tendency (Time, Thickness, T_prog, Dens,   &
   ! get the cabbeling and thermobaricity parameters from ocean_density.F90 
   call calc_cabbeling_thermobaricity(Dens%rho(:,:,:,tau), T_prog(index_salt)%field(:,:,:,tau),          &
                                     T_prog(index_temp)%field(:,:,:,tau), Dens%pressure_at_depth(:,:,:), &
-                                    Time, Dens%drhodT(:,:,:), Dens%drhodS(:,:,:), Dens%drhodP(:,:,:),   &
+                                    Dens%drhodT(:,:,:), Dens%drhodS(:,:,:), Dens%drhodP(:,:,:),   &
                                     cabbeling_param, thermobaric_param)
 
   ! compute gradient of the pressure field 

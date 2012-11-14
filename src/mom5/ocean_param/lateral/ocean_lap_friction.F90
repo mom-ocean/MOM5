@@ -324,7 +324,7 @@ subroutine lap_friction(Time, Thickness, Adv_vel, Velocity, energy_analysis_step
 
   elseif(MIX_SCHEME==3) then 
     call mpp_clock_begin(id_clock_lapcgrid)
-    call lapcgrid_friction(Time, Thickness, Adv_vel, Velocity, lap_viscosity, energy_analysis_step)
+    call lapcgrid_friction(Time, Thickness, Velocity, lap_viscosity, energy_analysis_step)
     call mpp_clock_end(id_clock_lapcgrid)
 
   endif 

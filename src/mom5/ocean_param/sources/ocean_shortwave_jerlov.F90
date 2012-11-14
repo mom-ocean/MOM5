@@ -239,21 +239,12 @@ contains
 ! <DESCRIPTION>
 ! Initialization for the shortwave module
 ! </DESCRIPTION>
-  subroutine ocean_shortwave_jerlov_init(Grid, Domain, Time, ver_coordinate, Ocean_options)
+  subroutine ocean_shortwave_jerlov_init(Grid, Domain, ver_coordinate, Ocean_options)
 
     type(ocean_grid_type),    intent(in), target :: Grid
     type(ocean_domain_type),  intent(in), target :: Domain
-    type(ocean_time_type),    intent(in)         :: Time
     integer,                  intent(in)         :: ver_coordinate
     type(ocean_options_type), intent(inout)      :: Ocean_options
-
-    character(len=48),  parameter :: sub_name = 'ocean_shortwave_jerlov_init'
-    character(len=256), parameter :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                    '(' // trim(sub_name) // '): '
-    character(len=256), parameter :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                   '(' // trim(sub_name) // '): '
-    character(len=256), parameter :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                   '(' // trim(sub_name) // '): '
 
     real    :: coef1, coef2, efold1, efold2, depth
     integer :: unit, io_status, ierr, k, nopt
@@ -455,9 +446,8 @@ end subroutine ocean_shortwave_jerlov_init
 ! surface tracer flux "stf(i,j,temp)"
 !
 ! </DESCRIPTION>
-subroutine sw_source_jerlov (Time, Thickness, T_diag, swflx, swflx_vis, index_irr, Temp, sw_frac_zt, opacity)
+subroutine sw_source_jerlov (Thickness, T_diag, swflx, swflx_vis, index_irr, Temp, sw_frac_zt, opacity)
 
-  type(ocean_time_type),         intent(in)    :: Time
   type(ocean_thickness_type),    intent(in)    :: Thickness
   type(ocean_diag_tracer_type),  intent(inout) :: T_diag(:)
   real, dimension(isd:,jsd:) ,   intent(in)    :: swflx

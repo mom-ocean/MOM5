@@ -426,7 +426,7 @@ type ibgc_type  !{
   real                                  :: sal_global
   real                                  :: frac_14catm_const = 0.0
   character(len=128)                    :: frac_14catm_file = ' '
-  character(len=32)                     :: frac_14catm_name = ' '
+  character(len=128)                    :: frac_14catm_name = ' '
   integer                               :: frac_14catm_id = 0
 
   real, _ALLOCATABLE, dimension(:,:,:)  :: jideal_n  _NULL
@@ -937,14 +937,6 @@ subroutine ocean_ibgc_bbc  !{
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_ibgc_bbc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-
 !
 !-----------------------------------------------------------------------
 !     local variables
@@ -1015,10 +1007,6 @@ real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 !
 
 character(len=64), parameter    :: sub_name = 'ocean_ibgc_end'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 
@@ -1083,10 +1071,6 @@ subroutine ocean_ibgc_restart(time_stamp)
 !-----------------------------------------------------------------------
 
 character(len=64), parameter    :: sub_name = 'ocean_ibgc_restart'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
   integer :: stdoutunit 
@@ -1158,20 +1142,6 @@ type(coupler_2d_bc_type), intent(in)                      :: ice_ocean_boundary_
 !-----------------------------------------------------------------------
 !     local parameters
 !-----------------------------------------------------------------------
-
-character(len=64), parameter    :: sub_name = 'ocean_ibgc_sbc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-real, parameter :: po4_molwt = 31.0
-real, parameter :: dop_molwt = 31.0
-real, parameter :: o2_molwt = 32.0
-real, parameter :: dic_molwt = 12.0
-real, parameter :: alk_molwt = 1.0
 
 !-----------------------------------------------------------------------
 !     local variables
@@ -1308,8 +1278,6 @@ implicit none
 character(len=64), parameter    :: sub_name = 'ocean_ibgc_flux_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
@@ -1496,14 +1464,10 @@ subroutine ocean_ibgc_init  !{
 character(len=64), parameter    :: sub_name = 'ocean_ibgc_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 
-real, parameter :: rho_avg = 1024.5
 real, parameter :: sperd = 24.0 * 3600.0
-real, parameter :: spery = 365.25 * sperd
 
 !
 !-----------------------------------------------------------------------
@@ -2103,14 +2067,6 @@ real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_ibgc_init_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !-----------------------------------------------------------------------
 !       local variables
 !-----------------------------------------------------------------------
@@ -2407,13 +2363,6 @@ real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_ibgc_sum_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 !
 !-----------------------------------------------------------------------
 !       local variables
@@ -2669,14 +2618,6 @@ type(coupler_2d_bc_type), intent(inout) :: Ocean_fields
 !       local parameters
 !-----------------------------------------------------------------------
 
-character(len=64), parameter    :: sub_name = 'ocean_ibgc_zero_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !-----------------------------------------------------------------------
 !       local variables
 !-----------------------------------------------------------------------
@@ -2760,14 +2701,6 @@ real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 !
 !       local parameters
 !
-
-character(len=64), parameter    :: sub_name = 'ocean_ibgc_avg_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
 !
 !-----------------------------------------------------------------------
@@ -2872,14 +2805,6 @@ implicit none
 !       local parameters
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_ibgc_sfc_end'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
 !
 !-----------------------------------------------------------------------
 !       arguments
@@ -2951,15 +2876,6 @@ real, intent(in)                                                :: dtts
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_ibgc_source'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-
-real, parameter :: sperd = 24.0 * 3600.0
 !
 !-----------------------------------------------------------------------
 !     local variables
@@ -4277,8 +4193,6 @@ real, parameter :: spery = 365.25 * 24.0 * 3600.0
 character(len=64), parameter    :: sub_name = 'ocean_ibgc_start'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 
@@ -5108,13 +5022,6 @@ use mpp_mod, only : mpp_sum
 !-----------------------------------------------------------------------
 !
 
-character(len=64), parameter    :: sub_name = 'ocean_ibgc_tracer'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 
 !
 !-----------------------------------------------------------------------

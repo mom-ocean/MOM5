@@ -928,7 +928,7 @@ subroutine overexchange (Time, Thickness, T_prog, Dens, index_temp, index_salt)
 
   enddo  ! nt-end for num_prog_tracers 
 
-  call watermass_diag(Time, Dens, Thickness, wrk1_v)
+  call watermass_diag(Time, Dens, wrk1_v)
 
   if (debug_this_module) then
       write(stdoutunit,*) ' '
@@ -1118,11 +1118,10 @@ end subroutine watermass_diag_init
 ! Diagnose effects from overexchange on the watermass transformation.
 ! </DESCRIPTION>
 !
-subroutine watermass_diag(Time, Dens, Thickness, wrk1_v)
+subroutine watermass_diag(Time, Dens, wrk1_v)
 
   type(ocean_time_type),           intent(in)    :: Time
   type(ocean_density_type),        intent(in)    :: Dens
-  type(ocean_thickness_type),      intent(in)    :: Thickness
   real, dimension(isd:,jsd:,:,:),  intent(inout) :: wrk1_v
 
   integer :: i,j,k

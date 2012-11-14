@@ -73,10 +73,10 @@ module ocean_types_mod
 
   type, public :: ocean_options_type
      integer            :: vertmix
-     character(len=72)  :: vert_mix
+     character(len=128) :: vert_mix
      character(len=72)  :: tidal_wave_mix
      character(len=72)  :: tidal_drag_mix
-     character(len=72)  :: leewave_mix
+     character(len=128) :: leewave_mix
      character(len=72)  :: bryan_lewis_mix
      character(len=72)  :: hwf_mix
      character(len=72)  :: tanh_diff_cbt
@@ -84,10 +84,10 @@ module ocean_types_mod
      character(len=72)  :: horz_lap_tracer
      character(len=72)  :: horz_lap_friction
      character(len=72)  :: horz_bih_friction
-     character(len=72)  :: coriolis
+     character(len=128) :: coriolis
      character(len=72)  :: momentum_source
      character(len=72)  :: form_drag
-     character(len=72)  :: bottom_roughness
+     character(len=128) :: bottom_roughness
      character(len=72)  :: bmf_implicit
      character(len=72)  :: geothermal_heating
      character(len=72)  :: OBC
@@ -97,20 +97,20 @@ module ocean_types_mod
      character(len=72)  :: tracer_tendency
      character(len=72)  :: equation_of_state
      character(len=72)  :: temperature_variable
-     character(len=72)  :: frazil_ice
+     character(len=128) :: frazil_ice
      character(len=72)  :: convective_adjustment
      character(len=72)  :: neutral_physics
      character(len=72)  :: neutral_physics_new
      character(len=72)  :: submesoscale
      character(len=72)  :: sigma_transport
      character(len=72)  :: lagrangian_blobs
-     character(len=72)  :: overexchange
+     character(len=128) :: overexchange
      character(len=72)  :: mixdownslope
      character(len=72)  :: overflow
      character(len=72)  :: overflow_OFP
      character(len=72)  :: shortwave
      character(len=72)  :: xlandmix
-     character(len=72)  :: xlandinsert
+     character(len=128) :: xlandinsert
      character(len=72)  :: rivermix 
      character(len=72)  :: riverspread
      character(len=72)  :: passive_tracers
@@ -459,8 +459,8 @@ module ocean_types_mod
   
   type, public :: ocean_prog_tracer_type
      character(len=32)  :: name
-     character(len=32)  :: units
-     character(len=32)  :: type
+     character(len=128) :: units
+     character(len=128) :: type
      character(len=128) :: longname
 
      logical :: use_only_advection     ! for testing purposes, evolve using ONLY advection
@@ -528,12 +528,13 @@ module ocean_types_mod
      real                                  :: const_init_value   ! value used for constant tracer init
      logical                               :: const_init_tracer  ! false (default) if the tracer must exist in the restart file
                                                                  !   otherwise will initialize with const_init_value
-     character(len=32)                     :: flux_units         ! units for the tracer flux 
+     character(len=128)                    :: flux_units         ! units for the tracer flux
      character(len=128)                    :: restart_file       ! name for restart file
   end type ocean_prog_tracer_type
   
   type, public :: ocean_diag_tracer_type
-     character(len=32)  :: name, units, type
+     character(len=32)  :: name
+     character(len=128) :: units, type
      character(len=128) :: longname
      real, dimension(isd:ied,jsd:jed,nk) :: field              ! tracer concentration at single time level 
      real :: conversion                                        ! conversion from model dimensions to others 
@@ -982,8 +983,8 @@ module ocean_types_mod
   
   type, public :: ocean_prog_tracer_type
      character(len=32)  :: name
-     character(len=32)  :: units
-     character(len=32)  :: type
+     character(len=128) :: units
+     character(len=128) :: type
      character(len=128) :: longname
 
      logical :: use_only_advection      ! for testing purposes, evolve using ONLY advection
@@ -1051,12 +1052,13 @@ module ocean_types_mod
      real                              :: const_init_value      ! value used to initialize constant tracer
      logical                           :: const_init_tracer     ! false (default) if the tracer must exist in the restart file
                                                                 !   otherwise will initialize with const_init_value
-     character(len=32)                 :: flux_units            ! units for the tracer flux 
+     character(len=128)                :: flux_units            ! units for the tracer flux
      character(len=128)                :: restart_file          ! name for restart file
   end type ocean_prog_tracer_type
 
   type, public :: ocean_diag_tracer_type
-     character(len=32)  :: name, units, type
+     character(len=32)  :: name
+     character(len=128) :: units, type
      character(len=128) :: longname
      real, dimension(:,:,:), pointer  :: field       ! tracer concentration at single time level 
      real :: conversion                              ! conversion between dimensions  

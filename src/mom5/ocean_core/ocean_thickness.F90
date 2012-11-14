@@ -3461,10 +3461,10 @@ subroutine update_ucell_thickness (Time, Grid, Ext_mode, Thickness)
      call diagnose_2d_en(Time, Grid, id_mass_en(1), id_mass_en(2), Thickness%mass_en(:,:,:))
   endif
 
-  call diagnose_3d(Time, Grd, id_dzten(1), Thickness%dzten(:,:,:,1))
-  call diagnose_3d(Time, Grd, id_dzten(2), Thickness%dzten(:,:,:,2))
-  call diagnose_3d(Time, Grd, id_rho_dzten(1), Thickness%rho_dzten(:,:,:,1))
-  call diagnose_3d(Time, Grd, id_rho_dzten(2), Thickness%rho_dzten(:,:,:,2))
+  call diagnose_3d(Time, Grid, id_dzten(1), Thickness%dzten(:,:,:,1))
+  call diagnose_3d(Time, Grid, id_dzten(2), Thickness%dzten(:,:,:,2))
+  call diagnose_3d(Time, Grid, id_rho_dzten(1), Thickness%rho_dzten(:,:,:,1))
+  call diagnose_3d(Time, Grid, id_rho_dzten(2), Thickness%rho_dzten(:,:,:,2))
 
   call diagnose_3d_u(Time, Grid, id_depth_zu, Thickness%depth_zu(:,:,:))
   call diagnose_3d_u(Time, Grid, id_depth_zwu, Thickness%depth_zwu(:,:,:))

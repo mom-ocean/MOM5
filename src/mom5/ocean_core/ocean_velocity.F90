@@ -1018,7 +1018,7 @@ subroutine ocean_explicit_accel_b(visc_cbu, visc_cbt, Time, Thickness, Adv_vel, 
          call coriolis_force_bgrid(Time, Thickness, Velocity, energy_analysis_step=.false.)
       else 
          call vert_friction_cgrid(Time, Thickness, Velocity, visc_cbt, energy_analysis_step=.false.)
-         call coriolis_force_cgrid(Time, Thickness, Adv_vel, Velocity, abtau_m0, abtau_m1, abtau_m2, &
+         call coriolis_force_cgrid(Time, Adv_vel, Velocity, abtau_m0, abtau_m1, abtau_m2, &
                                    energy_analysis_step=.false.)
       endif 
 
@@ -1384,12 +1384,10 @@ end subroutine update_ocean_velocity_bgrid
 !
 ! </DESCRIPTION>
 !
-subroutine update_ocean_velocity_cgrid(Time, Thickness, barotropic_split, vert_coordinate_class, Adv_vel, Ext_mode, Velocity)
+subroutine update_ocean_velocity_cgrid(Time, Thickness, Adv_vel, Ext_mode, Velocity)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_thickness_type),     intent(in)    :: Thickness
-  integer,                        intent(in)    :: barotropic_split
-  integer,                        intent(in)    :: vert_coordinate_class
   type(ocean_adv_vel_type),       intent(in)    :: Adv_vel
   type(ocean_external_mode_type), intent(inout) :: Ext_mode
   type(ocean_velocity_type),      intent(inout) :: Velocity

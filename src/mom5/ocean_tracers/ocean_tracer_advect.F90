@@ -501,14 +501,13 @@ contains
 ! Initialize the tracer advection module.
 ! </DESCRIPTION>
 !
-subroutine ocean_tracer_advect_init (Grid, Domain, Time, Dens, T_prog, dtime, obc, debug)
+subroutine ocean_tracer_advect_init (Grid, Domain, Time, Dens, T_prog, obc, debug)
 
   type(ocean_grid_type),        intent(in), target   :: Grid
   type(ocean_domain_type),      intent(in), target   :: Domain
   type(ocean_time_type),        intent(in)           :: Time
   type(ocean_density_type),     intent(in)           :: Dens
   type(ocean_prog_tracer_type), intent(inout)        :: T_prog(:)
-  real,                         intent(in)           :: dtime 
   logical,                      intent(in)           :: obc
   logical,                      intent(in), optional :: debug
   
@@ -739,7 +738,7 @@ subroutine ocean_tracer_advect_init (Grid, Domain, Time, Dens, T_prog, dtime, ob
   allocate( sm(isd:ied,jsd:jed,nk) )
   sm(:,:,:)            = 0.0
 
-  call advection_diag_init(Time, Dens, T_prog(:))
+  call advection_diag_init(Time, T_prog(:))
   call watermass_diag_init(Time, Dens)
 
   ! initialize clock ids 
@@ -762,10 +761,9 @@ end subroutine ocean_tracer_advect_init
 ! Initialize the main tracer advection diagnostics. 
 ! </DESCRIPTION>
 !
-subroutine advection_diag_init (Time, Dens, T_prog)
+subroutine advection_diag_init (Time, T_prog)
 
   type(ocean_time_type),        intent(in)  :: Time
-  type(ocean_density_type),     intent(in)  :: Dens
   type(ocean_prog_tracer_type), intent(in)  :: T_prog(:)
 
   integer :: n  
@@ -1938,13 +1936,13 @@ subroutine horz_advect_tracer(Time, Adv_vel, Thickness, Dens, T_prog, Tracer, nt
 
       case (ADVECT_MDFL_SUP_B)
           Tracer%wrk1(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sup_b(Time, Adv_vel, Tracer, Thickness, Tracer%field(:,:,:,taum1), dtime)
+          -advect_tracer_mdfl_sup_b(Time, Adv_vel, Thickness, Tracer%field(:,:,:,taum1), dtime)
       case (ADVECT_MDFL_SWEBY)
           Tracer%wrk1(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sweby(Time, Adv_vel, Tracer, Thickness, Tracer%field(:,:,:,taum1), dtime, sweby_limiter=1.0)
+          -advect_tracer_mdfl_sweby(Time, Adv_vel, Thickness, Tracer%field(:,:,:,taum1), dtime, sweby_limiter=1.0)
       case (ADVECT_DST_LINEAR)
           Tracer%wrk1(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sweby(Time, Adv_vel, Tracer, Thickness, Tracer%field(:,:,:,taum1), dtime, sweby_limiter=0.0)
+          -advect_tracer_mdfl_sweby(Time, Adv_vel, Thickness, Tracer%field(:,:,:,taum1), dtime, sweby_limiter=0.0)
       case (ADVECT_PSOM)
           Tracer%wrk1(isc:iec,jsc:jec,:) =  &
           -advect_tracer_psom(Time, Adv_vel, Tracer, Thickness, dtime, ntracer, do_passive_sq=.false.)
@@ -1954,10 +1952,10 @@ subroutine horz_advect_tracer(Time, Adv_vel, Thickness, Dens, T_prog, Tracer, nt
 
       case (ADVECT_MDFL_SWEBY_TEST)
           Tracer%wrk1(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sweby_test(Time, Adv_vel, Tracer, Thickness, Tracer%field(:,:,:,taum1), dtime, sweby_limiter=1.0)
+          -advect_tracer_mdfl_sweby_test(Time, Adv_vel, Thickness, Tracer%field(:,:,:,taum1), dtime, sweby_limiter=1.0)
       case (ADVECT_DST_LINEAR_TEST)
           Tracer%wrk1(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sweby_test(Time, Adv_vel, Tracer, Thickness, Tracer%field(:,:,:,taum1), dtime, sweby_limiter=0.0)
+          -advect_tracer_mdfl_sweby_test(Time, Adv_vel, Thickness, Tracer%field(:,:,:,taum1), dtime, sweby_limiter=0.0)
       case (ADVECT_MDPPM_TEST)
           Tracer%wrk1(isc:iec,jsc:jec,:) =  &
           -advect_tracer_mdppm_test(Time, Adv_vel, Tracer, Thickness, Tracer%field(:,:,:,taum1), dtime)
@@ -2054,7 +2052,7 @@ subroutine horz_advect_tracer(Time, Adv_vel, Thickness, Dens, T_prog, Tracer, nt
       ! for gyre/overturning diagnostics
       ! Note we need to call this from within advect_tracer_sweby_all
       if(compute_gyre_overturn_diagnose) then
-         call gyre_overturn_diagnose(Time, Adv_vel, Tracer, Thickness, ntracer)
+         call gyre_overturn_diagnose(Time, Adv_vel, Tracer, ntracer)
       endif
 
   endif   ! endif for (.not. advect_sweby_all)
@@ -2195,7 +2193,7 @@ subroutine vert_advect_tracer(Time, Adv_vel, Dens, Thickness, T_prog, Tracer, nt
       endif 
 
       if(ntracer == num_prog_tracers) then 
-         call watermass_diag(Time, Dens, Thickness)
+         call watermass_diag(Time, Dens)
       endif 
 
   endif  ! endif for (.not. advect_sweby_all)
@@ -2375,8 +2373,8 @@ function horz_advect_tracer_4th_order(Adv_vel, Tracer_field)
 
      do j=jsc,jec
         do i=isc-1,iec
-           im1   = tmask_fourth(i-1,j,k)*(i-1) + (1.0-tmask_fourth(i-1,j,k))*i
-           ip2   = tmask_fourth(i+2,j,k)*(i+2) + (1.0-tmask_fourth(i+2,j,k))*(i+1)    
+           im1   = int(tmask_fourth(i-1,j,k)*(i-1) + (1.0-tmask_fourth(i-1,j,k))*i)
+           ip2   = int(tmask_fourth(i+2,j,k)*(i+2) + (1.0-tmask_fourth(i+2,j,k))*(i+1))
            flux_x(i,j,k) = Grd%dyte(i,j)*Adv_vel%uhrho_et(i,j,k)*  &
                 (a4*(tracer_fourth(i+1,j,k)+tracer_fourth(i,j,k)) + &
                  b4*(tracer_fourth(ip2,j,k)+tracer_fourth(im1,j,k)))
@@ -2385,8 +2383,8 @@ function horz_advect_tracer_4th_order(Adv_vel, Tracer_field)
 
      do j=jsc-1,jec
         do i=isc,iec
-           jm1   = tmask_fourth(i,j-1,k)*(j-1) + (1.0-tmask_fourth(i,j-1,k))*j
-           jp2   = tmask_fourth(i,j+2,k)*(j+2) + (1.0-tmask_fourth(i,j+2,k))*(j+1)    
+           jm1   = int(tmask_fourth(i,j-1,k)*(j-1) + (1.0-tmask_fourth(i,j-1,k))*j)
+           jp2   = int(tmask_fourth(i,j+2,k)*(j+2) + (1.0-tmask_fourth(i,j+2,k))*(j+1))
            flux_y(i,j,k) = Grd%dxtn(i,j)*Adv_vel%vhrho_nt(i,j,k)*&
                 (a4*(tracer_fourth(i,j+1,k)+tracer_fourth(i,j,k)) + &
                  b4*(tracer_fourth(i,jp2,k)+tracer_fourth(i,jm1,k)))
@@ -2459,8 +2457,8 @@ function horz_advect_tracer_6th_order(Adv_vel, Tracer_field)
         do i=isc-1,iec
            if (tmask_sixth(i-2,j,k)*tmask_sixth(i-1,j,k) == 0 .or. &
                tmask_sixth(i+3,j,k)*tmask_sixth(i+2,j,k) == 0) then
-               im1   = tmask_sixth(i-1,j,k)*(i-1) + (1.0-tmask_sixth(i-1,j,k))*i
-               ip2   = tmask_sixth(i+2,j,k)*(i+2) + (1.0-tmask_sixth(i+2,j,k))*(i+1)    
+               im1   = int(tmask_sixth(i-1,j,k)*(i-1) + (1.0-tmask_sixth(i-1,j,k))*i)
+               ip2   = int(tmask_sixth(i+2,j,k)*(i+2) + (1.0-tmask_sixth(i+2,j,k))*(i+1))
                flux_x(i,j,k) = Grd%dyte(i,j)*Adv_vel%uhrho_et(i,j,k)   &
                     *(  a4*(tracer_sixth(i+1,j,k)+tracer_sixth(i,j,k)) &
                       + b4*(tracer_sixth(ip2,j,k)+tracer_sixth(im1,j,k)))
@@ -2477,8 +2475,8 @@ function horz_advect_tracer_6th_order(Adv_vel, Tracer_field)
         do i=isc,iec
            if (tmask_sixth(i,j-2,k)*tmask_sixth(i,j-1,k) == 0 .or. &
                tmask_sixth(i,j+3,k)*tmask_sixth(i,j+2,k) == 0) then
-               jm1   = tmask_sixth(i,j-1,k)*(j-1) + (1.0-tmask_sixth(i,j-1,k))*j
-               jp2   = tmask_sixth(i,j+2,k)*(j+2) + (1.0-tmask_sixth(i,j+2,k))*(j+1)    
+               jm1   = int(tmask_sixth(i,j-1,k)*(j-1) + (1.0-tmask_sixth(i,j-1,k))*j)
+               jp2   = int(tmask_sixth(i,j+2,k)*(j+2) + (1.0-tmask_sixth(i,j+2,k))*(j+1))
                flux_y(i,j,k) = Grd%dxtn(i,j)*Adv_vel%vhrho_nt(i,j,k) &
                *(  a4*(tracer_sixth(i,j+1,k)+tracer_sixth(i,j,k))    &
                  + b4*(tracer_sixth(i,jp2,k)+tracer_sixth(i,jm1,k)))
@@ -3169,11 +3167,10 @@ end function vert_advect_tracer_quickmom3
 !
 ! </DESCRIPTION>
 !
-function advect_tracer_mdfl_sup_b(Time, Adv_vel, Tracer, Thickness, Tracer_field, dtime)
+function advect_tracer_mdfl_sup_b(Time, Adv_vel, Thickness, Tracer_field, dtime)
 
   type(ocean_time_type),        intent(in) :: Time
   type(ocean_adv_vel_type),     intent(in) :: Adv_vel
-  type(ocean_prog_tracer_type), intent(in) :: Tracer
   type(ocean_thickness_type),   intent(in) :: Thickness
   real, dimension(isd:,jsd:,:), intent(in) :: Tracer_field
   real,                         intent(in) :: dtime
@@ -3450,11 +3447,10 @@ end function advect_tracer_mdfl_sup_b
 !
 ! </DESCRIPTION>
 !
-function advect_tracer_mdfl_sweby_test(Time, Adv_vel, Tracer, Thickness, Tracer_field, dtime, sweby_limiter)
+function advect_tracer_mdfl_sweby_test(Time, Adv_vel, Thickness, Tracer_field, dtime, sweby_limiter)
 
   type(ocean_time_type),        intent(in) :: Time
   type(ocean_adv_vel_type),     intent(in) :: Adv_vel
-  type(ocean_prog_tracer_type), intent(in) :: Tracer
   type(ocean_thickness_type),   intent(in) :: Thickness
   real, dimension(isd:,jsd:,:), intent(in) :: Tracer_field
   real,                         intent(in) :: dtime
@@ -3788,11 +3784,10 @@ end function advect_tracer_mdfl_sweby_test
 !
 ! </DESCRIPTION>
 !
-function advect_tracer_mdfl_sweby(Time, Adv_vel, Tracer, Thickness, Tracer_field, dtime, sweby_limiter)
+function advect_tracer_mdfl_sweby(Time, Adv_vel, Thickness, Tracer_field, dtime, sweby_limiter)
 
   type(ocean_time_type),        intent(in) :: Time
   type(ocean_adv_vel_type),     intent(in) :: Adv_vel
-  type(ocean_prog_tracer_type), intent(in) :: Tracer
   type(ocean_thickness_type),   intent(in) :: Thickness
   real, dimension(isd:,jsd:,:), intent(in) :: Tracer_field
   real,                         intent(in) :: dtime
@@ -4484,13 +4479,13 @@ subroutine advect_tracer_sweby_all(Time, Adv_vel, Dens, T_prog, Thickness, dtime
       ! It must be checked, if still correct with the new scheme
       ! for gyre/overturning diagnostics
       if(compute_gyre_overturn_diagnose) then
-         call gyre_overturn_diagnose(Time, Adv_vel, T_prog(n), Thickness, n)
+         call gyre_overturn_diagnose(Time, Adv_vel, T_prog(n), n)
       endif
 
       call mpp_clock_end(id_clock_mdfl_sweby_dia)
   enddo ! end of tracer n-loop
 
-  call watermass_diag(Time, Dens, Thickness)
+  call watermass_diag(Time, Dens)
   
   call mpp_clock_end(id_clock_mdfl_sweby_all)
 
@@ -5439,8 +5434,8 @@ function advect_tracer_mdppm_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
   real                                     :: mskm2,mskm1,msk0,mskp1,mskp2
   real                                     :: qmp,qlc
   real                                     :: dM4m,dM4p,qav,qul,qmd,qmin,qmax,x,y,z,w
-  real,parameter                           :: oneSixth=1./6., r24=1./24., r12=1./12.
-  real,parameter                           :: fourThirds=4./3., twoThirds=2./3.
+  real,parameter                           :: oneSixth=1./6., r12=1./12.
+  real,parameter                           :: twoThirds=2./3.
   real,dimension(isc-4:iec+4,jsc-4:jec+4)  :: da, aL, aR, a6, d1m, d1p, d1mm, d1pp
   real,dimension(isc-4:iec+4,jsc-4:jec+4,nk) :: dak
   real                                     :: dakm1, dakp1
@@ -6028,8 +6023,8 @@ function advect_tracer_mdppm(Time, Adv_vel, Tracer, Thickness, Tracer_field, dti
   real                                     :: mskm2,mskm1,msk0,mskp1,mskp2
   real                                     :: qmp,qlc
   real                                     :: dM4m,dM4p,qav,qul,qmd,qmin,qmax,x,y,z,w
-  real,parameter                           :: oneSixth=1./6., r24=1./24., r12=1./12.
-  real,parameter                           :: fourThirds=4./3., twoThirds=2./3.
+  real,parameter                           :: oneSixth=1./6., r12=1./12.
+  real,parameter                           :: twoThirds=2./3.
   real,dimension(isc-4:iec+4,jsc-4:jec+4)  :: da, aL, aR, a6, d1m, d1p, d1mm, d1pp
   real,dimension(isc-4:iec+4,jsc-4:jec+4,nk) :: dak
   real                                     :: dakm1, dakp1
@@ -6728,12 +6723,9 @@ function advect_tracer_mdmdt_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
   real                                     :: mskm2,mskm1,msk0,mskp1,mskp2
   real                                     :: qmp,qlc
   real                                     :: dM4m,dM4p,qav,qul,qmd,qmin,qmax,x,y,z,w
-  real,parameter                           :: oneSixth=1./6., r24=1./24., r12=1./12.
-  real,parameter                           :: fourThirds=4./3., twoThirds=2./3.
   real,dimension(isc-4:iec+4,jsc-4:jec+4)  :: da, aL, aR, a6, d1m, d1p, d1mm, d1pp
   real,dimension(isc-4:iec+4,jsc-4:jec+4,nk) :: dak
   real                                     :: dakm1, dakp1
-  real,parameter                           :: sweby_limiter=1.0
   real :: tmin0,tmax0
 
   real :: Phi, Qippp, Qipp, Qip, Qi, Qim, Qimm, Qimmm
@@ -6934,7 +6926,7 @@ function advect_tracer_mdmdt_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
   call mpp_update_domains (mass_mdmdt, Dom_mdmdt%domain2d, flags=XUPDATE)
 
 #ifdef DEBUG_OS7MP
-  call tracer_stats(tracer_mdmdt(isc:iec,jsc:jec,:),tmask_mdmdt(isc:iec,jsc:jec,:),Tmin0,Tmax0,'mdmdtafter Z')
+  call tracer_stats(tracer_mdmdt(isc:iec,jsc:jec,:),Tmin0,Tmax0,'mdmdtafter Z')
 #endif
 
   ! calculate flux at the eastern wall of the boxes
@@ -7105,7 +7097,7 @@ function advect_tracer_mdmdt_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
   call mpp_update_domains (mass_mdmdt, Dom_mdmdt%domain2d, flags=YUPDATE)
 
 #ifdef DEBUG_OS7MP
-  call tracer_stats(tracer_mdmdt(isc:iec,jsc:jec,:),tmask_mdmdt(isc:iec,jsc:jec,:),Tmin0,Tmax0,'mdmdtafter U')
+  call tracer_stats(tracer_mdmdt(isc:iec,jsc:jec,:),Tmin0,Tmax0,'mdmdtafter U')
 #endif
 
   do k=1,nk
@@ -7260,7 +7252,7 @@ function advect_tracer_mdmdt_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
   enddo ! end of k-loop
 
 #ifdef DEBUG_OS7MP
-  call tracer_stats(tracer_mdmdt(isc:iec,jsc:jec,:),tmask_mdmdt(isc:iec,jsc:jec,:),Tmin0,Tmax0,'mdmdt')
+  call tracer_stats(tracer_mdmdt(isc:iec,jsc:jec,:),Tmin0,Tmax0,'mdmdt')
 #endif
 
   call mpp_clock_end(id_clock_mdmdt_test)
@@ -7310,12 +7302,11 @@ end function advect_tracer_mdmdt_test
 !
 ! </DESCRIPTION>
   
-  subroutine gyre_overturn_diagnose(Time, Adv_vel, Tracer, Thickness, ntracer)
+  subroutine gyre_overturn_diagnose(Time, Adv_vel, Tracer, ntracer)
 
   type(ocean_time_type),        intent(in) :: Time
   type(ocean_adv_vel_type),     intent(in) :: Adv_vel
   type(ocean_prog_tracer_type), intent(in) :: Tracer
-  type(ocean_thickness_type),   intent(in) :: Thickness
   integer,                      intent(in) :: ntracer
 
   integer :: i, j, k, tau, nbasin
@@ -7467,11 +7458,10 @@ end subroutine gyre_overturn_diagnose
 ! advection of temperature and salinity.
 ! </DESCRIPTION>
 !
-subroutine watermass_diag(Time, Dens, Thickness)
+subroutine watermass_diag(Time, Dens)
 
   type(ocean_time_type),      intent(in)  :: Time
   type(ocean_density_type),   intent(in)  :: Dens 
-  type(ocean_thickness_type), intent(in)  :: Thickness
 
   integer :: i,j,k,tau
 
@@ -7627,16 +7617,16 @@ subroutine compute_adv_diss(Time, Adv_vel, Thickness, T_prog, Tracer, ntracer, d
           -horz_advect_tracer_quickmom3(Adv_vel, Tracer, wrk1, wrk1)
       case (ADVECT_MDFL_SUP_B)
           wrk2(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sup_b(Time, Adv_vel, Tracer, Thickness, wrk1, dtime)
+          -advect_tracer_mdfl_sup_b(Time, Adv_vel, Thickness, wrk1, dtime)
       case (ADVECT_MDFL_SWEBY)
           wrk2(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sweby(Time, Adv_vel, Tracer, Thickness, wrk1, dtime, sweby_limiter=1.0)
+          -advect_tracer_mdfl_sweby(Time, Adv_vel, Thickness, wrk1, dtime, sweby_limiter=1.0)
       case (ADVECT_DST_LINEAR)
           wrk2(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sweby(Time, Adv_vel, Tracer, Thickness, wrk1, dtime, sweby_limiter=0.0)
+          -advect_tracer_mdfl_sweby(Time, Adv_vel, Thickness, wrk1, dtime, sweby_limiter=0.0)
       case (ADVECT_DST_LINEAR_TEST)
           wrk2(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sweby_test(Time, Adv_vel, Tracer, Thickness, wrk1, dtime, sweby_limiter=0.0)
+          -advect_tracer_mdfl_sweby_test(Time, Adv_vel, Thickness, wrk1, dtime, sweby_limiter=0.0)
       case (ADVECT_MDPPM)
           wrk2(isc:iec,jsc:jec,:) =  &
           -advect_tracer_mdppm(Time, Adv_vel, Tracer, Thickness, wrk1, dtime)
@@ -7776,9 +7766,8 @@ end subroutine get_tracer_stats
 ! NOTE: This is a debugging tool and not for normal use.
 !
 ! </DESCRIPTION>
-subroutine tracer_stats(A,Mask,tmin0,tmax0,label)
+subroutine tracer_stats(A,tmin0,tmax0,label)
   real, dimension(isc:iec,jsc:jec,nk), intent(in) :: A
-  real, dimension(isc:iec,jsc:jec,nk), intent(in) :: Mask
   real, intent(in) :: tmin0,tmax0
   character(len=*), intent(in) :: label
   integer :: i,j,k
@@ -7815,9 +7804,8 @@ end subroutine
 ! <DESCRIPTION>
 !  Write out restart files registered through register_restart_file
 ! </DESCRIPTION>
-subroutine ocean_tracer_advect_restart(T_prog, time_stamp)
+subroutine ocean_tracer_advect_restart(T_prog)
   type(ocean_prog_tracer_type), intent(in)           :: T_prog(:)
-  character(len=*),             intent(in), optional :: time_stamp
    integer :: tau, taup1
 
   if(ANY(T_prog(1:num_prog_tracers)%horz_advect_scheme == ADVECT_PSOM) )then

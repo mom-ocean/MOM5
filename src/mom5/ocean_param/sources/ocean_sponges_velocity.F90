@@ -112,12 +112,11 @@ contains
 ! Everything in this subroutine is a user prototype, and should be replacable.
 ! </DESCRIPTION>
 !
-subroutine ocean_sponges_velocity_init(Grid, Domain, Time, Velocity, dtime, Ocean_options)
+subroutine ocean_sponges_velocity_init(Grid, Domain, Time, dtime, Ocean_options)
 
   type(ocean_grid_type),          intent(in), target :: Grid
   type(ocean_domain_type),        intent(in), target :: Domain
   type(ocean_time_type),          intent(in)         :: Time
-  type(ocean_velocity_type),      intent(in)         :: Velocity
   real,                           intent(in)         :: dtime
   type(ocean_options_type),       intent(inout)      :: Ocean_options
 
