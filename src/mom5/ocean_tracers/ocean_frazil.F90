@@ -480,7 +480,6 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
   real     :: tf_num, tf_den, tfreeze
   real     :: s, sqrts
   real     :: press 
-  real     :: rhosfc_inv, alphasfc, global_mean 
 
   if(.not. use_this_module) return 
 

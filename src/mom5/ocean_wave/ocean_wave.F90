@@ -786,8 +786,6 @@ subroutine ocean_wave_end(Time, Waves)
   type(ocean_time_type),  intent(in)    :: Time
   type(ocean_wave_type),  intent(inout) :: Waves
 
-  character*128 file_name
-
   if ( .not.use_this_module ) return
 
   if (.not.module_is_initialized) then 

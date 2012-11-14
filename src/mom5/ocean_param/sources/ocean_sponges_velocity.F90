@@ -119,9 +119,8 @@ subroutine ocean_sponges_velocity_init(Grid, Domain, Time, dtime, Ocean_options)
   real,                           intent(in)         :: dtime
   type(ocean_options_type),       intent(inout)      :: Ocean_options
 
-  integer :: i, j, k, n
+  integer :: i, j, k
   integer :: ioun, io_status, ierr
-  integer :: secs, days
   real    :: dtimer
 
   character(len=128) :: name
@@ -343,9 +342,8 @@ subroutine sponge_velocity_source(Time, Thickness, Velocity)
   type(ocean_thickness_type),   intent(in)    :: Thickness
   type(ocean_velocity_type),    intent(inout) :: Velocity
 
-  integer :: secs, days
   integer :: taum1, tau
-  integer :: i, j, k, n
+  integer :: i, j, k
 
   if (.not. use_this_module) return 
 

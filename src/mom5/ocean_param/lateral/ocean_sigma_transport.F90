@@ -1009,7 +1009,6 @@ subroutine sigma_transport (Time, Thickness, Dens, T_prog, Adv_vel, bott_blthick
   real :: check, press
   real :: temp0, salt0, tempip1, saltip1, tempjp1, saltjp1
   real :: ratio_depth, rho_dzt_sigma
-  real :: temporary 
 
   integer :: i, j, k, n
   integer :: kip1, kjp1, kmt, ksigma

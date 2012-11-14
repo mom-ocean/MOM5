@@ -885,7 +885,7 @@ subroutine bihcgrid_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, 
 
   integer :: i, j, k, n
   integer :: taum1, tau
-  integer :: stdoutunit, ibl
+  integer :: stdoutunit
   stdoutunit=stdout() 
 
   if(.not. use_this_module) then
@@ -1795,7 +1795,6 @@ subroutine compute_neptune_velocity(Time)
 
   real, dimension(isd:ied,jsd:jed)  :: dhu_dx
   real, dimension(isd:ied,jsd:jed)  :: dhu_dy
-  real, dimension(isd:ied,jsd:jed)  :: neptune_psi
   real, dimension(isd:ied,jsd:jed)  :: neptune_length
   real                              :: active_cells_u
   real                              :: active_cells_v

@@ -188,7 +188,6 @@ integer                                 :: ind
 integer                                 :: nn
 integer                                 :: num_elements
 logical                                 :: do_integrand
-character(len=fm_field_name_len)        :: module_name_check
 
 if (module_name .eq. ' ') then  !{
   call mpp_error(FATAL, trim(error_header) // ' No module name given')

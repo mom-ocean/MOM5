@@ -5476,12 +5476,11 @@ function advect_tracer_mdppm_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
   real                                     :: da2,da4,da3m,da3p
   real                                     :: mskm2,mskm1,msk0,mskp1,mskp2
   real                                     :: qmp,qlc
-  real                                     :: dM4m,dM4p,qav,qul,qmd,qmin,qmax,x,y,z,w
+  real                                     :: dM4m,dM4p,qul,qmd,qmin,qmax,x,y,z,w
   real,parameter                           :: oneSixth=1./6., r12=1./12.
   real,parameter                           :: twoThirds=2./3.
   real,dimension(isc-4:iec+4,jsc-4:jec+4)  :: da, aL, aR, a6, d1m, d1p, d1mm, d1pp
   real,dimension(isc-4:iec+4,jsc-4:jec+4,nk) :: dak
-  real                                     :: dakm1, dakp1
 
 real :: tmin0,tmax0
   call mpp_clock_begin(id_clock_mdppm_test)
@@ -6055,7 +6054,6 @@ function advect_tracer_mdppm(Time, Adv_vel, Tracer, Thickness, Tracer_field, dti
   integer                                  :: i, j, k
   integer                                  :: kp1, kp2, km1, km2
   integer                                  :: tau, taum1
-  real                                     :: Rjm, Rj, Rjp
   real                                     :: d0, d1, thetaP, psiP 
   real                                     :: thetaM, psiM
 
@@ -6064,13 +6062,11 @@ function advect_tracer_mdppm(Time, Adv_vel, Tracer, Thickness, Tracer_field, dti
 
   real                                     :: da2,da4,da3m,da3p
   real                                     :: mskm2,mskm1,msk0,mskp1,mskp2
-  real                                     :: qmp,qlc
-  real                                     :: dM4m,dM4p,qav,qul,qmd,qmin,qmax,x,y,z,w
+  real                                     :: x,y,z,w
   real,parameter                           :: oneSixth=1./6., r12=1./12.
   real,parameter                           :: twoThirds=2./3.
   real,dimension(isc-4:iec+4,jsc-4:jec+4)  :: da, aL, aR, a6, d1m, d1p, d1mm, d1pp
   real,dimension(isc-4:iec+4,jsc-4:jec+4,nk) :: dak
-  real                                     :: dakm1, dakp1
 
   call mpp_clock_begin(id_clock_mdppm)
 
@@ -6755,20 +6751,13 @@ function advect_tracer_mdmdt_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
   integer                                  :: i, j, k
   integer                                  :: kp1, kp2, kp3, kp4, km1, km2, km3
   integer                                  :: tau, taum1
-  real                                     :: Rjm, Rj, Rjp
-  real                                     :: d0, d1, thetaP, psiP 
-  real                                     :: thetaM, psiM
 
   real                                     :: cfl, massflux, massflux_bt, dMx, dMn
   real                                     :: Sim2,Sim1,Si,Sip1,Sip2
 
-  real                                     :: da2,da4,da3m,da3p
   real                                     :: mskm2,mskm1,msk0,mskp1,mskp2
   real                                     :: qmp,qlc
-  real                                     :: dM4m,dM4p,qav,qul,qmd,qmin,qmax,x,y,z,w
-  real,dimension(isc-4:iec+4,jsc-4:jec+4)  :: da, aL, aR, a6, d1m, d1p, d1mm, d1pp
-  real,dimension(isc-4:iec+4,jsc-4:jec+4,nk) :: dak
-  real                                     :: dakm1, dakp1
+  real                                     :: dM4m,dM4p,x,y,z,w
   real :: tmin0,tmax0
 
   real :: Phi, Qippp, Qipp, Qip, Qi, Qim, Qimm, Qimmm
@@ -7947,7 +7936,6 @@ end subroutine
 ! </DESCRIPTION>
 subroutine ocean_tracer_advect_restart(T_prog)
   type(ocean_prog_tracer_type), intent(in)           :: T_prog(:)
-   integer :: tau, taup1
 
   if(ANY(T_prog(1:num_prog_tracers)%horz_advect_scheme == ADVECT_PSOM) )then
      call save_restart(Adv_restart)

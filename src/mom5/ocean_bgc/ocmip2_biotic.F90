@@ -984,7 +984,6 @@ integer                                 :: i
 integer                                 :: j
 integer                                 :: k
 integer                                 :: n
-character(len=fm_field_name_len+1)      :: suffix
 real                                    :: total_alkalinity
 real                                    :: total_dic
 real                                    :: total_dop
@@ -1187,8 +1186,6 @@ type(coupler_2d_bc_type), intent(in)                            :: ice_ocean_bou
 !-----------------------------------------------------------------------
 !
 
-integer :: i
-integer :: j
 integer :: n
 logical :: used
 

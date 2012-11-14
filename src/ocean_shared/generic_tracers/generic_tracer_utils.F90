@@ -672,7 +672,6 @@ contains
     !       Local parameters
     !
 
-    character(len=fm_string_len) :: flux_name
     !
     !       Local variables
     !

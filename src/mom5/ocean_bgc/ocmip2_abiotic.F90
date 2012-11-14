@@ -1020,7 +1020,6 @@ integer                                                 :: n
 character(len=fm_field_name_len)                        :: name
 character(len=fm_path_name_len)                         :: path_to_names
 character(len=fm_field_name_len+1)                      :: suffix
-character(len=fm_string_len)                            :: string
 character(len=fm_field_name_len+3)                      :: long_suffix
 logical, dimension(12)                                  :: t_mask
 character(len=256)                                      :: caller_str
@@ -1439,7 +1438,6 @@ integer :: i_bnd_off
 integer :: j_bnd_off
 integer :: j
 integer :: n
-integer :: nn
 integer :: ind
 
 real    :: epsln=1.0e-30

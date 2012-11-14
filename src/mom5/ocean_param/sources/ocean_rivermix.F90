@@ -776,7 +776,7 @@ subroutine river_discharge_tracer (Time, Thickness, T_prog, river)
   real    :: depth, thkocean
   real    :: delta(nk), delta_rho_tocean(nk), delta_rho0_triver(nk)
   real    :: zextra, zinsert, tracerextra, tracernew(nk)
-  real    :: temporary, tracer_input 
+  real    :: tracer_input 
   
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -960,7 +960,7 @@ subroutine runoff_calving_discharge_tracer (Time, Thickness, T_prog, &
   real    :: depth, thkocean
   real    :: delta(nk), delta_rho_tocean(nk), delta_rho0_triver(nk)
   real    :: zextra, zinsert, tracerextra, tracernew(nk)
-  real    :: temporary, tracer_input 
+  real    :: tracer_input 
   
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -2103,8 +2103,7 @@ subroutine watermass_diag_river(Time, Dens, T_prog, river, &
 
   real, dimension(isd:ied,jsd:jed) :: eta_tend
   real    :: eta_tend_glob
-  real    :: temporary
-  integer :: i,j,k,n,tau
+  integer :: i,j,k,tau
  
   if (.not. compute_watermass_diag) return
 

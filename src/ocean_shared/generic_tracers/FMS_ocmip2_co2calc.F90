@@ -649,7 +649,6 @@ real, intent(in), optional              :: scale
 
 integer :: i
 integer :: j
-integer :: k
 real    :: log100
 real    :: tk
 real    :: tk100

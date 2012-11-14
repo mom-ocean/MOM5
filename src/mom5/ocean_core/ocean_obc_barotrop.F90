@@ -2490,7 +2490,7 @@ contains
     character(len=1), optional,     intent(in) :: update_type
 
     integer :: i, j, m, is, ie, js, je, i1, j1, n, ii, jj
-    real    :: u1, u2, x1, x2, v1, v2, y1, y2
+    real    :: u1, u2, x1, x2
     integer, dimension(nobc) :: uptype     ! OBC type
     integer, dimension(:), pointer :: ilod, jlod, oi1, oj1
     integer, dimension(:), pointer :: istr, iend, jstr, jend
@@ -2878,7 +2878,6 @@ contains
 subroutine ocean_obc_restart(time_stamp, ctrop_chksum)
   character(len=*), intent(in), optional    :: time_stamp
   integer(LONG_KIND), intent(out), optional :: ctrop_chksum
-   integer :: m, n, i, j, nn
 
    if(present(ctrop_chksum)) ctrop_chksum = mpp_chksum(ctrop(isc:iec,jsc:jec))
    call reset_field_pointer(Obc_restart, id_restart(1), ctrop(:,:) )

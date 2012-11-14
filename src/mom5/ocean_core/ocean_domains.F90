@@ -129,11 +129,13 @@ subroutine set_ocean_domain (Domain, Grid, xhalo, yhalo, name, layout, io_layout
   character(len=*),        intent(in), optional :: name
 
   real              :: ph, pc
-  integer           :: n, nhp, ncp, ncp_max, ncp_min, ncpx, ncpy, lay_out(2), xsiz, ysiz
+  integer           :: nhp, ncp, ncp_max, ncp_min, ncpx, ncpy, lay_out(2)
   integer           :: mpp_stack_size=-1 
   character(len=32) :: name_
-  character(len=4)  :: char_lay1, char_lay2, char_npes, char_xsiz, char_ysiz
-
+#ifdef MOM_STATIC_ARRAYS
+  integer           :: xsiz, ysiz
+  character(len=4)  :: char_xsiz, char_ysiz
+#endif
 
   if (PRESENT(layout)) domain_layout = layout
   if (PRESENT(io_layout)) io_domain_layout = io_layout

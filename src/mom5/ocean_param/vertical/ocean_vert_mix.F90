@@ -3237,7 +3237,6 @@ subroutine vert_diffuse_implicit(diff_cbt, index_salt, Time, Thickness, Dens, T_
 
   integer :: taup1, tau
   integer :: i, j, k, n, nmix
-  integer :: km1, kp1
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -3743,7 +3742,6 @@ subroutine vert_friction_implicit_bgrid(visc_cbu, visc_cbu_form_drag, Time, Thic
 
   integer :: taum1, tau, taup1
   integer :: i, j, k, n
-  real    :: recip
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -4289,8 +4287,7 @@ subroutine watermass_diag(Time, T_prog, Dens, Thickness, diff_cbt)
   type(ocean_thickness_type),     intent(in) :: Thickness
   real, dimension(isd:,jsd:,:,:), intent(in) :: diff_cbt
 
-  integer :: i,j,k,taup1,kp,nmix 
-  real    :: diffusivity 
+  integer :: i,j,k,taup1
 
   if (.not.module_is_initialized) then 
     call mpp_error(FATAL, &
@@ -5251,7 +5248,7 @@ subroutine vert_diffuse_watermass_diag(Time, Thickness, Dens, T_prog, diff_cbt)
 
   real,  dimension(isd:ied,jsd:jed) :: eta_tend
   real :: eta_tend_glob
-  real :: dTdz, diffusivity 
+  real :: diffusivity 
 
   if(.not. compute_watermass_diag) return
 

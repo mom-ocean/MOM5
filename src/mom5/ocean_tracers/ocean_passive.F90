@@ -999,7 +999,7 @@ subroutine patch_init_klevel(field, name)
   real, dimension(isd:,jsd:,:), intent(inout) :: field 
   character(len=*),             intent(in)    :: name 
 
-  integer :: i, j, k, n
+  integer :: i, j, n
   integer :: start, strlen, klevel, digit  
   real    :: x_min,x_max,y_min,y_max
   real    :: x_mid,y_mid,xnd,ynd,scl,rr

@@ -239,7 +239,7 @@ subroutine ocean_parameters_init(cp_ocean)
 
     real, intent(inout) :: cp_ocean
     integer :: stdoutunit, stdlogunit
-    integer :: ioun, io_status, ierr
+    integer :: ioun, io_status
 
     stdoutunit = stdout()
     stdlogunit = stdlog()

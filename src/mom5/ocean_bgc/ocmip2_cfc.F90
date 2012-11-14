@@ -861,7 +861,6 @@ integer                                                 :: n
 character(len=fm_field_name_len)                        :: name
 character(len=fm_path_name_len)                         :: path_to_names
 character(len=fm_field_name_len+1)                      :: suffix
-character(len=fm_string_len)                            :: string
 character(len=fm_field_name_len+3)                      :: long_suffix
 character(len=256)                                      :: caller_str
 character(len=fm_string_len), pointer, dimension(:)     :: good_list

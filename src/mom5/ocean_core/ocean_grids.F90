@@ -243,7 +243,6 @@ subroutine set_ocean_grid_size(Grid, grid_file, grid_name)
 
   integer                                   :: siz(4)
   integer                                   :: m
-  integer                                   :: nx(1), ny(1)
   integer                                   :: ntiles, ncontacts
   integer, dimension(2)                     :: tile1, tile2
   integer, dimension(2)                     :: istart1, iend1, jstart1, jend1
