@@ -30,7 +30,7 @@ module ocean_shortwave_mod
 !</NAMELIST>
 
 use constants_mod,    only: epsln 
-use diag_manager_mod, only: register_diag_field, send_data
+use diag_manager_mod, only: register_diag_field
 use fms_mod,          only: write_version_number, open_namelist_file, close_file, check_nml_error
 use fms_mod,          only: stdout, stdlog, FATAL, WARNING, NOTE
 use mpp_mod,          only: input_nml_file, mpp_error, mpp_max, mpp_min

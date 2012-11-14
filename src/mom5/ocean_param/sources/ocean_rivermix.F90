@@ -105,7 +105,7 @@ module ocean_rivermix_mod
 
 use axis_utils_mod,      only: frac_index, nearest_index
 use constants_mod,       only: epsln
-use diag_manager_mod,    only: register_diag_field, send_data
+use diag_manager_mod,    only: register_diag_field
 use fms_mod,             only: write_version_number, open_namelist_file, check_nml_error, close_file
 use fms_mod,             only: FATAL, NOTE, stdout, stdlog 
 use mpp_domains_mod,     only: domain2D, mpp_global_sum

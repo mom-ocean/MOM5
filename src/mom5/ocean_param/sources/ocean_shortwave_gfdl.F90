@@ -153,7 +153,7 @@ module ocean_shortwave_gfdl_mod
 
 use axis_utils_mod,           only: frac_index
 use constants_mod,            only: epsln, c2dbars
-use diag_manager_mod,         only: register_diag_field, send_data
+use diag_manager_mod,         only: register_diag_field
 use field_manager_mod,        only: fm_get_index
 use fms_mod,                  only: write_version_number, open_namelist_file, close_file, check_nml_error
 use fms_mod,                  only: stdout, stdlog, FATAL, NOTE

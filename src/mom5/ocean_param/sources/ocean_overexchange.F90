@@ -97,7 +97,7 @@ module ocean_overexchange_mod
 !
 
 use constants_mod,       only: epsln
-use diag_manager_mod,    only: register_diag_field, register_static_field, send_data
+use diag_manager_mod,    only: register_diag_field, register_static_field
 use fms_mod,             only: write_version_number, error_mesg, FATAL, NOTE
 use fms_mod,             only: open_namelist_file, check_nml_error, close_file, stdout, stdlog
 use mpp_domains_mod,     only: mpp_update_domains, CGRID_NE

@@ -202,7 +202,7 @@ module ocean_form_drag_mod
 !</NAMELIST>
 
 use constants_mod,     only: epsln
-use diag_manager_mod,  only: register_diag_field, register_static_field, send_data
+use diag_manager_mod,  only: register_diag_field, register_static_field
 use fms_mod,           only: stdout, stdlog, FATAL, WARNING, NOTE
 use fms_mod,           only: write_version_number, open_namelist_file, check_nml_error, close_file
 use mpp_mod,           only: input_nml_file, mpp_error

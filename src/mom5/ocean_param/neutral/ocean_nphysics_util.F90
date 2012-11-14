@@ -414,7 +414,7 @@ module ocean_nphysics_util_mod
 !</NAMELIST>
 
 use constants_mod,    only: epsln, pi
-use diag_manager_mod, only: register_diag_field, register_static_field, send_data, need_data
+use diag_manager_mod, only: register_diag_field, register_static_field, need_data
 use fms_mod,          only: FATAL, file_exist
 use fms_mod,          only: open_namelist_file, check_nml_error, close_file, write_version_number
 use fms_io_mod,       only: register_restart_field, save_restart, restore_state

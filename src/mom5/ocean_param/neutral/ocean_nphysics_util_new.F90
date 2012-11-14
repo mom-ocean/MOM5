@@ -57,7 +57,7 @@ module ocean_nphysics_util_new_mod
 #define COMPXLYR isc-1:iec,jsc:jec+1
 
   use constants_mod,    only: epsln
-  use diag_manager_mod, only: register_diag_field, send_data
+  use diag_manager_mod, only: register_diag_field
   use fms_mod,          only: FATAL, open_namelist_file, check_nml_error, close_file
   use mpp_mod,          only: mpp_error, stdout, stdlog
   use mpp_mod,          only: input_nml_file

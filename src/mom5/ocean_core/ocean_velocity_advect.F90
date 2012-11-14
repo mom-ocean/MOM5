@@ -68,7 +68,7 @@ module ocean_velocity_advect_mod
 !
 !</NAMELIST>
 
-use diag_manager_mod, only: register_diag_field, send_data
+use diag_manager_mod, only: register_diag_field
 use fms_mod,          only: mpp_error, FATAL, NOTE, stdout, stdlog, write_version_number
 use fms_mod,          only: read_data, open_namelist_file, check_nml_error, close_file
 use mpp_mod,          only: input_nml_file, mpp_chksum

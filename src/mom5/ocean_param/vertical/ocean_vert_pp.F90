@@ -56,7 +56,7 @@ module ocean_vert_pp_mod
 !</NAMELIST>
 
 use constants_mod,       only: pi, epsln
-use diag_manager_mod,    only: register_diag_field, send_data
+use diag_manager_mod,    only: register_diag_field
 use fms_mod,             only: open_namelist_file, check_nml_error, close_file, write_version_number
 use fms_mod,             only: FATAL, NOTE, stdout, stdlog
 use mpp_mod,             only: input_nml_file, mpp_error

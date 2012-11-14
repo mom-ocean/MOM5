@@ -109,7 +109,7 @@ module ocean_xlandmix_mod
 !</NAMELIST>
 
 use constants_mod,     only: epsln
-use diag_manager_mod,  only: register_diag_field, send_data
+use diag_manager_mod,  only: register_diag_field
 use field_manager_mod, only: MODEL_OCEAN, parse, find_field_index
 use field_manager_mod, only: get_field_methods, method_type, get_field_info
 use fms_mod,           only: stdout, stdlog, FATAL, NOTE, WARNING
