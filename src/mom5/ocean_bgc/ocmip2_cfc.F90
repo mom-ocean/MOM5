@@ -1482,7 +1482,7 @@ if (need) then  !{
            model_time, rmask = grid_tmask_comp(:,:,1))
     endif
     if (cfc(n)%id_alpha_12 .gt. 0) then
-      used = send_data(cfc(n)%id_sc_12,                 &
+      used = send_data(cfc(n)%id_alpha_12,                 &
            cfc(n)%alpha_12(:,:),                        &
            model_time, rmask = grid_tmask_comp(:,:,1))
     endif
