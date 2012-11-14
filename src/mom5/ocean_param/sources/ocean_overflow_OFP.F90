@@ -2867,7 +2867,7 @@ subroutine watermass_diag(Time, Dens, T_prog, index_temp, index_salt, wrk1v)
   call diagnose_3d(Time, Grd, id_wdian_temp_overofp, wrk2(:,:,:))
   call diagnose_3d_rho(Time, Dens, id_neut_temp_overofp_on_nrho, wrk2)
   call diagnose_3d_rho(Time, Dens, id_wdian_temp_overofp_on_nrho, wrk3)
-  call diagnose_3d_rho(Time, Dens, id_tform_temp_overofp_on_nrho, wrk3)
+  call diagnose_3d_rho(Time, Dens, id_tform_temp_overofp_on_nrho, wrk4)
 
   ! salinity effects on rho 
   wrk1(:,:,:) = 0.0
