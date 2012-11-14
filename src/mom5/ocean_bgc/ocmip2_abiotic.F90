@@ -49,7 +49,6 @@ use atmos_ocean_fluxes_mod,   only: aof_set_coupler_flux
 use diag_manager_mod,         only: register_diag_field, diag_axis_init
 use field_manager_mod,        only: fm_get_index
 use time_manager_mod,         only: time_type
-use diag_manager_mod,         only: send_data
 use field_manager_mod,        only: fm_field_name_len, fm_path_name_len, fm_string_len
 use field_manager_mod,        only: fm_get_length, fm_get_value, fm_new_value
 use fms_mod,                  only: field_exist, file_exist
@@ -71,6 +70,8 @@ use fm_util_mod,        only: fm_util_start_namelist, fm_util_end_namelist
 use coupler_types_mod,  only: ind_alpha, ind_csurf, coupler_2d_bc_type, ind_flux
 use ocean_types_mod,    only: ocean_prog_tracer_type
 use ocmip2_co2calc_mod, only: ocmip2_co2calc
+use ocean_types_mod,    only: ocean_grid_type, ocean_time_type
+use ocean_util_mod,     only: diagnose_2d, diagnose_2d_comp, diagnose_3d_comp
 
 implicit none
 
@@ -466,7 +467,7 @@ end subroutine ocmip2_abiotic_restart
 
 subroutine ocmip2_abiotic_sbc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,       &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     T_prog, taum1, model_time, grid_tmask, ice_ocean_boundary_fluxes)
+     T_prog, taum1, Grid, Time, ice_ocean_boundary_fluxes)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
@@ -483,8 +484,8 @@ integer, intent(in)                                             :: jsc_bnd
 integer, intent(in)                                             :: jec_bnd
 type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
 integer, intent(in)                                             :: taum1
-type(time_type), intent(in)                                     :: model_time
-real, dimension(isd:,jsd:,:), intent(in)                        :: grid_tmask
+type(ocean_grid_type), intent(in)                               :: Grid
+type(ocean_time_type), intent(in)                               :: Time
 type(coupler_2d_bc_type), intent(in)                            :: ice_ocean_boundary_fluxes
 
 integer :: i, j, k, n, m
@@ -511,21 +512,8 @@ enddo
 
 ! Save variables for diagnostics
 do n = 1, instances
-
-  if (abiotic(n)%id_sfc_flux_co2 .gt. 0) then
-    used = send_data(abiotic(n)%id_sfc_flux_co2,        &
-         t_prog(abiotic(n)%ind_dic)%stf(:,:),           &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
-  if (abiotic(n)%id_sfc_flux_14co2 .gt. 0) then
-    used = send_data(abiotic(n)%id_sfc_flux_14co2,      &
-         t_prog(abiotic(n)%ind_di14c)%stf(:,:),         &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
+   call diagnose_2d(Time, Grid, abiotic(n)%id_sfc_flux_co2, t_prog(abiotic(n)%ind_dic)%stf(:,:))
+   call diagnose_2d(Time, Grid, abiotic(n)%id_sfc_flux_14co2, t_prog(abiotic(n)%ind_di14c)%stf(:,:))
 enddo
 
 return
@@ -1174,7 +1162,7 @@ end subroutine ocmip2_abiotic_sfc_end
 ! </DESCRIPTION>
 !
 subroutine ocmip2_abiotic_source(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,     &
-     T_prog, taum1, model_time, grid_tmask, rho_dzt)
+     T_prog, taum1, Grid, Time, rho_dzt)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
@@ -1187,13 +1175,12 @@ integer, intent(in)                                             :: jsd
 integer, intent(in)                                             :: jed
 type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
 integer, intent(in)                                             :: taum1
-type(time_type), intent(in)                                     :: model_time
-real, dimension(isd:,jsd:,:), intent(in)                        :: grid_tmask
+type(ocean_grid_type), intent(in)                               :: Grid
+type(ocean_time_type), intent(in)                               :: Time
 real, dimension(isd:,jsd:,:,:), intent(in)                      :: rho_dzt
 
 integer :: i, j, k, n
 logical :: used
-real, dimension(isc:iec,jsc:jec,nk)     :: grid_tmask_comp
 
 ! calculate the source terms for ABIOTICs
 
@@ -1217,75 +1204,20 @@ do n = 1, instances
 enddo
 
 ! Save variables for diagnostics
-
-!       set up the grid mask on the computational grid so that we
-!       will not need to implicitly copy arrays in the following
-!       subroutine calls
-grid_tmask_comp = grid_tmask(isc:iec,jsc:jec,:)
-
 do n = 1, instances
-
-  if (abiotic(n)%id_sc_co2 .gt. 0) then
-    used = send_data(abiotic(n)%id_sc_co2,              &
-         abiotic(n)%sc_co2(:,:),                        &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (abiotic(n)%id_alpha .gt. 0) then
-    used = send_data(abiotic(n)%id_alpha,               &
-         abiotic(n)%alpha(:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (abiotic(n)%id_csurf .gt. 0) then
-    used = send_data(abiotic(n)%id_csurf,               &
-         abiotic(n)%csurf(:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (abiotic(n)%id_c14surf .gt. 0) then
-    used = send_data(abiotic(n)%id_c14surf,             &
-         abiotic(n)%c14surf(:,:),                       &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (abiotic(n)%id_pco2surf .gt. 0) then
-    used = send_data(abiotic(n)%id_pco2surf,            &
-         abiotic(n)%pco2surf(:,:),                      &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (abiotic(n)%id_htotal .gt. 0) then
-    used = send_data(abiotic(n)%id_htotal,              &
-         abiotic(n)%htotal(:,:),                        &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (abiotic(n)%id_alk .gt. 0) then
-    used = send_data(abiotic(n)%id_alk,                 &
-         t_prog(indsal)%field(:,:,1,taum1) *            &
-              abiotic(n)%alkbar / abiotic(n)%sal_global,&
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-  if (abiotic(n)%id_po4 .gt. 0) then
-    used = send_data(abiotic(n)%id_po4,                 &
-         abiotic(n)%po4(:,:),                           &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-  if (abiotic(n)%id_sio4 .gt. 0) then
-    used = send_data(abiotic(n)%id_sio4,                &
-         abiotic(n)%sio4(:,:),                          &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
-  if (abiotic(n)%id_frac_14catm .gt. 0) then
-    used = send_data(abiotic(n)%id_frac_14catm,         &
-         abiotic(n)%frac_14catm(:,:),                   &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (abiotic(n)%id_jdi14c .gt. 0) then
-    used = send_data(abiotic(n)%id_jdi14c,              &
-         abiotic(n)%jdi14c(:,:,:),                      &
-         model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-
+   call diagnose_2d_comp(Time, Grid, abiotic(n)%id_sc_co2, abiotic(n)%sc_co2(:,:))
+   call diagnose_2d_comp(Time, Grid, abiotic(n)%id_alpha, abiotic(n)%alpha(:,:))
+   call diagnose_2d_comp(Time, Grid, abiotic(n)%id_csurf, abiotic(n)%csurf(:,:))
+   call diagnose_2d_comp(Time, Grid, abiotic(n)%id_c14surf, abiotic(n)%c14surf(:,:))
+   call diagnose_2d_comp(Time, Grid, abiotic(n)%id_pco2surf, abiotic(n)%pco2surf(:,:))
+   call diagnose_2d_comp(Time, Grid, abiotic(n)%id_htotal, abiotic(n)%htotal(:,:))
+   if (abiotic(n)%id_alk .gt. 0) then
+      call diagnose_2d(Time, Grid, abiotic(n)%id_alk, t_prog(indsal)%field(:,:,1,taum1) * abiotic(n)%alkbar / abiotic(n)%sal_global)
+   endif
+   call diagnose_2d_comp(Time, Grid, abiotic(n)%id_po4, abiotic(n)%po4(:,:))
+   call diagnose_2d_comp(Time, Grid, abiotic(n)%id_sio4, abiotic(n)%sio4(:,:))
+   call diagnose_2d_comp(Time, Grid, abiotic(n)%id_frac_14catm, abiotic(n)%frac_14catm(:,:))
+   call diagnose_3d_comp(Time, Grid, abiotic(n)%id_jdi14c, abiotic(n)%jdi14c(:,:,:))
 enddo
 
 return

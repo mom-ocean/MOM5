@@ -67,11 +67,13 @@ public diagnose_2d
 public diagnose_2d_u
 public diagnose_2d_en
 public diagnose_2d_int
+public diagnose_2d_comp
 public diagnose_3d
 public diagnose_3d_u
 public diagnose_3d_en
 public diagnose_3d_int
 public diagnose_3d_rho
+public diagnose_3d_comp
 public diagnose_sum
 public register_2d_t_field
 public register_3d_t_field
@@ -976,6 +978,28 @@ end subroutine diagnose_2d_int
 ! </SUBROUTINE> NAME="diagnose_2d_int"
 
 !#######################################################################
+! <SUBROUTINE NAME="diagnose_2d_comp">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 2D data using the grid tmask on the 
+! computational domain.
+! </DESCRIPTION>
+!
+subroutine diagnose_2d_comp(Time, Grid, id_name, data)
+    type(ocean_time_type),      intent(in) :: Time
+    type(ocean_grid_type),      intent(in) :: Grid
+    integer,                    intent(in) :: id_name
+    real, dimension(isc:,jsc:), intent(in) :: data
+
+    logical :: used
+
+    if (id_name > 0) used = send_data(id_name, data, &
+         Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,1))
+
+end subroutine diagnose_2d_comp
+! </SUBROUTINE> NAME="diagnose_2d_comp"
+
+!#######################################################################
 ! <SUBROUTINE NAME="diagnose_3d_int">
 !
 ! <DESCRIPTION>
@@ -1025,6 +1049,29 @@ subroutine diagnose_3d_rho(Time, Dens, id_name, data)
 
 end subroutine diagnose_3d_rho
 ! </SUBROUTINE> NAME="diagnose_3d_rho"
+
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_3d_comp">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 3D data using the grid tmask on the 
+! computational domain.
+! </DESCRIPTION>
+!
+subroutine diagnose_3d_comp(Time, Grid, id_name, data)
+    type(ocean_time_type),      intent(in) :: Time
+    type(ocean_grid_type),      intent(in) :: Grid
+    integer,                    intent(in) :: id_name
+    real, dimension(isc:,jsc:,:), intent(in) :: data
+
+    logical :: used
+
+    if (id_name > 0) used = send_data(id_name, data, &
+         Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,:))
+
+end subroutine diagnose_3d_comp
+! </SUBROUTINE> NAME="diagnose_3d_comp"
+
 
 subroutine diagnose_sum(Time, Grid, Dom, id_name, data, factor)
 

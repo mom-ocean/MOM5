@@ -54,7 +54,7 @@ module  ocmip2_he_mod
 use atmos_ocean_fluxes_mod, only: aof_set_coupler_flux
 use time_manager_mod,         only: get_date, time_type
 use time_interp_external_mod, only: time_interp_external, init_external_field
-use diag_manager_mod,   only: send_data, register_diag_field
+use diag_manager_mod,   only: register_diag_field
 use field_manager_mod,  only: fm_field_name_len, fm_path_name_len, fm_string_len
 use field_manager_mod,  only: fm_get_length, fm_get_value, fm_new_value, fm_get_index
 use fms_mod,            only: field_exist
@@ -67,8 +67,9 @@ use fm_util_mod,        only: fm_util_get_logical_array, fm_util_get_real_array,
 use fm_util_mod,        only: fm_util_start_namelist, fm_util_end_namelist
 use mpp_mod,            only: stdout, stdlog, mpp_error, mpp_sum, FATAL
 use coupler_types_mod,  only: ind_alpha, ind_csurf, coupler_2d_bc_type, ind_flux
-use ocean_types_mod,    only: ocean_prog_tracer_type
+use ocean_types_mod,    only: ocean_prog_tracer_type, ocean_grid_type, ocean_time_type
 use mpp_domains_mod,    only: domain2d
+use ocean_util_mod,     only: diagnose_2d, diagnose_2d_comp, diagnose_3d_comp
 
 implicit none
 
@@ -387,7 +388,7 @@ end subroutine ocmip2_he_restart
 !
 subroutine ocmip2_he_sbc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,   &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                &
-     T_prog, model_time, grid_tmask, ice_ocean_boundary_fluxes)
+     T_prog, Grid, Time, ice_ocean_boundary_fluxes)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
@@ -403,8 +404,8 @@ integer, intent(in)                                             :: iec_bnd
 integer, intent(in)                                             :: jsc_bnd
 integer, intent(in)                                             :: jec_bnd
 type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
-type(time_type), intent(in)                                     :: model_time
-real, dimension(isd:ied,jsd:jed,nk), intent(in)                 :: grid_tmask
+type(ocean_grid_type), intent(in)                               :: Grid
+type(ocean_time_type), intent(in)                               :: Time
 type(coupler_2d_bc_type), intent(in)                            :: ice_ocean_boundary_fluxes
 
 integer :: i_bnd_off
@@ -434,36 +435,10 @@ enddo
 
 ! Save variables for diagnostics
 do n = 1, instances
-
-  if (he(n)%id_sfc_flux_he_3_atm .gt. 0) then
-    used = send_data(he(n)%id_sfc_flux_he_3_atm,        &
-         t_prog(he(n)%ind_he_3_atm)%stf(:,:),           &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-
-  endif
-
-  if (he(n)%id_sfc_flux_he_4_atm .gt. 0) then
-    used = send_data(he(n)%id_sfc_flux_he_4_atm,        &
-         t_prog(he(n)%ind_he_4_atm)%stf(:,:),           &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
-  if (he(n)%id_sfc_flux_he_3_man .gt. 0) then
-    used = send_data(he(n)%id_sfc_flux_he_3_man,        &
-         t_prog(he(n)%ind_he_3_man)%stf(:,:),           &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
-  if (he(n)%id_sfc_flux_he_4_man .gt. 0) then
-    used = send_data(he(n)%id_sfc_flux_he_4_man,        &
-         t_prog(he(n)%ind_he_4_man)%stf(:,:),           &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
+   call diagnose_2d(Time, Grid, he(n)%id_sfc_flux_he_3_atm, t_prog(he(n)%ind_he_3_atm)%stf(:,:))
+   call diagnose_2d(Time, Grid, he(n)%id_sfc_flux_he_4_atm, t_prog(he(n)%ind_he_4_atm)%stf(:,:))
+   call diagnose_2d(Time, Grid, he(n)%id_sfc_flux_he_3_man, t_prog(he(n)%ind_he_3_man)%stf(:,:))
+   call diagnose_2d(Time, Grid, he(n)%id_sfc_flux_he_4_man, t_prog(he(n)%ind_he_4_man)%stf(:,:))
 enddo
 
 return
@@ -1027,7 +1002,7 @@ end subroutine ocmip2_he_init_sfc
 ! </DESCRIPTION>
 subroutine ocmip2_he_sum_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,       &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)
+     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask, Grid, Time)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1048,6 +1023,8 @@ real, dimension(isd:,jsd:,:,:), intent(in)              :: rho
 integer, intent(in)                                     :: taum1
 type(time_type), intent(in)                             :: model_time
 real, dimension(isd:ied,jsd:jed,nk), intent(in)         :: grid_tmask
+type(ocean_grid_type), intent(in)                       :: Grid
+type(ocean_time_type), intent(in)                       :: Time
 
 integer         :: i, j, n
 integer         :: i_bnd_off
@@ -1210,38 +1187,12 @@ enddo
 
 ! Save variables for diagnostics
 do n = 1, instances
-
-  if (he(n)%id_alpha_3_atm .gt. 0) then
-    used = send_data(he(n)%id_alpha_3_atm,                             &
-         he(n)%alpha_3_atm(isc:iec,jsc:jec),                           &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
-  endif
-  if (he(n)%id_alpha_3_man .gt. 0) then
-    used = send_data(he(n)%id_alpha_3_man,                             &
-         he(n)%alpha_3_man(isc:iec,jsc:jec),                           &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
-  endif
-  if (he(n)%id_sc_3 .gt. 0) then
-    used = send_data(he(n)%id_sc_3,                                &
-         he(n)%sc_3(isc:iec,jsc:jec),                              &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
-  endif
-  if (he(n)%id_alpha_4_atm .gt. 0) then
-    used = send_data(he(n)%id_alpha_4_atm,                             &
-         he(n)%alpha_4_atm(isc:iec,jsc:jec),                           &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
-  endif
-  if (he(n)%id_alpha_4_man .gt. 0) then
-    used = send_data(he(n)%id_alpha_4_man,                             &
-         he(n)%alpha_4_man(isc:iec,jsc:jec),                           &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
-  endif
-  if (he(n)%id_sc_4 .gt. 0) then
-    used = send_data(he(n)%id_sc_4,                                &
-         he(n)%sc_4(isc:iec,jsc:jec),                              &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
-  endif
-
+   call diagnose_2d_comp(Time, Grid, he(n)%id_alpha_3_atm, he(n)%alpha_3_atm(:,:))
+   call diagnose_2d_comp(Time, Grid, he(n)%id_alpha_3_man, he(n)%alpha_3_man(:,:))
+   call diagnose_2d_comp(Time, Grid, he(n)%id_sc_3, he(n)%sc_3(:,:))
+   call diagnose_2d_comp(Time, Grid, he(n)%id_alpha_4_atm, he(n)%alpha_4_atm(:,:))
+   call diagnose_2d_comp(Time, Grid, he(n)%id_alpha_4_man, he(n)%alpha_4_man(:,:))
+   call diagnose_2d_comp(Time, Grid, he(n)%id_sc_4, he(n)%sc_4(:,:))
 enddo
 
 return
@@ -1427,7 +1378,7 @@ end subroutine ocmip2_he_sfc_end
 ! </DESCRIPTION>
 !
 subroutine ocmip2_he_source(isc, iec, jsc, jec, nk, isd, ied, jsd, jed, t_prog, &
-     depth_zt, dzt, taum1, model_time, grid_tmask, grid_kmt, rho_dzt)
+     depth_zt, dzt, taum1, model_time, grid_tmask, Grid, Time, grid_kmt, rho_dzt)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
@@ -1444,6 +1395,8 @@ real, dimension(isd:ied,jsd:jed,nk), intent(in)                 :: dzt
 integer, intent(in)                                             :: taum1
 type(time_type), intent(in)                                     :: model_time
 real, dimension(isd:ied,jsd:jed,nk), intent(in)                 :: grid_tmask
+type(ocean_grid_type), intent(in)                               :: Grid
+type(ocean_time_type), intent(in)                               :: Time
 integer, dimension(isd:ied,jsd:jed), intent(in)                 :: grid_kmt
 real, dimension(isd:,jsd:,:,:), intent(in)                      :: rho_dzt
 
@@ -1548,21 +1501,9 @@ do n = 1, instances
     enddo
 
   ! Save variables for diagnostics
-  if (he(n)%id_jhe3_man .gt. 0) then
-    used = send_data(he(n)%id_jhe3_man,                         &
-         he(n)%jhe3_man(isc:iec,jsc:jec,:),                     &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,:))
-  endif
-  if (he(n)%id_jhe4_man .gt. 0) then
-    used = send_data(he(n)%id_jhe4_man,                         &
-         he(n)%jhe4_man(isc:iec,jsc:jec,:),                     &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,:))
-  endif
-  if (he(n)%id_jhe_depth .gt. 0) then
-    used = send_data(he(n)%id_jhe_depth,                         &
-         he(n)%jhe_depth(isc:iec,jsc:jec),                     &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
-  endif
+  call diagnose_3d_comp(Time, Grid, he(n)%id_jhe3_man, he(n)%jhe3_man(:,:,:))
+  call diagnose_3d_comp(Time, Grid, he(n)%id_jhe4_man, he(n)%jhe4_man(:,:,:))
+  call diagnose_2d_comp(Time, Grid, he(n)%id_jhe_depth, he(n)%jhe_depth(:,:))
 
 enddo
 
