@@ -172,7 +172,4 @@ src/mom5/ocean_bgc/ocean_ibgc.F90
 src/mom5/ocean_param/gotm-4.0/turbulence/variances.F90 
 src/mom5/ocean_param/gotm-4.0/turbulence/fk_craig.F90
 src/mom5/ocean_core/ocean_advection_velocity.F90 
-src/mom5/ocean_param/gotm-4.0/include/version.h 
-src/shared/include/fms_platform.h
-src/mom5/ocean_core/ocean_memory.h 
-src/mom5/ocean_param/gotm-4.0/include/cppdefs.h
+
