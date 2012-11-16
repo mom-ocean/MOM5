@@ -108,8 +108,8 @@ $(LIB) lib : $(DEPS) $(OBJS)
 #                      Dependencies
 #                  --------------------
 
-#ocmip2_biotic.o: ocmip2_biotic.F90
-#	$(FC) -c $(F90FLAGS) -O1 $<
+ocmip2_biotic.o: ocmip2_biotic.F90
+	$(FC) -c $(F90FLAGS) -O1 $<
 
 # Make sure dep files are not remade during cleaning
 # --------------------------------------------------

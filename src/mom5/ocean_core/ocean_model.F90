@@ -3167,6 +3167,83 @@ subroutine mom4_set_swheat(swheat_input)
 
 end subroutine mom4_set_swheat
 
+subroutine mom4_set_swheat_fr(swheat_fr_input)
+  real, dimension(isc:,jsc:,:), intent(in)  :: swheat_fr_input
+  integer :: l,i,j
+  
+  do l=1,nk
+     do j=jsc,jec
+        do i=isc,iec     
+           sw_frac_zt(i,j,l) = swheat_fr_input(i,j,l)
+        end do
+     end do
+  end do
+
+  call mpp_update_domains(sw_frac_zt, &
+       Domain%domain2d)
+end subroutine mom4_set_swheat_fr
+
+!#######################################################################
+    subroutine mom4_get_pointers_to_variables(t, s, u, v, eta, deta_dt, eta_barotropic, rho, &
+         wrhot, geodepth_zt, pbot_t, cos_rot, sin_rot, timestring, if_pressure_coordinate, tau)   
+
+      real, optional, pointer :: &
+          t(:, :, :, :), s(:, :, :, :), u(:, :, :, :), v(:, :, :, :), eta(:, :, :), &
+          deta_dt(:, :), eta_barotropic(:, :, :), rho(:, :, :), &
+          pbot_t(:,:,:),wrhot(:,:,:), geodepth_zt(:,:,:), cos_rot(:, :), sin_rot(:, :);
+      character(len = *), optional, intent(out) :: timestring;
+      logical, optional, intent(out) :: if_pressure_coordinate;
+      integer, optional, intent(out) :: tau;
+
+      integer :: year, month, day, hour, minute, second;
+
+        if(present(tau)) tau = time%taup1;
+        if(present(t)) t => t_prog(index_temp)%field(isc:iec, jsc:jec, :, :);  
+        if(present(s)) s => t_prog(index_salt)%field(isc:iec, jsc:jec, :, :);  
+        if(present(u)) u => velocity%u(isc:iec, jsc:jec, :, 1, :);
+        if(present(v)) v => velocity%u(isc:iec, jsc:jec, :, 2, :);
+        if(present(rho)) rho => dens%neutralrho(isc:iec, jsc:jec, :);
+        if(present(wrhot)) wrhot => Adv_vel%wrho_bt(isc:iec, jsc:jec, :);
+        if(present(pbot_t)) pbot_t => ext_mode%pbot_t(isc:iec, jsc:jec, :);
+        if(present(geodepth_zt)) geodepth_zt => Thickness%geodepth_zt(isc:iec, jsc:jec, :);
+        if(present(cos_rot)) cos_rot => grid%cos_rot(isc:iec, jsc:jec);
+        if(present(sin_rot)) sin_rot => grid%sin_rot(isc:iec, jsc:jec);
+        if(present(eta) .and. (vert_coordinate_class == depth_based)) then; eta => ext_mode%eta_t(isc:iec, jsc:jec, :);  
+        else if(present(eta)) then; eta => ext_mode%anompb(isc:iec, jsc:jec, :);
+        endif;  
+
+        if(present(deta_dt) .and. (vert_coordinate_class == depth_based)) then; deta_dt => ext_mode%deta_dt(isc:iec, jsc:jec);  
+        else if(present(deta_dt)) then; deta_dt => ext_mode%dpbot_dt(isc:iec, jsc:jec);
+        endif;  
+
+        if(present(eta_barotropic) .and. (vert_coordinate_class == depth_based)) then; eta_barotropic => ext_mode%eta_t_bar(isc:iec, jsc:jec, :);
+        else if(present(eta_barotropic)) then; eta_barotropic => ext_mode%anompb_bar(isc:iec, jsc:jec, :);
+        endif;       
+
+        if(present(timestring)) then
+            call get_date(time%model_time, year, month, day, hour, minute, second);
+            write(unit = timestring, fmt = '(a10,2i1,a1,2i1,a1,i4,a1,2i1,a1,2i1)') &
+                'MOM time: ', month/10, mod(month, 10), '/', day/10, mod(day, 10), '/', year, ' ', hour/10, mod(hour, 10), ':', minute/10, mod(minute, 10)
+        endif; 
+        if(present(if_pressure_coordinate)) then; if_pressure_coordinate = (vert_coordinate_class == pressure_based); 
+        endif;
+
+    end subroutine mom4_get_pointers_to_variables
+
+!#######################################################################
+    function mom4_get_streamfunction() result(psi)   
+
+       use ocean_barotropic_mod
+    
+       real, dimension(isc:iec, jsc:jec) :: psi; 
+       real, dimension(isd:ied, jsd:jed) :: psiu, psiv; 
+  
+       call psi_compute(Time, Adv_vel, psiu, psiv);
+       psi = psiu(isc:iec, jsc:jec); 
+
+    end function
+
+
 subroutine ocean_public_type_chksum(id, timestep, ocn)
 
     character(len=*), intent(in) :: id

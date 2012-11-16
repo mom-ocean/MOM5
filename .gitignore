@@ -5,4 +5,5 @@ bin/mppnccombine.gfortran
 *.d
 *.o
 *.mod
+*.a
 
