@@ -38,23 +38,7 @@
 !</DESCRIPTION>
 !
 
-module ocmip2_co2calc_mod  !{
-
-!
-!------------------------------------------------------------------
-!
-!       modules
-!
-!------------------------------------------------------------------
-!
-
-!
-!------------------------------------------------------------------
-!
-!       Global definitions
-!
-!------------------------------------------------------------------
-!
+module ocmip2_co2calc_mod
 
 implicit none
 
@@ -65,14 +49,6 @@ public  :: ocmip2_co2_alpha
 
 character(len=128) :: version = '$Id: ocmip2_co2calc.F90,v 1.1.2.1 2012/05/15 15:55:20 smg Exp $'
 character(len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
-
-!
-!-----------------------------------------------------------------------
-!
-!       Subroutine and function definitions
-!
-!-----------------------------------------------------------------------
-!
 
 contains
 
@@ -118,14 +94,7 @@ contains
 !       to convert from mol/m^3 to mol/kg.
 !
 ! </DESCRIPTION>
-
-subroutine ocmip2_co2_alpha(isd, ied, jsd, jed, isc, iec, jsc, jec, t, s, mask, alpha, scale)  !{
-
-implicit none
-
-!
-!       arguments
-!
+subroutine ocmip2_co2_alpha(isd, ied, jsd, jed, isc, iec, jsc, jec, t, s, mask, alpha, scale)
 
 integer, intent(in)                     :: isd
 integer, intent(in)                     :: ied
@@ -141,13 +110,7 @@ real, dimension(isd:,jsd:), intent(in)  :: mask
 real, dimension(isc:,jsc:), intent(out) :: alpha
 real, intent(in), optional              :: scale
 
-!
-!       local variables
-!
-
-integer :: i
-integer :: j
-integer :: k
+integer :: i, j, k
 real    :: log100
 real    :: tk
 real    :: tk100
@@ -156,20 +119,13 @@ real    :: logtk
 real    :: ff
 real    :: scale_factor
 
-!
-!       set the scale factor for unit conversion
-!
-
-if (present(scale)) then  !{
+! set the scale factor for unit conversion
+if (present(scale)) then
   scale_factor = scale
-else  !}{
+else
   scale_factor = 1.0
-endif  !}
+endif
 
-!
-!---------------------------------------------------------------------
-!
-!***********************************************************************
 ! Calculate all constants needed to convert between various measured
 ! carbon species. References for each equation are noted in the code.
 ! Once calculated, the constants are stored and passed in the common
@@ -179,51 +135,37 @@ endif  !}
 ! in Seawater", DOE, 1994 (SOP No. 3, p25-26).
 !
 ! Derive simple terms used more than once
-!
-
 log100 = log(100.0)
-do j = jsc, jec  !{
-  do i = isc, iec  !{
+do j = jsc, jec
+  do i = isc, iec
 
-    if (mask(i,j) .ne. 0.0) then  !{
+    if (mask(i,j) .ne. 0.0) then
 
       tk     = 273.15 + t(i,j)
       tk100  = tk / 100.0
       tk1002 = tk100 * tk100
       logtk  = log(tk)
 
-!
-! f = k0(1-pH2O)*correction term for non-ideality
-!
-! Weiss & Price (1980, Mar. Chem., 8, 347-359; Eq 13 with table 6
-!                values)
-!
-
+      ! f = k0(1-pH2O)*correction term for non-ideality
+      
+      ! Weiss & Price (1980, Mar. Chem., 8, 347-359; Eq 13 with table 6
+      ! values)
       ff = exp(-162.8301 + 218.2968 / tk100  +                                  &
                90.9241 * (logtk - log100) - 1.47696 * tk1002 +                  &
                s(i,j) * (0.025695 - 0.025225 * tk100 + 0.0049867 * tk1002))
 
-!
-!---------------------------------------------------------------
-!c      Should we be using K0 or ff for the solubility here?
-!         convert to output units
-!---------------------------------------------------------------
-!
-
+      !      Should we be using K0 or ff for the solubility here?
+      !         convert to output units
       alpha(i,j) = ff / scale_factor
-
-    else  !}{
-    
+    else
       alpha(i,j) = 0.0
-
-    endif  !}
-
-  enddo  !} i
-enddo  !} j
+    endif
+  enddo
+enddo
 
 return
 
-end subroutine  ocmip2_co2_alpha  !}
+end subroutine  ocmip2_co2_alpha
 ! </SUBROUTINE> NAME="ocmip2_co2_alpha"
 
 
@@ -293,23 +235,12 @@ end subroutine  ocmip2_co2_alpha  !}
 !       to convert from mol/m^3 to mol/kg.
 !
 ! </DESCRIPTION>
-
 subroutine ocmip2_co2calc(isd, ied, jsd, jed, isc, iec, jsc, jec, mask, t, s,   &
      dic_in, ta_in, pt_in, sit_in, htotallo, htotalhi, htotal,                  &
-     co2star, co3_ion, alpha, pCO2surf, k1_out, k2_out, invtk_out, scale)  !{
-
-implicit none
-
-!
-!       local parameters
-!
+     co2star, co3_ion, alpha, pCO2surf, k1_out, k2_out, invtk_out, scale)
 
 real, parameter :: permeg = 1.e-6
 real, parameter :: xacc = 1.0e-10
-
-!
-!       arguments
-!
 
 integer, intent(in)                                     :: isd
 integer, intent(in)                                     :: ied
@@ -337,10 +268,6 @@ real, dimension(isc:,jsc:), intent(out), optional       :: invtk_out
 real, dimension(isc:,jsc:), intent(out), optional       :: k1_out
 real, dimension(isc:,jsc:), intent(out), optional       :: k2_out
 real, intent(in), optional                              :: scale
-
-!
-!       local variables
-!
 
 integer :: i
 integer :: j
@@ -381,20 +308,13 @@ real    :: htotal2
 real    :: co2star_internal
 real    :: scale_factor
 
-!
 !       set the scale factor for unit conversion
-!
-
-if (present(scale)) then  !{
+if (present(scale)) then
   scale_factor = scale
-else  !}{
+else
   scale_factor = 1.0
-endif  !}
+endif
 
-!
-!---------------------------------------------------------------------
-!
-!***********************************************************************
 ! Calculate all constants needed to convert between various measured
 ! carbon species. References for each equation are noted in the code.
 ! Once calculated, the constants are stored and passed in the common
@@ -404,13 +324,11 @@ endif  !}
 ! in Seawater", DOE, 1994 (SOP No. 3, p25-26).
 !
 ! Derive simple terms used more than once
-!
-
 log100 = log(100.0)
-do j = jsc, jec  !{
-  do i = isc, iec  !{
+do j = jsc, jec
+  do i = isc, iec
 
-    if (mask(i,j) .ne. 0.0) then  !{
+    if (mask(i,j) .ne. 0.0) then
 
       tk        = 273.15 + t(i,j)
       tk100     = tk / 100.0
@@ -426,155 +344,104 @@ do j = jsc, jec  !{
       scl       = s(i,j) / 1.80655
       logf_of_s = log(1.0 - 0.001005 * s(i,j))
 
-!
-! k0 from Weiss 1974
-!
+      ! k0 from Weiss 1974
 
       !k0 = exp(93.4517/tk100 - 60.2409 + 23.3585 * log(tk100) +                 &
                 !s(i,j) * (0.023517 - 0.023656 * tk100 + 0.0047036 * tk1002))
 
-!
-! k1 = [H][HCO3]/[H2CO3]
-! k2 = [H][CO3]/[HCO3]
-!
-! Millero p.664 (1995) using Mehrbach et al. data on seawater scale 
-!
 
+      ! k1 = [H][HCO3]/[H2CO3]
+      ! k2 = [H][CO3]/[HCO3]
+
+      ! Millero p.664 (1995) using Mehrbach et al. data on seawater scale 
       k1 = 10.0 ** (-(3670.7 * invtk - 62.008 + 9.7944 * logtk -                &
                     0.0118 * s(i,j) + 0.000116 * s2))
 
       k2 = 10.0 ** (-(1394.7 * invtk + 4.777 - 0.0184 * s(i,j) + 0.000118 * s2))
 
-!
-! kb = [H][BO2]/[HBO2]
-!
-! Millero p.669 (1995) using data from Dickson (1990)
-!
+      ! kb = [H][BO2]/[HBO2]
 
+      ! Millero p.669 (1995) using data from Dickson (1990)
       kb = exp((-8966.90 - 2890.53 * sqrts - 77.942 * s(i,j) +                  &
                 1.728 * s15 - 0.0996 * s2) * invtk +                            &
                (148.0248 + 137.1942 * sqrts + 1.62142 * s(i,j)) +               &
                (-24.4344 - 25.085 * sqrts - 0.2474 * s(i,j)) * logtk +          &
                0.053105 * sqrts * tk)
 
-!
-! k1p = [H][H2PO4]/[H3PO4]
-!
-! DOE(1994) eq 7.2.20 with footnote using data from Millero (1974)
-!
+      ! k1p = [H][H2PO4]/[H3PO4]
 
+      ! DOE(1994) eq 7.2.20 with footnote using data from Millero (1974)
       k1p = exp(-4576.752 * invtk + 115.525 - 18.453 * logtk +                  &
                 (-106.736 * invtk + 0.69171) * sqrts +                          &
                 (-0.65643 * invtk - 0.01844) * s(i,j))
 
-!
-! k2p = [H][HPO4]/[H2PO4]
-!
-! DOE(1994) eq 7.2.23 with footnote using data from Millero (1974))
-!
+      ! k2p = [H][HPO4]/[H2PO4]
 
+      ! DOE(1994) eq 7.2.23 with footnote using data from Millero (1974))
       k2p = exp(-8814.715 * invtk + 172.0883 - 27.927 * logtk +                 &
                 (-160.340 * invtk + 1.3566) * sqrts +                           &
                 (0.37335 * invtk - 0.05778) * s(i,j))
 
-!
-!-----------------------------------------------------------------------
-! k3p = [H][PO4]/[HPO4]
-!
-! DOE(1994) eq 7.2.26 with footnote using data from Millero (1974)
-!
+      ! k3p = [H][PO4]/[HPO4]
 
+      ! DOE(1994) eq 7.2.26 with footnote using data from Millero (1974)
       k3p = exp(-3070.75 * invtk - 18.141 +                                     &
                 (17.27039 * invtk + 2.81197) * sqrts +                          &
                 (-44.99486 * invtk - 0.09984) * s(i,j))
 
-!
-!-----------------------------------------------------------------------
-! ksi = [H][SiO(OH)3]/[Si(OH)4]
-!
-! Millero p.671 (1995) using data from Yao and Millero (1995)
-!
+      ! ksi = [H][SiO(OH)3]/[Si(OH)4]
 
+      ! Millero p.671 (1995) using data from Yao and Millero (1995)
       ksi = exp(-8904.2 * invtk + 117.385 - 19.334 * logtk +                    &
                 (-458.79 * invtk + 3.5913) * sqrtis +                           &
                 (188.74 * invtk - 1.5998) * is +                                &
                 (-12.1652 * invtk + 0.07871) * is2 + logf_of_s)
 
-!
-!-----------------------------------------------------------------------
-! kw = [H][OH]
-!
-! Millero p.670 (1995) using composite data
-!
-
+      ! kw = [H][OH]
+      
+      ! Millero p.670 (1995) using composite data
       kw = exp(-13847.26 * invtk + 148.9652 - 23.6521 * logtk +                 &
                (118.67 * invtk - 5.977 + 1.0495 * logtk) * sqrts - 0.01615 * s(i,j))
 
-!
-!-----------------------------------------------------------------------
-! ks = [H][SO4]/[HSO4]
-!
-! Dickson (1990, J. chem. Thermodynamics 22, 113)
-!
+      ! ks = [H][SO4]/[HSO4]
 
+      ! Dickson (1990, J. chem. Thermodynamics 22, 113)
       ks = exp(-4276.1 * invtk + 141.328 - 23.093 * logtk +                     &
                (-13856.0 * invtk + 324.57 - 47.986 * logtk) * sqrtis +          &
                (35474.0 * invtk - 771.54 + 114.723 * logtk) * is -              &
                2698.0 * invtk * sqrtis ** 3 + 1776.0 * invtk * is2 + logf_of_s)
 
-!
-!-----------------------------------------------------------------------
-! kf = [H][F]/[HF]
-!
-! Dickson and Riley (1979) -- change pH scale to total
-!
-
+      ! kf = [H][F]/[HF]
+      
+      ! Dickson and Riley (1979) -- change pH scale to total
       kf = exp(1590.2 * invtk - 12.641 + 1.525 * sqrtis + logf_of_s +           &
                log(1.0 + (0.1400 / 96.062) * scl / ks))
 
-!
-!-----------------------------------------------------------------------
-! Calculate concentrations for borate, sulfate, and fluoride
-!
-! Uppstrom (1974)
-!
-
+      ! Calculate concentrations for borate, sulfate, and fluoride
+      
+      ! Uppstrom (1974)
       bt = 0.000232 / 10.811 * scl
 
-!
-! Morris & Riley (1966)
-!
-
+      ! Morris & Riley (1966)
       st = 0.14 / 96.062 * scl
 
-!
-! Riley (1965)
-!
-
+      ! Riley (1965)
       ft = 0.000067 / 18.9984 * scl
 
-!
-!       set some stuff to pass back, if requested
-!
-
-      if (present(k1_out)) then  !{
+      ! set some stuff to pass back, if requested
+      if (present(k1_out)) then
         k1_out(i,j) = k1
-      endif  !}
+      endif
 
-      if (present(k2_out)) then  !{
+      if (present(k2_out)) then
         k2_out(i,j) = k2
-      endif  !}
+      endif
 
-      if (present(invtk_out)) then  !{
+      if (present(invtk_out)) then
         invtk_out(i,j)  = invtk
-      endif  !}
+      endif
 
-!
-!-----------------------------------------------------------------------
-!       Possibly convert input in mol/m^3 -> mol/kg 
-!---------------------------------------------------------------------
-!
-
+      ! Possibly convert input in mol/m^3 -> mol/kg 
       sit = sit_in(i,j) * scale_factor
       ta  = ta_in(i,j)  * scale_factor
       dic = dic_in(i,j) * scale_factor
@@ -610,14 +477,12 @@ do j = jsc, jec  !{
            dic, ta, pt, sit, k1, k2, k1p, k2p, k3p,     &
            bt, ft, st, kb, kw, kf, ks, ksi, xacc)
 
-!
-! Calculate [CO2*] as defined in DOE Methods Handbook 1994 Ver.2, 
-! ORNL/CDIAC-74, Dickson and Goyet, eds. (Ch 2 p 10, Eq A.49)
-! Convert units of output arguments
-!      Note: co2star is calculated in
-!            mol/kg within this routine 
-!
-
+      ! Calculate [CO2*] as defined in DOE Methods Handbook 1994 Ver.2, 
+      ! ORNL/CDIAC-74, Dickson and Goyet, eds. (Ch 2 p 10, Eq A.49)
+      ! Convert units of output arguments
+      !      Note: co2star is calculated in
+      !            mol/kg within this routine 
+      !
       htotal2 = htotal(i,j) * htotal(i,j)
       co2star_internal = dic * htotal2 / (htotal2 + k1 * (htotal(i,j) + k2)) / scale_factor
       if (present(co2star)) then
@@ -628,66 +493,58 @@ do j = jsc, jec  !{
       endif
       !ph = -log10(htotal(i,j))
 
-!
-! f = k0(1-pH2O)*correction term for non-ideality
-!
-! Weiss & Price (1980, Mar. Chem., 8, 347-359; Eq 13 with table 6
-!                values)
-!
+      ! f = k0(1-pH2O)*correction term for non-ideality
 
-      if (present(alpha) .or. present(pco2surf)) then  !{
+      ! Weiss & Price (1980, Mar. Chem., 8, 347-359; Eq 13 with table 6
+      !                values)
+      if (present(alpha) .or. present(pco2surf)) then
 
         ff = exp(-162.8301 + 218.2968 / tk100  +                                        &
                  90.9241 * (logtk - log100) - 1.47696 * tk1002 +                        &
                  s(i,j) * (0.025695 - 0.025225 * tk100 + 0.0049867 * tk1002))
 
-!
-!---------------------------------------------------------------
-!      Add two output arguments for storing pCO2surf
-!      Should we be using K0 or ff for the solubility here?
-!      Convert pCO2surf from atm to uatm
-!         possibly convert output units
-!---------------------------------------------------------------
-!
-
-        if (present(alpha)) then  !{
+        ! Add two output arguments for storing pCO2surf
+        ! Should we be using K0 or ff for the solubility here?
+        ! Convert pCO2surf from atm to uatm
+        ! possibly convert output units
+        if (present(alpha)) then
           alpha(i,j) = ff / scale_factor
-        endif  !}
-        if (present(pco2surf)) then  !{
+        endif
+        if (present(pco2surf)) then
           pCO2surf(i,j) = co2star_internal / (ff / scale_factor) / permeg
-        endif  !}
+        endif
 
-      endif  !}
+      endif
 
-    else  !}{
+    else
 
       if (present(co2star)) then
         co2star(i,j) = 0.0
       endif
-      if (present(k1_out)) then  !{
+      if (present(k1_out)) then
         k1_out(i,j) = 0.0
-      endif  !}
-      if (present(k2_out)) then  !{
+      endif
+      if (present(k2_out)) then
         k2_out(i,j) =0.0
-      endif  !}
-      if (present(invtk_out)) then  !{
+      endif
+      if (present(invtk_out)) then
         invtk_out(i,j)  = 0.0
-      endif  !}
-      if (present(alpha)) then  !{
+      endif
+      if (present(alpha)) then
         alpha(i,j) = 0.0
-      endif  !}
-      if (present(pco2surf)) then  !{
+      endif
+      if (present(pco2surf)) then
         pCO2surf(i,j) = 0.0
-      endif  !}
+      endif
 
-    endif  !}
+    endif
 
-  enddo  !} i
-enddo  !} j
+  enddo
+enddo
 
 return
 
-end subroutine  ocmip2_co2calc  !}
+end subroutine  ocmip2_co2calc
 ! </SUBROUTINE> NAME="ocmip2_co2calc"
 
 
@@ -699,13 +556,7 @@ end subroutine  ocmip2_co2calc  !}
 ! </DESCRIPTION>
 
 function drtsafe(x1, x2, dic, ta, pt, sit, k1, k2, k1p, k2p, k3p,       &
-                 bt, ft, st, kb, kw, kf, ks, ksi, xacc)  !{
-
-implicit none
-
-!
-!       arguments
-!
+                 bt, ft, st, kb, kw, kf, ks, ksi, xacc)
 
 real                    :: drtsafe
 real, intent(in)        :: x1
@@ -729,15 +580,7 @@ real, intent(in)        :: ks
 real, intent(in)        :: ksi
 real, intent(in)        :: xacc
 
-!
-!       local parameters
-!
-
 integer, parameter      :: maxit = 100
-
-!
-!       local variables
-!
 
 integer :: j
 real    :: fl
@@ -770,14 +613,13 @@ dxold=abs(x2-x1)
 dx=dxold
 call ta_iter_1(drtsafe, f, df, dic, ta, pt, sit, k1, k2,        &
      k1p, k2p, k3p, bt, ft, st, kb, kw, kf, ks, ksi)
-do j=1,maxit  !{
+do j=1,maxit
   if (((drtsafe-xh)*df-f)*((drtsafe-xl)*df-f) .ge. 0.0 .or.     &
       abs(2.0*f) .gt. abs(dxold*df)) then
     dxold=dx
     dx=0.5*(xh-xl)
     drtsafe=xl+dx
     if (xl .eq. drtsafe) then
-!     write (6,*) 'Exiting drtsafe at A on iteration  ', j, ', ph = ', -log10(drtsafe)
       return
     endif
   else
@@ -786,12 +628,10 @@ do j=1,maxit  !{
     temp=drtsafe
     drtsafe=drtsafe-dx
     if (temp .eq. drtsafe) then
-!     write (6,*) 'Exiting drtsafe at B on iteration  ', j, ', ph = ', -log10(drtsafe)
       return
     endif
   end if
   if (abs(dx) .lt. xacc) then
-!     write (6,*) 'Exiting drtsafe at C on iteration  ', j, ', ph = ', -log10(drtsafe)
     return
   endif
   call ta_iter_1(drtsafe, f, df, dic, ta, pt, sit, k1, k2,      &
@@ -803,11 +643,11 @@ do j=1,maxit  !{
     xh=drtsafe
     fh=f
   end if
-enddo  !} j
+enddo
 
 return
 
-end  function  drtsafe  !}
+end function drtsafe
 ! </FUNCTION> NAME="drtsafe"
 
 
@@ -823,13 +663,7 @@ end  function  drtsafe  !}
 ! </DESCRIPTION>
 
 subroutine ta_iter_1(x, fn, df, dic, ta, pt, sit, k1, k2,       &
-     k1p, k2p, k3p, bt, ft, st, kb, kw, kf, ks, ksi)  !{
-
-implicit none
-
-!
-!       arguments
-!
+     k1p, k2p, k3p, bt, ft, st, kb, kw, kf, ks, ksi)
 
 real, intent(in)        :: x
 real, intent(out)       :: fn
@@ -851,10 +685,6 @@ real, intent(in)        :: kw
 real, intent(in)        :: kf
 real, intent(in)        :: ks
 real, intent(in)        :: ksi
-
-!
-!       local variables
-!
 
 real    :: x2
 real    :: x3
@@ -882,19 +712,13 @@ b = x2 + k1*x + k12
 b2 = b*b
 db = 2.0*x + k1
 
-!
 !     fn = hco3+co3+borate+oh+hpo4+2*po4+silicate+hfree+hso4+hf+h3po4-ta
-!
-
 fn = k1*x*dic/b + 2.0*dic*k12/b + bt/(1.0 + x/kb) + kw/x +              &
      pt*k12p*x/a + 2.0*pt*k123p/a + sit/(1.0 + x/ksi) -                 &
      x/c - st/ (1.0 + ks/x/c) - ft/(1.0 + kf/x) -                       &
      pt*x3/a - ta
 
-!
 !     df = dfn/dx
-!
-
 df = ((k1*dic*b) - k1*x*dic*db)/b2 - 2.0*dic*k12*db/b2 -                &
      bt/kb/(1.0+x/kb)**2 - kw/x2 + (pt*k12p*(a - x*da))/a2 -            &
      2.0*pt*k123p*da/a2 - sit/ksi/(1.0+x/ksi)**2 - 1.0/c +              &
@@ -903,7 +727,7 @@ df = ((k1*dic*b) - k1*x*dic*db)/b2 - 2.0*dic*k12*db/b2 -                &
 
 return
 
-end subroutine  ta_iter_1  !}
+end subroutine  ta_iter_1
 ! </SUBROUTINE> NAME="ta_iter_1"
 
-end module  ocmip2_co2calc_mod  !}
+end module  ocmip2_co2calc_mod

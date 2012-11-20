@@ -44,24 +44,9 @@
 ! </INFO>
 !
 
-module  ocmip2_cfc_mod  !{
+module ocmip2_cfc_mod
 
-!
-!------------------------------------------------------------------
-!
-!       Global definitions
-!
-!------------------------------------------------------------------
-!
-
-!
-!----------------------------------------------------------------------
-!
-!       Modules
-!
-!----------------------------------------------------------------------
-!
-
+use atmos_ocean_fluxes_mod, only: aof_set_coupler_flux
 use time_manager_mod,   only: time_type
 use diag_manager_mod,   only: send_data
 use field_manager_mod,  only: fm_field_name_len, fm_path_name_len, fm_string_len
@@ -75,36 +60,14 @@ use fm_util_mod,        only: fm_util_get_string, fm_util_get_logical, fm_util_g
 use fm_util_mod,        only: fm_util_get_logical_array, fm_util_get_real_array, fm_util_get_string_array
 use fm_util_mod,        only: fm_util_start_namelist, fm_util_end_namelist
 use mpp_mod,            only: stdout, stdlog, mpp_error, mpp_sum, FATAL
-use coupler_types_mod,  only: ind_alpha, ind_csurf, coupler_2d_bc_type
+use coupler_types_mod,  only: ind_alpha, ind_csurf, coupler_2d_bc_type, ind_flux
 use ocean_types_mod,    only: ocean_prog_tracer_type
-
-!
-!----------------------------------------------------------------------
-!
-!       force all variables to be "typed"
-!
-!----------------------------------------------------------------------
-!
+use diag_manager_mod,   only: register_diag_field
+use field_manager_mod,  only: fm_get_index
 
 implicit none
 
-!
-!----------------------------------------------------------------------
-!
-!       Make all routines and variables private by default
-!
-!----------------------------------------------------------------------
-!
-
 private
-
-!
-!----------------------------------------------------------------------
-!
-!       Public routines
-!
-!----------------------------------------------------------------------
-!
 
 public  :: ocmip2_cfc_bbc
 public  :: ocmip2_cfc_end
@@ -119,23 +82,7 @@ public  :: ocmip2_cfc_sum_sfc
 public  :: ocmip2_cfc_zero_sfc
 public  :: ocmip2_cfc_sfc_end
 
-!
-!----------------------------------------------------------------------
-!
-!       Private routines
-!
-!----------------------------------------------------------------------
-!
-
 private :: allocate_arrays
-
-!
-!----------------------------------------------------------------------
-!
-!       Private parameters
-!
-!----------------------------------------------------------------------
-!
 
 character(len=fm_field_name_len), parameter     :: package_name = 'ocmip2_cfc'
 character(len=48), parameter                    :: mod_name = 'ocmip2_cfc_mod'
@@ -146,15 +93,7 @@ character(len=fm_string_len), parameter         :: default_ocean_restart_file = 
 
 integer, parameter :: max_cfc_rec = 1200
 
-!
-!----------------------------------------------------------------------
-!
-!       Private types
-!
-!----------------------------------------------------------------------
-!
- 
-type cfc_type  !{
+type cfc_type
 
   real                                  :: sc_11_0
   real                                  :: sc_11_1
@@ -194,25 +133,9 @@ type cfc_type  !{
   integer                               :: id_sfc_flux_cfc_11 = -1
   integer                               :: id_sfc_flux_cfc_12 = -1
 
-end type cfc_type  !}
-
-!
-!----------------------------------------------------------------------
-!
-!       Public variables
-!
-!----------------------------------------------------------------------
-!
+end type cfc_type
 
 logical, public :: do_ocmip2_cfc
-
-!
-!----------------------------------------------------------------------
-!
-!       Private variables
-!
-!----------------------------------------------------------------------
-!
 
 type(cfc_type), allocatable, dimension(:)       :: cfc
 integer                                         :: instances
@@ -225,14 +148,6 @@ integer                                         :: indtemp
 character(len=128) :: version = '$Id: ocmip2_cfc.F90,v 1.1.2.1 2012/05/15 15:55:20 smg Exp $'
 character(len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
 
-!
-!-----------------------------------------------------------------------
-!
-!       Subroutine and function definitions
-!
-!-----------------------------------------------------------------------
-!
-
 contains
 
 !#######################################################################
@@ -243,67 +158,36 @@ contains
 ! </DESCRIPTION>
 !
 
-subroutine allocate_arrays(isc, iec, jsc, jec)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine allocate_arrays(isc, iec, jsc, jec)
 
 integer, intent(in)     :: isc
 integer, intent(in)     :: iec
 integer, intent(in)     :: jsc
 integer, intent(in)     :: jec
 
-!
-!       local variables
-!
-
 integer :: n
-
-!
-!-----------------------------------------------------------------------
-!     start executable code
-!-----------------------------------------------------------------------
-!     
 
 allocate( sc_no_term(isc:iec,jsc:jec) )
 
-!
 !       allocate cfc array elements
-!
-
-do n = 1, instances  !{
-
+do n = 1, instances
   allocate( cfc(n)%sc_11(isc:iec,jsc:jec) )
   allocate( cfc(n)%alpha_11(isc:iec,jsc:jec) )
   allocate( cfc(n)%sc_12(isc:iec,jsc:jec) )
   allocate( cfc(n)%alpha_12(isc:iec,jsc:jec) )
-
-enddo  !}
+enddo
 
 sc_no_term(:,:) = 0.0
 
-!
-!       initialize some arrays
-!
-
-do n = 1, instances  !{
-
+do n = 1, instances
   cfc(n)%sc_11(:,:) = 0.0
   cfc(n)%alpha_11(:,:) = 0.0
   cfc(n)%sc_12(:,:) = 0.0
   cfc(n)%alpha_12(:,:) = 0.0
-
-enddo  !} n
-
-
+enddo
 
 return
-end subroutine  allocate_arrays  !}
+end subroutine  allocate_arrays
 ! </SUBROUTINE> NAME="allocate_arrays"
 
 
@@ -314,48 +198,9 @@ end subroutine  allocate_arrays  !}
 !     calculate the surface boundary conditions
 ! </DESCRIPTION>
 !
+subroutine ocmip2_cfc_bbc
 
-subroutine ocmip2_cfc_bbc  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-!
-!   no flux bottom boundary condition is the default
-!
-
-return
-
-end subroutine  ocmip2_cfc_bbc  !}
+end subroutine  ocmip2_cfc_bbc
 ! </SUBROUTINE> NAME="ocmip2_cfc_bbc"
 
 
@@ -366,23 +211,8 @@ end subroutine  ocmip2_cfc_bbc  !}
 !     Clean up various CFC quantities for this run.
 ! </DESCRIPTION>
 !
-
 subroutine ocmip2_cfc_end(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,   &
-     T_prog, grid_dat, grid_tmask, rho_dzt, taup1)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     T_prog, grid_dat, grid_tmask, rho_dzt, taup1)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -399,74 +229,43 @@ real, dimension(isd:,jsd:), intent(in)                  :: grid_dat
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
 character(len=64), parameter    :: sub_name = 'ocmip2_cfc_end'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-integer :: i
-integer :: j
-integer :: k
-integer :: n
+integer :: i, j, k, n
 real    :: total_cfc_11
 real    :: total_cfc_12
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-!-----------------------------------------------------------------------
-!     statement functions
-!-----------------------------------------------------------------------
-!
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-!
 !       integrate the total concentrations of some tracers
 !       for the end of the run
-!
 
-!
 !       Use taup1 time index for the start of a run, and taup1 time
 !       index for the end of a run so that we are integrating the
 !       same time level and should therefore get identical results
-!
-
 write (stdoutunit,*) trim(note_header),                           &
      'Global integrals at end of run'
 
-do n = 1, instances  !{
+do n = 1, instances
 
   total_cfc_11 = 0.0
   total_cfc_12 = 0.0
 
-  do k = 1,nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1,nk
+    do j = jsc, jec
+      do i = isc, iec
         total_cfc_11 = total_cfc_11 +                           &
              t_prog(cfc(n)%ind_cfc_11)%field(i,j,k,taup1) *     &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
         total_cfc_12 = total_cfc_12 +                           &
              t_prog(cfc(n)%ind_cfc_12)%field(i,j,k,taup1) *     &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
   call mpp_sum(total_cfc_11)
   call mpp_sum(total_cfc_12)
@@ -479,10 +278,10 @@ do n = 1, instances  !{
        '(/'' Total CFC-12  = '',es19.12,'' Gmol'')')    &
        total_cfc_12 * 1.0e-09
 
-enddo  !} n
+enddo
 
 return
-end subroutine  ocmip2_cfc_end  !}
+end subroutine  ocmip2_cfc_end
 ! </SUBROUTINE> NAME="ocmip2_cfc_end"
 
 
@@ -493,26 +292,9 @@ end subroutine  ocmip2_cfc_end  !}
 !     Calculate the surface boundary conditions
 ! </DESCRIPTION>
 !
-
 subroutine ocmip2_cfc_sbc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,   &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                &
-     T_prog, model_time, grid_tmask, ice_ocean_boundary_fluxes)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-use coupler_types_mod, only       : coupler_2d_bc_type, ind_flux
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     T_prog, model_time, grid_tmask, ice_ocean_boundary_fluxes)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
@@ -532,79 +314,47 @@ type(time_type), intent(in)                                     :: model_time
 real, dimension(isd:,jsd:,:), intent(in)                        :: grid_tmask
 type(coupler_2d_bc_type), intent(in)                            :: ice_ocean_boundary_fluxes
 
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
 integer :: i_bnd_off
 integer :: j_bnd_off
-integer :: i
-integer :: j
-integer :: n
+integer :: i, j, n
 logical :: used
 
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-!
-!---------------------------------------------------------------------
 !     use the surface fluxes from the coupler
 !       stf is in mol/m^2/s, flux from coupler is positive upwards
-!---------------------------------------------------------------------
-!
-
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
-do n = 1, instances  !{
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+do n = 1, instances
+  do j = jsc, jec
+    do i = isc, iec
       t_prog(cfc(n)%ind_cfc_11)%stf(i,j) =                              &
             -ice_ocean_boundary_fluxes%bc(cfc(n)%ind_cfc_11_flux)%field(ind_flux)%values(i-i_bnd_off,j-j_bnd_off)
       t_prog(cfc(n)%ind_cfc_12)%stf(i,j) =                              &
             -ice_ocean_boundary_fluxes%bc(cfc(n)%ind_cfc_12_flux)%field(ind_flux)%values(i-i_bnd_off,j-j_bnd_off)
-    enddo  !} i
-  enddo  !} j
-enddo  !} n 
+    enddo
+  enddo
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       Save variables for diagnostics
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
-
-  if (cfc(n)%id_sfc_flux_cfc_11 .gt. 0) then !{
+! Save variables for diagnostics
+do n = 1, instances
+  if (cfc(n)%id_sfc_flux_cfc_11 .gt. 0) then
     used = send_data(cfc(n)%id_sfc_flux_cfc_11,         &
          t_prog(cfc(n)%ind_cfc_11)%stf(:,:),            &
          model_time, rmask = grid_tmask(:,:,1),         &
          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif !}
+  endif
 
-  if (cfc(n)%id_sfc_flux_cfc_12 .gt. 0) then !{
+  if (cfc(n)%id_sfc_flux_cfc_12 .gt. 0) then
     used = send_data(cfc(n)%id_sfc_flux_cfc_12,         &
          t_prog(cfc(n)%ind_cfc_12)%stf(:,:),            &
          model_time, rmask = grid_tmask(:,:,1),         &
          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif !}
-
-enddo  !} n
+  endif
+enddo
 
 return
 
-end subroutine  ocmip2_cfc_sbc  !}
+end subroutine  ocmip2_cfc_sbc
 ! </SUBROUTINE> NAME="ocmip2_cfc_sbc"
 
 
@@ -614,32 +364,13 @@ end subroutine  ocmip2_cfc_sbc  !}
 ! <DESCRIPTION>
 !       Set up any extra fields needed by the ocean-atmosphere gas fluxes
 ! </DESCRIPTION>
-
-subroutine ocmip2_cfc_flux_init  !{
-
-use atmos_ocean_fluxes_mod, only: aof_set_coupler_flux
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!       local parameters
-!
+subroutine ocmip2_cfc_flux_init
 
 character(len=64), parameter    :: sub_name = 'ocmip2_cfc_flux_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 
 integer                                                 :: n
 character(len=fm_field_name_len)                        :: name
@@ -650,108 +381,80 @@ character(len=256)                                      :: caller_str
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
 !       First, perform some initialization if this module has not been
 !       initialized because the normal initialization routine will
 !       not have been called as part of the normal ocean model
 !       initialization if this is an Atmosphere pe of a coupled
 !       model running in concurrent mode
-!
+if (.not. module_initialized) then
 
-if (.not. module_initialized) then  !{
-
-!
-!       Initialize the package
-!
-
+   ! Initialize the package
   package_index = otpm_set_tracer_package(package_name,            &
        restart_file = default_restart_file,                        &
        caller = trim(mod_name) // '(' // trim(sub_name) // ')')
 
-!
-!       Check whether to use this package
-!
-
+  ! Check whether to use this package
   path_to_names = '/ocean_mod/tracer_packages/' // trim(package_name) // '/names'
   instances = fm_get_length(path_to_names)
-  if (instances .lt. 0) then  !{
+  if (instances .lt. 0) then
     call mpp_error(FATAL, trim(error_header) // ' Could not get number of instances')
-  endif  !}
-
-!
-!       Check some things
-!
+  endif
 
   write (stdoutunit,*)
-  if (instances .eq. 0) then  !{
+  if (instances .eq. 0) then
     write (stdoutunit,*) trim(note_header), ' No instances'
     do_ocmip2_cfc = .false.
-  else  !}{
-    if (instances .eq. 1) then  !{
+  else
+    if (instances .eq. 1) then
       write (stdoutunit,*) trim(note_header), ' ', instances, ' instance'
-    else  !}{
+    else
       write (stdoutunit,*) trim(note_header), ' ', instances, ' instances'
-    endif  !}
+    endif
     do_ocmip2_cfc = .true.
-  endif  !}
+  endif
 
   module_initialized = .true.
 
-endif  !}
+endif
 
-!
 !       Return if we don't want to use this package
-!
-
-if (.not. do_ocmip2_cfc) then  !{
+if (.not. do_ocmip2_cfc) then
   return
-endif  !}
+endif
 
-if (.not. allocated(cfc)) then  !{
+if (.not. allocated(cfc)) then
 
-!
-!       allocate storage for cfc array
-!
-
+   ! allocate storage for cfc array
   allocate ( cfc(instances) )
 
-!
-!       loop over the names, saving them into the cfc array
-!
+  ! loop over the names, saving them into the cfc array
+  do n = 1, instances
 
-  do n = 1, instances  !{
-
-    if (fm_get_value(path_to_names, name, index = n)) then  !{
+    if (fm_get_value(path_to_names, name, index = n)) then
       cfc(n)%name = name
-    else  !}{
+    else
       write (name,*) n
       call mpp_error(FATAL, trim(error_header) //        &
            'Bad field name for index ' // trim(name))
-    endif  !}
+    endif
 
-  enddo  !}
+  enddo
 
-endif  !}
+endif
 
-!
-!       Set up the ocean-atmosphere gas flux fields
-!
-
+! Set up the ocean-atmosphere gas flux fields
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
-do n = 1, instances  !{
+do n = 1, instances
 
   name = cfc(n)%name
-  if (name(1:1) .eq. '_') then  !{
+  if (name(1:1) .eq. '_') then
     suffix = ' '
-  else  !}{
+  else
     suffix = '_' // name
-  endif  !}
+  endif
 
-!
-!       Coupler fluxes
-!
-
+  ! Coupler fluxes
   cfc(n)%ind_cfc_11_flux = aof_set_coupler_flux('cfc_11_flux' // suffix,                        &
        flux_type = 'air_sea_gas_flux', implementation = 'ocmip2',                               &
        mol_wt = WTMCFC11, param = (/ 9.36e-07, 9.7561e-06 /),                                   &
@@ -765,16 +468,11 @@ do n = 1, instances  !{
        ice_restart_file = default_ice_restart_file,                                             &
        ocean_restart_file = default_ocean_restart_file,                                         &
        caller = caller_str)
-
-!
-!       Coupler fields
-!
-
-enddo  !} n
+enddo
 
 return
 
-end subroutine  ocmip2_cfc_flux_init  !}
+end subroutine  ocmip2_cfc_flux_init
 !</SUBROUTINE> NAME="ocmip2_cfc_flux_init"
 
 
@@ -786,22 +484,7 @@ end subroutine  ocmip2_cfc_flux_init  !}
 !
 !       Save pointers to various "types", such as Grid and Domains.
 ! </DESCRIPTION>
-
-subroutine ocmip2_cfc_init  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!       local parameters
-!-----------------------------------------------------------------------
-!
+subroutine ocmip2_cfc_init
 
 character(len=64), parameter    :: sub_name = 'ocmip2_cfc_init'
 character(len=256), parameter   :: error_header =                               &
@@ -809,14 +492,9 @@ character(len=256), parameter   :: error_header =                               
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
-!
-!-----------------------------------------------------------------------
 !     Schmidt number coefficients 
 !      Use coefficients given by Zheng et al (1998), JGR vol 103, C1
 !         for CFC11 and CFC12
-!-----------------------------------------------------------------------
-!
-
 real, parameter :: sc_11_0_def = 3501.8
 real, parameter :: sc_11_1_def = -210.31
 real, parameter :: sc_11_2_def =    6.1851
@@ -827,14 +505,9 @@ real, parameter :: sc_12_1_def = -228.95
 real, parameter :: sc_12_2_def =    6.1908
 real, parameter :: sc_12_3_def =   -0.067430
 
-!
-!-----------------------------------------------------------------------
 !     Solubility coefficients for alpha in mol/l/atm
 !      (1) for CFC11, (2) for CFC12
 !     after Warner and Weiss (1985) DSR, vol 32 for CFC11 and CFC12
-!-----------------------------------------------------------------------
-!
-
 real, parameter :: d1_11_def = -229.9261
 real, parameter :: d2_11_def =  319.6552
 real, parameter :: d3_11_def =  119.4471
@@ -851,12 +524,6 @@ real, parameter :: e1_12_def =   -0.143566
 real, parameter :: e2_12_def =    0.091015
 real, parameter :: e3_12_def =   -0.0153924
 
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
 integer                                                 :: n
 character(len=fm_field_name_len)                        :: name
 character(len=fm_path_name_len)                         :: path_to_names
@@ -869,145 +536,94 @@ character(len=fm_string_len), pointer, dimension(:)     :: good_list
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-!-----------------------------------------------------------------------
 !       Check which tracer packages have been turned on
-!-----------------------------------------------------------------------
-!
 
-!
 !       Initialize the ocmip2 cfc package
-!
-
 package_index = otpm_set_tracer_package(package_name,           &
      caller=trim(mod_name) // '(' // trim(sub_name) // ')',     &
      restart_file=default_restart_file )
 
-!
 !       Check whether to use this package
-!
-
 path_to_names = '/ocean_mod/tracer_packages/' // trim(package_name) // '/names'
 instances = fm_get_length(path_to_names)
-if (instances .lt. 0) then  !{
+if (instances .lt. 0) then
   call mpp_error(FATAL, trim(error_header) // ' Could not get number of instances')
-endif  !}
+endif
 
-!
-!       Check some things
-!
-
-if (instances .eq. 0) then  !{
+if (instances .eq. 0) then
   write (stdoutunit,*) trim(note_header), ' No instances'
   do_ocmip2_cfc = .false.
-else  !}{
-  if (instances .eq. 1) then  !{
+else
+  if (instances .eq. 1) then
     write (stdoutunit,*) trim(note_header), ' ', instances, ' instance'
-  else  !}{
+  else
     write (stdoutunit,*) trim(note_header), ' ', instances, ' instances'
-  endif  !}
+  endif
   do_ocmip2_cfc = .true.
-endif  !}
+endif
 
 module_initialized = .true.
 
-!
 !       Return if we don't want to use this package,
 !       after changing the list back
-!
-
-if (.not. do_ocmip2_cfc) then  !{
+if (.not. do_ocmip2_cfc) then
   return
-endif  !}
+endif
 
 ! after reading tracer tree
 !       allocate storage for cfc array
-!
-
 allocate ( cfc(instances) )
 
-!
-!       loop over the names, saving them into the cfc array
-!
-
-do n = 1, instances  !{
-
-  if (fm_get_value(path_to_names, name, index = n)) then  !{
+! loop over the names, saving them into the cfc array
+do n = 1, instances
+  if (fm_get_value(path_to_names, name, index = n)) then
     cfc(n)%name = name
-  else  !}{
+  else
     write (name,*) n
     call mpp_error(FATAL, trim(error_header) //                 &
          ' Bad field name for index ' // trim(name))
-  endif  !}
+  endif
 
-enddo  !}
+enddo
 
-!
-!       Set up the field input
-!
-
-do n = 1, instances  !{
+! Set up the field input
+do n = 1, instances
 
   name = cfc(n)%name
-  if (name(1:1) .eq. '_') then  !{
+  if (name(1:1) .eq. '_') then
     suffix = ' '
     long_suffix = ' '
-  else  !}{
+  else
     suffix = '_' // name
     long_suffix = ' (' // trim(name) // ')'
-  endif  !}
+  endif
 
-!
-!       CFC-11
-!
-
+  ! CFC-11
   cfc(n)%ind_cfc_11 = otpm_set_prog_tracer('cfc_11' // suffix, package_name,    &
        longname = 'CFC-11' // trim(long_suffix),                                &
        units = 'mol/kg', flux_units = 'mol/m^2/s',                              &
        caller=trim(mod_name) // '(' // trim(sub_name) // ')')
 
-!
-!       CFC-12
-!
-
+  ! CFC-12
   cfc(n)%ind_cfc_12 = otpm_set_prog_tracer('cfc_12' // suffix, package_name,    &
        longname = 'CFC-12' // trim(long_suffix),                                &
        units = 'mol/kg', flux_units = 'mol/m^2/s',                              &
        caller=trim(mod_name) // '(' // trim(sub_name) // ')')
 
-enddo  !} n
+enddo
 
-!
 !       Add the package name to the list of good namelists, to be used
 !       later for a consistency check
-!
-
-if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) .le. 0) then  !{
+if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) .le. 0) then
   call mpp_error(FATAL, trim(error_header) //                           &
        ' Could not add ' // trim(package_name) // ' to "good_namelists" list')
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
-!       Set up the *global* CFC namelist
-!-----------------------------------------------------------------------
-!
-
+! Set up the *global* CFC namelist
 caller_str=trim(mod_name) // '(' // trim(sub_name) // ')'
 
-!call fm_util_start_namelist(package_name, '*global*', caller = caller_str, no_overwrite = .true., &
-     !check = .true.)
-
-!call fm_util_end_namelist(package_name, '*global*', caller = caller_str, check = .true.)
-
-!
-!-----------------------------------------------------------------------
-!       Set up the instance CFC namelists
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
-
+! Set up the instance CFC namelists
+do n = 1, instances
   call fm_util_start_namelist(package_name, cfc(n)%name, caller = caller_str, no_overwrite = .true., &
        check = .true.)
 
@@ -1040,26 +656,22 @@ do n = 1, instances  !{
   call fm_util_set_value('e3_12', e3_12_def)
 
   call fm_util_end_namelist(package_name, cfc(n)%name, check = .true., caller = caller_str)
+enddo
 
-enddo  !} n
-
-!
 !       Check for any errors in the number of fields in the namelists for this package
-!
-
 good_list => fm_util_get_string_array('/ocean_mod/GOOD/namelists/' // trim(package_name) // '/good_values',   &
      caller = trim(mod_name) // '(' // trim(sub_name) // ')')
-if (associated(good_list)) then  !{
+if (associated(good_list)) then
   call fm_util_check_for_bad_fields('/ocean_mod/namelists/' // trim(package_name), good_list,       &
        caller = trim(mod_name) // '(' // trim(sub_name) // ')')
   deallocate(good_list)
-else  !}{
+else
   call mpp_error(FATAL,trim(error_header) // ' Empty "' // trim(package_name) // '" list')
-endif  !}
+endif
 
 return
 
-end subroutine ocmip2_cfc_init  !}
+end subroutine ocmip2_cfc_init
 ! </SUBROUTINE> NAME="ocmip2_cfc_init"
 
 
@@ -1071,23 +683,8 @@ end subroutine ocmip2_cfc_init  !}
 !
 !       Note: this subroutine should be merged into ocmip2_cfc_start
 ! </DESCRIPTION>
-
 subroutine ocmip2_cfc_init_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,      &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, T_prog, rho, taum1, grid_tmask)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, T_prog, rho, taum1, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1108,21 +705,9 @@ real, dimension(isd:,jsd:,:,:), intent(in)              :: rho
 integer, intent(in)                                     :: taum1
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-integer         :: i
+integer         :: i, j, n
 integer :: i_bnd_off
 integer :: j_bnd_off
-integer         :: j
-integer         :: n
 integer         :: ind
 real            :: sal
 real            :: ta
@@ -1131,18 +716,12 @@ real            :: epsln=1.0e-30
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
-do n = 1, instances  !{
-
-!
-!       CFC-11 flux
-!
-
+do n = 1, instances
+   ! CFC-11 flux
   ind = cfc(n)%ind_cfc_11_flux
   if (.not. field_exist('INPUT/'//trim(Ocean_fields%bc(ind)%ocean_restart_file),    &
-                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then  !{
+                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then
 
-!
-!---------------------------------------------------------------------
 !     Calculate solubilities
 !       Use Warner and Weiss (1985) DSR, vol 32, final result
 !       in mol/l/atm (note, atmospheric data may be in 1 part per trillion 1e-12, pptv)
@@ -1151,11 +730,8 @@ do n = 1, instances  !{
 !
 !       the factor 1.0e+03 is for the conversion from mol/(l * atm) 
 !       to mol/(m3 * atm) 
-!---------------------------------------------------------------------
-!
-
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
       ta = (t_prog(indtemp)%field(i,j,1,taum1) + 273.15) * 0.01
       sal = t_prog(indsal)%field(i,j,1,taum1)
 
@@ -1164,18 +740,13 @@ do n = 1, instances  !{
                cfc(n)%d4_11* ta * ta +                                                  &
                sal * ((cfc(n)%e3_11 * ta + cfc(n)%e2_11) * ta + cfc(n)%e1_11)) *        &
            1.0e+03 * grid_tmask(i,j,1)
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-!
-!---------------------------------------------------------------------
-!     Calculate Schmidt numbers
-!      use coefficients given by Zheng et al (1998), JGR vol 103, C1
-!---------------------------------------------------------------------
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  !     Calculate Schmidt numbers
+  !      use coefficients given by Zheng et al (1998), JGR vol 103, C1
+    do j = jsc, jec
+      do i = isc, iec
         cfc(n)%sc_11(i,j) = cfc(n)%sc_11_0 + t_prog(indtemp)%field(i,j,1,taum1) *       &
              (cfc(n)%sc_11_1 + t_prog(indtemp)%field(i,j,1,taum1) *                     &
               (cfc(n)%sc_11_2 + t_prog(indtemp)%field(i,j,1,taum1) * cfc(n)%sc_11_3)) * &
@@ -1185,21 +756,15 @@ do n = 1, instances  !{
              cfc(n)%alpha_11(i,j) * sc_no_term(i,j)
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =         &
              t_prog(cfc(n)%ind_cfc_11)%field(i,j,1,taum1) * rho(i,j,1,taum1) * sc_no_term(i,j) 
-      enddo  !} i
-    enddo  !} j 
+      enddo
+    enddo
 
-  endif  !}
+  endif
 
-!
-!       CFC-12 flux
-!
-
+  ! CFC-12 flux
   ind = cfc(n)%ind_cfc_12_flux
   if (.not. field_exist('INPUT/'//trim(Ocean_fields%bc(ind)%ocean_restart_file),    &
-                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then  !{
-
-!
-!---------------------------------------------------------------------
+                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then
 !     Calculate solubilities
 !       Use Warner and Weiss (1985) DSR, vol 32, final result
 !       in mol/l/atm (note, atmospheric data may be in 1 part per trillion 1e-12, pptv)
@@ -1208,11 +773,8 @@ do n = 1, instances  !{
 !
 !       the factor 1.0e+03 is for the conversion from mol/(l * atm) 
 !       to mol/(m3 * atm) 
-!---------------------------------------------------------------------
-!
-
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
       ta = (t_prog(indtemp)%field(i,j,1,taum1) + 273.15) * 0.01
       sal = t_prog(indsal)%field(i,j,1,taum1)
 
@@ -1221,18 +783,13 @@ do n = 1, instances  !{
                cfc(n)%d4_12* ta * ta +                                                  &
                sal * ((cfc(n)%e3_12 * ta + cfc(n)%e2_12) * ta + cfc(n)%e1_12)) *        &
            1.0e+03 * grid_tmask(i,j,1)
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-!
-!---------------------------------------------------------------------
-!     Calculate Schmidt numbers
-!      use coefficients given by Zheng et al (1998), JGR vol 103, C1
-!---------------------------------------------------------------------
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! Calculate Schmidt numbers
+  ! use coefficients given by Zheng et al (1998), JGR vol 103, C1
+    do j = jsc, jec
+      do i = isc, iec
         cfc(n)%sc_12(i,j) = cfc(n)%sc_12_0 + t_prog(indtemp)%field(i,j,1,taum1) *       &
              (cfc(n)%sc_12_1 + t_prog(indtemp)%field(i,j,1,taum1) *                     &
               (cfc(n)%sc_12_2 + t_prog(indtemp)%field(i,j,1,taum1) * cfc(n)%sc_12_3)) * &
@@ -1242,16 +799,16 @@ do n = 1, instances  !{
              cfc(n)%alpha_12(i,j) * sc_no_term(i,j)
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =         &
              t_prog(cfc(n)%ind_cfc_12)%field(i,j,1,taum1) * rho(i,j,1,taum1) * sc_no_term(i,j)
-      enddo  !} i
-    enddo  !} j 
+      enddo
+    enddo
 
-  endif  !}
+  endif
 
-enddo  !} n
+enddo
 
 return
 
-end subroutine ocmip2_cfc_init_sfc  !}
+end subroutine ocmip2_cfc_init_sfc
 ! </SUBROUTINE> NAME="ocmip2_cfc_init_sfc"
 
 
@@ -1264,21 +821,7 @@ end subroutine ocmip2_cfc_init_sfc  !}
 
 subroutine ocmip2_cfc_sum_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,       &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1300,21 +843,9 @@ integer, intent(in)                                     :: taum1
 type(time_type), intent(in)                             :: model_time
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-integer         :: i
+integer         :: i, j, n
 integer :: i_bnd_off
 integer :: j_bnd_off
-integer         :: j
-integer         :: n
 integer         :: ind
 real            :: sal
 real            :: ta
@@ -1327,16 +858,11 @@ real, dimension(isc:iec,jsc:jec,nk)     :: grid_tmask_comp
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
-do n = 1, instances  !{
+do n = 1, instances
 
-!
-!       CFC-11 flux
-!
-
+   ! CFC-11 flux
   ind = cfc(n)%ind_cfc_11_flux
 
-!
-!---------------------------------------------------------------------
 !     Calculate solubilities
 !       Use Warner and Weiss (1985) DSR, vol 32, final result
 !       in mol/l/atm (note, atmospheric data may be in 1 part per trillion 1e-12, pptv)
@@ -1345,11 +871,8 @@ do n = 1, instances  !{
 !
 !       the factor 1.0e+03 is for the conversion from mol/(l * atm) 
 !       to mol/(m3 * atm) 
-!---------------------------------------------------------------------
-!
-
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
       ta = (t_prog(indtemp)%field(i,j,1,taum1) + 273.15) * 0.01
       sal = t_prog(indsal)%field(i,j,1,taum1)
 
@@ -1358,18 +881,13 @@ do n = 1, instances  !{
                cfc(n)%d4_11* ta * ta +                                                  &
                sal * ((cfc(n)%e3_11 * ta + cfc(n)%e2_11) * ta + cfc(n)%e1_11)) *        &
            1.0e+03 * grid_tmask(i,j,1)
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-!
-!---------------------------------------------------------------------
-!     Calculate Schmidt numbers
-!      use coefficients given by Zheng et al (1998), JGR vol 103, C1
-!---------------------------------------------------------------------
-!
-
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  !     Calculate Schmidt numbers
+  !      use coefficients given by Zheng et al (1998), JGR vol 103, C1
+  do j = jsc, jec
+    do i = isc, iec
       cfc(n)%sc_11(i,j) = cfc(n)%sc_11_0 + t_prog(indtemp)%field(i,j,1,taum1) *         &
            (cfc(n)%sc_11_1 + t_prog(indtemp)%field(i,j,1,taum1) *                       &
             (cfc(n)%sc_11_2 + t_prog(indtemp)%field(i,j,1,taum1) * cfc(n)%sc_11_3)) *   &
@@ -1381,17 +899,12 @@ do n = 1, instances  !{
       Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =           &
            Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) +      &
            t_prog(cfc(n)%ind_cfc_11)%field(i,j,1,taum1) * rho(i,j,1,taum1) * sc_no_term(i,j)
-    enddo  !} i
-  enddo  !} j 
+    enddo
+  enddo
 
-!
-!       CFC-12 flux
-!
-
+  ! CFC-12 flux
   ind = cfc(n)%ind_cfc_12_flux
 
-!
-!---------------------------------------------------------------------
 !     Calculate solubilities
 !       Use Warner and Weiss (1985) DSR, vol 32, final result
 !       in mol/l/atm (note, atmospheric data may be in 1 part per trillion 1e-12, pptv)
@@ -1400,11 +913,8 @@ do n = 1, instances  !{
 !
 !       the factor 1.0e+03 is for the conversion from mol/(l * atm) 
 !       to mol/(m3 * atm) 
-!---------------------------------------------------------------------
-!
-
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
       ta = (t_prog(indtemp)%field(i,j,1,taum1) + 273.15) * 0.01
       sal = t_prog(indsal)%field(i,j,1,taum1)
 
@@ -1413,18 +923,13 @@ do n = 1, instances  !{
                cfc(n)%d4_12* ta * ta +                                                  &
                sal * ((cfc(n)%e3_12 * ta + cfc(n)%e2_12) * ta + cfc(n)%e1_12)) *        &
            1.0e+03 * grid_tmask(i,j,1)
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-!
-!---------------------------------------------------------------------
-!     Calculate Schmidt numbers
-!      use coefficients given by Zheng et al (1998), JGR vol 103, C1
-!---------------------------------------------------------------------
-!
-
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  ! Calculate Schmidt numbers
+  ! use coefficients given by Zheng et al (1998), JGR vol 103, C1
+  do j = jsc, jec
+    do i = isc, iec
       cfc(n)%sc_12(i,j) = cfc(n)%sc_12_0 + t_prog(indtemp)%field(i,j,1,taum1) *         &
            (cfc(n)%sc_12_1 + t_prog(indtemp)%field(i,j,1,taum1) *                       &
             (cfc(n)%sc_12_2 + t_prog(indtemp)%field(i,j,1,taum1) * cfc(n)%sc_12_3)) *   &
@@ -1436,40 +941,33 @@ do n = 1, instances  !{
       Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =           &
            Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) +      &
            t_prog(cfc(n)%ind_cfc_12)%field(i,j,1,taum1) * rho(i,j,1,taum1) * sc_no_term(i,j)
-    enddo  !} i
-  enddo  !} j 
+    enddo
+  enddo
 
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       Save variables for diagnostics
-!-----------------------------------------------------------------------
-!
+! Save variables for diagnostics
 
-!
 !       set up the grid mask on the computational grid so that we
 !       will not need to implicitly copy arrays in the following
 !       subroutine calls
-!
-
-if (.not. done) then  !{
+if (.not. done) then
   need = .false.
-  do n = 1, instances  !{
+  do n = 1, instances
     need = need .or.                    &
          cfc(n)%id_alpha_11 .gt. 0 .or. &
          cfc(n)%id_sc_11 .gt. 0 .or.    &
          cfc(n)%id_alpha_12 .gt. 0 .or. &
          cfc(n)%id_sc_12 .gt. 0
-  enddo  !} n
+  enddo
   done = .true.
-endif  !}
+endif
 
-if (need) then  !{
+if (need) then
 
   grid_tmask_comp = grid_tmask(isc:iec,jsc:jec,:)
 
-  do n = 1, instances  !{
+  do n = 1, instances
 
     if (cfc(n)%id_alpha_11 .gt. 0) then
       used = send_data(cfc(n)%id_alpha_11,              &
@@ -1492,13 +990,13 @@ if (need) then  !{
            model_time, rmask = grid_tmask_comp(:,:,1))
     endif
 
-  enddo  !} n
+  enddo
 
-endif  !}
+endif
 
 return
 
-end subroutine ocmip2_cfc_sum_sfc  !}
+end subroutine ocmip2_cfc_sum_sfc
 ! </SUBROUTINE> NAME="ocmip2_cfc_sum_sfc"
 
 
@@ -1509,33 +1007,14 @@ end subroutine ocmip2_cfc_sum_sfc  !}
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
 
-subroutine ocmip2_cfc_zero_sfc(Ocean_fields)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine ocmip2_cfc_zero_sfc(Ocean_fields)
 
 type(coupler_2d_bc_type), intent(inout) :: Ocean_fields
-
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 
 integer         :: n
 integer         :: ind
 
-do n = 1, instances  !{
-
+do n = 1, instances
   ind = cfc(n)%ind_cfc_11_flux
 
   Ocean_fields%bc(ind)%field(ind_alpha)%values = 0.0
@@ -1545,12 +1024,11 @@ do n = 1, instances  !{
 
   Ocean_fields%bc(ind)%field(ind_alpha)%values = 0.0
   Ocean_fields%bc(ind)%field(ind_csurf)%values = 0.0
-
-enddo  !} n
+enddo
 
 return
 
-end subroutine ocmip2_cfc_zero_sfc  !}
+end subroutine ocmip2_cfc_zero_sfc
 ! </SUBROUTINE> NAME="ocmip2_cfc_zero_sfc"
 
 
@@ -1562,15 +1040,7 @@ end subroutine ocmip2_cfc_zero_sfc  !}
 ! </DESCRIPTION>
 
 subroutine ocmip2_cfc_avg_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,       &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1589,20 +1059,9 @@ type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 integer                                                 :: Ocean_avg_kount
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
 integer :: i_bnd_off
 integer :: j_bnd_off
-integer :: i
-integer :: j
+integer :: i, j
 integer         :: n
 integer         :: ind
 real            :: divid
@@ -1612,39 +1071,39 @@ j_bnd_off = jsc - jsc_bnd
 
 divid = 1./float(Ocean_avg_kount)
 
-do n = 1, instances  !{
+do n = 1, instances
 
   ind = cfc(n)%ind_cfc_11_flux
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-      if (Grid_tmask(i,j,1) == 1.0) then  !{
+  do j = jsc, jec
+    do i = isc, iec
+      if (Grid_tmask(i,j,1) == 1.0) then
         Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) * divid
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) * divid
-      endif  !}
-    enddo  !} i
-  enddo  !} j
+      endif
+    enddo
+  enddo
 
   ind = cfc(n)%ind_cfc_12_flux
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-      if (Grid_tmask(i,j,1) == 1.0) then  !{
+  do j = jsc, jec
+    do i = isc, iec
+      if (Grid_tmask(i,j,1) == 1.0) then
         Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) * divid
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) * divid
-      endif  !}
-    enddo  !} i
-  enddo  !} j
+      endif
+    enddo
+  enddo
 
-enddo  !} n
+enddo
 
 return
 
-end subroutine ocmip2_cfc_avg_sfc  !}
+end subroutine ocmip2_cfc_avg_sfc
 ! </SUBROUTINE> NAME="ocmip2_cfc_avg_sfc"
 
 
@@ -1655,29 +1114,9 @@ end subroutine ocmip2_cfc_avg_sfc  !}
 !       Initialize surface fields for flux calculations
 ! </DESCRIPTION>
 
-subroutine ocmip2_cfc_sfc_end  !{
+subroutine ocmip2_cfc_sfc_end
 
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-return
-
-end subroutine ocmip2_cfc_sfc_end  !}
+end subroutine ocmip2_cfc_sfc_end
 ! </SUBROUTINE> NAME="ocmip2_cfc_sfc_end"
 
 
@@ -1690,50 +1129,9 @@ end subroutine ocmip2_cfc_sfc_end  !}
 !     of hooks required in MOM base code)
 ! </DESCRIPTION>
 !
+subroutine ocmip2_cfc_source
 
-subroutine ocmip2_cfc_source  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-!
-!-----------------------------------------------------------------------
-!     calculate the source terms for CFCs
-!-----------------------------------------------------------------------
-!
-
-return
-
-end subroutine  ocmip2_cfc_source  !}
+end subroutine  ocmip2_cfc_source
 ! </SUBROUTINE> NAME="ocmip2_cfc_source"
 
 
@@ -1745,26 +1143,8 @@ end subroutine  ocmip2_cfc_source  !}
 ! for a given run and allocate diagnostic arrays
 ! </DESCRIPTION>
 !
-
 subroutine ocmip2_cfc_start(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,         &
-     T_prog, taup1, model_time, grid_dat, grid_tmask, grid_tracer_axes, rho_dzt)  !{
-
-!
-!-----------------------------------------------------------------------
-!       modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-use diag_manager_mod,  only: register_diag_field
-use field_manager_mod, only: fm_get_index
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     T_prog, taup1, model_time, grid_dat, grid_tmask, grid_tracer_axes, rho_dzt)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1783,29 +1163,14 @@ real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 integer, dimension(3), intent(in)                       :: grid_tracer_axes
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
 character(len=64), parameter    :: sub_name = 'ocmip2_cfc_start'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
 character(len=fm_field_name_len+3)      :: long_suffix
-integer                                 :: i
-integer                                 :: j
-integer                                 :: k
-integer                                 :: n
+integer                                 :: i, j, k, n
 character(len=fm_field_name_len+1)      :: suffix
 character(len=256)                      :: caller_str
 real                                    :: total_cfc_11
@@ -1814,57 +1179,28 @@ real                                    :: total_cfc_12
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-! =====================================================================
-!       begin of executable code
-! =====================================================================
-!
-!
-!-----------------------------------------------------------------------
-!       give info
-!-----------------------------------------------------------------------
-!
-
 write(stdoutunit,*) 
 write(stdoutunit,*) trim(note_header),                     &
                   ' Starting ', trim(package_name), ' module'
 
-!
-!       Determine indices for temperature and salinity
-!
-
+! Determine indices for temperature and salinity
 indtemp = fm_get_index('/ocean_mod/prog_tracers/temp')
-if (indtemp .le. 0) then  !{
+if (indtemp .le. 0) then
   call mpp_error(FATAL,trim(error_header) // ' Could not get the temperature index')
-endif  !}
+endif
 
 indsal = fm_get_index('/ocean_mod/prog_tracers/salt')
-if (indsal .le. 0) then  !{
+if (indsal .le. 0) then
   call mpp_error(FATAL,trim(error_header) // ' Could not get the salinity index')
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
-!     dynamically allocate the global CFC arrays
-!-----------------------------------------------------------------------
-!
-
+! dynamically allocate the global CFC arrays
 call allocate_arrays(isc, iec, jsc, jec)
 
-!
-!-----------------------------------------------------------------------
-!       save the *global* namelist values
-!-----------------------------------------------------------------------
-!
-
+! save the *global* namelist values
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
-!call fm_util_start_namelist(package_name, '*global*', caller = caller_str)
-
-!call fm_util_end_namelist(package_name, '*global*', caller = caller_str)
-
-do n = 1, instances  !{
-
+do n = 1, instances
   call fm_util_start_namelist(package_name, cfc(n)%name, caller = caller_str)
 
   cfc(n)%sc_11_0 =    fm_util_get_real   ('sc_11_0', scalar = .true.)
@@ -1893,28 +1229,20 @@ do n = 1, instances  !{
   cfc(n)%e3_12 =    fm_util_get_real   ('e3_12', scalar = .true.)
 
   call fm_util_end_namelist(package_name, cfc(n)%name, caller = caller_str)
+enddo
 
-enddo  !} n
+! Set up analyses
 
-!
-!-----------------------------------------------------------------------
-!     Set up analyses
-!-----------------------------------------------------------------------
-!
+! register the fields
+do n = 1, instances
 
-!
-!       register the fields
-!
-
-do n = 1, instances  !{
-
-  if (cfc(n)%name(1:1) .eq. '_') then  !{
+  if (cfc(n)%name(1:1) .eq. '_') then
     suffix = ' '
     long_suffix = ' '
-  else  !}{
+  else
     suffix = '_' // cfc(n)%name
     long_suffix = ' (' // trim(cfc(n)%name) // ')'
-  endif  !}
+  endif
 
   cfc(n)%id_sfc_flux_cfc_11 = register_diag_field(trim(diag_name),                      &
        'sfc_flux_cfc_11' // trim(suffix), grid_tracer_axes(1:2),                        &
@@ -1949,40 +1277,35 @@ do n = 1, instances  !{
        model_time,                                                      &
        'Solubility CFC-12' // trim(long_suffix), 'mol m^-3 atm^-1',     &
        missing_value = -1.0e+10)
+enddo
 
-enddo  !} n
-
-!
 !       integrate the total concentrations of some tracers
 !       for the start of the run
-!
 
-!
 !       Use taup1 time index for the start of a run, and taup1 time
 !       index for the end of a run so that we are integrating the
 !       same time level and should therefore get identical results
 !
-
 write (stdoutunit,*) trim(note_header),                           &
      'Global integrals at start of run'
 
-do n = 1, instances  !{
+do n = 1, instances
 
   total_cfc_11 = 0.0
   total_cfc_12 = 0.0
 
-  do k = 1,nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1,nk
+    do j = jsc, jec
+      do i = isc, iec
         total_cfc_11 = total_cfc_11 +                           &
              t_prog(cfc(n)%ind_cfc_11)%field(i,j,k,taup1) *     &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
         total_cfc_12 = total_cfc_12 +                           &
              t_prog(cfc(n)%ind_cfc_12)%field(i,j,k,taup1) *     &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
   call mpp_sum(total_cfc_11)
   call mpp_sum(total_cfc_12)
@@ -1995,13 +1318,7 @@ do n = 1, instances  !{
        '(/'' Total CFC-12  = '',es19.12,'' Gmol'')')    &
        total_cfc_12 * 1.0e-09
 
-enddo  !} n
-
-!
-!-----------------------------------------------------------------------
-!     give info
-!-----------------------------------------------------------------------
-!
+enddo
 
 write(stdoutunit,*)
 write(stdoutunit,*) trim(note_header), ' Tracer runs initialized'
@@ -2009,8 +1326,8 @@ write(stdoutunit,*)
 
 return
 
-end subroutine  ocmip2_cfc_start  !}
+end subroutine  ocmip2_cfc_start
 ! </SUBROUTINE> NAME="ocmip2_cfc_start"
 
 
-end module  ocmip2_cfc_mod  !}
+end module  ocmip2_cfc_mod
