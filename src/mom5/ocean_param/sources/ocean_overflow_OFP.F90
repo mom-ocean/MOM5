@@ -2838,8 +2838,8 @@ subroutine watermass_diag(Time, Dens, T_prog, index_temp, index_salt, wrk1v)
      enddo
   enddo
 
-  call diagnose_3d(Time, Grd, id_neut_rho_overofp,wrk1(:,:,:))
-  call diagnose_3d(Time, Grd, id_wdian_rho_overofp, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_neut_rho_overofp,wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_rho_overofp, wrk3(:,:,:))
   call diagnose_3d_rho(Time, Dens, id_neut_rho_overofp_on_nrho, wrk2)
   call diagnose_3d_rho(Time, Dens, id_wdian_rho_overofp_on_nrho, wrk3)
   call diagnose_3d_rho(Time, Dens, id_tform_rho_overofp_on_nrho, wrk4)
@@ -2863,8 +2863,8 @@ subroutine watermass_diag(Time, Dens, T_prog, index_temp, index_salt, wrk1v)
      enddo
   enddo
 
-  call diagnose_3d(Time, Grd, id_neut_temp_overofp,wrk1(:,:,:))
-  call diagnose_3d(Time, Grd, id_wdian_temp_overofp, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_neut_temp_overofp,wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_temp_overofp, wrk3(:,:,:))
   call diagnose_3d_rho(Time, Dens, id_neut_temp_overofp_on_nrho, wrk2)
   call diagnose_3d_rho(Time, Dens, id_wdian_temp_overofp_on_nrho, wrk3)
   call diagnose_3d_rho(Time, Dens, id_tform_temp_overofp_on_nrho, wrk4)
@@ -2887,8 +2887,8 @@ subroutine watermass_diag(Time, Dens, T_prog, index_temp, index_salt, wrk1v)
      enddo
   enddo
 
-  call diagnose_3d(Time, Grd, id_neut_salt_overofp,wrk1(:,:,:))
-  call diagnose_3d(Time, Grd, id_wdian_salt_overofp, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_neut_salt_overofp,wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_salt_overofp, wrk3(:,:,:))
   call diagnose_3d_rho(Time, Dens, id_neut_salt_overofp_on_nrho, wrk2)
   call diagnose_3d_rho(Time, Dens, id_wdian_salt_overofp_on_nrho, wrk3)
   call diagnose_3d_rho(Time, Dens, id_tform_salt_overofp_on_nrho, wrk4)
