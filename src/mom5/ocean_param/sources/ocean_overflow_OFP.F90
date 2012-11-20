@@ -2847,12 +2847,12 @@ subroutine watermass_diag(Time, Dens, T_prog, index_temp, index_salt, wrk1v)
   enddo
 
   if(id_neut_rho_overofp > 0) then 
-      used = send_data (id_neut_rho_overofp,wrk1(:,:,:), Time%model_time,&
+      used = send_data (id_neut_rho_overofp,wrk2(:,:,:), Time%model_time,&
            rmask=Grd%tmask(:,:,:),                                       &
            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
   endif
   if (id_wdian_rho_overofp > 0) then 
-      used = send_data (id_wdian_rho_overofp, wrk2(:,:,:), &
+      used = send_data (id_wdian_rho_overofp, wrk3(:,:,:), &
            Time%model_time,rmask=Grd%tmask(:,:,:),         &
            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
   endif
@@ -2899,12 +2899,12 @@ subroutine watermass_diag(Time, Dens, T_prog, index_temp, index_salt, wrk1v)
   enddo
 
   if(id_neut_temp_overofp > 0) then 
-      used = send_data (id_neut_temp_overofp,wrk1(:,:,:), Time%model_time,&
+      used = send_data (id_neut_temp_overofp,wrk2(:,:,:), Time%model_time,&
            rmask=Grd%tmask(:,:,:),                                        &
            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
   endif
   if (id_wdian_temp_overofp > 0) then 
-      used = send_data (id_wdian_temp_overofp, wrk2(:,:,:), &
+      used = send_data (id_wdian_temp_overofp, wrk3(:,:,:), &
            Time%model_time,rmask=Grd%tmask(:,:,:),          &
            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
   endif
@@ -2950,12 +2950,12 @@ subroutine watermass_diag(Time, Dens, T_prog, index_temp, index_salt, wrk1v)
   enddo
 
   if(id_neut_salt_overofp > 0) then 
-      used = send_data (id_neut_salt_overofp,wrk1(:,:,:), Time%model_time,&
+      used = send_data (id_neut_salt_overofp,wrk2(:,:,:), Time%model_time,&
            rmask=Grd%tmask(:,:,:),                                        &
            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
   endif
   if (id_wdian_salt_overofp > 0) then 
-      used = send_data (id_wdian_salt_overofp, wrk2(:,:,:), &
+      used = send_data (id_wdian_salt_overofp, wrk3(:,:,:), &
            Time%model_time,rmask=Grd%tmask(:,:,:),          &
            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
   endif

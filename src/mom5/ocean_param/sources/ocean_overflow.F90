@@ -1128,12 +1128,12 @@ subroutine watermass_diag(Time, Dens, wrk1_v)
   enddo
 
   if(id_neut_rho_overfl > 0) then 
-      used = send_data (id_neut_rho_overfl,wrk1(:,:,:), Time%model_time,&
+      used = send_data (id_neut_rho_overfl,wrk2(:,:,:), Time%model_time,&
              rmask=Grd%tmask(:,:,:),                                    &
              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
   endif
   if (id_wdian_rho_overfl > 0) then 
-      used = send_data (id_wdian_rho_overfl, wrk2(:,:,:),&
+      used = send_data (id_wdian_rho_overfl, wrk3(:,:,:),&
            Time%model_time,rmask=Grd%tmask(:,:,:),       &
            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
   endif
@@ -1179,12 +1179,12 @@ subroutine watermass_diag(Time, Dens, wrk1_v)
   enddo
 
   if(id_neut_temp_overfl > 0) then 
-      used = send_data (id_neut_temp_overfl,wrk1(:,:,:), Time%model_time,&
+      used = send_data (id_neut_temp_overfl,wrk2(:,:,:), Time%model_time,&
              rmask=Grd%tmask(:,:,:),                                     &
              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
   endif
   if (id_wdian_temp_overfl > 0) then 
-      used = send_data (id_wdian_temp_overfl, wrk2(:,:,:),&
+      used = send_data (id_wdian_temp_overfl, wrk3(:,:,:),&
            Time%model_time,rmask=Grd%tmask(:,:,:),        &
            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
   endif
@@ -1229,12 +1229,12 @@ subroutine watermass_diag(Time, Dens, wrk1_v)
   enddo
 
   if(id_neut_salt_overfl > 0) then 
-      used = send_data (id_neut_salt_overfl,wrk1(:,:,:), Time%model_time,&
+      used = send_data (id_neut_salt_overfl,wrk2(:,:,:), Time%model_time,&
              rmask=Grd%tmask(:,:,:),                                     &
              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
   endif
   if (id_wdian_salt_overfl > 0) then 
-      used = send_data (id_wdian_salt_overfl, wrk2(:,:,:),&
+      used = send_data (id_wdian_salt_overfl, wrk3(:,:,:),&
            Time%model_time,rmask=Grd%tmask(:,:,:),        &
            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
   endif
