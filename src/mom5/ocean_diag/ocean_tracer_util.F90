@@ -38,7 +38,7 @@ module ocean_tracer_util_mod
 use constants_mod,        only: epsln
 use fms_mod,              only: open_namelist_file, check_nml_error, close_file
 use mpp_mod,              only: input_nml_file, stdout, stdlog, FATAL
-use mpp_mod,              only: mpp_error, mpp_chksum, mpp_pe, mpp_min, mpp_max
+use mpp_mod,              only: mpp_error, mpp_pe, mpp_min, mpp_max
 use platform_mod,         only: i8_kind
   
 use ocean_domains_mod,    only: get_local_indices
@@ -543,7 +543,6 @@ subroutine tracer_prog_chksum(Time, Tracer, index, chksum)
   type(ocean_prog_tracer_type), intent(in)  :: Tracer
   integer,                      intent(in)  :: index
   integer(i8_kind), optional, intent(inout) :: chksum
-  integer(i8_kind)                          :: chk_sum
   
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -555,14 +554,12 @@ subroutine tracer_prog_chksum(Time, Tracer, index, chksum)
 
   write(stdoutunit,*) ' '
   write(stdoutunit,*) '=== Prognostic tracer checksum follows ==='
-  write(stdoutunit,*) 'Tracer name = ', Tracer%name
-
   call write_timestamp(Time%model_time)
-
-  chk_sum = mpp_chksum(Tracer%field(COMP,:,index)*Grd%tmask(COMP,:))
-  write(stdoutunit,*) ' chksum = ',  chk_sum
-
-  if (PRESENT(chksum)) chksum = chk_sum
+  if (PRESENT(chksum)) then
+     call write_chksum_3d(Tracer%name, Tracer%field(COMP,:,index)*Grd%tmask(COMP,:), chksum)
+  else
+     call write_chksum_3d(Tracer%name, Tracer%field(COMP,:,index)*Grd%tmask(COMP,:))
+  endif
 
 end subroutine tracer_prog_chksum
 ! </SUBROUTINE>  NAME="tracer_prog_chksum"
@@ -579,7 +576,6 @@ subroutine tracer_diag_chksum(Time, Tracer, chksum)
   type(ocean_time_type),        intent(in)    :: Time
   type(ocean_diag_tracer_type), intent(in)    :: Tracer
   integer(i8_kind), optional,   intent(inout) :: chksum
-  integer(i8_kind)                            :: chk_sum
   
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -590,14 +586,12 @@ subroutine tracer_diag_chksum(Time, Tracer, chksum)
   endif 
 
   write(stdoutunit,*) '=== Diagnostic tracer checksum follows ==='
-  write(stdoutunit,*) 'Tracer name = ', Tracer%name
-
   call write_timestamp(Time%model_time)
-
-  chk_sum = mpp_chksum(Tracer%field(COMP,:)*Grd%tmask(COMP,:))
-  write(stdoutunit,*) 'Tracer chksum = ',  chk_sum
-
-  if (PRESENT(chksum)) chksum = chk_sum
+  if (PRESENT(chksum)) then
+     call write_chksum_3d(Tracer%name, Tracer%field(COMP,:)*Grd%tmask(COMP,:), chksum)
+  else
+     call write_chksum_3d(Tracer%name, Tracer%field(COMP,:)*Grd%tmask(COMP,:))
+  endif
 
 end subroutine tracer_diag_chksum
 ! </SUBROUTINE>  NAME="tracer_diag_chksum"

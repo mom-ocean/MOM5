@@ -20,6 +20,7 @@ module ocean_util_mod
 
 #define COMP isc:iec,jsc:jec
 
+use platform_mod,        only: i8_kind
 use constants_mod,       only: epsln
 use diag_manager_mod,    only: send_data, register_diag_field 
 use mpp_domains_mod,     only: mpp_update_domains
@@ -625,15 +626,19 @@ end subroutine write_line
 ! Write a 3d checksum.
 ! </DESCRIPTION>
 !
-subroutine write_chksum_3d(name, data)
+subroutine write_chksum_3d(name, data, chksum)
   character(len=*), intent(in) :: name
-  real, dimension(isc:iec,jsc:jec,nk) :: data
+  real, dimension(isc:iec,jsc:jec,nk), intent(in) :: data
+  integer(i8_kind), optional, intent(inout) :: chksum
+  integer(i8_kind)                          :: chk_sum
+
   integer :: stdoutunit
   character(len=40) :: c
   c = '[chksum] '//name
-
   stdoutunit=stdout()
-  write(stdoutunit, '(a40,i30)') c, mpp_chksum(data(isc:iec,jsc:jec,:nk))
+  chk_sum = mpp_chksum(data(isc:iec,jsc:jec,:nk))
+  write(stdoutunit, '(a40,i30)') c, chk_sum
+  if (present(chksum)) chksum = chk_sum
 
 end subroutine write_chksum_3d
 ! </SUBROUTINE> NAME="write_chksum_3d">
