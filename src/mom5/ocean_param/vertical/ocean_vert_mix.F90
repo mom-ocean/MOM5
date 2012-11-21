@@ -3368,8 +3368,8 @@ subroutine vert_friction_bgrid (Time, Thickness, Velocity, visc_cbu, energy_anal
          enddo
       enddo
 
-      call diagnose_3d_u(Time, Grd, id_vfrict_expl_u, wrk1_v(isc:iec,jsc:jec,:,1))
-      call diagnose_3d_u(Time, Grd, id_vfrict_expl_v, wrk1_v(isc:iec,jsc:jec,:,2))
+      call diagnose_3d_u(Time, Grd, id_vfrict_expl_u, wrk1_v(:,:,:,1))
+      call diagnose_3d_u(Time, Grd, id_vfrict_expl_v, wrk1_v(:,:,:,2))
 
      if (id_visc_cbu > 0 .and. aidif /= 1.0) then
         call diagnose_3d_u(Time, Grd, id_visc_cbu, visc_cbu(:,:,:))
