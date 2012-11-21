@@ -1,4 +1,5 @@
 module ocean_submesoscale_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S. M. Griffies 
 !</CONTACT>
@@ -228,7 +229,7 @@ use fms_mod,           only: write_version_number, open_namelist_file, close_fil
 use fms_mod,           only: stdout, stdlog, read_data, NOTE, FATAL, WARNING
 use mpp_domains_mod,   only: mpp_update_domains, XUPDATE, YUPDATE, CGRID_NE
 use mpp_domains_mod,   only: mpp_global_sum, NON_BITWISE_EXACT_SUM
-use mpp_mod,           only: input_nml_file, mpp_error, mpp_chksum, mpp_max, mpp_pe
+use mpp_mod,           only: input_nml_file, mpp_error, mpp_max, mpp_pe
 use time_manager_mod,  only: time_type, increment_time
 
 use ocean_domains_mod,    only: get_local_indices, set_ocean_domain
@@ -239,7 +240,7 @@ use ocean_tracer_diag_mod,only: calc_mixed_layer_depth, diagnose_eta_tend_3dflux
 use ocean_types_mod,      only: tracer_2d_type, tracer_3d_0_nk_type, tracer_3d_1_nk_type
 use ocean_types_mod,      only: ocean_time_type, ocean_domain_type, ocean_grid_type, ocean_options_type
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_thickness_type, ocean_density_type
-use ocean_util_mod,       only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_sum, diagnose_3d_rho
+use ocean_util_mod,       only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_sum, diagnose_3d_rho, write_chksum_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk1_2d, wrk2_2d, wrk1_v
 
 implicit none
@@ -1749,16 +1750,10 @@ subroutine compute_psi(Time, Dens, Thickness)
       write(stdoutunit,*) ' '
       write(stdoutunit,*) 'From ocean_submeso_mod: chksums'
       call write_timestamp(Time%model_time)
-
-      wrk1(:,:,:) = 0.0
-      wrk1(isc:iec,jsc:jec,:) = psix(isc:iec,jsc:jec,:,0)*Grd%tmask(isc:iec,jsc:jec,:)
-      write(stdoutunit,*) 'chksum for psix(:,:,:,0)  = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-      wrk1(isc:iec,jsc:jec,:) = psix(isc:iec,jsc:jec,:,1)*Grd%tmask(isc:iec,jsc:jec,:)
-      write(stdoutunit,*) 'chksum for psix(:,:,:,1)  = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-      wrk1(isc:iec,jsc:jec,:) = psiy(isc:iec,jsc:jec,:,0)*Grd%tmask(isc:iec,jsc:jec,:)
-      write(stdoutunit,*) 'chksum for psiy(:,:,:,0)  = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-      wrk1(isc:iec,jsc:jec,:) = psiy(isc:iec,jsc:jec,:,1)*Grd%tmask(isc:iec,jsc:jec,:)
-      write(stdoutunit,*) 'chksum for psiy(:,:,:,1)  = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
+      call write_chksum_3d('psix(:,:,:,0)', psix(COMP,:,0)*Grd%tmask(COMP,:))
+      call write_chksum_3d('psix(:,:,:,1)', psix(COMP,:,1)*Grd%tmask(COMP,:))
+      call write_chksum_3d('psiy(:,:,:,0)', psiy(COMP,:,0)*Grd%tmask(COMP,:))
+      call write_chksum_3d('psiy(:,:,:,1)', psiy(COMP,:,1)*Grd%tmask(COMP,:))
   endif
 
 
@@ -1976,15 +1971,10 @@ subroutine compute_psi_legacy(Time, Dens, Thickness)
       write(stdoutunit,*) ' '
       write(stdoutunit,*) 'From ocean_submeso_mod: chksums'
       call write_timestamp(Time%model_time)
-
-      wrk1(isc:iec,jsc:jec,:) = psix(isc:iec,jsc:jec,:,0)*Grd%tmask(isc:iec,jsc:jec,:)
-      write(stdoutunit,*) 'chksum for psix(:,:,:,0)  = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-      wrk1(isc:iec,jsc:jec,:) = psix(isc:iec,jsc:jec,:,1)*Grd%tmask(isc:iec,jsc:jec,:)
-      write(stdoutunit,*) 'chksum for psix(:,:,:,1)  = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-      wrk1(isc:iec,jsc:jec,:) = psiy(isc:iec,jsc:jec,:,0)*Grd%tmask(isc:iec,jsc:jec,:)
-      write(stdoutunit,*) 'chksum for psiy(:,:,:,0)  = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-      wrk1(isc:iec,jsc:jec,:) = psiy(isc:iec,jsc:jec,:,1)*Grd%tmask(isc:iec,jsc:jec,:)
-      write(stdoutunit,*) 'chksum for psiy(:,:,:,1)  = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
+      call write_chksum_3d('psix(:,:,:,0)', psix(COMP,:,0)*Grd%tmask(COMP,:))
+      call write_chksum_3d('psix(:,:,:,1)', psix(COMP,:,1)*Grd%tmask(COMP,:))
+      call write_chksum_3d('psiy(:,:,:,0)', psiy(COMP,:,0)*Grd%tmask(COMP,:))
+      call write_chksum_3d('psiy(:,:,:,1)', psiy(COMP,:,1)*Grd%tmask(COMP,:))
   endif
 
 
@@ -2264,13 +2254,9 @@ subroutine compute_transport(Time, Dens, Thickness)
       write(stdoutunit,*) ' '
       write(stdoutunit,*) 'From ocean_submeso_mod: chksums for transport'
       call write_timestamp(Time%model_time)
-
-      wrk1(isc:iec,jsc:jec,:) = uhrho_et_submeso(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-      write(stdoutunit,*) 'uhrho_et_submeso = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-      wrk1(isc:iec,jsc:jec,:) = vhrho_nt_submeso(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-      write(stdoutunit,*) 'vhrho_nt_submeso = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-      wrk1(isc:iec,jsc:jec,:) = wrho_bt_submeso(isc:iec,jsc:jec,1:nk)*Grd%tmask(isc:iec,jsc:jec,:)
-      write(stdoutunit,*) 'wrho_bt_submeso  = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
+      call write_chksum_3d('uhrho_et_submeso', uhrho_et_submeso(COMP,:)*Grd%tmask(COMP,:))
+      call write_chksum_3d('vhrho_nt_submeso', vhrho_nt_submeso(COMP,:)*Grd%tmask(COMP,:))
+      call write_chksum_3d('wrho_bt_submeso', wrho_bt_submeso(COMP,1:nk)*Grd%tmask(COMP,:))
   endif
 
 end subroutine compute_transport

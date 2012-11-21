@@ -1,4 +1,5 @@
 module ocean_bihcst_friction_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Stephen M. Griffies
 !</CONTACT>
@@ -94,7 +95,7 @@ use diag_manager_mod, only: register_diag_field, register_static_field
 use fms_mod,          only: open_namelist_file, check_nml_error, write_version_number, close_file
 use fms_mod,          only: FATAL, NOTE, stdout, stdlog
 use mpp_domains_mod,  only: mpp_update_domains
-use mpp_mod,          only: input_nml_file, mpp_error, mpp_pe, mpp_max, mpp_sum, mpp_chksum
+use mpp_mod,          only: input_nml_file, mpp_error, mpp_pe, mpp_max, mpp_sum
 
 use ocean_domains_mod,    only: get_local_indices
 use ocean_obc_mod,        only: ocean_obc_enhance_visc_back
@@ -103,7 +104,7 @@ use ocean_operators_mod,  only: BDX_EU, BDY_NU, FDX_U, FDY_U, FDX_NT, FDY_ET
 use ocean_parameters_mod, only: missing_value
 use ocean_types_mod,      only: ocean_time_type, ocean_grid_type, ocean_domain_type
 use ocean_types_mod,      only: ocean_thickness_type, ocean_velocity_type, ocean_options_type
-use ocean_util_mod,       only: write_timestamp, diagnose_3d_u, diagnose_2d_u
+use ocean_util_mod,       only: write_timestamp, diagnose_3d_u, diagnose_2d_u, write_chksum_3d
 use ocean_workspace_mod,  only: wrk1_v
 
 implicit none
@@ -428,12 +429,9 @@ subroutine bihcst_friction(Time, Thickness, Velocity, bih_viscosity, energy_anal
       write(stdoutunit,*) ' ' 
       write(stdoutunit,*) 'From ocean_bihcst_friction_mod: friction chksums'
       call write_timestamp(Time%model_time)
-      write(stdoutunit,*) 'rho_dzu(tau)       = ', &
-                         mpp_chksum(Thickness%rho_dzu(isc:iec,jsc:jec,:,tau)*Grd%umask(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'bihcst friction(1) = ', &
-                         mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,1)*Grd%umask(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'bihcst friction(2) = ', &
-                         mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,2)*Grd%umask(isc:iec,jsc:jec,:))
+      call write_chksum_3d('rho_dzu(tau)', Thickness%rho_dzu(COMP,:,tau)*Grd%umask(COMP,:))
+      call write_chksum_3d('bihcst friction(1)', wrk1_v(COMP,:,1)*Grd%umask(COMP,:))
+      call write_chksum_3d('bihcst friction(2)', wrk1_v(COMP,:,2)*Grd%umask(COMP,:))
   endif 
 
 

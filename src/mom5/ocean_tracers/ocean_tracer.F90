@@ -1,4 +1,5 @@
 module ocean_tracer_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Stephen Griffies 
 !</CONTACT>
@@ -213,7 +214,7 @@ use ocean_types_mod,            only: ocean_prog_tracer_type, ocean_diag_tracer_
 use ocean_types_mod,            only: ocean_adv_vel_type, ocean_external_mode_type
 use ocean_types_mod,            only: ocean_public_type, ocean_density_type, ocean_options_type
 use ocean_types_mod,            only: ocean_lagrangian_type, ocean_velocity_type, blob_diag_type
-use ocean_util_mod,             only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_sum, diagnose_3d_rho
+use ocean_util_mod,             only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_sum, diagnose_3d_rho, write_chksum_3d
 use ocean_vert_mix_mod,         only: vert_diffuse, vert_diffuse_implicit
 use ocean_workspace_mod,        only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk6, wrk1_2d
 
@@ -2501,10 +2502,8 @@ subroutine update_ocean_tracer (Time, Dens, Adv_vel, Thickness, pme, diff_cbt, &
      if (debug_this_module) then
         write(stdoutunit, '(/,a)') 'Checksums for tracer fields (E and L systems)'
         do n=1,num_prog_tracers
-           write(stdoutunit, *) 'Combined '//trim(T_prog(n)%name)//'                 =',&
-                mpp_chksum(Grd%tmask(isc:iec,jsc:jec,:)*T_prog(n)%fieldT(isc:iec,jsc:jec,:))
-           write(stdoutunit, *) 'Sum of L system '//trim(T_prog(n)%name)//'          =',&
-                mpp_chksum(Grd%tmask(isc:iec,jsc:jec,:)*T_prog(n)%sum_blob(isc:iec,jsc:jec,:,taup1))
+           call write_chksum_3d('Combined '//trim(T_prog(n)%name), Grd%tmask(COMP,:)*T_prog(n)%fieldT(COMP,:))
+           call write_chksum_3d('Sum of L system '//trim(T_prog(n)%name), Grd%tmask(COMP,:)*T_prog(n)%sum_blob(COMP,:,taup1))
         enddo
      endif
 
@@ -2795,8 +2794,7 @@ subroutine compute_tmask_limit(Time, T_prog)
      if(debug_this_module) then 
          write(stdoutunit,*) ' ' 
          call write_timestamp(Time%model_time)
-         write(stdoutunit,*) 'tmask_limit chksum for ',trim(T_prog(n)%name),' = ',&
-              mpp_chksum(T_prog(n)%tmask_limit(isc:iec,jsc:jec,:))
+         call write_chksum_3d('tmask_limit', T_prog(n)%tmask_limit(COMP,:))
      endif
 
      call diagnose_3d(Time, Grd, id_tmask_limit(n), T_prog(n)%tmask_limit(:,:,:))

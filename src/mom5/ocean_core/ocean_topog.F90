@@ -1,4 +1,5 @@
 module ocean_topog_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Matt Harrison 
 !</CONTACT>
@@ -48,13 +49,14 @@ module ocean_topog_mod
 use fms_mod,         only: open_namelist_file, close_file, check_nml_error
 use fms_mod,         only: field_exist, read_data, file_exist, write_data
 use mpp_domains_mod, only: mpp_update_domains
-use mpp_mod,         only: input_nml_file, mpp_error, mpp_min, mpp_pe, mpp_chksum
+use mpp_mod,         only: input_nml_file, mpp_error, mpp_min, mpp_pe
 use mpp_mod,         only: FATAL, WARNING, NOTE, stdout, stdlog
 use axis_utils_mod,  only: nearest_index
 
 use ocean_domains_mod,    only: get_local_indices, get_domain_offsets
 use ocean_parameters_mod, only: TERRAIN_FOLLOWING, grav
 use ocean_types_mod,      only: ocean_grid_type, ocean_domain_type
+use ocean_util_mod,       only: write_chksum_2d, write_chksum_2d_int
 
 implicit none
 private
@@ -369,11 +371,11 @@ subroutine ocean_topog_init (Domain, Grid, grid_file, vert_coordinate_type)
   endif
 
   write(stdoutunit,*) 'Topography checksums' 
-  write(stdoutunit,*) 'from ocean_topop_init: ht  chksum = ',mpp_chksum(Grid%ht(isc:iec,jsc:jec))
-  write(stdoutunit,*) 'from ocean_topop_init: hu  chksum = ',mpp_chksum(Grid%hu(isc:iec,jsc:jec))
-  write(stdoutunit,*) 'from ocean_topop_init: htr chksum = ',mpp_chksum(Grid%htr(isc:iec,jsc:jec))
-  write(stdoutunit,*) 'from ocean_topop_init: kmu chksum = ',mpp_chksum(Grid%kmu(isc:iec,jsc:jec))
-  write(stdoutunit,*) 'from ocean_topop_init: kmt chksum = ',mpp_chksum(Grid%kmt(isc:iec,jsc:jec))
+  call write_chksum_2d('ht', Grid%ht(COMP))
+  call write_chksum_2d('hu', Grid%hu(COMP))
+  call write_chksum_2d('htr', Grid%htr(COMP))
+  call write_chksum_2d_int('kmu', Grid%kmu(COMP))
+  call write_chksum_2d_int('kmt', Grid%kmt(COMP))
   write(stdoutunit,*) ' ' 
   
 

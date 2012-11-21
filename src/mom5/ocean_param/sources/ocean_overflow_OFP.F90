@@ -106,7 +106,7 @@ use mpp_domains_mod,     only: mpp_update_domains, CGRID_NE
 use mpp_domains_mod,     only: mpp_global_sum, BITWISE_EXACT_SUM, NON_BITWISE_EXACT_SUM
 use mpp_domains_mod,     only: mpp_define_domains
 use mpp_domains_mod,     only: cyclic_global_domain, global_data_domain 
-use mpp_mod,             only: mpp_error, mpp_max, mpp_sum, mpp_chksum, mpp_pe, mpp_root_pe, mpp_broadcast
+use mpp_mod,             only: mpp_error, mpp_max, mpp_sum, mpp_pe, mpp_root_pe, mpp_broadcast
 use mpp_mod,             only: input_nml_file
 use mpp_mod,             only: mpp_clock_id, mpp_clock_begin, mpp_clock_end
 use mpp_mod,             only: CLOCK_COMPONENT, CLOCK_SUBCOMPONENT, CLOCK_MODULE, CLOCK_ROUTINE

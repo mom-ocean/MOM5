@@ -1,4 +1,5 @@
 module ocean_velocity_advect_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies 
 !</CONTACT>
@@ -71,7 +72,7 @@ module ocean_velocity_advect_mod
 use diag_manager_mod, only: register_diag_field
 use fms_mod,          only: mpp_error, FATAL, NOTE, stdout, stdlog, write_version_number
 use fms_mod,          only: read_data, open_namelist_file, check_nml_error, close_file
-use mpp_mod,          only: input_nml_file, mpp_chksum
+use mpp_mod,          only: input_nml_file
 
 use ocean_domains_mod,    only: get_local_indices
 use ocean_obc_mod,        only: ocean_obc_update_boundary, ocean_obc_zero_boundary
@@ -83,7 +84,7 @@ use ocean_types_mod,      only: ocean_grid_type, ocean_domain_type
 use ocean_types_mod,      only: ocean_velocity_type, ocean_adv_vel_type
 use ocean_types_mod,      only: ocean_time_type, ocean_thickness_type
 use ocean_workspace_mod,  only: wrk1_v, wrk1_2d, wrk2_2d   
-use ocean_util_mod,       only: write_timestamp, diagnose_2d_u, diagnose_3d_u, diagnose_3d_en
+use ocean_util_mod,       only: write_timestamp, diagnose_2d_u, diagnose_3d_u, diagnose_3d_en, write_chksum_3d
 
 implicit none
 
@@ -463,8 +464,8 @@ subroutine horz_advection_centered(Time, Thickness, Adv_vel, Velocity, energy_an
           write(stdoutunit,*) ' '
           write(stdoutunit,*) 'From ocean_velocity_advect_mod: horz_advection_centered chksums'
           call write_timestamp(Time%model_time)
-          write(stdoutunit,*) 'horz_advection_of_velocity(1) = ', mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,1))
-          write(stdoutunit,*) 'horz_advection_of_velocity(2) = ', mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,2))
+          call write_chksum_3d('horz_advection_of_velocity(1)', wrk1_v(COMP,:,1))
+          call write_chksum_3d('horz_advection_of_velocity(2)', wrk1_v(COMP,:,2))
       endif
 
   endif
@@ -589,8 +590,8 @@ subroutine horz_advection_upwind(Time, Thickness, Adv_vel, Velocity, energy_anal
           write(stdoutunit,*) ' '
           write(stdoutunit,*) 'From ocean_velocity_advect_mod: horz_advection_upwind chksums'
           call write_timestamp(Time%model_time)
-          write(stdoutunit,*) 'horz_advection_of_velocity(1) = ', mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,1))
-          write(stdoutunit,*) 'horz_advection_of_velocity(2) = ', mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,2))
+          call write_chksum_3d('horz_advection_of_velocity(1)', wrk1_v(COMP,:,1))
+          call write_chksum_3d('horz_advection_of_velocity(2)', wrk1_v(COMP,:,2))
       endif
 
   endif
@@ -833,8 +834,8 @@ subroutine vert_advection_centered(Time, Adv_vel, Velocity, pme, pme_u, river, r
           write(stdoutunit,*) ' '
           write(stdoutunit,*) 'From ocean_velocity_advect_mod: vert_advection_centered chksums'
           call write_timestamp(Time%model_time)
-          write(stdoutunit,*) 'vert_advection_of_velocity(1) = ',mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,1))
-          write(stdoutunit,*) 'vert_advection_of_velocity(2) = ',mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,2))
+          call write_chksum_3d('vert_advection_of_velocity(1)', wrk1_v(COMP,:,1))
+          call write_chksum_3d('vert_advection_of_velocity(2)', wrk1_v(COMP,:,2))
       endif
 
   endif
@@ -946,8 +947,8 @@ subroutine vert_advection_upwind(Time, Adv_vel, Velocity, pme_u, river_u, &
           write(stdoutunit,*) ' '
           write(stdoutunit,*) 'From ocean_velocity_advect_mod: vert_advection_upwind chksums'
           call write_timestamp(Time%model_time)
-          write(stdoutunit,*) 'vert_advection_of_velocity(1) = ',mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,1))
-          write(stdoutunit,*) 'vert_advection_of_velocity(2) = ',mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,2))
+          call write_chksum_3d('vert_advection_of_velocity(1)', wrk1_v(COMP,:,1))
+          call write_chksum_3d('vert_advection_of_velocity(2)', wrk1_v(COMP,:,2))
       endif
 
   endif

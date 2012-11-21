@@ -1,4 +1,5 @@
 module ocean_bihcgrid_friction_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S. M. Griffies 
 !</CONTACT>
@@ -168,7 +169,7 @@ use fms_mod,          only: read_data
 use mpp_domains_mod,  only: mpp_update_domains, CGRID_NE
 use mpp_domains_mod,  only: mpp_start_update_domains, mpp_complete_update_domains
 use mpp_domains_mod,  only: mpp_global_min, mpp_global_max, mpp_global_field
-use mpp_mod,          only: input_nml_file, mpp_sum, mpp_pe, mpp_error, mpp_max, mpp_chksum 
+use mpp_mod,          only: input_nml_file, mpp_sum, mpp_pe, mpp_error, mpp_max
 use mpp_mod,          only: FATAL, NOTE, stdout, stdlog
 
 use ocean_domains_mod,    only: get_local_indices
@@ -181,7 +182,7 @@ use ocean_types_mod,      only: ocean_time_type, ocean_grid_type
 use ocean_types_mod,      only: ocean_domain_type, ocean_adv_vel_type 
 use ocean_types_mod,      only: ocean_thickness_type, ocean_velocity_type
 use ocean_types_mod,      only: ocean_options_type
-use ocean_util_mod,       only: write_timestamp, diagnose_3d, diagnose_3d_u, diagnose_2d
+use ocean_util_mod,       only: write_timestamp, diagnose_3d, diagnose_3d_u, diagnose_2d, write_chksum_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4
 use ocean_workspace_mod,  only: wrk1_2d, wrk1_v2d  
 use ocean_workspace_mod,  only: wrk1_v, wrk2_v, wrk3_v
@@ -1290,10 +1291,8 @@ subroutine bihcgrid_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, 
       write(stdoutunit,*) ' ' 
       write(stdoutunit,*) 'From ocean_bihcgrid_friction_mod: friction chksums'
       call write_timestamp(Time%model_time)
-      write(stdoutunit,*) 'bihcgrid friction(1) = ', &
-         mpp_chksum(wrk3_v(isc:iec,jsc:jec,:,1)*Grd%tmask(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'bihcgrid friction(2) = ', &
-         mpp_chksum(wrk3_v(isc:iec,jsc:jec,:,2)*Grd%tmask(isc:iec,jsc:jec,:))
+      call write_chksum_3d('bihcgrid friction(1)', wrk3_v(COMP,:,1)*Grd%tmask(COMP,:))
+      call write_chksum_3d('bihcgrid friction(2)', wrk3_v(COMP,:,2)*Grd%tmask(COMP,:))
    endif
 
 

@@ -1,4 +1,5 @@
 module ocean_lap_friction_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Stephen M. Griffies
 !</CONTACT>
@@ -48,7 +49,7 @@ use fms_io_mod,      only: register_restart_field, save_restart, restore_state
 use fms_io_mod,      only: restart_file_type
 use mpp_domains_mod, only: mpp_update_domains
 use mpp_mod,         only: input_nml_file, mpp_clock_id, mpp_clock_begin, mpp_clock_end, CLOCK_MODULE
-use mpp_mod,         only: mpp_error, mpp_chksum
+use mpp_mod,         only: mpp_error
 
 use ocean_domains_mod,           only: get_local_indices
 use ocean_lapcst_friction_mod,   only: ocean_lapcst_friction_init, lapcst_friction
@@ -63,7 +64,7 @@ use ocean_types_mod,             only: ocean_time_type, ocean_grid_type
 use ocean_types_mod,             only: ocean_domain_type, ocean_adv_vel_type
 use ocean_types_mod,             only: ocean_thickness_type, ocean_velocity_type
 use ocean_types_mod,             only: ocean_options_type, ocean_density_type 
-use ocean_util_mod,              only: write_timestamp, diagnose_2d_u
+use ocean_util_mod,              only: write_timestamp, diagnose_2d_u, write_chksum_2d
 
 implicit none
 
@@ -264,8 +265,7 @@ ierr = check_nml_error(io_status,'ocean_lap_friction_nml')
           call restore_state(Lap_restart)
           call mpp_update_domains(lap_viscosity,Dom%domain2d)
           write (stdoutunit,'(1x,a)') 'lap_viscosity being read from restart.'
-          write (stdoutunit, *) 'checksum start lap_viscosity = ', &
-               mpp_chksum(lap_viscosity(isc:iec,jsc:jec)*Grd%umask(isc:iec,jsc:jec,1))
+          call write_chksum_2d('start lap_viscosity', lap_viscosity(COMP)*Grd%umask(COMP,1))
 
           lap_visc_ceu(:,:) = BAY(lap_viscosity(:,:))
           lap_visc_cnu(:,:) = BAX(lap_viscosity(:,:))
@@ -502,9 +502,7 @@ subroutine ocean_lap_friction_end(Time)
   write(stdoutunit,*)' ' 
   write(stdoutunit,*) 'From ocean_lap_friction_end: ending chksum'
   call write_timestamp(Time%model_time)
-
-   write (stdoutunit, *) &
-  'checksum ending lap_viscosity', mpp_chksum(lap_viscosity(isc:iec,jsc:jec)*Grd%umask(isc:iec,jsc:jec,1))
+  call write_chksum_2d('ending lap_viscosity', lap_viscosity(COMP)*Grd%umask(COMP,1))
 
 
 end subroutine ocean_lap_friction_end

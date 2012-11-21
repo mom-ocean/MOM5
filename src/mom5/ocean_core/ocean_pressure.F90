@@ -1,4 +1,5 @@
 module ocean_pressure_mod
+#define COMP isc:iec,jsc:jec
 !  
 ! <CONTACT EMAIL="Stephen.Griffies@noaa.gov">
 ! S.M. Griffies 
@@ -63,7 +64,7 @@ use constants_mod,    only: c2dbars, epsln
 use diag_manager_mod, only: register_diag_field, send_data
 use fms_mod,          only: open_namelist_file, check_nml_error, close_file, write_version_number
 use mpp_io_mod,       only: mpp_open, mpp_close, MPP_RDONLY, MPP_ASCII
-use mpp_mod,          only: input_nml_file, mpp_error, FATAL, stdout, stdlog, mpp_chksum
+use mpp_mod,          only: input_nml_file, mpp_error, FATAL, stdout, stdlog
 use mpp_domains_mod,  only: mpp_update_domains
 
 use ocean_domains_mod,    only: get_local_indices
@@ -78,7 +79,7 @@ use ocean_types_mod,      only: ocean_domain_type, ocean_grid_type
 use ocean_types_mod,      only: ocean_time_type, ocean_velocity_type
 use ocean_types_mod,      only: ocean_thickness_type, ocean_density_type
 use ocean_types_mod,      only: ocean_lagrangian_type
-use ocean_util_mod,       only: write_timestamp, diagnose_3d, diagnose_3d_u
+use ocean_util_mod,       only: write_timestamp, diagnose_3d, diagnose_3d_u, write_chksum_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk1_zw, wrk2_zw, wrk1_v, wrk2_v, wrk1_2d
 use ocean_workspace_mod,  only: wrk3, wrk4
 use ocean_obc_mod,        only: store_ocean_obc_pressure_grad
@@ -428,12 +429,9 @@ subroutine pressure_force(Time, Thickness, Dens, Velocity, L_system, rho)
       write(stdoutunit,*)' '
       write(stdoutunit,*) 'From ocean_pressure_mod: pressure chksums'
       call write_timestamp(Time%model_time)
-      write(stdoutunit,*) 'rho_dzu(tau)   = ', &
-       mpp_chksum(Thickness%rho_dzu(isc:iec,jsc:jec,:,tau)*Grd%umask(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'press_force(1) = ', &
-       mpp_chksum(Velocity%press_force(isc:iec,jsc:jec,:,1)*Grd%umask(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'press_force(2) = ', &
-       mpp_chksum(Velocity%press_force(isc:iec,jsc:jec,:,2)*Grd%umask(isc:iec,jsc:jec,:))
+      call write_chksum_3d('rho_dzu(tau)', Thickness%rho_dzu(COMP,:,tau)*Grd%umask(COMP,:))
+      call write_chksum_3d('press_force(1)', Velocity%press_force(COMP,:,1)*Grd%umask(COMP,:))
+      call write_chksum_3d('press_force(2)', Velocity%press_force(COMP,:,2)*Grd%umask(COMP,:))
   endif 
 
 

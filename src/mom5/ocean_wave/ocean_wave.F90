@@ -1,4 +1,5 @@
 module ocean_wave_mod
+#define COMP isc:iec,jsc:jec
 !
 ! <CONTACT EMAIL="Martin.Schmidt@io-warnemuende.de"> M. Schmidt
 ! </CONTACT>
@@ -49,7 +50,7 @@ use mpp_mod,                only: mpp_clock_id, mpp_clock_begin, mpp_clock_end
 use fms_io_mod,             only: reset_field_pointer, restart_file_type
 use fms_io_mod,             only: register_restart_field, save_restart, restore_state
 use mpp_mod,                only: input_nml_file, mpp_error, stdout, stdlog
-use mpp_mod,                only: mpp_chksum, mpp_max, mpp_min, mpp_pe
+use mpp_mod,                only: mpp_max, mpp_min, mpp_pe
 use mpp_mod,                only: CLOCK_COMPONENT, CLOCK_SUBCOMPONENT, CLOCK_MODULE, CLOCK_ROUTINE
 use ocean_domains_mod,      only: get_local_indices, get_global_indices
 use mpp_domains_mod,        only: mpp_update_domains
@@ -57,7 +58,7 @@ use ocean_types_mod,        only: ocean_domain_type, ocean_grid_type, ocean_opti
 use ocean_types_mod,        only: ocean_time_type, ocean_time_steps_type
 use ocean_parameters_mod,   only: missing_value
 use ocean_workspace_mod,    only: wrk1_2d, wrk2_2d, wrk3_2d, wrk4_2d
-use ocean_util_mod,         only: write_timestamp, diagnose_2d
+use ocean_util_mod,         only: write_timestamp, diagnose_2d, write_chksum_2d
 use ocean_types_mod,        only: ice_ocean_boundary_type
 use wave_types_mod,         only: ocean_wave_type
 use data_override_mod,      only: data_override
@@ -824,10 +825,10 @@ subroutine wave_chksum(Waves, index)
   type(ocean_wave_type),  intent(inout) :: Waves
   integer,                intent(in)    :: index
 
-  write(stdoutunit,*) 'ocean_wave chksum for xmom   = ',mpp_chksum(Waves%xmom(isc:iec,jsc:jec,index))
-  write(stdoutunit,*) 'ocean_wave chksum for ymom   = ',mpp_chksum(Waves%ymom(isc:iec,jsc:jec,index))
-  write(stdoutunit,*) 'ocean_wave chksum for wave_k = ',mpp_chksum(Waves%wave_k(isc:iec,jsc:jec))
-  write(stdoutunit,*) 'ocean_wave chksum for wave_p = ',mpp_chksum(Waves%wave_p(isc:iec,jsc:jec))
+  call write_chksum_2d('xmom', Waves%xmom(COMP,index))
+  call write_chksum_2d('ymom', Waves%ymom(COMP,index))
+  call write_chksum_2d('wave_k', Waves%wave_k(COMP))
+  call write_chksum_2d('wave_p', Waves%wave_p(COMP))
 
 end subroutine wave_chksum 
 ! </SUBROUTINE> NAME="wave_chksum"

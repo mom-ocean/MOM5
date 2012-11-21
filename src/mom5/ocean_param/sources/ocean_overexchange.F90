@@ -1,4 +1,5 @@
 module ocean_overexchange_mod
+#define COMP isc:iec,jsc:jec
 !  
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies 
 !</CONTACT>
@@ -102,7 +103,7 @@ use fms_mod,             only: write_version_number, error_mesg, FATAL, NOTE
 use fms_mod,             only: open_namelist_file, check_nml_error, close_file, stdout, stdlog
 use mpp_domains_mod,     only: mpp_update_domains, CGRID_NE
 use mpp_domains_mod,     only: mpp_global_sum, BITWISE_EXACT_SUM, NON_BITWISE_EXACT_SUM
-use mpp_mod,             only: input_nml_file, mpp_error, mpp_chksum
+use mpp_mod,             only: input_nml_file, mpp_error
 
 use ocean_density_mod,     only: density
 use ocean_domains_mod,     only: get_local_indices, set_ocean_domain
@@ -111,6 +112,7 @@ use ocean_parameters_mod,  only: TERRAIN_FOLLOWING, PRESSURE_BASED
 use ocean_types_mod,       only: ocean_domain_type, ocean_grid_type, ocean_time_type, ocean_options_type
 use ocean_types_mod,       only: ocean_prog_tracer_type, ocean_density_type, ocean_thickness_type
 use ocean_util_mod,        only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_3d_rho
+use ocean_util_mod,        only: write_chksum_3d, write_chksum_2d, write_chksum_2d_int
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4, wrk1_v
 
 implicit none
@@ -971,17 +973,17 @@ subroutine overexchange (Time, Thickness, T_prog, Dens, index_temp, index_salt)
       write(stdoutunit,*) ' '
       write(stdoutunit,*) '==Global check sums from ocean_overexchange_mod== '
       call write_timestamp(Time%model_time)
-      write (stdoutunit, *) 'chksum for rho_ex      = ',mpp_chksum(rho_ex(isc:iec,jsc:jec,:))
-      write (stdoutunit, *) 'chksum for rho_dzt_ex  = ',mpp_chksum(rho_dzt_ex(isc:iec,jsc:jec,:))
-      write (stdoutunit, *) 'chksum for press_ex    = ',mpp_chksum(press_ex(isc:iec,jsc:jec,:))
-      write (stdoutunit, *) 'chksum for temp_ex     = ',mpp_chksum(temp_ex(isc:iec,jsc:jec,:))
-      write (stdoutunit, *) 'chksum for salt_ex     = ',mpp_chksum(salt_ex(isc:iec,jsc:jec,:))
-      write (stdoutunit, *) 'chksum for kmt_ex      = ',mpp_chksum(kmt_ex(isc:iec,jsc:jec))
+      call write_chksum_3d('rho_ex', rho_ex(COMP,:))
+      call write_chksum_3d('rho_dzt_ex', rho_dzt_ex(COMP,:))
+      call write_chksum_3d('press_ex', press_ex(COMP,:))
+      call write_chksum_3d('temp_ex', temp_ex(COMP,:))
+      call write_chksum_3d('salt_ex', salt_ex(COMP,:))
+      call write_chksum_2d_int('kmt_ex;', kmt_ex(COMP))
       do m=1,4
-         write (stdoutunit, *)    'chksum for kup_ex          = ',mpp_chksum(kup_ex(isc:iec,jsc:jec,m))
+         call write_chksum_2d_int('kup_ex', kup_ex(COMP,m))
          do n=1,overexch_npts
-            write (stdoutunit, *) 'chksum for kdw_ex          = ',mpp_chksum(kdw_ex(isc:iec,jsc:jec,n,m))
-            write (stdoutunit, *) 'chksum for overexch_flux   = ',mpp_chksum(overexch_flux(isc:iec,jsc:jec,n,m))
+            call write_chksum_2d_int('kdw_ex', kdw_ex(COMP,n,m))
+            call write_chksum_2d('overexch_flux', overexch_flux(COMP,n,m))
          enddo
       enddo
 
