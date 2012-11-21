@@ -494,6 +494,7 @@ public ocean_eta_smooth
 public ocean_pbot_smooth
 public ocean_barotropic_end
 public ocean_barotropic_restart
+public psi_compute
 
 private pred_corr_tropic_depth_bgrid
 private pred_corr_tropic_press_bgrid
@@ -508,7 +509,6 @@ private eta_smooth_diagnosed
 private eta_check 
 private barotropic_energy
 private barotropic_integrals
-private psi_compute
 private eta_terms_diagnose
 private eta_terms_diagnose_init
 private eta_truncate
