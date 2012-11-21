@@ -1,4 +1,5 @@
 module ocean_vert_gotm_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="mschmidt@io-warnemuende.de"> Martin Schmidt 
 !</CONTACT>
@@ -144,7 +145,7 @@ use fms_mod,          only: file_exist
 use fms_io_mod,       only: register_restart_field, save_restart, restore_state
 use fms_io_mod,       only: restart_file_type, reset_field_pointer
 use mpp_domains_mod,  only: mpp_update_domains, NUPDATE, EUPDATE, XUPDATE, YUPDATE
-use mpp_mod,          only: input_nml_file, mpp_error, mpp_chksum
+use mpp_mod,          only: input_nml_file, mpp_error
 
 use mtridiagonal,     only: init_tridiagonal
 use turbulence,       only: init_turbulence, do_turbulence, tke, eps, num, nuh
@@ -157,7 +158,7 @@ use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_adv_vel_type
 use ocean_types_mod,      only: ocean_density_type, ocean_velocity_type
 use ocean_types_mod,      only: ocean_time_type, ocean_time_steps_type, ocean_thickness_type
 use ocean_types_mod,      only: ocean_gotm_type, advect_gotm_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, write_chksum_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk1_v
 use ocean_obc_mod,        only: ocean_obc_mixing, ocean_obc_zero_boundary
 
@@ -527,15 +528,10 @@ ierr = check_nml_error(io_status,'ocean_vert_gotm_nml')
 
       write(stdoutunit,*) 'From ocean_vert_gotm_mod: initial chksum ==>'
       call write_timestamp(Time%model_time)
-      write (stdoutunit, *) 'checksum start field_tke ', &
-           mpp_chksum(Gotm(index_tke)%field(isc:iec,jsc:jec,:,taup1_gotm)*Grd%tmask(isc:iec,jsc:jec,:))
-      write (stdoutunit, *) 'checksum start field_diss', &
-           mpp_chksum(Gotm(index_diss)%field(isc:iec,jsc:jec,:,taup1_gotm)*Grd%tmask(isc:iec,jsc:jec,:))
-      write (stdoutunit, *) 'checksum start diff_cbt_gotm', &
-           mpp_chksum(diff_cbt_gotm(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:))
-      write (stdoutunit, *) 'checksum start visc_cbt_gotm', &
-           mpp_chksum(visc_cbt_gotm(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:))
-
+      call write_chksum_3d('start field_tke', Gotm(index_tke)%field(COMP,:,taup1_gotm)*Grd%tmask(COMP,:))
+      call write_chksum_3d('start field_diss', Gotm(index_diss)%field(COMP,:,taup1_gotm)*Grd%tmask(COMP,:))
+      call write_chksum_3d('start diff_cbt_gotm', diff_cbt_gotm(COMP,:)*Grd%tmask(COMP,:))
+      call write_chksum_3d('start visc_cbt_gotm', visc_cbt_gotm(COMP,:)*Grd%tmask(COMP,:))
   endif
 
 
@@ -919,29 +915,15 @@ subroutine vert_mix_gotm_bgrid (Time, Thickness, Velocity, T_prog, Dens, visc_cb
   enddo
 
   if(debug_this_module) then 
-
       write(stdoutunit,*)' ' 
       write(stdoutunit,*) 'From ocean_vert_gotm_mod: checksums'
       call write_timestamp(Time%model_time)
-
-      write (stdoutunit,*) 'checksum diff_cbt_gotm  = ', &
-       mpp_chksum(diff_cbt_gotm(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:))
-
-      write (stdoutunit,*) 'checksum visc_cbt_gotm  = ', &
-       mpp_chksum(visc_cbt_gotm(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:))
-
-      write (stdoutunit,*) 'checksum tke = ', &
-       mpp_chksum(Gotm(index_tke)%field(isc:iec,jsc:jec,:,tau_gotm)*Grd%tmask(isc:iec,jsc:jec,:))
-
-      write (stdoutunit,*) 'checksum diss= ', &
-       mpp_chksum(Gotm(index_diss)%field(isc:iec,jsc:jec,:,tau_gotm)*Grd%tmask(isc:iec,jsc:jec,:))
-
-      write (stdoutunit,*) 'checksum NN  = ', &
-       mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,1)*Grd%tmask(isc:iec,jsc:jec,:))
-
-      write (stdoutunit,*) 'checksum SS  = ', &
-       mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,2)*Grd%tmask(isc:iec,jsc:jec,:))
-
+      call write_chksum_3d('diff_cbt_gotm', diff_cbt_gotm(COMP,:)*Grd%tmask(COMP,:))
+      call write_chksum_3d('visc_cbt_gotm', visc_cbt_gotm(COMP,:)*Grd%tmask(COMP,:))
+      call write_chksum_3d('tke', Gotm(index_tke)%field(COMP,:,tau_gotm)*Grd%tmask(COMP,:))
+      call write_chksum_3d('diss', Gotm(index_diss)%field(COMP,:,tau_gotm)*Grd%tmask(COMP,:))
+      call write_chksum_3d('NN', wrk1_v(COMP,:,1)*Grd%tmask(COMP,:))
+      call write_chksum_3d('SS', wrk1_v(COMP,:,2)*Grd%tmask(COMP,:))
   endif
 
   ! send diagnostics
@@ -1650,23 +1632,10 @@ subroutine ocean_vert_gotm_end(Time)
   write(stdoutunit,*)' ' 
   write(stdoutunit,*) 'From ocean_vert_gotm_mod: ending tke and diss chksum ==>'
   call write_timestamp(Time%model_time)
-
-  write (stdoutunit,*)               &
-  'checksum ending field_tke  = ', &
-  mpp_chksum(Gotm(index_tke)%field(isc:iec,jsc:jec,:,taup1_gotm)*Grd%tmask(isc:iec,jsc:jec,:))
-
-  write (stdoutunit,*)               &
-  'checksum ending field_diss = ', &
-  mpp_chksum(Gotm(index_diss)%field(isc:iec,jsc:jec,:,taup1_gotm)*Grd%tmask(isc:iec,jsc:jec,:))
-
-  write (stdoutunit,*)                 &
-  'checksum ending diff_cbt_gotm= ', &
-  mpp_chksum(diff_cbt_gotm(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:))
-
-  write (stdoutunit,*)                 &
-  'checksum ending visc_cbt_gotm= ', &
-  mpp_chksum(visc_cbt_gotm(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:))
-
+  call write_chksum_3d('ending field_tke', Gotm(index_tke)%field(COMP,:,taup1_gotm)*Grd%tmask(COMP,:))
+  call write_chksum_3d('ending field_diss', Gotm(index_diss)%field(COMP,:,taup1_gotm)*Grd%tmask(COMP,:))
+  call write_chksum_3d('ending diff_cbt_gotm', diff_cbt_gotm(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('ending visc_cbt_gotm', visc_cbt_gotm(COMP,:)*Grd%tmask(COMP,:))
 
   return
 

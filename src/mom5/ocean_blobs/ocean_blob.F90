@@ -1,4 +1,5 @@
 module ocean_blob_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="m.bates@student.unsw.edu.au"> Michael L. Bates
 !</CONTACT>
@@ -129,7 +130,7 @@ use mpp_domains_mod, only: mpp_update_domains, BGRID_NE
 use mpp_domains_mod, only: mpp_get_neighbor_pe, NORTH, SOUTH, EAST, WEST
 use mpp_domains_mod, only: NORTH_EAST, NORTH_WEST, SOUTH_EAST, SOUTH_WEST
 use mpp_domains_mod, only: BITWISE_EXACT_SUM, NON_BITWISE_EXACT_SUM
-use mpp_mod,         only: mpp_pe, mpp_sum, CLOCK_ROUTINE, mpp_chksum, NULL_PE
+use mpp_mod,         only: mpp_pe, mpp_sum, CLOCK_ROUTINE, NULL_PE
 use mpp_mod,         only: mpp_clock_id, mpp_clock_begin, mpp_clock_end
 
 use ocean_blob_diag_mod,           only: blob_diag_init, blob_diag, blob_diag_end
@@ -159,7 +160,7 @@ use ocean_types_mod,               only: ocean_density_type, ocean_lagrangian_ty
 use ocean_types_mod,               only: ocean_prog_tracer_type, ocean_thickness_type
 use ocean_types_mod,               only: ocean_blob_type, blob_grid_type, ocean_adv_vel_type
 use ocean_types_mod,               only: ocean_external_mode_type, ocean_velocity_type
-use ocean_util_mod,                only: write_timestamp
+use ocean_util_mod,                only: write_timestamp, write_chksum_2d, write_chksum_3d, write_chksum_3d_int
 use ocean_workspace_mod,           only: wrk1
 
 implicit none
@@ -812,10 +813,9 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
   if (debug_this_module) then
      write(stdoutunit,'(/a)') 'From ocean_blobs_init: debug blob chksums'
      call write_timestamp(Time%model_time)
-     write(stdoutunit, *) 'Dens%rhoT                   =',mpp_chksum(Grd%tmask(isc:iec,jsc:jec,:)*Dens%rhoT(isc:iec,jsc:jec,:))
+     call write_chksum_3d('Dens%rhoT', Grd%tmask(COMP,:)*Dens%rhoT(COMP,:))
      do n=1,num_prog_tracers
-        write(stdoutunit, *) trim(T_prog(n)%name)//' fieldT                        =',&
-             mpp_chksum(Grd%tmask(isc:iec,jsc:jec,:)*T_prog(n)%fieldT(isc:iec,jsc:jec,:))
+        call write_chksum_3d(trim(T_prog(n)%name)//' fieldT', Grd%tmask(COMP,:)*T_prog(n)%fieldT(COMP,:))
      enddo
      call blob_chksum(T_prog(:), head_static_free, head_static_bott, &
           head_dynamic_free, head_dynamic_bott, blob_counter)
@@ -1655,18 +1655,18 @@ subroutine ocean_blob_cell_update(Time, Thickness, Dens, T_prog, Ext_mode, L_sys
      write(stdoutunit, *) 'Intermediate Blob Checksums (taup1) after explicit update'
      call blob_chksum(T_prog(:), head_static_free, head_static_bott, &
                       head_dynamic_free, head_dynamic_bott, blob_counter)
-     write(stdoutunit, *) 'Ext_mode%conv_blob     =', mpp_chksum(Ext_mode%conv_blob(isc:iec,jsc:jec))
-     write(stdoutunit, *) 'L_system%conv_blob     =', mpp_chksum(L_system%conv_blob(isc:iec,jsc:jec,:))
+     call write_chksum_2d('Ext_mode%conv_blob', Ext_mode%conv_blob(COMP))
+     call write_chksum_3d('L_system%conv_blob', L_system%conv_blob(COMP,:))
      if (vert_coordinate_class==DEPTH_BASED) then
-        write(stdoutunit, *) 'Ext_mode%eta_t(taup1)  =', mpp_chksum(Ext_mode%eta_t(isc:iec,jsc:jec,taup1))
+        call write_chksum_2d('Ext_mode%eta_t(taup1)', Ext_mode%eta_t(COMP,taup1))
      else
-        write(stdoutunit, *) 'Ext_mode%eta_t(tau)    =', mpp_chksum(Ext_mode%eta_t(isc:iec,jsc:jec,tau))
-        write(stdoutunit, *) 'Thickness%dst          =', mpp_chksum(Thickness%dzt_dst(isc:iec,jsc:jec,:))
-        write(stdoutunit, *) 'Thickness%dzt_dst      =', mpp_chksum(Thickness%dzt_dst(isc:iec,jsc:jec,:))
+        call write_chksum_2d('Ext_mode%eta_t(tau)', Ext_mode%eta_t(COMP,tau))
+        call write_chksum_3d('Thickness%dst', Thickness%dzt_dst(COMP,:))
+        call write_chksum_3d('Thickness%dzt_dst', Thickness%dzt_dst(COMP,:))
      endif
-     write(stdoutunit, *) 'Thickness%blob_source  =', mpp_chksum(Thickness%blob_source(isc:iec,jsc:jec))
-     write(stdoutunit, *) 'T_prog(temp)%tend_blob =', mpp_chksum(T_prog(index_temp)%tend_blob(isc:iec,jsc:jec,:))
-     write(stdoutunit, *) 'T_prog(salt)%tend_blob =', mpp_chksum(T_prog(index_salt)%tend_blob(isc:iec,jsc:jec,:))
+     call write_chksum_2d('Thickness%blob_source', Thickness%blob_source(COMP))
+     call write_chksum_3d('T_prog(temp)%tend_blob', T_prog(index_temp)%tend_blob(COMP,:))
+     call write_chksum_3d('T_prog(salt)%tend_blob', T_prog(index_salt)%tend_blob(COMP,:))
 
      if (really_debug) call write_all_blobs('tau')
   endif
@@ -2091,7 +2091,6 @@ subroutine adjust_L_thickness(Time, Thickness, T_prog, L_system)
   integer :: taup1
   integer :: stdoutunit
   real    :: rho_dzt
-  real, dimension(isc:iec,jsc:jec) :: tmp
 
   if (.not. use_this_module) return
 
@@ -2223,20 +2222,15 @@ subroutine adjust_L_thickness(Time, Thickness, T_prog, L_system)
      write(stdoutunit, '(/,a)')  &
         'Lagrangian Tracer and Mass Checksums (taup1)'
      call write_timestamp(Time%model_time)
-     write(stdoutunit, '(a,x,i20)') &
-         '  Lagrangian chksum for blob convergence  =',mpp_chksum(L_system%conv_blob(isc:iec,jsc:jec,:))
+     call write_chksum_3d('blob convergence', L_system%conv_blob(COMP,:))
      do n=1,num_prog_tracers
         tname = trim(T_prog(n)%name)//' tend'
-        write(stdoutunit, '(a,x,i20)') &
-         '  Lagrangian chksum for '//tname(1:17)//' =',mpp_chksum(T_prog(n)%tend_blob(isc:iec,jsc:jec,:))
+        call write_chksum_3d(tname(1:17), T_prog(n)%tend_blob(COMP,:))
      enddo
-     tmp(:,:) = Grd%dat(isc:iec,jsc:jec)*sum(Thickness%rho_dztL(isc:iec,jsc:jec,:,taup1),3)
-     write(stdoutunit, '(a,x,i20)') &
-         '  Lagrangian chksum for mass              =', mpp_chksum(tmp(:,:))
+     call write_chksum_2d('mass', Grd%dat(COMP)*sum(Thickness%rho_dztL(COMP,:,taup1),3))
      do n=1,num_prog_tracers
         tname = trim(T_prog(n)%name)
-        write(stdoutunit, '(a,x,i20)') &
-         '  Lagrangian chksum for '//tname(1:18)//'=',mpp_chksum(T_prog(n)%sum_blob(isc:iec,jsc:jec,:,taup1))
+        call write_chksum_3d(tname(1:18), T_prog(n)%sum_blob(COMP,:,taup1))
      enddo
      write(stdoutunit, '(a,/)') 'end Lagrangian Tracer and Mass Checksums'
   endif
@@ -2802,14 +2796,14 @@ subroutine entrainment_checksum(Time, hfree, hbott, f2b, b2f)
            if (.not. associated(this)) exit blobcycle
         enddo blobcycle
      endif
-     write(stdoutunit, *) '   chksum for zonal index (i)              =', mpp_chksum(di(isc:iec,jsc:jec,:))
-     write(stdoutunit, *) '   chksum for meridional index (j)         =', mpp_chksum(dj(isc:iec,jsc:jec,:))
-     write(stdoutunit, *) '   chksum for vertical index (k)           =', mpp_chksum(dk(isc:iec,jsc:jec,:))
-     write(stdoutunit, *) '   chksum for mass entrainment/detrainment =', mpp_chksum(dmass(isc:iec,jsc:jec,:))
-     write(stdoutunit, *) '   chksum for mass convergence             =', mpp_chksum(in(isc:iec,jsc:jec,:))
-     write(stdoutunit, *) '   chksum for mass divergence              =', mpp_chksum(out(isc:iec,jsc:jec,:))
-     write(stdoutunit, *) '   chksum for salt entrainment/detrainment =', mpp_chksum(dtracer(isc:iec,jsc:jec,:,index_salt))
-     write(stdoutunit, *) '   chksum for temp entrainment/detrainment =', mpp_chksum(dtracer(isc:iec,jsc:jec,:,index_temp))
+     call write_chksum_3d_int('zonal index (i)', di(COMP,:))
+     call write_chksum_3d_int('meridional index (j)', dj(COMP,:))
+     call write_chksum_3d_int('vertical index (k)', dk(COMP,:))
+     call write_chksum_3d('mass entrainment/detrainment', dmass(COMP,:))
+     call write_chksum_3d('mass convergence', in(COMP,:))
+     call write_chksum_3d('mass divergence', out(COMP,:))
+     call write_chksum_3d('salt entrainment/detrainment', dtracer(COMP,:,index_salt))
+     call write_chksum_3d('temp entrainment/detrainment', dtracer(COMP,:,index_temp))
   enddo
   write(stdoutunit, *) 'End checksums'
 

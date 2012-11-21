@@ -1,4 +1,5 @@
 module ocean_density_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies 
 !</CONTACT>
@@ -399,7 +400,7 @@ use fms_io_mod,          only: register_restart_field, save_restart, restore_sta
 use fms_io_mod,          only: reset_field_pointer, restart_file_type
 use mpp_domains_mod,     only: mpp_update_domains, mpp_global_sum
 use mpp_domains_mod,     only: BITWISE_EXACT_SUM, NON_BITWISE_EXACT_SUM
-use mpp_mod,             only: input_nml_file, stdout, stdlog, mpp_chksum
+use mpp_mod,             only: input_nml_file, stdout, stdlog
 use platform_mod,        only: i8_kind
 use time_manager_mod,    only: time_type, increment_time
 use field_manager_mod,   only: fm_get_index
@@ -414,7 +415,7 @@ use ocean_types_mod,      only: ocean_domain_type, ocean_grid_type, ocean_thickn
 use ocean_types_mod,      only: ocean_time_type, ocean_time_steps_type, ocean_options_type
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_density_type, ocean_external_mode_type
 use ocean_types_mod,      only: ocean_diag_tracer_type, ocean_lagrangian_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, write_chksum_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk6
 use ocean_workspace_mod,  only: wrk1_v, wrk2_v, wrk3_v, wrk4_v
 use ocean_workspace_mod,  only: wrk1_2d, wrk2_2d, wrk3_2d, wrk4_2d
@@ -4536,12 +4537,8 @@ subroutine ocean_density_chksum(Time, Dens, use_blobs)
   type(ocean_time_type),    intent(in) :: Time
   type(ocean_density_type), intent(in) :: Dens
   logical,                  intent(in) :: use_blobs
-  integer(i8_kind)                     :: chk_sum
 
   integer :: taup1
-
-  integer :: stdoutunit 
-  stdoutunit=stdout() 
 
   if (.not. module_is_initialized) then 
     call mpp_error(FATAL,&
@@ -4550,35 +4547,15 @@ subroutine ocean_density_chksum(Time, Dens, use_blobs)
 
   taup1 = Time%taup1 
 
-  wrk1(isc:iec,jsc:jec,:) = Dens%rho(isc:iec,jsc:jec,:,taup1)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for rho(taup1)        = ',  chk_sum
-
+  call write_chksum_3d('rho(taup1)', Dens%rho(COMP,:,taup1)*Grd%tmask(COMP,:))
   if (use_blobs) then
-     wrk1(isc:iec,jsc:jec,:) = Dens%rhoT(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-     chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-     write(stdoutunit,*) 'chksum for rhoT(taup1)       = ',  chk_sum
+     call write_chksum_3d('rhoT(taup1)', Dens%rhoT(COMP,:)*Grd%tmask(COMP,:))
   endif
-
-  wrk1(isc:iec,jsc:jec,:) = Dens%pressure_at_depth(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for pressure_at_depth = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = denominator_r(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for denominator_r     = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Dens%drhodT(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for drhodT            = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Dens%drhodS(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for drhodS            = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Dens%drhodz_zt(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for drhodz_zt         = ',  chk_sum
+  call write_chksum_3d('pressure_at_depth', Dens%pressure_at_depth(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('denominator_r', denominator_r(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('drhodT', Dens%drhodT(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('drhodS', Dens%drhodS(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('drhodz_zt', Dens%drhodz_zt(COMP,:)*Grd%tmask(COMP,:))
 
 end subroutine ocean_density_chksum
 ! </SUBROUTINE>  NAME="ocean_density_chksum"

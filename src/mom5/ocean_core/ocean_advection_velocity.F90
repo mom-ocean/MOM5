@@ -1,4 +1,5 @@
 module ocean_advection_velocity_mod
+#define COMP isc:iec,jsc:jec
 !  
 !<CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
 !</CONTACT>
@@ -117,7 +118,7 @@ use fms_io_mod,          only: register_restart_field, save_restart
 use fms_io_mod,          only: restore_state, restart_file_type
 use mpp_domains_mod,     only: mpp_update_domains
 use mpp_domains_mod,     only: mpp_global_sum, NON_BITWISE_EXACT_SUM
-use mpp_mod,             only: input_nml_file, mpp_error, mpp_chksum, stdout, stdlog
+use mpp_mod,             only: input_nml_file, mpp_error, stdout, stdlog
 use mpp_mod,             only: mpp_min, mpp_max, mpp_error, mpp_pe
 
 use ocean_domains_mod,   only: get_local_indices
@@ -132,7 +133,7 @@ use ocean_types_mod,     only: ocean_time_type, ocean_time_steps_type
 use ocean_types_mod,     only: ocean_density_type, ocean_lagrangian_type
 use ocean_workspace_mod, only: wrk1, wrk1_2d, wrk2_2d
 use ocean_obc_mod,       only: ocean_obc_adjust_advel
-use ocean_util_mod,      only: write_timestamp
+use ocean_util_mod,      only: write_timestamp, write_chksum_3d, write_chksum_2d
 
 implicit none
 
@@ -521,8 +522,8 @@ subroutine ocean_advection_velocity_init(Grid, Domain, Time, Time_steps, Thickne
       write(stdoutunit,*) ' '
       write(stdoutunit,*) 'From ocean_advection_velocity_mod: beginning chksums'
       call write_timestamp(Time%model_time)
-      write(stdoutunit,*) 'Adv_vel%wrho_bt    ==> ', mpp_chksum(Adv_vel%wrho_bt(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%wrho_bt(0) ==> ', mpp_chksum(Adv_vel%wrho_bt(isc:iec,jsc:jec,0))
+      call write_chksum_3d('Adv_vel%wrho_bt', Adv_vel%wrho_bt(COMP,1:))
+      call write_chksum_2d('Adv_vel%wrho_bt(0)', Adv_vel%wrho_bt(COMP,0))
   endif
 
 end subroutine ocean_advection_velocity_init
@@ -672,24 +673,23 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
       write(stdoutunit,*) ' '
       write(stdoutunit,*) 'From ocean_advection_velocity_mod: chksums'
       call write_timestamp(Time%model_time)
-      write(stdoutunit,*) 'Velocity%u(1)      ==> ', mpp_chksum(Velocity%u(isc:iec,jsc:jec,:,1,tau))
-      write(stdoutunit,*) 'Velocity%u(2)      ==> ', mpp_chksum(Velocity%u(isc:iec,jsc:jec,:,2,tau))
+      call write_chksum_3d('Velocity%u(1)', Velocity%u(COMP,:,1,tau))
+      call write_chksum_3d('Velocity%u(2)', Velocity%u(COMP,:,2,tau))
       ! To make it equivalent to the checksum in the thickness module
-      wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzu(isc:iec,jsc:jec,:,tau)*Grd%umask(isc:iec,jsc:jec,:)
-      write(stdoutunit,*) 'rho_dzu            ==> ', mpp_chksum(wrk1(isc:iec,jsc:jec,:))
+      call write_chksum_3d('rho_dzu', Thickness%rho_dzu(COMP,:,tau)*Grd%umask(COMP,:))
       if (use_blobs) then
-         write(stdoutunit,*) 'L_system%conv_blob ==> ', mpp_chksum(L_system%conv_blob(isc:iec,jsc:jec,:))
+         call write_chksum_3d('L_system%conv_blob', L_system%conv_blob(COMP,:))
       endif
-      write(stdoutunit,*) 'Adv_vel%uhrho_et   ==> ', mpp_chksum(Adv_vel%uhrho_et(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%vhrho_nt   ==> ', mpp_chksum(Adv_vel%vhrho_nt(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%uhrho_eu   ==> ', mpp_chksum(Adv_vel%uhrho_eu(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%vhrho_nu   ==> ', mpp_chksum(Adv_vel%vhrho_nu(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%wrho_bt    ==> ', mpp_chksum(Adv_vel%wrho_bt(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%wrho_bu    ==> ', mpp_chksum(Adv_vel%wrho_bu(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%wrho_bt(0) ==> ', mpp_chksum(Adv_vel%wrho_bt(isc:iec,jsc:jec,0))
-      write(stdoutunit,*) 'Adv_vel%wrho_bu(0) ==> ', mpp_chksum(Adv_vel%wrho_bu(isc:iec,jsc:jec,0))
-      write(stdoutunit,*) 'Adv_vel%diverge_t  ==> ', mpp_chksum(Adv_vel%diverge_t(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%diverge_u  ==> ', mpp_chksum(Adv_vel%diverge_u(isc:iec,jsc:jec,:))
+      call write_chksum_3d('Adv_vel%uhrho_et', Adv_vel%uhrho_et(COMP,:))
+      call write_chksum_3d('Adv_vel%vhrho_nt', Adv_vel%vhrho_nt(COMP,:))
+      call write_chksum_3d('Adv_vel%uhrho_eu', Adv_vel%uhrho_eu(COMP,:))
+      call write_chksum_3d('Adv_vel%vhrho_nu', Adv_vel%vhrho_nu(COMP,:))
+      call write_chksum_3d('Adv_vel%wrho_bt', Adv_vel%wrho_bt(COMP,1:))
+      call write_chksum_3d('Adv_vel%wrho_bu', Adv_vel%wrho_bu(COMP,1:))
+      call write_chksum_2d('Adv_vel%wrho_bt(0)', Adv_vel%wrho_bt(COMP,0))
+      call write_chksum_2d('Adv_vel%wrho_bu(0)', Adv_vel%wrho_bu(COMP,0))
+      call write_chksum_3d('Adv_vel%diverge_t', Adv_vel%diverge_t(COMP,:))
+      call write_chksum_3d('Adv_vel%diverge_u', Adv_vel%diverge_u(COMP,:))
   endif
 
   ! send advective velocity components to diagnostic manager 
@@ -1081,16 +1081,16 @@ subroutine ocean_advection_velocity_end(Time, Adv_vel, use_blobs)
       write(stdoutunit,*) ' '
       write(stdoutunit,*) 'From ocean_advection_velocity_mod: ending chksums'
       call write_timestamp(Time%model_time)
-      write(stdoutunit,*) 'Adv_vel%uhrho_et   ==> ', mpp_chksum(Adv_vel%uhrho_et(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%vhrho_nt   ==> ', mpp_chksum(Adv_vel%vhrho_nt(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%uhrho_eu   ==> ', mpp_chksum(Adv_vel%uhrho_eu(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%vhrho_nu   ==> ', mpp_chksum(Adv_vel%vhrho_nu(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%wrho_bt    ==> ', mpp_chksum(Adv_vel%wrho_bt(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%wrho_bu    ==> ', mpp_chksum(Adv_vel%wrho_bu(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%wrho_bt(0) ==> ', mpp_chksum(Adv_vel%wrho_bt(isc:iec,jsc:jec,0))
-      write(stdoutunit,*) 'Adv_vel%wrho_bu(0) ==> ', mpp_chksum(Adv_vel%wrho_bu(isc:iec,jsc:jec,0))
-      write(stdoutunit,*) 'Adv_vel%diverge_t  ==> ', mpp_chksum(Adv_vel%diverge_t(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%diverge_u  ==> ', mpp_chksum(Adv_vel%diverge_u(isc:iec,jsc:jec,:))
+      call write_chksum_3d('Adv_vel%uhrho_et', Adv_vel%uhrho_et(COMP,:))
+      call write_chksum_3d('Adv_vel%vhrho_nt', Adv_vel%vhrho_nt(COMP,:))
+      call write_chksum_3d('Adv_vel%uhrho_eu', Adv_vel%uhrho_eu(COMP,:))
+      call write_chksum_3d('Adv_vel%vhrho_nu', Adv_vel%vhrho_nu(COMP,:))
+      call write_chksum_3d('Adv_vel%wrho_bt', Adv_vel%wrho_bt(COMP,1:))
+      call write_chksum_3d('Adv_vel%wrho_bu', Adv_vel%wrho_bu(COMP,1:))
+      call write_chksum_2d('Adv_vel%wrho_bt(0)', Adv_vel%wrho_bt(COMP,0))
+      call write_chksum_2d('Adv_vel%wrho_bu(0)', Adv_vel%wrho_bu(COMP,0))
+      call write_chksum_3d('Adv_vel%diverge_t', Adv_vel%diverge_t(COMP,:))
+      call write_chksum_3d('Adv_vel%diverge_u', Adv_vel%diverge_u(COMP,:))
   endif
 
 end subroutine ocean_advection_velocity_end

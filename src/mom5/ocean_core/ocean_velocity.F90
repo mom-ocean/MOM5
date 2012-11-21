@@ -1,4 +1,5 @@
 module ocean_velocity_mod
+#define COMP isc:iec,jsc:jec
 !
 ! <CONTACT EMAIL="Stephen.Griffies@noaa.gov">
 ! S.M. Griffies 
@@ -164,7 +165,7 @@ use fms_mod,          only: file_exist, FATAL, WARNING, NOTE
 use fms_io_mod,       only: field_size, restart_file_type, register_restart_field
 use fms_io_mod,       only: save_restart, restore_state, reset_field_pointer
 use mpp_domains_mod,  only: mpp_update_domains, mpp_global_sum, BGRID_NE, CGRID_NE, BITWISE_EXACT_SUM
-use mpp_mod,          only: input_nml_file, mpp_chksum, mpp_error, mpp_pe, mpp_min, mpp_max, mpp_sum
+use mpp_mod,          only: input_nml_file, mpp_error, mpp_pe, mpp_min, mpp_max, mpp_sum
 use mpp_mod,          only: mpp_broadcast, stdout, stdlog
 use time_interp_external_mod, only: time_interp_external, init_external_field
 
@@ -185,7 +186,7 @@ use ocean_types_mod,           only: ocean_time_type, ocean_time_steps_type
 use ocean_types_mod,           only: ocean_density_type, ocean_thickness_type, ocean_velocity_type
 use ocean_types_mod,           only: ocean_adv_vel_type, ocean_external_mode_type, ocean_options_type
 use ocean_types_mod,           only: ocean_lagrangian_type
-use ocean_util_mod,            only: write_timestamp
+use ocean_util_mod,            only: write_timestamp, write_chksum_2d, write_chksum_3d
 use ocean_velocity_advect_mod, only: horz_advection_of_velocity, vert_advection_of_velocity
 use ocean_velocity_diag_mod,   only: kinetic_energy, potential_energy 
 use ocean_vert_mix_mod,        only: vert_friction_bgrid, vert_friction_implicit_bgrid
@@ -971,8 +972,8 @@ subroutine ocean_explicit_accel_a(Velocity, Time, Adv_vel, Thickness, Dens, &
       write(stdoutunit,*) ' ' 
       write(stdoutunit,*) 'From ocean_velocity_mod: acceleration chksums'
       call write_timestamp(Time%model_time)
-      write(stdoutunit,*) 'explicit accel_a(1) = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,1))
-      write(stdoutunit,*) 'explicit accel_a(2) = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,2))
+      call write_chksum_3d('explicit accel_a(1)', Velocity%accel(COMP,:,1))
+      call write_chksum_3d('explicit accel_a(2)', Velocity%accel(COMP,:,2))
   endif
 
 end subroutine ocean_explicit_accel_a
@@ -1026,8 +1027,8 @@ subroutine ocean_explicit_accel_b(visc_cbu, visc_cbt, Time, Thickness, Adv_vel, 
           write(stdoutunit,*) ' ' 
           write(stdoutunit,*) 'From ocean_velocity_mod: explicit acceleration chksums'
           call write_timestamp(Time%model_time)
-          write(stdoutunit,*) 'accel_b(1) = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,1))
-          write(stdoutunit,*) 'accel_b(2) = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,2))
+          call write_chksum_3d('accel_b(1)', Velocity%accel(COMP,:,1))
+          call write_chksum_3d('accel_b(2)', Velocity%accel(COMP,:,2))
       endif
 
   endif
@@ -1079,8 +1080,8 @@ subroutine ocean_implicit_accel(visc_cbu, visc_cbt, visc_cbu_form_drag, Time, Th
           write(stdoutunit,*) ' ' 
           write(stdoutunit,*) 'From ocean_velocity_mod: acceleration chksums after implicit update'
           call write_timestamp(Time%model_time)
-          write(stdoutunit,*) 'accel(1) = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,1))
-          write(stdoutunit,*) 'accel(2) = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,2))
+          call write_chksum_3d('accel(1)', Velocity%accel(COMP,:,1))
+          call write_chksum_3d('accel(2)', Velocity%accel(COMP,:,2))
       endif
   endif
 
@@ -1299,14 +1300,14 @@ subroutine update_ocean_velocity_bgrid(Time, Thickness, barotropic_split, &
          write(stdoutunit,*) ' ' 
          write(stdoutunit,*) 'From update_ocean_velocity at the u-prime step'
          call write_timestamp(Time%model_time)
-         write(stdoutunit,*) 'accel(1)        = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,1))
-         write(stdoutunit,*) 'accel(2)        = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,2))
-         write(stdoutunit,*) 'rho_dzu(taup1)  = ',mpp_chksum(Thickness%rho_dzu(isc:iec,jsc:jec,:,taup1))
-         write(stdoutunit,*) 'rho_dzu(taum1)  = ',mpp_chksum(Thickness%rho_dzu(isc:iec,jsc:jec,:,taum1))
-         write(stdoutunit,*) 'rho_dzur        = ',mpp_chksum(Thickness%rho_dzur(isc:iec,jsc:jec,:))
-         write(stdoutunit,*) 'udrho(1)        = ',mpp_chksum(Ext_mode%udrho(isc:iec,jsc:jec,1,taup1))
-         write(stdoutunit,*) 'udrho(2)        = ',mpp_chksum(Ext_mode%udrho(isc:iec,jsc:jec,2,taup1))
-         write(stdoutunit,*) 'mass_u          = ',mpp_chksum(Thickness%mass_u(isc:iec,jsc:jec,taup1))
+         call write_chksum_3d('accel(1)', Velocity%accel(COMP,:,1))
+         call write_chksum_3d('accel(2)', Velocity%accel(COMP,:,2))
+         call write_chksum_3d('rho_dzu(taup1)', Thickness%rho_dzu(COMP,:,taup1))
+         call write_chksum_3d('rho_dzu(taum1)', Thickness%rho_dzu(COMP,:,taum1))
+         call write_chksum_3d('rho_dzur', Thickness%rho_dzur(COMP,:))
+         call write_chksum_2d('udrho(1)', Ext_mode%udrho(COMP,1,taup1))
+         call write_chksum_2d('udrho(2)', Ext_mode%udrho(COMP,2,taup1))
+         call write_chksum_2d('mass_u', Thickness%mass_u(COMP,taup1))
          call ocean_velocity_chksum(Velocity, taum1, write_advection=.false.)
          call ocean_velocity_chksum(Velocity, taup1, write_advection=.false.)
      endif
@@ -1509,14 +1510,14 @@ subroutine update_ocean_velocity_cgrid(Time, Thickness, Adv_vel, Ext_mode, Veloc
          write(stdoutunit,*) ' ' 
          write(stdoutunit,*) 'From update_ocean_velocity at the u-prime step'
          call write_timestamp(Time%model_time)
-         write(stdoutunit,*) 'accel(1)        = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,1))
-         write(stdoutunit,*) 'accel(2)        = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,2))
-         write(stdoutunit,*) 'rho_dzten(1)    = ',mpp_chksum(Thickness%rho_dzten(isc:iec,jsc:jec,:,1))
-         write(stdoutunit,*) 'rho_dzten(2)    = ',mpp_chksum(Thickness%rho_dzten(isc:iec,jsc:jec,:,2))
-         write(stdoutunit,*) 'udrho(1)        = ',mpp_chksum(Ext_mode%udrho(isc:iec,jsc:jec,1,taup1))
-         write(stdoutunit,*) 'udrho(2)        = ',mpp_chksum(Ext_mode%udrho(isc:iec,jsc:jec,2,taup1))
-         write(stdoutunit,*) 'mass_en(1)      = ',mpp_chksum(Thickness%mass_en(isc:iec,jsc:jec,1))
-         write(stdoutunit,*) 'mass_en(2)      = ',mpp_chksum(Thickness%mass_en(isc:iec,jsc:jec,2))
+         call write_chksum_3d('accel(1)', Velocity%accel(COMP,:,1))
+         call write_chksum_3d('accel(2)', Velocity%accel(COMP,:,2))
+         call write_chksum_3d('rho_dzten(1)', Thickness%rho_dzten(COMP,:,1))
+         call write_chksum_3d('rho_dzten(2)', Thickness%rho_dzten(COMP,:,2))
+         call write_chksum_2d('udrho(1)', Ext_mode%udrho(COMP,1,taup1))
+         call write_chksum_2d('udrho(2)', Ext_mode%udrho(COMP,2,taup1))
+         call write_chksum_2d('mass_en(1)', Thickness%mass_en(COMP,1))
+         call write_chksum_2d('mass_en(2)', Thickness%mass_en(COMP,2))
          call ocean_velocity_chksum(Velocity, taum1, write_advection=.false.)
          call ocean_velocity_chksum(Velocity, taup1, write_advection=.false.)
      endif
@@ -1796,26 +1797,17 @@ subroutine ocean_velocity_chksum(Velocity, index, write_advection)
     writeadvection = .true.
   endif 
 
-  wrk1_v = 0.0
-
-  wrk1_v(isc:iec,jsc:jec,:,1) = Velocity%u(isc:iec,jsc:jec,:,1,index)*Grd%tmasken(isc:iec,jsc:jec,:,1)
-  wrk1_v(isc:iec,jsc:jec,:,2) = Velocity%u(isc:iec,jsc:jec,:,2,index)*Grd%tmasken(isc:iec,jsc:jec,:,2)
-
-  write(stdoutunit,*) 'Zonal velocity chksum      = ',  mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,1))
-  write(stdoutunit,*) 'Meridional velocity chksum = ',  mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,2))
+  call write_chksum_3d('Zonal velocity', Velocity%u(COMP,:,1,index)*Grd%tmasken(COMP,:,1))
+  call write_chksum_3d('Meridional velocity', Velocity%u(COMP,:,2,index)*Grd%tmasken(COMP,:,2))
 
   if(tendency==TWO_LEVEL .and. writeadvection) then 
-    wrk1_v(isc:iec,jsc:jec,:,1) = Velocity%advection(isc:iec,jsc:jec,:,1,index)*Grd%tmasken(isc:iec,jsc:jec,:,1)
-    wrk1_v(isc:iec,jsc:jec,:,2) = Velocity%advection(isc:iec,jsc:jec,:,2,index)*Grd%tmasken(isc:iec,jsc:jec,:,2)
-    write(stdoutunit,*) 'Advection of u chksum = ',  mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,1))
-    write(stdoutunit,*) 'Advection of v chksum = ',  mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,2))
+     call write_chksum_3d('Advection of u', Velocity%advection(COMP,:,1,index)*Grd%tmasken(COMP,:,1))
+     call write_chksum_3d('Advection of v', Velocity%advection(COMP,:,2,index)*Grd%tmasken(COMP,:,2))
   endif 
 
   if(horz_grid == MOM_CGRID) then 
-    wrk1_v(isc:iec,jsc:jec,:,1) = Velocity%coriolis(isc:iec,jsc:jec,:,1,index)*Grd%tmasken(isc:iec,jsc:jec,:,1)
-    wrk1_v(isc:iec,jsc:jec,:,2) = Velocity%coriolis(isc:iec,jsc:jec,:,2,index)*Grd%tmasken(isc:iec,jsc:jec,:,2)
-    write(stdoutunit,*) 'x-Coriolis chksum = ',  mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,1))
-    write(stdoutunit,*) 'y-Coriolis chksum = ',  mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,2))
+     call write_chksum_3d('x-Coriolis', Velocity%coriolis(COMP,:,1,index)*Grd%tmasken(COMP,:,1))
+     call write_chksum_3d('y-Coriolis', Velocity%coriolis(COMP,:,2,index)*Grd%tmasken(COMP,:,2))
   endif 
 
   return

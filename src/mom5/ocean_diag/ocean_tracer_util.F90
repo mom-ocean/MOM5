@@ -1,4 +1,5 @@
 module ocean_tracer_util_mod
+#define COMP isc:iec,jsc:jec
 !
 ! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
 ! S. M. Griffies 
@@ -46,7 +47,7 @@ use ocean_types_mod,      only: ocean_grid_type, ocean_domain_type
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_diag_tracer_type
 use ocean_types_mod,      only: ocean_time_type, ocean_thickness_type 
 use ocean_types_mod,      only: ocean_density_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, write_chksum_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4
 use ocean_workspace_mod,  only: wrk1_v, wrk2_v, wrk3_v
 use ocean_workspace_mod,  only: wrk1_2d, wrk2_2d , wrk3_2d 
@@ -558,11 +559,8 @@ subroutine tracer_prog_chksum(Time, Tracer, index, chksum)
 
   call write_timestamp(Time%model_time)
 
-  wrk1(isc:iec,jsc:jec,:) = Tracer%field(isc:iec,jsc:jec,:,index)*Grd%tmask(isc:iec,jsc:jec,:)
-
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  write(stdoutunit,*) 'Tracer chksum = ',  chk_sum
+  chk_sum = mpp_chksum(Tracer%field(COMP,:,index)*Grd%tmask(COMP,:))
+  write(stdoutunit,*) ' chksum = ',  chk_sum
 
   if (PRESENT(chksum)) chksum = chk_sum
 
@@ -596,10 +594,7 @@ subroutine tracer_diag_chksum(Time, Tracer, chksum)
 
   call write_timestamp(Time%model_time)
 
-  wrk1(isc:iec,jsc:jec,:) = Tracer%field(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
+  chk_sum = mpp_chksum(Tracer%field(COMP,:)*Grd%tmask(COMP,:))
   write(stdoutunit,*) 'Tracer chksum = ',  chk_sum
 
   if (PRESENT(chksum)) chksum = chk_sum
@@ -618,7 +613,6 @@ subroutine tracer_psom_chksum(Time, Tracer)
 
   type(ocean_time_type),        intent(in)  :: Time
   type(ocean_prog_tracer_type), intent(in)  :: Tracer
-  integer(i8_kind)                          :: chk_sum
   
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -632,46 +626,16 @@ subroutine tracer_psom_chksum(Time, Tracer)
   write (stdoutunit,*) 'Writing psom moments for tracer ',trim(Tracer%name)
   call write_timestamp(Time%model_time)
 
-  wrk1(isc:iec,jsc:jec,:) = Tracer%s0(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%s0 chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%sx(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%sx chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%sxx(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%sxx chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%sy(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%sy chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%syy(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%syy chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%sz(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%sz chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%szz(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%szz chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%sxy(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%sxy chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%sxy(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%sxz chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%syz(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%syz chksum = ',  chk_sum
-
+  call write_chksum_3d('Tracer%s0', Tracer%s0(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%sx', Tracer%sx(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%sxx', Tracer%sxx(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%sy', Tracer%sy(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%syy', Tracer%syy(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%sz', Tracer%sz(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%szz', Tracer%szz(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%sxy', Tracer%sxy(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%sxz', Tracer%sxy(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%syz', Tracer%syz(COMP,:)*Grd%tmask(COMP,:))
 
 end subroutine tracer_psom_chksum
 ! </SUBROUTINE>  NAME="tracer_psom_chksum"

@@ -1,4 +1,5 @@
 module ocean_grids_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Zhi Liang 
 !</CONTACT>
@@ -76,7 +77,7 @@ use mpp_domains_mod,   only: mpp_global_sum, CORNER, EAST, NORTH, XUPDATE
 use mpp_domains_mod,   only: NON_BITWISE_EXACT_SUM, BITWISE_EXACT_SUM
 use mpp_domains_mod,   only: mpp_define_domains, mpp_get_domain_extents, mpp_deallocate_domain
 use mpp_domains_mod,   only: mpp_get_compute_domain, mpp_get_data_domain, mpp_get_global_domain
-use mpp_mod,           only: input_nml_file, stdout, stdlog, mpp_error, mpp_chksum, mpp_sum, FATAL, NOTE, mpp_pe
+use mpp_mod,           only: input_nml_file, stdout, stdlog, mpp_error, mpp_sum, FATAL, NOTE, mpp_pe
 use mosaic_mod,        only: get_mosaic_ntiles, get_mosaic_ncontacts, get_mosaic_contact
 
 use ocean_domains_mod,    only: get_local_indices, get_global_indices, get_halo_sizes, get_domain_offsets
@@ -85,7 +86,8 @@ use ocean_parameters_mod, only: PRESSURE_BASED, DEPTH_BASED
 use ocean_parameters_mod, only: MOM_BGRID, MOM_CGRID 
 use ocean_parameters_mod, only: missing_value, rho0, grav
 use ocean_types_mod,      only: ocean_grid_type, ocean_time_type, ocean_domain_type
-use ocean_workspace_mod,  only: wrk1_2d 
+use ocean_workspace_mod,  only: wrk1_2d
+use ocean_util_mod,       only: write_chksum_2d
 
 implicit none
 
@@ -1208,34 +1210,34 @@ subroutine set_ocean_hgrid_arrays(Domain, Grid)
   deallocate(tmp_local, tmp1_local, tmp2_local)
  
   if (debug_this_module .or. verbose_init) then
-     write(stdoutunit,*) 'xt chksum = ',mpp_chksum(Grid%xt(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'xu chksum = ',mpp_chksum(Grid%xu(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'yt chksum = ',mpp_chksum(Grid%yt(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'yu chksum = ',mpp_chksum(Grid%yu(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dxt chksum = ',mpp_chksum(Grid%dxt(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dxu chksum = ',mpp_chksum(Grid%dxu(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dyt chksum = ',mpp_chksum(Grid%dyt(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dyu chksum = ',mpp_chksum(Grid%dyu(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dat chksum = ',mpp_chksum(Grid%dat(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dau chksum = ',mpp_chksum(Grid%dau(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dxtn chksum = ',mpp_chksum(Grid%dxtn(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dytn chksum = ',mpp_chksum(Grid%dytn(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dxte chksum = ',mpp_chksum(Grid%dxte(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dyte chksum = ',mpp_chksum(Grid%dyte(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dxun chksum = ',mpp_chksum(Grid%dxun(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dyun chksum = ',mpp_chksum(Grid%dyun(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dxue chksum = ',mpp_chksum(Grid%dxue(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dyue chksum = ',mpp_chksum(Grid%dyue(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dtn+dts chksum = ',mpp_chksum(Grid%dtn(isc:iec,jsc:jec)+Grid%dts(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dun+dus chksum = ',mpp_chksum(Grid%dun(isc:iec,jsc:jec)+Grid%dus(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dte+dtw chksum = ',mpp_chksum(Grid%dte(isc:iec,jsc:jec)+Grid%dtw(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'due+duw chksum = ',mpp_chksum(Grid%due(isc:iec,jsc:jec)+Grid%duw(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dte chksum = ',mpp_chksum(Grid%dte(isc:iec,jsc:jec) )
-     write(stdoutunit,*) 'dtw chksum = ',mpp_chksum(Grid%dtw(isc:iec,jsc:jec) )
-     write(stdoutunit,*) 'due chksum = ',mpp_chksum(Grid%due(isc:iec,jsc:jec) )
-     write(stdoutunit,*) 'duw chksum = ',mpp_chksum(Grid%duw(isc:iec,jsc:jec) )
-     write(stdoutunit,*) 'sin_rot chksum = ',mpp_chksum(Grid%sin_rot(isc:iec,jsc:jec) )
-     write(stdoutunit,*) 'cos_rot chksum = ',mpp_chksum(Grid%cos_rot(isc:iec,jsc:jec) )
+     call write_chksum_2d('xt', Grid%xt(COMP))
+     call write_chksum_2d('xu', Grid%xu(COMP))
+     call write_chksum_2d('yt', Grid%yt(COMP))
+     call write_chksum_2d('yu', Grid%yu(COMP))
+     call write_chksum_2d('dxt', Grid%dxt(COMP))
+     call write_chksum_2d('dxu', Grid%dxu(COMP))
+     call write_chksum_2d('dyt', Grid%dyt(COMP))
+     call write_chksum_2d('dyu', Grid%dyu(COMP))
+     call write_chksum_2d('dat', Grid%dat(COMP))
+     call write_chksum_2d('dau', Grid%dau(COMP))
+     call write_chksum_2d('dxtn', Grid%dxtn(COMP))
+     call write_chksum_2d('dytn', Grid%dytn(COMP))
+     call write_chksum_2d('dxte', Grid%dxte(COMP))
+     call write_chksum_2d('dyte', Grid%dyte(COMP))
+     call write_chksum_2d('dxun', Grid%dxun(COMP))
+     call write_chksum_2d('dyun', Grid%dyun(COMP))
+     call write_chksum_2d('dxue', Grid%dxue(COMP))
+     call write_chksum_2d('dyue', Grid%dyue(COMP))
+     call write_chksum_2d('dtn+dts', Grid%dtn(COMP) + Grid%dts(COMP))
+     call write_chksum_2d('dun+dus', Grid%dun(COMP) + Grid%dus(COMP))
+     call write_chksum_2d('dte+dtw', Grid%dte(COMP) + Grid%dtw(COMP))
+     call write_chksum_2d('due+duw', Grid%due(COMP) + Grid%duw(COMP))
+     call write_chksum_2d('dte', Grid%dte(COMP))
+     call write_chksum_2d('dtw', Grid%dtw(COMP))
+     call write_chksum_2d('due', Grid%due(COMP))
+     call write_chksum_2d('duw', Grid%duw(COMP))
+     call write_chksum_2d('sin_rot', Grid%sin_rot(COMP))
+     call write_chksum_2d('cos_rot', Grid%cos_rot(COMP))
   endif
 
   if(write_grid) then

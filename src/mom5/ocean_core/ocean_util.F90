@@ -59,6 +59,7 @@ public write_chksum_header
 public write_chksum_2d
 public write_chksum_2d_int
 public write_chksum_3d
+public write_chksum_3d_int
 public check_restart
 public write_summary
 
@@ -628,12 +629,34 @@ subroutine write_chksum_3d(name, data)
   character(len=*), intent(in) :: name
   real, dimension(isc:iec,jsc:jec,nk) :: data
   integer :: stdoutunit
+  character(len=40) :: c
+  c = '[chksum] '//name
 
   stdoutunit=stdout()
-  write(stdoutunit, '(a,i30)') '[chksum] '//name//': ', mpp_chksum(data(isc:iec,jsc:jec,:nk))
+  write(stdoutunit, '(a40,i30)') c, mpp_chksum(data(isc:iec,jsc:jec,:nk))
 
 end subroutine write_chksum_3d
 ! </SUBROUTINE> NAME="write_chksum_3d">
+
+!#######################################################################
+! <SUBROUTINE NAME="write_chksum_3d_int">
+!
+! <DESCRIPTION>
+! Write a 3d integer checksum.
+! </DESCRIPTION>
+!
+subroutine write_chksum_3d_int(name, data)
+  character(len=*), intent(in) :: name
+  integer, dimension(isc:iec,jsc:jec,nk) :: data
+  integer :: stdoutunit
+  character(len=40) :: c
+  c = '[chksum] '//name
+
+  stdoutunit=stdout()
+  write(stdoutunit, '(a40,i30)') c, mpp_chksum(data(isc:iec,jsc:jec,:nk))
+
+end subroutine write_chksum_3d_int
+! </SUBROUTINE> NAME="write_chksum_3d_int">
 
 
 !#######################################################################
@@ -648,9 +671,12 @@ subroutine write_chksum_2d(name, data)
   character(len=*), intent(in) :: name
   real, dimension(isc:iec,jsc:jec) :: data
   integer :: stdoutunit
+  character(len=40) :: c
+  c = '[chksum] '//name
 
   stdoutunit=stdout()
-  write(stdoutunit, '(a,i30)') '[chksum] '//name//': ', mpp_chksum(data(isc:iec,jsc:jec))
+  write(stdoutunit, '(a40,i30)') c, mpp_chksum(data(isc:iec,jsc:jec))
+
 
 end subroutine write_chksum_2d
 ! </SUBROUTINE> NAME="write_chksum_2d">
@@ -668,9 +694,11 @@ subroutine write_chksum_2d_int(name, data)
   character(len=*), intent(in) :: name
   integer, dimension(isc:iec,jsc:jec) :: data
   integer :: stdoutunit
+  character(len=40) :: c
+  c = '[chksum] '//name
 
   stdoutunit=stdout()
-  write(stdoutunit, '(a,i30)') '[chksum] '//name//': ', mpp_chksum(data(isc:iec,jsc:jec))
+  write(stdoutunit, '(a40,i30)') c, mpp_chksum(data(isc:iec,jsc:jec))
 
 end subroutine write_chksum_2d_int
 ! </SUBROUTINE> NAME="write_chksum_2d_int">
