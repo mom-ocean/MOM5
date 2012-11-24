@@ -1,4 +1,5 @@
 module ocean_coriolis_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="Tony.Rosati@noaa.gov"> A. Rosati
 !</CONTACT>
@@ -58,7 +59,7 @@ use constants_mod,    only: radius, radian, pi, epsln, omega
 use diag_manager_mod, only: register_static_field, register_diag_field, send_data
 use fms_mod,          only: write_version_number, mpp_error, FATAL, WARNING
 use fms_mod,          only: check_nml_error, close_file, open_namelist_file
-use mpp_mod,          only: input_nml_file, mpp_max, stdout, stdlog, mpp_chksum
+use mpp_mod,          only: input_nml_file, mpp_max, stdout, stdlog
 
 use ocean_domains_mod,    only: get_local_indices
 use ocean_parameters_mod, only: TWO_LEVEL
@@ -68,7 +69,7 @@ use ocean_types_mod,      only: ocean_grid_type, ocean_domain_type
 use ocean_types_mod,      only: ocean_time_type, ocean_time_steps_type
 use ocean_types_mod,      only: ocean_velocity_type, ocean_adv_vel_type
 use ocean_types_mod,      only: ocean_options_type, ocean_thickness_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, write_chksum_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk1_v  
 
 implicit none
@@ -520,10 +521,10 @@ subroutine coriolis_force_bgrid_implicit(Time, Velocity)
           write(stdoutunit,*) ' ' 
           write(stdoutunit,*) 'From ocean_coriolis_mod: chksums after acor>0 Coriolis' 
           call write_timestamp(Time%model_time)
-          write(stdoutunit,*) 'accel(1) = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,1))
-          write(stdoutunit,*) 'accel(2) = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,2))
-          write(stdoutunit,*) 'vel(1)   = ',mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,1))
-          write(stdoutunit,*) 'vel(2)   = ',mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,2))
+          call write_chksum_3d('accel(1)', Velocity%accel(COMP,:,1))
+          call write_chksum_3d('accel(2)', Velocity%accel(COMP,:,2))
+          call write_chksum_3d('vel(1)', wrk1_v(COMP,:,1))
+          call write_chksum_3d('vel(2)', wrk1_v(COMP,:,2))
       endif
 
   endif

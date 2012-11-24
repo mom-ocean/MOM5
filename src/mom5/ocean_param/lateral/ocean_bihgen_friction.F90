@@ -1,4 +1,5 @@
 module ocean_bihgen_friction_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S. M. Griffies 
 !</CONTACT>
@@ -231,7 +232,7 @@ use fms_mod,             only: write_version_number, close_file
 use fms_mod,             only: FATAL, NOTE, stdout, stdlog, read_data
 use mpp_domains_mod,     only: mpp_update_domains, mpp_global_field
 use mpp_domains_mod,     only: mpp_global_min, mpp_global_max, BGRID_NE
-use mpp_mod,             only: input_nml_file, mpp_error, mpp_max, mpp_sum, mpp_pe, mpp_chksum 
+use mpp_mod,             only: input_nml_file, mpp_error, mpp_max, mpp_sum, mpp_pe
 
 use ocean_domains_mod,    only: get_local_indices
 use ocean_obc_mod,        only: ocean_obc_enhance_visc_back
@@ -239,7 +240,7 @@ use ocean_operators_mod,  only: BAY, BAX, BDX_EU, BDY_NU, FDX_U, FDY_U, FMX, FMY
 use ocean_parameters_mod, only: missing_value, oneeigth, omega_earth, rho0, rho0r
 use ocean_types_mod,      only: ocean_time_type, ocean_grid_type, ocean_domain_type, ocean_adv_vel_type
 use ocean_types_mod,      only: ocean_thickness_type, ocean_velocity_type, ocean_options_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, write_chksum_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk1_v, wrk2_v, wrk3_v, wrk1_v2d
 
 implicit none
@@ -1476,12 +1477,9 @@ subroutine bihgen_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, en
       write(stdoutunit,*) ' ' 
       write(stdoutunit,*) 'From ocean_bihgen_friction_mod: friction chksums'
       call write_timestamp(Time%model_time)
-      write(stdoutunit,*) 'rho_dzu(tau)       = ', &
-                         mpp_chksum(Thickness%rho_dzu(isc:iec,jsc:jec,:,tau)*Grd%umask(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'bihgen friction(1) = ', &
-                         mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,1)*Grd%umask(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'bihgen friction(2) = ', &
-                         mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,2)*Grd%umask(isc:iec,jsc:jec,:))
+      call write_chksum_3d('rho_dzu(tau)', Thickness%rho_dzu(COMP,:,tau)*Grd%umask(COMP,:))
+      call write_chksum_3d('bihgen friction(1)', wrk1_v(COMP,:,1)*Grd%umask(COMP,:))
+      call write_chksum_3d('bihgen friction(2)', wrk1_v(COMP,:,2)*Grd%umask(COMP,:))
   endif 
 
 

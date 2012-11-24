@@ -1,4 +1,5 @@
 module ocean_vert_chen_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="Russell.Fiedler@csiro.au"> Russell Fiedler 
 !</CONTACT>
@@ -80,7 +81,7 @@ use fms_mod,          only: write_version_number, open_namelist_file, check_nml_
 use fms_io_mod,       only: register_restart_field, save_restart, restore_state
 use fms_io_mod,       only: restart_file_type
 use mpp_domains_mod,  only: mpp_update_domains, NUPDATE, EUPDATE
-use mpp_mod,          only: input_nml_file, mpp_error, mpp_chksum
+use mpp_mod,          only: input_nml_file, mpp_error
 
 use ocean_density_mod,         only: density, density_delta_z, density_delta_sfc
 use ocean_domains_mod,         only: get_local_indices
@@ -91,7 +92,7 @@ use ocean_types_mod,           only: ocean_grid_type, ocean_domain_type
 use ocean_types_mod,           only: ocean_prog_tracer_type, ocean_diag_tracer_type
 use ocean_types_mod,           only: ocean_velocity_type, ocean_density_type
 use ocean_types_mod,           only: ocean_time_type, ocean_time_steps_type, ocean_thickness_type
-use ocean_util_mod,            only: write_timestamp
+use ocean_util_mod,            only: write_timestamp, write_chksum_2d
 use ocean_vert_util_mod,       only: ri_for_cgrid
 use ocean_workspace_mod,       only: wrk1, wrk1_v
 
@@ -325,7 +326,7 @@ ierr = check_nml_error(io_status,'ocean_vert_chen_nml')
       write(stdoutunit,*)' ' 
       write(stdoutunit,*) 'From ocean_vert_chen: reading hbl from kraus.res.nc'
       call write_timestamp(Time%model_time)
-      write (stdoutunit, *) 'checksum hbl ', mpp_chksum(hbl(isc:iec,jsc:jec)*Grd%tmask(isc:iec,jsc:jec,1))
+      call write_chksum_2d('hbl', hbl(COMP)*Grd%tmask(COMP,1))
   else
       hbl(:,:) = hbl_init*Grd%tmask(:,:,1)
       kbl(:,:)=1
@@ -538,10 +539,8 @@ end subroutine ocean_vert_chen_init
       write(stdoutunit,*)' ' 
       write(stdoutunit,*) 'From ocean_vert_chen: intermediate chksum'
       call write_timestamp(Time%model_time)
-      write (stdoutunit, *) &
-           'checksum hbl     ', mpp_chksum(hbl(isc:iec,jsc:jec)*Grd%tmask(isc:iec,jsc:jec,1))
-      write (stdoutunit, *) &
-           'checksum diff_cbt', mpp_chksum(diff_cbt(isc:iec,jsc:jec,:,1)*Grd%tmask(isc:iec,jsc:jec,:))
+      call write_chksum_2d('hbl', hbl(COMP)*Grd%tmask(COMP,1))
+      call write_chksum_2d('diff_cbt', diff_cbt(COMP,:,1)*Grd%tmask(COMP,:))
   endif
   
 end subroutine vert_mix_chen
@@ -962,8 +961,7 @@ subroutine ocean_vert_chen_end(Time)
   write(stdoutunit,*)' ' 
   write(stdoutunit,*) 'From ocean_vert_chen: ending hbl checksum for kraus.res.nc'
   call write_timestamp(Time%model_time)
-  write (stdoutunit, *) 'ending checksum hbl ', &
-  mpp_chksum(hbl(isc:iec,jsc:jec)*Grd%tmask(isc:iec,jsc:jec,1))
+  call write_chksum_2d('hbl', hbl(COMP)*Grd%tmask(COMP,1))
 
   return 
 

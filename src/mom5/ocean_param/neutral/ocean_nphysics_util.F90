@@ -420,7 +420,6 @@ use fms_mod,          only: open_namelist_file, check_nml_error, close_file, wri
 use fms_io_mod,       only: register_restart_field, save_restart, restore_state
 use fms_io_mod,       only: restart_file_type
 use mpp_mod,          only: input_nml_file, mpp_pe, mpp_min, mpp_error, stdout, stdlog
-use mpp_mod,          only: mpp_chksum
 use mpp_mod,          only: mpp_clock_id, mpp_clock_begin, mpp_clock_end, CLOCK_ROUTINE
 use mpp_domains_mod,  only: mpp_update_domains, EUPDATE, NUPDATE
 use mpp_domains_mod,  only: mpp_global_sum, NON_BITWISE_EXACT_SUM
@@ -438,7 +437,7 @@ use ocean_types_mod,             only: ocean_prog_tracer_type, ocean_density_typ
 use ocean_types_mod,             only: ocean_time_type, ocean_thickness_type, ocean_time_steps_type
 use ocean_types_mod,             only: tracer_3d_0_nk_type, tracer_3d_1_nk_type 
 use ocean_util_mod,              only: write_timestamp, write_chksum_3d, write_chksum_2d, write_chksum_header
-use ocean_util_mod,              only: write_line, write_note, write_warning
+use ocean_util_mod,              only: write_line, write_note, write_warning, write_chksum_3d
 use ocean_util_mod,              only: diagnose_2d, diagnose_3d
 use ocean_workspace_mod,         only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk6
 use ocean_workspace_mod,         only: wrk1_v, wrk2_v, wrk3_v, wrk1_2d, wrk2_2d, wrk3_2d
@@ -5249,16 +5248,11 @@ subroutine ocean_nphysics_coeff_end(Time, agm_array, aredi_array, &
   write(stdoutunit,*) 'From ocean_nphysics_coeff_end: ending chksum'
   call write_timestamp(Time%model_time)
 
-  write (stdoutunit, *) &
-  'checksum ending agm_array',     mpp_chksum(agm_array(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:))
-  write (stdoutunit, *) &
-  'checksum ending aredi_array',   mpp_chksum(aredi_array(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:))
-  write (stdoutunit, *) &
-  'checksum ending rossby_radius', mpp_chksum(rossby_radius(isc:iec,jsc:jec)*Grd%tmask(isc:iec,jsc:jec,1))
-  write (stdoutunit, *) &
-  'checksum ending rossby_radius_raw', mpp_chksum(rossby_radius_raw(isc:iec,jsc:jec)*Grd%tmask(isc:iec,jsc:jec,1))
-  write (stdoutunit, *) &
-  'checksum ending bczone_radius', mpp_chksum(bczone_radius(isc:iec,jsc:jec)*Grd%tmask(isc:iec,jsc:jec,1))
+  call write_chksum_3d('ending agm_array', agm_array(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('ending aredi_array', aredi_array(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('ending rossby_radius', rossby_radius(COMP)*Grd%tmask(COMP,1))
+  call write_chksum_3d('ending rossby_radius_raw', rossby_radius_raw(COMP)*Grd%tmask(COMP,1))
+  call write_chksum_3d('ending bczone_radius', bczone_radius(COMP)*Grd%tmask(COMP,1))
 
 end subroutine ocean_nphysics_coeff_end
 ! </SUBROUTINE> NAME="ocean_nphysics_coeff_end"

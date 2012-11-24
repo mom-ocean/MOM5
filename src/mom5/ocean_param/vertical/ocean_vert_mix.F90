@@ -1,4 +1,5 @@
 module ocean_vert_mix_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
 !</CONTACT>
@@ -238,7 +239,7 @@ use fms_mod,             only: open_namelist_file, check_nml_error, close_file, 
 use fms_mod,             only: FATAL, WARNING, NOTE, stdout, stdlog
 use mpp_domains_mod,     only: mpp_update_domains
 use mpp_domains_mod,     only: mpp_global_sum, NON_BITWISE_EXACT_SUM
-use mpp_mod,             only: input_nml_file, mpp_error, mpp_chksum
+use mpp_mod,             only: input_nml_file, mpp_error
 use mpp_mod,             only: mpp_clock_id, mpp_clock_begin, mpp_clock_end, CLOCK_ROUTINE
 
 use ocean_domains_mod,         only: get_local_indices
@@ -253,7 +254,7 @@ use ocean_types_mod,           only: ocean_grid_type, ocean_domain_type, ocean_t
 use ocean_types_mod,           only: ocean_time_type, ocean_time_steps_type, ocean_options_type
 use ocean_types_mod,           only: ocean_velocity_type, ocean_adv_vel_type, ocean_density_type
 use ocean_types_mod,           only: ocean_prog_tracer_type, ocean_diag_tracer_type
-use ocean_util_mod,            only: invtri, invtri_bmf, write_timestamp
+use ocean_util_mod,            only: invtri, invtri_bmf, write_timestamp, write_chksum_3d
 use ocean_vert_const_mod,      only: ocean_vert_const_init, vert_mix_const 
 use ocean_vert_chen_mod,       only: ocean_vert_chen_init, vert_mix_chen, ocean_vert_chen_end 
 use ocean_vert_chen_mod,       only: ocean_vert_chen_restart
@@ -3849,10 +3850,10 @@ subroutine vert_friction_implicit_bgrid(visc_cbu, visc_cbu_form_drag, Time, Thic
           write(stdoutunit,*) ' ' 
           write(stdoutunit,*) 'From ocean_vert_mix_mod: chksums after implicit vert frict'
           call write_timestamp(Time%model_time)
-          write(stdoutunit,*) 'accel(1) = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,1))
-          write(stdoutunit,*) 'accel(2) = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,2))
-          write(stdoutunit,*) 'vel(1)   = ',mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,1))
-          write(stdoutunit,*) 'vel(2)   = ',mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,2))
+          call write_chksum_3d('accel(1)', Velocity%accel(COMP,:,1))
+          call write_chksum_3d('accel(2)', Velocity%accel(COMP,:,2))
+          call write_chksum_3d('vel(1)', wrk1_v(COMP,:,1))
+          call write_chksum_3d('vel(2)', wrk1_v(COMP,:,2))
       endif
 
 
@@ -4029,10 +4030,10 @@ subroutine vert_friction_implicit_cgrid (visc_cbt, visc_cbu_form_drag, Time, Thi
           write(stdoutunit,*) ' ' 
           write(stdoutunit,*) 'From ocean_vert_mix_mod: chksums after implicit vert frict'
           call write_timestamp(Time%model_time)
-          write(stdoutunit,*) 'accel(1) = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,1))
-          write(stdoutunit,*) 'accel(2) = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,2))
-          write(stdoutunit,*) 'vel(1)   = ',mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,1))
-          write(stdoutunit,*) 'vel(2)   = ',mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,2))
+          call write_chksum_3d('accel(1)', Velocity%accel(COMP,:,1))
+          call write_chksum_3d('accel(2)', Velocity%accel(COMP,:,2))
+          call write_chksum_3d('vel(1)', wrk1_v(COMP,:,1))
+          call write_chksum_3d('vel(2)', wrk1_v(COMP,:,2))
       endif
 
 

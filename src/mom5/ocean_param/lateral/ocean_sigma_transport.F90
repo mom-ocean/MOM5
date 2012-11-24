@@ -1,4 +1,5 @@
 module ocean_sigma_transport_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Stephen M. Griffies
 !</CONTACT>
@@ -196,7 +197,7 @@ use fms_io_mod,       only: register_restart_field, save_restart, restore_state
 use fms_io_mod,       only: restart_file_type
 use mpp_domains_mod,  only: mpp_update_domains, CGRID_NE
 use mpp_domains_mod,  only: mpp_global_sum, NON_BITWISE_EXACT_SUM
-use mpp_mod,          only: input_nml_file, mpp_error, mpp_chksum
+use mpp_mod,          only: input_nml_file, mpp_error
 
 use ocean_domains_mod,     only: get_local_indices, set_ocean_domain
 use ocean_density_mod,     only: density
@@ -207,7 +208,7 @@ use ocean_tracer_util_mod, only: rebin_onto_rho
 use ocean_types_mod,       only: ocean_domain_type, ocean_grid_type, ocean_time_type
 use ocean_types_mod,       only: ocean_prog_tracer_type, ocean_adv_vel_type
 use ocean_types_mod,       only: ocean_options_type, ocean_thickness_type, ocean_density_type
-use ocean_util_mod,        only: write_timestamp
+use ocean_util_mod,        only: write_timestamp, write_chksum_2d
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk6
 
 implicit none
@@ -682,7 +683,7 @@ ierr = check_nml_error(io_status,'ocean_sigma_transport_nml')
       write(stdoutunit,*) ' '
       write(stdoutunit,*) 'From ocean_sigma_transport_mod: initial thickness_sigma chksum'
       call write_timestamp(Time%model_time)
-      write(stdoutunit, *) mpp_chksum(thickness_sigma(isc:iec,jsc:jec)*Grd%tmask(isc:iec,jsc:jec,1))
+      call write_chksum_2d('thickness_sigma', thickness_sigma(COMP)*Grd%tmask(COMP,1))
   endif
 
   ! checks
@@ -1394,7 +1395,7 @@ subroutine sigma_transport (Time, Thickness, Dens, T_prog, Adv_vel, bott_blthick
   if(debug_this_module) then 
      write(stdoutunit,*) 'From ocean_sigma_transport_mod: intermediate thickness_sigma chksum'
      call write_timestamp(Time%model_time)
-     write(stdoutunit, *) mpp_chksum(thickness_sigma(isc:iec,jsc:jec)*Grd%tmask(isc:iec,jsc:jec,1))
+     call write_chksum_2d('thickness_sigma', thickness_sigma(COMP)*Grd%tmask(COMP,1))
   endif 
 
   ! for use in neutral physics 
@@ -1690,8 +1691,7 @@ subroutine ocean_sigma_transport_end(Time)
   write(stdoutunit,*) ' '
   write(stdoutunit,*) 'From ocean_sigma_transport_mod: ending chksums'
   call write_timestamp(Time%model_time)
-  write (stdoutunit, *) 'chksum for thickness_sigma = ', &
-                      mpp_chksum(thickness_sigma(isc:iec,jsc:jec)*Grd%tmask(isc:iec,jsc:jec,1))
+  call write_chksum_2d('thickness_sigma', thickness_sigma(COMP)*Grd%tmask(COMP,1))
 
 
 end subroutine ocean_sigma_transport_end

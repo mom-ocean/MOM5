@@ -1,4 +1,5 @@
 module ocean_thickness_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies 
 !</CONTACT>
@@ -168,7 +169,7 @@ use fms_mod,           only: open_namelist_file, close_file, check_nml_error, fi
 use fms_io_mod,        only: register_restart_field, save_restart, restore_state
 use fms_io_mod,        only: restart_file_type, reset_field_pointer 
 use mpp_domains_mod,   only: mpp_update_domains, mpp_global_min, mpp_global_max, domain2d
-use mpp_mod,           only: input_nml_file, stdout, stdlog, mpp_error, mpp_chksum, mpp_max, mpp_min, mpp_pe
+use mpp_mod,           only: input_nml_file, stdout, stdlog, mpp_error, mpp_max, mpp_min, mpp_pe
 
 use ocean_domains_mod,    only: get_local_indices
 use ocean_grids_mod,      only: update_boundaries
@@ -181,7 +182,7 @@ use ocean_tracer_util_mod,only: dzt_min_max
 use ocean_types_mod,      only: ocean_time_type, ocean_domain_type, ocean_external_mode_type
 use ocean_types_mod,      only: ocean_grid_type, ocean_thickness_type, ocean_density_type
 use ocean_types_mod,      only: ocean_time_steps_type, ocean_lagrangian_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, write_chksum_2d, write_chksum_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk1_2d
 
 implicit none
@@ -4025,142 +4026,57 @@ subroutine thickness_chksum(Time, Grid, Thickness)
   type(ocean_grid_type),      intent(in) :: Grid 
   type(ocean_thickness_type), intent(in) :: Thickness
 
-  integer :: taum1, tau, taup1
+  integer :: tau, taup1
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-  taum1 = Time%taum1
   tau   = Time%tau
   taup1 = Time%taup1
 
-  wrk1 = 0.0
-
   if(tendency == THREE_LEVEL) then 
-     
-     wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzt(isc:iec,jsc:jec,:,tau)*Grid%tmask(isc:iec,jsc:jec,:)
-     write(stdoutunit,*) 'chksum for Thickness%rho_dzt(tau)      = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-     
-     wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzt(isc:iec,jsc:jec,:,taup1)*Grid%tmask(isc:iec,jsc:jec,:)
-     write(stdoutunit,*) 'chksum for Thickness%rho_dzt(taup1)    = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-     
-     wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzu(isc:iec,jsc:jec,:,tau)*Grid%umask(isc:iec,jsc:jec,:)
-     write(stdoutunit,*) 'chksum for Thickness%rho_dzu(tau)      = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-     
-     wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzu(isc:iec,jsc:jec,:,taup1)*Grid%umask(isc:iec,jsc:jec,:)
-     write(stdoutunit,*) 'chksum for Thickness%rho_dzu(taup1)    = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-     
-     wrk1(isc:iec,jsc:jec,1) = Thickness%mass_u(isc:iec,jsc:jec,tau)*Grid%umask(isc:iec,jsc:jec,1)
-     write(stdoutunit,*) 'chksum for Thickness%mass_u(tau)       = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-     
-     wrk1(isc:iec,jsc:jec,1) = Thickness%mass_u(isc:iec,jsc:jec,taup1)*Grid%umask(isc:iec,jsc:jec,1)
-     write(stdoutunit,*) 'chksum for Thickness%mass_u(taup1)     = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-     
+     call write_chksum_3d('Thickness%rho_dzt(tau)', Thickness%rho_dzt(COMP,:,tau)*Grid%tmask(COMP,:))
+     call write_chksum_3d('Thickness%rho_dzt(taup1)', Thickness%rho_dzt(COMP,:,taup1)*Grid%tmask(COMP,:))
+     call write_chksum_3d('Thickness%rho_dzu(tau)', Thickness%rho_dzu(COMP,:,tau)*Grid%umask(COMP,:))
+     call write_chksum_3d('Thickness%rho_dzu(taup1)', Thickness%rho_dzu(COMP,:,taup1)*Grid%umask(COMP,:))
+     call write_chksum_2d('Thickness%mass_u(tau)', Thickness%mass_u(COMP,tau)*Grid%umask(COMP,1))
+     call write_chksum_2d('Thickness%mass_u(taup1)', Thickness%mass_u(COMP,taup1)*Grid%umask(COMP,1))
   else 
-     
-     wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzt(isc:iec,jsc:jec,:,taup1)*Grid%tmask(isc:iec,jsc:jec,:)
-     write(stdoutunit,*) 'chksum for Thickness%rho_dzt(taup1)    = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-     
-     wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzu(isc:iec,jsc:jec,:,taup1)*Grid%umask(isc:iec,jsc:jec,:)
-     write(stdoutunit,*) 'chksum for Thickness%rho_dzu(taup1)    = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-     
-     wrk1(isc:iec,jsc:jec,1) = Thickness%mass_u(isc:iec,jsc:jec,taup1)*Grid%umask(isc:iec,jsc:jec,1)
-     write(stdoutunit,*) 'chksum for Thickness%mass_u(taup1)     = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-     
+     call write_chksum_3d('Thickness%rho_dzt(taup1)', Thickness%rho_dzt(COMP,:,taup1)*Grid%tmask(COMP,:))
+     call write_chksum_3d('Thickness%rho_dzu(taup1)', Thickness%rho_dzu(COMP,:,taup1)*Grid%umask(COMP,:))
+     call write_chksum_2d('Thickness%mass_u(taup1)', Thickness%mass_u(COMP,taup1)*Grid%umask(COMP,1))
   endif
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzten(isc:iec,jsc:jec,:,1)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%rho_dzten(1)      = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzten(isc:iec,jsc:jec,:,2)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%rho_dzten(2)      = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dztr(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%rho_dztr          = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzur(isc:iec,jsc:jec,:)*Grid%umask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%rho_dzur          = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzt_tendency(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%rho_dzt_tendency  = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzt(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dzt               = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzten(isc:iec,jsc:jec,:,1)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dzten(1)          = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzten(isc:iec,jsc:jec,:,2)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dzten(2)          = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dztlo(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dztlo             = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dztup(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dztup             = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzt_dst(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dzt_dst           = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,1) = Thickness%dzwt(isc:iec,jsc:jec,0)*Grid%tmask(isc:iec,jsc:jec,1)
-  write(stdoutunit,*) 'chksum for Thickness%dzwt(k=0)         = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzwt(isc:iec,jsc:jec,1:nk)*Grid%tmask(isc:iec,jsc:jec,1:nk)
-  write(stdoutunit,*) 'chksum for Thickness%dzwt(k=1:nk)      = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzu(isc:iec,jsc:jec,:)*Grid%umask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dzu               = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,1) = Thickness%dzwu(isc:iec,jsc:jec,0)*Grid%umask(isc:iec,jsc:jec,1)
-  write(stdoutunit,*) 'chksum for Thickness%dzwu(k=0)         = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzwu(isc:iec,jsc:jec,1:nk)*Grid%umask(isc:iec,jsc:jec,1:nk)
-  write(stdoutunit,*) 'chksum for Thickness%dzwu(k=1:nk)      = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%depth_zt(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%depth_zt          = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%geodepth_zt(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%geodepth_zt       = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%depth_zu(isc:iec,jsc:jec,:)*Grid%umask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%depth_zu          = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%depth_zwt(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%depth_zwt         = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%depth_zwu(isc:iec,jsc:jec,:)*Grid%umask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%depth_zwu         = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%depth_st(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%depth_st          = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%depth_swt(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%depth_swt         = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dst(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dst               = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dstlo(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dstlo             = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dstup(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dstup             = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,1) = Thickness%dswt(isc:iec,jsc:jec,0)*Grid%tmask(isc:iec,jsc:jec,1)
-  write(stdoutunit,*) 'chksum for Thickness%dswt(k=0)         = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dswt(isc:iec,jsc:jec,1:nk)*Grid%tmask(isc:iec,jsc:jec,1:nk)
-  write(stdoutunit,*) 'chksum for Thickness%dswt(k=1:nk)      = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,1) = Thickness%pbot0(isc:iec,jsc:jec)*Grid%tmask(isc:iec,jsc:jec,1)
-  write(stdoutunit,*) 'chksum for Thickness%pbot0             = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-
-  wrk1(isc:iec,jsc:jec,1) = Thickness%mass_en(isc:iec,jsc:jec,1)*Grid%tmasken(isc:iec,jsc:jec,1,1)
-  write(stdoutunit,*) 'chksum for Thickness%mass_en(1)        = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-     
-  wrk1(isc:iec,jsc:jec,1) = Thickness%mass_en(isc:iec,jsc:jec,2)*Grid%tmasken(isc:iec,jsc:jec,1,2)
-  write(stdoutunit,*) 'chksum for Thickness%mass_en(2)        = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
+  call write_chksum_3d('Thickness%rho_dzten(1)', Thickness%rho_dzten(COMP,:,1)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%rho_dzten(2)', Thickness%rho_dzten(COMP,:,2)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%rho_dztr', Thickness%rho_dztr(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%rho_dzur', Thickness%rho_dzur(COMP,:)*Grid%umask(COMP,:))
+  call write_chksum_3d('Thickness%rho_dzt_tendency', Thickness%rho_dzt_tendency(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dzt', Thickness%dzt(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dzten(1)', Thickness%dzten(COMP,:,1)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dzten(2)', Thickness%dzten(COMP,:,2)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dztlo', Thickness%dztlo(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dztup', Thickness%dztup(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dzt_dst', Thickness%dzt_dst(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_2d('Thickness%dzwt(k=0)', Thickness%dzwt(COMP,0)*Grid%tmask(COMP,1))
+  call write_chksum_3d('Thickness%dzwt(k=1:nk)', Thickness%dzwt(COMP,1:nk)*Grid%tmask(COMP,1:nk))
+  call write_chksum_3d('Thickness%dzu', Thickness%dzu(COMP,:)*Grid%umask(COMP,:))
+  call write_chksum_2d('Thickness%dzwu(k=0)', Thickness%dzwu(COMP,0)*Grid%umask(COMP,1))
+  call write_chksum_3d('Thickness%dzwu(k=1:nk)', Thickness%dzwu(COMP,1:nk)*Grid%umask(COMP,1:nk))
+  call write_chksum_3d('Thickness%depth_zt', Thickness%depth_zt(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%geodepth_zt', Thickness%geodepth_zt(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%depth_zu', Thickness%depth_zu(COMP,:)*Grid%umask(COMP,:))
+  call write_chksum_3d('Thickness%depth_zwt', Thickness%depth_zwt(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%depth_zwu', Thickness%depth_zwu(COMP,:)*Grid%umask(COMP,:))
+  call write_chksum_3d('Thickness%depth_st', Thickness%depth_st(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%depth_swt', Thickness%depth_swt(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dst', Thickness%dst(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dstlo', Thickness%dstlo(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dstup', Thickness%dstup(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_2d('Thickness%dswt(k=0)', Thickness%dswt(COMP,0)*Grid%tmask(COMP,1))
+  call write_chksum_3d('Thickness%dswt(k=1:nk)', Thickness%dswt(COMP,1:nk)*Grid%tmask(COMP,1:nk))
+  call write_chksum_2d('Thickness%pbot0', Thickness%pbot0(COMP)*Grid%tmask(COMP,1))
+  call write_chksum_2d('Thickness%mass_en(1)', Thickness%mass_en(COMP,1)*Grid%tmasken(COMP,1,1))
+  call write_chksum_2d('Thickness%mass_en(2)', Thickness%mass_en(COMP,2)*Grid%tmasken(COMP,1,2))
   
   write(stdoutunit,*) ' '
   
@@ -4980,169 +4896,65 @@ subroutine thickness_chksum_blobs(Time, Grid, Thickness)
   type(ocean_grid_type),      intent(in) :: Grid 
   type(ocean_thickness_type), intent(in) :: Thickness
 
-  integer :: taum1, tau, taup1
+  integer :: tau, taup1
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-  taum1 = Time%taum1
   tau   = Time%tau
   taup1 = Time%taup1
 
-  wrk1 = 0.0
-
-  wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dztT(isc:iec,jsc:jec,:,taup1)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%rho_dztT(taup1)   = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzt(isc:iec,jsc:jec,:,taup1)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%rho_dzt(taup1)    = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dztL(isc:iec,jsc:jec,:,taup1)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%rho_dztL(taup1)   = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzuT(isc:iec,jsc:jec,:,taup1)*Grid%umask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%rho_dzuT(taup1)   = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzu(isc:iec,jsc:jec,:,taup1)*Grid%umask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%rho_dzu(taup1)    = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzuL(isc:iec,jsc:jec,:,taup1)*Grid%umask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%rho_dzuL(taup1)   = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,1) = Thickness%mass_uT(isc:iec,jsc:jec,taup1)*Grid%umask(isc:iec,jsc:jec,1)
-  write(stdoutunit,*) 'chksum for Thickness%mass_uT(taup1)    = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-  
-  wrk1(isc:iec,jsc:jec,1) = Thickness%mass_u(isc:iec,jsc:jec,taup1)*Grid%umask(isc:iec,jsc:jec,1)
-  write(stdoutunit,*) 'chksum for Thickness%mass_u(taup1)     = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dztr(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%rho_dztr          = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzur(isc:iec,jsc:jec,:)*Grid%umask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%rho_dzur          = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzt_tendency(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%rho_dzt_tendency  = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dztT(isc:iec,jsc:jec,:,taup1)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dztT              = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzt(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dzt               = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dztL(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dztL              = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dztloT(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dztloT            = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dztlo(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dztlo             = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dztloL(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dztloL            = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dztupT(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dztupT            = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dztup(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dztup             = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dztupL(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dztupL            = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzt_dst(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dzt_dst           = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,1) = Thickness%dzwtT(isc:iec,jsc:jec,0)*Grid%tmask(isc:iec,jsc:jec,1)
-  write(stdoutunit,*) 'chksum for Thickness%dzwtT(k=0)        = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-  
-  wrk1(isc:iec,jsc:jec,1) = Thickness%dzwt(isc:iec,jsc:jec,0)*Grid%tmask(isc:iec,jsc:jec,1)
-  write(stdoutunit,*) 'chksum for Thickness%dzwt(k=0)         = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-  
-  wrk1(isc:iec,jsc:jec,1) = Thickness%dzwtL(isc:iec,jsc:jec,0)*Grid%tmask(isc:iec,jsc:jec,1)
-  write(stdoutunit,*) 'chksum for Thickness%dzwtL(k=0)        = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzwtT(isc:iec,jsc:jec,1:nk)*Grid%tmask(isc:iec,jsc:jec,1:nk)
-  write(stdoutunit,*) 'chksum for Thickness%dzwtT(k=1:nk)     = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzwt(isc:iec,jsc:jec,1:nk)*Grid%tmask(isc:iec,jsc:jec,1:nk)
-  write(stdoutunit,*) 'chksum for Thickness%dzwt(k=1:nk)      = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzwtL(isc:iec,jsc:jec,1:nk)*Grid%tmask(isc:iec,jsc:jec,1:nk)
-  write(stdoutunit,*) 'chksum for Thickness%dzwtL(k=1:nk)     = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzuT(isc:iec,jsc:jec,:)*Grid%umask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dzuT              = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzu(isc:iec,jsc:jec,:)*Grid%umask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dzu               = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzuL(isc:iec,jsc:jec,:)*Grid%umask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dzuL              = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,1) = Thickness%dzwuT(isc:iec,jsc:jec,0)*Grid%umask(isc:iec,jsc:jec,1)
-  write(stdoutunit,*) 'chksum for Thickness%dzwuT(k=0)        = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-  
-  wrk1(isc:iec,jsc:jec,1) = Thickness%dzwu(isc:iec,jsc:jec,0)*Grid%umask(isc:iec,jsc:jec,1)
-  write(stdoutunit,*) 'chksum for Thickness%dzwu(k=0)         = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-  
-  wrk1(isc:iec,jsc:jec,1) = Thickness%dzwuL(isc:iec,jsc:jec,0)*Grid%umask(isc:iec,jsc:jec,1)
-  write(stdoutunit,*) 'chksum for Thickness%dzwuL(k=0)        = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzwuT(isc:iec,jsc:jec,1:nk)*Grid%umask(isc:iec,jsc:jec,1:nk)
-  write(stdoutunit,*) 'chksum for Thickness%dzwuT(k=1:nk)     = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzwu(isc:iec,jsc:jec,1:nk)*Grid%umask(isc:iec,jsc:jec,1:nk)
-  write(stdoutunit,*) 'chksum for Thickness%dzwu(k=1:nk)      = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dzwuL(isc:iec,jsc:jec,1:nk)*Grid%umask(isc:iec,jsc:jec,1:nk)
-  write(stdoutunit,*) 'chksum for Thickness%dzwuL(k=1:nk)     = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%depth_zt(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%depth_zt          = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%depth_zwt(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%depth_zwt         = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%geodepth_zt(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%geodepth_zt       = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%geodepth_zwt(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%geodepth_zwt      = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%depth_zwt(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%depth_zwt         = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%depth_zu(isc:iec,jsc:jec,:)*Grid%umask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%depth_zu          = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%depth_zwu(isc:iec,jsc:jec,:)*Grid%umask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%depth_zwu         = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%depth_st(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%depth_st          = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%depth_swt(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%depth_swt         = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dst(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dst               = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dstlo(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dstlo             = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dstup(isc:iec,jsc:jec,:)*Grid%tmask(isc:iec,jsc:jec,:)
-  write(stdoutunit,*) 'chksum for Thickness%dstup             = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,1) = Thickness%dswt(isc:iec,jsc:jec,0)*Grid%tmask(isc:iec,jsc:jec,1)
-  write(stdoutunit,*) 'chksum for Thickness%dswt(k=0)         = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-  
-  wrk1(isc:iec,jsc:jec,:) = Thickness%dswt(isc:iec,jsc:jec,1:nk)*Grid%tmask(isc:iec,jsc:jec,1:nk)
-  write(stdoutunit,*) 'chksum for Thickness%dswt(k=1:nk)      = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  wrk1(isc:iec,jsc:jec,1) = Thickness%pbot0(isc:iec,jsc:jec)*Grid%tmask(isc:iec,jsc:jec,1)
-  write(stdoutunit,*) 'chksum for Thickness%pbot0             = ',  mpp_chksum(wrk1(isc:iec,jsc:jec,1))
+  call write_chksum_3d('Thickness%rho_dztT(taup1)', Thickness%rho_dztT(COMP,:,taup1)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%rho_dzt(taup1)', Thickness%rho_dzt(COMP,:,taup1)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%rho_dztL(taup1)', Thickness%rho_dztL(COMP,:,taup1)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%rho_dzuT(taup1)', Thickness%rho_dzuT(COMP,:,taup1)*Grid%umask(COMP,:))
+  call write_chksum_3d('Thickness%rho_dzu(taup1)', Thickness%rho_dzu(COMP,:,taup1)*Grid%umask(COMP,:))
+  call write_chksum_3d('Thickness%rho_dzuL(taup1)', Thickness%rho_dzuL(COMP,:,taup1)*Grid%umask(COMP,:))
+  call write_chksum_2d('Thickness%mass_uT(taup1)', Thickness%mass_uT(COMP,taup1)*Grid%umask(COMP,1))
+  call write_chksum_2d('Thickness%mass_u(taup1)', Thickness%mass_u(COMP,taup1)*Grid%umask(COMP,1))
+  call write_chksum_3d('Thickness%rho_dztr', Thickness%rho_dztr(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%rho_dzur', Thickness%rho_dzur(COMP,:)*Grid%umask(COMP,:))
+  call write_chksum_3d('Thickness%rho_dzt_tendency', Thickness%rho_dzt_tendency(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dztT', Thickness%dztT(COMP,:,taup1)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dzt', Thickness%dzt(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dztL', Thickness%dztL(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dztloT', Thickness%dztloT(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dztlo', Thickness%dztlo(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dztloL', Thickness%dztloL(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dztupT', Thickness%dztupT(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dztup', Thickness%dztup(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dztupL', Thickness%dztupL(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dzt_dst', Thickness%dzt_dst(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_2d('Thickness%dzwtT(k=0)', Thickness%dzwtT(COMP,0)*Grid%tmask(COMP,1))
+  call write_chksum_2d('Thickness%dzwt(k=0)', Thickness%dzwt(COMP,0)*Grid%tmask(COMP,1))
+  call write_chksum_2d('Thickness%dzwtL(k=0)', Thickness%dzwtL(COMP,0)*Grid%tmask(COMP,1))
+  call write_chksum_3d('Thickness%dzwtT(k=1:nk)', Thickness%dzwtT(COMP,1:nk)*Grid%tmask(COMP,1:nk))
+  call write_chksum_3d('Thickness%dzwt(k=1:nk)', Thickness%dzwt(COMP,1:nk)*Grid%tmask(COMP,1:nk))
+  call write_chksum_3d('Thickness%dzwtL(k=1:nk)', Thickness%dzwtL(COMP,1:nk)*Grid%tmask(COMP,1:nk))
+  call write_chksum_3d('Thickness%dzuT', Thickness%dzuT(COMP,:)*Grid%umask(COMP,:))
+  call write_chksum_3d('Thickness%dzu', Thickness%dzu(COMP,:)*Grid%umask(COMP,:))
+  call write_chksum_3d('Thickness%dzuL', Thickness%dzuL(COMP,:)*Grid%umask(COMP,:))
+  call write_chksum_2d('Thickness%dzwuT(k=0)', Thickness%dzwuT(COMP,0)*Grid%umask(COMP,1))
+  call write_chksum_2d('Thickness%dzwu(k=0)', Thickness%dzwu(COMP,0)*Grid%umask(COMP,1))
+  call write_chksum_2d('Thickness%dzwuL(k=0)', Thickness%dzwuL(COMP,0)*Grid%umask(COMP,1))
+  call write_chksum_3d('Thickness%dzwuT(k=1:nk)', Thickness%dzwuT(COMP,1:nk)*Grid%umask(COMP,1:nk))
+  call write_chksum_3d('Thickness%dzwu(k=1:nk)', Thickness%dzwu(COMP,1:nk)*Grid%umask(COMP,1:nk))
+  call write_chksum_3d('Thickness%dzwuL(k=1:nk)', Thickness%dzwuL(COMP,1:nk)*Grid%umask(COMP,1:nk))
+  call write_chksum_3d('Thickness%depth_zt', Thickness%depth_zt(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%depth_zwt', Thickness%depth_zwt(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%geodepth_zt', Thickness%geodepth_zt(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%geodepth_zwt', Thickness%geodepth_zwt(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%depth_zwt', Thickness%depth_zwt(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%depth_zu', Thickness%depth_zu(COMP,:)*Grid%umask(COMP,:))
+  call write_chksum_3d('Thickness%depth_zwu', Thickness%depth_zwu(COMP,:)*Grid%umask(COMP,:))
+  call write_chksum_3d('Thickness%depth_st', Thickness%depth_st(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%depth_swt', Thickness%depth_swt(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dst', Thickness%dst(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dstlo', Thickness%dstlo(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_3d('Thickness%dstup', Thickness%dstup(COMP,:)*Grid%tmask(COMP,:))
+  call write_chksum_2d('Thickness%dswt(k=0)', Thickness%dswt(COMP,0)*Grid%tmask(COMP,1))
+  call write_chksum_3d('Thickness%dswt(k=1:nk)', Thickness%dswt(COMP,1:nk)*Grid%tmask(COMP,1:nk))
+  call write_chksum_2d('Thickness%pbot0', Thickness%pbot0(COMP)*Grid%tmask(COMP,1))
   
   write(stdoutunit,*) ' '
   

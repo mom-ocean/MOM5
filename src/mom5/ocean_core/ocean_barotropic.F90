@@ -1,4 +1,5 @@
 module ocean_barotropic_mod
+#define COMP isc:iec,jsc:jec
 !
 ! <CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
 ! </CONTACT>
@@ -444,7 +445,7 @@ use mpp_domains_mod,         only: mpp_update_domains, mpp_global_field, mpp_glo
 use mpp_domains_mod,         only: mpp_get_domain_components, mpp_get_layout, domain1d, mpp_get_pelist
 use mpp_domains_mod,         only: NUPDATE, EUPDATE, mpp_get_data_domain
 use mpp_domains_mod,         only: EAST, NORTH, CORNER
-use mpp_mod,                 only: input_nml_file, mpp_chksum, mpp_max, mpp_min, mpp_sum, mpp_root_pe, mpp_pe
+use mpp_mod,                 only: input_nml_file, mpp_max, mpp_min, mpp_sum, mpp_root_pe, mpp_pe
 use mpp_mod,                 only: mpp_error, mpp_broadcast, stdout, stdlog
 use mpp_mod,                 only: mpp_send, mpp_recv, mpp_sync_self 
 use time_manager_mod,        only: time_type, increment_time, get_time
@@ -478,7 +479,7 @@ use ocean_types_mod,        only: ocean_external_mode_type, ocean_options_type
 use ocean_types_mod,        only: ocean_velocity_type, ocean_density_type
 use ocean_types_mod,        only: ocean_adv_vel_type, ocean_prog_tracer_type
 use ocean_types_mod,        only: ocean_lagrangian_type
-use ocean_util_mod,         only: write_timestamp
+use ocean_util_mod,         only: write_timestamp, write_chksum_2d
 use ocean_workspace_mod,    only: wrk1_2d, wrk2_2d, wrk3_2d, wrk4_2d, wrk1_v2d, wrk2_v2d
 
 implicit none
@@ -6033,43 +6034,42 @@ subroutine barotropic_chksum(Ext_mode, index)
   type(ocean_external_mode_type), intent(in) :: Ext_mode
   integer, intent(in) :: index
 
-  integer :: i,j,k
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-  write(stdoutunit,*) 'chksum for eta_t        = ',mpp_chksum(Ext_mode%eta_t(isc:iec,jsc:jec,index))
-  write(stdoutunit,*) 'chksum for eta_u        = ',mpp_chksum(Ext_mode%eta_u(isc:iec,jsc:jec,index))
-  write(stdoutunit,*) 'chksum for deta_dt      = ',mpp_chksum(Ext_mode%deta_dt(isc:iec,jsc:jec))
-  write(stdoutunit,*) 'chksum for eta_t_bar    = ',mpp_chksum(Ext_mode%eta_t_bar(isc:iec,jsc:jec,index))
+  call write_chksum_2d('eta_t', Ext_mode%eta_t(COMP,index))
+  call write_chksum_2d('eta_u', Ext_mode%eta_u(COMP,index))
+  call write_chksum_2d('deta_dt', Ext_mode%deta_dt(COMP))
+  call write_chksum_2d('eta_t_bar', Ext_mode%eta_t_bar(COMP,index))
 
-  write(stdoutunit,*) 'chksum for pbot_t       = ',mpp_chksum(Ext_mode%pbot_t(isc:iec,jsc:jec,index)*Grd%tmask(isc:iec,jsc:jec,1))
-  write(stdoutunit,*) 'chksum for pbot_u       = ',mpp_chksum(Ext_mode%pbot_u(isc:iec,jsc:jec,index))
-  write(stdoutunit,*) 'chksum for dpbot_dt     = ',mpp_chksum(Ext_mode%dpbot_dt(isc:iec,jsc:jec))
-  write(stdoutunit,*) 'chksum for anompb       = ',mpp_chksum(Ext_mode%anompb(isc:iec,jsc:jec,index)*Grd%tmask(isc:iec,jsc:jec,1))
-  write(stdoutunit,*) 'chksum for anompb_bar   = ',mpp_chksum(Ext_mode%anompb_bar(isc:iec,jsc:jec,index))
+  call write_chksum_2d('pbot_t', Ext_mode%pbot_t(COMP,index)*Grd%tmask(COMP,1))
+  call write_chksum_2d('pbot_u', Ext_mode%pbot_u(COMP,index))
+  call write_chksum_2d('dpbot_dt', Ext_mode%dpbot_dt(COMP))
+  call write_chksum_2d('anompb', Ext_mode%anompb(COMP,index)*Grd%tmask(COMP,1))
+  call write_chksum_2d('anompb_bar', Ext_mode%anompb_bar(COMP,index))
 
-  write(stdoutunit,*) 'chksum for patm_t       = ',mpp_chksum(Ext_mode%patm_t(isc:iec,jsc:jec,index)*Grd%tmask(isc:iec,jsc:jec,1))
-  write(stdoutunit,*) 'chksum for dpatm_dt     = ',mpp_chksum(Ext_mode%dpatm_dt(isc:iec,jsc:jec))
+  call write_chksum_2d('patm_t', Ext_mode%patm_t(COMP,index)*Grd%tmask(COMP,1))
+  call write_chksum_2d('dpatm_dt', Ext_mode%dpatm_dt(COMP))
 
-  write(stdoutunit,*) 'chksum for ps           = ',mpp_chksum(Ext_mode%ps(isc:iec,jsc:jec)*Grd%tmask(isc:iec,jsc:jec,1))
-  write(stdoutunit,*) 'chksum for grad_ps_1    = ',mpp_chksum(Ext_mode%grad_ps(isc:iec,jsc:jec,1))
-  write(stdoutunit,*) 'chksum for grad_ps_2    = ',mpp_chksum(Ext_mode%grad_ps(isc:iec,jsc:jec,2))
+  call write_chksum_2d('ps', Ext_mode%ps(COMP)*Grd%tmask(COMP,1))
+  call write_chksum_2d('grad_ps_1', Ext_mode%grad_ps(COMP,1))
+  call write_chksum_2d('grad_ps_2', Ext_mode%grad_ps(COMP,2))
 
-  write(stdoutunit,*) 'chksum for grad_anompb_1= ',mpp_chksum(Ext_mode%grad_anompb(isc:iec,jsc:jec,1))
-  write(stdoutunit,*) 'chksum for grad_anompb_2= ',mpp_chksum(Ext_mode%grad_anompb(isc:iec,jsc:jec,2))
+  call write_chksum_2d('grad_anompb_1', Ext_mode%grad_anompb(COMP,1))
+  call write_chksum_2d('grad_anompb_2', Ext_mode%grad_anompb(COMP,2))
 
-  write(stdoutunit,*) 'chksum for udrho        = ',mpp_chksum(Ext_mode%udrho(isc:iec,jsc:jec,1,index))
-  write(stdoutunit,*) 'chksum for vdrho        = ',mpp_chksum(Ext_mode%udrho(isc:iec,jsc:jec,2,index))
-  write(stdoutunit,*) 'chksum for conv_rho_ud_t= ',mpp_chksum(Ext_mode%conv_rho_ud_t(isc:iec,jsc:jec,index))
+  call write_chksum_2d('udrho', Ext_mode%udrho(COMP,1,index))
+  call write_chksum_2d('vdrho', Ext_mode%udrho(COMP,2,index))
+  call write_chksum_2d('conv_rho_ud_t', Ext_mode%conv_rho_ud_t(COMP,index))
 
-  write(stdoutunit,*) 'chksum for source       = ',mpp_chksum(Ext_mode%source(isc:iec,jsc:jec))
-  write(stdoutunit,*) 'chksum for eta smoother = ',mpp_chksum(Ext_mode%eta_smooth(isc:iec,jsc:jec))
-  write(stdoutunit,*) 'chksum for pbot smoother= ',mpp_chksum(Ext_mode%pbot_smooth(isc:iec,jsc:jec))
+  call write_chksum_2d('source', Ext_mode%source(COMP))
+  call write_chksum_2d('eta smoother', Ext_mode%eta_smooth(COMP))
+  call write_chksum_2d('pbot smoother', Ext_mode%pbot_smooth(COMP))
 
-  write(stdoutunit,*) 'chksum for eta_nonbouss   = ',mpp_chksum(Ext_mode%eta_nonbouss(isc:iec,jsc:jec,index))
+  call write_chksum_2d('eta_nonbouss', Ext_mode%eta_nonbouss(COMP,index))
 
-  write(stdoutunit,*) 'chksum for forcing_u_bt = ',mpp_chksum(Ext_mode%forcing_bt(isc:iec,jsc:jec,1))
-  write(stdoutunit,*) 'chksum for forcing_v_bt = ',mpp_chksum(Ext_mode%forcing_bt(isc:iec,jsc:jec,2))
+  call write_chksum_2d('forcing_u_bt', Ext_mode%forcing_bt(COMP,1))
+  call write_chksum_2d('forcing_v_bt', Ext_mode%forcing_bt(COMP,2))
 
   write(stdoutunit,*) ' '
 
