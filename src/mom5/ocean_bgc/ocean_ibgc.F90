@@ -234,7 +234,7 @@
 
 module  ocean_ibgc_mod
 
-use diag_manager_mod,         only: send_data, register_diag_field, diag_axis_init
+use diag_manager_mod,         only: register_diag_field, diag_axis_init
 use field_manager_mod,        only: fm_field_name_len, fm_path_name_len, fm_string_len
 use field_manager_mod,        only: fm_get_length, fm_get_value, fm_new_value, fm_get_index
 use mpp_mod,                  only: input_nml_file, stdout, stdlog, mpp_error, mpp_sum, mpp_chksum, FATAL, NOTE
@@ -253,10 +253,11 @@ use fm_util_mod,              only: fm_util_get_string, fm_util_get_logical, fm_
 use fm_util_mod,              only: fm_util_get_logical_array, fm_util_get_real_array, fm_util_get_string_array
 use fm_util_mod,              only: fm_util_start_namelist, fm_util_end_namelist
 use ocean_types_mod,          only: ocean_prog_tracer_type, ocean_diag_tracer_type
-use ocean_types_mod,          only: ocean_thickness_type, ocean_density_type, ocean_time_type
+use ocean_types_mod,          only: ocean_thickness_type, ocean_density_type, ocean_time_type, ocean_grid_type
 use ocmip2_co2calc_mod,       only: ocmip2_co2calc
 use coupler_types_mod,        only: ind_alpha, ind_csurf, coupler_2d_bc_type, ind_flux
 use atmos_ocean_fluxes_mod,   only: aof_set_coupler_flux
+use ocean_util_mod,           only: diagnose_2d, diagnose_2d_comp, diagnose_3d_comp
 
 implicit none
 
@@ -894,8 +895,8 @@ end subroutine ocean_ibgc_restart
 ! </DESCRIPTION>
 
 subroutine ocean_ibgc_sbc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,        &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, T_prog, tau, model_time,    &
-     grid_tmask, ice_ocean_boundary_fluxes)
+     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, T_prog, tau,    &
+     Grid, Time, ice_ocean_boundary_fluxes)
 
 integer, intent(in)                                       :: isc
 integer, intent(in)                                       :: iec
@@ -912,8 +913,8 @@ integer, intent(in)                                       :: jsc_bnd
 integer, intent(in)                                       :: jec_bnd
 type(ocean_prog_tracer_type), intent(inout), dimension(:) :: T_prog
 integer, intent(in)                                       :: tau
-type(time_type), intent(in)                               :: model_time
-real, dimension(isd:,jsd:,:), intent(in)                  :: grid_tmask
+type(ocean_grid_type), intent(in)                         :: Grid
+type(ocean_time_type), intent(in)                         :: Time
 type(coupler_2d_bc_type), intent(in)                      :: ice_ocean_boundary_fluxes
 
 integer :: i, j, k, n, m
@@ -950,18 +951,8 @@ enddo
 
 ! Save variables for diagnostics
 do n = 1, instances
-  if (ibgc(n)%id_sfc_flux_co2 .gt. 0) then
-    used = send_data(ibgc(n)%id_sfc_flux_co2,           &
-         t_prog(ibgc(n)%ind_idic)%stf(:,:),             &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-  if (ibgc(n)%id_sfc_flux_o2 .gt. 0) then
-    used = send_data(ibgc(n)%id_sfc_flux_o2,            &
-         t_prog(ibgc(n)%ind_io2)%stf(:,:),              &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+   call diagnose_2d(Time, Grid, ibgc(n)%id_sfc_flux_co2, t_prog(ibgc(n)%ind_idic)%stf(:,:))
+   call diagnose_2d(Time, Grid, ibgc(n)%id_sfc_flux_o2, t_prog(ibgc(n)%ind_io2)%stf(:,:))
 enddo
 
 
@@ -975,12 +966,7 @@ do n = 1, instances
   enddo
 enddo
 do n = 1, instances
-  if (ibgc(n)%id_sfc_flux_co2sat .gt. 0) then
-    used = send_data(ibgc(n)%id_sfc_flux_co2sat,        &
-         t_prog(ibgc(n)%ind_idic_sat)%stf(:,:),         &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+   call diagnose_2d(Time, Grid, ibgc(n)%id_sfc_flux_co2sat, t_prog(ibgc(n)%ind_idic_sat)%stf(:,:))
 enddo
 endif
 
@@ -994,12 +980,7 @@ do n = 1, instances
   enddo
 enddo
 do n = 1, instances
-  if (ibgc(n)%id_sfc_flux_14co2 .gt. 0) then
-    used = send_data(ibgc(n)%id_sfc_flux_14co2,         &
-         t_prog(ibgc(n)%ind_idi14c)%stf(:,:),           &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+   call diagnose_2d(Time, Grid, ibgc(n)%id_sfc_flux_14co2, t_prog(ibgc(n)%ind_idi14c)%stf(:,:))
 enddo
 endif
 
@@ -2253,7 +2234,7 @@ end subroutine ocean_ibgc_sfc_end
 ! </DESCRIPTION>
 
 subroutine ocean_ibgc_source(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,      &
-     T_prog, T_diag, taum1, model_time, grid_dat, grid_tmask, grid_kmt, depth_zt,   &
+     T_prog, T_diag, taum1, grid_dat, grid_tmask, Grid, Time, grid_kmt, depth_zt,   &
      rho, rho_dzt, dzt, hblt_depth, dtts)
 
 integer, intent(in)                                             :: isc
@@ -2268,9 +2249,10 @@ integer, intent(in)                                             :: jed
 type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
 type(ocean_diag_tracer_type), intent(inout), dimension(:)       :: T_diag
 integer, intent(in)                                             :: taum1
-type(time_type), intent(in)                                     :: model_time
 real, dimension(isd:,jsd:), intent(in)                          :: grid_dat
 real, dimension(isd:,jsd:,:), intent(in)                        :: grid_tmask
+type(ocean_grid_type), intent(in)                               :: Grid
+type(ocean_time_type), intent(in)                               :: Time
 integer, dimension(isd:,jsd:), intent(in)                       :: grid_kmt
 real, dimension(isd:,jsd:,:), intent(in)                        :: depth_zt
 real, dimension(isd:,jsd:,:,:), intent(in)                      :: rho
@@ -2338,7 +2320,6 @@ real,dimension(isc:iec,jsc:jec,1:nk)             :: cidopf
 real,dimension(isc:iec,jsc:jec,1:nk)             :: cife
 real,dimension(isc:iec,jsc:jec,1:nk)             :: cidic
 real,dimension(isc:iec,jsc:jec,1:nk)             :: cido14c
-real,dimension(isc:iec,jsc:jec,nk)               :: grid_tmask_comp
 
 ! SOURCES
 
@@ -3140,317 +3121,138 @@ endif
 enddo
 
 ! Save variables for diagnostics
-
-! set up the grid mask on the computational grid so that we
-! will not need to implicitly copy arrays in the following
-! subroutine calls
-
-grid_tmask_comp = grid_tmask(isc:iec,jsc:jec,:)
-
-if (id_o2_sat .gt. 0) then
-  used = send_data(id_o2_sat, o2_sat(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:))
-endif
+call diagnose_3d_comp(Time, Grid, id_o2_sat, o2_sat(:,:,:))
 
 do n = 1, instances
-
-  if (ibgc(n)%id_sc_co2 .gt. 0) then
-    used = send_data(ibgc(n)%id_sc_co2,                         &
-           ibgc(n)%sc_co2(:,:),                                 &
-           model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (ibgc(n)%id_sc_o2 .gt. 0) then
-    used = send_data(ibgc(n)%id_sc_o2,                          &
-           ibgc(n)%sc_o2(:,:),                                  &
-           model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (ibgc(n)%id_jideal_n .gt. 0) then                    
-    used = send_data(ibgc(n)%id_jideal_n,                       &
-           ibgc(n)%jideal_n(:,:,:) * rho_dzt(:,:,:,taum1),      &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jsuntan .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jsuntan,                        &
-           ibgc(n)%jsuntan(:,:,:) * rho_dzt(:,:,:,taum1),       &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_remin_ip .gt. 0) then                     
-    used = send_data(ibgc(n)%id_remin_ip,                       &
-           ibgc(n)%remin_ip(:,:,:),                             &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_remin_isi.gt. 0) then                     
-    used = send_data(ibgc(n)%id_remin_isi,                      &
-           ibgc(n)%remin_isi(:,:,:),                            &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jprod_pisi .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jprod_pisi,                     &
-           ibgc(n)%jprod_pisi(:,:,:) * rho_dzt(:,:,:,taum1),    &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_fpisi .gt. 0) then                     
-    used = send_data(ibgc(n)%id_fpisi,                          &
-           ibgc(n)%fpisi(:,:,:),                                &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jremin_pisi .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jremin_pisi,                    &
-           ibgc(n)%jremin_pisi(:,:,:) * rho_dzt(:,:,:,taum1),   &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jprod_pi30si .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jprod_pi30si,                   &
-           ibgc(n)%jprod_pi30si(:,:,:) * rho_dzt(:,:,:,taum1),  &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_fpi30si .gt. 0) then                     
-    used = send_data(ibgc(n)%id_fpi30si,                        &
-           ibgc(n)%fpi30si(:,:,:),                              &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jremin_pi30si .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jremin_pi30si,                  &
-           ibgc(n)%jremin_pi30si(:,:,:) * rho_dzt(:,:,:,taum1), &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jprod_pip .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jprod_pip,                      &
-           ibgc(n)%jprod_pip(:,:,:) * rho_dzt(:,:,:,taum1),     &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jprod_idop .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jprod_idop,                     &
-           ibgc(n)%jprod_idop(:,:,:) * rho_dzt(:,:,:,taum1),    &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jremin_idop .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jremin_idop,                    &
-           ibgc(n)%jremin_idop(:,:,:) * rho_dzt(:,:,:,taum1),   &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_fpip .gt. 0) then                     
-    used = send_data(ibgc(n)%id_fpip,                           &
-           ibgc(n)%fpip(:,:,:),                                 &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jremin_pip .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jremin_pip,                     &
-           ibgc(n)%jremin_pip(:,:,:) * rho_dzt(:,:,:,taum1),    &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jife_new .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jife_new,                       &
-           ibgc(n)%jife_new(:,:,:) * rho_dzt(:,:,:,taum1),      &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_felim_irrk .gt. 0) then                     
-    used = send_data(ibgc(n)%id_felim_irrk,                     &
-           ibgc(n)%felim_irrk(:,:,:),                           &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jprod_pipf .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jprod_pipf,                     &
-           ibgc(n)%jprod_pipf(:,:,:) * rho_dzt(:,:,:,taum1),    &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jprod_idopf .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jprod_idopf,                    &
-           ibgc(n)%jprod_idopf(:,:,:) * rho_dzt(:,:,:,taum1),   &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jremin_idopf .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jremin_idopf,                   &
-           ibgc(n)%jremin_idopf(:,:,:) * rho_dzt(:,:,:,taum1),  &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_fpipf .gt. 0) then                     
-    used = send_data(ibgc(n)%id_fpipf,                          &
-           ibgc(n)%fpipf(:,:,:),                                &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jremin_pipf .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jremin_pipf,                    &
-           ibgc(n)%jremin_pipf(:,:,:) * rho_dzt(:,:,:,taum1),   &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jprod_pife .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jprod_pife,                     &
-           ibgc(n)%jprod_pife(:,:,:) * rho_dzt(:,:,:,taum1),    &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_fpife .gt. 0) then                     
-    used = send_data(ibgc(n)%id_fpife,                          &
-           ibgc(n)%fpife(:,:,:),                                &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jremin_pife .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jremin_pife,                    &
-           ibgc(n)%jremin_pife(:,:,:) * rho_dzt(:,:,:,taum1),   &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_ife_free .gt. 0) then                     
-    used = send_data(ibgc(n)%id_ife_free,                       &
-           ibgc(n)%ife_free(:,:,:),                             &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jife_scav .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jife_scav,                      &
-           ibgc(n)%jife_scav(:,:,:) * rho_dzt(:,:,:,taum1),     &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jipo4 .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jipo4,                          &
-           ibgc(n)%jipo4(:,:,:) * rho_dzt(:,:,:,taum1),         &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jipo4f .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jipo4f,                         &
-           ibgc(n)%jipo4f(:,:,:) * rho_dzt(:,:,:,taum1),        &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jipo4_bgc .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jipo4_bgc,                      &
-           ibgc(n)%jipo4_bgc(:,:,:) * rho_dzt(:,:,:,taum1),     &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_ipo4_bgc .gt. 0) then                     
-    used = send_data(ibgc(n)%id_ipo4_bgc,                       &
-           ibgc(n)%ipo4_bgc(:,:,:),                             &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jprod_pi15n .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jprod_pi15n,                    &
-           ibgc(n)%jprod_pi15n(:,:,:) * rho_dzt(:,:,:,taum1),   &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jprod_ido15n .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jprod_ido15n,                   &
-           ibgc(n)%jprod_ido15n(:,:,:) * rho_dzt(:,:,:,taum1),  &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jremin_ido15n .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jremin_ido15n,                  &
-           ibgc(n)%jremin_ido15n(:,:,:) * rho_dzt(:,:,:,taum1), &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_fpi15n .gt. 0) then                     
-    used = send_data(ibgc(n)%id_fpi15n,                         &
-           ibgc(n)%fpi15n(:,:,:),                               &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jremin_pi15n .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jremin_pi15n,                   &
-           ibgc(n)%jremin_pi15n(:,:,:) * rho_dzt(:,:,:,taum1),  &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_ji15no3 .gt. 0) then                     
-    used = send_data(ibgc(n)%id_ji15no3,                        &
-           ibgc(n)%ji15no3(:,:,:) * rho_dzt(:,:,:,taum1),       &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jprod_i18o .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jprod_i18o,                     &
-           ibgc(n)%jprod_i18o(:,:,:) * rho_dzt(:,:,:,taum1),    &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_ichl_new .gt. 0) then
-    used = send_data(ibgc(n)%id_ichl_new,                       &
-         ibgc(n)%ichl_new(:,:,:),                               &
-         model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_alpha .gt. 0) then
-    used = send_data(ibgc(n)%id_alpha,                          &
-         ibgc(n)%alpha(:,:),                                    &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (ibgc(n)%id_csurf .gt. 0) then
-    used = send_data(ibgc(n)%id_csurf,                          &
-         ibgc(n)%csurf(:,:),                                    &
-         model_time, rmask = grid_tmask_comp(:,:,1))  
-  endif
-  if (ibgc(n)%id_csatsurf .gt. 0) then
-    used = send_data(ibgc(n)%id_csatsurf,                       &
-         ibgc(n)%csatsurf(:,:),                                 &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (ibgc(n)%id_c14surf .gt. 0) then
-    used = send_data(ibgc(n)%id_c14surf,                        &
-         ibgc(n)%c14surf(:,:),                                  & 
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (ibgc(n)%id_pco2surf .gt. 0) then
-    used = send_data(ibgc(n)%id_pco2surf,                       &
-         ibgc(n)%pco2surf(:,:),                                 &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (ibgc(n)%id_pco2satsurf .gt. 0) then
-    used = send_data(ibgc(n)%id_pco2satsurf,                    &
-         ibgc(n)%pco2satsurf(:,:),                              &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (ibgc(n)%id_htotal .gt. 0) then
-    used = send_data(ibgc(n)%id_htotal,                         &
-         ibgc(n)%htotal(:,:),                                   &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (ibgc(n)%id_htotal_sat .gt. 0) then
-    used = send_data(ibgc(n)%id_htotal_sat,                     &
-         ibgc(n)%htotal_sat(:,:),                               &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (ibgc(n)%id_alk .gt. 0) then
-    used = send_data(ibgc(n)%id_alk,                            &
-         t_prog(indsal)%field(:,:,1,taum1) *                    &
-              ibgc(n)%alkbar / ibgc(n)%sal_global,              &
-         model_time, rmask = grid_tmask(:,:,1),                 &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-  if (ibgc(n)%id_jdecay_idi14c .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jdecay_idi14c,                  &
-           ibgc(n)%jdecay_idi14c(:,:,:) * rho_dzt(:,:,:,taum1), &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jdecay_ido14c .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jdecay_ido14c,                  &
-           ibgc(n)%jdecay_ido14c(:,:,:) * rho_dzt(:,:,:,taum1), &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jremin_pi14c .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jremin_pi14c,                   &
-           ibgc(n)%jremin_pi14c(:,:,:) * rho_dzt(:,:,:,taum1),  &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jremin_ido14c .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jremin_ido14c,                  &
-           ibgc(n)%jremin_ido14c(:,:,:) * rho_dzt(:,:,:,taum1), &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jprod_pi14c .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jprod_pi14c,                    &
-           ibgc(n)%jprod_pi14c(:,:,:) * rho_dzt(:,:,:,taum1),   &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jprod_ido14c .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jprod_ido14c,                   &
-           ibgc(n)%jprod_ido14c(:,:,:) * rho_dzt(:,:,:,taum1),  &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_fpi14c .gt. 0) then                     
-    used = send_data(ibgc(n)%id_fpi14c,                         &
-           ibgc(n)%fpi14c(:,:,:),                               &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jidi14c .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jidi14c,                        &
-           ibgc(n)%jidi14c(:,:,:),                              &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
-  if (ibgc(n)%id_jio2 .gt. 0) then                     
-    used = send_data(ibgc(n)%id_jio2,                           &
-           ibgc(n)%jio2(:,:,:) * rho_dzt(:,:,:,taum1),          &
-           model_time, rmask = grid_tmask_comp(:,:,:))
-  endif
+   call diagnose_2d_comp(Time, Grid, ibgc(n)%id_sc_co2, ibgc(n)%sc_co2(:,:))
+   call diagnose_2d_comp(Time, Grid, ibgc(n)%id_sc_o2, ibgc(n)%sc_o2(:,:))
+   if (ibgc(n)%id_jideal_n .gt. 0) then
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jideal_n, ibgc(n)%jideal_n(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jsuntan .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jsuntan, ibgc(n)%jsuntan(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   call diagnose_3d_comp(Time, Grid, ibgc(n)%id_remin_ip, ibgc(n)%remin_ip(:,:,:))
+   call diagnose_3d_comp(Time, Grid, ibgc(n)%id_remin_isi, ibgc(n)%remin_isi(:,:,:))
+   if (ibgc(n)%id_jprod_pisi .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jprod_pisi, ibgc(n)%jprod_pisi(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   call diagnose_3d_comp(Time, Grid, ibgc(n)%id_fpisi, ibgc(n)%fpisi(:,:,:))
+   if (ibgc(n)%id_jremin_pisi .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jremin_pisi, ibgc(n)%jremin_pisi(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jprod_pi30si .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jprod_pi30si, ibgc(n)%jprod_pi30si(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   call diagnose_3d_comp(Time, Grid, ibgc(n)%id_fpi30si, ibgc(n)%fpi30si(:,:,:))
+   if (ibgc(n)%id_jremin_pi30si .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jremin_pi30si, ibgc(n)%jremin_pi30si(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jprod_pip .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jprod_pip, ibgc(n)%jprod_pip(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jprod_idop .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jprod_idop, ibgc(n)%jprod_idop(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jremin_idop .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jremin_idop, ibgc(n)%jremin_idop(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   call diagnose_3d_comp(Time, Grid, ibgc(n)%id_fpip, ibgc(n)%fpip(:,:,:))
+   if (ibgc(n)%id_jremin_pip .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jremin_pip, ibgc(n)%jremin_pip(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jife_new .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jife_new, ibgc(n)%jife_new(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   call diagnose_3d_comp(Time, Grid, ibgc(n)%id_felim_irrk, ibgc(n)%felim_irrk(:,:,:))
+   if (ibgc(n)%id_jprod_pipf .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jprod_pipf, ibgc(n)%jprod_pipf(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jprod_idopf .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jprod_idopf, ibgc(n)%jprod_idopf(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jremin_idopf .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jremin_idopf, ibgc(n)%jremin_idopf(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   call diagnose_3d_comp(Time, Grid, ibgc(n)%id_fpipf, ibgc(n)%fpipf(:,:,:))
+   if (ibgc(n)%id_jremin_pipf .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jremin_pipf, ibgc(n)%jremin_pipf(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jprod_pife .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jprod_pife, ibgc(n)%jprod_pife(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   call diagnose_3d_comp(Time, Grid, ibgc(n)%id_fpife, ibgc(n)%fpife(:,:,:))
+   if (ibgc(n)%id_jremin_pife .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jremin_pife, ibgc(n)%jremin_pife(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   call diagnose_3d_comp(Time, Grid, ibgc(n)%id_ife_free, ibgc(n)%ife_free(:,:,:))
+   if (ibgc(n)%id_jife_scav .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jife_scav, ibgc(n)%jife_scav(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jipo4 .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jipo4, ibgc(n)%jipo4(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jipo4f .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jipo4f, ibgc(n)%jipo4f(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jipo4_bgc .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jipo4_bgc, ibgc(n)%jipo4_bgc(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   call diagnose_3d_comp(Time, Grid, ibgc(n)%id_ipo4_bgc, ibgc(n)%ipo4_bgc(:,:,:))
+   if (ibgc(n)%id_jprod_pi15n .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jprod_pi15n, ibgc(n)%jprod_pi15n(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jprod_ido15n .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jprod_ido15n, ibgc(n)%jprod_ido15n(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jremin_ido15n .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jremin_ido15n, ibgc(n)%jremin_ido15n(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   call diagnose_3d_comp(Time, Grid, ibgc(n)%id_fpi15n, ibgc(n)%fpi15n(:,:,:))
+   if (ibgc(n)%id_jremin_pi15n .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jremin_pi15n, ibgc(n)%jremin_pi15n(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_ji15no3 .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_ji15no3, ibgc(n)%ji15no3(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jprod_i18o .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jprod_i18o, ibgc(n)%jprod_i18o(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   call diagnose_3d_comp(Time, Grid, ibgc(n)%id_ichl_new, ibgc(n)%ichl_new(:,:,:))
+   call diagnose_2d_comp(Time, Grid, ibgc(n)%id_alpha, ibgc(n)%alpha(:,:))
+   call diagnose_2d_comp(Time, Grid, ibgc(n)%id_csurf, ibgc(n)%csurf(:,:))
+   call diagnose_2d_comp(Time, Grid, ibgc(n)%id_csatsurf, ibgc(n)%csatsurf(:,:))
+   call diagnose_2d_comp(Time, Grid, ibgc(n)%id_c14surf, ibgc(n)%c14surf(:,:))
+   call diagnose_2d_comp(Time, Grid, ibgc(n)%id_pco2surf, ibgc(n)%pco2surf(:,:))
+   call diagnose_2d_comp(Time, Grid, ibgc(n)%id_pco2satsurf, ibgc(n)%pco2satsurf(:,:))
+   call diagnose_2d_comp(Time, Grid, ibgc(n)%id_htotal, ibgc(n)%htotal(:,:))
+   call diagnose_2d_comp(Time, Grid, ibgc(n)%id_htotal_sat, ibgc(n)%htotal_sat(:,:))
+   if (ibgc(n)%id_alk .gt. 0) then
+      call diagnose_2d(Time, Grid, ibgc(n)%id_alk, t_prog(indsal)%field(:,:,1,taum1) * ibgc(n)%alkbar / ibgc(n)%sal_global)
+   endif
+   if (ibgc(n)%id_jdecay_idi14c .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jdecay_idi14c, ibgc(n)%jdecay_idi14c(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jdecay_ido14c .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jdecay_ido14c, ibgc(n)%jdecay_ido14c(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jremin_pi14c .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jremin_pi14c, ibgc(n)%jremin_pi14c(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jremin_ido14c .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jremin_ido14c, ibgc(n)%jremin_ido14c(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jprod_pi14c .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jprod_pi14c, ibgc(n)%jprod_pi14c(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   if (ibgc(n)%id_jprod_ido14c .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jprod_ido14c, ibgc(n)%jprod_ido14c(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
+   call diagnose_3d_comp(Time, Grid, ibgc(n)%id_fpi14c, ibgc(n)%fpi14c(:,:,:))
+   call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jidi14c, ibgc(n)%jidi14c(:,:,:))
+   if (ibgc(n)%id_jio2 .gt. 0) then                     
+      call diagnose_3d_comp(Time, Grid, ibgc(n)%id_jio2, ibgc(n)%jio2(:,:,:) * rho_dzt(:,:,:,taum1))
+   endif
 
 enddo
 

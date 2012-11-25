@@ -286,7 +286,6 @@ use ocean_operators_mod,     only: FAX, FAY, FMX, FMY, BDX_ET, BDY_NT
 use ocean_parameters_mod,    only: missing_value, onehalf, onefourth, oneeigth, DEPTH_BASED
 use ocean_parameters_mod,    only: rho0r, rho0, grav
 use ocean_tracer_diag_mod,   only: diagnose_eta_tend_3dflux 
-use ocean_tracer_util_mod,   only: rebin_onto_rho
 use ocean_types_mod,         only: ocean_grid_type, ocean_domain_type, ocean_density_type
 use ocean_types_mod,         only: ocean_prog_tracer_type, ocean_thickness_type
 use ocean_types_mod,         only: ocean_time_type, ocean_time_steps_type
@@ -4024,9 +4023,7 @@ subroutine compute_advect_transport(Time, Dens, Thickness)
             enddo
          enddo
       enddo
-      used = send_data (id_u_et_gm, wrk1(:,:,:),   &
-           Time%model_time, rmask=Grd%tmask(:,:,:),&
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_u_et_gm, wrk1(:,:,:))
   endif
   if (id_v_nt_gm > 0) then
       wrk1 = 0.0 
@@ -4038,9 +4035,7 @@ subroutine compute_advect_transport(Time, Dens, Thickness)
             enddo
          enddo
       enddo
-      used = send_data (id_v_nt_gm, wrk1(:,:,:),   &
-           Time%model_time, rmask=Grd%tmask(:,:,:),&
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_v_nt_gm, wrk1(:,:,:))
   endif
   if (id_w_bt_gm > 0) then
       wrk1 = 0.0 
@@ -4053,25 +4048,11 @@ subroutine compute_advect_transport(Time, Dens, Thickness)
             enddo
          enddo
       enddo
-      used = send_data (id_w_bt_gm, wrk1(:,:,:),   &
-           Time%model_time, rmask=Grd%tmask(:,:,:),&
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_w_bt_gm, wrk1(:,:,:))
   endif
-  if (id_uhrho_et_gm > 0) then 
-      used = send_data (id_uhrho_et_gm, uhrho_et_gm(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:),      &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-  if (id_vhrho_nt_gm > 0) then 
-      used = send_data (id_vhrho_nt_gm, vhrho_nt_gm(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:),      &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-  if (id_wrho_bt_gm > 0) then 
-      used = send_data (id_wrho_bt_gm, wrho_bt_gm(:,:,1:nk),&
-             Time%model_time, rmask=Grd%tmask(:,:,:),       &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
+  call diagnose_3d(Time, Grd, id_uhrho_et_gm, uhrho_et_gm(:,:,:))
+  call diagnose_3d(Time, Grd, id_vhrho_nt_gm, vhrho_nt_gm(:,:,:))
+  call diagnose_3d(Time, Grd, id_wrho_bt_gm, wrho_bt_gm(:,:,1:nk))
 
 
   ! diagnose advective mass transports from GM through cell faces.
@@ -4090,21 +4071,9 @@ subroutine compute_advect_transport(Time, Dens, Thickness)
            enddo
         enddo
      enddo
-     if (id_tx_trans_gm_adv > 0) then
-         used = send_data (id_tx_trans_gm_adv, wrk1_v(:,:,:,1), &
-              Time%model_time, rmask=Grd%tmask(:,:,:),          &
-              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif
-     if (id_ty_trans_gm_adv > 0) then
-         used = send_data (id_ty_trans_gm_adv, wrk1_v(:,:,:,2), &
-              Time%model_time, rmask=Grd%tmask(:,:,:),          &
-              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif
-     if (id_tz_trans_gm_adv > 0) then
-         used = send_data (id_tz_trans_gm_adv, wrk1(:,:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,:),      &
-              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif
+     call diagnose_3d(Time, Grd, id_tx_trans_gm_adv, wrk1_v(:,:,:,1))
+     call diagnose_3d(Time, Grd, id_ty_trans_gm_adv, wrk1_v(:,:,:,2))
+     call diagnose_3d(Time, Grd, id_tz_trans_gm_adv, wrk1(:,:,:))
 
   endif
 

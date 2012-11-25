@@ -1,4 +1,5 @@
 module ocean_density_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies 
 !</CONTACT>
@@ -399,7 +400,7 @@ use fms_io_mod,          only: register_restart_field, save_restart, restore_sta
 use fms_io_mod,          only: reset_field_pointer, restart_file_type
 use mpp_domains_mod,     only: mpp_update_domains, mpp_global_sum
 use mpp_domains_mod,     only: BITWISE_EXACT_SUM, NON_BITWISE_EXACT_SUM
-use mpp_mod,             only: input_nml_file, stdout, stdlog, mpp_chksum
+use mpp_mod,             only: input_nml_file, stdout, stdlog
 use platform_mod,        only: i8_kind
 use time_manager_mod,    only: time_type, increment_time
 use field_manager_mod,   only: fm_get_index
@@ -414,7 +415,7 @@ use ocean_types_mod,      only: ocean_domain_type, ocean_grid_type, ocean_thickn
 use ocean_types_mod,      only: ocean_time_type, ocean_time_steps_type, ocean_options_type
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_density_type, ocean_external_mode_type
 use ocean_types_mod,      only: ocean_diag_tracer_type, ocean_lagrangian_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, diagnose_2d, diagnose_3d, write_chksum_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk6
 use ocean_workspace_mod,  only: wrk1_v, wrk2_v, wrk3_v, wrk4_v
 use ocean_workspace_mod,  only: wrk1_2d, wrk2_2d, wrk3_2d, wrk4_2d
@@ -1984,79 +1985,52 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
          potential_density(Dens%rho_salinity(:,:,:,tau), Temp%field(:,:,:,tau), 4000.0)
   endif
 
-  if (id_neutral_rho > 0) & 
-       used = send_data (id_neutral_rho, Dens%neutralrho(:,:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,:),                  &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-  if (id_pot_rho > 0) & 
-       used = send_data (id_pot_rho, Dens%potrho(:,:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,:),          &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grd, id_neutral_rho, Dens%neutralrho(:,:,:))
+  call diagnose_3d(Time, Grd, id_pot_rho, Dens%potrho(:,:,:))
 
 
   if (id_pot_rho_0 > 0) then 
     if (ind_potrho_0 .gt. 0) then
-      used = send_data (id_pot_rho_0, T_diag(ind_potrho_0)%field(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+       call diagnose_3d(Time, Grd, id_pot_rho_0, T_diag(ind_potrho_0)%field(:,:,:))
     else
       wrk1(:,:,:) = potential_density(Dens%rho_salinity(:,:,:,tau), Temp%field(:,:,:,tau), 0.0)
-      used = send_data (id_pot_rho_0, wrk1(:,:,:),  &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_pot_rho_0, wrk1(:,:,:))
     endif
   endif
 
   if (id_pot_rho_1 > 0) then 
     if (ind_potrho_1 .gt. 0) then
-      used = send_data (id_pot_rho_1, T_diag(ind_potrho_1)%field(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+       call diagnose_3d(Time, Grd, id_pot_rho_1, T_diag(ind_potrho_1)%field(:,:,:))
     else
       wrk1(:,:,:) = potential_density(Dens%rho_salinity(:,:,:,tau), Temp%field(:,:,:,tau), 1000.0)
-      used = send_data (id_pot_rho_1, wrk1(:,:,:),  &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_pot_rho_1, wrk1(:,:,:))
     endif
   endif
 
   if (id_pot_rho_2 > 0) then 
     if (ind_potrho_2 .gt. 0) then
-      used = send_data (id_pot_rho_2, T_diag(ind_potrho_2)%field(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+       call diagnose_3d(Time, Grd, id_pot_rho_2, T_diag(ind_potrho_2)%field(:,:,:))
     else
       wrk1(:,:,:) = potential_density(Dens%rho_salinity(:,:,:,tau), Temp%field(:,:,:,tau), 2000.0)
-      used = send_data (id_pot_rho_2, wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),&
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_pot_rho_2, wrk1(:,:,:))
     endif
   endif
 
   if (id_pot_rho_3 > 0) then 
     if (ind_potrho_3 .gt. 0) then
-      used = send_data (id_pot_rho_3, T_diag(ind_potrho_3)%field(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+       call diagnose_3d(Time, Grd, id_pot_rho_3, T_diag(ind_potrho_3)%field(:,:,:))
     else
       wrk1(:,:,:) = potential_density(Dens%rho_salinity(:,:,:,tau), Temp%field(:,:,:,tau), 3000.0)
-      used = send_data (id_pot_rho_3, wrk1(:,:,:),  &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_pot_rho_3, wrk1(:,:,:))
     endif
   endif
 
   if (id_pot_rho_4 > 0) then 
     if (ind_potrho_4 .gt. 0) then
-      used = send_data (id_pot_rho_4, T_diag(ind_potrho_4)%field(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+       call diagnose_3d(Time, Grd, id_pot_rho_4, T_diag(ind_potrho_4)%field(:,:,:))
     else
       wrk1(:,:,:) = potential_density(Dens%rho_salinity(:,:,:,tau), Temp%field(:,:,:,tau), 4000.0)
-      used = send_data (id_pot_rho_4, wrk1(:,:,:),  &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_pot_rho_4, wrk1(:,:,:))
     endif
   endif
 
@@ -2902,36 +2876,16 @@ end subroutine update_ocean_density
                                     Time, Dens%drhodT(:,:,:), Dens%drhodS(:,:,:), Dens%drhodP(:,:,:))
   endif 
 
-  if (id_press > 0) then
-       used = send_data (id_press, Dens%pressure_at_depth(:,:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,:),                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
+  call diagnose_3d(Time, Grd, id_press, Dens%pressure_at_depth(:,:,:))
 
   if (use_blobs) then
-     if (id_rho > 0) then
-          used = send_data (id_rho, Dens%rhoT(:,:,:), &
-          Time%model_time, rmask=Grd%tmask(:,:,:),    &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif     
-     if (id_rhoE > 0) then 
-          used = send_data (id_rhoE, Dens%rho(:,:,:,tau), &
-          Time%model_time, rmask=Grd%tmask(:,:,:),        &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif 
+     call diagnose_3d(Time, Grd, id_rho, Dens%rhoT(:,:,:))
+     call diagnose_3d(Time, Grd, id_rhoE, Dens%rho(:,:,:,tau))
   else
-     if (id_rho > 0) then 
-          used = send_data (id_rho, Dens%rho(:,:,:,tau), &
-          Time%model_time, rmask=Grd%tmask(:,:,:),       &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif 
+     call diagnose_3d(Time, Grd, id_rho, Dens%rho(:,:,:,tau))
   endif
 
-  if (id_eos_salinity > 0) then
-       used = send_data (id_eos_salinity, Dens%rho_salinity(:,:,:,tau), &
-       Time%model_time, rmask=Grd%tmask(:,:,:),                         &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_eos_salinity, Dens%rho_salinity(:,:,:,tau))
 
   if(id_int_rhodz > 0) then 
       wrk1_2d(:,:) = 0.0
@@ -2942,9 +2896,7 @@ end subroutine update_ocean_density
             enddo
          enddo
       enddo
-      used = send_data (id_int_rhodz, wrk1_2d(:,:), &
-           Time%model_time,rmask=Grd%tmask(:,:,1),  &
-           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_int_rhodz, wrk1_2d(:,:))
   endif
 
   next_time = increment_time(Time%model_time, int(dtts), 0)
@@ -2967,9 +2919,7 @@ end subroutine update_ocean_density
             enddo
          enddo
       enddo
-      used = send_data (id_pot_rho_wt, wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_pot_rho_wt, wrk1(:,:,:))
   endif
 
   if (need_data(id_pot_rho_et,next_time)) then 
@@ -2984,9 +2934,7 @@ end subroutine update_ocean_density
             enddo
          enddo
       enddo
-      used = send_data (id_pot_rho_et, wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_pot_rho_et, wrk1(:,:,:))
   endif
 
   if (need_data(id_pot_rho_nt,next_time)) then 
@@ -3001,9 +2949,7 @@ end subroutine update_ocean_density
             enddo
          enddo
       enddo
-      used = send_data (id_pot_rho_nt, wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_pot_rho_nt, wrk1(:,:,:))
   endif
 
 
@@ -3192,11 +3138,7 @@ end subroutine compute_density_diagnostics
         enddo
     endif 
 
-    if (id_smax_dianeutral > 0) then 
-        used = send_data (id_smax_dianeutral, smax(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:),     &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif
+    call diagnose_3d(Time, Grd, id_smax_dianeutral, smax(:,:,:))
 
 
     ! some initialization 
@@ -3269,26 +3211,10 @@ end subroutine compute_density_diagnostics
         enddo
     endif
 
-    if (id_grad_nrho > 0) then 
-        used = send_data (id_grad_nrho, wrk4_v(:,:,:,1), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),    &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif
-    if (id_grad_lrpotrho > 0) then 
-        used = send_data (id_grad_lrpotrho, wrk4_v(:,:,:,2), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),        &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif
-    if (id_grad_nrho_lrpotrho > 0) then 
-        used = send_data (id_grad_nrho_lrpotrho, wrk5(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),         &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif
-    if (id_watermass_factor > 0) then 
-        used = send_data (id_watermass_factor, Dens%watermass_factor(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),                        &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif
+    call diagnose_3d(Time, Grd, id_grad_nrho, wrk4_v(:,:,:,1))
+    call diagnose_3d(Time, Grd, id_grad_lrpotrho, wrk4_v(:,:,:,2))
+    call diagnose_3d(Time, Grd, id_grad_nrho_lrpotrho, wrk5(:,:,:))
+    call diagnose_3d(Time, Grd, id_watermass_factor, Dens%watermass_factor(:,:,:))
 
 
     ! For stratification_factor, move derivatives to centre
@@ -3351,16 +3277,8 @@ end subroutine compute_density_diagnostics
        enddo
     enddo
 
-    if (id_stratification_factor > 0) then 
-        used = send_data (id_stratification_factor, Dens%stratification_factor(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),                                  &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif
-    if (id_stratification_axis > 0) then 
-        used = send_data (id_stratification_axis, wrk1(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:),         &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif
+    call diagnose_3d(Time, Grd, id_stratification_factor, Dens%stratification_factor(:,:,:))
+    call diagnose_3d(TIme, Grd, id_stratification_axis, wrk1(:,:,:))
 
 
   end subroutine compute_diagnostic_factors
@@ -3720,15 +3638,9 @@ end subroutine compute_density_diagnostics
 
     endif
 
-    if (id_drhodtheta > 0) used = send_data (id_drhodtheta, density_theta(:,:,:), &
-         Time%model_time, rmask=Grd%tmask(:,:,:),                                 &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    if (id_drhodsalt  > 0) used = send_data (id_drhodsalt, density_salinity(:,:,:), &
-         Time%model_time, rmask=Grd%tmask(:,:,:),                                   &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    if (id_drhodpress > 0) used = send_data (id_drhodpress, density_press(:,:,:), &
-         Time%model_time, rmask=Grd%tmask(:,:,:),                                 &   
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+    call diagnose_3d(TIme, Grd, id_drhodtheta, density_theta(:,:,:))
+    call diagnose_3d(Time, Grd, id_drhodsalt, density_salinity(:,:,:))
+    call diagnose_3d(Time, Grd, id_drhodpress, density_press(:,:,:))
     if (id_sound_speed2 > 0) then 
         wrk1(:,:,:) = 0.0  
         do k=1,nk
@@ -3740,9 +3652,7 @@ end subroutine compute_density_diagnostics
               enddo
            enddo
         enddo
-        used = send_data (id_sound_speed2, wrk1(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:),  &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+        call diagnose_3d(Time, Grd, id_sound_speed2, wrk1(:,:,:))
     endif
     if(id_thermal_expand > 0) then 
         wrk1(:,:,:) = 0.0  
@@ -3753,9 +3663,7 @@ end subroutine compute_density_diagnostics
               enddo
            enddo
         enddo
-        used = send_data (id_thermal_expand, wrk1(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:),    &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+        call diagnose_3d(Time, Grd, id_thermal_expand, wrk1(:,:,:))
     endif 
     if(id_haline_contract > 0) then 
         wrk1(:,:,:) = 0.0  
@@ -3766,9 +3674,7 @@ end subroutine compute_density_diagnostics
               enddo
            enddo
         enddo
-        used = send_data (id_haline_contract, wrk1(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:),     &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+        call diagnose_3d(Time, Grd, id_haline_contract, wrk1(:,:,:))
     endif 
 
 
@@ -4102,16 +4008,8 @@ end subroutine compute_density_diagnostics
     call calc_cabbeling_thermobaricity(rho, salinity, theta, pressure, &
     density_theta, density_salinity, density_press, cabbeling_param, thermobaric_param)
 
-    if(id_cabbeling > 0) then  
-      used = send_data (id_cabbeling, cabbeling_param(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),         &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif 
-    if(id_thermobaricity > 0) then 
-      used = send_data (id_thermobaricity, thermobaric_param(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),                &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif 
+    call diagnose_3d(Time, Grd, id_cabbeling, cabbeling_param(:,:,:))
+    call diagnose_3d(Time, Grd, id_thermobaricity, thermobaric_param(:,:,:))
 
 
   end subroutine cabbeling_thermobaricity
@@ -4536,12 +4434,8 @@ subroutine ocean_density_chksum(Time, Dens, use_blobs)
   type(ocean_time_type),    intent(in) :: Time
   type(ocean_density_type), intent(in) :: Dens
   logical,                  intent(in) :: use_blobs
-  integer(i8_kind)                     :: chk_sum
 
   integer :: taup1
-
-  integer :: stdoutunit 
-  stdoutunit=stdout() 
 
   if (.not. module_is_initialized) then 
     call mpp_error(FATAL,&
@@ -4550,35 +4444,15 @@ subroutine ocean_density_chksum(Time, Dens, use_blobs)
 
   taup1 = Time%taup1 
 
-  wrk1(isc:iec,jsc:jec,:) = Dens%rho(isc:iec,jsc:jec,:,taup1)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for rho(taup1)        = ',  chk_sum
-
+  call write_chksum_3d('rho(taup1)', Dens%rho(COMP,:,taup1)*Grd%tmask(COMP,:))
   if (use_blobs) then
-     wrk1(isc:iec,jsc:jec,:) = Dens%rhoT(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-     chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-     write(stdoutunit,*) 'chksum for rhoT(taup1)       = ',  chk_sum
+     call write_chksum_3d('rhoT(taup1)', Dens%rhoT(COMP,:)*Grd%tmask(COMP,:))
   endif
-
-  wrk1(isc:iec,jsc:jec,:) = Dens%pressure_at_depth(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for pressure_at_depth = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = denominator_r(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for denominator_r     = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Dens%drhodT(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for drhodT            = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Dens%drhodS(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for drhodS            = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Dens%drhodz_zt(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for drhodz_zt         = ',  chk_sum
+  call write_chksum_3d('pressure_at_depth', Dens%pressure_at_depth(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('denominator_r', denominator_r(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('drhodT', Dens%drhodT(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('drhodS', Dens%drhodS(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('drhodz_zt', Dens%drhodz_zt(COMP,:)*Grd%tmask(COMP,:))
 
 end subroutine ocean_density_chksum
 ! </SUBROUTINE>  NAME="ocean_density_chksum"
@@ -4687,15 +4561,9 @@ subroutine compute_buoyfreq(Time, Thickness, salinity, theta, Dens, use_blobs)
      enddo
   enddo
   if(id_buoyfreq2_wt > 0) then 
-      used = send_data (id_buoyfreq2_wt, -grav*rho0r*wrk3(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),               & 
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_buoyfreq2_wt, -grav*rho0r*wrk3(:,:,:))
   endif
-  if(id_drhodz_wt > 0) then 
-      used = send_data (id_drhodz_wt, wrk3(:,:,:),  &
-           Time%model_time, rmask=Grd%tmask(:,:,:), & 
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_drhodz_wt, wrk3(:,:,:))
 
   ! drhodz and squared buoyancy frequency at T-cell point 
   wrk4(:,:,:) = 0.0
@@ -4749,20 +4617,10 @@ subroutine compute_buoyfreq(Time, Thickness, salinity, theta, Dens, use_blobs)
 
 
   if(id_buoyfreq2_zt > 0) then 
-       used = send_data (id_buoyfreq2_zt, -grav*rho0r*wrk4(:,:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,:),                    & 
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_buoyfreq2_zt, -grav*rho0r*wrk4(:,:,:))
   endif 
-  if(id_drhodz_zt > 0) then 
-       used = send_data (id_drhodz_zt, wrk4(:,:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,:),     & 
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-  if(id_drhodz_diag > 0) then 
-       used = send_data (id_drhodz_diag, Dens%drhodz_diag(:,:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,:),                   & 
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
+  call diagnose_3d(Time, Grd, id_drhodz_zt, wrk4(:,:,:))
+  call diagnose_3d(Time, Grd, id_drhodz_diag, Dens%drhodz_diag(:,:,:))
 
   ! dTdz and dSdz  at T-cell point 
   wrk3(:,:,:) = 0.0

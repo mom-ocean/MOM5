@@ -20,17 +20,19 @@ module ocean_util_mod
 
 #define COMP isc:iec,jsc:jec
 
+use platform_mod,        only: i8_kind
 use constants_mod,       only: epsln
 use diag_manager_mod,    only: send_data, register_diag_field 
-use mpp_domains_mod,     only: mpp_update_domains
+use mpp_domains_mod,     only: mpp_update_domains, mpp_global_sum, NON_BITWISE_EXACT_SUM
 use mpp_mod,             only: stdout, stdlog, FATAL
 use mpp_mod,             only: mpp_error, mpp_pe, mpp_root_pe, mpp_min, mpp_max, mpp_chksum
 use time_manager_mod,    only: time_type, get_date
 
 use ocean_domains_mod,    only: get_local_indices
 use ocean_parameters_mod, only: missing_value
-use ocean_types_mod,      only: ocean_domain_type, ocean_grid_type
+use ocean_types_mod,      only: ocean_domain_type, ocean_grid_type, ocean_density_type
 use ocean_types_mod,      only: ocean_thickness_type, ocean_time_type
+use ocean_tracer_util_mod, only: rebin_onto_rho
 
 implicit none
 
@@ -59,13 +61,22 @@ public write_chksum_header
 public write_chksum_2d
 public write_chksum_2d_int
 public write_chksum_3d
+public write_chksum_3d_int
 public check_restart
 public write_summary
 
 public diagnose_2d
+public diagnose_2d_u
+public diagnose_2d_en
 public diagnose_2d_int
+public diagnose_2d_comp
 public diagnose_3d
+public diagnose_3d_u
+public diagnose_3d_en
 public diagnose_3d_int
+public diagnose_3d_rho
+public diagnose_3d_comp
+public diagnose_sum
 public register_2d_t_field
 public register_3d_t_field
 public register_3d_xte_field
@@ -624,16 +635,42 @@ end subroutine write_line
 ! Write a 3d checksum.
 ! </DESCRIPTION>
 !
-subroutine write_chksum_3d(name, data)
+subroutine write_chksum_3d(name, data, chksum)
   character(len=*), intent(in) :: name
-  real, dimension(isc:iec,jsc:jec,nk) :: data
-  integer :: stdoutunit
+  real, dimension(isc:iec,jsc:jec,nk), intent(in) :: data
+  integer(i8_kind), optional, intent(inout) :: chksum
+  integer(i8_kind)                          :: chk_sum
 
+  integer :: stdoutunit
+  character(len=40) :: c
+  c = '[chksum] '//name
   stdoutunit=stdout()
-  write(stdoutunit, '(a,i30)') '[chksum] '//name//': ', mpp_chksum(data(isc:iec,jsc:jec,:nk))
+  chk_sum = mpp_chksum(data(isc:iec,jsc:jec,:nk))
+  write(stdoutunit, '(a40,i30)') c, chk_sum
+  if (present(chksum)) chksum = chk_sum
 
 end subroutine write_chksum_3d
 ! </SUBROUTINE> NAME="write_chksum_3d">
+
+!#######################################################################
+! <SUBROUTINE NAME="write_chksum_3d_int">
+!
+! <DESCRIPTION>
+! Write a 3d integer checksum.
+! </DESCRIPTION>
+!
+subroutine write_chksum_3d_int(name, data)
+  character(len=*), intent(in) :: name
+  integer, dimension(isc:iec,jsc:jec,nk) :: data
+  integer :: stdoutunit
+  character(len=40) :: c
+  c = '[chksum] '//name
+
+  stdoutunit=stdout()
+  write(stdoutunit, '(a40,i30)') c, mpp_chksum(data(isc:iec,jsc:jec,:nk))
+
+end subroutine write_chksum_3d_int
+! </SUBROUTINE> NAME="write_chksum_3d_int">
 
 
 !#######################################################################
@@ -648,9 +685,12 @@ subroutine write_chksum_2d(name, data)
   character(len=*), intent(in) :: name
   real, dimension(isc:iec,jsc:jec) :: data
   integer :: stdoutunit
+  character(len=40) :: c
+  c = '[chksum] '//name
 
   stdoutunit=stdout()
-  write(stdoutunit, '(a,i30)') '[chksum] '//name//': ', mpp_chksum(data(isc:iec,jsc:jec))
+  write(stdoutunit, '(a40,i30)') c, mpp_chksum(data(isc:iec,jsc:jec))
+
 
 end subroutine write_chksum_2d
 ! </SUBROUTINE> NAME="write_chksum_2d">
@@ -668,9 +708,11 @@ subroutine write_chksum_2d_int(name, data)
   character(len=*), intent(in) :: name
   integer, dimension(isc:iec,jsc:jec) :: data
   integer :: stdoutunit
+  character(len=40) :: c
+  c = '[chksum] '//name
 
   stdoutunit=stdout()
-  write(stdoutunit, '(a,i30)') '[chksum] '//name//': ', mpp_chksum(data(isc:iec,jsc:jec))
+  write(stdoutunit, '(a40,i30)') c, mpp_chksum(data(isc:iec,jsc:jec))
 
 end subroutine write_chksum_2d_int
 ! </SUBROUTINE> NAME="write_chksum_2d_int">
@@ -735,6 +777,74 @@ subroutine diagnose_3d(Time, Grid, id_name, data, nk_lim, use_mask, abs_max, abs
     real,                         intent(in), optional :: abs_max
     real,                         intent(in), optional :: abs_min
 
+    call diagnose_3d_mask(Time, Grid%tmask(:,:,:), id_name, data, nk_lim, use_mask, abs_max, abs_min)
+
+end subroutine diagnose_3d
+! </SUBROUTINE> NAME="diagnose_3d"
+
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_3d_u">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 3D data using the grid umask.
+! </DESCRIPTION>
+!
+subroutine diagnose_3d_u(Time, Grid, id_name, data, nk_lim, use_mask, abs_max, abs_min)
+    type(ocean_time_type),        intent(in) :: Time
+    type(ocean_grid_type),        intent(in) :: Grid
+    integer,                      intent(in) :: id_name
+    real, dimension(isd:,jsd:,:), intent(in) :: data
+    integer,                      intent(in), optional :: nk_lim
+    logical,                      intent(in), optional :: use_mask
+    real,                         intent(in), optional :: abs_max
+    real,                         intent(in), optional :: abs_min
+
+    call diagnose_3d_mask(Time, Grid%umask(:,:,:), id_name, data, nk_lim, use_mask, abs_max, abs_min)
+
+end subroutine diagnose_3d_u
+! </SUBROUTINE> NAME="diagnose_3d_u"
+
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_3d_en">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 3D data using the grid tmasken.
+! </DESCRIPTION>
+!
+subroutine diagnose_3d_en(Time, Grid, id_name1, id_name2, data, nk_lim, use_mask, abs_max, abs_min)
+    type(ocean_time_type),        intent(in) :: Time
+    type(ocean_grid_type),        intent(in) :: Grid
+    integer,                      intent(in) :: id_name1
+    integer,                      intent(in) :: id_name2
+    real, dimension(isd:,jsd:,:,:), intent(in) :: data
+    integer,                      intent(in), optional :: nk_lim
+    logical,                      intent(in), optional :: use_mask
+    real,                         intent(in), optional :: abs_max
+    real,                         intent(in), optional :: abs_min
+
+    call diagnose_3d_mask(Time, Grid%tmasken(:,:,:,1), id_name1, data(:,:,:,1), nk_lim, use_mask, abs_max, abs_min)
+    call diagnose_3d_mask(Time, Grid%tmasken(:,:,:,2), id_name2, data(:,:,:,2), nk_lim, use_mask, abs_max, abs_min)
+
+end subroutine diagnose_3d_en
+! </SUBROUTINE> NAME="diagnose_3d_en"
+
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_3d_mask">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 3D data using the given mask.
+! </DESCRIPTION>
+!
+subroutine diagnose_3d_mask(Time, mask, id_name, data, nk_lim, use_mask, abs_max, abs_min)
+    type(ocean_time_type),        intent(in) :: Time
+    real, dimension(isd:,jsd:,:), intent(in) :: mask
+    integer,                      intent(in) :: id_name
+    real, dimension(isd:,jsd:,:), intent(in) :: data
+    integer,                      intent(in), optional :: nk_lim
+    logical,                      intent(in), optional :: use_mask
+    real,                         intent(in), optional :: abs_max
+    real,                         intent(in), optional :: abs_min
+
     logical :: use_mask_, used
     integer :: nk_lim_
     real, dimension(isd:ied,jsd:jed,nk) :: threshold_mask
@@ -771,7 +881,7 @@ subroutine diagnose_3d(Time, Grid, id_name, data, nk_lim, use_mask, abs_max, abs
              where (abs(data(COMP,:)) < abs_min) threshold_mask(COMP,:) = 0.0
           endif
           used = send_data(id_name, data(:,:,:),                              &
-               Time%model_time, rmask=Grid%tmask(:,:,:)*threshold_mask(:,:,:),&
+               Time%model_time, rmask=mask(:,:,:)*threshold_mask(:,:,:),&
                is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk_lim_)
        else
           used = send_data(id_name, data(:,:,:), &
@@ -780,8 +890,8 @@ subroutine diagnose_3d(Time, Grid, id_name, data, nk_lim, use_mask, abs_max, abs
        endif
     endif
 
-end subroutine diagnose_3d
-! </SUBROUTINE> NAME="diagnose_3d"
+end subroutine diagnose_3d_mask
+! </SUBROUTINE> NAME="diagnose_3d_mask"
 
 
 !#######################################################################
@@ -799,6 +909,68 @@ subroutine diagnose_2d(Time, Grid, id_name, data, abs_max, abs_min)
     real,                       intent(in), optional :: abs_max
     real,                       intent(in), optional :: abs_min
 
+    call diagnose_2d_mask(Time, Grid%tmask(:,:,1), id_name, data, abs_max, abs_min)
+
+end subroutine diagnose_2d
+! </SUBROUTINE> NAME="diagnose_2d"
+
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_2d_u">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 2D data using the grid umask.
+! </DESCRIPTION>
+!
+subroutine diagnose_2d_u(Time, Grid, id_name, data, abs_max, abs_min)
+    type(ocean_time_type),      intent(in) :: Time
+    type(ocean_grid_type),      intent(in) :: Grid
+    integer,                    intent(in) :: id_name
+    real, dimension(isd:,jsd:), intent(in) :: data
+    real,                       intent(in), optional :: abs_max
+    real,                       intent(in), optional :: abs_min
+
+    call diagnose_2d_mask(Time, Grid%umask(:,:,1), id_name, data, abs_max, abs_min)
+
+  end subroutine diagnose_2d_u
+! </SUBROUTINE> NAME="diagnose_2d_u"
+
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_2d_en">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 2D data using the grid tmasken.
+! </DESCRIPTION>
+!
+subroutine diagnose_2d_en(Time, Grid, id_name1, id_name2, data, abs_max, abs_min)
+    type(ocean_time_type),      intent(in) :: Time
+    type(ocean_grid_type),      intent(in) :: Grid
+    integer,                    intent(in) :: id_name1
+    integer,                    intent(in) :: id_name2
+    real, dimension(isd:,jsd:,:), intent(in) :: data
+    real,                       intent(in), optional :: abs_max
+    real,                       intent(in), optional :: abs_min
+
+    call diagnose_2d_mask(Time, Grid%tmasken(:,:,1,1), id_name1, data(:,:,1), abs_max, abs_min)
+    call diagnose_2d_mask(Time, Grid%tmasken(:,:,1,2), id_name2, data(:,:,2), abs_max, abs_min)
+
+  end subroutine diagnose_2d_en
+! </SUBROUTINE> NAME="diagnose_2d_en"
+
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_2d_mask">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 2D data using a given mask.
+! </DESCRIPTION>
+!
+subroutine diagnose_2d_mask(Time, mask, id_name, data, abs_max, abs_min)
+    type(ocean_time_type),      intent(in) :: Time
+    real, dimension(isd:,jsd:), intent(in) :: mask
+    integer,                    intent(in) :: id_name
+    real, dimension(isd:,jsd:), intent(in) :: data
+    real,                       intent(in), optional :: abs_max
+    real,                       intent(in), optional :: abs_min
+
     logical :: used
     real, dimension(isd:ied,jsd:jed) :: threshold_mask
 
@@ -811,11 +983,11 @@ subroutine diagnose_2d(Time, Grid, id_name, data, abs_max, abs_min)
     endif
 
     if (id_name > 0) used = send_data(id_name, data(:,:),             &
-         Time%model_time, rmask=Grid%tmask(:,:,1)*threshold_mask(:,:),&
+         Time%model_time, rmask=mask(:,:)*threshold_mask(:,:),&
          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
 
-end subroutine diagnose_2d
-! </SUBROUTINE> NAME="diagnose_2d"
+end subroutine diagnose_2d_mask
+! </SUBROUTINE> NAME="diagnose_2d_mask"
 
 !#######################################################################
 ! <SUBROUTINE NAME="diagnose_2d_int">
@@ -839,6 +1011,28 @@ end subroutine diagnose_2d_int
 ! </SUBROUTINE> NAME="diagnose_2d_int"
 
 !#######################################################################
+! <SUBROUTINE NAME="diagnose_2d_comp">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 2D data using the grid tmask on the 
+! computational domain.
+! </DESCRIPTION>
+!
+subroutine diagnose_2d_comp(Time, Grid, id_name, data)
+    type(ocean_time_type),      intent(in) :: Time
+    type(ocean_grid_type),      intent(in) :: Grid
+    integer,                    intent(in) :: id_name
+    real, dimension(isc:,jsc:), intent(in) :: data
+
+    logical :: used
+
+    if (id_name > 0) used = send_data(id_name, data, &
+         Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,1))
+
+end subroutine diagnose_2d_comp
+! </SUBROUTINE> NAME="diagnose_2d_comp"
+
+!#######################################################################
 ! <SUBROUTINE NAME="diagnose_3d_int">
 !
 ! <DESCRIPTION>
@@ -859,6 +1053,79 @@ subroutine diagnose_3d_int(Time, Grid, id_name, data)
 end subroutine diagnose_3d_int
 ! </SUBROUTINE> NAME="diagnose_3d_int"
 
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_3d_rho">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 3D data mapped onto density levels.
+! </DESCRIPTION>
+!
+subroutine diagnose_3d_rho(Time, Dens, id_name, data)
+  type(ocean_time_type), intent(in) :: Time
+  type(ocean_density_type), intent(in) :: Dens
+  integer, intent(in) :: id_name
+  real, dimension(isd:,jsd:,:), intent(in) :: data
+
+  real :: nrho_work(isd:ied,jsd:jed,size(Dens%neutralrho_ref(:)))
+  logical :: used
+
+  integer :: neutralrho_nk
+
+  if (id_name > 0) then
+     neutralrho_nk = size(Dens%neutralrho_ref(:))
+     nrho_work(:,:,:) = 0.0
+     call rebin_onto_rho(Dens%neutralrho_bounds, Dens%neutralrho, data, nrho_work)
+     used = send_data (id_name, nrho_work(:,:,:), &
+          Time%model_time,                        &
+          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+  endif
+
+end subroutine diagnose_3d_rho
+! </SUBROUTINE> NAME="diagnose_3d_rho"
+
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_3d_comp">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 3D data using the grid tmask on the 
+! computational domain.
+! </DESCRIPTION>
+!
+subroutine diagnose_3d_comp(Time, Grid, id_name, data)
+    type(ocean_time_type),      intent(in) :: Time
+    type(ocean_grid_type),      intent(in) :: Grid
+    integer,                    intent(in) :: id_name
+    real, dimension(isc:,jsc:,:), intent(in) :: data
+
+    logical :: used
+
+    if (id_name > 0) used = send_data(id_name, data, &
+         Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,:))
+
+end subroutine diagnose_3d_comp
+! </SUBROUTINE> NAME="diagnose_3d_comp"
+
+
+subroutine diagnose_sum(Time, Grid, Dom, id_name, data, factor)
+
+  type(ocean_time_type), intent(in) :: Time
+  type(ocean_grid_type), intent(in) :: Grid
+  type(ocean_domain_type), intent(in) :: Dom
+  integer, intent(in) :: id_name
+  real, dimension(isd:,jsd:), intent(in) :: data
+  real, intent(in) :: factor
+
+  real, dimension(isd:ied,jsd:jed) :: work
+  real :: total
+  logical :: used
+
+  if(id_name > 0) then 
+     work(:,:) = Grid%tmask(:,:,1)*Grid%dat(:,:)*data(:,:)
+     total = mpp_global_sum(Dom%domain2d, work(:,:), NON_BITWISE_EXACT_SUM)*factor
+     used = send_data (id_name, total, Time%model_time)
+  endif
+
+end subroutine diagnose_sum
 
 function register_2d_t_field(Grid, Time, name, desc, units, range)
 

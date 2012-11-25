@@ -55,7 +55,6 @@ use atmos_ocean_fluxes_mod, only: aof_set_coupler_flux
 use diag_manager_mod,   only: register_diag_field, diag_axis_init
 use field_manager_mod,  only: fm_get_index
 use time_manager_mod,   only: time_type
-use diag_manager_mod,   only: send_data
 use field_manager_mod,  only: fm_field_name_len, fm_path_name_len, fm_string_len
 use field_manager_mod,  only: fm_get_length, fm_get_value, fm_new_value
 use fms_mod,            only: field_exist
@@ -70,8 +69,9 @@ use fm_util_mod,        only: fm_util_get_string, fm_util_get_logical, fm_util_g
 use fm_util_mod,        only: fm_util_get_logical_array, fm_util_get_real_array, fm_util_get_string_array
 use fm_util_mod,        only: fm_util_start_namelist, fm_util_end_namelist
 use coupler_types_mod,  only: ind_alpha, ind_csurf, coupler_2d_bc_type, ind_flux
-use ocean_types_mod,    only: ocean_prog_tracer_type
+use ocean_types_mod,    only: ocean_prog_tracer_type, ocean_grid_type, ocean_time_type
 use ocmip2_co2calc_mod, only: ocmip2_co2_alpha
+use ocean_util_mod,     only: diagnose_2d, diagnose_2d_comp
 
 implicit none
 
@@ -323,7 +323,7 @@ end subroutine  ocean_pert_co2_end
 
 subroutine ocean_pert_co2_sbc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,       &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                                &
-     T_prog, taum1, model_time, grid_tmask, ice_ocean_boundary_fluxes)
+     T_prog, taum1, Grid, Time, ice_ocean_boundary_fluxes)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
@@ -340,8 +340,8 @@ integer, intent(in)                                             :: jsc_bnd
 integer, intent(in)                                             :: jec_bnd
 type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
 integer, intent(in)                                             :: taum1
-type(time_type), intent(in)                                     :: model_time
-real, dimension(isd:,jsd:,:), intent(in)                        :: grid_tmask
+type(ocean_grid_type), intent(in)                               :: Grid
+type(ocean_time_type), intent(in)                               :: Time
 type(coupler_2d_bc_type), intent(in)                            :: ice_ocean_boundary_fluxes
 
 integer :: i, j, k, n, m
@@ -371,19 +371,8 @@ enddo
 
 !       Save variables for diagnostics
 do n = 1, instances
-
-  if (instance(n)%id_sc_co2 .gt. 0) then
-    used = send_data(instance(n)%id_sc_co2, instance(n)%sc_co2(:,:),    &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
-  endif
-
-  if (instance(n)%id_sfc_flux_pert_co2 .gt. 0) then
-    used = send_data(instance(n)%id_sfc_flux_pert_co2,          &
-         t_prog(instance(n)%ind_pert_tco2)%stf(:,:),            &
-         model_time, rmask = grid_tmask(:,:,1),                 &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
+   call diagnose_2d_comp(Time, Grid, instance(n)%id_sc_co2, instance(n)%sc_co2(:,:))
+   call diagnose_2d(Time, Grid, instance(n)%id_sfc_flux_pert_co2, t_prog(instance(n)%ind_pert_tco2)%stf(:,:))
 enddo
 
 return
@@ -982,61 +971,19 @@ end subroutine ocean_pert_co2_sfc_end
 !     of hooks required in MOM base code)
 ! </DESCRIPTION>
 !
-subroutine ocean_pert_co2_source(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,     &
-     T_prog, model_time, grid_tmask)
+subroutine ocean_pert_co2_source(Grid, Time)
 
-integer, intent(in)                                             :: isc
-integer, intent(in)                                             :: iec
-integer, intent(in)                                             :: jsc
-integer, intent(in)                                             :: jec
-integer, intent(in)                                             :: nk
-integer, intent(in)                                             :: isd
-integer, intent(in)                                             :: ied
-integer, intent(in)                                             :: jsd
-integer, intent(in)                                             :: jed
-type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
-type(time_type), intent(in)                                     :: model_time
-real, dimension(isd:,jsd:,:), intent(in)                        :: grid_tmask
+type(ocean_grid_type), intent(in) :: Grid
+type(ocean_time_type), intent(in) :: Time
 
-integer :: i, j, k, n
-logical :: used
-real, dimension(isc:iec,jsc:jec,nk)     :: grid_tmask_comp
-
-!     calculate the source terms
-
-!       Save variables for diagnostics
-
-!       set up the grid mask on the computational grid so that we
-!       will not need to implicitly copy arrays in the following
-!       subroutine calls
-grid_tmask_comp = grid_tmask(isc:iec,jsc:jec,:)
+integer :: n
 
 do n = 1, instances
-  if (instance(n)%id_alpha .gt. 0) then
-    used = send_data(instance(n)%id_alpha,              &
-         instance(n)%alpha(:,:),                        &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (instance(n)%id_csurf .gt. 0) then
-    used = send_data(instance(n)%id_csurf,              &
-         instance(n)%csurf(:,:),                        &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (instance(n)%id_pco2surf .gt. 0) then
-    used = send_data(instance(n)%id_pco2surf,           &
-         instance(n)%pco2surf(:,:),                     &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (instance(n)%id_z0 .gt. 0) then
-    used = send_data(instance(n)%id_z0,                 &
-         instance(n)%z0(:,:),                           &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (instance(n)%id_z1 .gt. 0) then
-    used = send_data(instance(n)%id_z1,                 &
-         instance(n)%z1(:,:),                           &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
+   call diagnose_2d_comp(Time, Grid, instance(n)%id_alpha, instance(n)%alpha(:,:))
+   call diagnose_2d_comp(Time, Grid, instance(n)%id_csurf, instance(n)%csurf(:,:))
+   call diagnose_2d_comp(Time, Grid, instance(n)%id_pco2surf, instance(n)%pco2surf(:,:))
+   call diagnose_2d_comp(Time, Grid, instance(n)%id_z0, instance(n)%z0(:,:))
+   call diagnose_2d_comp(Time, Grid, instance(n)%id_z1, instance(n)%z1(:,:))
 enddo
 
 return

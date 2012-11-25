@@ -1,4 +1,5 @@
 module ocean_velocity_diag_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
 !</CONTACT>
@@ -57,7 +58,7 @@ use fms_mod,          only: open_namelist_file, check_nml_error, close_file, wri
 use fms_mod,          only: FATAL, stdout, stdlog
 use mpp_domains_mod,  only: mpp_global_sum, mpp_update_domains
 use mpp_domains_mod,  only: BITWISE_EXACT_SUM, NON_BITWISE_EXACT_SUM, BGRID_NE
-use mpp_mod,          only: input_nml_file, mpp_error, mpp_max, mpp_sum, mpp_chksum, mpp_pe 
+use mpp_mod,          only: input_nml_file, mpp_error, mpp_max, mpp_sum, mpp_pe 
 use mpp_mod,          only: mpp_clock_id, mpp_clock_begin, mpp_clock_end, CLOCK_MODULE
 use time_manager_mod, only: time_type, increment_time
 
@@ -79,7 +80,8 @@ use ocean_types_mod,           only: ocean_time_type, ocean_time_steps_type, oce
 use ocean_types_mod,           only: ocean_adv_vel_type, ocean_external_mode_type
 use ocean_types_mod,           only: ocean_velocity_type, ocean_density_type
 use ocean_types_mod,           only: ocean_lagrangian_type
-use ocean_util_mod,            only: write_timestamp, matrix
+use ocean_util_mod,            only: write_timestamp, matrix, diagnose_3d, diagnose_3d_u, diagnose_3d_en
+use ocean_util_mod,            only: write_chksum_3d, write_chksum_2d
 use ocean_velocity_advect_mod, only: horz_advection_of_velocity, vert_advection_of_velocity
 use ocean_vert_mix_mod,        only: vert_friction_bgrid, vert_friction_cgrid
 use ocean_workspace_mod,       only: wrk1, wrk2, wrk3
@@ -1075,8 +1077,7 @@ subroutine compute_topostrophy (Time, Velocity)
 
      endif 
 
-     used = send_data (id_topostrophy, wrk1(:,:,:), Time%model_time, rmask=Grd%umask(:,:,:),&
-                       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d_u(Time, Grd, id_topostrophy, wrk1(:,:,:))
   endif 
 
 
@@ -1117,9 +1118,7 @@ subroutine compute_vorticity(Time, Velocity)
               enddo
            enddo
         enddo
-        used = send_data (id_vorticity_z, wrk1(:,:,:),            &
-                          Time%model_time, rmask=Grd%tmask(:,:,:),&
-                          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+        call diagnose_3d(Time, Grd, id_vorticity_z, wrk1(:,:,:))
 
      else ! cgrid 
 
@@ -1131,9 +1130,7 @@ subroutine compute_vorticity(Time, Velocity)
               enddo
            enddo
         enddo
-        used = send_data (id_vorticity_z, wrk1(:,:,:),            &   
-                          Time%model_time, rmask=Grd%umask(:,:,:),&
-                          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+        call diagnose_3d_u(Time, Grd, id_vorticity_z, wrk1(:,:,:))
 
      endif 
 
@@ -1909,11 +1906,7 @@ subroutine vert_dissipation (Time, Thickness, Velocity, visc_cbu, visc_cbt, visc
                enddo
             enddo
          enddo
-         if(id_vert_lap_diss > 0) then 
-             used = send_data (id_vert_lap_diss, wrk1(:,:,:), &
-             Time%model_time, rmask=Grd%umask(:,:,:),         &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-         endif
+         call diagnose_3d_u(Time, Grd, id_vert_lap_diss, wrk1(:,:,:))
       
       else  ! Cgrid
 
@@ -1931,11 +1924,7 @@ subroutine vert_dissipation (Time, Thickness, Velocity, visc_cbu, visc_cbt, visc
                enddo
             enddo
          enddo
-         if(id_vert_lap_diss > 0) then 
-             used = send_data (id_vert_lap_diss, wrk1(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),         &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-         endif
+         call diagnose_3d(Time, Grd, id_vert_lap_diss, wrk1(:,:,:))
 
       endif 
 
@@ -2069,50 +2058,21 @@ subroutine energy_analysis (Time, Thickness, Ext_mode, Adv_vel, Dens,    &
       write(stdoutunit,*) '===chksums in energy analysis===' 
       write(stdoutunit,*) 'dtime(seconds) = ',dtime, 'and dtimer = ',dtimer
 
-      wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzu(isc:iec,jsc:jec,:,taum1)*Grd%umask(isc:iec,jsc:jec,:)
-      write(stdoutunit,*) 'Thickness%rho_dzu(taum1) chksum = ', mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-
-      wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzu(isc:iec,jsc:jec,:,tau)*Grd%umask(isc:iec,jsc:jec,:)
-      write(stdoutunit,*) 'Thickness%rho_dzu(tau) chksum   = ', mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-
-      wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzu(isc:iec,jsc:jec,:,taup1)*Grd%umask(isc:iec,jsc:jec,:)
-      write(stdoutunit,*) 'Thickness%rho_dzu(taup1) chksum = ', mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-
-      wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzten(isc:iec,jsc:jec,:,1)*Grd%tmasken(isc:iec,jsc:jec,:,1)
-      write(stdoutunit,*) 'Thickness%rho_dzten(1) chksum   = ', mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-
-      wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzten(isc:iec,jsc:jec,:,2)*Grd%tmasken(isc:iec,jsc:jec,:,2)
-      write(stdoutunit,*) 'Thickness%rho_dzten(2) chksum   = ', mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-
-      wrk1(isc:iec,jsc:jec,1) = mass_column(isc:iec,jsc:jec,1)*Grd%umask(isc:iec,jsc:jec,1)
-      write(stdoutunit,*) 'mass_column(1)           chksum = ', mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-
-      wrk1(isc:iec,jsc:jec,1) = mass_column(isc:iec,jsc:jec,2)*Grd%umask(isc:iec,jsc:jec,1)
-      write(stdoutunit,*) 'mass_column(2)           chksum = ', mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-
-      wrk1(isc:iec,jsc:jec,:) = Velocity%u(isc:iec,jsc:jec,:,1,taum1)*Grd%tmasken(isc:iec,jsc:jec,:,1)
-      write(stdoutunit,*) 'Velocity%u(n=1,taum1)    chksum = ', mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-
-      wrk1(isc:iec,jsc:jec,:) = Velocity%u(isc:iec,jsc:jec,:,1,tau)*Grd%tmasken(isc:iec,jsc:jec,:,1)
-      write(stdoutunit,*) 'Velocity%u(n=1,tau)      chksum = ', mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-
-      wrk1(isc:iec,jsc:jec,:) = Velocity%u(isc:iec,jsc:jec,:,1,taup1)*Grd%tmasken(isc:iec,jsc:jec,:,1)
-      write(stdoutunit,*) 'Velocity%u(n=1,taup1)    chksum = ', mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-
-      wrk1(isc:iec,jsc:jec,:) = Velocity%u(isc:iec,jsc:jec,:,2,taum1)*Grd%tmasken(isc:iec,jsc:jec,:,2)
-      write(stdoutunit,*) 'Velocity%u(n=2,taum1)    chksum = ', mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-
-      wrk1(isc:iec,jsc:jec,:) = Velocity%u(isc:iec,jsc:jec,:,2,tau)*Grd%tmasken(isc:iec,jsc:jec,:,2)
-      write(stdoutunit,*) 'Velocity%u(n=2,tau)      chksum = ', mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-
-      wrk1(isc:iec,jsc:jec,:) = Velocity%u(isc:iec,jsc:jec,:,2,taup1)*Grd%tmasken(isc:iec,jsc:jec,:,2)
-      write(stdoutunit,*) 'Velocity%u(n=2,taup1)    chksum = ', mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-
-      wrk1(isc:iec,jsc:jec,1) = ubar(isc:iec,jsc:jec,1)*Grd%tmasken(isc:iec,jsc:jec,1,1)
-      write(stdoutunit,*) 'ubar(n=1)                chksum = ', mpp_chksum(wrk1(isc:iec,jsc:jec,1))
-
-      wrk1(isc:iec,jsc:jec,1) = ubar(isc:iec,jsc:jec,2)*Grd%tmasken(isc:iec,jsc:jec,1,2)
-      write(stdoutunit,*) 'ubar(n=2)                chksum = ', mpp_chksum(wrk1(isc:iec,jsc:jec,1))
+      call write_chksum_3d('Thickness%rho_dzu(taum1)', Thickness%rho_dzu(COMP,:,taum1)*Grd%umask(COMP,:))
+      call write_chksum_3d('Thickness%rho_dzu(tau)', Thickness%rho_dzu(COMP,:,tau)*Grd%umask(COMP,:))
+      call write_chksum_3d('Thickness%rho_dzu(taup1)', Thickness%rho_dzu(COMP,:,taup1)*Grd%umask(COMP,:))
+      call write_chksum_3d('Thickness%rho_dzten(1)', Thickness%rho_dzten(COMP,:,1)*Grd%tmasken(COMP,:,1))
+      call write_chksum_3d('Thickness%rho_dzten(2)', Thickness%rho_dzten(COMP,:,2)*Grd%tmasken(COMP,:,2))
+      call write_chksum_2d('mass_column(1)', mass_column(COMP,1)*Grd%umask(COMP,1))
+      call write_chksum_2d('mass_column(2)', mass_column(COMP,2)*Grd%umask(COMP,1))
+      call write_chksum_3d('Velocity%u(n=1,taum1)', Velocity%u(COMP,:,1,taum1)*Grd%tmasken(COMP,:,1))
+      call write_chksum_3d('Velocity%u(n=1,tau)', Velocity%u(COMP,:,1,tau)*Grd%tmasken(COMP,:,1))
+      call write_chksum_3d('Velocity%u(n=1,taup1)', Velocity%u(COMP,:,1,taup1)*Grd%tmasken(COMP,:,1))
+      call write_chksum_3d('Velocity%u(n=2,taum1)', Velocity%u(COMP,:,2,taum1)*Grd%tmasken(COMP,:,2))
+      call write_chksum_3d('Velocity%u(n=2,tau)', Velocity%u(COMP,:,2,tau)*Grd%tmasken(COMP,:,2))
+      call write_chksum_3d('Velocity%u(n=2,taup1)', Velocity%u(COMP,:,2,taup1)*Grd%tmasken(COMP,:,2))
+      call write_chksum_3d('ubar(n=1)', ubar(COMP,1)*Grd%tmasken(COMP,1,1))
+      call write_chksum_2d('ubar(n=2)', ubar(COMP,2)*Grd%tmasken(COMP,1,2))
 
       write(stdoutunit,*)'================================='
   endif
@@ -3107,14 +3067,7 @@ subroutine stokes_coriolis_force(Time, Thickness, Velocity)
      endif
   endif
 
-  if (id_stokes_force_x > 0) used = send_data(id_stokes_force_x, wrk1_v(:,:,:,1),&
-                            Time%model_time, rmask=Grd%tmasken(:,:,:,1),         &
-                            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-  if (id_stokes_force_y > 0) used = send_data(id_stokes_force_y, wrk1_v(:,:,:,2),&
-                            Time%model_time, rmask=Grd%tmasken(:,:,:,2),         &
-                            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
+  call diagnose_3d_en(Time, Grd, id_stokes_force_x, id_stokes_force_y, wrk1_v(:,:,:,:))
 
 end subroutine stokes_coriolis_force
 ! </SUBROUTINE> NAME="stokes_coriolis_force"
