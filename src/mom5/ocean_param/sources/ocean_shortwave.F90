@@ -30,10 +30,9 @@ module ocean_shortwave_mod
 !</NAMELIST>
 
 use constants_mod,    only: epsln 
-use diag_manager_mod, only: register_diag_field, send_data
+use diag_manager_mod, only: register_diag_field
 use fms_mod,          only: write_version_number, open_namelist_file, close_file, check_nml_error
 use fms_mod,          only: stdout, stdlog, FATAL, WARNING, NOTE
-use mpp_domains_mod,  only: mpp_global_sum, NON_BITWISE_EXACT_SUM
 use mpp_mod,          only: input_nml_file, mpp_error, mpp_max, mpp_min
 
 use ocean_domains_mod,          only: get_local_indices
@@ -41,12 +40,12 @@ use ocean_parameters_mod,       only: cp_ocean, missing_value, rho0r
 use ocean_shortwave_csiro_mod,  only: ocean_shortwave_csiro_init, sw_source_csiro
 use ocean_shortwave_jerlov_mod, only: ocean_shortwave_jerlov_init, sw_source_jerlov
 use ocean_shortwave_gfdl_mod,   only: ocean_shortwave_gfdl_init, sw_source_gfdl
-use ocean_tracer_util_mod,      only: rebin_onto_rho
 use ocean_types_mod,            only: ocean_time_type, ocean_domain_type, ocean_grid_type
 use ocean_types_mod,            only: ocean_prog_tracer_type, ocean_diag_tracer_type
 use ocean_types_mod,            only: ocean_thickness_type, ocean_options_type, ocean_density_type
 use ocean_tpm_util_mod,         only: otpm_set_diag_tracer
 use ocean_workspace_mod,        only: wrk1, wrk2, wrk3, wrk4, wrk5
+use ocean_util_mod,             only: diagnose_2d, diagnose_3d, diagnose_sum, diagnose_3d_rho
 
 implicit none
 
@@ -66,10 +65,6 @@ public  sw_source
 private sw_source_ext
 private watermass_diag_init
 private watermass_diag
-
-!work array on neutral density space
-integer :: neutralrho_nk
-real, dimension(:,:,:), allocatable :: nrho_work 
 
 ! internally set for computing watermass diagnostics
 logical :: compute_watermass_diag = .false. 
@@ -196,11 +191,6 @@ contains
       '==>shortwave_mod: choose only ONE of the shortwave schemes: GFDL, CSIRO, JERLOV, or External.')
     endif 
 
-    ! for diagnostic binning to neutral density surfaces 
-    neutralrho_nk = size(Dens%neutralrho_ref(:))
-    allocate( nrho_work(isd:ied,jsd:jed,neutralrho_nk) )
-    nrho_work(:,:,:) = 0.0  
-
     ! for diagnostics      
     id_sw_frac = register_diag_field ('ocean_model', 'sw_frac',                       &
          Grid%tracer_axes(1:3), Time%model_time, 'fraction of shortwave penetrating', &
@@ -324,17 +314,9 @@ subroutine sw_source (Time, Thickness, Dens, T_diag, swflx, swflx_vis, Temp, sw_
 
   ! diagnostics 
 
-  if (id_sw_frac > 0) used = send_data (id_sw_frac, sw_frac_zt(:,:,:), &
-                             Time%model_time, rmask=Grd%tmask(:,:,:),  &
-                             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-  if (id_sw_heat > 0) used = send_data (id_sw_heat, Temp%wrk1(:,:,:), &
-                             Time%model_time, rmask=Grd%tmask(:,:,:), &
-                             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-  if (id_irradiance > 0) used = send_data (id_irradiance, T_diag(index_irr)%field(:,:,:), &
-                                Time%model_time,rmask=Grd%tmask(:,:,:),                   &
-                                is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grd, id_sw_frac, sw_frac_zt(:,:,:))
+  call diagnose_3d(Time, Grd, id_sw_heat, Temp%wrk1(:,:,:))
+  call diagnose_3d(Time, Grd, id_irradiance, T_diag(index_irr)%field(:,:,:))
 
   call watermass_diag(Time, Temp, Dens)
 
@@ -508,42 +490,12 @@ subroutine watermass_diag(Time, Temp, Dens)
      enddo
   enddo
 
-  if(id_neut_rho_sw > 0) then 
-      used = send_data (id_neut_rho_sw, wrk2(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_wdian_rho_sw > 0) then 
-      used = send_data (id_wdian_rho_sw, wrk3(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),  &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_tform_rho_sw > 0) then 
-      used = send_data (id_tform_rho_sw, wrk4(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),  &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_neut_rho_sw_on_nrho > 0) then 
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work) 
-      used = send_data (id_neut_rho_sw_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if (id_wdian_rho_sw_on_nrho > 0) then 
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk3, nrho_work) 
-      used = send_data (id_wdian_rho_sw_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                       &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if (id_tform_rho_sw_on_nrho > 0) then 
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk4, nrho_work) 
-      used = send_data (id_tform_rho_sw_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                       &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
+  call diagnose_3d(Time, Grd, id_neut_rho_sw, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_rho_sw, wrk3(:,:,:))
+  call diagnose_3d(Time, Grd, id_tform_rho_sw, wrk4(:,:,:))
+  call diagnose_3d_rho(Time, Dens, id_neut_rho_sw_on_nrho, wrk2)
+  call diagnose_3d_rho(Time, Dens, id_wdian_rho_sw_on_nrho, wrk3)
+  call diagnose_3d_rho(Time, Dens, id_tform_rho_sw_on_nrho, wrk4)
 
   if(id_eta_tend_sw_pen > 0 .or. id_eta_tend_sw_pen_glob > 0) then
       eta_tend(:,:) = 0.0
@@ -554,19 +506,9 @@ subroutine watermass_diag(Time, Temp, Dens)
             enddo
          enddo
       enddo
-      if(id_eta_tend_sw_pen > 0) then 
-          used = send_data (id_eta_tend_sw_pen, eta_tend(:,:),&
-               Time%model_time, rmask=Grd%tmask(:,:,1),       &
-               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-      endif
-      if(id_eta_tend_sw_pen_glob > 0) then 
-          eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
-          eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-          used          = send_data (id_eta_tend_sw_pen_glob, eta_tend_glob, Time%model_time)
-      endif
+      call diagnose_2d(Time, Grd, id_eta_tend_sw_pen, eta_tend(:,:))
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_sw_pen_glob, eta_tend, cellarea_r)
   endif
-
-
 
 end subroutine watermass_diag
 ! </SUBROUTINE>  NAME="watermass_diag"

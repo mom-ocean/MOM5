@@ -1,4 +1,5 @@
 module ocean_coriolis_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="Tony.Rosati@noaa.gov"> A. Rosati
 !</CONTACT>
@@ -55,10 +56,10 @@ module ocean_coriolis_mod
 !</NAMELIST>
 
 use constants_mod,    only: radius, radian, pi, epsln, omega
-use diag_manager_mod, only: register_static_field, register_diag_field, send_data
+use diag_manager_mod, only: register_static_field, register_diag_field
 use fms_mod,          only: write_version_number, mpp_error, FATAL, WARNING
 use fms_mod,          only: check_nml_error, close_file, open_namelist_file
-use mpp_mod,          only: input_nml_file, mpp_max, stdout, stdlog, mpp_chksum
+use mpp_mod,          only: input_nml_file, mpp_max, stdout, stdlog
 
 use ocean_domains_mod,    only: get_local_indices
 use ocean_parameters_mod, only: TWO_LEVEL
@@ -68,7 +69,7 @@ use ocean_types_mod,      only: ocean_grid_type, ocean_domain_type
 use ocean_types_mod,      only: ocean_time_type, ocean_time_steps_type
 use ocean_types_mod,      only: ocean_velocity_type, ocean_adv_vel_type
 use ocean_types_mod,      only: ocean_options_type, ocean_thickness_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, diagnose_2d_u, diagnose_3d_u, diagnose_3d_en, write_chksum_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk1_v  
 
 implicit none
@@ -309,23 +310,17 @@ subroutine ocean_coriolis_init(Grid, Domain, Time, Time_steps, Ocean_options, ho
   id_coriolis  = register_static_field ('ocean_model', 'f_coriolis', Grd%vel_axes_uv(1:2), &
                                         'Coriolis frequency on U-cell', '1/s',             &
                                          missing_value=missing_value, range=(/-10.0,10.0/))
-  if (id_coriolis > 0) used = send_data (id_coriolis, Grid%f(:,:), &
-                              Time%model_time, rmask=Grd%umask(:,:,1), &
-                              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d_u(Time, Grd, id_coriolis, Grid%f(:,:))
 
   id_beta  = register_static_field ('ocean_model', 'beta', Grd%vel_axes_uv(1:2), &
                                     'planetary beta', '1/(m*s)',&
                                     missing_value=missing_value, range=(/-10.0,10.0/))
-  if (id_beta > 0) used = send_data (id_beta, Grd%beta(:,:), &
-                          Time%model_time, rmask=Grd%umask(:,:,1), &
-                          is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d_u(Time, Grd, id_beta, Grd%beta(:,:))
 
   id_beta_eff  = register_static_field ('ocean_model', 'beta_eff', Grd%vel_axes_uv(1:2), &
                                         'effective beta', '1/(m*s)',&
                                         missing_value=missing_value, range=(/-10.0,10.0/))
-  if (id_beta_eff > 0) used = send_data (id_beta_eff, Grd%beta_eff(:,:), &
-                              Time%model_time, rmask=Grd%umask(:,:,1), &
-                              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d_u(Time, Grd, id_beta_eff, Grd%beta_eff(:,:))
 
   ! diagnostic manager registers for dynamic fields 
   id_cor_u =  register_diag_field ('ocean_model', 'cor_u', Grd%vel_axes_u(1:3), Time%model_time, &
@@ -435,10 +430,8 @@ subroutine coriolis_force_bgrid(Time, Thickness, Velocity, energy_analysis_step)
          enddo
       enddo
 
-      if (id_cor_u > 0) used = send_data(id_cor_u, wrk1_v(isc:iec,jsc:jec,:,1), &
-                               Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-      if (id_cor_v > 0) used = send_data(id_cor_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-                               Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
+      call diagnose_3d_u(Time, Grd, id_cor_u, wrk1_v(:,:,:,1))
+      call diagnose_3d_u(Time, Grd, id_cor_v, wrk1_v(:,:,:,2))
 
       ! weight acceleration with thickness and density of velocity cell
       do n=1,2
@@ -452,10 +445,8 @@ subroutine coriolis_force_bgrid(Time, Thickness, Velocity, energy_analysis_step)
          enddo
       enddo
 
-      if (id_hrho_cor_u > 0) used = send_data( id_hrho_cor_u, wrk1_v(isc:iec,jsc:jec,:,1), &
-           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-      if (id_hrho_cor_v > 0) used = send_data( id_hrho_cor_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
+      call diagnose_3d_u(Time, Grd, id_hrho_cor_u, wrk1_v(:,:,:,1))
+      call diagnose_3d_u(TIme, Grd, id_hrho_cor_v, wrk1_v(:,:,:,2))
   endif
 
 
@@ -520,23 +511,17 @@ subroutine coriolis_force_bgrid_implicit(Time, Velocity)
           write(stdoutunit,*) ' ' 
           write(stdoutunit,*) 'From ocean_coriolis_mod: chksums after acor>0 Coriolis' 
           call write_timestamp(Time%model_time)
-          write(stdoutunit,*) 'accel(1) = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,1))
-          write(stdoutunit,*) 'accel(2) = ',mpp_chksum(Velocity%accel(isc:iec,jsc:jec,:,2))
-          write(stdoutunit,*) 'vel(1)   = ',mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,1))
-          write(stdoutunit,*) 'vel(2)   = ',mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,2))
+          call write_chksum_3d('accel(1)', Velocity%accel(COMP,:,1))
+          call write_chksum_3d('accel(2)', Velocity%accel(COMP,:,2))
+          call write_chksum_3d('vel(1)', wrk1_v(COMP,:,1))
+          call write_chksum_3d('vel(2)', wrk1_v(COMP,:,2))
       endif
 
   endif
 
   ! send to diagnostics manager  
-  if (id_ucori_impl > 0) used = send_data(id_ucori_impl, wrk1_v(:,:,:,1), &
-                                Time%model_time, rmask=Grd%umask(:,:,:),  &
-                                is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)  
-
-  if (id_vcori_impl > 0) used = send_data(id_vcori_impl, wrk1_v(:,:,:,2), &
-                                Time%model_time, rmask=Grd%umask(:,:,:),  &
-                                is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)  
-
+  call diagnose_3d_u(Time, Grd, id_ucori_impl, wrk1_v(:,:,:,1))
+  call diagnose_3d_u(Time, Grd, id_vcori_impl, wrk1_v(:,:,:,2))
 
 end subroutine coriolis_force_bgrid_implicit
 ! </SUBROUTINE> NAME="coriolis_force_bgrid_implicit"
@@ -616,10 +601,9 @@ subroutine coriolis_force_cgrid(Time, Adv_vel, Velocity, abtau_m0, abtau_m1, abt
            enddo
         enddo
      enddo
-     if (id_hrho_cor_u > 0) used = send_data( id_hrho_cor_u, wrk1_v(isc:iec,jsc:jec,:,1), &
-         Time%model_time, rmask=Grd%tmasken(isc:iec,jsc:jec,:,1))
-     if (id_hrho_cor_v > 0) used = send_data( id_hrho_cor_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-         Time%model_time, rmask=Grd%tmasken(isc:iec,jsc:jec,:,2))
+
+
+     call diagnose_3d_en(Time, Grd, id_hrho_cor_u, id_hrho_cor_v, wrk1_v(:,:,:,:))
   endif
 
 end subroutine coriolis_force_cgrid

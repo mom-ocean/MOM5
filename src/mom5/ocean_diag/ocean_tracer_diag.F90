@@ -124,13 +124,12 @@ use ocean_parameters_mod,  only: DEPTH_BASED, TWO_LEVEL, THREE_LEVEL, missing_va
 use ocean_parameters_mod,  only: rho0, rho0r, sec_in_yr, sec_in_yr_r, grav 
 use ocean_parameters_mod,  only: onehalf, onefourth
 use ocean_tracer_util_mod, only: tracer_min_max, dzt_min_max, sort_shell_array
-use ocean_tracer_util_mod, only: rebin_onto_rho
 use ocean_types_mod,       only: ocean_domain_type, ocean_grid_type, ocean_velocity_type
 use ocean_types_mod,       only: ocean_prog_tracer_type, ocean_diag_tracer_type
 use ocean_types_mod,       only: ocean_external_mode_type, ocean_density_type, ocean_adv_vel_type
 use ocean_types_mod,       only: ocean_time_type, ocean_time_steps_type, ocean_thickness_type
 use ocean_types_mod,       only: ocean_lagrangian_type
-use ocean_util_mod,        only: write_timestamp
+use ocean_util_mod,        only: write_timestamp, diagnose_2d, diagnose_3d_rho
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4
 use ocean_workspace_mod,   only: wrk1_2d, wrk2_2d, wrk3_2d, wrk4_2d
 use ocean_workspace_mod,   only: wrk1_v, wrk2_v , wrk3_v 
@@ -290,10 +289,6 @@ integer :: id_subduction_nrho      =-1
 integer :: id_subduction_dhdt_nrho =-1
 integer :: id_subduction_horz_nrho =-1
 integer :: id_subduction_vert_nrho =-1
-
-!work array on neutral density space
-integer :: neutralrho_nk
-real, dimension(:,:,:),   allocatable :: nrho_work 
 
 ! for mixed layer depth based solely on depth where SST - temp(k) = dtheta
 integer :: id_mld_dtheta =-1
@@ -478,10 +473,6 @@ ierr = check_nml_error(io_status,'ocean_tracer_diag_nml')
     allocate(area_t(isd:ied,jsd:jed) )    
     area_t(:,:) = Grd%dat(:,:)*Grd%tmask(:,:,1)
     if(have_obc) area_t(:,:) = area_t(:,:)*Grd%obc_tmask(:,:)
-
-    neutralrho_nk = size(Dens%neutralrho_ref(:))
-    allocate( nrho_work(isd:ied,jsd:jed,neutralrho_nk) )
-    nrho_work(:,:,:)  = 0.0  
 
     if(tendency==THREE_LEVEL) then
         write (stdoutunit,'(/a)') &
@@ -823,7 +814,7 @@ subroutine ocean_tracer_diagnostics(Time, Thickness, T_prog, T_diag, Dens, &
                            T_prog(index_salt)%field(isd:ied,jsd:jed,:,tau),                    &
                            T_prog(index_temp)%field(isd:ied,jsd:jed,:,tau),                    &
                            Dens%rho(isd:ied,jsd:jed,:,tau),Dens%neutralrho(isd:ied,jsd:jed,:), &
-                           Dens%pressure_at_depth(isd:ied,jsd:jed,:), Time%model_time)
+                           Dens%pressure_at_depth(isd:ied,jsd:jed,:), Time)
   endif
   call mpp_clock_end(id_mixed_layer_depth)
 
@@ -831,7 +822,7 @@ subroutine ocean_tracer_diagnostics(Time, Thickness, T_prog, T_diag, Dens, &
   if(need_data(id_mld_dtheta, next_time)) then 
     call mixed_layer_depth_dtheta(Thickness,                               &
                            T_prog(index_temp)%field(isd:ied,jsd:jed,:,tau),&
-                           Time%model_time)
+                           Time)
   endif
   call mpp_clock_end(id_mixed_layer_depth_dtheta)
 
@@ -1070,7 +1061,7 @@ end subroutine calc_mixed_layer_depth
 ! Also compute neutral density at depth of the mixed layer. 
 ! </DESCRIPTION>
 !
-subroutine mixed_layer_depth(Thickness, salinity, theta, rho, neutralrho, pressure, model_time)
+subroutine mixed_layer_depth(Thickness, salinity, theta, rho, neutralrho, pressure, Time)
 
   type(ocean_thickness_type),   intent(in) :: Thickness
   real, dimension(isd:,jsd:,:), intent(in) :: salinity
@@ -1078,7 +1069,7 @@ subroutine mixed_layer_depth(Thickness, salinity, theta, rho, neutralrho, pressu
   real, dimension(isd:,jsd:,:), intent(in) :: rho
   real, dimension(isd:,jsd:,:), intent(in) :: neutralrho
   real, dimension(isd:,jsd:,:), intent(in) :: pressure 
-  type(time_type),              intent(in) :: model_time
+  type(ocean_time_type),        intent(in) :: Time
 
   integer :: i,j,k,kmt
   real, dimension(isd:ied,jsd:jed) :: hmxl
@@ -1090,13 +1081,9 @@ subroutine mixed_layer_depth(Thickness, salinity, theta, rho, neutralrho, pressu
 
   call calc_mixed_layer_depth(Thickness, salinity, theta, rho, pressure, hmxl)
 
-  if(id_mld > 0) then 
-         used = send_data (id_mld, hmxl(:,:), model_time, rmask=Grd%tmask(:,:,1), &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
+  call diagnose_2d(Time, Grd, id_mld, hmxl(:,:))
   if(id_mld_sq > 0) then 
-         used = send_data (id_mld_sq, hmxl(:,:)**2, model_time, rmask=Grd%tmask(:,:,1), &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+     call diagnose_2d(Time, Grd, id_mld_sq, hmxl(:,:)**2)
   endif 
 
   ! compute neutral density at depth of hmxl 
@@ -1125,8 +1112,7 @@ subroutine mixed_layer_depth(Thickness, salinity, theta, rho, neutralrho, pressu
 
          enddo
       enddo
-      used = send_data (id_mld_nrho, wrk1_2d(:,:), model_time, rmask=Grd%tmask(:,:,1), &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_mld_nrho, wrk1_2d(:,:))
   endif
 
 
@@ -1154,11 +1140,11 @@ end subroutine mixed_layer_depth
 !
 ! </DESCRIPTION>
 !
-subroutine mixed_layer_depth_dtheta(Thickness, theta, model_time)
+subroutine mixed_layer_depth_dtheta(Thickness, theta, Time)
 
   type(ocean_thickness_type),   intent(in)  :: Thickness
   real, dimension(isd:,jsd:,:), intent(in)  :: theta
-  type(time_type),              intent(in)  :: model_time
+  type(ocean_time_type),        intent(in)  :: Time
 
   real      :: epsln=1.0e-20  ! for divisions 
   real      :: dtheta 
@@ -1203,10 +1189,7 @@ subroutine mixed_layer_depth_dtheta(Thickness, theta, model_time)
      enddo
   enddo
 
-  if(id_mld_dtheta > 0) then 
-         used = send_data (id_mld_dtheta, wrk1_2d(:,:), model_time, rmask=Grd%tmask(:,:,1), &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
+  call diagnose_2d(Time, Grd, id_mld_dtheta, wrk1_2d(:,:))
 
 
 end subroutine mixed_layer_depth_dtheta
@@ -1407,29 +1390,13 @@ kloop:  do k=1,nk-1
      enddo
   enddo
 
-  if(id_subduction_dhdt > 0) then 
-     used = send_data (id_subduction_dhdt, subduction_dhdt(:,:), &
-     Time%model_time, rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if(id_subduction_horz > 0) then 
-     used = send_data (id_subduction_horz, subduction_horz(:,:), &
-     Time%model_time, rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if(id_subduction_vert > 0) then 
-     used = send_data (id_subduction_vert, subduction_vert(:,:), &
-     Time%model_time, rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if(id_subduction > 0) then 
-     used = send_data (id_subduction, subduction(:,:), &
-     Time%model_time, rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if(id_subduction_mld > 0) then 
-     used = send_data (id_subduction_mld, mld_tau(:,:), &
-     Time%model_time, rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
+  call diagnose_2d(Time, Grd, id_subduction_dhdt, subduction_dhdt(:,:))
+  call diagnose_2d(Time, Grd, id_subduction_horz, subduction_horz(:,:))
+  call diagnose_2d(Time, Grd, id_subduction_vert, subduction_vert(:,:))
+  call diagnose_2d(Time, Grd, id_subduction, subduction(:,:))
+  call diagnose_2d(Time, Grd, id_subduction_mld, mld_tau(:,:))
 
   if(id_subduction_dhdt_nrho > 0) then
-     nrho_work(:,:,:) = 0.0
      wrk1(:,:,:)      = 0.0
      k=1
      do j=jsc,jec
@@ -1437,14 +1404,10 @@ kloop:  do k=1,nk-1
            wrk1(i,j,k) = subduction_dhdt(i,j)
         enddo
      enddo
-     call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work)
-     used = send_data (id_subduction_dhdt_nrho, nrho_work(:,:,:),&
-            Time%model_time,                                     &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+     call diagnose_3d_rho(Time, Dens, id_subduction_dhdt_nrho, wrk1)
   endif
 
   if(id_subduction_horz_nrho > 0) then
-     nrho_work(:,:,:) = 0.0
      wrk1(:,:,:)      = 0.0
      k=1
      do j=jsc,jec
@@ -1452,14 +1415,10 @@ kloop:  do k=1,nk-1
            wrk1(i,j,k) = subduction_horz(i,j)
         enddo
      enddo
-     call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work)
-     used = send_data (id_subduction_horz_nrho, nrho_work(:,:,:),&
-            Time%model_time,                                     &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+     call diagnose_3d_rho(Time, Dens, id_subduction_horz_nrho, wrk1)
   endif
 
   if(id_subduction_vert_nrho > 0) then
-     nrho_work(:,:,:) = 0.0
      wrk1(:,:,:)      = 0.0
      k=1
      do j=jsc,jec
@@ -1467,14 +1426,10 @@ kloop:  do k=1,nk-1
            wrk1(i,j,k) = subduction_vert(i,j)
         enddo
      enddo
-     call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work)
-     used = send_data (id_subduction_vert_nrho, nrho_work(:,:,:),&
-            Time%model_time,                                     &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+     call diagnose_3d_rho(Time, Dens, id_subduction_vert_nrho, wrk1)
   endif
 
   if(id_subduction_nrho > 0) then
-     nrho_work(:,:,:) = 0.0
      wrk1(:,:,:)      = 0.0
      k=1
      do j=jsc,jec
@@ -1482,10 +1437,7 @@ kloop:  do k=1,nk-1
            wrk1(i,j,k) = subduction(i,j)
         enddo
      enddo
-     call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk1, nrho_work)
-     used = send_data (id_subduction_nrho, nrho_work(:,:,:),&
-            Time%model_time,                                &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+     call diagnose_3d_rho(Time, Dens, id_subduction_nrho, wrk1)
   endif
   
 
@@ -4029,17 +3981,8 @@ subroutine potrho_mixed_layer (Time, Thickness, Dens)
          potrho_mix_base = potrho_mix_base)
   endif
 
-  if (id_potrho_mix_depth > 0) then 
-      used = send_data (id_potrho_mix_depth, potrho_mix_depth(:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,1), &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
-  if (id_potrho_mix_base > 0) then 
-      used = send_data (id_potrho_mix_base, potrho_mix_base(:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,1), &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+  call diagnose_2d(Time, Grd, id_potrho_mix_depth, potrho_mix_depth(:,:))
+  call diagnose_2d(Time, Grd, id_potrho_mix_base, potrho_mix_base(:,:))
 
 end subroutine potrho_mixed_layer
 ! </SUBROUTINE> NAME="potrho_mixed_layer"

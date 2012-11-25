@@ -1,4 +1,5 @@
 module ocean_grids_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Zhi Liang 
 !</CONTACT>
@@ -76,7 +77,7 @@ use mpp_domains_mod,   only: mpp_global_sum, CORNER, EAST, NORTH, XUPDATE
 use mpp_domains_mod,   only: NON_BITWISE_EXACT_SUM, BITWISE_EXACT_SUM
 use mpp_domains_mod,   only: mpp_define_domains, mpp_get_domain_extents, mpp_deallocate_domain
 use mpp_domains_mod,   only: mpp_get_compute_domain, mpp_get_data_domain, mpp_get_global_domain
-use mpp_mod,           only: input_nml_file, stdout, stdlog, mpp_error, mpp_chksum, mpp_sum, FATAL, NOTE, mpp_pe
+use mpp_mod,           only: input_nml_file, stdout, stdlog, mpp_error, mpp_sum, FATAL, NOTE, mpp_pe
 use mosaic_mod,        only: get_mosaic_ntiles, get_mosaic_ncontacts, get_mosaic_contact
 
 use ocean_domains_mod,    only: get_local_indices, get_global_indices, get_halo_sizes, get_domain_offsets
@@ -86,6 +87,7 @@ use ocean_parameters_mod, only: MOM_BGRID, MOM_CGRID
 use ocean_parameters_mod, only: missing_value, rho0, grav
 use ocean_types_mod,      only: ocean_grid_type, ocean_time_type, ocean_domain_type
 use ocean_workspace_mod,  only: wrk1_2d 
+use ocean_util_mod,       only: diagnose_2d_u, diagnose_3d_u, diagnose_2d, diagnose_3d, write_chksum_2d
 
 implicit none
 
@@ -1208,34 +1210,34 @@ subroutine set_ocean_hgrid_arrays(Domain, Grid)
   deallocate(tmp_local, tmp1_local, tmp2_local)
  
   if (debug_this_module .or. verbose_init) then
-     write(stdoutunit,*) 'xt chksum = ',mpp_chksum(Grid%xt(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'xu chksum = ',mpp_chksum(Grid%xu(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'yt chksum = ',mpp_chksum(Grid%yt(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'yu chksum = ',mpp_chksum(Grid%yu(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dxt chksum = ',mpp_chksum(Grid%dxt(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dxu chksum = ',mpp_chksum(Grid%dxu(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dyt chksum = ',mpp_chksum(Grid%dyt(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dyu chksum = ',mpp_chksum(Grid%dyu(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dat chksum = ',mpp_chksum(Grid%dat(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dau chksum = ',mpp_chksum(Grid%dau(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dxtn chksum = ',mpp_chksum(Grid%dxtn(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dytn chksum = ',mpp_chksum(Grid%dytn(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dxte chksum = ',mpp_chksum(Grid%dxte(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dyte chksum = ',mpp_chksum(Grid%dyte(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dxun chksum = ',mpp_chksum(Grid%dxun(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dyun chksum = ',mpp_chksum(Grid%dyun(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dxue chksum = ',mpp_chksum(Grid%dxue(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dyue chksum = ',mpp_chksum(Grid%dyue(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dtn+dts chksum = ',mpp_chksum(Grid%dtn(isc:iec,jsc:jec)+Grid%dts(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dun+dus chksum = ',mpp_chksum(Grid%dun(isc:iec,jsc:jec)+Grid%dus(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dte+dtw chksum = ',mpp_chksum(Grid%dte(isc:iec,jsc:jec)+Grid%dtw(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'due+duw chksum = ',mpp_chksum(Grid%due(isc:iec,jsc:jec)+Grid%duw(isc:iec,jsc:jec))
-     write(stdoutunit,*) 'dte chksum = ',mpp_chksum(Grid%dte(isc:iec,jsc:jec) )
-     write(stdoutunit,*) 'dtw chksum = ',mpp_chksum(Grid%dtw(isc:iec,jsc:jec) )
-     write(stdoutunit,*) 'due chksum = ',mpp_chksum(Grid%due(isc:iec,jsc:jec) )
-     write(stdoutunit,*) 'duw chksum = ',mpp_chksum(Grid%duw(isc:iec,jsc:jec) )
-     write(stdoutunit,*) 'sin_rot chksum = ',mpp_chksum(Grid%sin_rot(isc:iec,jsc:jec) )
-     write(stdoutunit,*) 'cos_rot chksum = ',mpp_chksum(Grid%cos_rot(isc:iec,jsc:jec) )
+     call write_chksum_2d('xt', Grid%xt(COMP))
+     call write_chksum_2d('xu', Grid%xu(COMP))
+     call write_chksum_2d('yt', Grid%yt(COMP))
+     call write_chksum_2d('yu', Grid%yu(COMP))
+     call write_chksum_2d('dxt', Grid%dxt(COMP))
+     call write_chksum_2d('dxu', Grid%dxu(COMP))
+     call write_chksum_2d('dyt', Grid%dyt(COMP))
+     call write_chksum_2d('dyu', Grid%dyu(COMP))
+     call write_chksum_2d('dat', Grid%dat(COMP))
+     call write_chksum_2d('dau', Grid%dau(COMP))
+     call write_chksum_2d('dxtn', Grid%dxtn(COMP))
+     call write_chksum_2d('dytn', Grid%dytn(COMP))
+     call write_chksum_2d('dxte', Grid%dxte(COMP))
+     call write_chksum_2d('dyte', Grid%dyte(COMP))
+     call write_chksum_2d('dxun', Grid%dxun(COMP))
+     call write_chksum_2d('dyun', Grid%dyun(COMP))
+     call write_chksum_2d('dxue', Grid%dxue(COMP))
+     call write_chksum_2d('dyue', Grid%dyue(COMP))
+     call write_chksum_2d('dtn+dts', Grid%dtn(COMP) + Grid%dts(COMP))
+     call write_chksum_2d('dun+dus', Grid%dun(COMP) + Grid%dus(COMP))
+     call write_chksum_2d('dte+dtw', Grid%dte(COMP) + Grid%dtw(COMP))
+     call write_chksum_2d('due+duw', Grid%due(COMP) + Grid%duw(COMP))
+     call write_chksum_2d('dte', Grid%dte(COMP))
+     call write_chksum_2d('dtw', Grid%dtw(COMP))
+     call write_chksum_2d('due', Grid%due(COMP))
+     call write_chksum_2d('duw', Grid%duw(COMP))
+     call write_chksum_2d('sin_rot', Grid%sin_rot(COMP))
+     call write_chksum_2d('cos_rot', Grid%cos_rot(COMP))
   endif
 
   if(write_grid) then
@@ -1702,94 +1704,77 @@ subroutine set_ocean_vgrid_arrays (Time, Domain, Grid, obc)
             missing_value=missing_value, range=(/-1e1,1e9/))
   if (id_kmt > 0) then 
       wrk1_2d(:,:) = Grid%kmt(:,:)
-      used = send_data (id_kmt, wrk1_2d(isc:iec,jsc:jec), &
-      Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,1))
+      call diagnose_2d(Time, Grid, id_kmt, wrk1_2d(:,:))
   endif 
   id_kmu = register_static_field ('ocean_model', 'kmu', Grid%vel_axes_uv(1:2), &
            'number of depth levels on u-grid', 'dimensionless',                &
             missing_value=missing_value, range=(/-1e1,1e9/))
   if (id_kmu > 0) then 
       wrk1_2d(:,:) = Grid%kmu(:,:)
-      used = send_data (id_kmu, wrk1_2d(isc:iec,jsc:jec), &
-      Time%model_time, rmask=Grid%umask(isc:iec,jsc:jec,1))
+      call diagnose_2d(Time, Grid, id_kmu, wrk1_2d(:,:))
   endif 
 
   id_ht  = register_static_field ('ocean_model', 'ht', Grid%tracer_axes(1:2),      &
                                   'ocean depth on t-cells', 'm',                   &
                                   missing_value=missing_value, range=(/-1e9,1e9/), &
                                   standard_name='sea_floor_depth_below_geoid')
-  if (id_ht > 0) used = send_data (id_ht, Grid%ht(isc:iec,jsc:jec), &
-                        Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,1))
+  call diagnose_2d(Time, Grid, id_ht, Grid%ht(:,:))
 
   id_hu  = register_static_field ('ocean_model', 'hu', Grid%vel_axes_uv(1:2), 'ocean depth on u-cells', &
                                   'm',missing_value=missing_value, range=(/-1e9,1e9/))
-  if (id_hu > 0) used = send_data (id_hu, Grid%hu(isc:iec,jsc:jec), &
-                        Time%model_time, rmask=Grid%umask(isc:iec,jsc:jec,1))
+  call diagnose_2d_u(Time, Grid, id_hu, Grid%hu(:,:))
 
   id_dht_dx  = register_static_field ('ocean_model', 'dht_dx', Grid%vel_axes_uv(1:2), 'd(ht)/dx on u-cells', &
                                       'm/m', missing_value=missing_value, range=(/-1e9,1e9/))
-  if (id_dht_dx > 0) used = send_data (id_dht_dx, Grid%dht_dx(isc:iec,jsc:jec), &
-                            Time%model_time, rmask=Grid%umask(isc:iec,jsc:jec,1))
+  call diagnose_2d_u(Time, Grid, id_dht_dx, Grid%dht_dx(:,:))
 
   id_dht_dy  = register_static_field ('ocean_model', 'dht_dy', Grid%vel_axes_uv(1:2), 'd(ht)/dy on u-cells', &
                                       'm/m', missing_value=missing_value, range=(/-1e9,1e9/))
-  if (id_dht_dy > 0) used = send_data (id_dht_dy, Grid%dht_dy(isc:iec,jsc:jec), &
-                            Time%model_time, rmask=Grid%umask(isc:iec,jsc:jec,1))
+  call diagnose_2d_u(Time, Grid, id_dht_dy, Grid%dht_dy(:,:))
 
   id_gradH = register_static_field ('ocean_model', 'gradH', Grid%vel_axes_uv(1:2), '|grad bottom on U-cell|', &
                                       'm/m', missing_value=missing_value, range=(/-1e9,1e9/))
-  if (id_gradH > 0) used = send_data (id_gradH, Grid%gradH(isc:iec,jsc:jec), &
-                            Time%model_time, rmask=Grid%umask(isc:iec,jsc:jec,1))
+  call diagnose_2d_u(Time, Grid, id_gradH, Grid%gradH(:,:))
 
   id_dxt = register_static_field ('ocean_model', 'dxt', Grid%tracer_axes(1:2), 'ocean dxt on t-cells', 'm',&
                                   missing_value=missing_value, range=(/-1e9,1e9/))
-  if (id_dxt > 0) used = send_data (id_dxt, Grid%dxt(isc:iec,jsc:jec), &
-                        Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,1))
+  call diagnose_2d(Time, Grid, id_dxt, Grid%dxt(:,:))
 
   id_dxu = register_static_field ('ocean_model', 'dxu', Grid%vel_axes_uv(1:2), 'ocean dxu on u-cells', 'm',&
                                   missing_value=missing_value, range=(/-1e9,1e9/))
-  if (id_dxu > 0) used = send_data (id_dxu, Grid%dxu(isc:iec,jsc:jec), &
-                        Time%model_time, rmask=Grid%umask(isc:iec,jsc:jec,1))
+  call diagnose_2d_u(Time, Grid, id_dxu, Grid%dxu(:,:))
 
   id_dyt = register_static_field ('ocean_model', 'dyt', Grid%tracer_axes(1:2), 'ocean dyt on t-cells', 'm',&
                                   missing_value=missing_value, range=(/-1e9,1e9/))
-  if (id_dyt > 0) used = send_data (id_dyt, Grid%dyt(isc:iec,jsc:jec), &
-                        Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,1))
+  call diagnose_2d(Time, Grid, id_dyt, Grid%dyt(:,:))
 
   id_dyu = register_static_field ('ocean_model', 'dyu', Grid%vel_axes_uv(1:2), 'ocean dyu on u-cells', 'm',&
                                   missing_value=missing_value, range=(/-1e9,1e9/))
-  if (id_dyu > 0) used = send_data (id_dyu, Grid%dyu(isc:iec,jsc:jec), &
-                        Time%model_time, rmask=Grid%umask(isc:iec,jsc:jec,1))
+  call diagnose_2d_u(Time, Grid, id_dyu, Grid%dyu(:,:))
 
   id_dxtn = register_static_field ('ocean_model', 'dxtn', Grid%tracer_axes(1:2), 'ocean dxtn on t-cells', 'm',&
                                   missing_value=missing_value, range=(/-1e9,1e9/))
-  if (id_dxtn > 0) used = send_data (id_dxtn, Grid%dxtn(isc:iec,jsc:jec), &
-                        Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,1))
+  call diagnose_2d(Time, Grid, id_dxtn, Grid%dxtn(:,:))
 
   id_dyte = register_static_field ('ocean_model', 'dyte', Grid%tracer_axes(1:2), 'ocean dyte on t-cells', 'm',&
                                   missing_value=missing_value, range=(/-1e9,1e9/))
-  if (id_dyte > 0) used = send_data (id_dyte, Grid%dyte(isc:iec,jsc:jec), &
-                        Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,1))
+  call diagnose_2d(Time, Grid, id_dyte, Grid%dyte(:,:))
 
   id_tmask = register_static_field ('ocean_model', 'tmask', Grid%tracer_axes(1:3), 'tracer mask', 'dimensionless',&
                                   missing_value=missing_value, range=(/-1e1,1e1/))
-  if (id_tmask > 0) used = send_data (id_tmask, Grid%tmask(isc:iec,jsc:jec,:), &
-                        Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,:))
+  call diagnose_3d(Time, Grid, id_tmask, Grid%tmask(:,:,:))
 
   id_umask = register_static_field ('ocean_model', 'umask', Grid%vel_axes_uv(1:3), 'velocity mask', 'dimensionless',&
                                   missing_value=missing_value, range=(/-1e1,1e1/))
-  if (id_umask > 0) used = send_data (id_umask, Grid%umask(isc:iec,jsc:jec,:), &
-                        Time%model_time, rmask=Grid%umask(isc:iec,jsc:jec,:))
+  call diagnose_3d_u(Time, Grid, id_umask, Grid%umask(:,:,:))
 
   id_tmasken(1) = register_static_field ('ocean_model', 'tmasken1', Grid%tracer_axes(1:3), &
                  'min(tmask(i),tmask(i+1))', 'dimensionless', missing_value=missing_value, range=(/-1e1,1e1/))
-  if (id_tmasken(1) > 0) used = send_data (id_tmasken(1), Grid%tmasken(isc:iec,jsc:jec,:,1), &
-                         Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,:))
+  call diagnose_3d(Time, Grid, id_tmasken(1), Grid%tmasken(:,:,:,1))
 
   id_tmasken(2) = register_static_field ('ocean_model', 'tmasken2', Grid%tracer_axes(1:3), &
                  'min(tmask(j),tmask(j+1))', 'dimensionless', missing_value=missing_value, range=(/-1e1,1e1/))
-  if (id_tmasken(2) > 0) used = send_data (id_tmasken(2), Grid%tmasken(isc:iec,jsc:jec,:,2), &
-                         Time%model_time, rmask=Grid%tmask(isc:iec,jsc:jec,:))
+  call diagnose_3d(Time, Grid, id_tmasken(2), Grid%tmasken(:,:,:,2))
 
 
 end subroutine set_ocean_vgrid_arrays

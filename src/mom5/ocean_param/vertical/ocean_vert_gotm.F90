@@ -1,4 +1,5 @@
 module ocean_vert_gotm_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="mschmidt@io-warnemuende.de"> Martin Schmidt 
 !</CONTACT>
@@ -137,14 +138,14 @@ module ocean_vert_gotm_mod
 !</NAMELIST>
 
 use constants_mod,    only: epsln
-use diag_manager_mod, only: register_diag_field, register_static_field, send_data
+use diag_manager_mod, only: register_diag_field, register_static_field
 use fms_mod,          only: FATAL, WARNING, stdout, stdlog
 use fms_mod,          only: write_version_number, open_namelist_file, check_nml_error, close_file
 use fms_mod,          only: file_exist 
 use fms_io_mod,       only: register_restart_field, save_restart, restore_state
 use fms_io_mod,       only: restart_file_type, reset_field_pointer
 use mpp_domains_mod,  only: mpp_update_domains, NUPDATE, EUPDATE, XUPDATE, YUPDATE
-use mpp_mod,          only: input_nml_file, mpp_error, mpp_chksum
+use mpp_mod,          only: input_nml_file, mpp_error
 
 use mtridiagonal,     only: init_tridiagonal
 use turbulence,       only: init_turbulence, do_turbulence, tke, eps, num, nuh
@@ -157,7 +158,7 @@ use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_adv_vel_type
 use ocean_types_mod,      only: ocean_density_type, ocean_velocity_type
 use ocean_types_mod,      only: ocean_time_type, ocean_time_steps_type, ocean_thickness_type
 use ocean_types_mod,      only: ocean_gotm_type, advect_gotm_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_3d_u, write_chksum_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk1_v
 use ocean_obc_mod,        only: ocean_obc_mixing, ocean_obc_zero_boundary
 
@@ -527,15 +528,10 @@ ierr = check_nml_error(io_status,'ocean_vert_gotm_nml')
 
       write(stdoutunit,*) 'From ocean_vert_gotm_mod: initial chksum ==>'
       call write_timestamp(Time%model_time)
-      write (stdoutunit, *) 'checksum start field_tke ', &
-           mpp_chksum(Gotm(index_tke)%field(isc:iec,jsc:jec,:,taup1_gotm)*Grd%tmask(isc:iec,jsc:jec,:))
-      write (stdoutunit, *) 'checksum start field_diss', &
-           mpp_chksum(Gotm(index_diss)%field(isc:iec,jsc:jec,:,taup1_gotm)*Grd%tmask(isc:iec,jsc:jec,:))
-      write (stdoutunit, *) 'checksum start diff_cbt_gotm', &
-           mpp_chksum(diff_cbt_gotm(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:))
-      write (stdoutunit, *) 'checksum start visc_cbt_gotm', &
-           mpp_chksum(visc_cbt_gotm(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:))
-
+      call write_chksum_3d('start field_tke', Gotm(index_tke)%field(COMP,:,taup1_gotm)*Grd%tmask(COMP,:))
+      call write_chksum_3d('start field_diss', Gotm(index_diss)%field(COMP,:,taup1_gotm)*Grd%tmask(COMP,:))
+      call write_chksum_3d('start diff_cbt_gotm', diff_cbt_gotm(COMP,:)*Grd%tmask(COMP,:))
+      call write_chksum_3d('start visc_cbt_gotm', visc_cbt_gotm(COMP,:)*Grd%tmask(COMP,:))
   endif
 
 
@@ -919,69 +915,27 @@ subroutine vert_mix_gotm_bgrid (Time, Thickness, Velocity, T_prog, Dens, visc_cb
   enddo
 
   if(debug_this_module) then 
-
       write(stdoutunit,*)' ' 
       write(stdoutunit,*) 'From ocean_vert_gotm_mod: checksums'
       call write_timestamp(Time%model_time)
-
-      write (stdoutunit,*) 'checksum diff_cbt_gotm  = ', &
-       mpp_chksum(diff_cbt_gotm(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:))
-
-      write (stdoutunit,*) 'checksum visc_cbt_gotm  = ', &
-       mpp_chksum(visc_cbt_gotm(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:))
-
-      write (stdoutunit,*) 'checksum tke = ', &
-       mpp_chksum(Gotm(index_tke)%field(isc:iec,jsc:jec,:,tau_gotm)*Grd%tmask(isc:iec,jsc:jec,:))
-
-      write (stdoutunit,*) 'checksum diss= ', &
-       mpp_chksum(Gotm(index_diss)%field(isc:iec,jsc:jec,:,tau_gotm)*Grd%tmask(isc:iec,jsc:jec,:))
-
-      write (stdoutunit,*) 'checksum NN  = ', &
-       mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,1)*Grd%tmask(isc:iec,jsc:jec,:))
-
-      write (stdoutunit,*) 'checksum SS  = ', &
-       mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,2)*Grd%tmask(isc:iec,jsc:jec,:))
-
+      call write_chksum_3d('diff_cbt_gotm', diff_cbt_gotm(COMP,:)*Grd%tmask(COMP,:))
+      call write_chksum_3d('visc_cbt_gotm', visc_cbt_gotm(COMP,:)*Grd%tmask(COMP,:))
+      call write_chksum_3d('tke', Gotm(index_tke)%field(COMP,:,tau_gotm)*Grd%tmask(COMP,:))
+      call write_chksum_3d('diss', Gotm(index_diss)%field(COMP,:,tau_gotm)*Grd%tmask(COMP,:))
+      call write_chksum_3d('NN', wrk1_v(COMP,:,1)*Grd%tmask(COMP,:))
+      call write_chksum_3d('SS', wrk1_v(COMP,:,2)*Grd%tmask(COMP,:))
   endif
 
   ! send diagnostics
   do n=1,num_gotm
-     if(id_gotm_diag(n) > 0) then 
-        used = send_data(id_gotm_diag(n), Gotm(n)%field(:,:,:,tau_gotm), &
-        Time%model_time, rmask=Grd%tmask(:,:,:),                         &
-        is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif 
+     call diagnose_3d(Time, Grd, id_gotm_diag(n), Gotm(n)%field(:,:,:,tau_gotm))
   enddo
 
-  if(id_diff_cbt_gotm > 0) then 
-     used = send_data(id_diff_cbt_gotm, diff_cbt_gotm(:,:,:), &
-            Time%model_time, rmask=Grd%tmask(:,:,:),          &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-
-  if(id_visc_cbt_gotm > 0) then 
-     used = send_data(id_visc_cbt_gotm, visc_cbt_gotm(:,:,:), &
-            Time%model_time, rmask=Grd%tmask(:,:,:),          &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-
-  if(id_visc_cbu_gotm > 0) then 
-     used = send_data(id_visc_cbu_gotm, wrk1(:,:,:), &
-            Time%model_time, rmask=Grd%umask(:,:,:), &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-
-  if(id_gotm_nn > 0) then 
-     used = send_data(id_gotm_nn, wrk1_v(:,:,:,1),   &
-            Time%model_time, rmask=Grd%tmask(:,:,:), &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-
-  if(id_gotm_ss > 0) then 
-     used = send_data(id_gotm_ss, wrk1_v(:,:,:,2),   &
-            Time%model_time, rmask=Grd%tmask(:,:,:), &
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
+  call diagnose_3d(Time, Grd, id_diff_cbt_gotm, diff_cbt_gotm(:,:,:))
+  call diagnose_3d(Time, Grd, id_visc_cbt_gotm, visc_cbt_gotm(:,:,:))
+  call diagnose_3d_u(Time, Grd, id_visc_cbu_gotm, wrk1(:,:,:))
+  call diagnose_3d(Time, Grd, id_gotm_nn, wrk1_v(:,:,:,1))
+  call diagnose_3d(Time, Grd, id_gotm_ss, wrk1_v(:,:,:,2))
 
 
  end subroutine vert_mix_gotm_bgrid
@@ -1163,9 +1117,7 @@ subroutine advect_gotm_upwind(Time, Adv_vel, Thickness, pme, river)
            enddo
          enddo
        enddo
-       used = send_data(id_gotm_errors(n), wrk1(:,:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,:),  &
-              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+       call diagnose_3d(Time, Grd, id_gotm_errors(n), wrk1(:,:,:))
      else
      ! update the scalar Gotm field.  
        do k=1,nk
@@ -1191,11 +1143,7 @@ subroutine advect_gotm_upwind(Time, Adv_vel, Thickness, pme, river)
 
      ! diagnostics 
 
-     if (id_adv_flux_x(n) > 0) then 
-          used = send_data(id_adv_flux_x(n), flux_x(:,:,:), &
-          Time%model_time, rmask=Grd%tmask(:,:,:),          &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif 
+     call diagnose_3d(Time, Grd, id_adv_flux_x(n), flux_x(:,:,:))
 
      if (id_adv_flux_x_int_z(n) > 0) then 
          tmp_flux(:,:) = 0.0
@@ -1206,14 +1154,10 @@ subroutine advect_gotm_upwind(Time, Adv_vel, Thickness, pme, river)
                enddo
             enddo
          enddo
-         used = send_data(id_adv_flux_x_int_z(n), tmp_flux(:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,1),           &
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         call diagnose_2d(Time, Grd, id_adv_flux_x_int_z(n), tmp_flux(:,:))
      endif
 
-     if (id_adv_flux_y(n) > 0) used = send_data(id_adv_flux_y(n), flux_y(:,:,:), &
-          Time%model_time, rmask=Grd%tmask(:,:,:),                               &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_adv_flux_y(n), flux_y(:,:,:))
 
      if (id_adv_flux_y_int_z(n) > 0) then 
          tmp_flux(:,:) = 0.0
@@ -1224,17 +1168,10 @@ subroutine advect_gotm_upwind(Time, Adv_vel, Thickness, pme, river)
                enddo
             enddo
          enddo
-         used = send_data(id_adv_flux_y_int_z(n), tmp_flux(:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,1),           &
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         call diagnose_2d(Time, Grd, id_adv_flux_y_int_z(n), tmp_flux(:,:))
      endif
 
-     if (id_adv_flux_z(n) > 0) then 
-         used = send_data(id_adv_flux_z(n), flux_z(:,:,:), &
-         Time%model_time, rmask=Grd%tmask(:,:,:),          &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif 
-
+     call diagnose_3d(Time, Grd, id_adv_flux_z(n), flux_z(:,:,:))
 
   enddo  ! n-loop
 
@@ -1353,11 +1290,7 @@ subroutine advect_gotm_sweby(Time, Adv_vel, Thickness, pme, river)
 
      call mpp_update_domains (advect_gotm(n)%field, Dom_advect_gotm%domain2d, flags=XUPDATE)
 
-     if (id_adv_flux_z(n) > 0) then 
-         used = send_data(id_adv_flux_z(n), flux_z(:,:,:), &
-         Time%model_time, rmask=Grd%tmask(:,:,:),          &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif 
+     call diagnose_3d(Time, Grd, id_adv_flux_z(n), flux_z(:,:,:))
 
   enddo ! end of n-loop for Gotm
 
@@ -1416,11 +1349,7 @@ subroutine advect_gotm_sweby(Time, Adv_vel, Thickness, pme, river)
 
      call mpp_update_domains (advect_gotm(n)%field, Dom_advect_gotm%domain2d, flags=YUPDATE)
 
-     if (id_adv_flux_x(n) > 0) then 
-          used = send_data(id_adv_flux_x(n), flux_x(:,:,:), &
-          Time%model_time, rmask=Grd%tmask(:,:,:), &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif 
+     call diagnose_3d(Time, Grd, id_adv_flux_x(n), flux_x(:,:,:))
 
      if (id_adv_flux_x_int_z(n) > 0) then 
          tmp_flux(:,:) = 0.0
@@ -1431,9 +1360,7 @@ subroutine advect_gotm_sweby(Time, Adv_vel, Thickness, pme, river)
                enddo
             enddo
          enddo
-         used = send_data(id_adv_flux_x_int_z(n), tmp_flux(:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,1), &
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         call diagnose_2d(Time, Grd, id_adv_flux_x_int_z(n), tmp_flux(:,:))
      endif
 
   enddo ! end of n-loop for Gotm
@@ -1555,9 +1482,7 @@ subroutine advect_gotm_sweby(Time, Adv_vel, Thickness, pme, river)
            enddo
          enddo
        enddo
-       used = send_data(id_gotm_errors(n), wrk1(:,:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,:),  &
-              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+       call diagnose_3d(Time, Grd, id_gotm_errors(n), wrk1(:,:,:))
      else
      ! update the scalar Gotm field.  
        do k=1,nk
@@ -1581,9 +1506,7 @@ subroutine advect_gotm_sweby(Time, Adv_vel, Thickness, pme, river)
         enddo
      endif
      
-     if (id_adv_flux_y(n) > 0) used = send_data(id_adv_flux_y(n), flux_y(:,:,:), &
-          Time%model_time, rmask=Grd%tmask(:,:,:),                               &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_adv_flux_y(n), flux_y(:,:,:))
 
      if (id_adv_flux_y_int_z(n) > 0) then 
          tmp_flux(:,:) = 0.0
@@ -1594,9 +1517,7 @@ subroutine advect_gotm_sweby(Time, Adv_vel, Thickness, pme, river)
                enddo
             enddo
          enddo
-         used = send_data(id_adv_flux_y_int_z(n), tmp_flux(:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,1),           &
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         call diagnose_2d(Time, Grd,id_adv_flux_y_int_z(n), tmp_flux(:,:))
      endif
 
   enddo ! end of n-loop
@@ -1650,23 +1571,10 @@ subroutine ocean_vert_gotm_end(Time)
   write(stdoutunit,*)' ' 
   write(stdoutunit,*) 'From ocean_vert_gotm_mod: ending tke and diss chksum ==>'
   call write_timestamp(Time%model_time)
-
-  write (stdoutunit,*)               &
-  'checksum ending field_tke  = ', &
-  mpp_chksum(Gotm(index_tke)%field(isc:iec,jsc:jec,:,taup1_gotm)*Grd%tmask(isc:iec,jsc:jec,:))
-
-  write (stdoutunit,*)               &
-  'checksum ending field_diss = ', &
-  mpp_chksum(Gotm(index_diss)%field(isc:iec,jsc:jec,:,taup1_gotm)*Grd%tmask(isc:iec,jsc:jec,:))
-
-  write (stdoutunit,*)                 &
-  'checksum ending diff_cbt_gotm= ', &
-  mpp_chksum(diff_cbt_gotm(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:))
-
-  write (stdoutunit,*)                 &
-  'checksum ending visc_cbt_gotm= ', &
-  mpp_chksum(visc_cbt_gotm(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:))
-
+  call write_chksum_3d('ending field_tke', Gotm(index_tke)%field(COMP,:,taup1_gotm)*Grd%tmask(COMP,:))
+  call write_chksum_3d('ending field_diss', Gotm(index_diss)%field(COMP,:,taup1_gotm)*Grd%tmask(COMP,:))
+  call write_chksum_3d('ending diff_cbt_gotm', diff_cbt_gotm(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('ending visc_cbt_gotm', visc_cbt_gotm(COMP,:)*Grd%tmask(COMP,:))
 
   return
 

@@ -112,7 +112,7 @@ module ocean_frazil_mod
 !</NAMELIST>
 
 use constants_mod,     only: epsln 
-use diag_manager_mod,  only: register_diag_field, send_data
+use diag_manager_mod,  only: register_diag_field
 use fms_mod,           only: open_namelist_file, check_nml_error, close_file
 use fms_mod,           only: FATAL, NOTE, stdout, stdlog
 use mpp_mod,           only: input_nml_file, mpp_error 
@@ -126,6 +126,7 @@ use ocean_types_mod,      only: ocean_grid_type, ocean_domain_type, ocean_thickn
 use ocean_types_mod,      only: ocean_time_type, ocean_time_steps_type, ocean_options_type
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_diag_tracer_type, ocean_density_type
 use ocean_workspace_mod,  only: wrk1_2d, wrk1
+use ocean_util_mod,       only: diagnose_2d, diagnose_3d
 
 implicit none
 
@@ -608,15 +609,11 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
   endif  ! endif for freezing_temp_simple
 
 
-  if (id_frazil_2d > 0) then 
-      used = send_data(id_frazil_2d, T_diag(index_frazil)%field(:,:,1)*dtimer, &
-           Time%model_time, rmask=Grd%tmask(:,:,1), &
-           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  if (id_frazil_2d > 0) then
+     call diagnose_2d(Time, Grd, id_frazil_2d, T_diag(index_frazil)%field(:,:,1)*dtimer)
   endif
-  if (id_frazil_3d > 0) then 
-      used = send_data(id_frazil_3d, T_diag(index_frazil)%field(:,:,:)*dtimer, &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  if (id_frazil_3d > 0) then
+     call diagnose_3d(Time, Grd, id_frazil_3d, T_diag(index_frazil)%field(:,:,:)*dtimer)
   endif
 
   if(id_temp_freeze > 0) then 
@@ -645,9 +642,7 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
            enddo
         enddo
      endif
-     used = send_data(id_temp_freeze, wrk1(:,:,:),  &
-            Time%model_time, rmask=Grd%tmask(:,:,:),&
-            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_temp_freeze, wrk1(:,:,:))
   endif
 
 

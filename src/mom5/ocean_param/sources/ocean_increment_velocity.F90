@@ -54,7 +54,7 @@ module ocean_increment_velocity_mod
 !  </DATA>
 !</NAMELIST>
 !
-use diag_manager_mod,         only: register_diag_field, send_data
+use diag_manager_mod,         only: register_diag_field
 use fms_mod,                  only: write_version_number, open_namelist_file, close_file
 use fms_mod,                  only: file_exist
 use fms_mod,                  only: open_namelist_file, check_nml_error, close_file
@@ -70,6 +70,7 @@ use ocean_parameters_mod,     only: missing_value
 use ocean_types_mod,          only: ocean_domain_type, ocean_grid_type, ocean_thickness_type
 use ocean_types_mod,          only: ocean_velocity_type, ocean_time_type 
 use ocean_workspace_mod,      only: wrk1, wrk2
+use ocean_util_mod,           only: diagnose_3d_u
 
 implicit none
 
@@ -307,10 +308,7 @@ subroutine ocean_increment_velocity_source(Time, Thickness, Velocity)
 
      endif
 
-     if (id_increment_tend(n) > 0) used = send_data(id_increment_tend(n),&
-         wrk2(:,:,:), Time%model_time, rmask=Grd%umask(:,:,:),           &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
+     call diagnose_3d_u(Time, Grd, id_increment_tend(n), wrk2(:,:,:))
   enddo
 
   return

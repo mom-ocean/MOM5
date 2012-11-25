@@ -68,7 +68,7 @@
 module  ocean_bgc_restore_mod
 
 use time_manager_mod,         only: time_type
-use diag_manager_mod,         only: send_data, register_diag_field, diag_axis_init
+use diag_manager_mod,         only: register_diag_field, diag_axis_init
 use field_manager_mod,        only: fm_field_name_len, fm_path_name_len, fm_string_len
 use field_manager_mod,        only: fm_get_length, fm_get_value, fm_new_value, fm_get_index
 use fms_mod,                  only: field_exist, file_exist
@@ -86,8 +86,9 @@ use fm_util_mod,        only: fm_util_get_string, fm_util_get_logical, fm_util_g
 use fm_util_mod,        only: fm_util_get_logical_array, fm_util_get_real_array, fm_util_get_string_array
 use fm_util_mod,        only: fm_util_start_namelist, fm_util_end_namelist
 use coupler_types_mod,  only: ind_alpha, ind_csurf, coupler_2d_bc_type, ind_flux
-use ocean_types_mod,    only: ocean_prog_tracer_type, ocean_diag_tracer_type
+use ocean_types_mod,    only: ocean_prog_tracer_type, ocean_diag_tracer_type, ocean_grid_type, ocean_time_type
 use ocmip2_co2calc_mod, only: ocmip2_co2calc
+use ocean_util_mod,     only: diagnose_2d, diagnose_2d_comp, diagnose_3d_comp
 
 implicit none
 
@@ -1062,7 +1063,7 @@ end subroutine ocean_bgc_restore_restart
 ! </DESCRIPTION>
 subroutine ocean_bgc_restore_sbc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,    &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     T_prog, tau, model_time, grid_tmask, ice_ocean_boundary_fluxes)
+     T_prog, tau, Time, Grid, ice_ocean_boundary_fluxes)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
@@ -1079,8 +1080,8 @@ integer, intent(in)                                             :: jsc_bnd
 integer, intent(in)                                             :: jec_bnd
 type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
 integer, intent(in)                                             :: tau
-type(time_type), intent(in)                                     :: model_time
-real, dimension(isd:,jsd:,:), intent(in)                        :: grid_tmask
+type(ocean_time_type), intent(in)                               :: Time
+type(ocean_grid_type), intent(in)                               :: Grid
 type(coupler_2d_bc_type), intent(in)                            :: ice_ocean_boundary_fluxes
 
 integer :: i, j, n
@@ -1089,7 +1090,7 @@ integer :: j_bnd_off
 logical :: used
 
 !     calculate interpolated iron deposition
-call time_interp_external(dep_dry_id, model_time, dep_dry_t)
+call time_interp_external(dep_dry_id, Time%model_time, dep_dry_t)
 
 ! use the surface fluxes from the coupler
 ! stf is in mol/m^2/s, flux from coupler is positive upwards
@@ -1125,28 +1126,9 @@ enddo
 
 ! Save variables for diagnostics
 do n = 1, instances
-
-  if (biotic(n)%id_sfc_flux_co2 .gt. 0) then
-    used = send_data(biotic(n)%id_sfc_flux_co2,         &
-         t_prog(biotic(n)%ind_dic)%stf(:,:),            &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
-  if (biotic(n)%id_sfc_flux_o2 .gt. 0) then
-    used = send_data(biotic(n)%id_sfc_flux_o2,          &
-         t_prog(biotic(n)%ind_o2)%stf(:,:),             &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
-  if (biotic(n)%id_sfc_flux_fed .gt. 0) then
-    used = send_data(biotic(n)%id_sfc_flux_fed,         &
-         t_prog(biotic(n)%ind_fed)%stf(:,:),            &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
+   call diagnose_2d(Time, Grid, biotic(n)%id_sfc_flux_co2, t_prog(biotic(n)%ind_dic)%stf(:,:))
+   call diagnose_2d(Time, Grid, biotic(n)%id_sfc_flux_o2, t_prog(biotic(n)%ind_o2)%stf(:,:))
+   call diagnose_2d(Time, Grid, biotic(n)%id_sfc_flux_fed, t_prog(biotic(n)%ind_fed)%stf(:,:))
 enddo
 
 return
@@ -2067,7 +2049,7 @@ end subroutine ocean_bgc_restore_sfc_end
 ! </DESCRIPTION>
 
 subroutine ocean_bgc_restore_source(isc, iec, jsc, jec, nk, isd, ied, jsd, jed, &
-     T_prog, T_diag, taum1, model_time, grid_tmask, grid_kmt, rho_dzt, dtts)
+     T_prog, T_diag, taum1, model_time, Grid, Time, grid_kmt, rho_dzt, dtts)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
@@ -2082,7 +2064,8 @@ type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
 type(ocean_diag_tracer_type), intent(inout), dimension(:)       :: T_diag
 integer, intent(in)                                             :: taum1
 type(time_type), intent(in)                                     :: model_time
-real, dimension(isd:,jsd:,:), intent(in)                        :: grid_tmask
+type(ocean_grid_type), intent(in)                               :: Grid
+type(ocean_time_type), intent(in)                               :: Time
 integer, dimension(isd:,jsd:), intent(in)                       :: grid_kmt
 real, dimension(isd:,jsd:,:,:), intent(in)                      :: rho_dzt
 real, intent(in)                                                :: dtts
@@ -2113,7 +2096,6 @@ real :: jtot
 real :: SoverPstar2
 real :: expkT
 real :: fpon_protected
-real, dimension(isc:iec,jsc:jec,nk)     :: grid_tmask_comp
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -2163,7 +2145,7 @@ do n = 1, instances
                (t_prog(ind_no3)%field(i,j,k,taum1) -            &
                 no3_star_t(i,j,k) *                             &
                 biotic(n)%nut_depl%mask(i,j,month)) *           &
-               biotic(n)%r_bio_tau_prod%mask(i,j,month) * grid_tmask(i,j,k)
+               biotic(n)%r_bio_tau_prod%mask(i,j,month) * Grid%tmask(i,j,k)
         else
           biotic(n)%jprod_no3(i,j,k) = 0.0
         endif
@@ -2186,7 +2168,7 @@ do n = 1, instances
         if (t_prog(ind_nh4)%field(i,j,k,taum1) .gt. 0.0) then
           biotic(n)%jprod_nh4(i,j,k) =                              &
                t_prog(ind_nh4)%field(i,j,k,taum1) *           &
-               biotic(n)%r_bio_tau_nh4 * grid_tmask(i,j,k)
+               biotic(n)%r_bio_tau_nh4 * Grid%tmask(i,j,k)
         else
           biotic(n)%jprod_nh4(i,j,k) = 0.0
         endif
@@ -2213,7 +2195,7 @@ do n = 1, instances
                (t_prog(ind_po4)%field(i,j,k,taum1) -            &
                 po4_star_t(i,j,k) *                             &
                 biotic(n)%nut_depl%mask(i,j,month)) *           &
-               biotic(n)%r_bio_tau_prod%mask(i,j,month) * grid_tmask(i,j,k)
+               biotic(n)%r_bio_tau_prod%mask(i,j,month) * Grid%tmask(i,j,k)
         else
           biotic(n)%jprod_po4(i,j,k) = 0.0
         endif
@@ -2240,7 +2222,7 @@ do n = 1, instances
                (t_prog(ind_fed)%field(i,j,k,taum1) -            &
                 fed_star_t(i,j,k) *                             &
                 biotic(n)%nut_depl%mask(i,j,month)) *           &
-               biotic(n)%r_bio_tau_prod%mask(i,j,month) * grid_tmask(i,j,k)
+               biotic(n)%r_bio_tau_prod%mask(i,j,month) * Grid%tmask(i,j,k)
         else
           biotic(n)%jprod_fed(i,j,k) = 0.0
         endif
@@ -2290,7 +2272,7 @@ do n = 1, instances
             biotic(n)%jprod_sio4(i,j,k) =                       &
                  (t_prog(ind_sio4)%field(i,j,k,taum1) -         &
                   sio4_star_t(i,j,k)) *                         &
-                 biotic(n)%r_bio_tau * grid_tmask(i,j,k)
+                 biotic(n)%r_bio_tau * Grid%tmask(i,j,k)
           else
             biotic(n)%jprod_sio4(i,j,k) = 0.0
         endif
@@ -2320,7 +2302,7 @@ do n = 1, instances
             t_prog(ind_no3)%field(i,j,k,taum1)) * 35.0 /       &
             (t_prog(indsal)%field(i,j,k,taum1) + 1e-40) -         &
                   alk_star_t(i,j,k)) *                         &
-                 biotic(n)%r_bio_tau * grid_tmask(i,j,k)
+                 biotic(n)%r_bio_tau * Grid%tmask(i,j,k)
           else
             biotic(n)%jprod_alk(i,j,k) = 0.0
           endif
@@ -2362,28 +2344,28 @@ do n = 1, instances
         SoverPstar2=-0.5 + 0.5 * sqrt(1.0 + 4.0 * jtot /                        &
             (expkT * biotic(n)%Prodstar))
         biotic(n)%fracl(i,j,k) = SoverPstar2 / (1.0 + SoverPstar2) *            &
-            grid_tmask(i,j,k)
+            Grid%tmask(i,j,k)
         biotic(n)%jprod_pon(i,j,k) = max(0.0,jtot * (exp(biotic(n)%kappa_remin *&
              t_prog(indtemp)%field(i,j,k,taum1)) *                              &
             (biotic(n)%fdetl0 * biotic(n)%fracl(i,j,k) + biotic(n)%fdets0 *     &
             (1.0 - biotic(n)%fracl(i,j,k))) - biotic(n)%phi_don)) *             &
-            grid_tmask(i,j,k)
+            Grid%tmask(i,j,k)
         biotic(n)%jprod_pop(i,j,k) = biotic(n)%jprod_pon(i,j,k) / jtot *        &
             (biotic(n)%jprod_p_norm(i,j,k) + biotic(n)%jprod_p_fix(i,j,k))
         biotic(n)%jprod_pofe(i,j,k) = biotic(n)%jprod_pon(i,j,k) / jtot *       &
             biotic(n)%jprod_fed(i,j,k)
-        biotic(n)%jldoc(i,j,k) = jtot * biotic(n)%phi_ldoc * grid_tmask(i,j,k)
-        biotic(n)%jdon(i,j,k) = jtot * biotic(n)%phi_don * grid_tmask(i,j,k)
+        biotic(n)%jldoc(i,j,k) = jtot * biotic(n)%phi_ldoc * Grid%tmask(i,j,k)
+        biotic(n)%jdon(i,j,k) = jtot * biotic(n)%phi_don * Grid%tmask(i,j,k)
         biotic(n)%jdop(i,j,k) = (biotic(n)%jprod_p_norm(i,j,k) +                &
             biotic(n)%jprod_p_fix(i,j,k)) * biotic(n)%phi_dop *                 &
-            grid_tmask(i,j,k)
+            Grid%tmask(i,j,k)
         biotic(n)%jnh4_graz(i,j,k) = (jtot - biotic(n)%jprod_pon(i,j,k) -       &
-            biotic(n)%jdon(i,j,k)) * grid_tmask(i,j,k)
+            biotic(n)%jdon(i,j,k)) * Grid%tmask(i,j,k)
         biotic(n)%jpo4_graz(i,j,k) = (biotic(n)%jprod_p_norm(i,j,k) +           &
             biotic(n)%jprod_p_fix(i,j,k) - biotic(n)%jprod_pop(i,j,k) -         &
-            biotic(n)%jdop(i,j,k)) * grid_tmask(i,j,k)
+            biotic(n)%jdop(i,j,k)) * Grid%tmask(i,j,k)
         biotic(n)%jfe_graz(i,j,k) = (biotic(n)%jprod_fed(i,j,k)                &
-            - biotic(n)%jprod_pofe(i,j,k)) * grid_tmask(i,j,k)
+            - biotic(n)%jprod_pofe(i,j,k)) * Grid%tmask(i,j,k)
       enddo
     enddo
   enddo
@@ -2392,13 +2374,13 @@ do n = 1, instances
   do j=jsc,jec
     do i=isc,iec
       biotic(n)%fsio2(i,j,1) = biotic(n)%jprod_sio4(i,j,1) *        &
-        rho_dzt(i,j,1,taum1) * grid_tmask(i,j,1)
+        rho_dzt(i,j,1,taum1) * Grid%tmask(i,j,1)
       biotic(n)%fcaco3(i,j,1) = 0.5 * biotic(n)%jprod_alk(i,j,1) *  &
-        rho_dzt(i,j,1,taum1) * grid_tmask(i,j,1)
+        rho_dzt(i,j,1,taum1) * Grid%tmask(i,j,1)
       biotic(n)%fpon(i,j,1) = biotic(n)%jprod_pon(i,j,1) *          &
-         rho_dzt(i,j,1,taum1) * grid_tmask(i,j,1)
+         rho_dzt(i,j,1,taum1) * Grid%tmask(i,j,1)
       biotic(n)%fpop(i,j,1) = biotic(n)%jprod_pop(i,j,1) *          &
-         rho_dzt(i,j,1,taum1) * grid_tmask(i,j,1)
+         rho_dzt(i,j,1,taum1) * Grid%tmask(i,j,1)
       biotic(n)%jfe_ads(i,j,1)=min(biotic(n)%kfe_max_prime,         &
         (biotic(n)%kfe_org / 2.0 * biotic(n)%fpon(i,j,1) *          &
         biotic(n)%mass_2_n + biotic(n)%kfe_bal / 2.0 *              &
@@ -2419,16 +2401,16 @@ do n = 1, instances
     do j=jsc,jec
       do i=isc,iec
         biotic(n)%fsio2(i,j,k) = biotic(n)%fsio2(i,j,k-1) *                    &
-          biotic(n)%r_1plusintzscale_si(k) * grid_tmask(i,j,k)
+          biotic(n)%r_1plusintzscale_si(k) * Grid%tmask(i,j,k)
 
         ! Calculate regeneration term
-        biotic(n)%jsio4(i,j,k) = (biotic(n)%fsio2(i,j,k-1) * grid_tmask(i,j,k) &
-          - biotic(n)%fsio2(i,j,k) * grid_tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
+        biotic(n)%jsio4(i,j,k) = (biotic(n)%fsio2(i,j,k-1) * Grid%tmask(i,j,k) &
+          - biotic(n)%fsio2(i,j,k) * Grid%tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
 
         ! Add production within box to flux
         biotic(n)%fsio2(i,j,k) = biotic(n)%fsio2(i,j,k) +                      &
           biotic(n)%jprod_sio4(i,j,k) *                                        &
-          rho_dzt(i,j,k,taum1) * grid_tmask(i,j,k)
+          rho_dzt(i,j,k,taum1) * Grid%tmask(i,j,k)
       enddo
     enddo
   enddo
@@ -2437,16 +2419,16 @@ do n = 1, instances
     do j=jsc,jec
       do i=isc,iec
         biotic(n)%fcaco3(i,j,k) = biotic(n)%fcaco3(i,j,k-1) *                  &
-          biotic(n)%r_1plusintzscale_ca(k) * grid_tmask(i,j,k)
+          biotic(n)%r_1plusintzscale_ca(k) * Grid%tmask(i,j,k)
 
         ! Calculate regeneration term
-        biotic(n)%jcaco3(i,j,k) = (biotic(n)%fcaco3(i,j,k-1) * grid_tmask(i,j,k) &
-          - biotic(n)%fcaco3(i,j,k) * grid_tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
+        biotic(n)%jcaco3(i,j,k) = (biotic(n)%fcaco3(i,j,k-1) * Grid%tmask(i,j,k) &
+          - biotic(n)%fcaco3(i,j,k) * Grid%tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
 
         ! Add production within box to flux
         biotic(n)%fcaco3(i,j,k) = biotic(n)%fcaco3(i,j,k) + 0.5 *              &
           biotic(n)%jprod_alk(i,j,k) *                                         &
-          rho_dzt(i,j,k,taum1) * grid_tmask(i,j,k)
+          rho_dzt(i,j,k,taum1) * Grid%tmask(i,j,k)
         enddo
       enddo
     enddo
@@ -2460,10 +2442,10 @@ if(biotic(n)%remin_ocmip2) then
       do i = isc, iec
         biotic(n)%fpon(i,j,k) = biotic(n)%fpon(i,j,k-1) +       &
           biotic(n)%jprod_pon(i,j,k) *                          &
-          rho_dzt(i,j,k,taum1) * grid_tmask(i,j,k)
+          rho_dzt(i,j,k,taum1) * Grid%tmask(i,j,k)
         biotic(n)%fpop(i,j,k) = biotic(n)%fpop(i,j,k-1) +       &
           biotic(n)%jprod_pop(i,j,k) *                          &
-          rho_dzt(i,j,k,taum1) * grid_tmask(i,j,k)
+          rho_dzt(i,j,k,taum1) * Grid%tmask(i,j,k)
       enddo
     enddo
   enddo
@@ -2481,15 +2463,15 @@ if(biotic(n)%remin_ocmip2) then
         ! Calculate the flux at the base of each layer below the
         ! compensation depth
         biotic(n)%fpon(i,j,k) = biotic(n)%flux_pon(i,j) *         &
-             grid_tmask(i,j,k) * biotic(n)%zforg(k)
+             Grid%tmask(i,j,k) * biotic(n)%zforg(k)
         biotic(n)%fpop(i,j,k) = biotic(n)%flux_pop(i,j) *         &
-             grid_tmask(i,j,k) * biotic(n)%zforg(k)
+             Grid%tmask(i,j,k) * biotic(n)%zforg(k)
 
         ! Calculate regeneration term
-        biotic(n)%jpon(i,j,k) = (biotic(n)%fpon(i,j,k-1) * grid_tmask(i,j,k)   &
-          - biotic(n)%fpon(i,j,k) * grid_tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
-        biotic(n)%jpop(i,j,k) = (biotic(n)%fpop(i,j,k-1) * grid_tmask(i,j,k)   &
-          - biotic(n)%fpop(i,j,k) * grid_tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
+        biotic(n)%jpon(i,j,k) = (biotic(n)%fpon(i,j,k-1) * Grid%tmask(i,j,k)   &
+          - biotic(n)%fpon(i,j,k) * Grid%tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
+        biotic(n)%jpop(i,j,k) = (biotic(n)%fpop(i,j,k-1) * Grid%tmask(i,j,k)   &
+          - biotic(n)%fpop(i,j,k) * Grid%tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
       enddo
     enddo
   enddo
@@ -2510,7 +2492,7 @@ elseif(biotic(n)%remin_protection) then
           biotic(n)%fsio2(i,j,k)) + biotic(n)%rpcaco3 *                        &
           (biotic(n)%fcaco3(i,j,k-1) - biotic(n)%fcaco3(i,j,k))) *             &
           min(biotic(n)%fpon(i,j,k-1),fpon_protected) /                        &
-          fpon_protected * biotic(n)%r_1plusintzscale_n(k)) * grid_tmask(i,j,k)
+          fpon_protected * biotic(n)%r_1plusintzscale_n(k)) * Grid%tmask(i,j,k)
 
         ! Apply N change to P assuming equal partitioning between protected,
         ! previously protected and unprotected particulate organic material
@@ -2518,18 +2500,18 @@ elseif(biotic(n)%remin_protection) then
           max(biotic(n)%fpon(i,j,k-1),1e-30) * biotic(n)%fpop(i,j,k-1)
 
         ! Calculate regeneration term
-        biotic(n)%jpon(i,j,k) = (biotic(n)%fpon(i,j,k-1) * grid_tmask(i,j,k)   &
-          - biotic(n)%fpon(i,j,k) * grid_tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
-        biotic(n)%jpop(i,j,k) = (biotic(n)%fpop(i,j,k-1)  * grid_tmask(i,j,k)  &
-          - biotic(n)%fpop(i,j,k) * grid_tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
+        biotic(n)%jpon(i,j,k) = (biotic(n)%fpon(i,j,k-1) * Grid%tmask(i,j,k)   &
+          - biotic(n)%fpon(i,j,k) * Grid%tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
+        biotic(n)%jpop(i,j,k) = (biotic(n)%fpop(i,j,k-1)  * Grid%tmask(i,j,k)  &
+          - biotic(n)%fpop(i,j,k) * Grid%tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
 
         ! Add production within box to flux
         biotic(n)%fpon(i,j,k) = biotic(n)%fpon(i,j,k) +                    &
           biotic(n)%jprod_pon(i,j,k) *                                     &
-          rho_dzt(i,j,k,taum1) * grid_tmask(i,j,k)
+          rho_dzt(i,j,k,taum1) * Grid%tmask(i,j,k)
         biotic(n)%fpop(i,j,k) = biotic(n)%fpop(i,j,k) +                    &
           biotic(n)%jprod_pop(i,j,k) *                                     &
-          rho_dzt(i,j,k,taum1) * grid_tmask(i,j,k)
+          rho_dzt(i,j,k,taum1) * Grid%tmask(i,j,k)
     enddo
   enddo
   enddo
@@ -2563,7 +2545,7 @@ if (biotic(n)%fe_ballast_assoc) then
           biotic(n)%fsio2(i,j,k-1) * 60.0 + biotic(n)%fcaco3(i,j,k-1)    &
           * 100.0) * max(0.0,t_diag(ind_fep)%field(i,j,k))               &
           * biotic(n)%wsink *                                            &
-          (1.0 - grid_tmask(i,j,k) + grid_tmask(i,j,k+1))
+          (1.0 - Grid%tmask(i,j,k) + Grid%tmask(i,j,k+1))
       enddo
     enddo
   enddo
@@ -2583,7 +2565,7 @@ else
         biotic(n)%jpofe(i,j,k) = biotic(n)%jpon(i,j,k) /                 &
           max(1.0e-30,biotic(n)%fpon(i,j,k-1)) *                         &
           max(0.0,t_diag(ind_fep)%field(i,j,k)) * biotic(n)%wsink *       &
-          (1.0 - grid_tmask(i,j,k) + grid_tmask(i,j,k+1))
+          (1.0 - Grid%tmask(i,j,k) + Grid%tmask(i,j,k+1))
         enddo
       enddo
     enddo
@@ -2634,7 +2616,7 @@ else
       do i = isc, iec
       biotic(n)%jfe_sink(i,j,1)=                               &
         - max(0.0,t_diag(ind_fep)%field(i,j,1)) *        &
-        biotic(n)%wsink / rho_dzt(i,j,1,taum1) * grid_tmask(i,j,1)
+        biotic(n)%wsink / rho_dzt(i,j,1,taum1) * Grid%tmask(i,j,1)
       enddo
     enddo
 
@@ -2644,7 +2626,7 @@ else
         biotic(n)%jfe_sink(i,j,k)=                             &
           (max(0.0,t_diag(ind_fep)%field(i,j,k-1)) -     &
           max(0.0,t_diag(ind_fep)%field(i,j,k))) *       &
-          biotic(n)%wsink / rho_dzt(i,j,k,taum1) * grid_tmask(i,j,k)
+          biotic(n)%wsink / rho_dzt(i,j,k,taum1) * Grid%tmask(i,j,k)
       enddo
     enddo
   enddo
@@ -2921,7 +2903,7 @@ else
         biotic(n)%jo2(i,j,k) = (biotic(n)%o_2_no3 *                        &
           biotic(n)%jprod_no3(i,j,k)                                       &
           + biotic(n)%o_2_nh4 * (biotic(n)%jprod_nh4(i,j,k) +              &
-          biotic(n)%jprod_n_fix(i,j,k))) * grid_tmask(i,j,k)
+          biotic(n)%jprod_n_fix(i,j,k))) * Grid%tmask(i,j,k)
 
         ! If O2 is present
         if (t_prog(ind_o2)%field(i,j,k,taum1) .gt. biotic(n)%o2_min)       &
@@ -2994,282 +2976,53 @@ else
 enddo
 
 ! Save variables for diagnostics
-
-!
-! set up the grid mask on the computational grid so that we
-! will not need to implicitly copy arrays in the following
-! subroutine calls
-grid_tmask_comp = grid_tmask(isc:iec,jsc:jec,:)
-
-if (id_o2_sat .gt. 0) then
-  used = send_data(id_o2_sat, o2_saturation(:,:),       &
-       model_time, rmask = grid_tmask_comp(:,:,1))
-endif
-
+call diagnose_2d_comp(Time, Grid, id_o2_sat, o2_saturation(:,:))
 do n = 1, instances
-
-  if (biotic(n)%id_sc_co2 .gt. 0) then
-    used = send_data(biotic(n)%id_sc_co2,               &
-         biotic(n)%sc_co2(:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_sc_o2 .gt. 0) then
-    used = send_data(biotic(n)%id_sc_o2,                &
-         biotic(n)%sc_o2(:,:),                          &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_alpha .gt. 0) then
-    used = send_data(biotic(n)%id_alpha,                &
-         biotic(n)%alpha(:,:),                          &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_csurf .gt. 0) then
-    used = send_data(biotic(n)%id_csurf,                &
-         biotic(n)%csurf(:,:),                          &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_pco2surf .gt. 0) then
-    used = send_data(biotic(n)%id_pco2surf,             &
-         biotic(n)%pco2surf(:,:),                       &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_flux_pon .gt. 0) then
-    used = send_data(biotic(n)%id_flux_pon,             &
-         biotic(n)%flux_pon(:,:),                       &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_flux_pop .gt. 0) then
-    used = send_data(biotic(n)%id_flux_pop,             &
-         biotic(n)%flux_pop(:,:),                       &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_flux_sio2 .gt. 0) then
-    used = send_data(biotic(n)%id_flux_sio2,            &
-         biotic(n)%flux_sio2(:,:),                      &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_flux_caco3 .gt. 0) then
-    used = send_data(biotic(n)%id_flux_caco3,           &
-         biotic(n)%flux_caco3(:,:),                     &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_htotal .gt. 0) then
-    used = send_data(biotic(n)%id_htotal,               &
-         biotic(n)%htotal(:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-
-  if (biotic(n)%id_jprod_alk .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_alk,            &
-         biotic(n)%jprod_alk(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_fed .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_fed,            &
-         biotic(n)%jprod_fed(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_n_fix .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_n_fix,          &
-         biotic(n)%jprod_n_fix(:,:,:),                  &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_no3 .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_no3,            &
-         biotic(n)%jprod_no3(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_nh4 .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_nh4,            &
-         biotic(n)%jprod_nh4(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_p_fix .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_p_fix,          &
-         biotic(n)%jprod_p_fix(:,:,:),                  &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_po4 .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_po4,            &
-         biotic(n)%jprod_po4(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_pofe .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_pofe,           &
-         biotic(n)%jprod_pofe(:,:,:),                   &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_pon .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_pon,            &
-         biotic(n)%jprod_pon(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_pop .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_pop,            &
-         biotic(n)%jprod_pop(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_sio4 .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_sio4,           &
-         biotic(n)%jprod_sio4(:,:,:),                   &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jcaco3 .gt. 0) then
-    used = send_data(biotic(n)%id_jcaco3,               &
-         biotic(n)%jcaco3(:,:,:),                       &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jfe_ads .gt. 0) then
-    used = send_data(biotic(n)%id_jfe_ads,              &
-         biotic(n)%jfe_ads(:,:,:),                      &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jfe_des .gt. 0) then
-    used = send_data(biotic(n)%id_jfe_des,              &
-         biotic(n)%jfe_des(:,:,:),                      &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jfe_graz .gt. 0) then
-    used = send_data(biotic(n)%id_jfe_graz,             &
-         biotic(n)%jfe_graz(:,:,:),                     &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jfe_sink .gt. 0) then
-    used = send_data(biotic(n)%id_jfe_sink,             &
-         biotic(n)%jfe_sink(:,:,:),                     &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jno3 .gt. 0) then
-    used = send_data(biotic(n)%id_jno3,                 &
-         biotic(n)%jno3(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jnh4 .gt. 0) then
-    used = send_data(biotic(n)%id_jnh4,                 &
-         biotic(n)%jnh4(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jnh4_graz .gt. 0) then
-    used = send_data(biotic(n)%id_jnh4_graz,            &
-         biotic(n)%jnh4_graz(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jpo4 .gt. 0) then
-    used = send_data(biotic(n)%id_jpo4,                 &
-         biotic(n)%jpo4(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jpo4_graz .gt. 0) then
-    used = send_data(biotic(n)%id_jpo4_graz,            &
-         biotic(n)%jpo4_graz(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jpofe .gt. 0) then
-    used = send_data(biotic(n)%id_jpofe,                &
-         biotic(n)%jpofe(:,:,:),                        &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jpon .gt. 0) then
-    used = send_data(biotic(n)%id_jpon,                 &
-         biotic(n)%jpon(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jpop .gt. 0) then
-    used = send_data(biotic(n)%id_jpop,                 &
-         biotic(n)%jpop(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jsio4 .gt. 0) then
-    used = send_data(biotic(n)%id_jsio4,                &
-         biotic(n)%jsio4(:,:,:),                        &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jdenit .gt. 0) then
-    used = send_data(biotic(n)%id_jdenit,               &
-         biotic(n)%jdenit(:,:,:),                       &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jdon .gt. 0) then
-    used = send_data(biotic(n)%id_jdon,                 &
-         biotic(n)%jdon(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jdop .gt. 0) then
-    used = send_data(biotic(n)%id_jdop,                 &
-         biotic(n)%jdop(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jldoc .gt. 0) then
-    used = send_data(biotic(n)%id_jldoc,                &
-         biotic(n)%jldoc(:,:,:),                        &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jo2 .gt. 0) then
-    used = send_data(biotic(n)%id_jo2,                  &
-         biotic(n)%jo2(:,:,:),                          &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_fpon .gt. 0) then
-    used = send_data(biotic(n)%id_fpon,                 &
-         biotic(n)%fpon(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_fpop .gt. 0) then
-    used = send_data(biotic(n)%id_fpop,                 &
-         biotic(n)%fpop(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_fracl .gt. 0) then
-    used = send_data(biotic(n)%id_fracl,                &
-         biotic(n)%fracl(:,:,:),                        &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_fsio2 .gt. 0) then
-    used = send_data(biotic(n)%id_fsio2,                &
-         biotic(n)%fsio2(:,:,:),                        &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_fcaco3 .gt. 0) then
-    used = send_data(biotic(n)%id_fcaco3,               &
-         biotic(n)%fcaco3(:,:,:),                       &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_sc_co2, biotic(n)%sc_co2(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_sc_o2, biotic(n)%sc_o2(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_alpha, biotic(n)%alpha(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_csurf, biotic(n)%csurf(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_pco2surf, biotic(n)%pco2surf(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_flux_pon, biotic(n)%flux_pon(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_flux_pop, biotic(n)%flux_pop(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_flux_sio2, biotic(n)%flux_sio2(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_flux_caco3, biotic(n)%flux_caco3(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_htotal, biotic(n)%htotal(:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_alk, biotic(n)%jprod_alk(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_fed, biotic(n)%jprod_fed(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_n_fix, biotic(n)%jprod_n_fix(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_no3, biotic(n)%jprod_no3(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_nh4, biotic(n)%jprod_nh4(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_p_fix, biotic(n)%jprod_p_fix(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_po4, biotic(n)%jprod_po4(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_pofe, biotic(n)%jprod_pofe(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_pon, biotic(n)%jprod_pon(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_pop, biotic(n)%jprod_pop(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_sio4,biotic(n)%jprod_sio4(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jcaco3,biotic(n)%jcaco3(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jfe_ads, biotic(n)%jfe_ads(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jfe_des, biotic(n)%jfe_des(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jfe_graz, biotic(n)%jfe_graz(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jfe_sink, biotic(n)%jfe_sink(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jno3, biotic(n)%jno3(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jnh4, biotic(n)%jnh4(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jnh4_graz, biotic(n)%jnh4_graz(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jpo4, biotic(n)%jpo4(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jpo4_graz, biotic(n)%jpo4_graz(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jpofe, biotic(n)%jpofe(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jpon, biotic(n)%jpon(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jpop, biotic(n)%jpop(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jsio4, biotic(n)%jsio4(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jdenit, biotic(n)%jdenit(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jdon, biotic(n)%jdon(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jdop, biotic(n)%jdop(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jldoc, biotic(n)%jldoc(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jo2, biotic(n)%jo2(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_fpon, biotic(n)%fpon(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_fpop, biotic(n)%fpop(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_fracl, biotic(n)%fracl(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_fsio2, biotic(n)%fsio2(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_fcaco3, biotic(n)%fcaco3(:,:,:))
 enddo
 
 return

@@ -1,4 +1,5 @@
 module ocean_lapcgrid_friction_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S. M. Griffies 
 !</CONTACT>
@@ -200,11 +201,11 @@ module ocean_lapcgrid_friction_mod
 !</NAMELIST>
 
 use constants_mod,    only: pi, radius, epsln, radian
-use diag_manager_mod, only: register_diag_field, register_static_field, send_data
+use diag_manager_mod, only: register_diag_field, register_static_field
 use fms_mod,          only: open_namelist_file, check_nml_error, write_version_number, close_file
 use mpp_domains_mod,  only: mpp_update_domains, CGRID_NE, mpp_global_field
 use mpp_domains_mod,  only: mpp_start_update_domains, mpp_complete_update_domains
-use mpp_mod,          only: input_nml_file, mpp_sum, mpp_pe, mpp_error, mpp_max, mpp_chksum 
+use mpp_mod,          only: input_nml_file, mpp_sum, mpp_pe, mpp_error, mpp_max
 use mpp_mod,          only: FATAL, NOTE, stdout, stdlog
 
 use ocean_domains_mod,    only: get_local_indices
@@ -216,7 +217,7 @@ use ocean_types_mod,      only: ocean_time_type, ocean_grid_type
 use ocean_types_mod,      only: ocean_domain_type, ocean_adv_vel_type 
 use ocean_types_mod,      only: ocean_thickness_type, ocean_velocity_type
 use ocean_types_mod,      only: ocean_options_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, diagnose_3d, diagnose_2d_u, diagnose_3d_u, diagnose_2d, write_chksum_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4
 use ocean_workspace_mod,  only: wrk1_2d, wrk1_v2d  
 use ocean_workspace_mod,  only: wrk1_v, wrk2_v, wrk3_v
@@ -599,9 +600,7 @@ subroutine ocean_lapcgrid_friction_init(Grid, Domain, Time, Ocean_options, d_tim
   id_visc_crit_lap = register_static_field ('ocean_model', 'visc_crit_lap', &
                      Grd%tracer_axes(1:2), 'critical viscosity',            &
                      'm^2/sec',missing_value=missing_value, range=(/0.0,1.e20/))
-  if (id_visc_crit_lap > 0) used = send_data (id_visc_crit_lap, visc_crit(isc:iec,jsc:jec), &
-                            Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
-
+  call diagnose_2d(Time, Grd, id_visc_crit_lap, visc_crit(:,:))
 
   ! compute some smag fields and parameters 
 
@@ -700,8 +699,7 @@ subroutine ocean_lapcgrid_friction_init(Grid, Domain, Time, Ocean_options, d_tim
      id_tmask_next_to_land = register_static_field('ocean_model', 'tmask_next_to_land_lap',&
             Grd%tracer_axes(1:3),'T-cell mask for cells next to land for lapcgrid module', &
             'dimensionless', missing_value=missing_value, range=(/-10.0,10.0/))
-     used = send_data (id_tmask_next_to_land, tmask_next_to_land(isc:iec,jsc:jec,:), &
-            Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
+     call diagnose_3d(Time, Grd, id_tmask_next_to_land, tmask_next_to_land(:,:,:))
   endif 
 
 
@@ -714,22 +712,16 @@ subroutine ocean_lapcgrid_friction_init(Grid, Domain, Time, Ocean_options, d_tim
                    'm^2/sec', missing_value=missing_value, range=(/-10.0,1.e10/))
 
   if (id_along_back > 0) then 
-    used = send_data (id_along_back, aiso_back(isc:iec,jsc:jec,:)+0.5*aaniso_back(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
+     call diagnose_3d(Time, Grd, id_along_back, aiso_back(:,:,:)+0.5*aaniso_back(:,:,:))
   endif 
   if (id_across_back > 0) then 
-    used = send_data (id_across_back, aiso_back(isc:iec,jsc:jec,:)-0.5*aaniso_back(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,:))
+     call diagnose_3d(Time, Grd, id_across_back, aiso_back(:,:,:)-0.5*aaniso_back(:,:,:))
   endif 
 
   id_aiso_diverge = register_static_field('ocean_model', 'aiso_lap_diverge', &
               Grd%tracer_axes(1:2), 'T-cell visc for divergence damping',    &
               'm^2/sec', missing_value=missing_value, range=(/-10.0,1.e10/))
-  if (id_aiso_diverge > 0) then 
-    used = send_data (id_aiso_diverge, aiso_diverge(isc:iec,jsc:jec), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
-  endif 
-
+  call diagnose_2d(Time, Grd, id_aiso_diverge, aiso_diverge(:,:))
 
   ! other viscosities for diagnostic output 
 
@@ -927,14 +919,10 @@ subroutine lapcgrid_friction(Time, Thickness, Velocity, lap_viscosity, energy_an
   ! write diagnostics here since use wrk arrays, some of which are reused later 
   if(.not. energy_analysis_step) then 
      if (id_aiso_smag > 0) then
-        used = send_data (id_aiso_smag, onehalf*(wrk1(:,:,:)+wrk2(:,:,:)),&
-                          Time%model_time, rmask=Grd%tmask(:,:,:),        & 
-                          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk) 
+        call diagnose_3d(Time, Grd, id_aiso_smag, onehalf*(wrk1(:,:,:)+wrk2(:,:,:)))
      endif 
      if (id_aaniso_smag > 0) then
-        used = send_data (id_aaniso_smag, onehalf*(wrk3(:,:,:)+wrk4(:,:,:)),&
-                          Time%model_time, rmask=Grd%tmask(:,:,:),          & 
-                          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk) 
+        call diagnose_3d(Time, Grd, id_aaniso_smag, onehalf*(wrk3(:,:,:)+wrk4(:,:,:)))
      endif  
   endif 
 
@@ -970,14 +958,8 @@ subroutine lapcgrid_friction(Time, Thickness, Velocity, lap_viscosity, energy_an
      enddo
   enddo
   if(.not. energy_analysis_step) then 
-     if (id_sin2theta > 0) then
-        used = send_data (id_sin2theta, wrk1(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),& 
-                          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk) 
-     endif 
-     if (id_cos2theta > 0) then
-        used = send_data (id_cos2theta, wrk2(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),& 
-                          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk) 
-     endif 
+     call diagnose_3d(Time, Grd, id_sin2theta, wrk1(:,:,:))
+     call diagnose_3d(Time, Grd, id_cos2theta, wrk2(:,:,:))
   endif 
 
 
@@ -1102,70 +1084,36 @@ subroutine lapcgrid_friction(Time, Thickness, Velocity, lap_viscosity, energy_an
 
 
    if (id_aiso > 0) then 
-      wrk1(:,:,:) = onehalf*(aiso_xx(:,:,:)+aiso_xy(:,:,:))      
-      used = send_data (id_aiso, wrk1(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),&
-                        is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      wrk1(:,:,:) = onehalf*(aiso_xx(:,:,:)+aiso_xy(:,:,:))    
+      call diagnose_3d(Time, Grd, id_aiso, wrk1(:,:,:))
    endif 
    if (id_aaniso > 0) then 
       wrk1(:,:,:) = onehalf*(aaniso_xx(:,:,:)+aaniso_xy(:,:,:))      
-      used = send_data (id_aaniso, wrk1(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),&
-                        is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_aaniso, wrk1(:,:,:))
    endif 
    if (id_along > 0) then 
       wrk1(:,:,:) = onehalf*(aiso_xx(:,:,:)+aiso_xy(:,:,:) + onehalf*(aaniso_xx(:,:,:)+aaniso_xy(:,:,:)))
-      used = send_data (id_along,  wrk1(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),&
-                        is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_along,  wrk1(:,:,:))
    endif 
    if (id_across > 0) then 
       wrk1(:,:,:) = onehalf*(aiso_xx(:,:,:)+aiso_xy(:,:,:) - onehalf*(aaniso_xx(:,:,:)+aaniso_xy(:,:,:)))
-      used = send_data (id_across,  wrk1(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),&
-                        is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_across,  wrk1(:,:,:))
    endif 
-   if (id_lap_fric_u > 0) then 
-      used = send_data(id_lap_fric_u, wrk3_v(isc:iec,jsc:jec,:,1), &
-                       Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-   endif
-   if (id_lap_fric_v > 0) then 
-      used = send_data(id_lap_fric_v, wrk3_v(isc:iec,jsc:jec,:,2), &
-                       Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-   endif 
-   if (id_viscosity_scaling > 0) then 
-      used = send_data (id_viscosity_scaling, viscosity_scaling(:,:),&
-                        Time%model_time, rmask=Grd%umask(:,:,1),     &
-                        is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-   endif 
-   if (id_horz_lap_diss > 0) then 
-       used = send_data(id_horz_lap_diss, dissipate(:,:,:),&
-       Time%model_time, rmask=Grd%tmask(:,:,:),            &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-   endif 
-   if (id_stress_xx_lap > 0) then 
-       used = send_data(id_stress_xx_lap, stress_xx(:,:,:),&
-       Time%model_time, rmask=Grd%tmask(:,:,:),            &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-   endif 
-   if (id_stress_xy_lap > 0) then 
-       used = send_data(id_stress_xy_lap, stress_xy(:,:,:),&
-       Time%model_time, rmask=Grd%umask(:,:,:),            &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-   endif 
-   if (id_stress_yx_lap > 0) then 
-       used = send_data(id_stress_yx_lap, stress_yx(:,:,:),&
-       Time%model_time, rmask=Grd%umask(:,:,:),            &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-   endif 
-
+   call diagnose_3d_u(Time, Grd, id_lap_fric_u, wrk3_v(:,:,:,1))
+   call diagnose_3d_u(Time, Grd, id_lap_fric_v, wrk3_v(:,:,:,2))
+   call diagnose_2d_u(Time, Grd, id_viscosity_scaling, viscosity_scaling(:,:))
+   call diagnose_3d(Time, Grd, id_horz_lap_diss, dissipate(:,:,:))
+   call diagnose_3d(Time, Grd, id_stress_xx_lap, stress_xx(:,:,:))
+   call diagnose_3d_u(Time, Grd, id_stress_xy_lap, stress_xy(:,:,:))
+   call diagnose_3d_u(TIme, Grd, id_stress_yx_lap, stress_yx(:,:,:))
 
    if(debug_this_module) then
       write(stdoutunit,*) ' ' 
       write(stdoutunit,*) 'From ocean_lapcgrid_friction_mod: friction chksums'
       call write_timestamp(Time%model_time)
-      write(stdoutunit,*) 'rho_dzu(tau)       = ', &
-         mpp_chksum(Thickness%rho_dzu(isc:iec,jsc:jec,:,tau)*Grd%umask(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'lapcgrid friction(1) = ', &
-         mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,1)*Grd%umask(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'lapcgrid friction(2) = ', &
-         mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,2)*Grd%umask(isc:iec,jsc:jec,:))
+      call write_chksum_3d('rho_dzu(tau)', Thickness%rho_dzu(COMP,:,tau)*Grd%umask(COMP,:))
+      call write_chksum_3d('lapcgrid friction(1)', wrk1_v(COMP,:,1)*Grd%umask(COMP,:))
+      call write_chksum_3d('lapcgrid friction(2)', wrk1_v(COMP,:,2)*Grd%umask(COMP,:))
    endif
 
 
@@ -1474,26 +1422,17 @@ subroutine compute_neptune_velocity(Time)
   id_neptune_lap_u = register_static_field('ocean_model', 'neptune_lap_u',                &
                      Grd%tracer_axes(1:2), 'Zonal velocity from neptune Laplacian scheme',&
                      'm/sec', missing_value=missing_value, range=(/-1.e10,1.e10/))
-  if (id_neptune_lap_u > 0) then 
-    used = send_data (id_neptune_lap_u, neptune_velocity(isc:iec,jsc:jec,1),&
-                      Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
-  endif 
+  call diagnose_2d_u(Time, Grd, id_neptune_lap_u, neptune_velocity(:,:,1))
 
   id_neptune_lap_v = register_static_field('ocean_model', 'neptune_lap_v',                   &
                    Grd%tracer_axes(1:2), 'Meridional velocity from neptune Laplacian scheme',&
                    'm/sec', missing_value=missing_value, range=(/-1.e10,1.e10/))
-  if (id_neptune_lap_v  > 0) then 
-    used = send_data (id_neptune_lap_v, neptune_velocity(isc:iec,jsc:jec,2),&
-                      Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
-  endif 
+  call diagnose_2d_u(Time, Grd, id_neptune_lap_v, neptune_velocity(:,:,2))
 
   id_neptune_psi   = register_static_field('ocean_model', 'neptune_psi',            &
                      Grd%vel_axes_uv(1:2), 'Transport for neptune parameterization',&
                      'm^3/sec', missing_value=missing_value, range=(/-1.e12,1.e12/))
-  if (id_neptune_psi  > 0) then 
-    used = send_data (id_neptune_psi, neptune_psi(isc:iec,jsc:jec),&
-                      Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
-  endif 
+  call diagnose_2d_u(Time, Grd, id_neptune_psi, neptune_psi(:,:))
 
 
 end subroutine compute_neptune_velocity

@@ -48,7 +48,6 @@ module ocmip2_cfc_mod
 
 use atmos_ocean_fluxes_mod, only: aof_set_coupler_flux
 use time_manager_mod,   only: time_type
-use diag_manager_mod,   only: send_data
 use field_manager_mod,  only: fm_field_name_len, fm_path_name_len, fm_string_len
 use field_manager_mod,  only: fm_get_length, fm_get_value, fm_new_value
 use fms_mod,            only: field_exist
@@ -61,9 +60,10 @@ use fm_util_mod,        only: fm_util_get_logical_array, fm_util_get_real_array,
 use fm_util_mod,        only: fm_util_start_namelist, fm_util_end_namelist
 use mpp_mod,            only: stdout, stdlog, mpp_error, mpp_sum, FATAL
 use coupler_types_mod,  only: ind_alpha, ind_csurf, coupler_2d_bc_type, ind_flux
-use ocean_types_mod,    only: ocean_prog_tracer_type
+use ocean_types_mod,    only: ocean_prog_tracer_type, ocean_grid_type, ocean_time_type
 use diag_manager_mod,   only: register_diag_field
 use field_manager_mod,  only: fm_get_index
+use ocean_util_mod,     only: diagnose_2d, diagnose_2d_comp
 
 implicit none
 
@@ -294,7 +294,7 @@ end subroutine  ocmip2_cfc_end
 !
 subroutine ocmip2_cfc_sbc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,   &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                &
-     T_prog, model_time, grid_tmask, ice_ocean_boundary_fluxes)
+     T_prog, Grid, Time, ice_ocean_boundary_fluxes)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
@@ -310,8 +310,8 @@ integer, intent(in)                                             :: iec_bnd
 integer, intent(in)                                             :: jsc_bnd
 integer, intent(in)                                             :: jec_bnd
 type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
-type(time_type), intent(in)                                     :: model_time
-real, dimension(isd:,jsd:,:), intent(in)                        :: grid_tmask
+type(ocean_grid_type), intent(in)                               :: Grid
+type(ocean_time_type), intent(in)                               :: Time
 type(coupler_2d_bc_type), intent(in)                            :: ice_ocean_boundary_fluxes
 
 integer :: i_bnd_off
@@ -337,19 +337,8 @@ enddo
 
 ! Save variables for diagnostics
 do n = 1, instances
-  if (cfc(n)%id_sfc_flux_cfc_11 .gt. 0) then
-    used = send_data(cfc(n)%id_sfc_flux_cfc_11,         &
-         t_prog(cfc(n)%ind_cfc_11)%stf(:,:),            &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
-  if (cfc(n)%id_sfc_flux_cfc_12 .gt. 0) then
-    used = send_data(cfc(n)%id_sfc_flux_cfc_12,         &
-         t_prog(cfc(n)%ind_cfc_12)%stf(:,:),            &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
+   call diagnose_2d(Time, Grid, cfc(n)%id_sfc_flux_cfc_11, t_prog(cfc(n)%ind_cfc_11)%stf(:,:))
+   call diagnose_2d(Time, Grid, cfc(n)%id_sfc_flux_cfc_12, t_prog(cfc(n)%ind_cfc_12)%stf(:,:))
 enddo
 
 return
@@ -821,7 +810,7 @@ end subroutine ocmip2_cfc_init_sfc
 
 subroutine ocmip2_cfc_sum_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,       &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)
+     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask, Grid, Time)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -842,6 +831,9 @@ real, dimension(isd:,jsd:,:,:), intent(in)              :: rho
 integer, intent(in)                                     :: taum1
 type(time_type), intent(in)                             :: model_time
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
+type(ocean_grid_type), intent(in)                       :: Grid
+type(ocean_time_type), intent(in)                       :: Time
+
 
 integer         :: i, j, n
 integer :: i_bnd_off
@@ -853,7 +845,6 @@ real            :: epsln=1.0e-30
 logical         :: used
 logical, save   :: done = .false.
 logical, save   :: need = .false.
-real, dimension(isc:iec,jsc:jec,nk)     :: grid_tmask_comp
 
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
@@ -964,34 +955,12 @@ if (.not. done) then
 endif
 
 if (need) then
-
-  grid_tmask_comp = grid_tmask(isc:iec,jsc:jec,:)
-
   do n = 1, instances
-
-    if (cfc(n)%id_alpha_11 .gt. 0) then
-      used = send_data(cfc(n)%id_alpha_11,              &
-           cfc(n)%alpha_11(:,:),                        &
-           model_time, rmask = grid_tmask_comp(:,:,1))
-    endif
-    if (cfc(n)%id_sc_11 .gt. 0) then
-      used = send_data(cfc(n)%id_sc_11,                 &
-           cfc(n)%sc_11(:,:),                           &
-           model_time, rmask = grid_tmask_comp(:,:,1))
-    endif
-    if (cfc(n)%id_alpha_12 .gt. 0) then
-      used = send_data(cfc(n)%id_alpha_12,                 &
-           cfc(n)%alpha_12(:,:),                        &
-           model_time, rmask = grid_tmask_comp(:,:,1))
-    endif
-    if (cfc(n)%id_sc_12 .gt. 0) then
-      used = send_data(cfc(n)%id_sc_12,                 &
-           cfc(n)%sc_12(:,:),                           &
-           model_time, rmask = grid_tmask_comp(:,:,1))
-    endif
-
+     call diagnose_2d_comp(Time, Grid, cfc(n)%id_alpha_11, cfc(n)%alpha_11(:,:))
+     call diagnose_2d_comp(Time, Grid, cfc(n)%id_sc_11, cfc(n)%sc_11(:,:))
+     call diagnose_2d_comp(Time, Grid, cfc(n)%id_alpha_12, cfc(n)%alpha_12(:,:))
+     call diagnose_2d_comp(Time, Grid, cfc(n)%id_sc_12, cfc(n)%sc_12(:,:))
   enddo
-
 endif
 
 return

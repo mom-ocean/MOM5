@@ -45,7 +45,7 @@ module ocean_sponges_eta_mod
 !
 !</NAMELIST>
 !
-use diag_manager_mod,         only: register_diag_field, send_data
+use diag_manager_mod,         only: register_diag_field
 use fms_mod,                  only: write_version_number, open_namelist_file, close_file
 use fms_mod,                  only: file_exist
 use fms_mod,                  only: open_namelist_file, check_nml_error, close_file
@@ -61,6 +61,7 @@ use ocean_parameters_mod,     only: missing_value, rho0
 use ocean_types_mod,          only: ocean_domain_type, ocean_grid_type, ocean_options_type
 use ocean_types_mod,          only: ocean_time_type, ocean_External_mode_type
 use ocean_workspace_mod,      only: wrk1_2d, wrk2_2d
+use ocean_util_mod,           only: diagnose_2d
 
 implicit none
 
@@ -265,9 +266,7 @@ subroutine sponge_eta_source(Time, Ext_mode)
 
   endif
 
-  if (id_sponge_tend(1) > 0) used = send_data(id_sponge_tend(1), &
-     wrk2_2d(:,:), Time%model_time, rmask=Grd%tmask(:,:,1),      &
-     is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d(Time, Grd, id_sponge_tend(1), wrk2_2d(:,:))
 
   return
 
