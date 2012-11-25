@@ -133,6 +133,7 @@ public ocean_grids_init
 public set_ocean_grid_size
 public set_ocean_hgrid_arrays
 public set_ocean_vgrid_arrays
+public init_grids_diag
 public update_boundaries
 
 private axes_info
@@ -1285,9 +1286,8 @@ end subroutine set_ocean_hgrid_arrays
 ! Also compute axes information for diagnostic manager.  
 ! </DESCRIPTION>
 !
-subroutine set_ocean_vgrid_arrays (Time, Domain, Grid, obc)
+subroutine set_ocean_vgrid_arrays (Domain, Grid, obc)
 
-  type(ocean_time_type),   intent(in)           :: Time
   type(ocean_domain_type), intent(inout)        :: Domain
   type(ocean_grid_type),   intent(inout)        :: Grid
   logical,                 intent(in), optional :: obc
@@ -1297,12 +1297,6 @@ subroutine set_ocean_vgrid_arrays (Time, Domain, Grid, obc)
   real    :: wet_t_points, wet_u_points
 
   integer :: i, j, k, kzt, kzu, kmin
-  integer :: id_geolon_t
-  integer :: id_geolat_t
-  integer :: id_geolon_uv
-  integer :: id_geolat_uv
-  integer :: id_area_t
-  integer :: id_area_u
 
   logical :: used
   logical :: have_obc=.false.
@@ -1673,6 +1667,21 @@ subroutine set_ocean_vgrid_arrays (Time, Domain, Grid, obc)
   call axes_info(Domain, Grid)
 
 
+end subroutine set_ocean_vgrid_arrays
+! </SUBROUTINE> NAME="set_ocean_vgrid_arrays"
+
+subroutine init_grids_diag(Grid, Time)
+
+  type(ocean_grid_type), intent(inout) :: grid
+  type(ocean_time_type), intent(in) :: Time
+
+  integer :: id_geolon_t
+  integer :: id_geolat_t
+  integer :: id_geolon_uv
+  integer :: id_geolat_uv
+  integer :: id_area_t
+  integer :: id_area_u
+
   ! output grid information to the diagnostic manager
 
   id_geolon_t = register_static_field('ocean_model','geolon_t', Grid%tracer_axes(1:2), &
@@ -1777,8 +1786,8 @@ subroutine set_ocean_vgrid_arrays (Time, Domain, Grid, obc)
   call diagnose_3d(Time, Grid, id_tmasken(2), Grid%tmasken(:,:,:,2))
 
 
-end subroutine set_ocean_vgrid_arrays
-! </SUBROUTINE> NAME="set_ocean_vgrid_arrays"
+end subroutine init_grids_diag
+! </SUBROUTINE> NAME="init_grids_diag"
 
 
 

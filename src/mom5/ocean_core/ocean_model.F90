@@ -242,7 +242,7 @@ use ocean_diagnostics_mod,        only: ocean_diag_init, ocean_diagnostics
 use ocean_domains_mod,            only: ocean_domain_init, set_ocean_domain, get_local_indices
 use ocean_form_drag_mod,          only: ocean_form_drag_init, compute_visc_form_drag
 use ocean_grids_mod,              only: ocean_grids_init, set_ocean_grid_size 
-use ocean_grids_mod,              only: set_ocean_hgrid_arrays, set_ocean_vgrid_arrays
+use ocean_grids_mod,              only: set_ocean_hgrid_arrays, set_ocean_vgrid_arrays, init_grids_diag
 use ocean_increment_eta_mod,      only: ocean_increment_eta_init, ocean_increment_eta_source
 use ocean_increment_tracer_mod,   only: ocean_increment_tracer_init, ocean_increment_tracer_source
 use ocean_increment_velocity_mod, only: ocean_increment_velocity_init, ocean_increment_velocity_source
@@ -1092,8 +1092,10 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     call ocean_topog_init(Domain, Grid, 'INPUT/grid_spec.nc', vert_coordinate_type)
     call ocean_obc_init(have_obc, Time_steps, Domain, Grid, Ocean_options, &
           vert_coordinate, debug=debug)
-    call set_ocean_vgrid_arrays(Time, Domain, Grid, have_obc)
+    call set_ocean_vgrid_arrays(Domain, Grid, have_obc)
     call ocean_util_init(Domain, Grid)
+
+    call init_grids_diag(Grid, Time)
 
     ! saved for use in the FMS coupler
     Ocean%axes(:) = Grid%tracer_axes(:) 
