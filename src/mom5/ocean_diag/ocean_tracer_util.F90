@@ -40,6 +40,7 @@ use fms_mod,              only: open_namelist_file, check_nml_error, close_file
 use mpp_mod,              only: input_nml_file, stdout, stdlog, FATAL
 use mpp_mod,              only: mpp_error, mpp_pe, mpp_min, mpp_max
 use platform_mod,         only: i8_kind
+use diag_manager_mod,     only: send_data
   
 use ocean_domains_mod,    only: get_local_indices
 use ocean_parameters_mod, only: ADVECT_PSOM
@@ -84,6 +85,7 @@ public sort_pick_array
 public sort_shell_array
 public rebin_onto_rho
 public diagnose_mass_of_layer
+public diagnose_3d_rho
 
 namelist /ocean_tracer_util_nml/ rebin_onto_rho_all_values, &
           debug_diagnose_mass_of_layer, epsln_diagnose_mass_of_layer
@@ -869,6 +871,38 @@ subroutine rebin_onto_rho (rho_bounds, rho_level, infield_level, outfield_rho)
 
 end subroutine rebin_onto_rho
 ! </SUBROUTINE> NAME="rebin_onto_rho"
+
+
+
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_3d_rho">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 3D data mapped onto density levels.
+! </DESCRIPTION>
+!
+subroutine diagnose_3d_rho(Time, Dens, id_name, data)
+  type(ocean_time_type), intent(in) :: Time
+  type(ocean_density_type), intent(in) :: Dens
+  integer, intent(in) :: id_name
+  real, dimension(isd:,jsd:,:), intent(in) :: data
+
+  real :: nrho_work(isd:ied,jsd:jed,size(Dens%neutralrho_ref(:)))
+  logical :: used
+
+  integer :: neutralrho_nk
+
+  if (id_name > 0) then
+     neutralrho_nk = size(Dens%neutralrho_ref(:))
+     nrho_work(:,:,:) = 0.0
+     call rebin_onto_rho(Dens%neutralrho_bounds, Dens%neutralrho, data, nrho_work)
+     used = send_data (id_name, nrho_work(:,:,:), &
+          Time%model_time,                        &
+          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+  endif
+
+end subroutine diagnose_3d_rho
+! </SUBROUTINE> NAME="diagnose_3d_rho"
 
 
 !#######################################################################

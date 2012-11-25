@@ -95,7 +95,8 @@ use ocean_parameters_mod, only: missing_value
 use ocean_types_mod,      only: ocean_time_type, ocean_grid_type, ocean_domain_type, ocean_options_type
 use ocean_types_mod,      only: ocean_density_type, ocean_prog_tracer_type, ocean_thickness_type
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk6
-use ocean_util_mod,       only: diagnose_3d, diagnose_2d, diagnose_3d_rho
+use ocean_util_mod,       only: diagnose_3d, diagnose_2d
+use ocean_tracer_util_mod,only: diagnose_3d_rho
 
 
 implicit none

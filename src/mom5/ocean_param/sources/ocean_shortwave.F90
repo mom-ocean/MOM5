@@ -45,7 +45,8 @@ use ocean_types_mod,            only: ocean_prog_tracer_type, ocean_diag_tracer_
 use ocean_types_mod,            only: ocean_thickness_type, ocean_options_type, ocean_density_type
 use ocean_tpm_util_mod,         only: otpm_set_diag_tracer
 use ocean_workspace_mod,        only: wrk1, wrk2, wrk3, wrk4, wrk5
-use ocean_util_mod,             only: diagnose_2d, diagnose_3d, diagnose_sum, diagnose_3d_rho
+use ocean_util_mod,             only: diagnose_2d, diagnose_3d, diagnose_sum
+use ocean_tracer_util_mod,      only: diagnose_3d_rho
 
 implicit none
 
