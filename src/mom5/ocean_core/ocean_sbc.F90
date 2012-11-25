@@ -462,7 +462,8 @@ use ocean_types_mod,          only: ocean_external_mode_type, ocean_velocity_typ
 use ocean_types_mod,          only: ice_ocean_boundary_type, ocean_density_type
 use ocean_types_mod,          only: ocean_public_type
 use ocean_workspace_mod,      only: wrk1_2d, wrk2_2d, wrk3_2d, wrk1
-use ocean_util_mod,           only: diagnose_2d, diagnose_2d_u, diagnose_3d_u, diagnose_sum, diagnose_3d_rho
+use ocean_util_mod,           only: diagnose_2d, diagnose_2d_u, diagnose_3d_u, diagnose_sum
+use ocean_tracer_util_mod,    only: diagnose_3d_rho
 
 implicit none
 

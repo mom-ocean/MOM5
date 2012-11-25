@@ -168,7 +168,8 @@ use ocean_tracer_util_mod, only: tracer_psom_chksum
 use ocean_types_mod,       only: ocean_domain_type, ocean_grid_type, ocean_density_type, ocean_time_type
 use ocean_types_mod,       only: ocean_prog_tracer_type, ocean_thickness_type, ocean_adv_vel_type
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk1_2d 
-use ocean_util_mod,        only: diagnose_2d, diagnose_3d, diagnose_3d_rho
+use ocean_util_mod,        only: diagnose_2d, diagnose_3d
+use ocean_tracer_util_mod, only: diagnose_3d_rho
 
 implicit none
 
