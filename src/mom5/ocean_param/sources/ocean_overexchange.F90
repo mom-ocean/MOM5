@@ -111,8 +111,9 @@ use ocean_parameters_mod,  only: missing_value, rho0r, rho0, grav
 use ocean_parameters_mod,  only: TERRAIN_FOLLOWING, PRESSURE_BASED
 use ocean_types_mod,       only: ocean_domain_type, ocean_grid_type, ocean_time_type, ocean_options_type
 use ocean_types_mod,       only: ocean_prog_tracer_type, ocean_density_type, ocean_thickness_type
-use ocean_util_mod,        only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_3d_rho
+use ocean_util_mod,        only: write_timestamp, diagnose_2d, diagnose_3d
 use ocean_util_mod,        only: write_chksum_3d, write_chksum_2d, write_chksum_2d_int
+use ocean_tracer_util_mod, only: diagnose_3d_rho
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4, wrk1_v
 
 implicit none

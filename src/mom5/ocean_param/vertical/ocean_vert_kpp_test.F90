@@ -264,7 +264,8 @@ use ocean_types_mod,       only: ocean_time_type, ocean_time_steps_type, ocean_t
 use ocean_vert_util_mod,   only: ri_for_bgrid, ri_for_cgrid
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4, wrk5
 use ocean_workspace_mod,   only: wrk1_v
-use ocean_util_mod,        only: diagnose_2d, diagnose_3d, diagnose_3d_u, diagnose_sum, diagnose_3d_rho
+use ocean_util_mod,        only: diagnose_2d, diagnose_3d, diagnose_3d_u, diagnose_sum
+use ocean_tracer_util_mod, only: diagnose_3d_rho
 
 
 implicit none

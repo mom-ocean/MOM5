@@ -253,7 +253,8 @@ use ocean_types_mod,           only: ocean_time_type, ocean_time_steps_type, oce
 use ocean_types_mod,           only: ocean_velocity_type, ocean_adv_vel_type, ocean_density_type
 use ocean_types_mod,           only: ocean_prog_tracer_type, ocean_diag_tracer_type
 use ocean_util_mod,            only: invtri, invtri_bmf, write_timestamp
-use ocean_util_mod,            only: write_chksum_3d, diagnose_2d, diagnose_3d, diagnose_3d_u, diagnose_2d_u, diagnose_sum, diagnose_2d_en, diagnose_3d_rho
+use ocean_util_mod,            only: write_chksum_3d, diagnose_2d, diagnose_3d, diagnose_3d_u, diagnose_2d_u, diagnose_sum, diagnose_2d_en
+use ocean_tracer_util_mod,     only: diagnose_3d_rho
 use ocean_vert_const_mod,      only: ocean_vert_const_init, vert_mix_const 
 use ocean_vert_chen_mod,       only: ocean_vert_chen_init, vert_mix_chen, ocean_vert_chen_end 
 use ocean_vert_chen_mod,       only: ocean_vert_chen_restart

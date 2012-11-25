@@ -214,7 +214,8 @@ use ocean_types_mod,            only: ocean_prog_tracer_type, ocean_diag_tracer_
 use ocean_types_mod,            only: ocean_adv_vel_type, ocean_external_mode_type
 use ocean_types_mod,            only: ocean_public_type, ocean_density_type, ocean_options_type
 use ocean_types_mod,            only: ocean_lagrangian_type, ocean_velocity_type, blob_diag_type
-use ocean_util_mod,             only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_sum, diagnose_3d_rho, write_chksum_3d
+use ocean_util_mod,             only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_sum, write_chksum_3d
+use ocean_tracer_util_mod,      only: diagnose_3d_rho
 use ocean_vert_mix_mod,         only: vert_diffuse, vert_diffuse_implicit
 use ocean_workspace_mod,        only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk6, wrk1_2d
 

@@ -435,8 +435,9 @@ use ocean_types_mod,             only: ocean_prog_tracer_type, ocean_density_typ
 use ocean_types_mod,             only: ocean_time_type, ocean_thickness_type, ocean_time_steps_type
 use ocean_types_mod,             only: tracer_3d_0_nk_type, tracer_3d_1_nk_type 
 use ocean_util_mod,              only: write_timestamp, write_chksum_3d, write_chksum_2d, write_chksum_header
-use ocean_util_mod,              only: diagnose_2d, diagnose_3d, diagnose_sum, diagnose_3d_rho
+use ocean_util_mod,              only: diagnose_2d, diagnose_3d, diagnose_sum
 use ocean_util_mod,              only: write_line, write_note, write_warning, write_chksum_3d
+use ocean_tracer_util_mod,       only: diagnose_3d_rho
 use ocean_workspace_mod,         only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk6
 use ocean_workspace_mod,         only: wrk1_v, wrk2_v, wrk3_v, wrk1_2d, wrk2_2d, wrk3_2d
 

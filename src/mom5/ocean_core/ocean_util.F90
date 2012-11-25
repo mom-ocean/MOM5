@@ -32,7 +32,6 @@ use ocean_domains_mod,    only: get_local_indices
 use ocean_parameters_mod, only: missing_value
 use ocean_types_mod,      only: ocean_domain_type, ocean_grid_type, ocean_density_type
 use ocean_types_mod,      only: ocean_thickness_type, ocean_time_type
-use ocean_tracer_util_mod, only: rebin_onto_rho
 
 implicit none
 
@@ -74,7 +73,6 @@ public diagnose_3d
 public diagnose_3d_u
 public diagnose_3d_en
 public diagnose_3d_int
-public diagnose_3d_rho
 public diagnose_3d_comp
 public diagnose_sum
 public register_2d_t_field
@@ -1052,36 +1050,6 @@ subroutine diagnose_3d_int(Time, Grid, id_name, data)
 
 end subroutine diagnose_3d_int
 ! </SUBROUTINE> NAME="diagnose_3d_int"
-
-!#######################################################################
-! <SUBROUTINE NAME="diagnose_3d_rho">
-!
-! <DESCRIPTION>
-! Helper function for diagnosting 3D data mapped onto density levels.
-! </DESCRIPTION>
-!
-subroutine diagnose_3d_rho(Time, Dens, id_name, data)
-  type(ocean_time_type), intent(in) :: Time
-  type(ocean_density_type), intent(in) :: Dens
-  integer, intent(in) :: id_name
-  real, dimension(isd:,jsd:,:), intent(in) :: data
-
-  real :: nrho_work(isd:ied,jsd:jed,size(Dens%neutralrho_ref(:)))
-  logical :: used
-
-  integer :: neutralrho_nk
-
-  if (id_name > 0) then
-     neutralrho_nk = size(Dens%neutralrho_ref(:))
-     nrho_work(:,:,:) = 0.0
-     call rebin_onto_rho(Dens%neutralrho_bounds, Dens%neutralrho, data, nrho_work)
-     used = send_data (id_name, nrho_work(:,:,:), &
-          Time%model_time,                        &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-
-end subroutine diagnose_3d_rho
-! </SUBROUTINE> NAME="diagnose_3d_rho"
 
 !#######################################################################
 ! <SUBROUTINE NAME="diagnose_3d_comp">
