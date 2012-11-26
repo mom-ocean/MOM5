@@ -1,24 +1,30 @@
 "prog_tracers","ocean_mod","temp"
 horizontal-advection-scheme = mdppm
 vertical-advection-scheme = mdppm
-restart_file = ocean_temp_salt.res.nc
+restart_file  = ocean_temp_salt.res.nc
+ppm_hlimiter=2
+ppm_vlimiter=2
 /
 "prog_tracers","ocean_mod","salt"
-horizontal-advection-scheme = mdfl_sweby
-vertical-advection-scheme = mdfl_sweby
-restart_file = ocean_temp_salt.res.nc
+horizontal-advection-scheme = mdppm
+vertical-advection-scheme = mdppm
+restart_file  = ocean_temp_salt.res.nc
+ppm_hlimiter=2
+ppm_vlimiter=2
 /
 "tracer_packages","ocean_mod","ocean_age_tracer"
 names = global
-horizontal-advection-scheme = dst_linear
-vertical-advection-scheme = dst_linear
-restart_file = ocean_age.res.nc
+horizontal-advection-scheme = mdppm
+vertical-advection-scheme = mdppm
+restart_file  = ocean_age.res.nc
 min_tracer_limit=0.0
+ppm_hlimiter=2
+ppm_vlimiter=2
 /
-"prog_tracers","ocean_mod","age_global"
-const_init_tracer = t
-const_init_value = 0.0
-/
+#"prog_tracers","ocean_mod","age_global"
+#const_init_tracer = t
+#const_init_value = 0.0
+#/
 "namelists","ocean_mod","ocean_age_tracer/global"
 slat = -90.0
 nlat =  90.0
