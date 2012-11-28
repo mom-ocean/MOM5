@@ -411,6 +411,7 @@
       zero_heat_fluxes=.false.
       zero_surface_stress=.false.
       ice_salt_concentration=0.0
+      use_full_patm_for_sea_level=.true.
 /
 
  &ocean_shortwave_csiro_nml
