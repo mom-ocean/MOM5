@@ -267,7 +267,7 @@ use ocean_passive_mod,            only: ocean_passive_tracer_init
 use ocean_pressure_mod,           only: ocean_pressure_init
 use ocean_rivermix_mod,           only: ocean_rivermix_init, rivermix
 use ocean_riverspread_mod,        only: ocean_riverspread_init
-use ocean_parameters_mod,         only: ocean_parameters_init, ocean_parameters_end 
+use ocean_parameters_mod,         only: ocean_parameters_init, ocean_parameters_end, cp_ocean 
 use ocean_parameters_mod,         only: MOM_BGRID, MOM_CGRID 
 use ocean_parameters_mod,         only: TWO_LEVEL, THREE_LEVEL
 use ocean_parameters_mod,         only: GEOPOTENTIAL, ZSTAR, ZSIGMA, PRESSURE, PSTAR, PSIGMA
@@ -399,7 +399,6 @@ private
 
   ! for running with an externally provided shortwave heating source
   logical :: ext_swheat_is_set=.false.
-  real    :: cp_ocean
 
   ! time step related variables 
   real :: dtts=0   ! tracer timestep (seconds)
@@ -651,7 +650,6 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     integer :: n
     integer :: ioun, io_status, ierr
     integer :: stdoutunit,stdlogunit 
-    real    :: cp_ocean_model 
 
     stdoutunit=stdout()
     stdlogunit=stdlog() 
@@ -670,10 +668,9 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     endif
     allocate(Ocean_state)
     Ocean_state%is_ocean_pe = Ocean%is_ocean_pe !This is Not utilized in MOM currently
-    
-    call ocean_parameters_init(cp_ocean_model)
-    cp_ocean = cp_ocean_model    
- 
+
+    call ocean_parameters_init()
+
     ! set clock ids
     id_ocean                = mpp_clock_id( 'Ocean', flags=clock_flag_default,grain=CLOCK_COMPONENT )
     id_init                 = mpp_clock_id('(Ocean initialization) '         ,grain=CLOCK_SUBCOMPONENT)
@@ -1344,7 +1341,6 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
       endif
       first_ocn_call=.false.
     endif 
-
 
     ! Loop over num_ocean_calls, moved here from the coupler due to interface changes
     do num_ocn = 1,num_ocean_calls

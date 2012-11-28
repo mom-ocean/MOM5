@@ -235,9 +235,8 @@ contains
 !
 ! </DESCRIPTION>
 !
-subroutine ocean_parameters_init(cp_ocean)
+subroutine ocean_parameters_init()
 
-    real, intent(inout) :: cp_ocean
     integer :: stdoutunit, stdlogunit
     integer :: ioun, io_status, ierr
 
