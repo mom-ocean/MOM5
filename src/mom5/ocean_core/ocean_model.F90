@@ -273,7 +273,7 @@ use ocean_parameters_mod,         only: TWO_LEVEL, THREE_LEVEL
 use ocean_parameters_mod,         only: GEOPOTENTIAL, ZSTAR, ZSIGMA, PRESSURE, PSTAR, PSIGMA
 use ocean_parameters_mod,         only: DEPTH_BASED, PRESSURE_BASED
 use ocean_parameters_mod,         only: QUASI_HORIZONTAL, TERRAIN_FOLLOWING
-use ocean_parameters_mod,         only: VERTMIX_GOTM
+use ocean_parameters_mod,         only: VERTMIX_GOTM, cp_ocean
 use ocean_sbc_mod,                only: ocean_sbc_init, initialize_ocean_sfc, ocean_sfc_end
 use ocean_sbc_mod,                only: sum_ocean_sfc, avg_ocean_sfc, get_ocean_sbc, flux_adjust
 use ocean_sbc_mod,                only: ocean_sfc_restart
@@ -399,7 +399,6 @@ private
 
   ! for running with an externally provided shortwave heating source
   logical :: ext_swheat_is_set=.false.
-  real    :: cp_ocean
 
   ! time step related variables 
   real :: dtts=0   ! tracer timestep (seconds)
@@ -640,7 +639,6 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     integer :: n
     integer :: ioun, io_status, ierr
     integer :: stdoutunit,stdlogunit 
-    real    :: cp_ocean_model 
 
     stdoutunit=stdout()
     stdlogunit=stdlog() 
@@ -660,8 +658,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     allocate(Ocean_state)
     Ocean_state%is_ocean_pe = Ocean%is_ocean_pe !This is Not utilized in MOM currently
     
-    call ocean_parameters_init(cp_ocean_model)
-    cp_ocean = cp_ocean_model    
+    call ocean_parameters_init()
  
     ! set clock ids
     id_ocean                = mpp_clock_id( 'Ocean', flags=clock_flag_default,grain=CLOCK_COMPONENT )
