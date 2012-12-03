@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2007,2009-2010 Remik Ziemlinski @ noaa gov
+   Copyright (C) 2007,2009-2010,2012 Remik Ziemlinski
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 	 20070821 rsz Created.
 	 20070824 rsz Works with file test3.nc (0,1,2,3,4)D variables.
+	 20121130 rsz Fixes attributed start tile index to 1-based to be compatible with mppnccombine (thanks to Zhi Lang).
 */
 #include <stdlib.h>
 #include <stdio.h>
@@ -43,7 +44,7 @@ Usage: mppncscatter [OPTION...] in.nc\n\
   -y, --npy N        Try to split domain evenly into N rows.\n\
   -Y, --ydims d1,... List of Y dimension names to scatter (for those not detectable through metadata).\n\
 \n\
-Report bugs to Remik Ziemlinski @ noaa gov.\n\
+Report bugs to Remik . Ziemlinski @ noaa gov.\n\
 "
 
 typedef struct MNSOPTS {
@@ -81,9 +82,9 @@ int mppncscatter(mnsopts* popts);
 void printsizetarray(size_t *a, int n) {
 	int i=0;
 	for(;i < n; ++i)
-		fprintf(stderr, "%d ", (int)a[i]);
+		fprintf(stdout, "%d ", (int)a[i]);
 
-	fprintf(stderr, "\n");
+	fprintf(stdout, "\n");
 }
 static struct option const long_options[] =
 { 
@@ -244,7 +245,7 @@ int getmnsopts(int argc, char** argv, mnsopts* popts)
 
 	return 0;
 }
-/* Memory copies subdomain to preallocated output pointer (either t,s,i,f,d).
+/* Memory copies subdomain to preallocated output pointer (either t,s,i,f,d datatype pointers).
 	 Record variables should not pass in record info in the start,count,ndim,
 	 so be sure to pass the pointers offset by 1 entry and ndim-1.
  */
@@ -434,16 +435,23 @@ void hyperslabcopy(nc_type type, size_t *dimlen, int *dimids, size_t *start, siz
 //----------------------------------------------------------------------------
 // Returns dimension size for an even partitioning.
 // In:
-// i: Partition index (0 <= i < n).
-// len: Entire length of original dimension.
-// n: Number of partitions for the dimension.
+//  i: Partition index (0 <= i < n).
+//  len: Entire length of original dimension.
+//  n: Number of partitions for the dimension.
 size_t dimlen_even(int i, size_t len, int n) {
-	size_t newlen = floor(len/(float)n); 
-	
+	size_t newlen = (size_t)(len/n); 
+
+  if ( i == (n-1) ) 
+    // Last column is remainder. 
+    newlen = len - i*newlen; 
+		
+  return newlen;
+		
+	/* NOT PRODUCTION READY.
 	// Is staggered?  Assume yes for dim that has odd integer size. 
 	if (len % 2) { 
 		// Define size that will allow boundary duplication on contact edges. 
-		if (i != (n-1)) { 
+		if (i != (n-1)) { // If this isn't the last partition...
 			// Duplicate ending edge of parts except for last partition. 
 			newlen += 1; 
 		} else { 
@@ -457,6 +465,7 @@ size_t dimlen_even(int i, size_t len, int n) {
 	}
 	
 	return newlen;
+	*/
 }
 //----------------------------------------------------------------------------
 /* scatterdims must be preallocated.  Sets each array element to
@@ -714,7 +723,7 @@ void defvar_even(int nc, int *ncids, int nvars, int ndims, int *scatterdims, mns
 							attdata[2] = 1;
 						} else {
 							newlen = dimlen_even(xi-1, len, opt->nx);
-							attdata[2] = (int)(xi * newlen); 
+							attdata[2] = (int)(xi * newlen) + 1; // 1-based syntax. 
 						}
 						
 						newlen = dimlen_even(xi, len, opt->nx);
@@ -737,12 +746,16 @@ void defvar_even(int nc, int *ncids, int nvars, int ndims, int *scatterdims, mns
 							attdata[2] = 1;
 						} else {
 							newlen = dimlen_even(yi-1, len, opt->ny);
-							attdata[2] = (int)(yi * newlen);
+							attdata[2] = (int)(yi * newlen) + 1; // 1-based syntax.
 						}
 						
 						newlen = dimlen_even(yi, len, opt->ny);
 						attdata[3] = (int)newlen;
 						
+            if (opt->verbose) {
+							fprintf(stdout, "Adding attribute:\t%s:domain_decomposition = %d %d %d %d\n", varname, attdata[0], attdata[1], attdata[2], attdata[3]);
+						}
+
 						status = nc_put_att_int(ncids[i], varid, "domain_decomposition", NC_INT, 4, attdata);
 						if (status != NC_NOERR) {
 							fprintf(stderr, "Error. Failed to set domain_decomposition attribute data for variable %s output file %d.\n", varname, i);
@@ -946,16 +959,15 @@ void putvar_even(int nc, int *ncids, int ndims, int nvars, int *scatterdims, mns
 						}
 					}
 					
-					fprintf(stderr, "\tvar = %s\n", varname);
-					fprintf(stderr, "\tstart = ");
-					printsizetarray(instart, ndimvar);
-					fprintf(stderr, "\tcount = ");
-					printsizetarray(count, ndimvar);
-					fprintf(stderr, "\toutstart = ");
-					printsizetarray(outstart, ndimvar);
-					
 					if (opt->verbose) {
-						fprintf(stdout, "Performing hyperslab copy.\n");
+            fprintf(stdout, "\tvar = %s\n", varname);
+            fprintf(stdout, "\tstart = ");
+            printsizetarray(instart, ndimvar);
+            fprintf(stdout, "\tcount = ");
+            printsizetarray(count, ndimvar);
+            fprintf(stdout, "\toutstart = ");
+            printsizetarray(outstart, ndimvar);				
+            fprintf(stdout, "Performing hyperslab copy into tile %d.\n", i);
 					}
 
 					hyperslabcopy(type, dimlen, dimids, instart, count, ndimvar, tp, sp, ip, fp, dp, otp, osp, oip, ofp, odp); 
