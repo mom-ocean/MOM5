@@ -179,7 +179,6 @@ use ocean_operators_mod,         only: FAX, FAY, FMX, FMY, BDX_ET, BDY_NT, LAP_T
 use ocean_parameters_mod,        only: missing_value, onehalf, onefourth, oneeigth, DEPTH_BASED
 use ocean_parameters_mod,        only: rho0r, rho0, m3toSv, grav
 use ocean_sigma_transport_mod,   only: tmask_sigma_on, tmask_sigma  
-use ocean_tracer_util_mod,       only: rebin_onto_rho
 use ocean_types_mod,             only: ocean_grid_type, ocean_domain_type, ocean_density_type
 use ocean_types_mod,             only: ocean_prog_tracer_type, ocean_thickness_type
 use ocean_types_mod,             only: ocean_time_type, ocean_time_steps_type

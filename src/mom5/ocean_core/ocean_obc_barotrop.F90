@@ -1,4 +1,5 @@
 module ocean_obc_barotrop_mod
+#define COMP isc:iec,jsc:jec
   !
   ! <CONTACT EMAIL="martin.schmidt@io-warnemuende.de"> Martin Schmidt </CONTACT>
   ! <CONTACT EMAIL="Mike.Herzfeld@csiro.au"> Mike Herzfeld </CONTACT>
@@ -49,7 +50,7 @@ module ocean_obc_barotrop_mod
   use time_interp_external_mod, only: time_interp_external, init_external_field, get_external_field_size
   use time_manager_mod,         only: time_type
   use tracer_manager_mod,       only: get_tracer_names, get_tracer_indices, get_number_tracers
-  use ocean_util_mod,           only: write_timestamp
+  use ocean_util_mod,           only: write_timestamp, write_chksum_2d
 
   use ocean_domains_mod,        only: get_local_indices, get_domain_offsets
   use ocean_parameters_mod,     only: missing_value, rho0, GEOPOTENTIAL
@@ -1620,10 +1621,10 @@ contains
     write(stdoutunit,*) &
       'From ocean_obc_barotrop_mod: initial obc chksums'
     call write_timestamp(Time%model_time)
-    write(stdoutunit,*) 'chksum for phase speed            = ',mpp_chksum(ctrop(isc:iec,jsc:jec))
-    write(stdoutunit,*) 'chksum for relaxation coefficient = ',mpp_chksum(rel_coef(isc:iec,jsc:jec))
-    write(stdoutunit,*) 'chksum for eta_tm1                = ',mpp_chksum(eta_tm1(isc:iec,jsc:jec))
-    write(stdoutunit,*) 'chksum for eta_t_tm1              = ',mpp_chksum(eta_t_tm1(isc:iec,jsc:jec))
+    call write_chksum_2d('phase speed', ctrop(COMP))
+    call write_chksum_2d('relaxation coefficient', rel_coef(COMP))
+    call write_chksum_2d('eta_tm1', eta_tm1(COMP))
+    call write_chksum_2d('eta_t_tm1', eta_t_tm1(COMP))
     
     write(stdoutunit,*) '-----------------------------------------------------------------'
     write(stdoutunit,*) 'The following setup for OBC has been found:'
@@ -2427,7 +2428,7 @@ contains
     call ocean_obc_update_boundary(eta(:,:,taup1), 'T')
 
     if(debug_this_module) then
-       write(stdoutunit,*) 'After ocean_obc_barotropic_dtbt , eta chksum =', mpp_chksum(eta(isc:iec,jsc:jec,taup1))
+       call write_chksum_2d('After ocean_obc_barotropic_dtbt, eta', eta(COMP,taup1))
     endif
 
     call mpp_clock_end(id_obc)
@@ -2879,7 +2880,7 @@ subroutine ocean_obc_restart(time_stamp, ctrop_chksum)
   character(len=*), intent(in), optional    :: time_stamp
   integer(LONG_KIND), intent(out), optional :: ctrop_chksum
 
-   if(present(ctrop_chksum)) ctrop_chksum = mpp_chksum(ctrop(isc:iec,jsc:jec))
+   if(present(ctrop_chksum)) ctrop_chksum = mpp_chksum(ctrop(COMP))
    call reset_field_pointer(Obc_restart, id_restart(1), ctrop(:,:) )
 
    call save_restart(Obc_restart, time_stamp)
@@ -2922,14 +2923,9 @@ end subroutine ocean_obc_restart
     write(stdoutunit,*) &
         'chksum for phase speed            = ', ctrop_chksum
 
-    write(stdoutunit,*) &
-        'chksum for relaxation coefficient = ',mpp_chksum(rel_coef(isc:iec,jsc:jec))
-
-    write(stdoutunit,*) &
-        'chksum for eta_tm1                = ',mpp_chksum(eta_tm1(isc:iec,jsc:jec))
-
-    write(stdoutunit,*) &
-        'chksum for eta_t_tm1              = ',mpp_chksum(eta_t_tm1(isc:iec,jsc:jec))
+    call write_chksum_2d('relaxation coefficient', rel_coef(COMP))
+    call write_chksum_2d('eta_tm1', eta_tm1(COMP))
+    call write_chksum_2d('eta_t_tm1', eta_t_tm1(COMP))
     
     deallocate( Obc%bound )
 

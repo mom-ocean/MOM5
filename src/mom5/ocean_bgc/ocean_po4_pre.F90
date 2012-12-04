@@ -55,32 +55,11 @@
 !
 ! </INFO>
 !
-!------------------------------------------------------------------
-!
-!       Module ocean_po4_pre_mod
-!
 
-!------------------------------------------------------------------
-!
+module  ocean_po4_pre_mod
 
-module  ocean_po4_pre_mod  !{
-
-!
-!------------------------------------------------------------------
-!
-!       Global definitions
-!
-!------------------------------------------------------------------
-!
-
-!
-!----------------------------------------------------------------------
-!
-!       Modules
-!
-!----------------------------------------------------------------------
-!
-
+use diag_manager_mod, only: register_diag_field, diag_axis_init
+use field_manager_mod, only: fm_get_index
 use field_manager_mod,        only: fm_field_name_len, fm_path_name_len, fm_string_len
 use field_manager_mod,        only: fm_get_length, fm_get_value, fm_new_value
 use mpp_mod,                  only: stdout, stdlog, mpp_error, mpp_sum, FATAL
@@ -94,39 +73,12 @@ use fm_util_mod,        only: fm_util_get_string, fm_util_get_logical, fm_util_g
 use fm_util_mod,        only: fm_util_get_logical_array, fm_util_get_real_array, fm_util_get_string_array
 use fm_util_mod,        only: fm_util_start_namelist, fm_util_end_namelist
 use ocean_types_mod,    only: ocean_prog_tracer_type, ocean_diag_tracer_type
-!use ocean_types_mod,    only: ocean_grid_type, ocean_domain_type
 use ocean_types_mod,    only: ocean_thickness_type, ocean_time_type, ocean_density_type
-
 use ocean_tracer_diag_mod, only: calc_mixed_layer_depth, calc_potrho_mixed_layer
-
-
-!
-!----------------------------------------------------------------------
-!
-!       force all variables to be "typed"
-!
-!----------------------------------------------------------------------
-!
 
 implicit none
 
-!
-!----------------------------------------------------------------------
-!
-!       Make all routines and variables private by default
-!
-!----------------------------------------------------------------------
-!
-
 private
-
-!
-!----------------------------------------------------------------------
-!
-!       Public routines
-!
-!----------------------------------------------------------------------
-!
 
 public  :: ocean_po4_pre_bbc
 public  :: ocean_po4_pre_end
@@ -142,39 +94,13 @@ public  :: ocean_po4_pre_sum_sfc
 public  :: ocean_po4_pre_zero_sfc
 public  :: ocean_po4_pre_sfc_end
 
-!
-!----------------------------------------------------------------------
-!
-!       Private routines
-!
-!----------------------------------------------------------------------
-!
-
 private :: allocate_arrays
 private :: set_array
-
-!
-!----------------------------------------------------------------------
-!
-!       Private parameters
-!
-!----------------------------------------------------------------------
-!
 
 character(len=32), parameter              :: package_name = 'ocean_po4_pre'
 character(len=48), parameter              :: mod_name = 'ocean_po4_pre_mod'
 character(len=fm_string_len), parameter   :: default_restart_file =   'ocean_po4_pre.res.nc'
 character(len=fm_string_len), parameter   :: default_phosphate_name = 'po4'
-
-!
-!----------------------------------------------------------------------
-!
-!       Private types
-!
-!----------------------------------------------------------------------
-!
- 
-!
 
 type mask_region_type
   real, dimension(:,:,:), pointer       :: mask => NULL()
@@ -188,7 +114,7 @@ type mask_region_type
 end type mask_region_type
 
 
-type po4_pre_type  !{
+type po4_pre_type
 
   integer                               :: ind_po4_pre = -1
   character(len=fm_string_len)          :: restart_file
@@ -198,25 +124,9 @@ type po4_pre_type  !{
   real, _ALLOCATABLE, dimension(:,:)    :: ml_depth  _NULL
   character(len=fm_string_len)          :: phosphate_name
 
-end type po4_pre_type  !}
-
-!
-!----------------------------------------------------------------------
-!
-!       Public variables
-!
-!----------------------------------------------------------------------
-!
+end type po4_pre_type
 
 logical, public :: do_ocean_po4_pre
-
-!
-!----------------------------------------------------------------------
-!
-!       Private variables
-!
-!----------------------------------------------------------------------
-!
 
 integer                                 :: package_index
 logical                                 :: module_initialized = .false.
@@ -228,14 +138,6 @@ type(po4_pre_type), allocatable, dimension(:)    :: po4_pre
 integer                                          :: instances
 integer                                          :: indtemp, indsal, indpo4
 
-!
-!-----------------------------------------------------------------------
-!
-!       Subroutine and function definitions
-!
-!-----------------------------------------------------------------------
-!
-
 contains
 
 !#######################################################################
@@ -246,41 +148,22 @@ contains
 ! </DESCRIPTION>
 !
 
-subroutine allocate_arrays(isd, ied, jsd, jed)  !{
-
-implicit none
-
-!
-!       arguments
-!
+subroutine allocate_arrays(isd, ied, jsd, jed)
 
 integer, intent(in)     :: isd
 integer, intent(in)     :: ied
 integer, intent(in)     :: jsd
 integer, intent(in)     :: jed
 
-!
-!       local variables
-!
-
 integer :: n
 
-!
-!-----------------------------------------------------------------------
-!     start executable code
-!-----------------------------------------------------------------------
-!     
-
-do n = 1, instances  !{
-
+do n = 1, instances
        allocate( po4_pre(n)%ml_depth(isd:ied,jsd:jed) )
        po4_pre(n)%ml_depth(:,:) = 0.0
-
-enddo !} n
-
+enddo
 
 return
-end subroutine  allocate_arrays  !}
+end subroutine  allocate_arrays
 ! </SUBROUTINE> NAME="allocate_arrays"
 
 
@@ -292,40 +175,9 @@ end subroutine  allocate_arrays  !}
 ! </DESCRIPTION>
 !
 
-subroutine ocean_po4_pre_bbc  !{
+subroutine ocean_po4_pre_bbc
 
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-!
-!-----------------------------------------------------------------------
-!     arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-return
-
-end subroutine  ocean_po4_pre_bbc  !}
+end subroutine  ocean_po4_pre_bbc
 ! </SUBROUTINE> NAME="ocean_po4_pre_bbc"
 
 
@@ -337,22 +189,7 @@ end subroutine  ocean_po4_pre_bbc  !}
 ! </DESCRIPTION>
 
 subroutine ocean_po4_pre_end(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,     &
-                             t_prog, grid_dat, grid_tmask, rho_dzt, taup1)  !{ 
-
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+                             t_prog, grid_dat, grid_tmask, rho_dzt, taup1)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -369,62 +206,29 @@ real, dimension(isd:,jsd:), intent(in)                  :: grid_dat
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-integer :: i
-integer :: j
-integer :: k
-integer :: n
+integer :: i, j, k, n
 real    :: total_po4_pre
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-
-!
-!-----------------------------------------------------------------------
-!     statement functions
-!-----------------------------------------------------------------------
-!
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-!
 !       integrate the total concentrations of some tracers
 !       for the end of the run
-!
 
-!
 !       Use taup1 time index for the end of a run, and taup1 time
 !       index for the end of a run so that we are integrating the
 !       same time level and should therefore get identical results
-!
-
-do n = 1, instances  !{
+do n = 1, instances
   total_po4_pre = 0.0
-  do k = 1,nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1,nk
+    do j = jsc, jec
+      do i = isc, iec
         total_po4_pre = total_po4_pre +                                   &
              t_prog(po4_pre(n)%ind_po4_pre)%field(i,j,k,taup1) *      &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
   call mpp_sum(total_po4_pre)
 
@@ -432,17 +236,9 @@ do n = 1, instances  !{
   write (stdoutunit,                                              &
          '(/'' Total preformed phosphate  = '',es19.12,'' Gmol-PO4'')')        &
               total_po4_pre * 1.0e-09
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       save out additional information for a restart
-!-----------------------------------------------------------------------
-!
-
-
-return
-end subroutine  ocean_po4_pre_end  !}
+end subroutine  ocean_po4_pre_end
 ! </SUBROUTINE> NAME="ocean_po4_pre_end"
 
 
@@ -453,42 +249,9 @@ end subroutine  ocean_po4_pre_end  !}
 !     Calculate the surface boundary conditions
 ! </DESCRIPTION>
 
-subroutine ocean_po4_pre_sbc  !{
+subroutine ocean_po4_pre_sbc
 
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-
-return
-
-end subroutine  ocean_po4_pre_sbc  !}
+end subroutine  ocean_po4_pre_sbc
 ! </SUBROUTINE> NAME="ocean_po4_pre_sbc"
 
 
@@ -499,29 +262,9 @@ end subroutine  ocean_po4_pre_sbc  !}
 !       Set up any extra fields needed by the ocean-atmosphere gas fluxes
 ! </DESCRIPTION>
 
-subroutine ocean_po4_pre_flux_init  !{
+subroutine ocean_po4_pre_flux_init
 
-
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-
-return
-
-end subroutine  ocean_po4_pre_flux_init  !}
+end subroutine  ocean_po4_pre_flux_init
 ! </SUBROUTINE> NAME="ocean_po4_pre_flux_init"
 
 
@@ -533,30 +276,13 @@ end subroutine  ocean_po4_pre_flux_init  !}
 !
 !       Save pointers to various "types", such as Grid and Domains.
 ! </DESCRIPTION>
-
-subroutine ocean_po4_pre_init  !{
-
-!
-!       local parameters
-!
+subroutine ocean_po4_pre_init
 
 character(len=64), parameter    :: sub_name = 'ocean_po4_pre_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-
-!
-!-----------------------------------------------------------------------
-!       arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 
 integer                                                 :: n
 character(len=fm_field_name_len)                        :: name
@@ -570,139 +296,92 @@ character(len=fm_string_len), pointer, dimension(:)     :: good_list
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-!       Initialize the package
-!
-
+  ! Initialize the package
 package_index = otpm_set_tracer_package(package_name,                 &
      restart_file = default_restart_file,   &
      caller = trim(mod_name) // '(' // trim(sub_name) // ')')
 
-!
-!       Check whether to use this package
-!
-
+! Check whether to use this package
 path_to_names = '/ocean_mod/tracer_packages/' // trim(package_name) // '/names'
 instances = fm_get_length(path_to_names)
-if (instances .lt. 0) then  !{
+if (instances .lt. 0) then
   call mpp_error(FATAL, trim(error_header) // 'Could not get number of instances')
-endif  !}
+endif
 
-!
-!       Check some things
-!
-
+! Check some things
 write (stdoutunit,*)
-if (instances .eq. 0) then  !{
+if (instances .eq. 0) then
   write (stdoutunit,*) trim(note_header), ' No instances'
   do_ocean_po4_pre = .false.
-else  !}{
-  if (instances .eq. 1) then  !{
+else
+  if (instances .eq. 1) then
     write (stdoutunit,*) trim(note_header), ' ', instances, ' instance'
-  else  !}{
+  else
     write (stdoutunit,*) trim(note_header), ' ', instances, ' instances'
-  endif  !}
+  endif
 
     do_ocean_po4_pre = .true.
-
-
-endif  !}
+endif
 
 module_initialized = .true.
 
-!
 !       Return if we don't want to use this package,
 !       after changing the list back
-!
-
-if (.not. do_ocean_po4_pre) then  !{
+if (.not. do_ocean_po4_pre) then
   return
-endif  !}
+endif
 
-!
-!       allocate storage for po4_pre array
-!
-
+! allocate storage for po4_pre array
 allocate ( po4_pre(instances) )
 
-!
-!       loop over the names, saving them into the po4_pre array
-!
+! loop over the names, saving them into the po4_pre array
+do n = 1, instances
 
-do n = 1, instances  !{
-
-  if (fm_get_value(path_to_names, name, index = n)) then  !{
+  if (fm_get_value(path_to_names, name, index = n)) then
     po4_pre(n)%name = name
-  else  !}{
+  else
     write (name,*) n
     call mpp_error(FATAL, trim(error_header) //        &
          'Bad field name for index ' // trim(name))
-  endif  !}
+  endif
 
-enddo  !}
+enddo
 
-!
-!       Set up the field input
-!
-
+! Set up the field input
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
-do n = 1, instances  !{
+do n = 1, instances
 
   name = po4_pre(n)%name
-  if (name(1:1) .eq. '_') then  !{
+  if (name(1:1) .eq. '_') then
     suffix = ' '
     long_suffix = ' '
-  else  !}{
+  else
     suffix = '_' // name
     long_suffix = ' (' // trim(name) // ')'
-  endif  !}
+  endif
 
-!
-!       PO4_pre
-!
-
+  ! PO4_pre
   po4_pre(n)%ind_po4_pre = otpm_set_prog_tracer('po4_pre' // suffix, package_name,   &
        longname = 'Preformed Phosphate' // trim(long_suffix),                      &
        units = 'mol/kg', flux_units = 'mol/m-2/s',             &
        caller = caller_str)
+enddo
 
-
-enddo  !} n
-
-
-!
-!-----------------------------------------------------------------------
 !       Process the namelists
-!-----------------------------------------------------------------------
-!
 
-!
-!       Add the package name to the list of good namelists, to be used
-!       later for a consistency check
-!
-
-if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) .le. 0) then  !{
+! Add the package name to the list of good namelists, to be used
+! later for a consistency check
+if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) .le. 0) then
   call mpp_error(FATAL, trim(error_header) //                           &
        ' Could not add ' // trim(package_name) // ' to "good_namelists" list')
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
 !       Set up the instance namelists
-!-----------------------------------------------------------------------
-!
-
 t_mask(:) = .true.
 
-do n = 1, instances  !{
-
-!
-!-----------------------------------------------------------------------
-!       create the instance namelist
-!-----------------------------------------------------------------------
-!
-
+do n = 1, instances
+   ! create the instance namelist
   call fm_util_start_namelist(package_name, po4_pre(n)%name, caller = caller_str, no_overwrite = .true., &
        check = .true.)
 
@@ -712,10 +391,7 @@ do n = 1, instances  !{
 
   call fm_util_end_namelist(package_name, po4_pre(n)%name, check = .true., caller = caller_str)
 
-!
-!       create some sub-namelists
-!
-
+  ! create some sub-namelists
   call fm_util_start_namelist(trim(package_name), trim(po4_pre(n)%name) // '+po4_pre_mask',     &
        caller = caller_str, no_overwrite = .true., &
        check = .true.)
@@ -729,27 +405,22 @@ do n = 1, instances  !{
   call fm_util_set_value('nlat', 0.0, index = 0)
 
   call fm_util_end_namelist(trim(package_name), trim(po4_pre(n)%name) // '+po4_pre_mask', caller = caller_str)
+enddo
 
-
-enddo  !} n
-
-!
-!       Check for any errors in the number of fields in the namelists for this package
-!
-
+! Check for any errors in the number of fields in the namelists for this package
 good_list => fm_util_get_string_array('/ocean_mod/GOOD/namelists/' // trim(package_name) // '/good_values',   &
      caller = trim(mod_name) // '(' // trim(sub_name) // ')')
-if (associated(good_list)) then  !{
+if (associated(good_list)) then
   call fm_util_check_for_bad_fields('/ocean_mod/namelists/' // trim(package_name), good_list,       &
        caller = trim(mod_name) // '(' // trim(sub_name) // ')')
   deallocate(good_list)
-else  !}{
+else
   call mpp_error(FATAL,trim(error_header) // ' Empty "' // trim(package_name) // '" list')
-endif  !}
+endif
 
 return
 
-end subroutine ocean_po4_pre_init  !}
+end subroutine ocean_po4_pre_init
 ! </SUBROUTINE> NAME="ocean_po4_pre_init"
 
 
@@ -762,36 +433,9 @@ end subroutine ocean_po4_pre_init  !}
 !       Note: this subroutine should be merged into ocean_po4_pre_start
 ! </DESCRIPTION>
 
-subroutine ocean_po4_pre_init_sfc  !{
+subroutine ocean_po4_pre_init_sfc
 
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-
-return
-
-end subroutine ocean_po4_pre_init_sfc  !}
+end subroutine ocean_po4_pre_init_sfc
 ! </SUBROUTINE> NAME="ocean_po4_pre_init_sfc"
 
 
@@ -802,36 +446,9 @@ end subroutine ocean_po4_pre_init_sfc  !}
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
 
-subroutine ocean_po4_pre_sum_sfc  !{
+subroutine ocean_po4_pre_sum_sfc
 
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-
-return
-
-end subroutine ocean_po4_pre_sum_sfc  !}
+end subroutine ocean_po4_pre_sum_sfc
 ! </SUBROUTINE> NAME="ocean_po4_pre_sum_sfc"
 
 
@@ -842,30 +459,9 @@ end subroutine ocean_po4_pre_sum_sfc  !}
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
 
-subroutine ocean_po4_pre_zero_sfc  !{
+subroutine ocean_po4_pre_zero_sfc
 
-implicit none
-
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-
-return
-
-end subroutine ocean_po4_pre_zero_sfc  !}
+end subroutine ocean_po4_pre_zero_sfc
 ! </SUBROUTINE> NAME="ocean_po4_pre_zero_sfc"
 
 
@@ -876,30 +472,9 @@ end subroutine ocean_po4_pre_zero_sfc  !}
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
 
-subroutine ocean_po4_pre_avg_sfc  !{
+subroutine ocean_po4_pre_avg_sfc
 
-implicit none
-
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-
-return
-
-end subroutine ocean_po4_pre_avg_sfc  !}
+end subroutine ocean_po4_pre_avg_sfc
 ! </SUBROUTINE> NAME="ocean_po4_pre_avg_sfc"
 
 
@@ -910,29 +485,9 @@ end subroutine ocean_po4_pre_avg_sfc  !}
 !       Finish up stuff for surface fields for flux calculations
 ! </DESCRIPTION>
 
-subroutine ocean_po4_pre_sfc_end  !{
+subroutine ocean_po4_pre_sfc_end
 
-implicit none
-
-!
-!       local parameters
-!
-
-!
-!-----------------------------------------------------------------------
-!       arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-return
-
-end subroutine ocean_po4_pre_sfc_end  !}
+end subroutine ocean_po4_pre_sfc_end
 ! </SUBROUTINE> NAME="ocean_po4_pre_sfc_end"
 
 
@@ -945,43 +500,9 @@ end subroutine ocean_po4_pre_sfc_end  !}
 !     of hooks required in MOM base code)
 ! </DESCRIPTION>
 
-subroutine ocean_po4_pre_source  !{
+subroutine ocean_po4_pre_source
 
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-
-!
-!-----------------------------------------------------------------------
-!     calculate the source terms for PO4_PREs
-!-----------------------------------------------------------------------
-!
-
-
-return
-
-end subroutine  ocean_po4_pre_source  !}
+end subroutine  ocean_po4_pre_source
 ! </SUBROUTINE> NAME="ocean_po4_pre_source"
 
 
@@ -995,34 +516,13 @@ end subroutine  ocean_po4_pre_source  !}
 
 subroutine ocean_po4_pre_start(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,      &
      T_prog, taup1, grid_dat, grid_tmask, grid_kmt,                 &
-     grid_xt, grid_yt, rho_dzt)  !{
-
-!
-!-----------------------------------------------------------------------
-!       modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-use diag_manager_mod, only        : register_diag_field, diag_axis_init
-use field_manager_mod, only       : fm_get_index
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
+     grid_xt, grid_yt, rho_dzt)
 
 character(len=64), parameter    :: sub_name = 'ocean_po4_pre_start'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-
-!
-!-----------------------------------------------------------------------
-!     arguments
-!-----------------------------------------------------------------------
-!
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1042,16 +542,6 @@ real, dimension(isd:,jsd:), intent(in)                  :: grid_xt
 real, dimension(isd:,jsd:), intent(in)                  :: grid_yt
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-!
-!----------------------------------------------------------------------
-!
 !       Global values to apply the following inhibitions
 !       and depletions
 !
@@ -1076,18 +566,9 @@ real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 !       Set up a mask array using wlon,elon,nlat,slat
 !       (any box with its lon,lat inside the box bounded by
 !       wlon,elon,nlat,slat value in mask set to factor).
-!  
-!----------------------------------------------------------------------
-!
-!
 
-integer                                 :: i
-integer                                 :: j
-integer                                 :: k
-integer                                 :: l
+integer                                 :: i, j, k, l, m, n
 integer                                 :: done
-integer                                 :: m
-integer                                 :: n
 character(len=256)                      :: caller_str
 integer                                 :: len_w
 integer                                 :: len_e
@@ -1099,39 +580,17 @@ character(len=25)                       :: po4_tree_path
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-! =====================================================================
-!       begin of executable code
-! =====================================================================
-!
-!
-!-----------------------------------------------------------------------
-!       give info
-!-----------------------------------------------------------------------
-!
-
 write(stdoutunit,*) 
 write(stdoutunit,*) trim(note_header),                     &
                   'Starting ', trim(package_name), ' module'
 
-!
-!-----------------------------------------------------------------------
 !     dynamically allocate the global PO4_PRE arrays
-!-----------------------------------------------------------------------
-!
-
 call allocate_arrays(isd, ied, jsd, jed)
 
-
-!
-!-----------------------------------------------------------------------
 !       read in the namelists for each instance
-!-----------------------------------------------------------------------
-!
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
-do n = 1, instances  !{
-
+do n = 1, instances
   call fm_util_start_namelist(package_name, po4_pre(n)%name, caller = caller_str)
 
   po4_pre(n)%restart_file           = fm_util_get_string ('restart_file', scalar = .true.)
@@ -1152,80 +611,55 @@ do n = 1, instances  !{
   po4_pre(n)%po4_pre_mask%t_mask        => fm_util_get_logical_array ('t_mask')
 
   call fm_util_end_namelist(trim(package_name), trim(po4_pre(n)%name) // '+po4_pre_mask', caller = caller_str)
+enddo
 
-enddo  !} n
-
-!
-!-----------------------------------------------------------------------
 !       read in the po4_pre_mask namelist data
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
-
-
-!
-!       Check some things
-!
-
-  if (associated(po4_pre(n)%po4_pre_mask%wlon)) then  !{
+do n = 1, instances
+  if (associated(po4_pre(n)%po4_pre_mask%wlon)) then
     len_w = size(po4_pre(n)%po4_pre_mask%wlon)
-  else  !}{
+  else
     len_w = 0
-  endif  !}
-  if (associated(po4_pre(n)%po4_pre_mask%elon)) then  !{
+  endif
+  if (associated(po4_pre(n)%po4_pre_mask%elon)) then
     len_e = size(po4_pre(n)%po4_pre_mask%elon)
-  else  !}{
+  else
     len_e = 0
-  endif  !}
-  if (associated(po4_pre(n)%po4_pre_mask%slat)) then  !{
+  endif
+  if (associated(po4_pre(n)%po4_pre_mask%slat)) then
     len_s = size(po4_pre(n)%po4_pre_mask%slat)
-  else  !}{
+  else
     len_s = 0
-  endif  !}
-  if (associated(po4_pre(n)%po4_pre_mask%nlat)) then  !{
+  endif
+  if (associated(po4_pre(n)%po4_pre_mask%nlat)) then
     len_n = size(po4_pre(n)%po4_pre_mask%nlat)
-  else  !}{
+  else
     len_n = 0
-  endif  !}
+  endif
 
-
-  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then  !{
+  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then
     call mpp_error(FATAL, trim(error_header) // ' Region sizes are not equal')
-  endif  !}
+  endif
 
-  if (size(po4_pre(n)%po4_pre_mask%t_mask) .ne. 12) then  !{
+  if (size(po4_pre(n)%po4_pre_mask%t_mask) .ne. 12) then
     call mpp_error(FATAL, trim(error_header) // ' t_mask size is not 12')
-  endif  !}
+  endif
 
-
-!
-!       set all of the values to the default
-!
-
+  ! set all of the values to the default
   po4_pre(n)%po4_pre_mask%mask(:,:,:) = 1.0
 
-  if (len_w .gt. 0) then  !{
+  if (len_w .gt. 0) then
 
     write (stdoutunit,*)
     write (stdoutunit,*) trim(note_header), 'Process po4_pre_mask array for ', trim(po4_pre(n)%name)
     write (stdoutunit,*)
 
-
-!
-!
-!       set values for this time-level
-!
-
+    ! set values for this time-level
   done = 0
-  do l = 1, 12  !{
-    if (po4_pre(n)%po4_pre_mask%t_mask(l)) then  !{
-      if (done .eq. 0) then  !{
-
-!
-!       set the values via the input values, saving this time index
-!       afterwards
-!
+  do l = 1, 12
+    if (po4_pre(n)%po4_pre_mask%t_mask(l)) then
+      if (done .eq. 0) then
+         ! set the values via the input values, saving this time index
+         ! afterwards
         write (stdoutunit,*) trim(note_header), ' Assigning month ', l
         call set_array(po4_pre(n)%po4_pre_mask%mask(:,:,l), isd, ied, jsd, jed,                                   &
                 grid_xt, grid_yt, grid_kmt,                                        &
@@ -1234,48 +668,30 @@ do n = 1, instances  !{
                 po4_pre(n)%po4_pre_mask%factor, 1.0,                                                          &
                 T_prog(po4_pre(n)%ind_po4_pre)%name, po4_pre(n)%po4_pre_mask%coastal_only)
         done = l
-      else  !}{
-
-!
-!       Duplicate the values for a previous time-level
-!
+      else
+         ! Duplicate the values for a previous time-level
           write (stdoutunit,*) 'Duplicating month ', done, ' as ', l
           po4_pre(n)%po4_pre_mask%mask(:,:,l) = po4_pre(n)%po4_pre_mask%mask(:,:,done)
-        endif  !}
-      endif  !}
-    enddo  !} l
-  endif  !}
+        endif
+      endif
+    enddo
+  endif
 
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       read in additional information for a restart
-!-----------------------------------------------------------------------
-!
-!
-!-----------------------------------------------------------------------
-!       register the fields
-!-----------------------------------------------------------------------
-!
-
-!-----------------------------------------------------------------------
 !       integrate the total concentrations of some tracers
 !       for the start of the run
-!-----------------------------------------------------------------------
-
 indtemp = fm_get_index('/ocean_mod/prog_tracers/temp')
-if (indtemp .le. 0) then  !{
+if (indtemp .le. 0) then
   call mpp_error(FATAL,trim(error_header) // ' Could not get the temperature index')
-endif  !}
+endif
                                                                                                                           
 indsal = fm_get_index('/ocean_mod/prog_tracers/salt')
-if (indsal .le. 0) then  !{
+if (indsal .le. 0) then
   call mpp_error(FATAL,trim(error_header) // ' Could not get the salinity index')
-endif  !}
+endif
       
-
-do n = 1,instances !{
+do n = 1,instances
 
   po4_tree_path = '/ocean_mod/prog_tracers/' // trim(po4_pre(n)%phosphate_name) 
   write(stdoutunit,*)  po4_tree_path
@@ -1283,50 +699,38 @@ do n = 1,instances !{
   indpo4 = fm_get_index('/ocean_mod/prog_tracers/' //                 &
   trim(po4_pre(n)%phosphate_name))
 
-  if (indpo4 .le. 0) then  !{
+  if (indpo4 .le. 0) then
    call mpp_error(FATAL,trim(error_header) // ' Could not get the phosphate index check if running with an ocean biology model')
 
- endif  !}
+ endif
 
-enddo     !}                                                                                                                    
+enddo
 
-
-
-!
 !       Use taup1 time index for the start of a run, and taup1 time
 !       index for the end of a run so that we are integrating the
 !       same time level and should therefore get identical results
-!
-
 write (stdoutunit,*) trim(note_header),                           &
      'Global integrals at start of run'
 
-do n = 1, instances  !{
+do n = 1, instances
   total_po4_pre = 0.0
-  do k = 1,nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1,nk
+    do j = jsc, jec
+      do i = isc, iec
         total_po4_pre = total_po4_pre +                         &
              T_prog(po4_pre(n)%ind_po4_pre)%field(i,j,k,taup1) *  &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
 
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
   call mpp_sum(total_po4_pre)
   write (stdoutunit,*) '  Instance ', trim(po4_pre(n)%name)
   write (stdoutunit,                                              &
          '(/'' Total Preformed Phosphate  = '',es19.12,'' (mol/kg)*Gmol-PO4_pre'')')       &
               total_po4_pre * 1.0e-09
-enddo  !} n
-
-
-!
-!-----------------------------------------------------------------------
-!     give info
-!-----------------------------------------------------------------------
-!
+enddo
 
 write(stdoutunit,*)
 write(stdoutunit,*) trim(note_header), 'Tracer runs initialized'
@@ -1334,7 +738,7 @@ write(stdoutunit,*)
 
 return
 
-end subroutine  ocean_po4_pre_start  !}
+end subroutine  ocean_po4_pre_start
 ! </SUBROUTINE> NAME="ocean_po4_pre_start"
 
 
@@ -1346,29 +750,8 @@ end subroutine  ocean_po4_pre_start  !}
 ! in order to minimize the number of hooks necessary in the MOM4 basecode
 ! </DESCRIPTION>
 !
-
 subroutine ocean_po4_pre_tracer(isc, iec, jsc, jec, isd, ied, jsd, jed, nk,     &
-                                t_prog, Time, Thickness, Dens, grid_zt, hblt_depth)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-use mpp_mod, only : mpp_sum
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     arguments
-!-----------------------------------------------------------------------
-!
+                                t_prog, Time, Thickness, Dens, grid_zt, hblt_depth)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
@@ -1386,26 +769,10 @@ type(ocean_density_type), intent(in)                            :: Dens
 real, dimension(:), intent(in)                                  :: grid_zt
 real, dimension(isd:,jsd:), intent(in)                          :: hblt_depth
 
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
+integer :: i, j, k, n
 
-integer :: i
-integer :: j
-integer :: k
-integer :: n
-
-
-!
-!-----------------------------------------------------------------------
-!     set Preformed phosphate
-!-----------------------------------------------------------------------
-!
-
-
-do n = 1, instances  !{
+! set Preformed phosphate
+do n = 1, instances
 
    if (po4_pre(n)%mld_option == 1) then
       po4_pre(n)%ml_depth = hblt_depth
@@ -1421,26 +788,21 @@ do n = 1, instances  !{
             potrho_mix_depth= po4_pre(n)%ml_depth)
    endif
 
-
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-      do k = 1,nk  !{
+  do j = jsc, jec
+    do i = isc, iec
+      do k = 1,nk
          if (grid_zt(k) <= po4_pre(n)%ml_depth(i,j)) then
            t_prog(po4_pre(n)%ind_po4_pre)%field(i,j,k,Time%taup1) = t_prog(indpo4)%field(i,j,k,Time%taup1) 
          endif
-      enddo  !} k
-    enddo  !} i
-  enddo  !} j
+      enddo
+    enddo
+  enddo
 
-
-enddo !} n
-
-
-
+enddo
 
 return
 
-end subroutine  ocean_po4_pre_tracer  !}
+end subroutine  ocean_po4_pre_tracer
 ! </SUBROUTINE> NAME="ocean_po4_pre_tracer"
 
 !#######################################################################
@@ -1498,20 +860,11 @@ end subroutine  ocean_po4_pre_tracer  !}
 !                    boundary condition will be set if requested.
 ! </DESCRIPTION>
 !
-
 subroutine set_array(array, isd, ied, jsd, jed,                 &
                      xt, yt, kmt,                               &
                      num_regions, wlon_in, elon_in, slat, nlat, &
                      set_value, unset_value, name,              &
-                     coastal_only)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+                     coastal_only)
 
 integer, intent(in)                             :: isd
 integer, intent(in)                             :: ied
@@ -1531,19 +884,11 @@ real, dimension(num_regions), intent(in)        :: wlon_in
 real, dimension(isd:ied,jsd:jed), intent(in)    :: xt
 real, dimension(isd:ied,jsd:jed), intent(in)    :: yt
 
-!
-!       local parameters
-!
-
 character(len=64), parameter    :: sub_name = 'set_array'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!       local variables
-!
 
 integer :: i, j, n
 real, dimension(:), allocatable :: wlon
@@ -1552,112 +897,84 @@ real, dimension(:), allocatable :: elon
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-!       save the longitudes in case they need to be modified
-!
-
+  ! save the longitudes in case they need to be modified
 allocate(wlon(num_regions))
 allocate(elon(num_regions))
 
 wlon(:) = wlon_in(:)
 elon(:) = elon_in(:)
 
-!
 ! loop over the regions, applying changes as necessary
-!
+do n = 1, num_regions
 
-do n = 1, num_regions  !{
-
-  if (nlat(n) .ge. slat(n)) then  !{
+  if (nlat(n) .ge. slat(n)) then
     write (stdoutunit,*)
     write (stdoutunit,*) trim(note_header),                          &
                        trim(name), ' region: ', n
 
-!
-!       make sure that all longitudes are in the range [0,360]
-!
-
-    do while (wlon(n) .gt. 360.0)  !{
+    ! make sure that all longitudes are in the range [0,360]
+    do while (wlon(n) .gt. 360.0)
       wlon(n) = wlon(n) - 360.0
-    enddo  !}
-    do while (wlon(n) .lt. 0.0)  !{
+    enddo
+    do while (wlon(n) .lt. 0.0)
       wlon(n) = wlon(n) + 360.0
-    enddo  !}
-    do while (elon(n) .gt. 360.0)  !{
+    enddo
+    do while (elon(n) .gt. 360.0)
       elon(n) = elon(n) - 360.0
-    enddo  !}
-    do while (elon(n) .lt. 0.0)  !{
+    enddo
+    do while (elon(n) .lt. 0.0)
       elon(n) = elon(n) + 360.0
-    enddo  !}
-
-!
-!       if the southern and northern latitudes are the same, then
-!       find the grid box which encompasses them ...
-!
-
-    if (slat(n) .eq. nlat(n)) then  !{
+    enddo
+    ! if the southern and northern latitudes are the same, then
+    ! find the grid box which encompasses them ...
+    if (slat(n) .eq. nlat(n)) then
 
      call mpp_error(FATAL, trim(error_header) //                &
                     'Equal latitudes not supported')
 
-    elseif (wlon(n) .eq. elon(n)) then  !}{
+    elseif (wlon(n) .eq. elon(n)) then
 
      call mpp_error(FATAL, trim(error_header) //                &
                     'Equal longitudes not supported')
-
-    else  !}{
-
-!
-!       ... else find all boxes where the center lies in the
-!       rectangular region
-!
-
-      do j = jsd, jed  !{
-        do i = isd, ied  !{
+    else
+       ! ... else find all boxes where the center lies in the
+       ! rectangular region
+      do j = jsd, jed
+        do i = isd, ied
           if (nlat(n) .ge. yt(i,j) .and.                        &
               slat(n) .le. yt(i,j) .and.                        &
-              lon_between(xt(i,j), wlon(n), elon(n))) then  !{
+              lon_between(xt(i,j), wlon(n), elon(n))) then
             array(i,j) = set_value
-          endif  !}
-        enddo  !} i
-      enddo  !} j
+          endif
+        enddo
+      enddo
 
-    endif  !}
+    endif
 
-  endif  !}
+  endif
 
-enddo  !} n
+enddo
 
-!
 !       if desired only apply mask to coastal regions
-!
-
-if (coastal_only) then  !{
-  do j = jsd, jed  !{
-    do i = isd, ied  !{
+if (coastal_only) then
+  do j = jsd, jed
+    do i = isd, ied
       if (kmt(i,j) .ne. 0 .and.                         &
-          array(i,j) .eq. set_value) then  !{
-
-!
+          array(i,j) .eq. set_value) then
 !       if all the surrounding points are ocean, then this is not
 !       a coastal point, therefore reset the mask
-!
-
         if (kmt(i-1,j) .ne. 0 .and.                     &
             kmt(i+1,j) .ne. 0 .and.                     &
             kmt(i,j-1) .ne. 0 .and.                     &
-            kmt(i,j+1) .ne. 0) then  !{
+            kmt(i,j+1) .ne. 0) then
           array(i,j) = unset_value
-        endif  !}
-      endif  !}
-    enddo  !} i
-  enddo  !} j
-endif  !}
+        endif
+      endif
+    enddo
+  enddo
+endif
 
-!
 !       clean up
-!
-
 deallocate(wlon)
 deallocate(elon)
 
@@ -1665,7 +982,6 @@ return
 
 contains
 
-!
 !       Return true if w <= x_in <= e, taking into account the
 !       periodicity of longitude.
 !
@@ -1674,65 +990,41 @@ contains
 !       w       = west longitude of boundary
 !
 !       e       = east longitude of boundary
-!
-
-function lon_between(x_in, w, e)  !{
+function lon_between(x_in, w, e)
 
 implicit none
 
-!
-!       function definition
-!
-
 logical :: lon_between
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
 
 real, intent(in)                :: x_in
 real, intent(in)                :: w
 real, intent(in)                :: e
 
-!
-!       local variables
-!
-
-!real                   :: w
-!real                   :: e
 real                    :: x
 
-!
-!       Save input values so we may modify them safely
-!
-
+! Save input values so we may modify them safely
 x = x_in
 
-!
-!       make sure that all longitudes are in the range [0,360]
-!
-
-do while (x .gt. 360.0)  !{
+! make sure that all longitudes are in the range [0,360]
+do while (x .gt. 360.0)
   x = x - 360.0
-enddo  !}
-do while (x .lt. 0.0)  !{
+enddo
+do while (x .lt. 0.0)
   x = x + 360.0
-enddo  !}
+enddo
  
-if (w .gt. e) then  !{
+if (w .gt. e) then
   lon_between = w .le. x .or. x .le. e
-else  !}{
+else
   lon_between = w .le. x .and. x .le. e
-endif  !}
+endif
 
 return
 
-end function  lon_between  !}
+end function  lon_between
 
-end subroutine  set_array  !}
+end subroutine  set_array
 ! </SUBROUTINE> NAME="set_array"
 
 
-end module  ocean_po4_pre_mod  !}
+end module  ocean_po4_pre_mod

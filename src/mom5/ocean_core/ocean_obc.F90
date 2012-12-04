@@ -1,4 +1,5 @@
 module ocean_obc_mod
+#define COMP isc:iec,jsc:jec
   !
   ! <CONTACT EMAIL="martin.schmidt@io-warnemuende.de"> Martin Schmidt </CONTACT>
   ! <CONTACT EMAIL="Mike.Herzfeld@csiro.au"> Mike Herzfeld </CONTACT>
@@ -41,13 +42,13 @@ module ocean_obc_mod
   use mpp_domains_mod,          only: mpp_set_compute_domain, mpp_set_data_domain, mpp_set_global_domain
   use mpp_domains_mod,          only: BGRID_NE, mpp_define_domains
 
-  use mpp_mod,                  only: input_nml_file, mpp_error, mpp_pe, mpp_chksum
+  use mpp_mod,                  only: input_nml_file, mpp_error, mpp_pe
   use mpp_mod,                  only: CLOCK_MODULE
   use mpp_mod,                  only: mpp_clock_id, mpp_clock_begin, mpp_clock_end
   use time_interp_external_mod, only: time_interp_external, init_external_field, get_external_field_size
   use time_manager_mod,         only: time_type
   use tracer_manager_mod,       only: get_tracer_names, get_tracer_indices, get_number_tracers
-  use ocean_util_mod,           only: write_timestamp
+  use ocean_util_mod,           only: write_timestamp, write_chksum_2d, write_chksum_3d
 
   use ocean_domains_mod,        only: get_local_indices, get_domain_offsets
   use ocean_parameters_mod,     only: missing_value, rho0, GEOPOTENTIAL
@@ -2173,8 +2174,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
     enddo
 
     if(debug_this_module) then
-       write(stdoutunit,*) 'After ocean_obc_barotropic_dteta , eta chksum =', &
-                          mpp_chksum(Ext_mode%eta_t(isc:iec,jsc:jec,taup1))
+       call write_chksum_2d('After ocean_obc_barotropic_dteta, eta', Ext_mode%eta_t(COMP,taup1))
     endif
 
     call mpp_clock_end(id_obc)
@@ -3324,7 +3324,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
     !--- update the tracer at global halo point to make the gradient accross boundary is 0
     !    but not yet - update domains first in tracer
     if(debug_this_module) then
-       write(stdoutunit,*) 'After ocean_obc_tracer, tracer chksum =', mpp_chksum(tracer(isc:iec,jsc:jec,:,taup1))
+       call write_chksum_3d('After ocean_obc_tracer, tracer', tracer(COMP,:,taup1))
     endif
 
     call mpp_clock_end(id_obc)

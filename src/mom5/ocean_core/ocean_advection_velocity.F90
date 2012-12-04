@@ -1,4 +1,5 @@
 module ocean_advection_velocity_mod
+#define COMP isc:iec,jsc:jec
 !  
 !<CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
 !</CONTACT>
@@ -116,8 +117,7 @@ use fms_mod,             only: FATAL, WARNING
 use fms_io_mod,          only: register_restart_field, save_restart
 use fms_io_mod,          only: restore_state, restart_file_type
 use mpp_domains_mod,     only: mpp_update_domains
-use mpp_domains_mod,     only: mpp_global_sum, NON_BITWISE_EXACT_SUM
-use mpp_mod,             only: input_nml_file, mpp_error, mpp_chksum, stdout, stdlog
+use mpp_mod,             only: input_nml_file, mpp_error, stdout, stdlog
 use mpp_mod,             only: mpp_min, mpp_max, mpp_error, mpp_pe
 
 use ocean_domains_mod,   only: get_local_indices
@@ -132,7 +132,8 @@ use ocean_types_mod,     only: ocean_time_type, ocean_time_steps_type
 use ocean_types_mod,     only: ocean_density_type, ocean_lagrangian_type
 use ocean_workspace_mod, only: wrk1, wrk1_2d, wrk2_2d
 use ocean_obc_mod,       only: ocean_obc_adjust_advel
-use ocean_util_mod,      only: write_timestamp
+use ocean_util_mod,      only: write_timestamp, diagnose_2d, diagnose_3d, diagnose_3d_u, diagnose_sum
+use ocean_util_mod,      only: write_chksum_3d, write_chksum_2d
 
 implicit none
 
@@ -521,8 +522,8 @@ subroutine ocean_advection_velocity_init(Grid, Domain, Time, Time_steps, Thickne
       write(stdoutunit,*) ' '
       write(stdoutunit,*) 'From ocean_advection_velocity_mod: beginning chksums'
       call write_timestamp(Time%model_time)
-      write(stdoutunit,*) 'Adv_vel%wrho_bt    ==> ', mpp_chksum(Adv_vel%wrho_bt(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%wrho_bt(0) ==> ', mpp_chksum(Adv_vel%wrho_bt(isc:iec,jsc:jec,0))
+      call write_chksum_3d('Adv_vel%wrho_bt', Adv_vel%wrho_bt(COMP,1:))
+      call write_chksum_2d('Adv_vel%wrho_bt(0)', Adv_vel%wrho_bt(COMP,0))
   endif
 
 end subroutine ocean_advection_velocity_init
@@ -672,33 +673,30 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
       write(stdoutunit,*) ' '
       write(stdoutunit,*) 'From ocean_advection_velocity_mod: chksums'
       call write_timestamp(Time%model_time)
-      write(stdoutunit,*) 'Velocity%u(1)      ==> ', mpp_chksum(Velocity%u(isc:iec,jsc:jec,:,1,tau))
-      write(stdoutunit,*) 'Velocity%u(2)      ==> ', mpp_chksum(Velocity%u(isc:iec,jsc:jec,:,2,tau))
+      call write_chksum_3d('Velocity%u(1)', Velocity%u(COMP,:,1,tau))
+      call write_chksum_3d('Velocity%u(2)', Velocity%u(COMP,:,2,tau))
       ! To make it equivalent to the checksum in the thickness module
-      wrk1(isc:iec,jsc:jec,:) = Thickness%rho_dzu(isc:iec,jsc:jec,:,tau)*Grd%umask(isc:iec,jsc:jec,:)
-      write(stdoutunit,*) 'rho_dzu            ==> ', mpp_chksum(wrk1(isc:iec,jsc:jec,:))
+      call write_chksum_3d('rho_dzu', Thickness%rho_dzu(COMP,:,tau)*Grd%umask(COMP,:))
       if (use_blobs) then
-         write(stdoutunit,*) 'L_system%conv_blob ==> ', mpp_chksum(L_system%conv_blob(isc:iec,jsc:jec,:))
+         call write_chksum_3d('L_system%conv_blob', L_system%conv_blob(COMP,:))
       endif
-      write(stdoutunit,*) 'Adv_vel%uhrho_et   ==> ', mpp_chksum(Adv_vel%uhrho_et(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%vhrho_nt   ==> ', mpp_chksum(Adv_vel%vhrho_nt(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%uhrho_eu   ==> ', mpp_chksum(Adv_vel%uhrho_eu(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%vhrho_nu   ==> ', mpp_chksum(Adv_vel%vhrho_nu(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%wrho_bt    ==> ', mpp_chksum(Adv_vel%wrho_bt(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%wrho_bu    ==> ', mpp_chksum(Adv_vel%wrho_bu(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%wrho_bt(0) ==> ', mpp_chksum(Adv_vel%wrho_bt(isc:iec,jsc:jec,0))
-      write(stdoutunit,*) 'Adv_vel%wrho_bu(0) ==> ', mpp_chksum(Adv_vel%wrho_bu(isc:iec,jsc:jec,0))
-      write(stdoutunit,*) 'Adv_vel%diverge_t  ==> ', mpp_chksum(Adv_vel%diverge_t(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%diverge_u  ==> ', mpp_chksum(Adv_vel%diverge_u(isc:iec,jsc:jec,:))
+      call write_chksum_3d('Adv_vel%uhrho_et', Adv_vel%uhrho_et(COMP,:))
+      call write_chksum_3d('Adv_vel%vhrho_nt', Adv_vel%vhrho_nt(COMP,:))
+      call write_chksum_3d('Adv_vel%uhrho_eu', Adv_vel%uhrho_eu(COMP,:))
+      call write_chksum_3d('Adv_vel%vhrho_nu', Adv_vel%vhrho_nu(COMP,:))
+      call write_chksum_3d('Adv_vel%wrho_bt', Adv_vel%wrho_bt(COMP,1:))
+      call write_chksum_3d('Adv_vel%wrho_bu', Adv_vel%wrho_bu(COMP,1:))
+      call write_chksum_2d('Adv_vel%wrho_bt(0)', Adv_vel%wrho_bt(COMP,0))
+      call write_chksum_2d('Adv_vel%wrho_bu(0)', Adv_vel%wrho_bu(COMP,0))
+      call write_chksum_3d('Adv_vel%diverge_t', Adv_vel%diverge_t(COMP,:))
+      call write_chksum_3d('Adv_vel%diverge_u', Adv_vel%diverge_u(COMP,:))
   endif
 
   ! send advective velocity components to diagnostic manager 
 
   if (id_wt > 0)  then
       if(vert_coordinate_class==DEPTH_BASED) then 
-          used = send_data (id_wt, rho0r*Adv_vel%wrho_bt(:,:,1:nk), &
-                 Time%model_time, rmask=Grd%tmask(:,:,:),           &
-                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_wt, rho0r*Adv_vel%wrho_bt(:,:,1:nk))
       else 
           wrk1(:,:,:) = 0.0
           do k=1,nk
@@ -710,41 +708,19 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
                 enddo
              enddo
           enddo
-          used = send_data (id_wt, wrk1(:,:,:),           &
-                 Time%model_time, rmask=Grd%tmask(:,:,:), &
-                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+          call diagnose_3d(Time, Grd, id_wt, wrk1(:,:,:))
       endif
   endif
 
-  if (id_uhrho_et > 0) used = send_data (id_uhrho_et, Adv_vel%uhrho_et(:,:,:), &
-                           Time%model_time, rmask=Grd%tmask(:,:,:), &
-                           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_vhrho_nt > 0) used = send_data (id_vhrho_nt, Adv_vel%vhrho_nt(:,:,:), &
-                           Time%model_time, rmask=Grd%tmask(:,:,:), &
-                           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_wrho_bt > 0) used =  send_data (id_wrho_bt, Adv_vel%wrho_bt(:,:,1:nk), &
-                           Time%model_time, rmask=Grd%tmask(:,:,:),&
-                           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_uhrho_eu > 0) used = send_data (id_uhrho_eu, Adv_vel%uhrho_eu(:,:,:), &
-                           Time%model_time, rmask=Grd%umask(:,:,:), &
-                           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_vhrho_nu > 0) used = send_data (id_vhrho_nu, Adv_vel%vhrho_nu(:,:,:), &
-                           Time%model_time, rmask=Grd%umask(:,:,:),&
-                           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  if (id_wrho_bu > 0) used =  send_data (id_wrho_bu, Adv_vel%wrho_bu(:,:,1:nk), &
-                           Time%model_time, rmask=Grd%umask(:,:,:), &
-                           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grd, id_uhrho_et, Adv_vel%uhrho_et(:,:,:))
+  call diagnose_3d(Time, Grd, id_vhrho_nt, Adv_vel%vhrho_nt(:,:,:))
+  call diagnose_3d(Time, Grd, id_wrho_bt, Adv_vel%wrho_bt(:,:,1:nk))
+  call diagnose_3d_u(Time, Grd, id_uhrho_eu, Adv_vel%uhrho_eu(:,:,:))
+  call diagnose_3d_u(Time, Grd, id_vhrho_nu, Adv_vel%vhrho_nu(:,:,:))
+  call diagnose_3d_u(Time, Grd, id_wrho_bu, Adv_vel%wrho_bu(:,:,1:nk))
 
-  if(id_horz_diverge_t > 0) then 
-      used = send_data (id_horz_diverge_t, Adv_vel%diverge_t(:,:,:),  &
-                 Time%model_time, rmask=Grd%tmask(:,:,:),             &
-                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_horz_diverge_u > 0) then 
-      used = send_data (id_horz_diverge_u, Adv_vel%diverge_u(:,:,:), &
-                 Time%model_time, rmask=Grd%umask(:,:,:),            &
-                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_horz_diverge_t, Adv_vel%diverge_t(:,:,:))
+  call diagnose_3d_u(Time, Grd, id_horz_diverge_u, Adv_vel%diverge_u(:,:,:))
 
   ! send mass and thickness weighted vertical vorticity 
   if(id_rhodz_vorticity_z > 0) then 
@@ -757,9 +733,7 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
             enddo
          enddo
       enddo
-      used = send_data (id_rhodz_vorticity_z, wrk1(:,:,:), &
-             Time%model_time, rmask=Grd%umask(:,:,:), &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d_u(Time, Grd, id_rhodz_vorticity_z, wrk1(:,:,:))
   endif 
 
 
@@ -772,9 +746,7 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
             enddo
          enddo
       enddo
-      used = send_data (id_courant_uet, wrk1(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:), &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_courant_uet, wrk1(:,:,:))
   endif
   if (id_courant_vnt > 0) then 
       do k=1,nk  
@@ -784,9 +756,7 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
             enddo
          enddo
       enddo
-      used = send_data (id_courant_vnt, wrk1(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:), &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_courant_vnt, wrk1(:,:,:))
   endif
   if (id_courant_wbt > 0) then 
       do k=1,nk
@@ -796,9 +766,7 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
             enddo
          enddo
       enddo
-      used = send_data (id_courant_wbt, wrk1(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:), &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_courant_wbt, wrk1(:,:,:))
   endif
   if (id_courant_ueu > 0) then 
       do k=1,nk
@@ -808,9 +776,7 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
             enddo
          enddo
       enddo
-      used = send_data (id_courant_ueu, wrk1(:,:,:), &
-             Time%model_time, rmask=Grd%umask(:,:,:), &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d_u(Time, Grd, id_courant_ueu, wrk1(:,:,:))
   endif 
   if (id_courant_vnu > 0) then 
       do k=1,nk
@@ -820,9 +786,7 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
             enddo
          enddo
       enddo
-      used = send_data (id_courant_vnu, wrk1(:,:,:),  &
-             Time%model_time, rmask=Grd%umask(:,:,:), &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d_u(Time, Grd, id_courant_vnu, wrk1(:,:,:))
   endif
   if (id_courant_wbu > 0) then 
       do k=1,nk
@@ -832,9 +796,7 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
             enddo
          enddo
       enddo
-      used = send_data (id_courant_wbu, wrk1(:,:,:), &
-             Time%model_time, rmask=Grd%umask(:,:,:),&
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d_u(Time, Grd, id_courant_wbu, wrk1(:,:,:))
   endif
 
   if(id_eta_tend_press > 0 .or. id_eta_tend_press_glob > 0) then 
@@ -857,16 +819,8 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
             wrk1_2d(i,j) = c2dbars*grav*wrk1_2d(i,j)
          enddo
       enddo
-      if(id_eta_tend_press > 0) then 
-          used = send_data (id_eta_tend_press, wrk1_2d(:,:),&
-                 Time%model_time, rmask=Grd%tmask(:,:,1),   &
-                 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-      endif
-      if(id_eta_tend_press_glob > 0) then  
-          wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-          global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-          used         = send_data (id_eta_tend_press_glob, global_mean, Time%model_time)
-      endif
+      call diagnose_2d(Time, Grd, id_eta_tend_press, wrk1_2d(:,:))
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_press_glob, wrk1_2d, cellarea_r)
   endif
 
 end subroutine ocean_advection_velocity
@@ -1081,16 +1035,16 @@ subroutine ocean_advection_velocity_end(Time, Adv_vel, use_blobs)
       write(stdoutunit,*) ' '
       write(stdoutunit,*) 'From ocean_advection_velocity_mod: ending chksums'
       call write_timestamp(Time%model_time)
-      write(stdoutunit,*) 'Adv_vel%uhrho_et   ==> ', mpp_chksum(Adv_vel%uhrho_et(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%vhrho_nt   ==> ', mpp_chksum(Adv_vel%vhrho_nt(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%uhrho_eu   ==> ', mpp_chksum(Adv_vel%uhrho_eu(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%vhrho_nu   ==> ', mpp_chksum(Adv_vel%vhrho_nu(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%wrho_bt    ==> ', mpp_chksum(Adv_vel%wrho_bt(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%wrho_bu    ==> ', mpp_chksum(Adv_vel%wrho_bu(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%wrho_bt(0) ==> ', mpp_chksum(Adv_vel%wrho_bt(isc:iec,jsc:jec,0))
-      write(stdoutunit,*) 'Adv_vel%wrho_bu(0) ==> ', mpp_chksum(Adv_vel%wrho_bu(isc:iec,jsc:jec,0))
-      write(stdoutunit,*) 'Adv_vel%diverge_t  ==> ', mpp_chksum(Adv_vel%diverge_t(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'Adv_vel%diverge_u  ==> ', mpp_chksum(Adv_vel%diverge_u(isc:iec,jsc:jec,:))
+      call write_chksum_3d('Adv_vel%uhrho_et', Adv_vel%uhrho_et(COMP,:))
+      call write_chksum_3d('Adv_vel%vhrho_nt', Adv_vel%vhrho_nt(COMP,:))
+      call write_chksum_3d('Adv_vel%uhrho_eu', Adv_vel%uhrho_eu(COMP,:))
+      call write_chksum_3d('Adv_vel%vhrho_nu', Adv_vel%vhrho_nu(COMP,:))
+      call write_chksum_3d('Adv_vel%wrho_bt', Adv_vel%wrho_bt(COMP,1:))
+      call write_chksum_3d('Adv_vel%wrho_bu', Adv_vel%wrho_bu(COMP,1:))
+      call write_chksum_2d('Adv_vel%wrho_bt(0)', Adv_vel%wrho_bt(COMP,0))
+      call write_chksum_2d('Adv_vel%wrho_bu(0)', Adv_vel%wrho_bu(COMP,0))
+      call write_chksum_3d('Adv_vel%diverge_t', Adv_vel%diverge_t(COMP,:))
+      call write_chksum_3d('Adv_vel%diverge_u', Adv_vel%diverge_u(COMP,:))
   endif
 
 end subroutine ocean_advection_velocity_end

@@ -109,21 +109,22 @@ module ocean_xlandmix_mod
 !</NAMELIST>
 
 use constants_mod,     only: epsln
-use diag_manager_mod,  only: register_diag_field, send_data
+use diag_manager_mod,  only: register_diag_field
 use field_manager_mod, only: MODEL_OCEAN, parse, find_field_index
 use field_manager_mod, only: get_field_methods, method_type, get_field_info
 use fms_mod,           only: stdout, stdlog, FATAL, NOTE, WARNING
 use fms_mod,           only: write_version_number, open_namelist_file, check_nml_error, close_file
-use mpp_domains_mod,   only: mpp_update_domains, mpp_global_sum, NON_BITWISE_EXACT_SUM
+use mpp_domains_mod,   only: mpp_update_domains
 use mpp_mod,           only: input_nml_file, mpp_error
 
 use ocean_domains_mod,    only: get_local_indices, get_global_indices, set_ocean_domain
 use ocean_parameters_mod, only: missing_value, rho0, rho0r, onehalf
-use ocean_tracer_util_mod,only: rebin_onto_rho
 use ocean_types_mod,      only: ocean_domain_type, ocean_grid_type, ocean_external_mode_type
 use ocean_types_mod,      only: ocean_thickness_type, ocean_time_type, ocean_density_type
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_options_type
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk1_v
+use ocean_util_mod,       only: diagnose_2d, diagnose_3d, diagnose_sum
+use ocean_tracer_util_mod,only: diagnose_3d_rho
 
 
 implicit none
@@ -170,10 +171,6 @@ real, dimension(:,:,:), allocatable  :: rho_dzt_x       ! mass per area of trace
 integer                              :: unit=6         !processor zero writes to unit 6
 
 logical, dimension(:), allocatable   :: error_xland    !for checking that all xland points are OK.  
-
-!work array on neutral density space
-integer :: neutralrho_nk
-real, dimension(:,:,:), allocatable :: nrho_work 
 
 
 ! internally set for computing watermass diagnostics
@@ -624,11 +621,6 @@ subroutine ocean_xlandmix_init(Grid, Domain, Time, Dens, T_prog, Ocean_options, 
     endif 
   enddo 
 
-  ! for diagnostic binning to neutral density surfaces 
-  neutralrho_nk = size(Dens%neutralrho_ref(:))
-  allocate( nrho_work(isd:ied,jsd:jed,neutralrho_nk) )
-  nrho_work(:,:,:) = 0.0  
- 
   ! register for diag_manager 
   allocate (id_xland(num_prog_tracers))
   id_xland = -1
@@ -887,9 +879,7 @@ subroutine xlandmix (Time, Ext_mode, Dens, Thickness, T_prog)
 
      ! send diagnostics 
      if(id_xland(n) > 0) then 
-         used = send_data (id_xland(n), T_prog(n)%conversion*T_prog(n)%wrk1(:,:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,:), &
-              is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+        call diagnose_3d(Time, Grd, id_xland(n), T_prog(n)%conversion*T_prog(n)%wrk1(:,:,:))
      endif
 
   enddo ! end of do loop n=1,num_prog_tracers 
@@ -931,10 +921,7 @@ subroutine xlandmix_mass (Time, Thickness)
 
   call mpp_update_domains (Thickness%mass_source(:,:,1), Dom%domain2d)
 
-  if(id_xland_mass > 0) then 
-    used = send_data (id_xland_mass, xland_mass(isc:iec,jsc:jec), &
-           Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1)) 
-  endif  
+  call diagnose_2d(Time, Grd, id_xland_mass, xland_mass(:,:))
 
 end subroutine xlandmix_mass
 ! </SUBROUTINE> NAME="xlandmix_mass"
@@ -1373,42 +1360,12 @@ subroutine watermass_diag(Time, Dens, theta_tend, salt_tend)
      enddo
   enddo
 
-  if(id_neut_rho_xmix > 0) then 
-      used = send_data (id_neut_rho_xmix, wrk2(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),   &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_wdian_rho_xmix > 0) then 
-      used = send_data (id_wdian_rho_xmix, wrk3(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),    &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_tform_rho_xmix > 0) then 
-      used = send_data (id_tform_rho_xmix, wrk4(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),    &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_neut_rho_xmix_on_nrho > 0) then 
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work) 
-      used = send_data (id_neut_rho_xmix_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                        &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if (id_wdian_rho_xmix_on_nrho > 0) then 
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk3, nrho_work) 
-      used = send_data (id_wdian_rho_xmix_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                         &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if (id_tform_rho_xmix_on_nrho > 0) then 
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk4, nrho_work) 
-      used = send_data (id_tform_rho_xmix_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                         &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
+  call diagnose_3d(Time, Grd, id_neut_rho_xmix, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_rho_xmix, wrk3(:,:,:))
+  call diagnose_3d(Time, Grd, id_tform_rho_xmix, wrk4(:,:,:))
+  call diagnose_3d_rho(Time, Dens, id_neut_rho_xmix_on_nrho, wrk2)
+  call diagnose_3d_rho(Time, Dens, id_wdian_rho_xmix_on_nrho, wrk3)
+  call diagnose_3d_rho(Time, Dens, id_tform_rho_xmix_on_nrho, wrk4)
 
   if(id_eta_tend_xmix > 0 .or. id_eta_tend_xmix_glob > 0) then
       eta_tend(:,:) = 0.0
@@ -1419,16 +1376,8 @@ subroutine watermass_diag(Time, Dens, theta_tend, salt_tend)
             enddo
          enddo
       enddo
-      if(id_eta_tend_xmix > 0) then 
-          used = send_data (id_eta_tend_xmix, eta_tend(:,:),&
-               Time%model_time, rmask=Grd%tmask(:,:,1),     &
-               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-      endif
-      if(id_eta_tend_xmix_glob > 0) then 
-          eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
-          eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-          used          = send_data (id_eta_tend_xmix_glob, eta_tend_glob, Time%model_time)
-      endif
+      call diagnose_2d(Time, Grd, id_eta_tend_xmix, eta_tend(:,:))
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_xmix_glob, eta_tend, cellarea_r)
   endif
 
  
@@ -1449,43 +1398,12 @@ subroutine watermass_diag(Time, Dens, theta_tend, salt_tend)
      enddo
   enddo
 
-  if(id_neut_temp_xmix > 0) then 
-      used = send_data (id_neut_temp_xmix, wrk2(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),    &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_wdian_temp_xmix > 0) then 
-      used = send_data (id_wdian_temp_xmix, wrk3(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_tform_temp_xmix > 0) then 
-      used = send_data (id_tform_temp_xmix, wrk4(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_neut_temp_xmix_on_nrho > 0) then 
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work) 
-      used = send_data (id_neut_temp_xmix_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                         &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if (id_wdian_temp_xmix_on_nrho > 0) then 
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk3, nrho_work) 
-      used = send_data (id_wdian_temp_xmix_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                          &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if (id_tform_temp_xmix_on_nrho > 0) then 
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk4, nrho_work) 
-      used = send_data (id_tform_temp_xmix_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                          &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-
+  call diagnose_3d(Time, Grd, id_neut_temp_xmix, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_temp_xmix, wrk3(:,:,:))
+  call diagnose_3d(Time, Grd, id_tform_temp_xmix, wrk4(:,:,:))
+  call diagnose_3d_rho(Time, Dens, id_neut_temp_xmix_on_nrho, wrk2)
+  call diagnose_3d_rho(Time, Dens, id_wdian_temp_xmix_on_nrho, wrk3)
+  call diagnose_3d_rho(Time, Dens, id_tform_temp_xmix_on_nrho, wrk4)
  
   ! effects from salinity 
   wrk1(:,:,:) = 0.0
@@ -1504,53 +1422,16 @@ subroutine watermass_diag(Time, Dens, theta_tend, salt_tend)
      enddo
   enddo
 
-  if(id_neut_salt_xmix > 0) then 
-      used = send_data (id_neut_salt_xmix, wrk2(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),    &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_wdian_salt_xmix > 0) then 
-      used = send_data (id_wdian_salt_xmix, wrk3(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_tform_salt_xmix > 0) then 
-      used = send_data (id_tform_salt_xmix, wrk4(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_neut_salt_xmix_on_nrho > 0) then 
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work) 
-      used = send_data (id_neut_salt_xmix_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                         &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if (id_wdian_salt_xmix_on_nrho > 0) then 
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk3, nrho_work) 
-      used = send_data (id_wdian_salt_xmix_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                          &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if (id_tform_salt_xmix_on_nrho > 0) then 
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk4, nrho_work) 
-      used = send_data (id_tform_salt_xmix_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                          &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
+  call diagnose_3d(Time, Grd, id_neut_salt_xmix, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_salt_xmix, wrk3(:,:,:))
+  call diagnose_3d(Time, Grd, id_tform_salt_xmix, wrk4(:,:,:))
+  call diagnose_3d_rho(Time, Dens, id_neut_salt_xmix_on_nrho, wrk2)
+  call diagnose_3d_rho(Time, Dens, id_wdian_salt_xmix_on_nrho, wrk3)
+  call diagnose_3d_rho(Time, Dens, id_tform_salt_xmix_on_nrho, wrk4)
 
  
 end subroutine watermass_diag
 ! </SUBROUTINE>  NAME="watermass_diag"
 
 
-
 end module ocean_xlandmix_mod
-      
-      
-
-
-
-

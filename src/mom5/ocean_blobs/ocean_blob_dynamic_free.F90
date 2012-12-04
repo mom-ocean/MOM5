@@ -151,7 +151,7 @@ use diag_manager_mod, only: register_diag_field, send_data
 
 use fms_mod,         only: stdout, stdlog, open_namelist_file, WARNING, FATAL
 use fms_mod,         only: mpp_error, check_nml_error, close_file
-use mpp_mod,         only: mpp_send, mpp_recv, NULL_PE, mpp_sum, mpp_sync_self, mpp_chksum
+use mpp_mod,         only: mpp_send, mpp_recv, NULL_PE, mpp_sum, mpp_sync_self
 use mpp_mod,         only: mpp_set_current_pelist
 use mpp_mod,         only: CLOCK_LOOP, CLOCK_ROUTINE, mpp_clock_id, mpp_clock_begin, mpp_clock_end
 use mpp_domains_mod, only: mpp_update_domains, mpp_global_sum
