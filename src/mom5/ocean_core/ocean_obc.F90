@@ -2096,11 +2096,10 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
 
   !<SUBROUTINE> NAME="ocean_obc_surface_height"
   !<PUBLICROUTINE>
-  subroutine ocean_obc_surface_height(Time, Ext_mode, dtime)
+  subroutine ocean_obc_surface_height(Time, Ext_mode)
   !</PUBLICROUTINE>
     type(ocean_time_type), intent(in)             :: Time
     type(ocean_external_mode_type), intent(inout) :: Ext_mode
-    real, intent(in)                              :: dtime
     integer                                       :: taum1, tau, taup1
     logical                                       :: used
 
@@ -3976,10 +3975,8 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
 ! <DESCRIPTION>
 !  Write out restart files registered through register_restart_file
 ! </DESCRIPTION>
-subroutine ocean_obc_restart(time_stamp)
-  character(len=*), intent(in), optional    :: time_stamp
-  return
-!just return here
+subroutine ocean_obc_restart()
+
 end subroutine ocean_obc_restart
 ! </SUBROUTINE> NAME="ocean_obc_restart"
 
@@ -4109,13 +4106,10 @@ end subroutine ocean_obc_restart
 
   !#######################################################################
   !<SUBROUTINE NAME="ocean_obc_tracer_flux">
-  subroutine ocean_obc_tracer_flux(Time, Tracer, tracer_flux, n, send_out)
+  subroutine ocean_obc_tracer_flux(Tracer, tracer_flux)
 
-    type(ocean_time_type), intent(in)         :: Time
     type(ocean_prog_tracer_type),  intent(in) :: Tracer
     real, dimension(isd:,jsd:), intent(inout) :: tracer_flux
-    logical,                       intent(in) :: send_out
-    integer,                       intent(in) :: n
     integer                                   :: i, j, k, m
     logical                                   :: used
     
@@ -4131,10 +4125,6 @@ end subroutine ocean_obc_restart
             tracer_flux(i,j) = tracer_flux(i,j) + Tracer%otf(m)%flux(j,k)
           enddo
         enddo
-!        if(Obc%bound(m)%id_tracer_flux(n) > 0 .and. send_out)                    &
-!             used = send_data(Obc%bound(m)%id_tracer_flux(n), &
-!             Tracer%conversion*Tracer%otf(m)%flux(Obc%bound(m)%js:Obc%bound(m)%je,1:nk), &
-!             Time%model_time, rmask=Grd%tmask(i:i,Obc%bound(m)%js:Obc%bound(m)%je,1:nk))
       case(EAST)
         i = Obc%bound(m)%is-1
         do k=1,nk

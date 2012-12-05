@@ -5575,7 +5575,7 @@ real :: tmin0,tmax0
        call ppm_limit_ifc(isc,iec,jsc,jec, tracer_mdppm(isc-4,jsc-4,k), dak(isc-4,jsc-4,k), aL,aR)
      elseif (Tracer%ppm_hlimiter.eq.3) then
        call ppm_limit_sh(isc,iec,jsc,jec, &
-                        tmask_mdppm(isc-4,jsc-4,k), tracer_mdppm(isc-4,jsc-4,k), &
+                        tracer_mdppm(isc-4,jsc-4,k), &
                         d1m, d1p, d1mm, d1pp, aL, aR)
      else
        call mpp_error(FATAL,&
@@ -5728,7 +5728,7 @@ real :: tmin0,tmax0
       call ppm_limit_ifc(isc,iec,jsc,jec, tracer_mdppm(isc-4,jsc-4,k), da, aL, aR)
     elseif (Tracer%ppm_hlimiter.eq.3) then
       call ppm_limit_sh(isc,iec,jsc,jec, &
-                       tmask_mdppm(isc-4,jsc-4,k), tracer_mdppm(isc-4,jsc-4,k), &
+                       tracer_mdppm(isc-4,jsc-4,k), &
                        d1m, d1p, d1mm, d1pp, aL, aR)
     else
       call mpp_error(FATAL,&
@@ -5873,7 +5873,7 @@ real :: tmin0,tmax0
       call ppm_limit_ifc(isc,iec,jsc,jec, tracer_mdppm(isc-4,jsc-4,k), da, aL, aR)
     elseif (Tracer%ppm_hlimiter.eq.3) then
       call ppm_limit_sh(isc,iec,jsc,jec, &
-                       tmask_mdppm(isc-4,jsc-4,k), tracer_mdppm(isc-4,jsc-4,k), &
+                       tracer_mdppm(isc-4,jsc-4,k), &
                        d1m, d1p, d1mm, d1pp, aL, aR)
     else
       call mpp_error(FATAL,&
@@ -6152,7 +6152,7 @@ function advect_tracer_mdppm(Time, Adv_vel, Tracer, Thickness, Tracer_field, dti
        call ppm_limit_ifc(isc,iec,jsc,jec, tracer_mdppm(isc-4,jsc-4,k), dak(isc-4,jsc-4,k), aL,aR)
      elseif (Tracer%ppm_hlimiter.eq.3) then
        call ppm_limit_sh(isc,iec,jsc,jec, &
-                        tmask_mdppm(isc-4,jsc-4,k), tracer_mdppm(isc-4,jsc-4,k), &
+                        tracer_mdppm(isc-4,jsc-4,k), &
                         d1m, d1p, d1mm, d1pp, aL, aR)
      else
        call mpp_error(FATAL,&
@@ -6288,7 +6288,7 @@ function advect_tracer_mdppm(Time, Adv_vel, Tracer, Thickness, Tracer_field, dti
       call ppm_limit_ifc(isc,iec,jsc,jec, tracer_mdppm(isc-4,jsc-4,k), da, aL, aR)
      elseif (Tracer%ppm_hlimiter.eq.3) then
       call ppm_limit_sh(isc,iec,jsc,jec, &
-                        tmask_mdppm(isc-4,jsc-4,k), tracer_mdppm(isc-4,jsc-4,k), &
+                        tracer_mdppm(isc-4,jsc-4,k), &
                         d1m, d1p, d1mm, d1pp, aL, aR)
     else
        call mpp_error(FATAL,&
@@ -6425,7 +6425,7 @@ function advect_tracer_mdppm(Time, Adv_vel, Tracer, Thickness, Tracer_field, dti
       call ppm_limit_ifc(isc,iec,jsc,jec, tracer_mdppm(isc-4,jsc-4,k), da, aL, aR)
      elseif (Tracer%ppm_hlimiter.eq.3) then
        call ppm_limit_sh(isc,iec,jsc,jec, &
-                        tmask_mdppm(isc-4,jsc-4,k), tracer_mdppm(isc-4,jsc-4,k), &
+                        tracer_mdppm(isc-4,jsc-4,k), &
                         d1m, d1p, d1mm, d1pp, aL, aR)
     else
        call mpp_error(FATAL,&
@@ -6608,11 +6608,11 @@ end subroutine ppm_limit_ifc
 ! by d1p(i+1). However, in order to re-use this limiter for the all directions
 ! (to simplify debugging) I have opted for the less efficient form for now. - AJA
 ! </NOTE>
-subroutine ppm_limit_sh(isc,iec,jsc,jec, tmask, tracer, d1m, d1p, d1mm, d1pp, aL, aR)
+subroutine ppm_limit_sh(isc,iec,jsc,jec, tracer, d1m, d1p, d1mm, d1pp, aL, aR)
 implicit none
 ! Arguments
 integer, intent(in) :: isc,iec,jsc,jec
-real, dimension(isc-4:iec+4,jsc-4:jec+4), intent(in)    :: tmask, tracer, d1m, d1p, d1mm, d1pp
+real, dimension(isc-4:iec+4,jsc-4:jec+4), intent(in)    :: tracer, d1m, d1p, d1mm, d1pp
 real, dimension(isc-4:iec+4,jsc-4:jec+4), intent(inout) :: aL, aR
 ! Local
 real    :: Si,Sim1,Sip1
@@ -6625,8 +6625,6 @@ integer :: i,j
         ! This block monotonizes the parabola by adjusting the left and right values
         ! Limiter from Suresh and Huynh, 1997
         Si   = tracer(i,j)
-!       d1m = ( Si - Sim1 ) * tmask(i-1,j)
-!       d1p = ( Sip1 - Si ) * tmask(i+1,j)
         Sim1 = Si - d1m(i,j)               ! Sim1 = tracer(i-1,j)
         Sip1 = Si + d1p(i,j)               ! Sip1 = tracer(i+1,j)
 

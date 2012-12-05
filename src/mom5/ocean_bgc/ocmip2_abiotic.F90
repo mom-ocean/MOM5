@@ -864,7 +864,7 @@ do n = 1, instances
   if (.not. field_exist('INPUT/'//trim(Ocean_fields%bc(ind)%ocean_restart_file),    &
                         Ocean_fields%bc(ind)%field(ind_alpha)%name)) then
 
-    call ocmip2_co2calc(isd, ied, jsd, jed, isc, iec, jsc, jec,         &
+    call ocmip2_co2calc(isd, jsd, isc, iec, jsc, jec,         &
          grid_tmask(isd:ied,jsd:jed,1),                                 &
          t_prog(indtemp)%field(isd:ied,jsd:jed,1,taum1),                &
          t_prog(indsal)%field(isd:ied,jsd:jed,1,taum1),                 &
@@ -969,7 +969,7 @@ do n = 1, instances
 
   ind = abiotic(n)%ind_co2_flux
 
-  call ocmip2_co2calc(isd, ied, jsd, jed, isc, iec, jsc, jec,           &
+  call ocmip2_co2calc(isd, jsd, isc, iec, jsc, jec,           &
        grid_tmask(isd:ied,jsd:jed,1),                                   &
        t_prog(indtemp)%field(isd:ied,jsd:jed,1,taum1),                  &
        t_prog(indsal)%field(isd:ied,jsd:jed,1,taum1),                   &

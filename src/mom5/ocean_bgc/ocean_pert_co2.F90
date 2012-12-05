@@ -319,25 +319,17 @@ end subroutine  ocean_pert_co2_end
 ! </DESCRIPTION>
 !
 
-subroutine ocean_pert_co2_sbc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,       &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                                &
-     T_prog, taum1, Grid, Time, ice_ocean_boundary_fluxes)
+subroutine ocean_pert_co2_sbc(isc, iec, jsc, jec,       &
+     isc_bnd, jsc_bnd,                      &
+     T_prog, Grid, Time, ice_ocean_boundary_fluxes)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
 integer, intent(in)                                             :: jsc
 integer, intent(in)                                             :: jec
-integer, intent(in)                                             :: nk
-integer, intent(in)                                             :: isd
-integer, intent(in)                                             :: ied
-integer, intent(in)                                             :: jsd
-integer, intent(in)                                             :: jed
 integer, intent(in)                                             :: isc_bnd
-integer, intent(in)                                             :: iec_bnd
 integer, intent(in)                                             :: jsc_bnd
-integer, intent(in)                                             :: jec_bnd
 type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
-integer, intent(in)                                             :: taum1
 type(ocean_grid_type), intent(in)                               :: Grid
 type(ocean_time_type), intent(in)                               :: Time
 type(coupler_2d_bc_type), intent(in)                            :: ice_ocean_boundary_fluxes
@@ -653,28 +645,24 @@ end subroutine ocean_pert_co2_init
 !
 !       Note: this subroutine should be merged into ocean_pert_co2_start
 ! </DESCRIPTION>
-subroutine ocean_pert_co2_init_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,  &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)
+subroutine ocean_pert_co2_init_sfc(isc, iec, jsc, jec, isd, ied, jsd, jed,  &
+     isc_bnd, jsc_bnd,                                         &
+     Ocean_fields, T_prog, rho, taum1, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
 integer, intent(in)                                     :: jsc
 integer, intent(in)                                     :: jec
-integer, intent(in)                                     :: nk
 integer, intent(in)                                     :: isd
 integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
 integer, intent(in)                                     :: jed
 integer, intent(in)                                     :: isc_bnd
-integer, intent(in)                                     :: iec_bnd
 integer, intent(in)                                     :: jsc_bnd
-integer, intent(in)                                     :: jec_bnd
 type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 type(ocean_prog_tracer_type), dimension(:), intent(in)  :: T_prog
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho
 integer, intent(in)                                     :: taum1
-type(time_type), intent(in)                             :: model_time
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 
 integer :: i, j, m, n
@@ -711,7 +699,7 @@ do n = 1, instances
       enddo
     else
       call ocmip2_co2_alpha(                                                    &
-           isd, ied, jsd, jed, isc, iec, jsc, jec,                              &
+           isd, jsd, isc, iec, jsc, jec,                              &
            t_prog(indtemp)%field(isd:ied,jsd:jed,1,taum1),                      &
            t_prog(indsal)%field(isd:ied,jsd:jed,1,taum1), grid_tmask(isd:ied,jsd:jed,1), instance(n)%alpha)
       do j = jsc, jec
@@ -762,28 +750,24 @@ end subroutine ocean_pert_co2_init_sfc
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
 
-subroutine ocean_pert_co2_sum_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,   &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)
+subroutine ocean_pert_co2_sum_sfc(isc, iec, jsc, jec, isd, ied, jsd, jed,   &
+     isc_bnd, jsc_bnd,                            &
+     Ocean_fields, T_prog, rho, taum1, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
 integer, intent(in)                                     :: jsc
 integer, intent(in)                                     :: jec
-integer, intent(in)                                     :: nk
 integer, intent(in)                                     :: isd
 integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
 integer, intent(in)                                     :: jed
 integer, intent(in)                                     :: isc_bnd
-integer, intent(in)                                     :: iec_bnd
 integer, intent(in)                                     :: jsc_bnd
-integer, intent(in)                                     :: jec_bnd
 type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 type(ocean_prog_tracer_type), intent(in), dimension(:)  :: T_prog
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho
 integer, intent(in)                                     :: taum1
-type(time_type), intent(in)                             :: model_time
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 
 integer :: i, j, n, nn
@@ -817,7 +801,7 @@ do n = 1, instances
       enddo
     else
       call ocmip2_co2_alpha(                                                    &
-           isd, ied, jsd, jed, isc, iec, jsc, jec,                              &
+           isd, jsd, isc, iec, jsc, jec,                              &
            t_prog(indtemp)%field(isd:ied,jsd:jed,1,taum1),                      &
            t_prog(indsal)%field(isd:ied,jsd:jed,1,taum1), grid_tmask(isd:ied,jsd:jed,1), instance(n)%alpha)
       do j = jsc, jec
@@ -893,22 +877,17 @@ end subroutine ocean_pert_co2_zero_sfc
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
 
-subroutine ocean_pert_co2_avg_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,    &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)
+subroutine ocean_pert_co2_avg_sfc(isc, iec, jsc, jec, isd, jsd,     &
+     isc_bnd, jsc_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
 integer, intent(in)                                     :: jsc
 integer, intent(in)                                     :: jec
-integer, intent(in)                                     :: nk
 integer, intent(in)                                     :: isd
-integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
-integer, intent(in)                                     :: jed
 integer, intent(in)                                     :: isc_bnd
-integer, intent(in)                                     :: iec_bnd
 integer, intent(in)                                     :: jsc_bnd
-integer, intent(in)                                     :: jec_bnd
 type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 integer                                                 :: Ocean_avg_kount
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
@@ -998,7 +977,7 @@ end subroutine  ocean_pert_co2_source
 !
 subroutine ocean_pert_co2_start(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,     &
      T_prog, taup1, model_time, grid_dat, grid_tmask,                           &
-     grid_tracer_axes, mpp_domain2d, rho_dzt)
+     grid_tracer_axes, rho_dzt)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1015,7 +994,6 @@ type(time_type), intent(in)                             :: model_time
 real, dimension(isd:,jsd:), intent(in)                  :: grid_dat
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 integer, dimension(:), intent(in)                       :: grid_tracer_axes
-type(domain2d), intent(in)                              :: mpp_domain2d
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 
 character(len=64), parameter    :: sub_name = 'ocean_pert_co2_start'

@@ -2324,7 +2324,7 @@ subroutine eta_and_pbot_update (Time, Ext_mode)
          Ext_mode%eta_t(:,:,taup1) = 0.0
       endif 
 
-      if(have_obc) call ocean_obc_surface_height(Time, Ext_mode, dtime)  
+      if(have_obc) call ocean_obc_surface_height(Time, Ext_mode)
       if(truncate_eta) call eta_truncate(Time, Ext_mode)
       call mpp_update_domains (Ext_mode%eta_t(:,:,taup1), Dom%domain2d)
       if(have_obc) call ocean_obc_update_boundary(Ext_mode%eta_t(:,:,taup1),'T')
@@ -2356,7 +2356,7 @@ subroutine eta_and_pbot_update (Time, Ext_mode)
       enddo
 
       if(have_obc) then 
-          call ocean_obc_surface_height(Time, Ext_mode, dtime)   
+          call ocean_obc_surface_height(Time, Ext_mode)
           call ocean_obc_update_boundary(Ext_mode%pbot_t(:,:,taup1),'T')
       endif
 

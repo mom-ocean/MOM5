@@ -191,13 +191,13 @@ do n = 1, num_instances  !{
       if (instance_extra(n)%region(nn)%is_prog_tracer) then  !{
         call ocean_residency_set_region_3d(isd, ied, jsd, jed, nk, instance(n)%region(nn)%mask, &
              t_prog(instance_extra(n)%region(nn)%tracer_index)%field(:,:,:,taum1),              &
-             instance(n)%region(nn)%params, grid_kmt, instance(n)%name,                         &
+             instance(n)%region(nn)%params, grid_kmt,                                           &
              restore_region_value = 1.0, integrate_region_value = 0.0,                          &
              swap = instance(n)%region(nn)%swap_module)
       else  !}{
         call ocean_residency_set_region_3d(isd, ied, jsd, jed, nk, instance(n)%region(nn)%mask, &
              t_diag(instance_extra(n)%region(nn)%tracer_index)%field,                           &
-             instance(n)%region(nn)%params, grid_kmt, instance(n)%name,                         &
+             instance(n)%region(nn)%params, grid_kmt,                                           &
              restore_region_value = 1.0, integrate_region_value = 0.0,                          &
              swap = instance(n)%region(nn)%swap_module)
       endif  !}

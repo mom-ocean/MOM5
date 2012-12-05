@@ -386,23 +386,16 @@ end subroutine ocmip2_he_restart
 !     Calculate the surface boundary conditions
 ! </DESCRIPTION>
 !
-subroutine ocmip2_he_sbc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,   &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                &
+subroutine ocmip2_he_sbc(isc, iec, jsc, jec, &
+     isc_bnd, jsc_bnd,      &
      T_prog, Grid, Time, ice_ocean_boundary_fluxes)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
 integer, intent(in)                                             :: jsc
 integer, intent(in)                                             :: jec
-integer, intent(in)                                             :: nk
-integer, intent(in)                                             :: isd
-integer, intent(in)                                             :: ied
-integer, intent(in)                                             :: jsd
-integer, intent(in)                                             :: jed
 integer, intent(in)                                             :: isc_bnd
-integer, intent(in)                                             :: iec_bnd
 integer, intent(in)                                             :: jsc_bnd
-integer, intent(in)                                             :: jec_bnd
 type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
 type(ocean_grid_type), intent(in)                               :: Grid
 type(ocean_time_type), intent(in)                               :: Time
@@ -801,7 +794,7 @@ end subroutine ocmip2_he_init
 !
 ! </DESCRIPTION>
 subroutine ocmip2_he_init_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,      &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, T_prog, rho,            &
+     isc_bnd, jsc_bnd, Ocean_fields, T_prog, rho,            &
      taum1, grid_tmask)
 
 integer, intent(in)                                     :: isc
@@ -814,9 +807,7 @@ integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
 integer, intent(in)                                     :: jed
 integer, intent(in)                                     :: isc_bnd
-integer, intent(in)                                     :: iec_bnd
 integer, intent(in)                                     :: jsc_bnd
-integer, intent(in)                                     :: jec_bnd
 type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 type(ocean_prog_tracer_type), dimension(:), intent(in)  :: T_prog
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho
@@ -1001,8 +992,8 @@ end subroutine ocmip2_he_init_sfc
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
 subroutine ocmip2_he_sum_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,       &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask, Grid, Time)
+     isc_bnd, jsc_bnd,                                         &
+     Ocean_fields, T_prog, rho, taum1, grid_tmask, Grid, Time)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1014,14 +1005,11 @@ integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
 integer, intent(in)                                     :: jed
 integer, intent(in)                                     :: isc_bnd
-integer, intent(in)                                     :: iec_bnd
 integer, intent(in)                                     :: jsc_bnd
-integer, intent(in)                                     :: jec_bnd
 type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 type(ocean_prog_tracer_type), intent(in), dimension(:)  :: T_prog
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho
 integer, intent(in)                                     :: taum1
-type(time_type), intent(in)                             :: model_time
 real, dimension(isd:ied,jsd:jed,nk), intent(in)         :: grid_tmask
 type(ocean_grid_type), intent(in)                       :: Grid
 type(ocean_time_type), intent(in)                       :: Time
@@ -1254,7 +1242,7 @@ end subroutine ocmip2_he_zero_sfc
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
 subroutine ocmip2_he_avg_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,       &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)
+     isc_bnd, jsc_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1266,9 +1254,7 @@ integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
 integer, intent(in)                                     :: jed
 integer, intent(in)                                     :: isc_bnd
-integer, intent(in)                                     :: iec_bnd
 integer, intent(in)                                     :: jsc_bnd
-integer, intent(in)                                     :: jec_bnd
 type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 integer                                                 :: Ocean_avg_kount
 real, dimension(isd:ied,jsd:jed,nk), intent(in)         :: grid_tmask
@@ -1378,7 +1364,7 @@ end subroutine ocmip2_he_sfc_end
 ! </DESCRIPTION>
 !
 subroutine ocmip2_he_source(isc, iec, jsc, jec, nk, isd, ied, jsd, jed, t_prog, &
-     depth_zt, dzt, taum1, model_time, grid_tmask, Grid, Time, grid_kmt, rho_dzt)
+     depth_zt, dzt, model_time, grid_tmask, Grid, Time, grid_kmt)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
@@ -1392,13 +1378,11 @@ integer, intent(in)                                             :: jed
 type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: t_prog
 real, dimension(isd:ied,jsd:jed,nk), intent(in)                 :: depth_zt
 real, dimension(isd:ied,jsd:jed,nk), intent(in)                 :: dzt
-integer, intent(in)                                             :: taum1
 type(time_type), intent(in)                                     :: model_time
 real, dimension(isd:ied,jsd:jed,nk), intent(in)                 :: grid_tmask
 type(ocean_grid_type), intent(in)                               :: Grid
 type(ocean_time_type), intent(in)                               :: Time
 integer, dimension(isd:ied,jsd:jed), intent(in)                 :: grid_kmt
-real, dimension(isd:,jsd:,:,:), intent(in)                      :: rho_dzt
 
 character(len=64), parameter    :: sub_name = 'ocmip2_he_source'
 

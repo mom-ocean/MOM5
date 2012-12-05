@@ -716,15 +716,12 @@ endif  !}
 
 if (do_ocean_po4_pre) then  !{
   call ocean_po4_pre_end(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk, &
-                     Domain%isd, Domain%ied, Domain%jsd, Domain%jed,              &
+                     Domain%isd, Domain%jsd,               &
                      T_prog, Grid%dat, Grid%tmask, Thickness%rho_dzt, Time%taup1)
 endif  !}
 
 if (do_ocean_ibgc) then  !{
-  call ocean_ibgc_end(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk, &
-                     Domain%isd, Domain%ied, Domain%jsd, Domain%jed,              &
-                     T_prog, T_diag, Grid%dat, Grid%tmask, Domain%domain2d,        &
-                     Thickness%rho_dzt, Time%taup1)
+  call ocean_ibgc_end()
 endif  !}
 
 if (do_generic_tracer) call ocean_generic_end
@@ -797,10 +794,10 @@ if (.not. initialized) then  !{
   endif  !}
 
   if (do_ocean_pert_co2) then  !{
-    call ocean_pert_co2_init_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,       &
+    call ocean_pert_co2_init_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec,        &
                                  Domain%isd, Domain%ied, Domain%jsd, Domain%jed,                &
-                                 isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                            &
-                                 Ocean%fields, T_prog, Dens%rho, Time%taum1, Time%model_time,   &
+                                 isc_bnd, jsc_bnd,                             &
+                                 Ocean%fields, T_prog, Dens%rho, Time%taum1, &
                                  Grid%tmask)
   endif  !}
 
@@ -833,14 +830,14 @@ if (.not. initialized) then  !{
   if (do_ocmip2_he) then  !{
     call ocmip2_he_init_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,   &
                             Domain%isd, Domain%ied, Domain%jsd, Domain%jed,            &
-                            isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                        &
+                            isc_bnd, jsc_bnd,                        &
                             Ocean%fields, T_prog, Dens%rho, Time%taum1, Grid%tmask)
   endif  !}
   
   if (do_ocean_ibgc) then  !{
     call ocean_ibgc_init_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,      &
                               Domain%isd, Domain%ied, Domain%jsd, Domain%jed,                   &
-                              isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                               &
+                              isc_bnd, jsc_bnd,                                &
                               Ocean%fields, T_prog, Dens%rho, Time%taum1, Time%model_time,      &
                               Grid%tmask)
   endif  !}
@@ -910,10 +907,10 @@ if (do_ocmip2_cfc) then  !{
 endif  !}
 
 if (do_ocean_pert_co2) then  !{
-  call ocean_pert_co2_sum_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,          &
+  call ocean_pert_co2_sum_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec,           &
                               Domain%isd, Domain%ied, Domain%jsd, Domain%jed,                   &
-                              isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                               &
-                              Ocean%fields, T_prog, Dens%rho, Time%taum1, Time%model_time,      &
+                              isc_bnd, jsc_bnd,                                &
+                              Ocean%fields, T_prog, Dens%rho, Time%taum1,      &
                               Grid%tmask)
 endif  !}
 
@@ -948,15 +945,15 @@ endif
 if (do_ocmip2_he) then  !{
   call ocmip2_he_sum_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,             &
                           Domain%isd, Domain%ied, Domain%jsd, Domain%jed,                     &
-                          isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                 &
-                          Ocean%fields, T_prog, Dens%rho, Time%taum1, Time%model_time,        &
+                          isc_bnd, jsc_bnd,                                  &
+                          Ocean%fields, T_prog, Dens%rho, Time%taum1,         &
                           Grid%tmask, Grid, Time)
 endif  !}
 
 if (do_ocean_ibgc) then  !{
   call ocean_ibgc_sum_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,       &
                              Domain%isd, Domain%ied, Domain%jsd, Domain%jed,                  &
-                             isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                              &
+                             isc_bnd, jsc_bnd,                               &
                              Ocean%fields, T_prog, Dens%rho, Time%taum1, Time%model_time,     &
                              Grid%tmask)
 endif  !}
@@ -1018,9 +1015,9 @@ if (do_ocmip2_cfc) then  !{
 endif  !}
 
 if (do_ocean_pert_co2) then  !{
-  call ocean_pert_co2_avg_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,  &
-                              Domain%isd, Domain%ied, Domain%jsd, Domain%jed,           &
-                              isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                       &
+  call ocean_pert_co2_avg_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, &
+                              Domain%isd, Domain%jsd,           &
+                              isc_bnd, jsc_bnd,                       &
                               Ocean%fields, Ocean%avg_kount, Grid%tmask)
 endif  !}
 
@@ -1048,14 +1045,14 @@ endif  !}
 if (do_ocmip2_he) then  !{
   call ocmip2_he_avg_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,         &
                           Domain%isd, Domain%ied, Domain%jsd, Domain%jed,                 &
-                          isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                             &
+                          isc_bnd, jsc_bnd,                              &
                           Ocean%fields, Ocean%avg_kount, Grid%tmask)
 endif  !}
 
 if (do_ocean_ibgc) then  !{
-  call ocean_ibgc_avg_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,   &
-                             Domain%isd, Domain%ied, Domain%jsd, Domain%jed,              &
-                             isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                          &
+  call ocean_ibgc_avg_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, &
+                             Domain%isd, Domain%jsd,               &
+                             isc_bnd, jsc_bnd,                           &
                              Ocean%fields, Ocean%avg_kount, Grid%tmask)
 endif  !}
 
@@ -1248,10 +1245,9 @@ if (do_ocmip2_cfc) then  !{
 endif  !}
 
 if (do_ocean_pert_co2) then  !{
-  call ocean_pert_co2_sbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,      &
-                          Domain%isd, Domain%ied, Domain%jsd, Domain%jed,               &
-                          isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                           &
-                          T_prog, Time%taum1, Grid, Time,                               &
+  call ocean_pert_co2_sbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec,       &
+                          isc_bnd, jsc_bnd,                            &
+                          T_prog, Grid, Time,                               &
                           Ice_ocean_boundary_fluxes)
 endif  !}
 
@@ -1281,17 +1277,15 @@ endif  !}
 
 if (do_generic_tracer) call ocean_generic_sbc(Ice_ocean_boundary_fluxes,Domain%isd,Domain%jsd, T_prog, runoff)
 if (do_ocmip2_he) then  !{
-  call ocmip2_he_sbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,           &
-                      Domain%isd, Domain%ied, Domain%jsd, Domain%jed,                   &
-                      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                               &
+  call ocmip2_he_sbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec,            &
+                      isc_bnd, jsc_bnd,                                &
                       T_prog, Grid, Time, Ice_ocean_boundary_fluxes)
 endif  !}
 
 if (do_ocean_ibgc) then  !{
-  call ocean_ibgc_sbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,     &
-                           Domain%isd, Domain%ied, Domain%jsd, Domain%jed,              &
-                           isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                          &
-                           T_prog, Time%tau,                                            &
+  call ocean_ibgc_sbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, &
+                           isc_bnd, jsc_bnd,                           &
+                           T_prog,                                             &
                            Grid, Time, Ice_ocean_boundary_fluxes)
 endif  !}
 
@@ -1546,8 +1540,8 @@ endif  !}
 
 if (do_ocean_ibgc) then  !{
   call ocean_ibgc_source(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,  &
-                              isd, ied, jsd, jed, T_prog, T_diag,                       &
-                              Time%taum1, Grid%dat, Grid%tmask, Grid, Time, &
+                              isd, jsd, T_prog, T_diag,                       &
+                              Time%taum1, Grid%tmask, Grid, Time, &
                               Grid%kmt, Thickness%depth_zt,Dens%rho, Thickness%rho_dzt, &
                               Thickness%dzt, hblt_depth, dtts)
 endif  !}
@@ -1555,7 +1549,7 @@ endif  !}
 if (do_ocmip2_he) then
   call ocmip2_he_source(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,               &
                         isd, ied, jsd, jed, T_prog, Thickness%depth_zt, Thickness%dzt,         &
-                        Time%taum1, Time%model_time, Grid%tmask, Grid, Time, Grid%kmt,  Thickness%rho_dzt)
+                        Time%model_time, Grid%tmask, Grid, Time, Grid%kmt)
 endif
 
 #endif 
@@ -1641,7 +1635,7 @@ if (do_ocean_pert_co2) then  !{
                             Domain%isd, Domain%ied, Domain%jsd, Domain%jed,             &
                             T_prog, Time%taup1, Time%model_time,                          &
                             grid%dat, grid%tmask,                                       &
-                            grid%tracer_axes, Domain%domain2d,                          &
+                            grid%tracer_axes,                          &
                             Thickness%rho_dzt)
 endif  !}
 
@@ -1685,11 +1679,10 @@ endif  !}
 
 if (do_ocean_ibgc) then  !{
   call ocean_ibgc_start(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,        &
-                             Domain%isd, Domain%ied, Domain%jsd, Domain%jed,            &
-                             T_prog, T_diag, Time%taup1, Time%model_time,               &
-                             Grid%dat, Grid%tmask, Grid%kmt, Grid%xt, Grid%yt,          &
-                             Thickness%depth_zt, Grid%zw, Grid%dzt, Grid%name,&
-                             Grid%tracer_axes, Domain%domain2d, Thickness%rho_dzt)
+                             Domain%isd, Domain%jsd,             &
+                             Time%model_time,               &
+                             Grid%tmask,           &
+                             Grid%tracer_axes, Domain%domain2d)
                              
 endif  !}
 
@@ -1785,8 +1778,8 @@ endif  !}
 
 if (do_ocean_ibgc) then  !{
   call ocean_ibgc_tracer(Domain%isc, Domain%iec, Domain%jsc, Domain%jec,               &
-                              Domain%isd, Domain%ied, Domain%jsd, Domain%jed, Grid%nk, &
-                              Time, T_prog, Thickness, Dens,                           &
+                              Domain%isd, Domain%jsd, Grid%nk, &
+                              Time, T_prog,                            &
                               Thickness%depth_zt, hblt_depth)
                               
 endif  !}
