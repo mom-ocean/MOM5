@@ -242,7 +242,7 @@ subroutine ocean_increment_eta_source(Time, Ext_mode)
   type(ocean_external_mode_type), intent(inout) :: Ext_mode
 
   integer :: taum1, tau
-  integer :: i, j, k, n
+  integer :: i, j
   integer :: days,secs
 
   if(.not. use_this_module) return 

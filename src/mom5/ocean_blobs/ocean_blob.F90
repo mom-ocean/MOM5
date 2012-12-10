@@ -819,7 +819,7 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
      enddo
      call blob_chksum(T_prog(:), head_static_free, head_static_bott, &
           head_dynamic_free, head_dynamic_bott, blob_counter)
-     call lagrangian_system_chksum(Time, L_system)
+     call lagrangian_system_chksum(L_system)
 
      if (really_debug) call write_all_blobs('taup1')
   endif
@@ -859,9 +859,8 @@ contains
     integer :: dragid, entid, ageid, heightid
     integer :: hashid, numberid, typeid, iid, jid, kid
     integer :: stepid, h1id, h2id, nstepsid, mstepsid, densityid
-    integer :: n, m, i, p, j, k, kk, type, nblobs, nblobs0
+    integer :: n, m, i, j, k, type, nblobs, nblobs0
     logical :: found_restart
-    real :: lat, lon
     
     ! We have two restart files, and we need to read them in separately.
     ! The first is to read in the gridded data.  The second is to read
@@ -1901,6 +1900,7 @@ subroutine update_L_thickness(Time, Thickness, T_prog, L_system, EL_diag)
 
   diag_dstryd_blobs = diag_dstryd_blobs + dstryd_blobs
   if (debug_this_module) then
+     stdoutunit = stdout()
      call mpp_sum(total_blobs); call mpp_sum(dstryd_blobs)
      write(stdoutunit, *) 'Total dynamic bottom blobs        =', total_blobs
      write(stdoutunit, *) 'Blobs destroyed because dztL>dztT =', dstryd_blobs
@@ -2291,7 +2291,7 @@ subroutine ocean_blob_diagnose_depth(Time, T_prog, Ext_mode, L_system)
      call blob_chksum(T_prog(:), head_static_free, head_static_bott, &
                       head_dynamic_free, head_dynamic_bott, blob_counter)
      write(stdoutunit, '(/,a)') 'Lagrangian System Checksums (taup1)'
-     call lagrangian_system_chksum(Time,L_system)
+     call lagrangian_system_chksum(L_system)
 
      if (really_debug) call write_all_blobs('taup1')
   endif
@@ -2343,7 +2343,7 @@ subroutine ocean_blob_end(Time, T_prog, L_system, time_stamp)
   nullify(Grd)
 
   call write_timestamp(Time%model_time)
-  call lagrangian_system_chksum(Time,L_system)
+  call lagrangian_system_chksum(L_system)
 
   write(stdoutunit,'(/a)') 'Completed end of Lagrangian Blobs'
 

@@ -636,7 +636,7 @@ subroutine mixdownslope (Time, Thickness, T_prog, Dens, index_temp, index_salt)
   real    :: delta, delta_rho(ijhalo)
   real    :: mass_sum, tmix
   real    :: mixdownslope_total, mixdownslope_total_r
-  real    :: tendency, temporary 
+  real    :: tendency
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -1172,7 +1172,6 @@ subroutine watermass_diag(Time, Dens)
 
   integer :: i,j,k,tau
   real, dimension(isd:ied,jsd:jed) :: eta_tend
-  real    :: eta_tend_glob
 
   if (.not. module_is_initialized) then 
     call mpp_error(FATAL, &

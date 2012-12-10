@@ -3282,7 +3282,6 @@ subroutine compute_eta_tend_gm90 (Time, Thickness, Dens,  &
   real    :: extended_mask
   real    :: absslope, absslopex, absslopey
   real    :: drho_dz, drho_dz_rhor2, divergence
-  real    :: global_mean 
 
   if(.not. diagnose_eta_tend_gm90) return 
 
@@ -3460,7 +3459,6 @@ subroutine cabbeling_thermob_tendency (Time, Thickness, T_prog, Dens,   &
   real    :: extended_mask
   real    :: drho_dz, strat_mask
   real    :: temporary 
-  real    :: global_mean 
 
   if(.not. diagnose_cabbeling_thermob) return 
 
@@ -4232,7 +4230,6 @@ subroutine watermass_diag(Time, T_prog, Dens, tendency_redi_temp, tendency_redi_
 
   integer :: i,j,k,tau
   real    :: tmp1, tmp2
-  real    :: eta_tend_glob
   real,  dimension(isd:ied,jsd:jed) :: eta_tend
 
   if (.not.module_is_initialized) then 
@@ -4503,7 +4500,6 @@ subroutine watermass_diag_ndiffuse(Time, Dens, tendency_redi_temp, tendency_redi
   real, dimension(isd:,jsd:,:),  intent(in)  :: tendency_redi_salt
 
   integer :: i,j,k,tau
-  real    :: eta_tend_glob
   real,  dimension(isd:ied,jsd:jed) :: eta_tend
 
   if(.not. compute_watermass_diag) return 
@@ -4638,7 +4634,6 @@ subroutine watermass_diag_sdiffuse(Time, Dens, tendency_gm_temp, tendency_gm_sal
   real, dimension(isd:,jsd:,:),  intent(in)  :: tendency_gm_salt
 
   integer :: i,j,k,tau
-  real    :: eta_tend_glob
   real,  dimension(isd:ied,jsd:jed) :: eta_tend
 
   if(.not. compute_watermass_diag) return 

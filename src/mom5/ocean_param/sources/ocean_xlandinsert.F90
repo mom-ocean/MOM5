@@ -653,7 +653,6 @@ subroutine xlandinsert (Time, Ext_mode, Dens, Thickness, T_prog)
   real  :: blanda, tracerextra, zextra, zinsert
   real  :: tottracer_thin, tottracer_thick 
   real  :: totrate_thin, totrate_thick 
-  real  :: temporary
 
   integer :: i, j, k, nxl, nz
   integer :: tau
@@ -1387,7 +1386,6 @@ subroutine watermass_diag(Time, Dens)
 
   integer :: i,j,k,tau
   real, dimension(isd:ied,jsd:jed) :: eta_tend
-  real    :: eta_tend_glob
 
   if (.not.module_is_initialized) then 
     call mpp_error(FATAL, &

@@ -1252,8 +1252,7 @@ contains
 
   end subroutine user_allocate_arrays
 
-  subroutine generic_ERGOM_register_diag(diag_list)
-    type(g_diag_type), pointer :: diag_list
+  subroutine generic_ERGOM_register_diag()
     type(vardesc)  :: vardesc_temp
     integer        :: isc,iec,jsc,jec,isd,ied,jsd,jed,nk,ntau, axes(3)
     type(time_type):: init_time 
@@ -1965,7 +1964,7 @@ contains
     type(g_tracer_type), pointer :: tracer_list
     character(len=*), intent(in) :: name, longname, units
 
-    integer                      :: m, n, dummy
+    integer                      :: m, n
     character(len=fm_string_len) :: temp_string
     type(tracer_2d), ALLOCATABLE, dimension(:) :: temp_tracers_2d
     

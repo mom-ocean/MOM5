@@ -188,7 +188,6 @@ integer                                 :: ind
 integer                                 :: nn
 integer                                 :: num_elements
 logical                                 :: do_integrand
-character(len=fm_field_name_len)        :: module_name_check
 
 if (module_name .eq. ' ') then  !{
   call mpp_error(FATAL, trim(error_header) // ' No module name given')
@@ -924,7 +923,7 @@ end subroutine  ocean_residency_set_region_geog  !}
 !
 
 subroutine ocean_residency_set_region_3d(isd, ied, jsd, jed, nk, array,         &
-                     variable, bounds, kmt, name,                               &
+                     variable, bounds, kmt,                                &
                      restore_region_value, integrate_region_value, swap,        &
                      initialize, caller)  !{
 
@@ -945,7 +944,6 @@ real, dimension(isd:,jsd:,:), intent(inout)             :: array
 real, dimension(isd:,jsd:,:), intent(in)                :: variable
 real, dimension(:), intent(in)                          :: bounds
 integer, dimension(isd:,jsd:), intent(in)               :: kmt
-character*(*), intent(in)                               :: name
 real, intent(in), optional                              :: restore_region_value
 real, intent(in), optional                              :: integrate_region_value
 logical, intent(in), optional                           :: swap

@@ -2507,7 +2507,6 @@ subroutine unpackbuffer(Time, buffer, head, Dens, Ext_mode, L_system, &
   
   type(ocean_blob_type), pointer :: blob
   real, dimension(0:num_prog_tracers) :: entrainment, detrainment
-  real :: dmass, dtracer(num_prog_tracers)
   integer :: n, nb, s, npt
   integer :: i,j,k,tau
 

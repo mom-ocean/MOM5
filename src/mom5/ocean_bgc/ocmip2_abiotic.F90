@@ -663,7 +663,6 @@ integer                                                 :: n
 character(len=fm_field_name_len)                        :: name
 character(len=fm_path_name_len)                         :: path_to_names
 character(len=fm_field_name_len+1)                      :: suffix
-character(len=fm_string_len)                            :: string
 character(len=fm_field_name_len+3)                      :: long_suffix
 logical, dimension(12)                                  :: t_mask
 character(len=256)                                      :: caller_str
@@ -865,7 +864,7 @@ do n = 1, instances
   if (.not. field_exist('INPUT/'//trim(Ocean_fields%bc(ind)%ocean_restart_file),    &
                         Ocean_fields%bc(ind)%field(ind_alpha)%name)) then
 
-    call ocmip2_co2calc(isd, ied, jsd, jed, isc, iec, jsc, jec,         &
+    call ocmip2_co2calc(isd, jsd, isc, iec, jsc, jec,         &
          grid_tmask(isd:ied,jsd:jed,1),                                 &
          t_prog(indtemp)%field(isd:ied,jsd:jed,1,taum1),                &
          t_prog(indsal)%field(isd:ied,jsd:jed,1,taum1),                 &
@@ -970,7 +969,7 @@ do n = 1, instances
 
   ind = abiotic(n)%ind_co2_flux
 
-  call ocmip2_co2calc(isd, ied, jsd, jed, isc, iec, jsc, jec,           &
+  call ocmip2_co2calc(isd, jsd, isc, iec, jsc, jec,           &
        grid_tmask(isd:ied,jsd:jed,1),                                   &
        t_prog(indtemp)%field(isd:ied,jsd:jed,1,taum1),                  &
        t_prog(indsal)%field(isd:ied,jsd:jed,1,taum1),                   &

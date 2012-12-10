@@ -248,7 +248,6 @@ end subroutine ocean_vert_const_init
 
   integer :: i, j, k
   integer :: tau
-  logical :: used
 
   if(.not. use_this_module) then 
     return 

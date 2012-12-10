@@ -687,16 +687,14 @@ contains
     logical, intent(in), optional                :: debug
     integer, intent(in)                          :: ver_coordinate
     !--- some local variables ------------------------------------------
-    integer :: m, n, nn, i, j, k, unit, io_status, ierr, ioff, joff
-    integer :: ni, nj, nsize, id_restart
+    integer :: m, n, nn, i, j, unit, io_status, ierr, ioff, joff
+    integer :: ni, nj, nsize
     integer :: west_at_pe, south_at_pe, east_at_pe, north_at_pe
     integer :: irig_s, ilef_s , jbou_s
     integer :: irig_n, ilef_n , jbou_n
     integer :: jlow_w, jup_w, ibou_w
     integer :: jlow_e, jup_e, ibou_e
     integer :: pe
-    logical, allocatable :: on_bound(:)
-    character*128        :: file_name
     character(len=5)     :: pe_name
     
   integer :: stdoutunit,stdlogunit 
@@ -2096,11 +2094,10 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
 
   !<SUBROUTINE> NAME="ocean_obc_surface_height"
   !<PUBLICROUTINE>
-  subroutine ocean_obc_surface_height(Time, Ext_mode, dtime)
+  subroutine ocean_obc_surface_height(Time, Ext_mode)
   !</PUBLICROUTINE>
     type(ocean_time_type), intent(in)             :: Time
     type(ocean_external_mode_type), intent(inout) :: Ext_mode
-    real, intent(in)                              :: dtime
     integer                                       :: taum1, tau, taup1
     logical                                       :: used
 
@@ -2934,7 +2931,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
     integer, intent(in)                           :: tn                ! only when n=1, the max phase speed will be calculated
 
     !--- local variables -----------------------------------------------
-    integer :: it, iu, jt, ju, m
+    integer :: it, iu, m
     integer :: k, i, j, tlevel, istrt, iend, ii, jj, dbg
     integer :: i1, i2, j1, j2, n, nn, im, jm, id, jd, ic, jc
     real    :: cgrid, var, cmax, uout, uin, rel_var, adv_obc, adv, alpha, sign
@@ -3976,10 +3973,8 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
 ! <DESCRIPTION>
 !  Write out restart files registered through register_restart_file
 ! </DESCRIPTION>
-subroutine ocean_obc_restart(time_stamp)
-  character(len=*), intent(in), optional    :: time_stamp
-  return
-!just return here
+subroutine ocean_obc_restart()
+
 end subroutine ocean_obc_restart
 ! </SUBROUTINE> NAME="ocean_obc_restart"
 
@@ -3998,7 +3993,6 @@ end subroutine ocean_obc_restart
 
     type(ocean_time_type), intent(in) :: Time
     logical, intent(inout)            :: have_obc
-    integer(LONG_KIND)                :: ctrop_chksum
     integer :: m
 
     integer :: stdoutunit 
@@ -4109,15 +4103,11 @@ end subroutine ocean_obc_restart
 
   !#######################################################################
   !<SUBROUTINE NAME="ocean_obc_tracer_flux">
-  subroutine ocean_obc_tracer_flux(Time, Tracer, tracer_flux, n, send_out)
+  subroutine ocean_obc_tracer_flux(Tracer, tracer_flux)
 
-    type(ocean_time_type), intent(in)         :: Time
     type(ocean_prog_tracer_type),  intent(in) :: Tracer
     real, dimension(isd:,jsd:), intent(inout) :: tracer_flux
-    logical,                       intent(in) :: send_out
-    integer,                       intent(in) :: n
     integer                                   :: i, j, k, m
-    logical                                   :: used
     
 
     tracer_flux = 0.
@@ -4131,10 +4121,6 @@ end subroutine ocean_obc_restart
             tracer_flux(i,j) = tracer_flux(i,j) + Tracer%otf(m)%flux(j,k)
           enddo
         enddo
-!        if(Obc%bound(m)%id_tracer_flux(n) > 0 .and. send_out)                    &
-!             used = send_data(Obc%bound(m)%id_tracer_flux(n), &
-!             Tracer%conversion*Tracer%otf(m)%flux(Obc%bound(m)%js:Obc%bound(m)%je,1:nk), &
-!             Time%model_time, rmask=Grd%tmask(i:i,Obc%bound(m)%js:Obc%bound(m)%je,1:nk))
       case(EAST)
         i = Obc%bound(m)%is-1
         do k=1,nk

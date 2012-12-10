@@ -1164,10 +1164,8 @@ end subroutine ocean_submesoscale_init
   type(ocean_prog_tracer_type),   intent(inout) :: T_prog(:)
   real, dimension(isd:,jsd:),     intent(in)    :: surf_blthick
 
-  integer :: i,j,k,kp1,n
-  integer :: ip,jq
+  integer :: i,j,k
   integer :: tau, taum1
-  real    :: temporary
 
   if (.not. use_this_module) return
 
@@ -1420,7 +1418,7 @@ subroutine tracer_derivs(taum1, T_prog)
   type(ocean_prog_tracer_type), intent(in) :: T_prog(:)
 
   integer :: i, j, k, n
-  integer :: kp1, kbot
+  integer :: kp1
   real    :: tmaski, tmaskj
 
   do n=1,num_prog_tracers
@@ -1477,8 +1475,8 @@ subroutine salinity_derivs(taum1, Dens)
   integer,                      intent(in) :: taum1
   type(ocean_density_type),     intent(in) :: Dens
 
-  integer :: i, j, k, n
-  integer :: kp1, kbot
+  integer :: i, j, k
+  integer :: kp1
   real    :: tmaski, tmaskj
 
   dSdx%field(:,:,:) = 0.0
@@ -1549,7 +1547,7 @@ subroutine compute_psi(Time, Dens, Thickness)
   real    :: gradxrho(0:1), gradyrho(0:1)
   real    :: factor, coefficient
   real    :: active_cells 
-  real    :: max_psi, max_psix(0:1), max_psiy(0:1)
+  real    :: max_psi
   real    :: abs_psi
   real    :: rescale_psi
   real    :: hblt_r
@@ -2021,7 +2019,7 @@ subroutine compute_transport(Time, Dens, Thickness)
   real    :: deriv_x, deriv_y
   real    :: divergence_mask, divergence
   real    :: tmask_bdy
-  real    :: dmu_dz, term1, term2, hblt_r
+  real    :: term1, term2, hblt_r
   integer :: i, j, k, kp1
   integer :: tau
   integer :: num_smooth
@@ -2391,7 +2389,7 @@ subroutine compute_flux_x(Time,n,Tracer)
   type(ocean_prog_tracer_type), intent(in) :: Tracer
 
   integer :: i, j, k
-  integer :: ip, kr, kpkr
+  integer :: ip, kr
   real    :: tensor_13(isd:ied,jsd:jed,0:1)
   real    :: sumz(isd:ied,jsd:jed,0:1)
 
@@ -2505,7 +2503,7 @@ subroutine compute_flux_y(Time,n,Tracer)
   type(ocean_prog_tracer_type), intent(in) :: Tracer
 
   integer :: i, j, k
-  integer :: jq, kr, kpkr
+  integer :: jq, kr
   real    :: tensor_23(isd:ied,jsd:jed,0:1)
   real    :: sumz(isd:ied,jsd:jed,0:1)
 
@@ -2922,7 +2920,6 @@ subroutine compute_submeso_sweby(Thickness, Time, T_prog)
   real,dimension(isc:iec,jsc:jec) :: ftp
   real,dimension(isc:iec,jsc:jec) :: fbt
   real,dimension(isc:iec,jsc:jec) :: wkm1
-  real,dimension(isd:ied,jsd:jed) :: tmp_flux
 
   integer  :: i, j, k, n
   integer  :: kp1, kp2, km1
@@ -3995,7 +3992,6 @@ subroutine watermass_diag(Time, T_prog, Dens)
 
   integer :: i,j,k,tau
   real,  dimension(isd:ied,jsd:jed) :: eta_tend
-  real :: eta_tend_glob
 
   if (.not.module_is_initialized) then 
     call mpp_error(FATAL, &
@@ -4117,7 +4113,6 @@ subroutine watermass_diag_diffusion(Time, T_prog, Dens)
 
   integer :: i,j,k,tau
   real,  dimension(isd:ied,jsd:jed) :: eta_tend
-  real :: eta_tend_glob
 
   if (.not.module_is_initialized) then 
     call mpp_error(FATAL, &

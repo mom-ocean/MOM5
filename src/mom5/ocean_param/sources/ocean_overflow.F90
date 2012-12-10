@@ -545,7 +545,6 @@ subroutine overflow (Time, Thickness, T_prog, Dens, index_temp, index_salt)
   real    :: temp_so, salt_so, press, density_check
   real    :: overflow_thickness, overflow_speed
   real    :: max_overflow_flux
-  real    :: temporary
 
   integer :: stdoutunit,stdlogunit 
   stdoutunit=stdout();stdlogunit=stdlog() 

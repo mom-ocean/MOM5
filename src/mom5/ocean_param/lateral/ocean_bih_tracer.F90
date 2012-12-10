@@ -154,7 +154,6 @@ subroutine ocean_bih_tracer_init(Grid, Domain, Time, T_prog, Ocean_options, dtim
   real,                         intent(in), optional :: tmask_sigma(Domain%isc:Domain%iec,Domain%jsc:Domain%jec)
 
   real    :: dxdymn, ah_crit
-  real    :: norm_faces, num_faces 
   integer :: ioun, io_status, ierr
   integer :: i, j, k, n, num
  

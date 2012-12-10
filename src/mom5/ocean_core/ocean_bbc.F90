@@ -601,13 +601,11 @@ type(ocean_velocity_type),      intent(inout) :: Velocity
 type(ocean_prog_tracer_type),   intent(inout) :: T_prog(:)
 type(ocean_wave_type),          intent(inout) :: Waves
 
-integer :: i, j, k, kbot, n
+integer :: i, j, kbot, n
 integer :: taum1, tau, tstep
 real    :: uvmag, argument, distance 
 real    :: umag, vmag
 real    :: rhobot_inv, alphabot 
-real    :: mass_inv, ubarotropic, vbarotropic
-real    :: global_mean 
 
 if (.not. module_is_initialized) then 
    call mpp_error(FATAL,'==>Error from ocean_bbc_mod (get_ocean_bbc): module must be initialized')
@@ -824,9 +822,9 @@ integer,                        intent(in)    :: tstep
 
 real,parameter:: twopi=2.*pi
 
-  real    :: omega, cdrag, cold, cnew, ruff, rauh, hu, dist, wave_p_u, wave_u_u
+  real    :: omega, cdrag, cold, cnew, ruff, rauh, dist, wave_p_u, wave_u_u
   real    :: bot_vel, u_vel, v_vel   ! Velocity in the bottommost layer. 
-  real    :: ustar, ustar2, ucomb, ucskin, uskin   ! friction velocities in wave & skin boundary layers
+  real    :: ustar, ustar2, ucomb, ucskin  ! friction velocities in wave & skin boundary layers
   integer:: i, j, icount, kmu
   integer, parameter::  itmax=10
 
@@ -968,7 +966,7 @@ subroutine wave_u_diag(wave_u, wave_s, Waves)
   real, dimension(isd:,jsd:), intent(inout) :: wave_s
   type(ocean_wave_type),      intent(inout) :: Waves
 
-  real    :: cm, H_rms, omega, U_m, ampli, f_w, wk_times_depth, ruff, grain
+  real    :: omega, U_m, ampli, f_w, wk_times_depth, ruff, grain
   integer :: i, j
   real,parameter:: twopi=2.*pi
 

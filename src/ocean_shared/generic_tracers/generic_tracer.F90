@@ -236,7 +236,7 @@ contains
     
     if(do_generic_TOPAZ)  call generic_TOPAZ_register_diag(diag_list)    
 
-    if(do_generic_ERGOM)  call generic_ERGOM_register_diag(diag_list)    
+    if(do_generic_ERGOM)  call generic_ERGOM_register_diag()
 
     if(do_generic_BLING)  call generic_BLING_register_diag()    
     

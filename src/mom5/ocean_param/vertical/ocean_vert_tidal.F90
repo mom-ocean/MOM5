@@ -1121,9 +1121,9 @@ end subroutine vert_mix_tidal
   type(ocean_thickness_type),   intent(in) :: Thickness
   type(ocean_density_type),     intent(in) :: Dens
 
-  real    :: rho_inv, drhodz, bottom
-  real    :: tmp, rho_N2_prev, rho_tmp
-  integer :: i, j, k, m, kp1, kbot
+  real    :: bottom
+  real    :: tmp, rho_N2_prev
+  integer :: i, j, k, m, kbot
   integer :: tau
   real, dimension(isd:ied,jsd:jed) :: roughness_klevel 
 
@@ -1441,7 +1441,7 @@ end subroutine vert_mix_wave
   real, dimension(isd:,jsd:,:),   intent(inout) :: diff_cbt_drag
 
   integer :: i, j, k, kbot, kp1
-  real    :: height, bottom, efold
+  real    :: height, bottom
   real    :: bvfreq_u, speedr, active_cells
 
   wrk1(:,:,:)      =0.0  ! Richardson number on U-cell
@@ -1576,8 +1576,8 @@ end subroutine vert_mix_drag_bgrid
   real, dimension(isd:,jsd:,:),   intent(inout) :: diff_cbt_drag
 
   integer :: i, j, k, kbot, kp1
-  real    :: height, bottom, efold
-  real    :: bvfreq_u, speedr, active_cells
+  real    :: height, bottom
+  real    :: speedr, active_cells
 
   wrk1(:,:,:)      = 0.0  ! raw Richardson number on T-cell
   wrk2(:,:,:)      = 0.0  ! smoothed Richardson number on T-cell

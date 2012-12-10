@@ -781,9 +781,8 @@ end subroutine blob_chksum
 !
 ! </DESCRIPTION>
 !
-subroutine lagrangian_system_chksum(Time, L_system)
+subroutine lagrangian_system_chksum(L_system)
 
-  type(ocean_time_type),       intent(in) :: Time
   type(ocean_lagrangian_type), intent(in) :: L_system
 
   integer :: stdoutunit

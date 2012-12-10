@@ -1789,7 +1789,7 @@ subroutine tracer_change (Time, Thickness, T_prog, T_diag, Ext_mode, &
      ! ocean_obc_tracer_flux returns vertically integrated horizontal tracer flux     
      ! at last internal points and zero otherwise     
      if(have_obc) then 
-       call ocean_obc_tracer_flux(Time, T_prog(n), tmp, n, send_out =.true.) 
+       call ocean_obc_tracer_flux(T_prog(n), tmp) 
        tmp(:,:) = tmp(:,:)*conversion*dtime
        tracer_input_otf = mpp_global_sum(Dom%domain2d,tmp(:,:), global_sum_flag)
      endif 
@@ -2830,7 +2830,7 @@ subroutine tracer_conservation (Time, Thickness, T_prog, T_diag, pme, runoff, ca
          endif
 
          if (have_obc) then
-             call ocean_obc_tracer_flux(Time, T_prog(n), tmp, n, send_out = .false.)
+             call ocean_obc_tracer_flux(T_prog(n), tmp)
              tracer_otf(:,:,n)         = (tracer_otf(:,:,n) + tmp(:,:))*Grd%obc_tmask(:,:)
              tracer_stf(:,:,n)         = tracer_stf(:,:,n)*Grd%obc_tmask(:,:)
              tracer_btf(:,:,n)         = tracer_btf(:,:,n)*Grd%obc_tmask(:,:)
