@@ -3849,9 +3849,8 @@ subroutine nphysics_diagnostics(Time, T_prog, Dens)
   type(ocean_prog_tracer_type), intent(in)  :: T_prog(:)
   type(ocean_density_type),     intent(in)  :: Dens
 
-  integer :: i, j, k, nn
+  integer :: k, nn
   integer :: tau
-  real    :: temporary, tmp1, tmp2
   real, dimension(isd:ied,jsd:jed) :: tmp_flux
 
   tau = Time%tau

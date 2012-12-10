@@ -66,9 +66,6 @@ contains
 !ALL PE subroutine on Ocean!  Due to otpm design the fluxes should be initialized like this on ALL PE's!
   subroutine ocean_generic_flux_init
 
-    integer :: ind
-    character(len=fm_string_len)   :: g_tracer_name,longname, package,units,old_package
-    real :: const_init_value
     character(len=fm_string_len), parameter :: sub_name = 'ocean_generic_flux_init'
     type(g_tracer_type), pointer :: g_tracer_list,g_tracer,g_tracer_next
 
@@ -122,7 +119,7 @@ contains
     character(len=fm_string_len)   :: g_tracer_name,longname, package,units,old_package,restart_file
     type(g_tracer_type), pointer :: g_tracer_list,g_tracer,g_tracer_next
     real :: const_init_value
-    integer :: ntau, ind, length
+    integer :: ntau, ind
 
 
     if (module_initialized) return 

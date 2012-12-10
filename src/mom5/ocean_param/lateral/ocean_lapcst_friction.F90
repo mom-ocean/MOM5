@@ -528,8 +528,6 @@ subroutine lapcst_viscosity_check
 
 9600  format(/' Warning: ',a,es10.3,' m^2/s) exceeds max value (',es10.3,') at (i,j,k) = ','(',i4,',',i4,',',i4,'),',&
           ' (lon,lat,dpt) = (',f7.2,',',f7.2,',',f7.0,'m, pe=',i3,')')
-9601  format(/' Warning: ',a,es10.3,' m^2/s) exceeds max value (',es10.3,') at (i,j,k) = ','(',i4,',',i4,',',i4,'),',&
-          ' (lon,lat,dpt) = (',f7.2,',',f7.2,',',f7.0,'m, pe=',i3,')')
 
 end subroutine lapcst_viscosity_check
 ! </SUBROUTINE> NAME="lapcst_viscosity_check"

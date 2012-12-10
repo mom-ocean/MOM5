@@ -813,7 +813,7 @@ subroutine lapcgrid_friction(Time, Thickness, Velocity, lap_viscosity, energy_an
 
   integer :: i, j, k, n
   integer :: taum1, tau
-  integer :: stdoutunit, ibl
+  integer :: stdoutunit
   stdoutunit=stdout() 
 
   if(.not. use_this_module) then

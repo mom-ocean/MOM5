@@ -1570,7 +1570,6 @@ subroutine convection_diag (Time, Thickness, T_prog, Dens)
   type(ocean_density_type),     intent(in) :: Dens
 
   integer :: i, j, k, n, tau, taup1
-  real    :: temporary, temporary2
 
   tau   = Time%tau
   taup1 = Time%taup1

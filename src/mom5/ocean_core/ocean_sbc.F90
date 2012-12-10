@@ -2869,7 +2869,6 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
 
   real    :: tmp_x, tmp_y
   real    :: pme_river_total, var
-  real    :: total_stuff 
   real    :: tracer_input
   real    :: tmp_runoff, tmp_calving 
   real    :: dayreal, phase 
@@ -3695,8 +3694,6 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
   real                             :: pme_river_total
   real                             :: pme_restore_total, flx_restore_total 
   real                             :: pme_correct_total, flx_correct_total 
-  real                             :: total_stuff 
-  real                             :: global_mean 
   real                             :: tmp_delta_salinity 
   integer                          :: i, j, k, tau, taum1
   logical                          :: used
@@ -4310,9 +4307,8 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   integer :: i,j,k 
   integer :: ii, jj
   integer :: tau
-  real    :: umask_norm, total_stuff
+  real    :: umask_norm
   real    :: totz, tbrz, maskt, factor 
-  real    :: global_mean 
 
   tau = Time%tau 
 

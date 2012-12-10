@@ -188,7 +188,7 @@ end subroutine  ocean_po4_pre_bbc
 !     Clean up various PO4_PRE quantities for this run.
 ! </DESCRIPTION>
 
-subroutine ocean_po4_pre_end(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,     &
+subroutine ocean_po4_pre_end(isc, iec, jsc, jec, nk, isd, jsd,  &
                              t_prog, grid_dat, grid_tmask, rho_dzt, taup1)
 
 integer, intent(in)                                     :: isc
@@ -196,9 +196,7 @@ integer, intent(in)                                     :: iec
 integer, intent(in)                                     :: jsc
 integer, intent(in)                                     :: jec
 integer, intent(in)                                     :: isd
-integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
-integer, intent(in)                                     :: jed
 integer, intent(in)                                     :: nk
 type(ocean_prog_tracer_type), intent(in), dimension(:)  :: t_prog
 integer, intent(in)                                     :: taup1
@@ -567,7 +565,7 @@ real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 !       (any box with its lon,lat inside the box bounded by
 !       wlon,elon,nlat,slat value in mask set to factor).
 
-integer                                 :: i, j, k, l, m, n
+integer                                 :: i, j, k, l, n
 integer                                 :: done
 character(len=256)                      :: caller_str
 integer                                 :: len_w

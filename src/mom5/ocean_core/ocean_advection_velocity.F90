@@ -556,7 +556,6 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
   type(ocean_lagrangian_type),intent(in)    :: L_system
   logical,                    intent(in)    :: use_blobs
 
-  real    :: global_mean 
   integer ::  i, j, k, tau
   integer :: stdoutunit 
   stdoutunit=stdout() 

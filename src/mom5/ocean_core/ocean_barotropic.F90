@@ -2324,7 +2324,7 @@ subroutine eta_and_pbot_update (Time, Ext_mode)
          Ext_mode%eta_t(:,:,taup1) = 0.0
       endif 
 
-      if(have_obc) call ocean_obc_surface_height(Time, Ext_mode, dtime)  
+      if(have_obc) call ocean_obc_surface_height(Time, Ext_mode)
       if(truncate_eta) call eta_truncate(Time, Ext_mode)
       call mpp_update_domains (Ext_mode%eta_t(:,:,taup1), Dom%domain2d)
       if(have_obc) call ocean_obc_update_boundary(Ext_mode%eta_t(:,:,taup1),'T')
@@ -2356,7 +2356,7 @@ subroutine eta_and_pbot_update (Time, Ext_mode)
       enddo
 
       if(have_obc) then 
-          call ocean_obc_surface_height(Time, Ext_mode, dtime)   
+          call ocean_obc_surface_height(Time, Ext_mode)
           call ocean_obc_update_boundary(Ext_mode%pbot_t(:,:,taup1),'T')
       endif
 
@@ -2777,7 +2777,7 @@ subroutine update_ocean_barotropic (Time, Dens, Thickness, Adv_vel, &
   real, dimension(isd:ied,jsd:jed) :: psiv
   real                             :: rnts, rntsp1
   integer                          :: tau, taup1, itime 
-  integer                          :: i, j, k, n
+  integer                          :: i, j, n
   integer                          :: day, sec 
   real                             :: dayr    
 
@@ -3240,7 +3240,7 @@ subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Ext_mode, patm, pme, r
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt,2) :: wrk1_v2d_bt
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt,2) :: press_force_bt
 
-  integer :: itime, i, j, n
+  integer :: itime, i, j
   integer :: tau, taup1
   integer :: fstau, fstaup1 
   integer :: day, sec
@@ -3618,13 +3618,12 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Ext_mode, patm, pme, r
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt,2,3) :: coriolis_force_bt
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt,2)   :: coriolis_accel_bt
 
-  integer :: itime, i, j, n
+  integer :: itime, i, j
   integer :: tau, taup1
   integer :: fstau, fstaup1 
   integer :: fstau_m0, fstau_m1, fstau_m2
   integer :: day, sec
   real    :: dayr 
-  real    :: urhod_tmp1, urhod_tmp2
   logical :: do_update
   integer :: isd_now, ied_now, jsd_now, jed_now, halo_now, offset
 
@@ -3997,7 +3996,7 @@ subroutine pred_corr_tropic_press_bgrid (Time, Thickness, Ext_mode, pme, river)
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt,2) :: press_force_bt
 
   integer :: offset, isd_now, ied_now, jsd_now, jed_now, halo_now
-  integer :: itime, i, j, n
+  integer :: itime, i, j
   integer :: tau, taup1
   integer :: fstau, fstaup1 
   integer :: day, sec
@@ -4364,13 +4363,12 @@ subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Ext_mode, pme, river)
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt,2)   :: tmasken_bt
 
   integer :: offset, isd_now, ied_now, jsd_now, jed_now, halo_now
-  integer :: itime, i, j, n
+  integer :: itime, i, j
   integer :: tau, taup1
   integer :: fstau, fstaup1 
   integer :: fstau_m0, fstau_m1, fstau_m2
   integer :: day, sec
   real    :: dayr 
-  real    :: urhod_tmp1, urhod_tmp2
   logical :: do_update
 
   eta_eq_tidal      = 0.0
@@ -5796,7 +5794,7 @@ subroutine eta_terms_diagnose(Time, Dens, Thickness, Ext_mode, pme, river)
   real, dimension(isd:,jsd:),     intent(in)    :: river
 
   real, dimension(isd:ied,jsd:jed) :: tmp
-  integer :: i, j, k, kbot
+  integer :: i, j, k
   integer :: taum1, tau, taup1
 
   real :: eta_nonbouss_global

@@ -2498,7 +2498,6 @@ subroutine energy_analysis (Time, Thickness, Ext_mode, Adv_vel, Dens,    &
 9100 format(/1x,a,1x,/,' ocean mass         =',e16.9,' kg',/, ' ocean surface area =',e16.9,&
           ' m^2',//,35x,'total(Watt)             internal(Watt)             external(Watt)')
 9101 format(a25,3(3x,es24.17))
-9102 format(a25,3x,es24.17)
 9110 format(/ ' power contributed by pressure conversion and mass tendencies           = ',es24.17,&
             /,' power from horizontal pressure force -u dot force(p)                   = ',es24.17,&
             /,' power mismatch between -u dot grad(p) and its conversions              = ',es24.17,&

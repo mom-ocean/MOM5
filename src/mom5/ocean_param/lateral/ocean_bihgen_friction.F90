@@ -937,7 +937,7 @@ subroutine bihgen_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, en
   real, dimension(0:1,0:1,isc:iec,jsc:jec,nk) :: aaniso_smag
   real    :: uvmag, umag, vmag, velocity_gamma
   integer :: i, j, k, n
-  integer :: ip, jq, jjq, iip
+  integer :: ip, jq
   integer :: taum1, tau
 
   real :: u1_m10, u2_m10
@@ -1933,7 +1933,6 @@ subroutine compute_neptune_velocity(Time)
 
   type(ocean_time_type), intent(in) :: Time
   real, dimension(isd:ied,jsd:jed)  :: neptune_fu
-  real, dimension(isd:ied,jsd:jed)  :: neptune_psi
   real, dimension(isd:ied,jsd:jed)  :: neptune_length
   real                              :: active_cells
   integer                           :: i,j,k

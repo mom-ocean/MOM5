@@ -112,9 +112,8 @@ subroutine ocean_sponges_eta_init(Grid, Domain, Time, dtime, Ocean_options)
   real,                           intent(in)         :: dtime
   type(ocean_options_type),       intent(inout)      :: Ocean_options
 
-  integer :: i, j, k, n
+  integer :: i, j
   integer :: ioun, io_status, ierr
-  integer :: secs, days
   real    :: dtimer
 
   character(len=128) :: name

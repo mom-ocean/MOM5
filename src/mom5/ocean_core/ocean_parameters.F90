@@ -238,7 +238,7 @@ contains
 subroutine ocean_parameters_init()
 
     integer :: stdoutunit, stdlogunit
-    integer :: ioun, io_status, ierr
+    integer :: ioun, io_status
 
     stdoutunit = stdout()
     stdlogunit = stdlog()

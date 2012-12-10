@@ -356,7 +356,6 @@ end subroutine ocean_vert_pp_init
   integer :: i, j, k
   integer :: taum1
   real    :: t1, t2, t3
-  logical :: used
 
   if(.not. use_this_module) then 
     return 

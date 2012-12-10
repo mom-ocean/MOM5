@@ -207,7 +207,7 @@ subroutine ri_for_bgrid (Time, dzwt, drhodT, drhodS, theta, salinity, velu, velv
   real, dimension(isd:,jsd:,:), intent(inout) :: riu
   
   integer :: i, j, k, kbot, kp1, m
-  real    :: prev, tmp1, tmp2, tmp3, active_cells
+  real    :: prev, tmp1, tmp3, active_cells
 
   rit   = 0.0
   riu   = 0.0

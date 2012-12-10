@@ -620,7 +620,6 @@ subroutine overexchange (Time, Thickness, T_prog, Dens, index_temp, index_salt)
   real    :: delta, delta_rho(ijhalo)
   real    :: max_overexch_flux
   real    :: tnew
-  real    :: temporary
 
   integer :: stdoutunit 
   stdoutunit=stdout() 

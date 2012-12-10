@@ -94,12 +94,10 @@ contains
 !       to convert from mol/m^3 to mol/kg.
 !
 ! </DESCRIPTION>
-subroutine ocmip2_co2_alpha(isd, ied, jsd, jed, isc, iec, jsc, jec, t, s, mask, alpha, scale)
+subroutine ocmip2_co2_alpha(isd, jsd, isc, iec, jsc, jec, t, s, mask, alpha, scale)
 
 integer, intent(in)                     :: isd
-integer, intent(in)                     :: ied
 integer, intent(in)                     :: jsd
-integer, intent(in)                     :: jed
 integer, intent(in)                     :: isc
 integer, intent(in)                     :: iec
 integer, intent(in)                     :: jsc
@@ -110,7 +108,7 @@ real, dimension(isd:,jsd:), intent(in)  :: mask
 real, dimension(isc:,jsc:), intent(out) :: alpha
 real, intent(in), optional              :: scale
 
-integer :: i, j, k
+integer :: i, j
 real    :: log100
 real    :: tk
 real    :: tk100
@@ -235,7 +233,7 @@ end subroutine  ocmip2_co2_alpha
 !       to convert from mol/m^3 to mol/kg.
 !
 ! </DESCRIPTION>
-subroutine ocmip2_co2calc(isd, ied, jsd, jed, isc, iec, jsc, jec, mask, t, s,   &
+subroutine ocmip2_co2calc(isd, jsd, isc, iec, jsc, jec, mask, t, s,   &
      dic_in, ta_in, pt_in, sit_in, htotallo, htotalhi, htotal,                  &
      co2star, co3_ion, alpha, pCO2surf, k1_out, k2_out, invtk_out, scale)
 
@@ -243,9 +241,7 @@ real, parameter :: permeg = 1.e-6
 real, parameter :: xacc = 1.0e-10
 
 integer, intent(in)                                     :: isd
-integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
-integer, intent(in)                                     :: jed
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
 integer, intent(in)                                     :: jsc

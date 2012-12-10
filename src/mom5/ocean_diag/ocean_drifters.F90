@@ -315,16 +315,12 @@ ierr = check_nml_error(io_status,'ocean_drifters_nml')
   end subroutine update_ocean_drifters
 
 
-  subroutine ocean_drifters_end(Grid)
-
-    type(ocean_grid_type) :: Grid
+  subroutine ocean_drifters_end()
 
     if(.not. use_this_module) return 
 
     ! write restart file, optionally with lon/lat data coordinates 
     call drifters_write_restart(drfts, filename='RESTART/drifters_inp.nc', &
-!       & x1=Grid%grid_x_u, y1=Grid%grid_y_u, geolon1=Grid%xt, &
-!       & x2=Grid%grid_x_u, y2=Grid%grid_y_u, geolat2=Grid%yt, &
          ermesg=ermesg)  
 
 

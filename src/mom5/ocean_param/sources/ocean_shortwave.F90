@@ -259,7 +259,6 @@ subroutine sw_source (Time, Thickness, Dens, T_diag, swflx, swflx_vis, Temp, sw_
   real, dimension(isd:,jsd:,:),   intent(inout) :: sw_frac_zt
   real, dimension(isd:,jsd:,:),   intent(inout) :: opacity 
 
-  real    :: temporary 
   integer :: i,j,k,tau
 
   if (.not. use_this_module) return 
@@ -462,7 +461,6 @@ subroutine watermass_diag(Time, Temp, Dens)
 
   integer :: i,j,k,tau
   real, dimension(isd:ied,jsd:jed) :: eta_tend
-  real    :: eta_tend_glob
 
   if (.not.module_is_initialized) then 
     call mpp_error(FATAL, &

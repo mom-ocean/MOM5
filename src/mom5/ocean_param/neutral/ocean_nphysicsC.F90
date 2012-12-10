@@ -1794,7 +1794,7 @@ subroutine compute_ndiffusion(Time, Thickness, Dens, T_prog)
 
   real, dimension(isd:ied,jsd:jed) :: tmp_flux
   real, dimension(isd:ied,jsd:jed) :: eta_tend
-  real    :: temporary, eta_tend_glob
+  real    :: eta_tend_glob
   integer :: i,j,k,n,tau
 
   call mpp_clock_begin(id_clock_ndiffuse)
@@ -1938,7 +1938,6 @@ subroutine compute_gmskewsion(Time, Thickness, Dens, T_prog)
 
   real, dimension(isd:ied,jsd:jed) :: eta_tend
   real    :: eta_tend_glob
-  real    :: temporary
   real    :: upsilonx, upsilony
   real    :: d_upsilonx_dz, d_upsilony_dz
   real    :: term1, term2, term3

@@ -107,7 +107,10 @@ subroutine ocean_tracer_util_init (Grid, Domain, blobs)
   type(ocean_domain_type), intent(in), target :: Domain
   logical,                 intent(in)         :: blobs
 
-  integer :: ioun, io_status, ierr
+  integer :: ioun, io_status
+#ifdef INTERNAL_FILE_NML
+  integer :: ierr
+#endif
   integer :: stdoutunit,stdlogunit 
   stdoutunit=stdout();stdlogunit=stdlog() 
 
@@ -137,7 +140,6 @@ subroutine ocean_tracer_util_init (Grid, Domain, blobs)
 #else
   ioun = open_namelist_file()
   read(ioun, ocean_tracer_util_nml, iostat=io_status)
-!  ierr = check_nml_error(io_status,'ocean_tracer_util_nml')
   call close_file(ioun)
 #endif
   write (stdlogunit, ocean_tracer_util_nml)

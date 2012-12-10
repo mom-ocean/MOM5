@@ -672,7 +672,7 @@ contains
     logical, intent(in), optional                :: debug
     logical, intent(in)                          :: use_legacy_barotropic_halos
     !--- some local variables ------------------------------------------
-    integer :: m, n, nn, i, j, k, unit, io_status, ierr, ioff, joff
+    integer :: m, n, i, j, unit, io_status, ierr, ioff, joff
     integer :: il, iu, jl, ju
     integer :: ni, nj, nsize
     integer :: west_at_pe, south_at_pe, east_at_pe, north_at_pe
@@ -2491,7 +2491,7 @@ contains
     character(len=1), optional,     intent(in) :: update_type
 
     integer :: i, j, m, is, ie, js, je, i1, j1, n, ii, jj
-    real    :: u1, u2, x1, x2, v1, v2, y1, y2
+    real    :: u1, u2, x1, x2
     integer, dimension(nobc) :: uptype     ! OBC type
     integer, dimension(:), pointer :: ilod, jlod, oi1, oj1
     integer, dimension(:), pointer :: istr, iend, jstr, jend
@@ -2879,7 +2879,6 @@ contains
 subroutine ocean_obc_restart(time_stamp, ctrop_chksum)
   character(len=*), intent(in), optional    :: time_stamp
   integer(LONG_KIND), intent(out), optional :: ctrop_chksum
-   integer :: m, n, i, j, nn
 
    if(present(ctrop_chksum)) ctrop_chksum = mpp_chksum(ctrop(COMP))
    call reset_field_pointer(Obc_restart, id_restart(1), ctrop(:,:) )
