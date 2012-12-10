@@ -397,12 +397,7 @@ contains
 
     integer :: parse_ok
     integer :: io_status, ioun, ierr
-    integer :: i, j, k, m, kbot, model, nindx, mindx
-
-    integer :: tot_ist, tot_ied, tot_jst, tot_jed
-    integer :: hlf_ii, hlf_jj, ncheck
-
-    integer :: i_tmp, j_tmp
+    integer :: i, j, k, m, model, nindx, mindx
 
 !------- index of fields
     integer :: n_info, n_src, n_int, n_ent
@@ -424,9 +419,7 @@ contains
     type(method_type), allocatable, dimension(:) :: OFP_methods_prd_line_10
 
     character(len=32) :: fld_type, fld_name
-    character(len=12) :: OFP_line_name
-    character(len=3) :: OFP_line_num
-    integer :: stdoutunit, stdlogunit, OFP_out_unit  
+    integer :: stdoutunit, stdlogunit
 
 !----------- pe number
     integer :: pe
@@ -1706,7 +1699,6 @@ subroutine overflow_OFP (Time, Thickness, T_prog, Dens, index_temp, index_salt)
 
   integer                 :: tau, taum1, taup1
   integer                 :: i, j, k, m, n, nid, ijk_check
-  integer                 :: outfile,OFP_file_unit
   integer                 :: pe, root_pe
   integer                 :: stdoutunit
 

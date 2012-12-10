@@ -965,7 +965,6 @@ subroutine vert_mix_kpp_mom4p0 (aidif, Time, Thickness, Velocity, T_prog, T_diag
   real, dimension(isd:ied,jsd:jed,nk) :: dbloc1, dbsfc1
   real, dimension(isd:ied,jsd:jed)    :: frazil
   real                                :: smftu, smftv, active_cells
-  real                                :: temporary   
   integer                             :: i, j, k, n, ki
   integer                             :: tau, taum1
 
@@ -2588,7 +2587,6 @@ subroutine watermass_diag(Time, T_prog, Dens)
 
   integer :: i,j,k,tau
   real, dimension(isd:ied,jsd:jed) :: eta_tend
-  real    :: eta_tend_glob
 
   if (.not.module_is_initialized) then 
     call mpp_error(FATAL, &

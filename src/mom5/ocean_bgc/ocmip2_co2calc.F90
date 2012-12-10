@@ -108,7 +108,7 @@ real, dimension(isd:,jsd:), intent(in)  :: mask
 real, dimension(isc:,jsc:), intent(out) :: alpha
 real, intent(in), optional              :: scale
 
-integer :: i, j, k
+integer :: i, j
 real    :: log100
 real    :: tk
 real    :: tk100

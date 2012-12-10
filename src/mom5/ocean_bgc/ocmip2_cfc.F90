@@ -211,7 +211,7 @@ end subroutine  ocmip2_cfc_bbc
 !     Clean up various CFC quantities for this run.
 ! </DESCRIPTION>
 !
-subroutine ocmip2_cfc_end(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,   &
+subroutine ocmip2_cfc_end(isc, iec, jsc, jec, nk, isd, jsd,  &
      T_prog, grid_dat, grid_tmask, rho_dzt, taup1)
 
 integer, intent(in)                                     :: isc
@@ -220,9 +220,7 @@ integer, intent(in)                                     :: jsc
 integer, intent(in)                                     :: jec
 integer, intent(in)                                     :: nk
 integer, intent(in)                                     :: isd
-integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
-integer, intent(in)                                     :: jed
 type(ocean_prog_tracer_type), dimension(:), intent(in)  :: T_prog
 integer, intent(in)                                     :: taup1
 real, dimension(isd:,jsd:), intent(in)                  :: grid_dat
@@ -292,23 +290,16 @@ end subroutine  ocmip2_cfc_end
 !     Calculate the surface boundary conditions
 ! </DESCRIPTION>
 !
-subroutine ocmip2_cfc_sbc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,   &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                &
+subroutine ocmip2_cfc_sbc(isc, iec, jsc, jec,     &
+     isc_bnd, jsc_bnd,                                 &
      T_prog, Grid, Time, ice_ocean_boundary_fluxes)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
 integer, intent(in)                                             :: jsc
 integer, intent(in)                                             :: jec
-integer, intent(in)                                             :: nk
-integer, intent(in)                                             :: isd
-integer, intent(in)                                             :: ied
-integer, intent(in)                                             :: jsd
-integer, intent(in)                                             :: jed
 integer, intent(in)                                             :: isc_bnd
-integer, intent(in)                                             :: iec_bnd
 integer, intent(in)                                             :: jsc_bnd
-integer, intent(in)                                             :: jec_bnd
 type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
 type(ocean_grid_type), intent(in)                               :: Grid
 type(ocean_time_type), intent(in)                               :: Time
@@ -317,7 +308,6 @@ type(coupler_2d_bc_type), intent(in)                            :: ice_ocean_bou
 integer :: i_bnd_off
 integer :: j_bnd_off
 integer :: i, j, n
-logical :: used
 
 !     use the surface fluxes from the coupler
 !       stf is in mol/m^2/s, flux from coupler is positive upwards
@@ -671,22 +661,17 @@ end subroutine ocmip2_cfc_init
 !
 !       Note: this subroutine should be merged into ocmip2_cfc_start
 ! </DESCRIPTION>
-subroutine ocmip2_cfc_init_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,      &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, T_prog, rho, taum1, grid_tmask)
+subroutine ocmip2_cfc_init_sfc(isc, iec, jsc, jec, isd, jsd,      &
+     isc_bnd, jsc_bnd, Ocean_fields, T_prog, rho, taum1, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
 integer, intent(in)                                     :: jsc
 integer, intent(in)                                     :: jec
-integer, intent(in)                                     :: nk
 integer, intent(in)                                     :: isd
-integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
-integer, intent(in)                                     :: jed
 integer, intent(in)                                     :: isc_bnd
-integer, intent(in)                                     :: iec_bnd
 integer, intent(in)                                     :: jsc_bnd
-integer, intent(in)                                     :: jec_bnd
 type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 type(ocean_prog_tracer_type), dimension(:), intent(in)  :: T_prog
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho
@@ -807,28 +792,22 @@ end subroutine ocmip2_cfc_init_sfc
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
 
-subroutine ocmip2_cfc_sum_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,       &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask, Grid, Time)
+subroutine ocmip2_cfc_sum_sfc(isc, iec, jsc, jec, isd, jsd,        &
+     isc_bnd, jsc_bnd,                                         &
+     Ocean_fields, T_prog, rho, taum1, grid_tmask, Grid, Time)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
 integer, intent(in)                                     :: jsc
 integer, intent(in)                                     :: jec
-integer, intent(in)                                     :: nk
 integer, intent(in)                                     :: isd
-integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
-integer, intent(in)                                     :: jed
 integer, intent(in)                                     :: isc_bnd
-integer, intent(in)                                     :: iec_bnd
 integer, intent(in)                                     :: jsc_bnd
-integer, intent(in)                                     :: jec_bnd
 type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 type(ocean_prog_tracer_type), intent(in), dimension(:)  :: T_prog
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho
 integer, intent(in)                                     :: taum1
-type(time_type), intent(in)                             :: model_time
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 type(ocean_grid_type), intent(in)                       :: Grid
 type(ocean_time_type), intent(in)                       :: Time
@@ -841,7 +820,6 @@ integer         :: ind
 real            :: sal
 real            :: ta
 real            :: epsln=1.0e-30
-logical         :: used
 logical, save   :: done = .false.
 logical, save   :: need = .false.
 
@@ -1007,22 +985,17 @@ end subroutine ocmip2_cfc_zero_sfc
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
 
-subroutine ocmip2_cfc_avg_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,       &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)
+subroutine ocmip2_cfc_avg_sfc(isc, iec, jsc, jec, isd, jsd,        &
+     isc_bnd, jsc_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
 integer, intent(in)                                     :: jsc
 integer, intent(in)                                     :: jec
-integer, intent(in)                                     :: nk
 integer, intent(in)                                     :: isd
-integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
-integer, intent(in)                                     :: jed
 integer, intent(in)                                     :: isc_bnd
-integer, intent(in)                                     :: iec_bnd
 integer, intent(in)                                     :: jsc_bnd
-integer, intent(in)                                     :: jec_bnd
 type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 integer                                                 :: Ocean_avg_kount
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
@@ -1111,7 +1084,7 @@ end subroutine  ocmip2_cfc_source
 ! for a given run and allocate diagnostic arrays
 ! </DESCRIPTION>
 !
-subroutine ocmip2_cfc_start(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,         &
+subroutine ocmip2_cfc_start(isc, iec, jsc, jec, nk, isd, jsd,         &
      T_prog, taup1, model_time, grid_dat, grid_tmask, grid_tracer_axes, rho_dzt)
 
 integer, intent(in)                                     :: isc
@@ -1120,9 +1093,7 @@ integer, intent(in)                                     :: jsc
 integer, intent(in)                                     :: jec
 integer, intent(in)                                     :: nk
 integer, intent(in)                                     :: isd
-integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
-integer, intent(in)                                     :: jed
 type(ocean_prog_tracer_type), dimension(:), intent(in)  :: T_prog
 integer, intent(in)                                     :: taup1
 type(time_type), intent(in)                             :: model_time

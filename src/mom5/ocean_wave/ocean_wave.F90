@@ -316,7 +316,6 @@ subroutine ocean_wave_model(Time, Waves, Ice_ocean_boundary)
   integer :: i,j
   integer :: ndtt, nww
   real    :: wmax, cspeed, dtwmax
-  logical :: used
 
   if ( .not.module_is_initialized ) return  
 
@@ -722,7 +721,6 @@ subroutine read_wave(Waves)
   type(ocean_wave_type), intent(inout) :: Waves
 
   character*128 file_name
-  integer, dimension(4) :: siz 
 
   file_name = 'ocean_wave.res.nc'
   id_restart(1) = register_restart_field(wave_restart, file_name, 'xmom', &

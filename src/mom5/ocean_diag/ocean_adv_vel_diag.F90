@@ -998,7 +998,6 @@ subroutine transport_on_nrho (Time, Dens, Adv_vel)
   real    :: work1(isc:iec,jsc:jec,size(Dens%neutralrho_ref))
   real    :: work2(isc:iec,jsc:jec,size(Dens%neutralrho_ref))
   real    :: tmp(2,isc:iec,jsc:jec)
-  real    :: weight 
 
   if (.not.module_is_initialized) then 
     call mpp_error(FATAL, &
@@ -1108,7 +1107,6 @@ subroutine transport_on_rho (Time, Dens, Adv_vel)
   real    :: work1(isc:iec,jsc:jec,size(Dens%potrho_ref))
   real    :: work2(isc:iec,jsc:jec,size(Dens%potrho_ref))
   real    :: tmp(2,isc:iec,jsc:jec)
-  real    :: weight
 
   if (.not.module_is_initialized) then 
     call mpp_error(FATAL, &
@@ -1221,7 +1219,6 @@ subroutine transport_on_theta (Time, Dens, Theta, Adv_vel)
   real    :: work1(isc:iec,jsc:jec,size(Dens%theta_ref))
   real    :: work2(isc:iec,jsc:jec,size(Dens%theta_ref))
   real    :: tmp(2,isc:iec,jsc:jec)
-  real    :: weight 
 
   tau = Time%tau
 

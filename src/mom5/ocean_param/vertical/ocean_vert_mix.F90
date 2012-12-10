@@ -1480,8 +1480,6 @@ subroutine diff_cbt_tanh_init(Time, Ocean_options)
   type(ocean_options_type), intent(inout) :: Ocean_options
 
   integer :: i,j,k
-  real    :: K_sfc, abs_sin, I_x30
-  real    :: I_trans, atan_fn_sfc, I_atan_fn, atan_fn_depth
 
   if(diff_cbt_tanh) then
      Ocean_options%tanh_diff_cbt = 'Used tanh background vertical diffusivity.'
@@ -1537,7 +1535,7 @@ end subroutine diff_cbt_tanh_init
 subroutine vert_friction_init(Time)
   type(ocean_time_type), intent(in) :: Time
 
-  integer :: i,j,k,n
+  integer :: i,j,k
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
@@ -2803,10 +2801,8 @@ subroutine vert_mix_coeff(Time, Thickness, Velocity, T_prog,   &
   real, dimension(isd:,jsd:,:,:), intent(inout) :: diff_cbt
   real, dimension(isd:,jsd:),     intent(inout) :: hblt_depth
 
-  integer :: i,j,k,kp1,n,tau
-  real    :: tmp, rescale 
-  real    :: dnu_dtheta_dz, dnu_dsalinity_dz, dtheta_dz, dsalinity_dz  
-  real    :: global_mean 
+  integer :: i,j,k,kp1,tau
+  real    :: tmp
 
   tau = Time%tau 
 
@@ -3831,7 +3827,6 @@ subroutine vert_friction_implicit_cgrid (visc_cbt, visc_cbu_form_drag, Time, Thi
 
   integer :: taum1, tau, taup1
   integer :: i, j, k, n
-  real    :: recip
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -4005,7 +4000,7 @@ subroutine vmix_min_dissipation(Time, Dens, diff_cbt, visc_cbu, visc_cbt)
   real, dimension(isd:,jsd:,:),   intent(inout) :: visc_cbu
   real, dimension(isd:,jsd:,:),   intent(inout) :: visc_cbt
 
-  real    :: tmp, bvfreq2, absbvfreq, mindiss
+  real    :: tmp, absbvfreq, mindiss
   real    :: rho_N2_prev
   integer :: i,j,k,kp1,kbot,m
 
@@ -4896,17 +4891,15 @@ subroutine vert_diffuse_watermass_diag(Time, Thickness, Dens, T_prog, diff_cbt)
   real, dimension(isd:,jsd:,:,:), intent(in) :: diff_cbt
 
   integer :: taup1, tau
-  integer :: i, j, k, kp, kp1, nmix
+  integer :: i, j, k, kp, nmix
 
   real,  dimension(isd:ied,jsd:jed) :: eta_tend
-  real :: eta_tend_glob
   real :: diffusivity 
 
   if(.not. compute_watermass_diag) return
 
   tau   = Time%tau
   taup1 = Time%taup1
- 
 
 
   !-------------------------------------------------------------------------------------

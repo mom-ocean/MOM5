@@ -4054,7 +4054,6 @@ subroutine watermass_diag(Time, T_prog, T_diag, Dens, Thickness, pme)
   integer :: i,j,k,taum1,tau,taup1
 
   real,  dimension(isd:ied,jsd:jed) :: eta_tend
-  real :: eta_tend_glob
 
   if(.not. compute_watermass_diag) return 
 

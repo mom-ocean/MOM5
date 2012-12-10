@@ -672,7 +672,7 @@ contains
     logical, intent(in), optional                :: debug
     logical, intent(in)                          :: use_legacy_barotropic_halos
     !--- some local variables ------------------------------------------
-    integer :: m, n, nn, i, j, k, unit, io_status, ierr, ioff, joff
+    integer :: m, n, i, j, unit, io_status, ierr, ioff, joff
     integer :: il, iu, jl, ju
     integer :: ni, nj, nsize
     integer :: west_at_pe, south_at_pe, east_at_pe, north_at_pe

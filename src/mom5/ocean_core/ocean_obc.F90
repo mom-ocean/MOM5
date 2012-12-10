@@ -687,16 +687,14 @@ contains
     logical, intent(in), optional                :: debug
     integer, intent(in)                          :: ver_coordinate
     !--- some local variables ------------------------------------------
-    integer :: m, n, nn, i, j, k, unit, io_status, ierr, ioff, joff
-    integer :: ni, nj, nsize, id_restart
+    integer :: m, n, nn, i, j, unit, io_status, ierr, ioff, joff
+    integer :: ni, nj, nsize
     integer :: west_at_pe, south_at_pe, east_at_pe, north_at_pe
     integer :: irig_s, ilef_s , jbou_s
     integer :: irig_n, ilef_n , jbou_n
     integer :: jlow_w, jup_w, ibou_w
     integer :: jlow_e, jup_e, ibou_e
     integer :: pe
-    logical, allocatable :: on_bound(:)
-    character*128        :: file_name
     character(len=5)     :: pe_name
     
   integer :: stdoutunit,stdlogunit 
@@ -2933,7 +2931,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
     integer, intent(in)                           :: tn                ! only when n=1, the max phase speed will be calculated
 
     !--- local variables -----------------------------------------------
-    integer :: it, iu, jt, ju, m
+    integer :: it, iu, m
     integer :: k, i, j, tlevel, istrt, iend, ii, jj, dbg
     integer :: i1, i2, j1, j2, n, nn, im, jm, id, jd, ic, jc
     real    :: cgrid, var, cmax, uout, uin, rel_var, adv_obc, adv, alpha, sign
@@ -3995,7 +3993,6 @@ end subroutine ocean_obc_restart
 
     type(ocean_time_type), intent(in) :: Time
     logical, intent(inout)            :: have_obc
-    integer(LONG_KIND)                :: ctrop_chksum
     integer :: m
 
     integer :: stdoutunit 
@@ -4111,7 +4108,6 @@ end subroutine ocean_obc_restart
     type(ocean_prog_tracer_type),  intent(in) :: Tracer
     real, dimension(isd:,jsd:), intent(inout) :: tracer_flux
     integer                                   :: i, j, k, m
-    logical                                   :: used
     
 
     tracer_flux = 0.

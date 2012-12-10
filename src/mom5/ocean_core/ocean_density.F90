@@ -1938,7 +1938,6 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
   type(ocean_density_type),       intent(inout) :: Dens
   type(ocean_diag_tracer_type),   intent(inout) :: T_diag(:)
   
-  logical :: used
   integer :: tau
 
   tau   = Time%tau
@@ -2106,21 +2105,8 @@ end subroutine ocean_density_diag
   logical,                        intent(in)    :: use_blobs
   type(time_type)                               :: next_time 
   
-  logical :: used
   integer :: i, j, k
   integer :: tau, taup1
-  real    :: mass, massip1, massjp1
-  real    :: density_tau         =0.0
-  real    :: density_taup1       =0.0
-  real    :: volume_tau          =0.0
-  real    :: volume_taup1        =0.0
-  real    :: volume_taup12       =0.0
-  real    :: mass_tau            =0.0
-  real    :: mass_taup1          =0.0
-  real    :: pbot_adjust         =0.0
-  real    :: eta_adjust          =0.0
-  real    :: eta_adjust_approx   =0.0
-  real    :: eta_adjust_cstvolume=0.0
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -2581,8 +2567,6 @@ end subroutine update_ocean_density
     real, dimension(isd:ied,jsd:jed,nk) :: neutral_density_field
 
     integer :: i, j, k
-    real    :: t1, t2, s1, sp5, p1, p1t1
-    real    :: num, den
 
     if ( .not. module_is_initialized ) then 
       call mpp_error(FATAL, &
@@ -2861,7 +2845,6 @@ end subroutine update_ocean_density
   real    :: eta_adjust          =0.0
   real    :: eta_adjust_approx   =0.0
   real    :: eta_adjust_cstvolume=0.0
-  real    :: press_ave, mass_cell
 
   integer :: stdoutunit 
   stdoutunit=stdout() 

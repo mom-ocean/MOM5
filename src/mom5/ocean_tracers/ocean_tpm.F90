@@ -674,7 +674,7 @@ type(ocean_thickness_type), intent(in)                  :: Thickness
 
 if (do_ocmip2_cfc) then  !{
   call ocmip2_cfc_end(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,  &
-                      Domain%isd, Domain%ied, Domain%jsd, Domain%jed,           &
+                      Domain%isd, Domain%jsd,            &
                       T_prog, Grid%dat, Grid%tmask,                             &
                       Thickness%rho_dzt, Time%taup1)
 endif  !}
@@ -786,9 +786,9 @@ if (.not. initialized) then  !{
 #ifdef USE_OCEAN_BGC 
 
   if (do_ocmip2_cfc) then  !{
-    call ocmip2_cfc_init_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,           &
-                             Domain%isd, Domain%ied, Domain%jsd, Domain%jed,                    &
-                             isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                &
+    call ocmip2_cfc_init_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec,            &
+                             Domain%isd, Domain%jsd,                     &
+                             isc_bnd, jsc_bnd,                                 &
                              Ocean%fields, T_prog, Dens%rho, Time%taum1,                        &
                              Grid%tmask)
   endif  !}
@@ -899,10 +899,10 @@ integer, intent(in)                                     :: jec_bnd
 #ifdef USE_OCEAN_BGC 
 
 if (do_ocmip2_cfc) then  !{
-  call ocmip2_cfc_sum_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,            &
-                          Domain%isd, Domain%ied, Domain%jsd, Domain%jed,                     &
-                          isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                 &
-                          Ocean%fields, T_prog, Dens%rho, Time%taum1, Time%model_time,        &
+  call ocmip2_cfc_sum_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec,             &
+                          Domain%isd, Domain%jsd,                      &
+                          isc_bnd, jsc_bnd,                                  &
+                          Ocean%fields, T_prog, Dens%rho, Time%taum1,        &
                           Grid%tmask, Grid, Time)
 endif  !}
 
@@ -1008,9 +1008,9 @@ integer, intent(in)                     :: jec_bnd
 #ifdef USE_OCEAN_BGC 
 
 if (do_ocmip2_cfc) then  !{
-  call ocmip2_cfc_avg_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,        &
-                          Domain%isd, Domain%ied, Domain%jsd, Domain%jed,                 &
-                          isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                             &
+  call ocmip2_cfc_avg_sfc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec,         &
+                          Domain%isd, Domain%jsd,                 &
+                          isc_bnd, jsc_bnd,                              &
                           Ocean%fields, Ocean%avg_kount, Grid%tmask)
 endif  !}
 
@@ -1238,9 +1238,8 @@ real, dimension(Domain%isd:,Domain%jsd:), intent(in)            :: runoff
 #ifdef USE_OCEAN_BGC 
 
 if (do_ocmip2_cfc) then  !{
-  call ocmip2_cfc_sbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,          &
-                      Domain%isd, Domain%ied, Domain%jsd, Domain%jed,                   &
-                      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                               &
+  call ocmip2_cfc_sbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec,           &
+                      isc_bnd, jsc_bnd,                                &
                       T_prog, Grid, Time, Ice_ocean_boundary_fluxes)
 endif  !}
 
@@ -1617,7 +1616,7 @@ endif  !}
 
 if (do_ocmip2_cfc) then  !{
   call ocmip2_cfc_start(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Grid%nk,        &
-                        Domain%isd, Domain%ied, Domain%jsd, Domain%jed,                 &
+                        Domain%isd, Domain%jsd,                  &
                         T_prog, Time%taup1, Time%model_time,                              &
                         Grid%dat, Grid%tmask, Grid%tracer_axes, Thickness%rho_dzt)
 endif  !}

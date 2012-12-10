@@ -605,7 +605,7 @@ integer, intent(in)     :: jec
 integer, intent(in)     :: nk
 
 
-integer :: i, j, k, l, m, n
+integer :: i, j, k, n
 
 allocate( sc_no_term(isc:iec,jsc:jec) )
 allocate( htotal_scale_lo(isc:iec,jsc:jec) )
@@ -804,7 +804,6 @@ character(len=256), parameter   :: note_header =                                
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 
 integer :: i, j, k, n
-character(len=fm_field_name_len+1)      :: suffix
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -3253,10 +3252,6 @@ real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 integer, dimension(3), intent(in)                       :: grid_tracer_axes
 type(domain2d), intent(in)                              :: mpp_domain2d
 
-  real                                  :: kappa_eppley
-  real                                  :: kappa_eppley_remin
-  real                                  :: irrk
-
   real                                  :: ideal_n_vmax
   real                                  :: ideal_n_k
   real                                  :: ideal_n_r
@@ -3298,7 +3293,7 @@ type(domain2d), intent(in)                              :: mpp_domain2d
   real                                  :: c_2_ip
   real                                  :: sal_global
 
-integer                                         :: i, j, k, l, n
+integer                                         :: i, j, l, n
 character(len=fm_field_name_len+1)              :: suffix
 character(len=fm_field_name_len+3)              :: long_suffix
 character(len=256)                              :: caller_str

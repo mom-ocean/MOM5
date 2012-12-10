@@ -565,7 +565,7 @@ real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 !       (any box with its lon,lat inside the box bounded by
 !       wlon,elon,nlat,slat value in mask set to factor).
 
-integer                                 :: i, j, k, l, m, n
+integer                                 :: i, j, k, l, n
 integer                                 :: done
 character(len=256)                      :: caller_str
 integer                                 :: len_w

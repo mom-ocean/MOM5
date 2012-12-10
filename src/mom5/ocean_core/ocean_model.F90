@@ -2060,7 +2060,7 @@ end subroutine ocean_model_data1D_get
     if(have_obc) call ocean_obc_end(Time, have_obc)
     call ocean_sfc_end()
     call ocean_vert_mix_end(Time)
-    call ocean_drifters_end(Grid)
+    call ocean_drifters_end()
     call ocean_wave_end(Time, Waves)
     
     write (stdoutunit,'(//,1x,a)') &

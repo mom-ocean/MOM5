@@ -543,7 +543,7 @@ subroutine ocean_vert_kpp_test_init (Grid, Domain, Time, Time_steps, Dens, T_pro
   real :: zeta  ! = stability parameter d/L
   real :: usta
 
-  integer :: i, j, k, kmax, n, ioun, io_status, ierr
+  integer :: i, j, n, ioun, io_status, ierr
   integer :: rib_dim = 3
 
   integer :: stdoutunit,stdlogunit 
@@ -2149,7 +2149,7 @@ subroutine ri_iwmix(visc_cbt, diff_cbt)
   real, dimension(isd:,jsd:,:,:), intent(inout) :: diff_cbt
   
   real    :: Rigg, ratio, frit, fcont
-  integer :: i, j, k, kmax
+  integer :: i, j, k
 
   do k=1,nk-1
      do j=jsc,jec
@@ -2770,7 +2770,6 @@ subroutine watermass_diag(Time, T_prog, Dens)
 
   integer :: i,j,k,tau
   real, dimension(isd:ied,jsd:jed) :: eta_tend
-  real    :: eta_tend_glob
 
   if (.not.module_is_initialized) then 
     call mpp_error(FATAL, &

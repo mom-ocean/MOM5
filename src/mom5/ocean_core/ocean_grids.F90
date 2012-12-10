@@ -1297,7 +1297,6 @@ subroutine set_ocean_vgrid_arrays (Domain, Grid, obc)
 
   integer :: i, j, k, kzt, kzu, kmin
 
-  logical :: used
   logical :: have_obc=.false.
 
   real    :: sigma_sign, zwnk, zwnk_r

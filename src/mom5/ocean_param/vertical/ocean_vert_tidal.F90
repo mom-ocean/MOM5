@@ -1123,7 +1123,7 @@ end subroutine vert_mix_tidal
 
   real    :: bottom
   real    :: tmp, rho_N2_prev
-  integer :: i, j, k, m, kp1, kbot
+  integer :: i, j, k, m, kbot
   integer :: tau
   real, dimension(isd:ied,jsd:jed) :: roughness_klevel 
 

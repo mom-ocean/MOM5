@@ -1035,11 +1035,9 @@ character(len=256), parameter   :: note_header =                                
 !       local variables
 !
 
-integer                                 :: done
 integer                                 :: i
 integer                                 :: j
 integer                                 :: k
-integer                                 :: l
 integer                                 :: n
 integer                                 :: nn
 character(len=256)                      :: caller_str

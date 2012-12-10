@@ -1076,7 +1076,7 @@ subroutine gyre_overturn_diagnose_init(Time, T_prog)
   type(ocean_time_type),        intent(in)  :: Time
   type(ocean_prog_tracer_type), intent(in)  :: T_prog(:)
 
-  integer :: i, j, k, n, nbasin
+  integer :: i, j, n, nbasin
 
   allocate (id_merid_flux_advect(0:5,num_prog_tracers))        
   allocate (id_merid_flux_over(0:5,num_prog_tracers))        
@@ -2089,7 +2089,6 @@ subroutine vert_advect_tracer(Time, Adv_vel, Dens, Thickness, T_prog, Tracer, nt
 
   integer :: tau, taum1
   integer :: i,j,k
-  real    :: temporary 
 
   if(zero_tracer_advect_vert) return 
 
@@ -4103,7 +4102,6 @@ subroutine advect_tracer_sweby_all(Time, Adv_vel, Dens, T_prog, Thickness, dtime
   real                                        :: Rjm, Rj, Rjp, cfl, massflux
   real                                        :: d0, d1, thetaP, psiP 
   real                                        :: thetaM, psiM
-  real                                        :: temporary 
   integer, dimension(num_prog_tracers)        :: id_update
 
   call mpp_clock_begin(id_clock_mdfl_sweby_all)
@@ -5424,23 +5422,17 @@ function advect_tracer_mdppm_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
   integer                                  :: i, j, k
   integer                                  :: kp1, kp2, km1, km2
   integer                                  :: tau, taum1
-  real                                     :: Rjm, Rj, Rjp
-  real                                     :: d0, d1, thetaP, psiP 
-  real                                     :: thetaM, psiM
 
   real                                     :: cfl, massflux, massflux_bt, dMx, dMn
   real                                     :: Sim2,Sim1,Si,Sip1,Sip2
 
   real                                     :: da2,da4,da3m,da3p
   real                                     :: mskm2,mskm1,msk0,mskp1,mskp2
-  real                                     :: qmp,qlc
-  real                                     :: dM4m,dM4p,qul,qmd,qmin,qmax,x,y,z,w
   real,parameter                           :: oneSixth=1./6., r12=1./12.
   real,parameter                           :: twoThirds=2./3.
   real,dimension(isc-4:iec+4,jsc-4:jec+4)  :: da, aL, aR, a6, d1m, d1p, d1mm, d1pp
   real,dimension(isc-4:iec+4,jsc-4:jec+4,nk) :: dak
 
-real :: tmin0,tmax0
   call mpp_clock_begin(id_clock_mdppm_test)
 
   ftp          = 0.0
@@ -5476,10 +5468,6 @@ real :: tmin0,tmax0
         enddo
      enddo
   enddo
-!ajacall get_tracer_stats(tracer_mdppm(isc:iec,jsc:jec,:),tmin0,tmax0)
-!ajacall stats(mass_mdppm(isc:iec,jsc:jec,:),'M')
-!ajacall stats(tracer_mdppm(isc:iec,jsc:jec,:),'T')
-!ajacall stats(tracermass_mdppm(isc:iec,jsc:jec,:),'TM')
 !
 ! Calculate vertical flux at the top and bottom of the boxes
 !
@@ -5649,10 +5637,6 @@ real :: tmin0,tmax0
   call mpp_update_domains (tracer_mdppm, Dom_mdppm%domain2d, flags=XUPDATE)
   call mpp_update_domains (tracermass_mdppm, Dom_mdppm%domain2d, flags=XUPDATE)
   call mpp_update_domains (mass_mdppm, Dom_mdppm%domain2d, flags=XUPDATE)
-!ajacall stats(mass_mdppm(isc:iec,jsc:jec,:),'M(w)')
-!ajacall stats(tracer_mdppm(isc:iec,jsc:jec,:),'T(w)')
-!ajacall stats(tracermass_mdppm(isc:iec,jsc:jec,:),'TM(w)')
-!ajacall tracer_stats(tracer_mdppm(isc:iec,jsc:jec,:),Tmin0,Tmax0,'w')
 
 !
 ! Calculate flux at the eastern wall of the boxes
@@ -5939,18 +5923,8 @@ real :: tmin0,tmax0
       enddo !i                                                
     enddo !j                                                  
                                                               
-!aja! Keep a copy of vertical velocity for next level             
-!aja    do j=jsc,jec                                              
-!aja      do i=isc,iec                                            
-!aja        wkm1(i,j) = Adv_vel%wrho_bt(i,j,k)                       
-!aja      enddo !i                                                
-!aja    enddo !j                                                  
                                                               
   enddo !k                                                    
-!ajacall stats(mass_mdppm(isc:iec,jsc:jec,:),'M(v)')
-!ajacall stats(tracer_mdppm(isc:iec,jsc:jec,:),'T(v)')
-!ajacall tracer_stats(tracer_mdppm(isc:iec,jsc:jec,:),Tmin0,Tmax0,'')
-!ajacall stats(tracermass_mdppm(isc:iec,jsc:jec,:),'TM(v)')
 
   call mpp_clock_end(id_clock_mdppm_test)
 
@@ -6012,15 +5986,12 @@ function advect_tracer_mdppm(Time, Adv_vel, Tracer, Thickness, Tracer_field, dti
   integer                                  :: i, j, k
   integer                                  :: kp1, kp2, km1, km2
   integer                                  :: tau, taum1
-  real                                     :: d0, d1, thetaP, psiP 
-  real                                     :: thetaM, psiM
 
   real                                     :: cfl, massflux, dMx, dMn
   real                                     :: Sim2,Sim1,Si,Sip1,Sip2
 
   real                                     :: da2,da4,da3m,da3p
   real                                     :: mskm2,mskm1,msk0,mskp1,mskp2
-  real                                     :: x,y,z,w
   real,parameter                           :: oneSixth=1./6., r12=1./12.
   real,parameter                           :: twoThirds=2./3.
   real,dimension(isc-4:iec+4,jsc-4:jec+4)  :: da, aL, aR, a6, d1m, d1p, d1mm, d1pp
@@ -6708,22 +6679,20 @@ function advect_tracer_mdmdt_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
   integer                                  :: kp1, kp2, kp3, kp4, km1, km2, km3
   integer                                  :: tau, taum1
 
-  real                                     :: cfl, massflux, massflux_bt, dMx, dMn
-  real                                     :: Sim2,Sim1,Si,Sip1,Sip2
+  real                                     :: cfl, massflux
 
-  real                                     :: mskm2,mskm1,msk0,mskp1,mskp2
-  real                                     :: qmp,qlc
-  real                                     :: dM4m,dM4p,x,y,z,w
+#ifdef DEBUG_OS7MP
   real :: tmin0,tmax0
+#endif
 
   real :: Phi, Qippp, Qipp, Qip, Qi, Qim, Qimm, Qimmm
   real :: MskPPP, MskPP, MskP, Msk, MskM, MskMM, MskMMM, MskC
   real :: Fac, rp1h_cfl
   real :: DelP, DelM, DelPP, DelMM, DelPPP, DelMMM
   real :: Del2, Del2P, Del2M, Del2PP, Del2MM
-  real :: Del3, Del3P, Del3M, Del3PP, Del3MM
+  real :: Del3P, Del3M, Del3PP, Del3MM
   real :: Del4, Del4P, Del4M
-  real :: Del5, Del5P, Del5M
+  real :: Del5P, Del5M
   real :: Del6
 
 #undef  DEBUG_OS7MP
@@ -7035,20 +7004,6 @@ function advect_tracer_mdmdt_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
           ! TVD limiter (DT04 eq. 16)
           if (Tracer%mdt_scheme==1) &
             Phi = max(0.0, min(2.0 / (1.0 - cfl), Phi, 2.0*rp1h_cfl ))
-
-   !!     ! MP limiter (revised curvature)
-   !!     A = 4.0 * Del2 - Del2P
-   !!     B = 4.0 * Del2P - Del2
-   !!     dM4p = max(min(A,B,Del2,Del2P),0.0)+min(max(A,B,Del2,Del2P),0.0)
-   !!     A = 4.0 * Del2 - Del2M
-   !!     B = 4.0 * Del2M - Del2
-   !!     dM4m = max(min(A,B,Del2,Del2M),0.0)+min(max(A,B,Del2,Del2M),0.0)
-
-   !!     ! MP limiter
-   !!     PhiMD =
-   !!     PhiLC = 
-   !!     PhiMin = max( min(0.0, PhiMD),                &
-   !!                   min(0.0, 2.0*rp1h_cfl, PhiLC) )
 
           ! Flux takes form of limited LW flux (DT04, eq. 8)
           Phi = Phi * 0.5 * (1.0 - cfl)

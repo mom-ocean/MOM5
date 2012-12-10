@@ -533,7 +533,7 @@ subroutine ocean_vert_kpp_mom4p1_init (Grid, Domain, Time, Time_steps, Dens, T_p
   real :: zeta  ! = stability parameter d/L
   real :: usta
 
-  integer :: i, j, k, kmax, n, ioun, io_status, ierr
+  integer :: i, j, n, ioun, io_status, ierr
   integer :: rib_dim = 3
 
   integer :: stdoutunit,stdlogunit 
@@ -2107,8 +2107,7 @@ subroutine ri_iwmix(visc_cbu, diff_cbt)
   
   real, parameter :: Riinfty = 0.8  ! local Richardson Number limit for shear instability
   real            :: Rigg, ratio, frit, fcont, friu, fconu
-  real            :: kv_up, kv_dn
-  integer         :: i, j, k, kmax
+  integer         :: i, j, k
 
   if (calc_visc_on_cgrid) then
 !-----------------------------------------------------------------------
@@ -2926,7 +2925,6 @@ subroutine watermass_diag(Time, T_prog, Dens)
 
   integer :: i,j,k,tau
   real, dimension(isd:ied,jsd:jed) :: eta_tend
-  real    :: eta_tend_glob
 
   if (.not.module_is_initialized) then 
     call mpp_error(FATAL, &

@@ -1701,7 +1701,6 @@ integer :: year
 integer :: hour
 integer :: minute
 integer :: second
-real, dimension(isc:iec,jsc:jec,nk)     :: grid_tmask_comp
 
   integer :: stdoutunit 
   stdoutunit=stdout() 

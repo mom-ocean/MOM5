@@ -1780,8 +1780,6 @@ subroutine lapgen_viscosity_check
 
 9600  format(/' Warning: ',a,es16.8,' m^2/s) exceeds max value (',es16.8,') at (i,j,k) = ', &
             '(',i4,',',i4,',',i4,'),',' (lon,lat,dpt) = (',f7.2,',',f7.2,',',f7.0,'m, pe=',i3,')')
-9601  format(/' Warning: ',a,es16.8,' m^2/s) exceeds max value (',es16.8,') at (i,j,k) = ', &
-            '(',i4,',',i4,',',i4,'),',' (lon,lat,dpt) = (',f7.2,',',f7.2,',',f7.0,'m, pe=',i3,')')
 
 
 end subroutine lapgen_viscosity_check

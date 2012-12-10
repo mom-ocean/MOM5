@@ -1675,7 +1675,6 @@ subroutine ocean_velocity_end(Time, Velocity, use_blobs)
       write(stdoutunit,*) 'From ocean_velocity_mod: ending velocity chksum (taup1)'
       call write_timestamp(Time%model_time)
       call ocean_velocity_chksum(Velocity, taup1, write_advection=.true.)
-
   endif
   
   return
