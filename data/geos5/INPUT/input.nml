@@ -236,7 +236,7 @@
       surface_height_split = 1
       barotropic_split = 80
       debug=.false.
-      impose_init_from_restart=.false.
+      impose_init_from_restart=.true.
 /
 
  &ocean_momentum_source_nml
