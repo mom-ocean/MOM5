@@ -3463,7 +3463,7 @@ subroutine compute_submeso_diffusion(Thickness, Dens, Time, T_prog)
               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
      endif
      if(id_xflux_subdiff(n) > 0) then 
-         used = send_data (id_xflux_subdiff(n), flux_sign*T_prog(n)%conversion*flux_y(:,:,:), &
+         used = send_data (id_xflux_subdiff(n), flux_sign*T_prog(n)%conversion*flux_x(:,:,:), &
               Time%model_time, rmask=Grd%tmask(:,:,:),                                        &
               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
      endif
@@ -3473,7 +3473,7 @@ subroutine compute_submeso_diffusion(Thickness, Dens, Time, T_prog)
          do k=1,nk
             do j=jsc,jec
                do i=isc,iec
-                  wrk1_2d(i,j) = wrk1_2d(i,j) + flux_y(i,j,k)
+                  wrk1_2d(i,j) = wrk1_2d(i,j) + flux_x(i,j,k)
                enddo
             enddo
          enddo

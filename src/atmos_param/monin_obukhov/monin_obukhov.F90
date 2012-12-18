@@ -859,14 +859,19 @@ real, intent(out) :: k_m, k_h
 
 integer            :: ni, nj, nk, ier
 real, parameter    :: ustar_min = 1.e-10
+real, dimension(1,1)   :: u_star1, b_star1
+real, dimension(1,1,1) :: z1, k_m1, k_h1
 
 if(.not.module_is_initialized) call monin_obukhov_init
 
 ni = 1; nj = 1; nk = 1
+z1 = z; u_star1 = u_star; b_star1 = b_star
 call monin_obukhov_diff(vonkarm,                           &
           & ustar_min,                                     &
           & neutral, stable_option, rich_crit, zeta_trans, &
-          & ni, nj, nk, z, u_star, b_star, k_m, k_h, ier)
+          & ni, nj, nk, z1, u_star1, b_star1, k_m1, k_h1, ier)
+
+k_m = k_m1(1,1,1); k_h = k_h1(1,1,1)
 
 end subroutine mo_diff_0d_1
 
@@ -880,14 +885,16 @@ real, intent(out), dimension(:) :: k_m, k_h
 
 integer            :: ni, nj, nk, ier
 real, parameter    :: ustar_min = 1.e-10
+real, dimension(1,1)   :: u_star1, b_star1
 
 if(.not.module_is_initialized) call monin_obukhov_init
 
 ni = 1; nj = 1; nk = size(z(:))
+u_star1 = u_star; b_star1 = b_star
 call monin_obukhov_diff(vonkarm,                           &
           & ustar_min,                                     &
           & neutral, stable_option, rich_crit, zeta_trans, &
-          & ni, nj, nk, z, u_star, b_star, k_m, k_h, ier)
+          & ni, nj, nk, z, u_star1, b_star1, k_m, k_h, ier)
 
 end subroutine mo_diff_0d_n
 

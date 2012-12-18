@@ -283,8 +283,7 @@ subroutine set_ocean_grid_size(Grid, grid_file, grid_name)
      call read_data(ocean_mosaic, "gridfiles", ocean_hgrid)
      ocean_hgrid = 'INPUT/'//trim(ocean_hgrid)
      call field_size(ocean_hgrid, 'x', siz)
-     Grid%ni = nx(1)
-     Grid%nj = ny(1)
+     
      if(mod(siz(1),2) .NE. 1) call mpp_error(FATAL, '==>Error from ocean_grids_mod(set_ocean_grid_size): '//&
           'x-size of x in file '//trim(ocean_hgrid)//' should be 2*ni+1')
      if(mod(siz(2),2) .NE. 1) call mpp_error(FATAL, '==>Error from ocean_grids_mod(set_ocean_grid_size): '//&

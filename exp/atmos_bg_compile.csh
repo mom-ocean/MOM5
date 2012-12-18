@@ -1,9 +1,9 @@
-# Build the atmos_FV library
+# Build the atmos_BG library
 
-set srcList = ( atmos_fv_dynamics/tools atmos_fv_dynamics/model atmos_fv_dynamics/driver/coupled atmos_coupled )
+set srcList = ( atmos_bgrid/tools atmos_bgrid/model atmos_bgrid/driver/coupled atmos_coupled )
 
 # setup directory structure
-set lib_name = "lib_atmos_fv"
+set lib_name = "lib_atmos_bg"
 
 # compile libs
 mkdir -p $executable:h:h/$lib_name

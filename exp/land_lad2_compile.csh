@@ -1,68 +1,12 @@
 # Build the land_lad2 library
 
-##LAND Component
-# The list of source files that should be compiled for this component.
-set pathnames_land_lad2  = $code_dir/path_names_land_lad2        # path to file containing list of source paths
-
-cat > $pathnames_land_lad2 <<EOF_land_lad2
-land_lad2/canopy_air/cana_tile.F90  
-land_lad2/canopy_air/canopy_air.F90  
-land_lad2/land_constants.F90  
-land_lad2/land_data.F90     
-land_lad2/land_model.F90    
-land_lad2/land_tile.F90     
-land_lad2/glacier/glac_tile.F90   
-land_lad2/glacier/glacier.F90  
-land_lad2/lake/lake.F90       
-land_lad2/lake/lake_tile.F90   
-land_lad2/river/river.F90       
-land_lad2/river/river_physics.F90  
-land_lad2/river/river_type.F90      
-land_lad2/shared/nf_utils/getput.inc     
-land_lad2/shared/nf_utils/getput_compressed.inc 
-land_lad2/shared/nf_utils/nf_utils.F90
-land_lad2/shared/nf_utils/nfc.F90 
-land_lad2/shared/nf_utils/nfu.F90
-land_lad2/shared/debug.inc  
-land_lad2/shared/land_debug.F90  
-land_lad2/shared/land_io.F90
-land_lad2/shared/land_numerics.F90
-land_lad2/shared/land_tile_diag.F90
-land_lad2/shared/land_tile_diag_buff.F90
-land_lad2/shared/land_tile_diag_sel.F90
-land_lad2/shared/land_tile_io.F90
-land_lad2/shared/land_utils.F90
-land_lad2/shared/sphum.F90
-land_lad2/snow/snow.F90
-land_lad2/snow/snow_tile.F90
-land_lad2/soil/soil.F90
-land_lad2/soil/soil_tile.F90
-land_lad2/soil/uptake.F90
-land_lad2/topo_rough/topo_rough.F90
-land_lad2/transitions/transitions.F90
-land_lad2/vegetation/read_remap_cohort_data.inc
-land_lad2/vegetation/vegetation.F90
-land_lad2/vegetation/vegn_cohort.F90
-land_lad2/vegetation/vegn_cohort_io.F90
-land_lad2/vegetation/vegn_cohort_io.inc
-land_lad2/vegetation/vegn_data.F90
-land_lad2/vegetation/vegn_disturbance.F90
-land_lad2/vegetation/vegn_dynamics.F90
-land_lad2/vegetation/vegn_harvesting.F90
-land_lad2/vegetation/vegn_photosynthesis.F90
-land_lad2/vegetation/vegn_radiation.F90
-land_lad2/vegetation/vegn_static_override.F90
-land_lad2/vegetation/vegn_tile.F90
-
-EOF_land_lad2
-
-set srcList = ( )
+set srcList = ( land_lad2/vegetation land_lad2/transitions land_lad2/topo_rough land_lad2/soil land_lad2/snow land_lad2/shared land_lad2/shared/nf_utils land_lad2/river land_lad2/lake land_lad2/glacier land_lad2/canopy_air land_lad2 )
 
 set lib_name = "lib_land_lad2"
 
 mkdir -p $executable:h:h/$lib_name
 cd $executable:h:h/$lib_name
-$mkmf_lib -p $lib_name.a -c "-DUSE_LOG_DIAG_FIELD_INFO $cppDefs"  -o "-I$executable:h:h/lib_FMS" $srcList $pathnames_land_lad2 $lib_include_dirs
+$mkmf_lib -p $lib_name.a -c "-DUSE_LOG_DIAG_FIELD_INFO $cppDefs"  -o "-I$executable:h:h/lib_FMS" $srcList $lib_include_dirs
 make
 
 if( $status ) then

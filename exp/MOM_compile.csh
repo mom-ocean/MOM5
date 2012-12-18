@@ -80,7 +80,22 @@ source ./FMS_compile.csh
 
 cd $root/exp
 source ./ocean_compile.csh
+if ( $status ) exit $status
 
+if( $type != MOM_solo) then
+    cd $root/exp
+    source ./ice_compile.csh
+    if ( $status ) exit $status
+endif
+if( $type == MOM_SIS) then
+    cd $root/exp
+    source ./land_null_compile.csh
+    if ( $status ) exit $status
+
+    cd $root/exp
+    source ./atmos_null_compile.csh
+    if ( $status ) exit $status
+endif
 if( $type == EBM) then
     cd $root/exp
     source ./atmos_ebm_compile.csh
@@ -108,7 +123,7 @@ if( $type == ESM2M ) then
 endif
 if( $type == ICCM ) then
     cd $root/exp
-    source ./atmos_bc_compile.csh
+    source ./atmos_bg_compile.csh
     if ( $status ) exit $status
 endif
 
@@ -121,25 +136,25 @@ if( $type == MOM_solo ) then
     set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean"
     set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == MOM_SIS ) then
-    set srcList = ( atmos_null land_null coupler )
-    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean" 
-    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
+    set srcList = ( coupler )
+    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_ice -I$executable:h:h/lib_atmos_null -I$executable:h:h/lib_land_null"
+    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_ice/lib_ice.a $executable:h:h/lib_atmos_null/lib_atmos_null.a $executable:h:h/lib_land_null/lib_land_null.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == EBM ) then
     set srcList = ( coupler )
-    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_atmos_ebm  -I$executable:h:h/lib_land_lad"
-    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_atmos_ebm/lib_atmos_ebm.a $executable:h:h/lib_land_lad/lib_land_lad.a $executable:h:h/lib_FMS/lib_FMS.a"
+    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_ice -I$executable:h:h/lib_atmos_ebm  -I$executable:h:h/lib_land_lad"
+    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_ice/lib_ice.a $executable:h:h/lib_atmos_ebm/lib_atmos_ebm.a $executable:h:h/lib_land_lad/lib_land_lad.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == CM2M ) then
     set srcList = ( coupler )
-    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_atmos_fv -I$executable:h:h/lib_atmos_phys -I$executable:h:h/lib_land_lad"
-    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_atmos_fv/lib_atmos_fv.a $executable:h:h/lib_atmos_phys/lib_atmos_phys.a $executable:h:h/lib_land_lad/lib_land_lad.a $executable:h:h/lib_FMS/lib_FMS.a"
+    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_ice -I$executable:h:h/lib_atmos_fv -I$executable:h:h/lib_atmos_phys -I$executable:h:h/lib_land_lad"
+    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_ice/lib_ice.a $executable:h:h/lib_atmos_fv/lib_atmos_fv.a $executable:h:h/lib_atmos_phys/lib_atmos_phys.a $executable:h:h/lib_land_lad/lib_land_lad.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == ESM2M ) then
     set srcList = ( coupler )
-    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_atmos_fv -I$executable:h:h/lib_atmos_phys -I$executable:h:h/lib_land_lad2"
-    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_atmos_fv/lib_atmos_fv.a $executable:h:h/lib_atmos_phys/lib_atmos_phys.a $executable:h:h/lib_land_lad2/lib_land_lad2.a $executable:h:h/lib_FMS/lib_FMS.a"
+    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_ice -I$executable:h:h/lib_atmos_fv -I$executable:h:h/lib_atmos_phys -I$executable:h:h/lib_land_lad2"
+    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_ice/lib_ice.a $executable:h:h/lib_atmos_fv/lib_atmos_fv.a $executable:h:h/lib_atmos_phys/lib_atmos_phys.a $executable:h:h/lib_land_lad2/lib_land_lad2.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == ICCM ) then
     set srcList = ( coupler )
-    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_atmos_bg -I$executable:h:h/lib_atmos_phys -I$executable:h:h/lib_land_lad" 
-    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_atmos_bg/lib_atmos_bg.a $executable:h:h/lib_atmos_phys/lib_atmos_phys.a $executable:h:h/lib_land_lad/lib_land_lad.a $executable:h:h/lib_FMS/lib_FMS.a"
+    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean -I$executable:h:h/lib_ice -I$executable:h:h/lib_atmos_bg -I$executable:h:h/lib_atmos_phys -I$executable:h:h/lib_land_lad" 
+    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_ice/lib_ice.a $executable:h:h/lib_atmos_bg/lib_atmos_bg.a $executable:h:h/lib_atmos_phys/lib_atmos_phys.a $executable:h:h/lib_land_lad/lib_land_lad.a $executable:h:h/lib_FMS/lib_FMS.a"
 endif
 $mkmf_exec -o "$includes" -l "$libs"  $srcList
 make

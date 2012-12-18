@@ -4,22 +4,6 @@
 set pathnames_shared  = $code_dir/path_names_shared        # path to file containing list of source paths
 
 cat > $pathnames_shared <<EOF_shared
-shared/amip_interp/amip_interp.F90
-shared/astronomy/astronomy.F90
-shared/axis_utils/axis_utils.F90
-shared/column_diagnostics/column_diagnostics.F90
-shared/constants/constants.F90
-shared/coupler/atmos_ocean_fluxes.F90
-shared/coupler/coupler_types.F90
-shared/coupler/ensemble_manager.F90
-shared/data_override/data_override.F90
-shared/diag_manager/diag_axis.F90
-shared/diag_manager/diag_data.F90
-shared/diag_manager/diag_grid.F90
-shared/diag_manager/diag_manager.F90
-shared/diag_manager/diag_output.F90
-shared/diag_manager/diag_util.F90
-shared/diag_manager/diag_table.F90
 shared/drifters/cloud_interpolator.F90
 shared/drifters/drifters.F90
 shared/drifters/drifters_comm.F90
@@ -33,40 +17,12 @@ shared/drifters/fms_switches.h
 shared/drifters/quicksort.F90
 shared/exchange/stock_constants.F90
 shared/exchange/xgrid.F90
-shared/fft/fft.F90
-shared/fft/fft99.F90
-shared/field_manager/field_manager.F90
-shared/field_manager/fm_util.F90
-shared/field_manager/parse.inc
 shared/fms/fms.F90
 shared/fms/fms_io.F90
 shared/fms/read_data_2d.inc
 shared/fms/read_data_3d.inc
 shared/fms/read_data_4d.inc
 shared/fms/write_data.inc
-shared/horiz_interp/horiz_interp.F90
-shared/horiz_interp/horiz_interp_bicubic.F90
-shared/horiz_interp/horiz_interp_bilinear.F90
-shared/horiz_interp/horiz_interp_conserve.F90
-shared/horiz_interp/horiz_interp_spherical.F90
-shared/horiz_interp/horiz_interp_type.F90
-shared/include/fms_platform.h
-shared/memutils/memuse.c
-shared/memutils/memutils.F90
-shared/mosaic/constant.h
-shared/mosaic/create_xgrid.c
-shared/mosaic/create_xgrid.h
-shared/mosaic/gradient.F90
-shared/mosaic/gradient_c2l.c
-shared/mosaic/gradient_c2l.h
-shared/mosaic/grid.F90
-shared/mosaic/interp.c
-shared/mosaic/interp.h
-shared/mosaic/mosaic.F90
-shared/mosaic/mosaic_util.c
-shared/mosaic/mosaic_util.h
-shared/mosaic/read_mosaic.c
-shared/mosaic/read_mosaic.h
 shared/mpp/mpp.F90
 shared/mpp/mpp_data.F90
 shared/mpp/mpp_domains.F90
@@ -135,37 +91,15 @@ shared/mpp/include/mpp_util_sma.inc
 shared/mpp/include/mpp_write.h
 shared/mpp/include/mpp_write_2Ddecomp.h
 shared/mpp/include/system_clock.h
-shared/oda_tools/oda_core.F90
-shared/oda_tools/oda_types.F90
-shared/oda_tools/write_ocean_data.F90
-shared/oda_tools/xbt_drop_rate_adjust.f90
-shared/platform/platform.F90
-shared/random_numbers/MersenneTwister.F90
-shared/random_numbers/random_numbers.F90
-shared/sat_vapor_pres/sat_vapor_pres.F90
-shared/sat_vapor_pres/sat_vapor_pres_k.F90
-shared/station_data/station_data.F90
-shared/time_interp/time_interp.F90
-shared/time_interp/time_interp_external.F90
-shared/time_manager/get_cal_time.F90
-shared/time_manager/time_manager.F90
-shared/topography/gaussian_topog.F90
-shared/topography/topography.F90
-shared/tracer_manager/tracer_manager.F90
-shared/tridiagonal/tridiagonal.F90
-
-atmos_param/diag_integral/diag_integral.F90
-atmos_param/monin_obukhov/monin_obukhov.F90
-atmos_param/monin_obukhov/monin_obukhov_interfaces.h
-atmos_param/monin_obukhov/monin_obukhov_kernel.F90
 
 EOF_shared
 
+set srcList = ( shared/tridiagonal shared/tracer_manager shared/topography shared/time_manager shared/time_interp shared/station_data shared/sat_vapor_pres shared/random_numbers shared/platform shared/oda_tools shared/diag_manager shared/data_override shared/coupler shared/constants shared/column_diagnostics shared/axis_utils shared/astronomy shared/amip_interp shared/fft shared/field_manager shared/horiz_interp shared/include shared/memutils shared/mosaic)
 set lib_name = "lib_FMS"
 
 mkdir -p $executable:h:h/$lib_name
 cd $executable:h:h/$lib_name
-$mkmf_lib -p $lib_name.a -c "$cppDefs" $pathnames_shared $lib_include_dirs
+$mkmf_lib -p $lib_name.a -c "$cppDefs" $srcList $pathnames_shared $lib_include_dirs
 make
 
 if( $status ) then
