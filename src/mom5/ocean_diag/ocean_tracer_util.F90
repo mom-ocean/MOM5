@@ -1,4 +1,5 @@
 module ocean_tracer_util_mod
+#define COMP isc:iec,jsc:jec
 !
 ! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
 ! S. M. Griffies 
@@ -37,8 +38,9 @@ module ocean_tracer_util_mod
 use constants_mod,        only: epsln
 use fms_mod,              only: open_namelist_file, check_nml_error, close_file
 use mpp_mod,              only: input_nml_file, stdout, stdlog, FATAL
-use mpp_mod,              only: mpp_error, mpp_chksum, mpp_pe, mpp_min, mpp_max
+use mpp_mod,              only: mpp_error, mpp_pe, mpp_min, mpp_max
 use platform_mod,         only: i8_kind
+use diag_manager_mod,     only: send_data
   
 use ocean_domains_mod,    only: get_local_indices
 use ocean_parameters_mod, only: ADVECT_PSOM
@@ -46,7 +48,7 @@ use ocean_types_mod,      only: ocean_grid_type, ocean_domain_type
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_diag_tracer_type
 use ocean_types_mod,      only: ocean_time_type, ocean_thickness_type 
 use ocean_types_mod,      only: ocean_density_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, write_chksum_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4
 use ocean_workspace_mod,  only: wrk1_v, wrk2_v, wrk3_v
 use ocean_workspace_mod,  only: wrk1_2d, wrk2_2d , wrk3_2d 
@@ -83,6 +85,7 @@ public sort_pick_array
 public sort_shell_array
 public rebin_onto_rho
 public diagnose_mass_of_layer
+public diagnose_3d_rho
 
 namelist /ocean_tracer_util_nml/ rebin_onto_rho_all_values, &
           debug_diagnose_mass_of_layer, epsln_diagnose_mass_of_layer
@@ -104,7 +107,10 @@ subroutine ocean_tracer_util_init (Grid, Domain, blobs)
   type(ocean_domain_type), intent(in), target :: Domain
   logical,                 intent(in)         :: blobs
 
-  integer :: ioun, io_status, ierr
+  integer :: ioun, io_status
+#ifdef INTERNAL_FILE_NML
+  integer :: ierr
+#endif
   integer :: stdoutunit,stdlogunit 
   stdoutunit=stdout();stdlogunit=stdlog() 
 
@@ -134,7 +140,6 @@ subroutine ocean_tracer_util_init (Grid, Domain, blobs)
 #else
   ioun = open_namelist_file()
   read(ioun, ocean_tracer_util_nml, iostat=io_status)
-!  ierr = check_nml_error(io_status,'ocean_tracer_util_nml')
   call close_file(ioun)
 #endif
   write (stdlogunit, ocean_tracer_util_nml)
@@ -542,7 +547,6 @@ subroutine tracer_prog_chksum(Time, Tracer, index, chksum)
   type(ocean_prog_tracer_type), intent(in)  :: Tracer
   integer,                      intent(in)  :: index
   integer(i8_kind), optional, intent(inout) :: chksum
-  integer(i8_kind)                          :: chk_sum
   
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -554,17 +558,12 @@ subroutine tracer_prog_chksum(Time, Tracer, index, chksum)
 
   write(stdoutunit,*) ' '
   write(stdoutunit,*) '=== Prognostic tracer checksum follows ==='
-  write(stdoutunit,*) 'Tracer name = ', Tracer%name
-
   call write_timestamp(Time%model_time)
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%field(isc:iec,jsc:jec,:,index)*Grd%tmask(isc:iec,jsc:jec,:)
-
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  write(stdoutunit,*) 'Tracer chksum = ',  chk_sum
-
-  if (PRESENT(chksum)) chksum = chk_sum
+  if (PRESENT(chksum)) then
+     call write_chksum_3d(Tracer%name, Tracer%field(COMP,:,index)*Grd%tmask(COMP,:), chksum)
+  else
+     call write_chksum_3d(Tracer%name, Tracer%field(COMP,:,index)*Grd%tmask(COMP,:))
+  endif
 
 end subroutine tracer_prog_chksum
 ! </SUBROUTINE>  NAME="tracer_prog_chksum"
@@ -581,7 +580,6 @@ subroutine tracer_diag_chksum(Time, Tracer, chksum)
   type(ocean_time_type),        intent(in)    :: Time
   type(ocean_diag_tracer_type), intent(in)    :: Tracer
   integer(i8_kind), optional,   intent(inout) :: chksum
-  integer(i8_kind)                            :: chk_sum
   
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -592,17 +590,12 @@ subroutine tracer_diag_chksum(Time, Tracer, chksum)
   endif 
 
   write(stdoutunit,*) '=== Diagnostic tracer checksum follows ==='
-  write(stdoutunit,*) 'Tracer name = ', Tracer%name
-
   call write_timestamp(Time%model_time)
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%field(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  
-  write(stdoutunit,*) 'Tracer chksum = ',  chk_sum
-
-  if (PRESENT(chksum)) chksum = chk_sum
+  if (PRESENT(chksum)) then
+     call write_chksum_3d(Tracer%name, Tracer%field(COMP,:)*Grd%tmask(COMP,:), chksum)
+  else
+     call write_chksum_3d(Tracer%name, Tracer%field(COMP,:)*Grd%tmask(COMP,:))
+  endif
 
 end subroutine tracer_diag_chksum
 ! </SUBROUTINE>  NAME="tracer_diag_chksum"
@@ -618,7 +611,6 @@ subroutine tracer_psom_chksum(Time, Tracer)
 
   type(ocean_time_type),        intent(in)  :: Time
   type(ocean_prog_tracer_type), intent(in)  :: Tracer
-  integer(i8_kind)                          :: chk_sum
   
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -632,46 +624,16 @@ subroutine tracer_psom_chksum(Time, Tracer)
   write (stdoutunit,*) 'Writing psom moments for tracer ',trim(Tracer%name)
   call write_timestamp(Time%model_time)
 
-  wrk1(isc:iec,jsc:jec,:) = Tracer%s0(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%s0 chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%sx(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%sx chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%sxx(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%sxx chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%sy(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%sy chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%syy(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%syy chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%sz(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%sz chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%szz(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%szz chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%sxy(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%sxy chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%sxy(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%sxz chksum = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Tracer%syz(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'Tracer%syz chksum = ',  chk_sum
-
+  call write_chksum_3d('Tracer%s0', Tracer%s0(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%sx', Tracer%sx(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%sxx', Tracer%sxx(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%sy', Tracer%sy(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%syy', Tracer%syy(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%sz', Tracer%sz(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%szz', Tracer%szz(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%sxy', Tracer%sxy(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%sxz', Tracer%sxy(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('Tracer%syz', Tracer%syz(COMP,:)*Grd%tmask(COMP,:))
 
 end subroutine tracer_psom_chksum
 ! </SUBROUTINE>  NAME="tracer_psom_chksum"
@@ -913,6 +875,38 @@ end subroutine rebin_onto_rho
 ! </SUBROUTINE> NAME="rebin_onto_rho"
 
 
+
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_3d_rho">
+!
+! <DESCRIPTION>
+! Helper function for diagnosting 3D data mapped onto density levels.
+! </DESCRIPTION>
+!
+subroutine diagnose_3d_rho(Time, Dens, id_name, data)
+  type(ocean_time_type), intent(in) :: Time
+  type(ocean_density_type), intent(in) :: Dens
+  integer, intent(in) :: id_name
+  real, dimension(isd:,jsd:,:), intent(in) :: data
+
+  real :: nrho_work(isd:ied,jsd:jed,size(Dens%neutralrho_ref(:)))
+  logical :: used
+
+  integer :: neutralrho_nk
+
+  if (id_name > 0) then
+     neutralrho_nk = size(Dens%neutralrho_ref(:))
+     nrho_work(:,:,:) = 0.0
+     call rebin_onto_rho(Dens%neutralrho_bounds, Dens%neutralrho, data, nrho_work)
+     used = send_data (id_name, nrho_work(:,:,:), &
+          Time%model_time,                        &
+          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
+  endif
+
+end subroutine diagnose_3d_rho
+! </SUBROUTINE> NAME="diagnose_3d_rho"
+
+
 !#######################################################################
 ! <SUBROUTINE NAME="diagnose_mass_of_layer_orig">
 ! <DESCRIPTION>
@@ -1022,12 +1016,10 @@ end subroutine diagnose_mass_of_layer_orig
 !
 ! </DESCRIPTION>
 !
-subroutine diagnose_mass_of_layer(area_t, depth_zt, depth_zwt, dzt, dztlo, dztup, rho_dzt, &
+subroutine diagnose_mass_of_layer(area_t, dzt, dztlo, dztup, rho_dzt, &
                                   nrho_level, nrho_nk, nrho_bdy, nrho_layer_mass)
 
   real, dimension(isd:,jsd:),   intent(in)    :: area_t 
-  real, dimension(isd:,jsd:,:), intent(in)    :: depth_zt 
-  real, dimension(isd:,jsd:,:), intent(in)    :: depth_zwt 
   real, dimension(isd:,jsd:,:), intent(in)    :: dzt 
   real, dimension(isd:,jsd:,:), intent(in)    :: dztlo 
   real, dimension(isd:,jsd:,:), intent(in)    :: dztup

@@ -526,8 +526,6 @@ integer                                                 :: stdoutunit,stdlogunit
 character(len=fm_string_len), parameter :: sub_name = 'generic_bling_register'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 
@@ -1230,7 +1228,7 @@ call close_file (ioun)
     !
     call g_tracer_add_param('tracer_debug',  bling%tracer_debug, .false.)
     !
-    call g_tracer_end_param_list(package_name)
+    call g_tracer_end_param_list()
     !===========
     !Block Ends: g_tracer_add_param
     !===========
@@ -1244,7 +1242,6 @@ call close_file (ioun)
   !
   subroutine user_add_tracers(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
-    character(len=fm_string_len), parameter :: sub_name = 'user_add_tracers'
 
     !Add here only the parameters that are required at the time of registeration 
     !(to make flux exchanging Ocean tracers known for all PE's) 
@@ -1255,7 +1252,7 @@ call close_file (ioun)
     call g_tracer_add_param('ocean_restart_file' , bling%ocean_restart_file, 'ocean_bling.res.nc')
     call g_tracer_add_param('IC_file'       , bling%IC_file       , '')
 
-    call g_tracer_end_param_list(package_name)
+    call g_tracer_end_param_list()
 
     ! Set Restart files
     call g_tracer_set_files(ice_restart_file    = bling%ice_restart_file,&
@@ -1554,7 +1551,6 @@ call close_file (ioun)
   subroutine generic_BLING_update_from_coupler(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
 
-    character(len=fm_string_len), parameter :: sub_name = 'generic_BLING_update_from_coupler'
 
   end subroutine generic_BLING_update_from_coupler
 !#######################################################################
@@ -1656,7 +1652,6 @@ call close_file (ioun)
     real, dimension(:,ilb:,jlb:,:), intent(in) :: opacity_band
 
 
-    character(len=fm_string_len), parameter :: sub_name = 'generic_BLING_update_from_source'
     integer :: isc,iec, jsc,jec,isd,ied,jsd,jed,nk,ntau, i, j, k , kblt,n
     real, dimension(:,:,:) ,pointer :: grid_tmask
     integer, dimension(:,:),pointer :: mask_coast,grid_kmt
@@ -3033,7 +3028,6 @@ call close_file (ioun)
     real, dimension(:,:,:,:), pointer :: o2_field
     real, dimension(:,:), ALLOCATABLE :: co2_alpha,co2_csurf,o2_alpha,o2_csurf
     real, dimension(:,:), ALLOCATABLE :: co2_sat_alpha,co2_sat_csurf,c14o2_alpha,c14o2_csurf
-    character(len=fm_string_len), parameter :: sub_name = 'generic_BLING_set_boundary_values'
 
     !Get the necessary properties
     call g_tracer_get_common(isc,iec,jsc,jec,isd,ied,jsd,jed,nk,ntau,grid_tmask=grid_tmask) 
@@ -3234,7 +3228,6 @@ call close_file (ioun)
 
 
   subroutine generic_BLING_end
-    character(len=fm_string_len), parameter :: sub_name = 'generic_BLING_end'
     call user_deallocate_arrays
   end subroutine generic_BLING_end
 

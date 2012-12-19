@@ -49,29 +49,14 @@
 ! </INFO>
 !
 
-module  ocmip2_he_mod  !{
+module  ocmip2_he_mod
 
-!
-!------------------------------------------------------------------
-!
-!       Global definitions
-!
-!------------------------------------------------------------------
-!
-
-!
-!----------------------------------------------------------------------
-!
-!       Modules
-!
-!----------------------------------------------------------------------
-!
-
+use atmos_ocean_fluxes_mod, only: aof_set_coupler_flux
 use time_manager_mod,         only: get_date, time_type
 use time_interp_external_mod, only: time_interp_external, init_external_field
-use diag_manager_mod,   only: send_data
+use diag_manager_mod,   only: register_diag_field
 use field_manager_mod,  only: fm_field_name_len, fm_path_name_len, fm_string_len
-use field_manager_mod,  only: fm_get_length, fm_get_value, fm_new_value
+use field_manager_mod,  only: fm_get_length, fm_get_value, fm_new_value, fm_get_index
 use fms_mod,            only: field_exist
 use fms_io_mod,         only: register_restart_field, save_restart, restore_state
 use fms_io_mod,         only: restart_file_type
@@ -81,38 +66,14 @@ use fm_util_mod,        only: fm_util_get_string, fm_util_get_logical, fm_util_g
 use fm_util_mod,        only: fm_util_get_logical_array, fm_util_get_real_array, fm_util_get_string_array
 use fm_util_mod,        only: fm_util_start_namelist, fm_util_end_namelist
 use mpp_mod,            only: stdout, stdlog, mpp_error, mpp_sum, FATAL
-use coupler_types_mod,  only: ind_alpha, ind_csurf, coupler_2d_bc_type
-use ocean_types_mod,    only: ocean_prog_tracer_type
-use time_interp_external_mod, only: time_interp_external
-use mpp_domains_mod,          only: domain2d
-
-!
-!----------------------------------------------------------------------
-!
-!       force all variables to be "typed"
-!
-!----------------------------------------------------------------------
-!
+use coupler_types_mod,  only: ind_alpha, ind_csurf, coupler_2d_bc_type, ind_flux
+use ocean_types_mod,    only: ocean_prog_tracer_type, ocean_grid_type, ocean_time_type
+use mpp_domains_mod,    only: domain2d
+use ocean_util_mod,     only: diagnose_2d, diagnose_2d_comp, diagnose_3d_comp
 
 implicit none
 
-!
-!----------------------------------------------------------------------
-!
-!       Make all routines and variables private by default
-!
-!----------------------------------------------------------------------
-!
-
 private
-
-!
-!----------------------------------------------------------------------
-!
-!       Public routines
-!
-!----------------------------------------------------------------------
-!
 
 public  :: ocmip2_he_bbc
 public  :: ocmip2_he_end
@@ -129,23 +90,7 @@ public  :: ocmip2_he_zero_sfc
 public  :: ocmip2_he_sfc_end
 public  :: ocmip2_he_restart
 
-!
-!----------------------------------------------------------------------
-!
-!       Private routines
-!
-!----------------------------------------------------------------------
-!
-
 private :: allocate_arrays
-
-!
-!----------------------------------------------------------------------
-!
-!       Private parameters
-!
-!----------------------------------------------------------------------
-!
 
 character(len=fm_field_name_len), parameter     :: package_name = 'ocmip2_he'
 character(len=48), parameter                    :: mod_name = 'ocmip2_he_mod'
@@ -156,15 +101,7 @@ character(len=fm_string_len), parameter   :: default_ocean_restart_file =  'ocmi
 
 integer, parameter :: max_he_rec = 1200
 
-!
-!----------------------------------------------------------------------
-!
-!       Private types
-!
-!----------------------------------------------------------------------
-!
- 
-type he_type  !{
+type he_type
 
   real                                  :: a1_4
   real                                  :: a2_4
@@ -213,25 +150,9 @@ type he_type  !{
   integer                               :: id_sfc_flux_he_3_man = -1
   integer                               :: id_sfc_flux_he_4_man = -1
 
-end type he_type  !}
-
-!
-!----------------------------------------------------------------------
-!
-!       Public variables
-!
-!----------------------------------------------------------------------
-!
+end type he_type
 
 logical, public :: do_ocmip2_he
-
-!
-!----------------------------------------------------------------------
-!
-!       Private variables
-!
-!----------------------------------------------------------------------
-!
 
 type(he_type), allocatable, dimension(:)       :: he
 integer                                         :: instances
@@ -246,29 +167,21 @@ character(len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
 
 integer                               :: src_he3_id
 character*128                         :: src_he3_file    
-character*32                          :: src_he3_name    
+character*128                         :: src_he3_name
 real, allocatable, dimension(:,:)     :: src_he3_t
 
 integer                               :: src_he4_id
 character*128                         :: src_he4_file    
-character*32                          :: src_he4_name    
+character*128                         :: src_he4_name
 real, allocatable, dimension(:,:)     :: src_he4_t
 
 integer                               :: src_he_depth_id
 character*128                         :: src_he_depth_file    
-character*32                          :: src_he_depth_name    
+character*128                         :: src_he_depth_name
 real, allocatable, dimension(:,:)     :: src_he_depth_t
 
 ! for restart
 type(restart_file_type), allocatable :: Top_restart(:)
-
-!
-!-----------------------------------------------------------------------
-!
-!       Subroutine and function definitions
-!
-!-----------------------------------------------------------------------
-!
 
 contains
 
@@ -279,16 +192,7 @@ contains
 !     Dynamically allocate arrays
 ! </DESCRIPTION>
 !
-
-subroutine allocate_arrays(isc, iec, jsc, jec, nk, isd, ied, jsd, jed)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine allocate_arrays(isc, iec, jsc, jec, nk, isd, ied, jsd, jed)
 
 integer, intent(in)     :: isc
 integer, intent(in)     :: iec
@@ -300,29 +204,15 @@ integer, intent(in)     :: ied
 integer, intent(in)     :: jsd
 integer, intent(in)     :: jed
 
-!
-!       local variables
-!
-
 integer :: n
-
-!
-!-----------------------------------------------------------------------
-!     start executable code
-!-----------------------------------------------------------------------
-!     
 
 allocate( sc_no_term(isc:iec,jsc:jec) )
 allocate( src_he3_t(isd:ied,jsd:jed) )
 allocate( src_he4_t(isd:ied,jsd:jed) )
 allocate( src_he_depth_t(isd:ied,jsd:jed) )
 
-!
-!       allocate he array elements
-!
-
-do n = 1, instances  !{
-
+! allocate he array elements
+do n = 1, instances
   allocate( he(n)%sc_3(isc:iec,jsc:jec) )
   allocate( he(n)%alpha_3_atm(isc:iec,jsc:jec) )
   allocate( he(n)%alpha_3_man(isc:iec,jsc:jec) )
@@ -332,22 +222,16 @@ do n = 1, instances  !{
   allocate( he(n)%alpha_4_man(isc:iec,jsc:jec) )
   allocate( he(n)%jhe4_man(isc:iec,jsc:jec,nk) )
   allocate( he(n)%jhe_depth(isc:iec,jsc:jec) )
+enddo
 
-enddo  !}
-
-
-!
-!       initialize some arrays
-!
-
+! initialize some arrays
 sc_no_term(:,:) = 0.0
 src_he3_t(:,:) = 0.0
 src_he4_t(:,:) = 0.0
 src_he_depth_t(:,:) = 0.0
 
 
-do n = 1, instances  !{
-
+do n = 1, instances
   he(n)%sc_3(:,:) = 0.0
   he(n)%alpha_3_atm(:,:) = 0.0
   he(n)%alpha_3_man(:,:) = 0.0
@@ -357,12 +241,10 @@ do n = 1, instances  !{
   he(n)%alpha_4_man(:,:) = 0.0
   he(n)%jhe4_man(:,:,:) = 0.0
   he(n)%jhe_depth(:,:) = 0.0
-
-
-enddo  !} n
+enddo
 
 return
-end subroutine  allocate_arrays  !}
+end subroutine  allocate_arrays
 ! </SUBROUTINE> NAME="allocate_arrays"
 
 
@@ -375,55 +257,9 @@ end subroutine  allocate_arrays  !}
 ! </DESCRIPTION>
 !
 
-subroutine ocmip2_he_bbc  !{
+subroutine ocmip2_he_bbc
 
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-character(len=64), parameter    :: sub_name = 'ocmip2_he_bbc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-!
-!   no flux bottom boundary condition is the default
-!
-
-return
-
-end subroutine  ocmip2_he_bbc  !}
+end subroutine  ocmip2_he_bbc
 ! </SUBROUTINE> NAME="ocmip2_he_bbc"
 
 
@@ -435,23 +271,8 @@ end subroutine  ocmip2_he_bbc  !}
 !     Clean up various HE quantities for this run.
 ! </DESCRIPTION>
 !
-
 subroutine ocmip2_he_end(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,   &
-     T_prog, grid_dat, grid_tmask, rho_dzt, taup1)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     T_prog, grid_dat, grid_tmask, rho_dzt, taup1)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -468,30 +289,11 @@ real, dimension(isd:ied,jsd:jed), intent(in)            :: grid_dat
 real, dimension(isd:ied,jsd:jed,nk), intent(in)         :: grid_tmask
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
 character(len=64), parameter    :: sub_name = 'ocmip2_he_end'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-integer :: i
-integer :: j
-integer :: k
-integer :: n
+integer :: i, j, k, n
 real    :: total_he_3_atm
 real    :: total_he_4_atm
 real    :: total_he_3_man
@@ -500,41 +302,24 @@ real    :: total_he_4_man
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-!-----------------------------------------------------------------------
-!     statement functions
-!-----------------------------------------------------------------------
-!
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-!
 !       integrate the total concentrations of some tracers
 !       for the end of the run
-!
-
 total_he_3_atm = 0.0
 total_he_3_man = 0.0
 total_he_4_atm = 0.0
 total_he_4_man = 0.0
 
-!
 !       Use tau time index for the start of a run, and taup1 time
 !       index for the end of a run so that we are integrating the
 !       same time level and should therefore get identical results
-!
-
 write (stdoutunit,*) trim(note_header),                           &
      'Global integrals at end of run'
 
-do n = 1, instances  !{
+do n = 1, instances
 
-  do k = 1,nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1,nk
+    do j = jsc, jec
+      do i = isc, iec
         total_he_3_atm = total_he_3_atm +                           &
              t_prog(he(n)%ind_he_3_atm)%field(i,j,k,taup1) *     &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
@@ -547,9 +332,9 @@ do n = 1, instances  !{
         total_he_4_man = total_he_4_man +                           &
              t_prog(he(n)%ind_he_4_man)%field(i,j,k,taup1) *     &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
   call mpp_sum(total_he_3_atm)
   call mpp_sum(total_he_4_atm)
@@ -570,11 +355,12 @@ do n = 1, instances  !{
        '(/'' Total Mantle HE-4  = '',es19.12,'' mol '')')        &
        total_he_4_man 
 
-enddo  !} n
+enddo
 
 return
-end subroutine  ocmip2_he_end  !}
+end subroutine  ocmip2_he_end
 ! </SUBROUTINE> NAME="ocmip2_he_end"
+
 !#######################################################################
 ! <SUBROUTINE NAME="ocmip2_he_restart">
 ! <DESCRIPTION>
@@ -592,8 +378,6 @@ end subroutine ocmip2_he_restart
 ! </SUBROUTINE> NAME="ocmip2_he_restart"
 
 
-
-
 !#######################################################################
 ! <SUBROUTINE NAME="ocmip2_he_sbc">
 !
@@ -602,93 +386,34 @@ end subroutine ocmip2_he_restart
 !     Calculate the surface boundary conditions
 ! </DESCRIPTION>
 !
-
-subroutine ocmip2_he_sbc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,   &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                &
-     T_prog, model_time, grid_tmask, ice_ocean_boundary_fluxes)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-use coupler_types_mod, only       : coupler_2d_bc_type, ind_flux
-use time_interp_external_mod, only: time_interp_external
-
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine ocmip2_he_sbc(isc, iec, jsc, jec, &
+     isc_bnd, jsc_bnd,      &
+     T_prog, Grid, Time, ice_ocean_boundary_fluxes)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
 integer, intent(in)                                             :: jsc
 integer, intent(in)                                             :: jec
-integer, intent(in)                                             :: nk
-integer, intent(in)                                             :: isd
-integer, intent(in)                                             :: ied
-integer, intent(in)                                             :: jsd
-integer, intent(in)                                             :: jed
 integer, intent(in)                                             :: isc_bnd
-integer, intent(in)                                             :: iec_bnd
 integer, intent(in)                                             :: jsc_bnd
-integer, intent(in)                                             :: jec_bnd
 type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
-type(time_type), intent(in)                                     :: model_time
-real, dimension(isd:ied,jsd:jed,nk), intent(in)                 :: grid_tmask
+type(ocean_grid_type), intent(in)                               :: Grid
+type(ocean_time_type), intent(in)                               :: Time
 type(coupler_2d_bc_type), intent(in)                            :: ice_ocean_boundary_fluxes
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-character(len=64), parameter    :: sub_name = 'ocmip2_he_sbc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
 
 integer :: i_bnd_off
 integer :: j_bnd_off
-integer :: i
-integer :: j
-integer :: n
+integer :: i, j, n
 logical :: used
 
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-!
-!---------------------------------------------------------------------
 !     use the surface fluxes from the coupler
 !       stf is in mol/m^2/s, flux from coupler is positive upwards
-!---------------------------------------------------------------------
-!
-
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
-do n = 1, instances  !{
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+do n = 1, instances
+  do j = jsc, jec
+    do i = isc, iec
        t_prog(he(n)%ind_he_3_atm)%stf(i,j) =                           &
              -ice_ocean_boundary_fluxes%bc(he(n)%ind_he_3_atm_flux)%field(ind_flux)%values(i-i_bnd_off,j-j_bnd_off)
        t_prog(he(n)%ind_he_4_atm)%stf(i,j) =                           &
@@ -697,53 +422,21 @@ do n = 1, instances  !{
              -ice_ocean_boundary_fluxes%bc(he(n)%ind_he_3_man_flux)%field(ind_flux)%values(i-i_bnd_off,j-j_bnd_off)
        t_prog(he(n)%ind_he_4_man)%stf(i,j) =                           &
              -ice_ocean_boundary_fluxes%bc(he(n)%ind_he_4_man_flux)%field(ind_flux)%values(i-i_bnd_off,j-j_bnd_off)
-    enddo  !} i
-  enddo  !} j
-enddo  !} n 
+    enddo
+  enddo
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       Save variables for diagnostics
-
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
-
-  if (he(n)%id_sfc_flux_he_3_atm .gt. 0) then !{
-    used = send_data(he(n)%id_sfc_flux_he_3_atm,        &
-         t_prog(he(n)%ind_he_3_atm)%stf(:,:),           &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-
-  endif !}
-
-  if (he(n)%id_sfc_flux_he_4_atm .gt. 0) then !{
-    used = send_data(he(n)%id_sfc_flux_he_4_atm,        &
-         t_prog(he(n)%ind_he_4_atm)%stf(:,:),           &
-         model_time, rmask = grid_tmask(:,:,1),         &
-	 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif !}
-
-  if (he(n)%id_sfc_flux_he_3_man .gt. 0) then !{
-    used = send_data(he(n)%id_sfc_flux_he_3_man,        &
-         t_prog(he(n)%ind_he_3_man)%stf(:,:),           &
-         model_time, rmask = grid_tmask(:,:,1),         &
-	 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif !}
-
-  if (he(n)%id_sfc_flux_he_4_man .gt. 0) then !{
-    used = send_data(he(n)%id_sfc_flux_he_4_man,        &
-         t_prog(he(n)%ind_he_4_man)%stf(:,:),           &
-         model_time, rmask = grid_tmask(:,:,1),         &
-	 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif !}
-
-enddo  !} n
+! Save variables for diagnostics
+do n = 1, instances
+   call diagnose_2d(Time, Grid, he(n)%id_sfc_flux_he_3_atm, t_prog(he(n)%ind_he_3_atm)%stf(:,:))
+   call diagnose_2d(Time, Grid, he(n)%id_sfc_flux_he_4_atm, t_prog(he(n)%ind_he_4_atm)%stf(:,:))
+   call diagnose_2d(Time, Grid, he(n)%id_sfc_flux_he_3_man, t_prog(he(n)%ind_he_3_man)%stf(:,:))
+   call diagnose_2d(Time, Grid, he(n)%id_sfc_flux_he_4_man, t_prog(he(n)%ind_he_4_man)%stf(:,:))
+enddo
 
 return
 
-end subroutine  ocmip2_he_sbc  !}
+end subroutine  ocmip2_he_sbc
 ! </SUBROUTINE> NAME="ocmip2_he_sbc"
 
 
@@ -755,33 +448,13 @@ end subroutine  ocmip2_he_sbc  !}
 !     Set up any extra fields needed by the ocean-atmosphere gas fluxes
 ! </DESCRIPTION>
 
-subroutine ocmip2_he_flux_init  !{
-
-use atmos_ocean_fluxes_mod, only: aof_set_coupler_flux
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!       local parameters
-!
+subroutine ocmip2_he_flux_init
 
 character(len=64), parameter    :: sub_name = 'ocmip2_he_flux_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 
 integer                                                 :: n
 character(len=fm_field_name_len)                        :: name
@@ -792,110 +465,83 @@ character(len=256)                                      :: caller_str
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
 !       First, perform some initialization if this module has not been
 !       initialized because the normal initialization routine will
 !       not have been called as part of the normal ocean model
 !       initialization if this is an Atmosphere pe of a coupled
 !       model running in concurrent mode
-!
+if (.not. module_initialized) then
 
-if (.not. module_initialized) then  !{
-
-!
-!       Initialize the package
-!
-
+   ! Initialize the package
   package_index = otpm_set_tracer_package(package_name,            &
        restart_file = default_restart_file,                        &
        caller = trim(mod_name) // '(' // trim(sub_name) // ')')
 
-!
-!       Check whether to use this package
-!
-
+  ! Check whether to use this package
   path_to_names = '/ocean_mod/tracer_packages/' // trim(package_name) // '/names'
   instances = fm_get_length(path_to_names)
-  if (instances .lt. 0) then  !{
+  if (instances .lt. 0) then 
     call mpp_error(FATAL, trim(error_header) // ' Could not get number of instances')
-  endif  !}
-
-!
-!       Check some things
-!
+  endif
 
   write (stdoutunit,*)
-  if (instances .eq. 0) then  !{
+  if (instances .eq. 0) then
     write (stdoutunit,*) trim(note_header), ' No instances'
     do_ocmip2_he = .false.
-  else  !}{
-    if (instances .eq. 1) then  !{
+  else
+    if (instances .eq. 1) then
       write (stdoutunit,*) trim(note_header), ' ', instances, ' instance'
-    else  !}{
+    else
       write (stdoutunit,*) trim(note_header), ' ', instances, ' instances'
-    endif  !}
+    endif
     do_ocmip2_he = .true.
-  endif  !}
+  endif
 
   module_initialized = .true.
 
-endif  !}
+endif
 
-!
-!       Return if we don't want to use this package
-!
-
-if (.not. do_ocmip2_he) then  !{
+! Return if we don't want to use this package
+if (.not. do_ocmip2_he) then
   return
-endif  !}
+endif
 
-if (.not. allocated(he)) then  !{
+if (.not. allocated(he)) then
 
-!
-!       allocate storage for he array
-!
-
+   ! allocate storage for he array
   allocate ( he(instances) )
 
-!
-!       loop over the names, saving them into the he array
-!
+  ! loop over the names, saving them into the he array
+  do n = 1, instances
 
-  do n = 1, instances  !{
-
-    if (fm_get_value(path_to_names, name, index = n)) then  !{
+    if (fm_get_value(path_to_names, name, index = n)) then
       he(n)%name = name
-    else  !}{
+    else
       write (name,*) n
       call mpp_error(FATAL, trim(error_header) //        &
            'Bad field name for index ' // trim(name))
-    endif  !}
+    endif
 
-  enddo  !}
+  enddo
 
-endif  !}
+endif
 
-!
-!       Set up the ocean-atmosphere gas flux fields
-!
-
+! Set up the ocean-atmosphere gas flux fields
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
-do n = 1, instances  !{
+do n = 1, instances
 
   name = he(n)%name
-  if (name(1:1) .eq. '_') then  !{
+  if (name(1:1) .eq. '_') then
     suffix = ' '
-  else  !}{
+  else
     suffix = '_' // name
-  endif  !}
+  endif
 
-!
-!       Coupler fluxes
-!
-!   NOTE: set param = (/ 1, 1 /) if reading in ocmip2 input files
-!         can reset in flux field table
+  ! Coupler fluxes
 
+  ! NOTE: set param = (/ 1, 1 /) if reading in ocmip2 input files
+  ! can reset in flux field table
   he(n)%ind_he_3_atm_flux = aof_set_coupler_flux('he_3_atm_flux' // suffix,                        &
        flux_type = 'air_sea_gas_flux', implementation = 'ocmip2',                               &
        param = (/ 9.36e-07, 9.7561e-06 /),                                                      &
@@ -923,17 +569,11 @@ do n = 1, instances  !{
        ice_restart_file = default_ice_restart_file,                                    &
        ocean_restart_file = default_ocean_restart_file,                                &
        caller = caller_str)
-
-!
-!       Coupler fields
-!
-
-enddo  !} n
+enddo
 
 return
 
-
-end subroutine  ocmip2_he_flux_init  !}
+end subroutine  ocmip2_he_flux_init
 ! </SUBROUTINE> NAME="ocmip2_he_flux_init"
 
 
@@ -946,52 +586,26 @@ end subroutine  ocmip2_he_flux_init  !}
 !       Save pointers to various "types", such as Grid and Domains.
 ! </DESCRIPTION>
 
-subroutine ocmip2_he_init  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!       local parameters
-!-----------------------------------------------------------------------
-!
+subroutine ocmip2_he_init
 
 character(len=64), parameter    :: sub_name = 'ocmip2_he_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
-!
-!-----------------------------------------------------------------------
 !     Schmidt number coefficients 
 !       Use Wanninkhof (1992) JGR, vol 97, pp 7373-7381
 !         for He-4 (and He-3)
-!-----------------------------------------------------------------------
-!
 
 real, parameter :: a1_4_def = 410.14
 real, parameter :: a2_4_def =  20.503 
 real, parameter :: a3_4_def =   0.53175 
 real, parameter :: a4_4_def =   0.0060111 
 
-
-!
-!-----------------------------------------------------------------------
-!     Solubility coefficients for alpha in mol/(m3 atm)
-!      (1) for He-4 
-!     after Wanninkhof (1992) JGR, vol 97, pp 7373-7381
-!-----------------------------------------------------------------------
-!
-
+! Solubility coefficients for alpha in mol/(m3 atm)
+! (1) for He-4 
+! after Wanninkhof (1992) JGR, vol 97, pp 7373-7381
 real, parameter :: d1_4_def =  -34.6261
 real, parameter :: d2_4_def =   43.0285 
 real, parameter :: d3_4_def =   14.1391
@@ -999,12 +613,6 @@ real, parameter :: d3_4_def =   14.1391
 real, parameter :: e1_4_def = -0.042340 
 real, parameter :: e2_4_def =  0.022624 
 real, parameter :: e3_4_def = -0.0033120
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 
 integer                                                 :: n
 character(len=fm_field_name_len)                        :: name
@@ -1018,101 +626,71 @@ character(len=fm_string_len), pointer, dimension(:)     :: good_list
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
+! Check which tracer packages have been turned on
 
-!
-!-----------------------------------------------------------------------
-!       Check which tracer packages have been turned on
-!-----------------------------------------------------------------------
-!
-
-!
-!       Initialize the ocmip2 he package
-!
-
+! Initialize the ocmip2 he package
 package_index = otpm_set_tracer_package(package_name,                 &
      restart_file = default_restart_file,                             &
      caller = trim(mod_name) // '(' // trim(sub_name) // ')')
 
-!
 !       Check whether to use this package
-!
-
 path_to_names = '/ocean_mod/tracer_packages/' // trim(package_name) // '/names'
 instances = fm_get_length(path_to_names)
-if (instances .lt. 0) then  !{
+if (instances .lt. 0) then 
   call mpp_error(FATAL, trim(error_header) // ' Could not get number of instances')
-endif  !}
+endif
 
-!
-!       Check some things
-!
-
-if (instances .eq. 0) then  !{
+if (instances .eq. 0) then
   write (stdoutunit,*) trim(note_header), ' No instances'
   do_ocmip2_he = .false.
-else  !}{
-  if (instances .eq. 1) then  !{
+else
+  if (instances .eq. 1) then
     write (stdoutunit,*) trim(note_header), ' ', instances, ' instance'
-  else  !}{
+  else
     write (stdoutunit,*) trim(note_header), ' ', instances, ' instances'
-  endif  !}
+  endif
   do_ocmip2_he = .true.
-endif  !}
+endif
 
 module_initialized = .true.
 
-!
-!       Return if we don't want to use this package,
-!       after changing the list back
-!
-
-if (.not. do_ocmip2_he) then  !{
+! Return if we don't want to use this package,
+! after changing the list back
+if (.not. do_ocmip2_he) then 
   return
-endif  !}
+endif
 
 ! after reading tracer tree
 !       allocate storage for he array
-!
-
 allocate ( he(instances) )
 
-!
-!       loop over the names, saving them into the he array
-!
+! loop over the names, saving them into the he array
+do n = 1, instances
 
-do n = 1, instances  !{
-
-  if (fm_get_value(path_to_names, name, index = n)) then  !{
+  if (fm_get_value(path_to_names, name, index = n)) then
     he(n)%name = name
-  else  !}{
+  else
     write (name,*) n
     call mpp_error(FATAL, trim(error_header) //                 &
          ' Bad field name for index ' // trim(name))
-  endif  !}
+  endif
 
-enddo  !}
+enddo
 
-!
-!       Set up the field input
-!
-
-do n = 1, instances  !{
+! Set up the field input
+do n = 1, instances
 
   name = he(n)%name
-  if (name(1:1) .eq. '_') then  !{
+  if (name(1:1) .eq. '_') then
     suffix = ' '
     long_suffix = ' '
-  else  !}{
+  else
     suffix = '_' // name
     long_suffix = ' (' // trim(name) // ')'
-  endif  !}
+  endif
 
-
-! NOTE: Coupler wants fluxes in mol/m2/s for MOM4.1. jes.4jun08
-!
-!       HE-3
-!
-
+  ! NOTE: Coupler wants fluxes in mol/m2/s for MOM4.1. jes.4jun08
+  ! HE-3
   he(n)%ind_he_3_atm = otpm_set_prog_tracer('he_3_atm' // suffix, package_name,    &
        longname = 'HE-3 Atmospheric' // trim(long_suffix),                                &
        units = 'mol/kg', flux_units = 'mol/m^2/s',                             &
@@ -1123,10 +701,7 @@ do n = 1, instances  !{
        units = 'mol/kg', flux_units = 'mol/m^2/s',                             &
        caller=trim(mod_name) // '(' // trim(sub_name) // ')')
 
-!
-!       HE-4
-!
-
+  ! HE-4
   he(n)%ind_he_4_atm = otpm_set_prog_tracer('he_4_atm' // suffix, package_name,    &
        longname = 'HE-4 Atmospheric' // trim(long_suffix),                                &
        units = 'mol/kg', flux_units = 'mol/m^2/s',                             &
@@ -1137,24 +712,16 @@ do n = 1, instances  !{
        units = 'mol/kg', flux_units = 'mol/m^2/s',                             &
        caller=trim(mod_name) // '(' // trim(sub_name) // ')')
 
-enddo  !} n
+enddo
 
-!
-!       Add the package name to the list of good namelists, to be used
-!       later for a consistency check
-!
-
-if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) .le. 0) then  !{
+! Add the package name to the list of good namelists, to be used
+! later for a consistency check
+if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) .le. 0) then
   call mpp_error(FATAL, trim(error_header) //                           &
        ' Could not add ' // trim(package_name) // ' to "good_namelists" list')
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
-!       Set up the *global* HE namelist
-!-----------------------------------------------------------------------
-!
-
+! Set up the *global* HE namelist
 caller_str=trim(mod_name) // '(' // trim(sub_name) // ')'
 
 call fm_util_start_namelist(package_name, '*global*', caller = caller_str, no_overwrite = .true., &
@@ -1172,14 +739,8 @@ call fm_util_set_value('src_he4_name', 'V3')
 
 call fm_util_end_namelist(package_name, '*global*', caller = caller_str, check = .true.)
 
-
-!
-!-----------------------------------------------------------------------
-!       Set up the instance HE namelists
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
+! Set up the instance HE namelists
+do n = 1, instances
 
   call fm_util_start_namelist(package_name, he(n)%name, caller = caller_str, no_overwrite = .true., &
        check = .true.)
@@ -1197,7 +758,7 @@ do n = 1, instances  !{
   call fm_util_set_value('e2_4', e2_4_def)
   call fm_util_set_value('e3_4', e3_4_def)
 
-! Override the default value, 1, in the field table namelist entries
+  ! Override the default value, 1, in the field table namelist entries
   call fm_util_set_value('he3_sourcefac', 1.0)
   call fm_util_set_value('he4_sourcefac', 1.0)
 
@@ -1205,27 +766,22 @@ do n = 1, instances  !{
 
   call fm_util_end_namelist(package_name, he(n)%name, check = .true., caller = caller_str)
 
+enddo
 
-enddo  !} n
-
-!
-!       Check for any errors in the number of fields in the namelists for this package
-!
-
+! Check for any errors in the number of fields in the namelists for this package
 good_list => fm_util_get_string_array('/ocean_mod/GOOD/namelists/' // trim(package_name) // '/good_values',   &
      caller = trim(mod_name) // '(' // trim(sub_name) // ')')
-if (associated(good_list)) then  !{
+if (associated(good_list)) then
   call fm_util_check_for_bad_fields('/ocean_mod/namelists/' // trim(package_name), good_list,       &
        caller = trim(mod_name) // '(' // trim(sub_name) // ')')
   deallocate(good_list)
-else  !}{
+else
   call mpp_error(FATAL,trim(error_header) // ' Empty "' // trim(package_name) // '" list')
-endif  !}
+endif
 
 return
 
-
-end subroutine ocmip2_he_init  !}
+end subroutine ocmip2_he_init
 ! </SUBROUTINE> NAME="ocmip2_he_init"
 
 
@@ -1237,24 +793,9 @@ end subroutine ocmip2_he_init  !}
 !       Initialize surface fields for flux calculations
 !
 ! </DESCRIPTION>
-
 subroutine ocmip2_he_init_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,      &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, T_prog, rho,            &
-     taum1, grid_tmask)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     isc_bnd, jsc_bnd, Ocean_fields, T_prog, rho,            &
+     taum1, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1266,39 +807,16 @@ integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
 integer, intent(in)                                     :: jed
 integer, intent(in)                                     :: isc_bnd
-integer, intent(in)                                     :: iec_bnd
 integer, intent(in)                                     :: jsc_bnd
-integer, intent(in)                                     :: jec_bnd
 type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 type(ocean_prog_tracer_type), dimension(:), intent(in)  :: T_prog
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho
 integer, intent(in)                                     :: taum1
 real, dimension(isd:ied,jsd:jed,nk), intent(in)         :: grid_tmask
 
-!
-!       local parameters
-!
-
-character(len=64), parameter    :: sub_name = 'ocmip2_he_init_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-integer         :: i
+integer         :: i, j, n
 integer         :: i_bnd_off
-integer         :: j
 integer         :: j_bnd_off
-integer         :: n
 integer         :: ind
 real            :: sal
 real            :: ta
@@ -1308,18 +826,12 @@ i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
 
-do n = 1, instances  !{
-
-!
-!       HE flux : ATMOSPHERIC
-!
-
+do n = 1, instances
+   ! HE flux : ATMOSPHERIC
   ind = he(n)%ind_he_3_atm_flux
   if (.not. field_exist('INPUT/'//trim(Ocean_fields%bc(ind)%ocean_restart_file),  &
-                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then  !{
+                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then
 
-!
-!---------------------------------------------------------------------
 !     Calculate solubilities
 !       He-4 Sol: Use Wanninkhof (1992) JGR, vol 97, pp 7373-7381
 !       He-3 Sol: He-4 Sol * 0.984, See Weiss, 1977; Top et al., 1987;
@@ -1327,11 +839,8 @@ do n = 1, instances  !{
 !       Equation for alpha is given in volumetric units (mol/(l atm)).
 !       Solubilities output in mol/(m3 * atm) 
 !        molar volume = 22414 cm3/mol = 22.4e-3 m3/mol = 22.4e-3 l/mol 
-!---------------------------------------------------------------------
-!
-
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
       ta = (t_prog(indtemp)%field(i,j,1,taum1) + 273.15) * 0.01
       sal = t_prog(indsal)%field(i,j,1,taum1)
 
@@ -1344,19 +853,13 @@ do n = 1, instances  !{
 
       he(n)%alpha_3_atm(i,j) = (he(n)%alpha_4_atm(i,j) * 0.984)* grid_tmask(i,j,1)
 
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-!
-!---------------------------------------------------------------------
-!     Calculate Schmidt numbers
-!       Use Wanninkhof (1992) JGR, vol 97, pp 7373-7381
-! 
-!---------------------------------------------------------------------
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! Calculate Schmidt numbers
+  ! Use Wanninkhof (1992) JGR, vol 97, pp 7373-7381
+    do j = jsc, jec
+      do i = isc, iec
       term1 = he(n)%a2_4 * t_prog(indtemp)%field(i,j,1,taum1)
       term2 = he(n)%a3_4 * t_prog(indtemp)%field(i,j,1,taum1)    &
                          * t_prog(indtemp)%field(i,j,1,taum1)
@@ -1377,30 +880,18 @@ do n = 1, instances  !{
          he(n)%alpha_3_atm(i,j) * sc_no_term(i,j)
     Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =           &
          t_prog(he(n)%ind_he_3_atm)%field(i,j,1,taum1)* rho(i,j,1,taum1) * sc_no_term(i,j)
+      enddo
+    enddo
 
+  endif
 
-      enddo  !} i
-    enddo  !} j 
-
-  endif  !}
-
-
-!
-!       HE-3 flux : MANTLE(Equilibrates with zero atmospheric concentration)
-!
-
+  ! HE-3 flux : MANTLE(Equilibrates with zero atmospheric concentration)
   ind = he(n)%ind_he_3_man_flux
   if (.not. field_exist('INPUT/'//trim(Ocean_fields%bc(ind)%ocean_restart_file),  &
-                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then  !{
-
-!
-!---------------------------------------------------------------------
-!     Calculate solubilities
-!---------------------------------------------------------------------
-!
-
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then
+  ! Calculate solubilities
+  do j = jsc, jec
+    do i = isc, iec
       ta = (t_prog(indtemp)%field(i,j,1,taum1) + 273.15) * 0.01
       sal = t_prog(indsal)%field(i,j,1,taum1)
 
@@ -1413,17 +904,12 @@ do n = 1, instances  !{
 
       he(n)%alpha_3_man(i,j) = (he(n)%alpha_4_man(i,j) * 0.984)* grid_tmask(i,j,1)
 
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-!
-!---------------------------------------------------------------------
-!     Calculate Schmidt numbers
-!---------------------------------------------------------------------
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! Calculate Schmidt numbers
+    do j = jsc, jec
+      do i = isc, iec
       term1 = he(n)%a2_4 * t_prog(indtemp)%field(i,j,1,taum1)
       term2 = he(n)%a3_4 * t_prog(indtemp)%field(i,j,1,taum1)    &
                          * t_prog(indtemp)%field(i,j,1,taum1)
@@ -1445,81 +931,55 @@ do n = 1, instances  !{
     Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =           &
          t_prog(he(n)%ind_he_3_man)%field(i,j,1,taum1)* rho(i,j,1,taum1) * sc_no_term(i,j)
 
-      enddo  !} i
-    enddo  !} j 
+      enddo
+    enddo
 
-  endif  !}
+  endif
 
-
-!
-!       HE-4 flux ATMOSPHERIC
-!
-
+  ! HE-4 flux ATMOSPHERIC
   ind = he(n)%ind_he_4_atm_flux
   if (.not. field_exist('INPUT/'//trim(Ocean_fields%bc(ind)%ocean_restart_file),  &
-                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then  !{
+                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then
+     ! Solubilities and Schmidt numbers done with He-3 flux (atmos)
 
- 
-!---------------------------------------------------------------------
-!     Solubilities and Schmidt numbers done with He-3 flux (atmos)
-!---------------------------------------------------------------------
-
-
-!
-!     Set the He-4 bc values
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+     ! Set the He-4 bc values
+    do j = jsc, jec
+      do i = isc, iec
         sc_no_term(i,j) = sqrt(660.0 / he(n)%sc_4(i,j) + 1.0e-40)* grid_tmask(i,j,1)
 
     Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =           &
          he(n)%alpha_4_atm(i,j) * sc_no_term(i,j)
     Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =           &
          t_prog(he(n)%ind_he_4_atm)%field(i,j,1,taum1)* rho(i,j,1,taum1) * sc_no_term(i,j)
+      enddo
+    enddo
+  endif
 
-      enddo  !} i
-    enddo  !} j 
-
-
-  endif  !}
-
-
-!
-!       HE-4 flux MANTLE
-!
-
+  ! HE-4 flux MANTLE
   ind = he(n)%ind_he_4_man_flux
   if (.not. field_exist('INPUT/'//trim(Ocean_fields%bc(ind)%ocean_restart_file),  &
-                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then  !{
+                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then
+     ! Solubilities and Schmidt numbers done with He-3 flux (mantle)
 
-!---------------------------------------------------------------------
-!     Solubilities and Schmidt numbers done with He-3 flux (mantle)
-!---------------------------------------------------------------------
-
-!
-!     Set the He-4 bc values
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+     ! Set the He-4 bc values
+    do j = jsc, jec
+      do i = isc, iec
         sc_no_term(i,j) = sqrt(660.0 / he(n)%sc_4(i,j) + 1.0e-40)* grid_tmask(i,j,1)
     Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =           &
          he(n)%alpha_4_man(i,j) * sc_no_term(i,j)
     Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =           &
          t_prog(he(n)%ind_he_4_man)%field(i,j,1,taum1)* rho(i,j,1,taum1) * sc_no_term(i,j)
 
-      enddo  !} i
-    enddo  !} j 
+      enddo
+    enddo
 
-  endif  !}
+  endif
 
-enddo  !} n
-
+enddo
 
 return
 
-end subroutine ocmip2_he_init_sfc  !}
+end subroutine ocmip2_he_init_sfc
 ! </SUBROUTINE> NAME="ocmip2_he_init_sfc"
 
 
@@ -1531,25 +991,9 @@ end subroutine ocmip2_he_init_sfc  !}
 !       ocean_tpm_sum_sfc: Accumulate data for the coupler
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
-
 subroutine ocmip2_he_sum_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,       &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     isc_bnd, jsc_bnd,                                         &
+     Ocean_fields, T_prog, rho, taum1, grid_tmask, Grid, Time)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1561,39 +1005,18 @@ integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
 integer, intent(in)                                     :: jed
 integer, intent(in)                                     :: isc_bnd
-integer, intent(in)                                     :: iec_bnd
 integer, intent(in)                                     :: jsc_bnd
-integer, intent(in)                                     :: jec_bnd
 type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 type(ocean_prog_tracer_type), intent(in), dimension(:)  :: T_prog
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho
 integer, intent(in)                                     :: taum1
-type(time_type), intent(in)                             :: model_time
 real, dimension(isd:ied,jsd:jed,nk), intent(in)         :: grid_tmask
+type(ocean_grid_type), intent(in)                       :: Grid
+type(ocean_time_type), intent(in)                       :: Time
 
-!
-!       local parameters
-!
-
-character(len=64), parameter    :: sub_name = 'ocmip2_he_sum_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-integer         :: i
+integer         :: i, j, n
 integer         :: i_bnd_off
-integer         :: j
 integer         :: j_bnd_off
-integer         :: n
 integer         :: ind
 real            :: sal
 real            :: ta
@@ -1603,17 +1026,10 @@ real            :: term1, term2, term3
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
-
-do n = 1, instances  !{
-
-!
-!       HE flux : ATMOSPHERIC
-!
-
+do n = 1, instances
+   ! HE flux : ATMOSPHERIC
   ind = he(n)%ind_he_3_atm_flux
 
-!
-!---------------------------------------------------------------------
 !     Calculate solubilities
 !       He-4 Sol: Use Wanninkhof (1992) JGR, vol 97, pp 7373-7381
 !       He-3 Sol: He-4 Sol * 0.984, See Weiss, 1977; Top et al., 1987;
@@ -1621,11 +1037,8 @@ do n = 1, instances  !{
 !       Equation for alpha is given in volumetric units (mol/(l atm)).
 !       Solubilities output in mol/(m3 * atm) 
 !        molar volume = 22414 cm3/mol = 22.4e-3 m3/mol = 22.4e-3 l/mol 
-!---------------------------------------------------------------------
-!
-
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
       ta = (t_prog(indtemp)%field(i,j,1,taum1) + 273.15) * 0.01
       sal = t_prog(indsal)%field(i,j,1,taum1)
 
@@ -1637,20 +1050,13 @@ do n = 1, instances  !{
              /(22.4e-3))* grid_tmask(i,j,1)
 
       he(n)%alpha_3_atm(i,j) = (he(n)%alpha_4_atm(i,j) * 0.984)* grid_tmask(i,j,1)
+    enddo
+  enddo
 
-    enddo  !} i
-  enddo  !} j
-
-!
-!---------------------------------------------------------------------
-!     Calculate Schmidt numbers
-!       Use Wanninkhof (1992) JGR, vol 97, pp 7373-7381
-! 
-!---------------------------------------------------------------------
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! Calculate Schmidt numbers
+  ! Use Wanninkhof (1992) JGR, vol 97, pp 7373-7381
+    do j = jsc, jec
+      do i = isc, iec
       term1 = he(n)%a2_4 * t_prog(indtemp)%field(i,j,1,taum1)
       term2 = he(n)%a3_4 * t_prog(indtemp)%field(i,j,1,taum1)    &
                          * t_prog(indtemp)%field(i,j,1,taum1)
@@ -1674,25 +1080,15 @@ do n = 1, instances  !{
       Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) +         &
       t_prog(he(n)%ind_he_3_atm)%field(i,j,1,taum1)* rho(i,j,1,taum1) * sc_no_term(i,j)
 
+      enddo
+    enddo
 
-      enddo  !} i
-    enddo  !} j 
-
-
-!
-!       HE-3 flux : MANTLE(Equilibrates with zero atmospheric concentration)
-!
-
+  ! HE-3 flux : MANTLE(Equilibrates with zero atmospheric concentration)
   ind = he(n)%ind_he_3_man_flux
 
-!
-!---------------------------------------------------------------------
-!     Calculate solubilities
-!---------------------------------------------------------------------
-!
-
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  ! Calculate solubilities
+  do j = jsc, jec
+    do i = isc, iec
       ta = (t_prog(indtemp)%field(i,j,1,taum1) + 273.15) * 0.01
       sal = t_prog(indsal)%field(i,j,1,taum1)
 
@@ -1704,18 +1100,12 @@ do n = 1, instances  !{
              /(22.4e-3))* grid_tmask(i,j,1)
 
       he(n)%alpha_3_man(i,j) = (he(n)%alpha_4_man(i,j) * 0.984)* grid_tmask(i,j,1)
+    enddo
+  enddo
 
-    enddo  !} i
-  enddo  !} j
-
-!
-!---------------------------------------------------------------------
-!     Calculate Schmidt numbers
-!---------------------------------------------------------------------
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! Calculate Schmidt numbers
+    do j = jsc, jec
+      do i = isc, iec
       term1 = he(n)%a2_4 * t_prog(indtemp)%field(i,j,1,taum1)
       term2 = he(n)%a3_4 * t_prog(indtemp)%field(i,j,1,taum1)    &
                          * t_prog(indtemp)%field(i,j,1,taum1)
@@ -1739,29 +1129,17 @@ do n = 1, instances  !{
        Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) +        &
          t_prog(he(n)%ind_he_3_man)%field(i,j,1,taum1)* rho(i,j,1,taum1) * sc_no_term(i,j)
 
-      enddo  !} i
-    enddo  !} j 
+      enddo
+    enddo
 
-
-
-!
-!       HE-4 flux ATMOSPHERIC
-!
-
+  ! HE-4 flux ATMOSPHERIC
   ind = he(n)%ind_he_4_atm_flux
 
- 
-!---------------------------------------------------------------------
-!     Solubilities and Schmidt numbers done with He-3 flux (atmos)
-!---------------------------------------------------------------------
+  ! Solubilities and Schmidt numbers done with He-3 flux (atmos)
 
-
-!
-!     Set the He-4 bc values
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! Set the He-4 bc values
+    do j = jsc, jec
+      do i = isc, iec
         sc_no_term(i,j) = sqrt(660.0 / he(n)%sc_4(i,j) + 1.0e-40)* grid_tmask(i,j,1)
 
     Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =           &
@@ -1771,26 +1149,17 @@ do n = 1, instances  !{
          Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) +      &
          t_prog(he(n)%ind_he_4_atm)%field(i,j,1,taum1)* rho(i,j,1,taum1) * sc_no_term(i,j)
 
-      enddo  !} i
-    enddo  !} j 
+      enddo
+    enddo
 
-
-!
-!       HE-4 flux MANTLE
-!
-
+  ! HE-4 flux MANTLE
   ind = he(n)%ind_he_4_man_flux
 
-!---------------------------------------------------------------------
-!     Solubilities and Schmidt numbers done with He-3 flux (mantle)
-!---------------------------------------------------------------------
+  ! Solubilities and Schmidt numbers done with He-3 flux (mantle)
 
-!
-!     Set the He-4 bc values
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! Set the He-4 bc values
+    do j = jsc, jec
+      do i = isc, iec
         sc_no_term(i,j) = sqrt(660.0 / he(n)%sc_4(i,j) + 1.0e-40)* grid_tmask(i,j,1)
     Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =           &
          Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) +      &
@@ -1799,59 +1168,24 @@ do n = 1, instances  !{
          Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) +      &
          t_prog(he(n)%ind_he_4_man)%field(i,j,1,taum1)* rho(i,j,1,taum1) * sc_no_term(i,j)
 
-      enddo  !} i
-    enddo  !} j 
+      enddo
+    enddo
 
+enddo
 
-enddo  !} n
-
-
-!
-!-----------------------------------------------------------------------
-!       Save variables for diagnostics
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
-
-  if (he(n)%id_alpha_3_atm .gt. 0) then
-    used = send_data(he(n)%id_alpha_3_atm,                             &
-         he(n)%alpha_3_atm(isc:iec,jsc:jec),                           &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
-  endif
-  if (he(n)%id_alpha_3_man .gt. 0) then
-    used = send_data(he(n)%id_alpha_3_man,                             &
-         he(n)%alpha_3_man(isc:iec,jsc:jec),                           &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
-  endif
-  if (he(n)%id_sc_3 .gt. 0) then
-    used = send_data(he(n)%id_sc_3,                                &
-         he(n)%sc_3(isc:iec,jsc:jec),                              &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
-  endif
-  if (he(n)%id_alpha_4_atm .gt. 0) then
-    used = send_data(he(n)%id_alpha_4_atm,                             &
-         he(n)%alpha_4_atm(isc:iec,jsc:jec),                           &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
-  endif
-  if (he(n)%id_alpha_4_man .gt. 0) then
-    used = send_data(he(n)%id_alpha_4_man,                             &
-         he(n)%alpha_4_man(isc:iec,jsc:jec),                           &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
-  endif
-  if (he(n)%id_sc_4 .gt. 0) then
-    used = send_data(he(n)%id_sc_4,                                &
-         he(n)%sc_4(isc:iec,jsc:jec),                              &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
-  endif
-
-
-enddo  !} n
-
+! Save variables for diagnostics
+do n = 1, instances
+   call diagnose_2d_comp(Time, Grid, he(n)%id_alpha_3_atm, he(n)%alpha_3_atm(:,:))
+   call diagnose_2d_comp(Time, Grid, he(n)%id_alpha_3_man, he(n)%alpha_3_man(:,:))
+   call diagnose_2d_comp(Time, Grid, he(n)%id_sc_3, he(n)%sc_3(:,:))
+   call diagnose_2d_comp(Time, Grid, he(n)%id_alpha_4_atm, he(n)%alpha_4_atm(:,:))
+   call diagnose_2d_comp(Time, Grid, he(n)%id_alpha_4_man, he(n)%alpha_4_man(:,:))
+   call diagnose_2d_comp(Time, Grid, he(n)%id_sc_4, he(n)%sc_4(:,:))
+enddo
 
 return
 
-end subroutine ocmip2_he_sum_sfc  !}
+end subroutine ocmip2_he_sum_sfc
 ! </SUBROUTINE> NAME="ocmip2_he_sum_sfc"
 
 
@@ -1862,42 +1196,14 @@ end subroutine ocmip2_he_sum_sfc  !}
 !               Zero out the fields for the coupler to allow
 !               for accumulation for the next time period
 ! </DESCRIPTION>
-
-subroutine ocmip2_he_zero_sfc(Ocean_fields)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine ocmip2_he_zero_sfc(Ocean_fields)
 
 type(coupler_2d_bc_type), intent(inout) :: Ocean_fields
-
-!
-!       local parameters
-!
-
-character(len=64), parameter    :: sub_name = 'ocmip2_he_zero_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 
 integer         :: n
 integer         :: ind
 
-
-do n = 1, instances  !{
+do n = 1, instances
 
   ind = he(n)%ind_he_3_atm_flux
 
@@ -1919,12 +1225,11 @@ do n = 1, instances  !{
   Ocean_fields%bc(ind)%field(ind_alpha)%values = 0.0
   Ocean_fields%bc(ind)%field(ind_csurf)%values = 0.0
 
-enddo  !} n
-
+enddo
 
 return
 
-end subroutine ocmip2_he_zero_sfc  !}
+end subroutine ocmip2_he_zero_sfc
 ! </SUBROUTINE> NAME="ocmip2_he_zero_sfc"
 
 
@@ -1936,17 +1241,8 @@ end subroutine ocmip2_he_zero_sfc  !}
 !       ocean_tpm_avg_sfc: Take the time-mean of the fields for the coupler
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
-
 subroutine ocmip2_he_avg_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,       &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     isc_bnd, jsc_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1958,35 +1254,14 @@ integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
 integer, intent(in)                                     :: jed
 integer, intent(in)                                     :: isc_bnd
-integer, intent(in)                                     :: iec_bnd
 integer, intent(in)                                     :: jsc_bnd
-integer, intent(in)                                     :: jec_bnd
 type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 integer                                                 :: Ocean_avg_kount
 real, dimension(isd:ied,jsd:jed,nk), intent(in)         :: grid_tmask
 
-!
-!       local parameters
-!
-
-character(len=64), parameter    :: sub_name = 'ocmip2_he_avg_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-integer :: i
+integer :: i, j, n
 integer :: i_bnd_off
-integer :: j
 integer :: j_bnd_off
-integer :: n
 integer :: ind
 real    :: divid
 
@@ -1996,66 +1271,65 @@ j_bnd_off = jsc - jsc_bnd
 
 divid = 1./float(Ocean_avg_kount)
 
-do n = 1, instances  !{
+do n = 1, instances
 
   ind = he(n)%ind_he_3_atm_flux
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-     if (Grid_tmask(i,j,1) == 1.0) then  !{
+  do j = jsc, jec
+    do i = isc, iec
+     if (Grid_tmask(i,j,1) == 1.0) then
        Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =        &
          Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) * divid
     Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =           &
          Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) * divid
-     endif  !}
-    enddo  !} i
-  enddo  !} j
+     endif
+    enddo
+  enddo
 
   ind = he(n)%ind_he_4_atm_flux
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-     if (Grid_tmask(i,j,1) == 1.0) then !{
+  do j = jsc, jec
+    do i = isc, iec
+     if (Grid_tmask(i,j,1) == 1.0) then
     Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =           &
          Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) * divid
     Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =           &
          Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) * divid
-     endif  !}
-    enddo  !} i
-  enddo  !} j
+     endif
+    enddo
+  enddo
 
   ind = he(n)%ind_he_3_man_flux
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-     if  (Grid_tmask(i,j,1) == 1.0) then !{
+  do j = jsc, jec
+    do i = isc, iec
+     if  (Grid_tmask(i,j,1) == 1.0) then
     Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =           &
          Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) * divid
     Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =           &
          Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) * divid
-     endif  !}
-    enddo  !} i
-  enddo  !} j
+     endif
+    enddo
+  enddo
 
   ind = he(n)%ind_he_4_man_flux
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-     if (Grid_tmask(i,j,1) == 1.0) then !{
+  do j = jsc, jec
+    do i = isc, iec
+     if (Grid_tmask(i,j,1) == 1.0) then
     Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =           &
          Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) * divid
     Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =           &
          Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) * divid
-     endif  !}
-    enddo  !} i
-  enddo  !} j
+     endif
+    enddo
+  enddo
 
-enddo  !} n
-
+enddo
 
 return
 
-end subroutine ocmip2_he_avg_sfc  !}
+end subroutine ocmip2_he_avg_sfc
 ! </SUBROUTINE> NAME="ocmip2_he_avg_sfc"
 
 
@@ -2066,38 +1340,9 @@ end subroutine ocmip2_he_avg_sfc  !}
 !       Called for FMS coupler
 !       ocean_tpm_sfc_end: Save out fields for the restart.
 ! </DESCRIPTION>
+subroutine ocmip2_he_sfc_end
 
-subroutine ocmip2_he_sfc_end  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!       local parameters
-!
-
-character(len=64), parameter    :: sub_name = 'ocmip2_he_sfc_end'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-return
-
-end subroutine ocmip2_he_sfc_end  !}
+end subroutine ocmip2_he_sfc_end
 ! </SUBROUTINE> NAME="ocmip2_he_sfc_end"
 
 
@@ -2118,27 +1363,9 @@ end subroutine ocmip2_he_sfc_end  !}
 ! The loss term is calculated in the subroutine ocmip2_he_sbc.
 ! </DESCRIPTION>
 !
-
 subroutine ocmip2_he_source(isc, iec, jsc, jec, nk, isd, ied, jsd, jed, t_prog, &
-     depth_zt, dzt, taum1, model_time, grid_tmask, grid_kmt, rho_dzt)  !{
+     depth_zt, dzt, model_time, grid_tmask, Grid, Time, grid_kmt)
 
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-use time_interp_external_mod, only: time_interp_external
-
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
 integer, intent(in)                                             :: jsc
@@ -2151,62 +1378,27 @@ integer, intent(in)                                             :: jed
 type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: t_prog
 real, dimension(isd:ied,jsd:jed,nk), intent(in)                 :: depth_zt
 real, dimension(isd:ied,jsd:jed,nk), intent(in)                 :: dzt
-integer, intent(in)                                             :: taum1
 type(time_type), intent(in)                                     :: model_time
 real, dimension(isd:ied,jsd:jed,nk), intent(in)                 :: grid_tmask
+type(ocean_grid_type), intent(in)                               :: Grid
+type(ocean_time_type), intent(in)                               :: Time
 integer, dimension(isd:ied,jsd:jed), intent(in)                 :: grid_kmt
-real, dimension(isd:,jsd:,:,:), intent(in)                      :: rho_dzt
-
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
 
 character(len=64), parameter    :: sub_name = 'ocmip2_he_source'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
 character(len=256)                      :: caller_str
 integer :: index1, index2
 integer :: k,i,j,n
 logical :: used
 
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-
 call time_interp_external(src_he3_id, model_time, src_he3_t)
 call time_interp_external(src_he4_id, model_time, src_he4_t)
 call time_interp_external(src_he_depth_id, model_time, src_he_depth_t)
 
-
-!
-!-----------------------------------------------------------------------
-!     calculate the source terms for HEs
-!-----------------------------------------------------------------------
-!
-
+! calculate the source terms for HEs
 caller_str=trim(mod_name) // '(' // trim(sub_name) // ')'
 
-do n = 1, instances  !{
-
-!  call fm_util_start_namelist(package_name, he(n)%name, caller = caller_str,   &
-!                              no_overwrite = .true.,check = .true.)
+do n = 1, instances
 
    call fm_util_start_namelist(package_name, he(n)%name, caller = caller_str)
    call fm_util_end_namelist(package_name, he(n)%name, caller = caller_str)
@@ -2214,24 +1406,21 @@ do n = 1, instances  !{
    index1 = he(n)%ind_he_3_man
    index2 = he(n)%ind_he_4_man
 
-! these source factors are used to vary the global integral of helium injection
-! as default use 1.0 * 1.064070463 which with the current source function
-! gives a global integral flux of 500 mol/year (half the canonical for OCMIP2)
+   ! these source factors are used to vary the global integral of helium injection
+   ! as default use 1.0 * 1.064070463 which with the current source function
+   ! gives a global integral flux of 500 mol/year (half the canonical for OCMIP2)
 
-! Now in the field table namelist entry
-!   he(n)%he3_sourcefac = 1.0 * 1.064070463 * 0.5
-!   he(n)%he4_sourcefac = 1.0 * 1.064070463 * 0.5
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
-
+   ! Now in the field table namelist entry
+   !   he(n)%he3_sourcefac = 1.0 * 1.064070463 * 0.5
+   !   he(n)%he4_sourcefac = 1.0 * 1.064070463 * 0.5
+    do j = jsc, jec
+      do i = isc, iec
         if (src_he3_t(i,j) .gt. 0 .and. grid_tmask(i,j,1) == 1 ) then
+         do k = 1, grid_kmt(i,j)
 
-         do k = 1, grid_kmt(i,j)  !{
-
-             if (k .lt. grid_kmt(i,j)) then !{
+             if (k .lt. grid_kmt(i,j)) then
                if (depth_zt(i,j,k)-(dzt(i,j,k)/2) .lt. src_he_depth_t(i,j) .and. &
-                   depth_zt(i,j,k)+(dzt(i,j,k)/2) .gt. src_he_depth_t(i,j)) then !{
+                   depth_zt(i,j,k)+(dzt(i,j,k)/2) .gt. src_he_depth_t(i,j)) then
                  t_prog(index1)%th_tendency(i,j,k) =  &
                                 (t_prog(index1)%th_tendency(i,j,k) &
                               + src_he3_t(i,j) * he(n)%he3_sourcefac ) * grid_tmask(i,j,k)
@@ -2239,7 +1428,7 @@ do n = 1, instances  !{
                                 (t_prog(index2)%th_tendency(i,j,k) &
                               + src_he4_t(i,j) * he(n)%he4_sourcefac ) * grid_tmask(i,j,k)
 
-! Source term units for history file is mol/m2/s 
+                 ! Source term units for history file is mol/m2/s 
                  he(n)%jhe3_man(i,j,k)=(src_he3_t(i,j) * he(n)%he3_sourcefac)/dzt(i,j,k)
                  he(n)%jhe4_man(i,j,k)=(src_he4_t(i,j) * he(n)%he4_sourcefac)/dzt(i,j,k)
                  he(n)%jhe_depth(i,j)=depth_zt(i,j,k)
@@ -2253,7 +1442,7 @@ do n = 1, instances  !{
                  he(n)%jhe3_man(i,j,k)=0
                  he(n)%jhe4_man(i,j,k)=0
 
-              endif !} if depth_zt
+              endif
 
             elseif (k .eq. grid_kmt(i,j)) then
                if (depth_zt(i,j,k)+(dzt(i,j,k)/2) .lt. src_he_depth_t(i,j)) then
@@ -2279,9 +1468,9 @@ do n = 1, instances  !{
                  he(n)%jhe3_man(i,j,k)=0
                  he(n)%jhe4_man(i,j,k)=0
 
-               endif !} if grid%zt
-            endif !} if k<nk
-         enddo  !} k
+               endif
+            endif
+         enddo
 
        else
              t_prog(index1)%th_tendency(i,j,:) = t_prog(index1)%th_tendency(i,j,:) * grid_tmask(i,j,:)
@@ -2290,38 +1479,21 @@ do n = 1, instances  !{
              he(n)%jhe4_man(i,j,:)=0
              he(n)%jhe_depth(i,j)=0
 
-       endif !} if src
+       endif
 
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
-!
-!-----------------------------------------------------------------------
-!       Save variables for diagnostics
-!-----------------------------------------------------------------------
-!
-  if (he(n)%id_jhe3_man .gt. 0) then
-    used = send_data(he(n)%id_jhe3_man,                         &
-         he(n)%jhe3_man(isc:iec,jsc:jec,:),                     &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,:))
-  endif
-  if (he(n)%id_jhe4_man .gt. 0) then
-    used = send_data(he(n)%id_jhe4_man,                         &
-         he(n)%jhe4_man(isc:iec,jsc:jec,:),                     &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,:))
-  endif
-  if (he(n)%id_jhe_depth .gt. 0) then
-    used = send_data(he(n)%id_jhe_depth,                         &
-         he(n)%jhe_depth(isc:iec,jsc:jec),                     &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
-  endif
+  ! Save variables for diagnostics
+  call diagnose_3d_comp(Time, Grid, he(n)%id_jhe3_man, he(n)%jhe3_man(:,:,:))
+  call diagnose_3d_comp(Time, Grid, he(n)%id_jhe4_man, he(n)%jhe4_man(:,:,:))
+  call diagnose_2d_comp(Time, Grid, he(n)%id_jhe_depth, he(n)%jhe_depth(:,:))
 
-enddo !} n
-
+enddo
 
 return
 
-end subroutine  ocmip2_he_source  !}
+end subroutine  ocmip2_he_source
 ! </SUBROUTINE> NAME="ocmip2_he_source"
 
 
@@ -2333,27 +1505,8 @@ end subroutine  ocmip2_he_source  !}
 ! for a given run and allocate diagnostic arrays
 ! </DESCRIPTION>
 !
-
 subroutine ocmip2_he_start(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,         &
-     T_prog, taup1, model_time, grid_dat, grid_tmask, grid_tracer_axes, mpp_domain2d, rho_dzt)  !{
-
-!
-!-----------------------------------------------------------------------
-!       modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-use diag_manager_mod,  only: register_diag_field
-use field_manager_mod, only: fm_get_index
-use time_interp_external_mod, only: init_external_field
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     T_prog, taup1, model_time, grid_dat, grid_tmask, grid_tracer_axes, mpp_domain2d, rho_dzt)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -2373,85 +1526,43 @@ integer, dimension(3), intent(in)                       :: grid_tracer_axes
 type(domain2d), intent(in)                              :: mpp_domain2d
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
 character(len=64), parameter    :: sub_name = 'ocmip2_he_start'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
 character(len=fm_field_name_len+3)      :: long_suffix
-integer                                 :: i
-integer                                 :: j
-integer                                 :: k
-integer                                 :: n
+integer                                 :: i, j, k, n
 character(len=fm_field_name_len+1)      :: suffix
 character(len=256)                      :: caller_str
-real				        :: total_he_3_atm
-real 				        :: total_he_4_atm
-real 				        :: total_he_3_man
-real			  	        :: total_he_4_man
+real                                    :: total_he_3_atm
+real                                    :: total_he_4_atm
+real                                    :: total_he_3_man
+real                                    :: total_he_4_man
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
-
-!
-! =====================================================================
-!       begin of executable code
-! =====================================================================
-!
-
-!
-!-----------------------------------------------------------------------
-!       give info
-!-----------------------------------------------------------------------
-!
 
 write(stdoutunit,*) 
 write(stdoutunit,*) trim(note_header),                     &
                   ' Starting ', trim(package_name), ' module'
 
-!
-!       Determine indices for temperature and salinity
-!
-
+! Determine indices for temperature and salinity
 indtemp = fm_get_index('/ocean_mod/prog_tracers/temp')
-if (indtemp .le. 0) then  !{
+if (indtemp .le. 0) then
   call mpp_error(FATAL,trim(error_header) // ' Could not get the temperature index')
-endif  !}
+endif
 
 indsal = fm_get_index('/ocean_mod/prog_tracers/salt')
-if (indsal .le. 0) then  !{
+if (indsal .le. 0) then
   call mpp_error(FATAL,trim(error_header) // ' Could not get the salinity index')
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
-!     dynamically allocate the global HE arrays
-!-----------------------------------------------------------------------
-!
-
+! dynamically allocate the global HE arrays
 call allocate_arrays(isc, iec, jsc, jec, nk, isd, ied, jsd, jed)
 
-!
-!-----------------------------------------------------------------------
-!       save the *global* namelist values
-!-----------------------------------------------------------------------
-!
-
+! save the *global* namelist values
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
 call fm_util_start_namelist(package_name, '*global*', caller = caller_str)
@@ -2466,7 +1577,7 @@ call fm_util_start_namelist(package_name, '*global*', caller = caller_str)
 
 call fm_util_end_namelist(package_name, '*global*', caller = caller_str)
 
-do n = 1, instances  !{
+do n = 1, instances
 
   call fm_util_start_namelist(package_name, he(n)%name, caller = caller_str)
 
@@ -2490,62 +1601,48 @@ do n = 1, instances  !{
 
   call fm_util_end_namelist(package_name, he(n)%name, caller = caller_str)
 
-enddo  !} n
+enddo
 
-
-!
-!-----------------------------------------------------------------------
-!       Open up the files for boundary conditions
-!-----------------------------------------------------------------------
-!
-
-
+! Open up the files for boundary conditions
 src_he3_id = init_external_field(src_he3_file,          &
                                      src_he3_name,          &
                                      domain = mpp_domain2d)
-if (src_he3_id .eq. 0) then  !{
+if (src_he3_id .eq. 0) then
   call mpp_error(FATAL, trim(error_header) //                   &
        'Could not open He-3 source file: ' //          &
        trim(src_he3_file))
-endif  !}
+endif
 
 src_he4_id = init_external_field(src_he4_file,          &
                                      src_he4_name,          &
                                      domain = mpp_domain2d)
-if (src_he4_id .eq. 0) then  !{
+if (src_he4_id .eq. 0) then
   call mpp_error(FATAL, trim(error_header) //                   &
        'Could not open He-3 source file: ' //          &
        trim(src_he4_file))
-endif  !}
+endif
 
 src_he_depth_id = init_external_field(src_he_depth_file,          &
                                      src_he_depth_name,          &
                                      domain = mpp_domain2d)
-if (src_he_depth_id .eq. 0) then  !{
+if (src_he_depth_id .eq. 0) then
   call mpp_error(FATAL, trim(error_header) //                   &
        'Could not open He-3 source file: ' //          &
        trim(src_he_depth_file))
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
-!     Set up analyses
-!-----------------------------------------------------------------------
-!
+! Set up analyses
 
-!
-!       register the fields
-!
+! register the fields
+do n = 1, instances
 
-do n = 1, instances  !{
-
-  if (he(n)%name(1:1) .eq. '_') then  !{
+  if (he(n)%name(1:1) .eq. '_') then
     suffix = ' '
     long_suffix = ' '
-  else  !}{
+  else
     suffix = '_' // he(n)%name
     long_suffix = ' (' // trim(he(n)%name) // ')'
-  endif  !}
+  endif
 
   he(n)%id_sfc_flux_he_3_man = register_diag_field('ocean_model',                  &
        'sfc_flux_he_3_man'//trim(suffix), grid_tracer_axes(1:2),                    &
@@ -2625,32 +1722,26 @@ do n = 1, instances  !{
        'HE Injection depth'//trim(long_suffix), 'm',      &
        missing_value = -1.0e+10)
 
-enddo  !} n
+enddo
 
-!
 !       integrate the total concentrations of some tracers
 !       for the start of the run
-!
-
 total_he_3_atm = 0.0
 total_he_4_atm = 0.0
 total_he_3_man = 0.0
 total_he_4_man = 0.0
 
-!
 !       Use taup1 time index for the start of a run, and taup1 time
 !       index for the end of a run so that we are integrating the
 !       same time level and should therefore get identical results
-!
-
 write (stdoutunit,*) trim(note_header),                           &
      'Global integrals at start of run'
 
-do n = 1, instances  !{
+do n = 1, instances
 
-  do k = 1,nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1,nk
+    do j = jsc, jec
+      do i = isc, iec
         total_he_3_atm = total_he_3_atm +                           &
              t_prog(he(n)%ind_he_3_atm)%field(i,j,k,taup1) * &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
@@ -2663,9 +1754,9 @@ do n = 1, instances  !{
         total_he_4_man = total_he_4_man +                           &
              t_prog(he(n)%ind_he_4_man)%field(i,j,k,taup1) *  &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
   call mpp_sum(total_he_3_atm)
   call mpp_sum(total_he_4_atm)
@@ -2686,22 +1777,15 @@ do n = 1, instances  !{
        '(/'' Total HE-4 Mantle = '',es19.12,'' mol'')')        &
        total_he_4_man 
 
-enddo  !} n
-
-!
-!-----------------------------------------------------------------------
-!     give info
-!-----------------------------------------------------------------------
-!
+enddo
 
 write(stdoutunit,*)
 write(stdoutunit,*) trim(note_header), ' Tracer runs initialized'
 write(stdoutunit,*)
 
-
 return
 
-end subroutine  ocmip2_he_start  !}
+end subroutine  ocmip2_he_start
 ! </SUBROUTINE> NAME="ocmip2_he_start"
 
 
@@ -2714,45 +1798,9 @@ end subroutine  ocmip2_he_start  !}
 ! </DESCRIPTION>
 !
 
-subroutine ocmip2_he_tracer  !{
+subroutine ocmip2_he_tracer
 
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-character(len=64), parameter    :: sub_name = 'ocmip2_he_tracer'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-return
-
-end subroutine  ocmip2_he_tracer  !}
+end subroutine  ocmip2_he_tracer
 ! </SUBROUTINE> NAME="ocmip2_he_tracer"
 
-end module  ocmip2_he_mod  !}
+end module  ocmip2_he_mod

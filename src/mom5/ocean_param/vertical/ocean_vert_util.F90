@@ -37,10 +37,10 @@ module ocean_vert_util_mod
 !</NAMELIST>
 !
 use constants_mod,        only: epsln
-use diag_manager_mod,     only: register_diag_field, send_data
+use diag_manager_mod,     only: register_diag_field
 use fms_mod,              only: open_namelist_file, check_nml_error, close_file
 use mpp_mod,              only: input_nml_file, stdout, stdlog, FATAL
-use mpp_mod,              only: mpp_error, mpp_chksum, mpp_pe, mpp_min, mpp_max
+use mpp_mod,              only: mpp_error, mpp_pe, mpp_min, mpp_max
   
 use ocean_density_mod,    only: density_delta_z
 use ocean_domains_mod,    only: get_local_indices
@@ -51,6 +51,7 @@ use ocean_types_mod,      only: ocean_time_type, ocean_thickness_type
 use ocean_types_mod,      only: ocean_density_type, ocean_velocity_type
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk5
 use ocean_workspace_mod,  only: wrk1_v, wrk2_v
+use ocean_util_mod,       only: diagnose_3d, diagnose_3d_u
 
 implicit none
 
@@ -206,7 +207,7 @@ subroutine ri_for_bgrid (Time, dzwt, drhodT, drhodS, theta, salinity, velu, velv
   real, dimension(isd:,jsd:,:), intent(inout) :: riu
   
   integer :: i, j, k, kbot, kp1, m
-  real    :: prev, tmp1, tmp2, tmp3, active_cells
+  real    :: prev, tmp1, tmp3, active_cells
 
   rit   = 0.0
   riu   = 0.0
@@ -313,22 +314,10 @@ subroutine ri_for_bgrid (Time, dzwt, drhodT, drhodS, theta, salinity, velu, velv
 
 
   ! diagnostics 
-  if (id_ri_num_dudz > 0) then 
-      used = send_data(id_ri_num_dudz, wrk4(:,:,:), Time%model_time, rmask=Grd%umask(:,:,:),&
-                       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_ri_num_n2 > 0) then 
-      used = send_data(id_ri_num_n2, wrk3(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),&
-                       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_rit > 0) then 
-      used = send_data(id_rit, rit(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),&
-                       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_riu > 0) then 
-      used = send_data(id_riu, riu(:,:,:), Time%model_time, rmask=Grd%umask(:,:,:),&
-                       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d_u(Time, Grd, id_ri_num_dudz, wrk4(:,:,:))
+  call diagnose_3d(Time, Grd, id_ri_num_n2, wrk3(:,:,:))
+  call diagnose_3d(Time, Grd, id_rit, rit(:,:,:))
+  call diagnose_3d(Time, Grd, id_riu, riu(:,:,:))
 
 end subroutine ri_for_bgrid
 ! </SUBROUTINE> NAME="ri_for_bgrid"
@@ -464,23 +453,10 @@ subroutine ri_for_cgrid (Time, dzwt, drhodT, drhodS, theta, salinity, ut, vt, ri
 
 
   ! diagnostics 
-  if (id_ri_num_dudz > 0) then 
-      used = send_data(id_ri_num_dudz, wrk4(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),&
-                       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_ri_num_n2 > 0) then 
-      used = send_data(id_ri_num_n2, wrk3(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),&
-                       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_rit > 0) then 
-      used = send_data(id_rit, rit(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),&
-                       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (id_riu > 0) then 
-      used = send_data(id_riu, riu(:,:,:), Time%model_time, rmask=Grd%umask(:,:,:),&
-                       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-
+  call diagnose_3d(Time, Grd, id_ri_num_dudz, wrk4(:,:,:))
+  call diagnose_3d(Time, Grd, id_ri_num_n2, wrk3(:,:,:))
+  call diagnose_3d(Time, Grd, id_rit, rit(:,:,:))
+  call diagnose_3d_u(Time, Grd, id_riu, riu(:,:,:))
 
 end subroutine ri_for_cgrid
 ! </SUBROUTINE> NAME="ri_for_cgrid"

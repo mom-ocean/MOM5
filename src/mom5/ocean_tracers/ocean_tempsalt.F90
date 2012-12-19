@@ -280,7 +280,7 @@ namelist /ocean_tempsalt_nml/ debug_this_module, temperature_variable, pottemp_2
                               t_min_limit, t_max_limit, s_min_limit, s_max_limit,                 &
                               reinit_ts_with_ideal, reinit_ts_with_ideal_efold,                   &
                               reinit_ts_with_ideal_tvalue, reinit_ts_with_ideal_svalue,           &
-			      teos10
+                              teos10
                 
 contains
 
@@ -292,11 +292,10 @@ contains
 ! Initialize the temperature/salinity module.
 ! </DESCRIPTION>
 !
-subroutine ocean_tempsalt_init(Domain, Grid, Time, Ocean_options, itemp, isalt, debug)
+subroutine ocean_tempsalt_init(Domain, Grid, Ocean_options, itemp, isalt, debug)
 
   type(ocean_domain_type),    intent(in), target   :: Domain
   type(ocean_grid_type),      intent(in), target   :: Grid
-  type(ocean_time_type),      intent(in)           :: Time
   type(ocean_options_type),   intent(inout)        :: Ocean_options
   integer,                    intent(inout)        :: itemp
   integer,                    intent(inout)        :: isalt
@@ -469,44 +468,44 @@ subroutine ocean_tempsalt_init(Domain, Grid, Time, Ocean_options, itemp, isalt, 
 
 
   if (teos10) then
-     sfac = 9.95306702338459d-01
+     sfac = 9.95306702338459e-01
   else 
      sfac = 1.0
   endif 
 
 
   ! TEOS10 coefficients for CT from PT and salinity 
-  v0  =  2.50509288068125d-04    ! v0=1/cp_ocean 
-  v1 =  61.01362420681071d0 
-  v2 = 168776.46138048015d0 
-  v3 = -2735.2785605119625d0 
-  v4 = 2574.2164453821433d0
-  v5 = -1536.6644434977543d0 
-  v6 = 545.7340497931629d0
-  v7 = -50.91091728474331d0 
-  v8 = -18.30489878927802d0
+  v0  =  2.50509288068125e-04    ! v0=1/cp_ocean 
+  v1 =  61.01362420681071
+  v2 = 168776.46138048015
+  v3 = -2735.2785605119625
+  v4 = 2574.2164453821433
+  v5 = -1536.6644434977543
+  v6 = 545.7340497931629
+  v7 = -50.91091728474331
+  v8 = -18.30489878927802
 
-  v9 = 268.5520265845071d0 
-  v10 = -12019.028203559312d0
-  v11 = 3734.858026725145d0 
-  v12 = -2046.7671145057618d0
-  v13 = 465.28655623826234d0 
-  v14 = -0.6370820302376359d0 
-  v15 = -10.650848542359153d0
-  v16 = 937.2099110620707d0 
-  v17 = 588.1802812170108d0
-  v18 = 248.39476522971285d0 
-  v19 = -3.871557904936333d0
-  v20 = -2.6268019854268356d0
-  v21 = -1687.914374187449d0 
-  v22 = 246.9598888781377d0
-  v23 = 123.59576582457964d0 
-  v24 = -48.5891069025409d0
-  v25 = 936.3206544460336d0
-  v26 = -942.7827304544439d0 
-  v27 = 369.4389437509002d0
-  v28 = -33.83664947895248d0 
-  v29 = -9.987880382780322d0
+  v9 = 268.5520265845071
+  v10 = -12019.028203559312
+  v11 = 3734.858026725145
+  v12 = -2046.7671145057618
+  v13 = 465.28655623826234
+  v14 = -0.6370820302376359
+  v15 = -10.650848542359153
+  v16 = 937.2099110620707
+  v17 = 588.1802812170108
+  v18 = 248.39476522971285
+  v19 = -3.871557904936333
+  v20 = -2.6268019854268356
+  v21 = -1687.914374187449
+  v22 = 246.9598888781377
+  v23 = 123.59576582457964
+  v24 = -48.5891069025409
+  v25 = 936.3206544460336
+  v26 = -942.7827304544439
+  v27 = 369.4389437509002
+  v28 = -33.83664947895248
+  v29 = -9.987880382780322
 
   ! preTEOS10 coefficients for CT from PT and salinity
   c0  =  2.50494524832013e-4    ! c0=1/cp_ocean 

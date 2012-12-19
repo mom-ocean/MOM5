@@ -45,7 +45,7 @@ module ocean_sponges_velocity_mod
 !
 !</NAMELIST>
 !
-use diag_manager_mod,         only: register_diag_field, send_data
+use diag_manager_mod,         only: register_diag_field
 use fms_mod,                  only: write_version_number, open_namelist_file, close_file
 use fms_mod,                  only: file_exist
 use fms_mod,                  only: open_namelist_file, check_nml_error, close_file
@@ -61,6 +61,7 @@ use ocean_parameters_mod,     only: missing_value, rho0
 use ocean_types_mod,          only: ocean_domain_type, ocean_grid_type, ocean_thickness_type
 use ocean_types_mod,          only: ocean_time_type, ocean_velocity_type, ocean_options_type
 use ocean_workspace_mod,      only: wrk1, wrk2 
+use ocean_util_mod,           only: diagnose_3d_u
 
 implicit none
 
@@ -111,18 +112,16 @@ contains
 ! Everything in this subroutine is a user prototype, and should be replacable.
 ! </DESCRIPTION>
 !
-subroutine ocean_sponges_velocity_init(Grid, Domain, Time, Velocity, dtime, Ocean_options)
+subroutine ocean_sponges_velocity_init(Grid, Domain, Time, dtime, Ocean_options)
 
   type(ocean_grid_type),          intent(in), target :: Grid
   type(ocean_domain_type),        intent(in), target :: Domain
   type(ocean_time_type),          intent(in)         :: Time
-  type(ocean_velocity_type),      intent(in)         :: Velocity
   real,                           intent(in)         :: dtime
   type(ocean_options_type),       intent(inout)      :: Ocean_options
 
-  integer :: i, j, k, n
+  integer :: i, j, k
   integer :: ioun, io_status, ierr
-  integer :: secs, days
   real    :: dtimer
 
   character(len=128) :: name
@@ -344,9 +343,8 @@ subroutine sponge_velocity_source(Time, Thickness, Velocity)
   type(ocean_thickness_type),   intent(in)    :: Thickness
   type(ocean_velocity_type),    intent(inout) :: Velocity
 
-  integer :: secs, days
   integer :: taum1, tau
-  integer :: i, j, k, n
+  integer :: i, j, k
 
   if (.not. use_this_module) return 
 
@@ -372,12 +370,7 @@ subroutine sponge_velocity_source(Time, Thickness, Velocity)
 
   endif
 
-  if (id_sponge_tend(1) > 0) then 
-      used = send_data(id_sponge_tend(1),                       &
-           wrk2(:,:,:), Time%model_time, rmask=Grd%umask(:,:,:),&
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-
+  call diagnose_3d_u(Time, Grd, id_sponge_tend(1), wrk2(:,:,:))
 
   wrk1 = 0.0
   wrk2 = 0.0
@@ -397,12 +390,7 @@ subroutine sponge_velocity_source(Time, Thickness, Velocity)
       enddo
   endif
 
-  if (id_sponge_tend(2) > 0) then 
-      used = send_data(id_sponge_tend(2),                       &
-           wrk2(:,:,:), Time%model_time, rmask=Grd%umask(:,:,:),&
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-
+  call diagnose_3d_u(Time, Grd, id_sponge_tend(2), wrk2(:,:,:))
 
   return
 

@@ -65,34 +65,18 @@
 !------------------------------------------------------------------
 !
 
-module  ocean_bgc_restore_mod  !{
-
-!
-!------------------------------------------------------------------
-!
-!       Global definitions
-!
-!------------------------------------------------------------------
-!
-
-!
-!----------------------------------------------------------------------
-!
-!       Modules
-!
-!----------------------------------------------------------------------
-!
+module  ocean_bgc_restore_mod
 
 use time_manager_mod,         only: time_type
-use diag_manager_mod,         only: send_data
+use diag_manager_mod,         only: register_diag_field, diag_axis_init
 use field_manager_mod,        only: fm_field_name_len, fm_path_name_len, fm_string_len
-use field_manager_mod,        only: fm_get_length, fm_get_value, fm_new_value
+use field_manager_mod,        only: fm_get_length, fm_get_value, fm_new_value, fm_get_index
 use fms_mod,                  only: field_exist, file_exist
 use fms_io_mod,               only: register_restart_field, save_restart, restore_state
 use fms_io_mod,               only: restart_file_type
 use mpp_mod,                  only: stdout, stdlog, mpp_error, mpp_sum, FATAL
 use time_manager_mod,         only: get_date
-use time_interp_external_mod, only: time_interp_external
+use time_interp_external_mod, only: time_interp_external, init_external_field
 use mpp_domains_mod,          only: domain2d
 use constants_mod,            only: WTMCO2, WTMO2
 
@@ -101,37 +85,14 @@ use fm_util_mod,        only: fm_util_check_for_bad_fields, fm_util_set_value
 use fm_util_mod,        only: fm_util_get_string, fm_util_get_logical, fm_util_get_integer, fm_util_get_real
 use fm_util_mod,        only: fm_util_get_logical_array, fm_util_get_real_array, fm_util_get_string_array
 use fm_util_mod,        only: fm_util_start_namelist, fm_util_end_namelist
-use coupler_types_mod,  only: ind_alpha, ind_csurf, coupler_2d_bc_type
-use ocean_types_mod,    only: ocean_prog_tracer_type, ocean_diag_tracer_type
+use coupler_types_mod,  only: ind_alpha, ind_csurf, coupler_2d_bc_type, ind_flux
+use ocean_types_mod,    only: ocean_prog_tracer_type, ocean_diag_tracer_type, ocean_grid_type, ocean_time_type
 use ocmip2_co2calc_mod, only: ocmip2_co2calc
-
-!
-!----------------------------------------------------------------------
-!
-!       force all variables to be "typed"
-!
-!----------------------------------------------------------------------
-!
+use ocean_util_mod,     only: diagnose_2d, diagnose_2d_comp, diagnose_3d_comp
 
 implicit none
 
-!
-!----------------------------------------------------------------------
-!
-!       Make all routines and variables private by default
-!
-!----------------------------------------------------------------------
-!
-
 private
-
-!
-!----------------------------------------------------------------------
-!
-!       Public routines
-!
-!----------------------------------------------------------------------
-!
 
 public  :: ocean_bgc_restore_bbc
 public  :: ocean_bgc_restore_end
@@ -147,37 +108,11 @@ public  :: ocean_bgc_restore_zero_sfc
 public  :: ocean_bgc_restore_sfc_end
 public  :: ocean_bgc_restore_restart
 
-!
-!----------------------------------------------------------------------
-!
-!       Private routines
-!
-!----------------------------------------------------------------------
-!
 
 private :: allocate_arrays
 private :: locate
 private :: set_array
 
-!public :: km_c
-!public :: compensation_depth
-!public :: ind_biotic_dop
-!public :: bc_ptr_prev_mo
-!public :: bc_ptr_next_mo
-!public :: bc_frac_prev_mo
-!public :: bc_frac_next_mo
-!public :: biotic_flux_dop_a
-!public :: biotic_flux_dop_d
-!public :: impvd_dop
-!public :: conv_dop
-
-!
-!----------------------------------------------------------------------
-!
-!       Private parameters
-!
-!----------------------------------------------------------------------
-!
 
 character(len=32), parameter              :: package_name = 'ocean_bgc_restore'
 character(len=48), parameter              :: mod_name = 'ocean_bgc_restore_mod'
@@ -187,10 +122,7 @@ character(len=fm_string_len), parameter   :: default_local_restart_file = 'ocean
 character(len=fm_string_len), parameter   :: default_ice_restart_file = 'ice_bgc_restore.res.nc'
 character(len=fm_string_len), parameter   :: default_ocean_restart_file = 'ocean_bgc_restore_airsea_flux.res.nc'
 
-!
-!       coefficients for O2 saturation
-!
-
+! coefficients for O2 saturation
 real, parameter :: a_0 = 2.00907
 real, parameter :: a_1 = 3.22014
 real, parameter :: a_2 = 4.05010
@@ -203,20 +135,11 @@ real, parameter :: b_2 = -1.03410e-02
 real, parameter :: b_3 = -8.17083e-03
 real, parameter :: c_0 = -4.88682e-07
 
-!
-!----------------------------------------------------------------------
-!
-!       Private types
-!
-!----------------------------------------------------------------------
-!
  
-!
+
 !  add_phosphate        : if true, then add sufficient PO4 to keep
 !                         the predicted PO4 the same as if no depletion
 !                         or changed uptake rate were in effect
-!
-
 type mask_region_type
   real, dimension(:,:,:), pointer       :: mask => NULL()
   real, dimension(:), pointer           :: elon => NULL()
@@ -228,7 +151,7 @@ type mask_region_type
   logical, dimension(:), pointer        :: t_mask => NULL()
 end type mask_region_type
 
-type biotic_type  !{
+type biotic_type
 
   real                                  :: bio_tau
   real                                  :: bio_tau_don
@@ -425,28 +348,10 @@ type biotic_type  !{
   real                                  :: wsink
   real, _ALLOCATABLE, dimension(:)      :: zforg  _NULL
 
-end type biotic_type  !}
-
-!
-!----------------------------------------------------------------------
-!
-!       Public variables
-!
-!----------------------------------------------------------------------
-!
+end type biotic_type
 
 logical, public :: do_ocean_bgc_restore
 
-!
-!----------------------------------------------------------------------
-!
-!       Private variables
-!
-!----------------------------------------------------------------------
-!
-
-!logical                                :: no_sbc
-!logical                                :: no_source
 integer                                 :: indsal
 integer                                 :: indtemp
 integer                                 :: package_index
@@ -455,65 +360,51 @@ logical                                 :: module_initialized = .false.
 character(len=128) :: version = '$Id: ocean_bgc_restore.F90,v 1.1.2.1 2012/05/15 15:55:19 smg Exp $'
 character(len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
 
-!
-!----------------------------------------------------------------------
-!
-!       Input parameters:
+! Input parameters:
 !
 !  htotal_in            = default value for htotal for an initial run
 !  htotal_scale_lo      = scaling parameter to chose htotallo
 !  htotal_scale_hi      = scaling parameter to chose htotalhi
-!
-!----------------------------------------------------------------------
-!
-
 real                                    :: htotal_in
 real, allocatable, dimension(:,:)       :: htotal_scale_hi
 real                                    :: htotal_scale_hi_in
 real, allocatable, dimension(:,:)       :: htotal_scale_lo
 real                                    :: htotal_scale_lo_in
 
-!
-!----------------------------------------------------------------------
-!
-!       Calculated parameters (with possible initial input values):
+! Calculated parameters (with possible initial input values):
 !
 !  global_wrk_duration  = total time during calculation of global
 !                         variables
-!
-!----------------------------------------------------------------------
-!
-
 character*128                                   :: alk_star_file    
 integer                                         :: alk_star_id
-character*32                                    :: alk_star_name    
+character*128                                   :: alk_star_name
 real, allocatable, dimension(:,:,:)             :: alk_star_t
 integer                                         :: dep_wet_id
 character*128                                   :: dep_wet_file    
-character*32                                    :: dep_wet_name    
+character*128                                   :: dep_wet_name
 real, allocatable, dimension(:,:)               :: dep_wet_t
 integer                                         :: dep_dry_id
 character*128                                   :: dep_dry_file    
-character*32                                    :: dep_dry_name    
+character*128                                   :: dep_dry_name
 real, allocatable, dimension(:,:)               :: dep_dry_t
 character*128                                   :: fed_star_file    
 integer                                         :: fed_star_id
-character*32                                    :: fed_star_name    
+character*128                                   :: fed_star_name
 real, allocatable, dimension(:,:,:)             :: fed_star_t
 integer                                         :: id_o2_sat
 integer                                         :: km_c_max
 character*128                                   :: no3_star_file    
 integer                                         :: no3_star_id
-character*32                                    :: no3_star_name    
+character*128                                   :: no3_star_name
 real, allocatable, dimension(:,:,:)             :: no3_star_t
 character*128                                   :: po4_star_file    
 integer                                         :: po4_star_id
-character*32                                    :: po4_star_name    
+character*128                                   :: po4_star_name
 real, allocatable, dimension(:,:,:)             :: po4_star_t
 real, allocatable, dimension(:,:)               :: sc_no_term
 character*128                                   :: sio4_star_file    
 integer                                         :: sio4_star_id
-character*32                                    :: sio4_star_name    
+character*128                                   :: sio4_star_name
 real, allocatable, dimension(:,:,:)             :: sio4_star_t
 type(biotic_type), allocatable, dimension(:)    :: biotic
 integer                                         :: instances
@@ -530,14 +421,6 @@ real, allocatable, dimension(:)                 :: tt
 integer                                  :: num_restart = 0
 type(restart_file_type), allocatable     :: restart(:)
 
-!
-!-----------------------------------------------------------------------
-!
-!       Subroutine and function definitions
-!
-!-----------------------------------------------------------------------
-!
-
 contains
 
 !#######################################################################
@@ -548,15 +431,7 @@ contains
 ! </DESCRIPTION>
 !
 
-subroutine allocate_arrays(isc, iec, jsc, jec, nk, isd, ied, jsd, jed)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine allocate_arrays(isc, iec, jsc, jec, nk, isd, ied, jsd, jed)
 
 integer, intent(in)     :: isc
 integer, intent(in)     :: iec
@@ -568,26 +443,7 @@ integer, intent(in)     :: jsd
 integer, intent(in)     :: jed
 integer, intent(in)     :: nk
 
-!
-!       local variables
-!
-
-integer :: i
-integer :: j
-integer :: k
-integer :: l
-integer :: m
-integer :: n
-
-!
-!-----------------------------------------------------------------------
-!     start executable code
-!-----------------------------------------------------------------------
-!     
-
-!
-!       global variables
-!
+integer :: i, j, k, l, m, n
 
 allocate( dep_wet_t(isd:ied,jsd:jed) )
 allocate( dep_dry_t(isd:ied,jsd:jed) )
@@ -611,10 +467,7 @@ allocate( no3_star_t(isd:ied,jsd:jed,nk) )
 allocate( po4_star_t(isd:ied,jsd:jed,nk) )
 allocate( sio4_star_t(isd:ied,jsd:jed,nk) )
 
-!
-!       initialize some arrays
-!
-
+! initialize some arrays
 dep_wet_t(:,:) = 0.0
 dep_dry_t(:,:) = 0.0
 sc_no_term(:,:) = 0.0
@@ -634,11 +487,8 @@ no3_star_t(:,:,:) = 0.0
 po4_star_t(:,:,:) = 0.0
 sio4_star_t(:,:,:) = 0.0
 
-!
-!       allocate biotic array elements
-!
-
-do n = 1, instances  !{
+! allocate biotic array elements
+do n = 1, instances
 
   allocate( biotic(n)%sc_co2(isc:iec,jsc:jec) )
   allocate( biotic(n)%sc_o2(isc:iec,jsc:jec) )
@@ -698,16 +548,13 @@ do n = 1, instances  !{
   allocate( biotic(n)%r_bio_tau_prod%mask(isc:iec,jsc:jec,12) )
   allocate( biotic(n)%zforg(nk) )
 
-enddo  !}
+enddo
 
-!
-!       initialize bgc_restore array elements
-!
+! initialize bgc_restore array elements
+do n = 1, instances
 
-do n = 1, instances  !{
-
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
       biotic(n)%sc_co2(i,j)           = 0.0
       biotic(n)%sc_o2(i,j)            = 0.0
       biotic(n)%alpha(i,j)            = 0.0
@@ -715,7 +562,7 @@ do n = 1, instances  !{
       biotic(n)%pco2surf(i,j)         = 0.0
       biotic(n)%csurf(i,j)            = 0.0
       biotic(n)%htotal(i,j)           = 0.0
-      do k = 1, nk !{
+      do k = 1, nk
         biotic(n)%jprod_alk(i,j,k)    = 0.0
         biotic(n)%jprod_fed(i,j,k)    = 0.0
         biotic(n)%jprod_n_fix(i,j,k)  = 0.0
@@ -749,16 +596,14 @@ do n = 1, instances  !{
         biotic(n)%fracl(i,j,k)        = 0.0
         biotic(n)%fsio2(i,j,k)        = 0.0
         biotic(n)%fcaco3(i,j,k)       = 0.0
-      enddo !} k
-    enddo  !} i
-  enddo  !} j
+      enddo
+    enddo
+  enddo
 
-enddo  !} n
-
-
+enddo
 
 return
-end subroutine  allocate_arrays  !}
+end subroutine  allocate_arrays
 ! </SUBROUTINE> NAME="allocate_arrays"
 
 
@@ -788,15 +633,7 @@ end subroutine  allocate_arrays  !}
 ! </DESCRIPTION>
 !
 
-subroutine locate(xx , n, x_in, j, period, nearest)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine locate(xx , n, x_in, j, period, nearest)
 
 integer, intent(in)             :: n
 real, intent(in)                :: x_in
@@ -805,163 +642,109 @@ integer, intent(out)            :: j
 real, optional, intent(in)      :: period
 logical, optional, intent(in)   :: nearest
 
-!
-!       local variables
-!
-
 integer :: jl, ju, jm
 real    :: x, xt
 logical :: increasing
 
 increasing = xx(1) .lt. xx(n)
 
-if (present(period)) then  !{
-  if (increasing) then  !{
-
-! increasing array
-
-    if (x_in .lt. xx(1)) then  !{
-
-! original value less than start, therefore add period
-
+if (present(period)) then
+  if (increasing) then
+    ! increasing array
+    if (x_in .lt. xx(1)) then
+      ! original value less than start, therefore add period
       xt = x_in + period
-      if (xt .gt. xx(n)) then  !{
-
-! new value greater than end
-
-        if (abs(x_in - xx(1)) .gt. abs(xt - xx(n))) then  !{
-
-! new value closer to end than original value to start
-! use new value
-
+      if (xt .gt. xx(n)) then
+        ! new value greater than end
+        if (abs(x_in - xx(1)) .gt. abs(xt - xx(n))) then
+          ! new value closer to end than original value to start
+          ! use new value
           x = xt
-        else  !}{
-
-! original value closer to start than new value to end
-! use original value
-
+        else
+          ! original value closer to start than new value to end
+          ! use original value
           x = x_in
-        endif  !}
-      else  !}{
-
-! new value in range
-! use new value
-
+        endif
+      else
+        ! new value in range
+        ! use new value
         x = xt
-      endif  !}
-    elseif (x_in .gt. xx(n)) then  !}{
-
-! original value greater than end, therefore subtract period
-
+      endif
+    elseif (x_in .gt. xx(n)) then
+      ! original value greater than end, therefore subtract period
       xt = x_in - period
-      if (xt .lt. xx(1)) then  !{
-
-! new value less than start
-
-        if (abs(xt - xx(1)) .lt. abs(x_in - xx(n))) then  !{
-
-! new value closer to start than original value to end
-! use new value
-
+      if (xt .lt. xx(1)) then
+        ! new value less than start
+        if (abs(xt - xx(1)) .lt. abs(x_in - xx(n))) then
+          ! new value closer to start than original value to end
+          ! use new value
           x = xt
-        else  !}{
-
-! original value closer to end than new value to start
-! use original value
-
+        else
+          ! original value closer to end than new value to start
+          ! use original value
           x = x_in
-        endif  !}
-      else  !}{
-
-! new value in range
-! use new value
-
+        endif
+      else
+        ! new value in range
+        ! use new value
         x = xt
-      endif  !}
-    else  !}{
-
-! original value in range
-! use original value
-
+      endif
+    else
+      ! original value in range
+      ! use original value
       x = x_in
-    endif  !}
-  else  !}{
-
-! decreasing array
-
-    if (x_in .gt. xx(1)) then  !{
-
-! original value greater than start, therefore subtract period
-
+    endif
+  else
+    ! decreasing array
+    if (x_in .gt. xx(1)) then
+      ! original value greater than start, therefore subtract period
       xt = x_in - period
-      if (xt .lt. xx(n)) then  !{
-
-! new value less than end
-
-        if (abs(x_in - xx(1)) .gt. abs(xt - xx(n))) then  !{
-
-! new value closer to end than original value to start
-! use new value
-
+      if (xt .lt. xx(n)) then
+        ! new value less than end
+        if (abs(x_in - xx(1)) .gt. abs(xt - xx(n))) then
+          ! new value closer to end than original value to start
+          ! use new value
           x = xt
-        else  !}{
-
-! original value closer to start than new value to end
-! use original value
-
+        else
+          ! original value closer to start than new value to end
+          ! use original value
           x = x_in
-        endif  !}
-      else  !}{
-
-! new value in range
-! use new value
-
+        endif
+      else
+        ! new value in range
+        ! use new value
         x = xt
-      endif  !}
-    elseif (x_in .lt. xx(n)) then  !}{
-
-! original value less than end, therefore add period
-
+      endif
+    elseif (x_in .lt. xx(n)) then
+      ! original value less than end, therefore add period
       xt = x_in + period
-      if (xt .gt. xx(1)) then  !{
-
-! new value greater than start
-
-        if (abs(xt - xx(1)) .lt. abs(x_in - xx(n))) then  !{
-
-! new value closer to start than original value to end
-! use new value
-
+      if (xt .gt. xx(1)) then
+        ! new value greater than start
+        if (abs(xt - xx(1)) .lt. abs(x_in - xx(n))) then
+          ! new value closer to start than original value to end
+          ! use new value
           x = xt
-        else  !}{
-
-! original value closer to end than new value to start
-! use original value
-
+        else
+          ! original value closer to end than new value to start
+          ! use original value
           x = x_in
-        endif  !}
-      else  !}{
-
-! new value in range
-! use new value
-
+        endif
+      else
+        ! new value in range
+        ! use new value
         x = xt
-      endif  !}
-    else  !}{
-
-! original value in range
-! use original value
-
+      endif
+    else
+      ! original value in range
+      ! use original value
       x = x_in
-    endif  !}
-  endif  !}
-else  !}{
-
-! no period specified
-! use original value
-
+    endif
+  endif
+else
+   ! no period specified
+   ! use original value
   x = x_in
-endif  !}
+endif
 
 jl = 0
 ju = n+1
@@ -977,20 +760,20 @@ if (ju - jl .gt. 1) then
 endif
 j = jl
 
-if (present(nearest)) then  !{
-  if (nearest) then  !{
-    if (j .eq. 0) then  !{
+if (present(nearest)) then
+  if (nearest) then
+    if (j .eq. 0) then
       j = 1
-    elseif (j .lt. n) then  !}{
-      if (abs(x - xx(j)) .gt. abs(x - xx(j+1))) then  !{
+    elseif (j .lt. n) then
+      if (abs(x - xx(j)) .gt. abs(x - xx(j+1))) then
         j = j + 1
-      endif  !}
-    endif  !}
-  endif  !}
-endif  !}
+      endif
+    endif
+  endif
+endif
 
 return
-end subroutine  locate  !}
+end subroutine  locate
 ! </SUBROUTINE> NAME="locate"
 
 
@@ -1001,21 +784,7 @@ end subroutine  locate  !}
 !     calculate the surface boundary conditions
 ! </DESCRIPTION>
 
-subroutine ocean_bgc_restore_bbc(isc, iec, jsc, jec, isd, ied, jsd, jed, T_prog, grid_kmt)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine ocean_bgc_restore_bbc(isc, iec, jsc, jec, isd, ied, jsd, jed, T_prog, grid_kmt)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
@@ -1028,47 +797,17 @@ integer, intent(in)                                             :: jed
 type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
 integer, dimension(isd:,jsd:), intent(in)                       :: grid_kmt
 
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-character(len=64), parameter    :: sub_name = 'ocean_bgc_restore_bbc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
 integer  :: i, j, n, kz
 
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-!
 !   set the bottom flux of the column for phosphate to reflect a
 !   regenerative flux from the sediments where the compensation
 !   depth is greater than the bottom depth
-!
-
-
-do n = 1, instances  !{
+do n = 1, instances
   if(biotic(n)%remin_ocmip2) then
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    do j = jsc, jec
+      do i = isc, iec
         kz = grid_kmt(i,j)
-        if (kz .le. biotic(n)%km_c .and. kz .gt. 0) then  !{
+        if (kz .le. biotic(n)%km_c .and. kz .gt. 0) then
           t_prog(biotic(n)%ind_po4)%btf(i,j) =                    &
              t_prog(biotic(n)%ind_po4)%btf(i,j) -               &
              biotic(n)%flux_pop(i,j)
@@ -1088,15 +827,15 @@ do n = 1, instances  !{
           t_prog(biotic(n)%ind_alk)%btf(i,j) =                    &
              t_prog(biotic(n)%ind_alk)%btf(i,j) +               &
              biotic(n)%flux_pon(i,j) - 2.0 * biotic(n)%flux_caco3(i,j)
-        endif  !}
-      enddo  !} i
-    enddo  !} j
+        endif
+      enddo
+    enddo
   endif
-enddo  !} n
+enddo
 
 return
 
-end subroutine  ocean_bgc_restore_bbc  !}
+end subroutine  ocean_bgc_restore_bbc
 ! </SUBROUTINE> NAME="ocean_bgc_restore_bbc"
 
 
@@ -1108,21 +847,7 @@ end subroutine  ocean_bgc_restore_bbc  !}
 ! </DESCRIPTION>
 
 subroutine ocean_bgc_restore_end(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,    &
-     T_prog, T_diag, grid_dat, grid_tmask, mpp_domain2d, rho_dzt, taup1)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     T_prog, T_diag, grid_dat, grid_tmask, mpp_domain2d, rho_dzt, taup1)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1141,31 +866,12 @@ real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 type(domain2d), intent(in)                              :: mpp_domain2d
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
 character(len=64), parameter    :: sub_name = 'ocean_bgc_restore_end'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-integer                                 :: i
-integer                                 :: j
-integer                                 :: k
+integer                                 :: i, j, k, n
 integer                                 :: lun
-integer                                 :: n
 character(len=fm_field_name_len+1)      :: suffix
 real                                    :: total_alkalinity
 real                                    :: total_ammonia
@@ -1183,29 +889,13 @@ real                                    :: total_silicate
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-!-----------------------------------------------------------------------
-!     statement functions
-!-----------------------------------------------------------------------
-!
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-!
 !       integrate the total concentrations of some tracers
 !       for the end of the run
-!
 
-!
 !       Use taup1 time index for the start of a run, and taup1 time
 !       index for the end of a run so that we are integrating the
 !       same time level and should therefore get identical results
-!
-
-do n = 1, instances  !{
+do n = 1, instances
   total_alkalinity = 0.0
   total_ammonia = 0.0
   total_dic = 0.0
@@ -1218,9 +908,9 @@ do n = 1, instances  !{
   total_o2 = 0.0
   total_phosphate = 0.0
   total_silicate = 0.0
-  do k = 1,nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1,nk
+    do j = jsc, jec
+      do i = isc, iec
         total_nitrate = total_nitrate +                         &
              t_prog(biotic(n)%ind_no3)%field(i,j,k,taup1) *     &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
@@ -1257,9 +947,9 @@ do n = 1, instances  !{
         total_alkalinity = total_alkalinity +                   &
              t_prog(biotic(n)%ind_alk)%field(i,j,k,taup1) *     &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
   call mpp_sum(total_nitrate)
   call mpp_sum(total_ammonia)
@@ -1326,18 +1016,13 @@ do n = 1, instances  !{
   write (stdoutunit,                                              &
          '(/'' Total real alkalinity  = '',es19.12,'' Geq'')')  &
               (total_alkalinity + total_nitrate) * 1.0e-09
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       save out additional information for a restart
-!-----------------------------------------------------------------------
-!
-
+! save out additional information for a restart
 write(stdoutunit,*)
 
 call ocean_bgc_restore_restart
-do n = 1, instances  !{
+do n = 1, instances
 
   write(stdoutunit,*) trim(note_header),                          &
        'Writing additional restart information for instance ',  &
@@ -1347,10 +1032,10 @@ do n = 1, instances  !{
        'Done writing additional restart information for instance ',&
        trim(biotic(n)%name)
 
-enddo  !} n
+enddo
 
 return
-end subroutine  ocean_bgc_restore_end  !}
+end subroutine  ocean_bgc_restore_end
 ! </SUBROUTINE> NAME="ocean_bgc_restore_end"
 
 !#######################################################################
@@ -1376,28 +1061,9 @@ end subroutine ocean_bgc_restore_restart
 ! <DESCRIPTION>
 !     Calculate the surface boundary conditions
 ! </DESCRIPTION>
-
 subroutine ocean_bgc_restore_sbc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,    &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     T_prog, tau, model_time, grid_tmask, ice_ocean_boundary_fluxes)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-use coupler_types_mod, only       : coupler_2d_bc_type, ind_flux
-use mpp_mod, only                 : mpp_sum
-use time_interp_external_mod, only: time_interp_external
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     T_prog, tau, Time, Grid, ice_ocean_boundary_fluxes)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
@@ -1414,78 +1080,33 @@ integer, intent(in)                                             :: jsc_bnd
 integer, intent(in)                                             :: jec_bnd
 type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
 integer, intent(in)                                             :: tau
-type(time_type), intent(in)                                     :: model_time
-real, dimension(isd:,jsd:,:), intent(in)                        :: grid_tmask
+type(ocean_time_type), intent(in)                               :: Time
+type(ocean_grid_type), intent(in)                               :: Grid
 type(coupler_2d_bc_type), intent(in)                            :: ice_ocean_boundary_fluxes
 
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-character(len=64), parameter    :: sub_name = 'ocean_bgc_restore_sbc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-real, parameter :: po4_molwt = 31.0
-real, parameter :: dop_molwt = 31.0
-real, parameter :: o2_molwt = 32.0
-real, parameter :: dic_molwt = 12.0
-real, parameter :: alk_molwt = 1.0
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-integer :: i
+integer :: i, j, n
 integer :: i_bnd_off
 integer :: j_bnd_off
-integer :: j
-integer :: n
 logical :: used
 
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-!
-!---------------------------------------------------------------------
 !     calculate interpolated iron deposition
-!---------------------------------------------------------------------
-!
+call time_interp_external(dep_dry_id, Time%model_time, dep_dry_t)
 
-!call time_interp_external(dep_wet_id, model_time, dep_wet_t)
-call time_interp_external(dep_dry_id, model_time, dep_dry_t)
-
-!
-!---------------------------------------------------------------------
-!     use the surface fluxes from the coupler
-!       stf is in mol/m^2/s, flux from coupler is positive upwards
-!---------------------------------------------------------------------
-!
-
+! use the surface fluxes from the coupler
+! stf is in mol/m^2/s, flux from coupler is positive upwards
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
-do n = 1, instances  !{
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+do n = 1, instances
+  do j = jsc, jec
+    do i = isc, iec
       t_prog(biotic(n)%ind_dic)%stf(i,j) =                      &
             -ice_ocean_boundary_fluxes%bc(biotic(n)%ind_co2_flux)%field(ind_flux)%values(i-i_bnd_off,j-j_bnd_off)
       t_prog(biotic(n)%ind_o2)%stf(i,j) =                       &
             -ice_ocean_boundary_fluxes%bc(biotic(n)%ind_o2_flux)%field(ind_flux)%values(i-i_bnd_off,j-j_bnd_off)
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-!
 !     surface iron deposition fluxes from Ginoux et al (JGR, Sources 
 !     and distributions of dust aerosols simulated with the GOCART 
 !     model, 2001) and converted by Gregg et al (GRL, Ocean primary
@@ -1495,49 +1116,24 @@ do n = 1, instances  !{
 !     (GBC, Iron supply and demand in the upper ocean: Is extraterrestrial
 !     dust a significant source of bioavailable iron?), add a constant flux
 !     of 9.51e-15.
-!
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
       t_prog(biotic(n)%ind_fed)%stf(i,j) =  dep_dry_t(i,j)
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-enddo  !} n 
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       Save variables for diagnostics
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
-
-  if (biotic(n)%id_sfc_flux_co2 .gt. 0) then
-    used = send_data(biotic(n)%id_sfc_flux_co2,         &
-         t_prog(biotic(n)%ind_dic)%stf(:,:),            &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
-  if (biotic(n)%id_sfc_flux_o2 .gt. 0) then
-    used = send_data(biotic(n)%id_sfc_flux_o2,          &
-         t_prog(biotic(n)%ind_o2)%stf(:,:),             &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
-  if (biotic(n)%id_sfc_flux_fed .gt. 0) then
-    used = send_data(biotic(n)%id_sfc_flux_fed,         &
-         t_prog(biotic(n)%ind_fed)%stf(:,:),            &
-         model_time, rmask = grid_tmask(:,:,1),         &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif
-
-enddo  !} n
+! Save variables for diagnostics
+do n = 1, instances
+   call diagnose_2d(Time, Grid, biotic(n)%id_sfc_flux_co2, t_prog(biotic(n)%ind_dic)%stf(:,:))
+   call diagnose_2d(Time, Grid, biotic(n)%id_sfc_flux_o2, t_prog(biotic(n)%ind_o2)%stf(:,:))
+   call diagnose_2d(Time, Grid, biotic(n)%id_sfc_flux_fed, t_prog(biotic(n)%ind_fed)%stf(:,:))
+enddo
 
 return
 
-end subroutine  ocean_bgc_restore_sbc  !}
+end subroutine  ocean_bgc_restore_sbc
 ! </SUBROUTINE> NAME="ocean_bgc_restore_sbc"
 
 
@@ -1548,35 +1144,15 @@ end subroutine  ocean_bgc_restore_sbc  !}
 !       Set up any extra fields needed by the ocean-atmosphere gas fluxes
 ! </DESCRIPTION>
 
-subroutine ocean_bgc_restore_flux_init  !{
+subroutine ocean_bgc_restore_flux_init
 
 use atmos_ocean_fluxes_mod, only: aof_set_coupler_flux
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!       local parameters
-!
 
 character(len=64), parameter    :: sub_name = 'ocean_bgc_restore_flux_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 
 integer                                                 :: n
 character(len=fm_field_name_len)                        :: name
@@ -1587,108 +1163,81 @@ character(len=256)                                      :: caller_str
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-!       First, perform some initialization if this module has not been
-!       initialized because the normal initialization routine will
-!       not have been called as part of the normal ocean model
-!       initialization if this is an Atmosphere pe of a coupled
-!       model running in concurrent mode
-!
+  ! First, perform some initialization if this module has not been
+  ! initialized because the normal initialization routine will
+  ! not have been called as part of the normal ocean model
+  ! initialization if this is an Atmosphere pe of a coupled
+  ! model running in concurrent mode
 
-if (.not. module_initialized) then  !{
+if (.not. module_initialized) then 
 
-!
-!       Initialize the package
-!
-
+   ! Initialize the package
   package_index = otpm_set_tracer_package(package_name,            &
        restart_file = default_restart_file,                             &
        caller = trim(mod_name) // '(' // trim(sub_name) // ')')
 
-!
-!       Check whether to use this package
-!
-
+  ! Check whether to use this package
   path_to_names = '/ocean_mod/tracer_packages/' // trim(package_name) // '/names'
   instances = fm_get_length(path_to_names)
-  if (instances .lt. 0) then  !{
+  if (instances .lt. 0) then
     call mpp_error(FATAL, trim(error_header) // ' Could not get number of instances')
-  endif  !}
-
-!
-!       Check some things
-!
+  endif
 
   write (stdoutunit,*)
-  if (instances .eq. 0) then  !{
+  if (instances .eq. 0) then
     write (stdoutunit,*) trim(note_header), ' No instances'
     do_ocean_bgc_restore = .false.
-  else  !}{
-    if (instances .eq. 1) then  !{
+  else
+    if (instances .eq. 1) then
       write (stdoutunit,*) trim(note_header), ' ', instances, ' instance'
-    else  !}{
+    else
       write (stdoutunit,*) trim(note_header), ' ', instances, ' instances'
-    endif  !}
+    endif
     do_ocean_bgc_restore = .true.
-  endif  !}
+  endif
 
   module_initialized = .true.
 
-endif  !}
+endif
 
-!
-!       Return if we don't want to use this package
-!
-
-if (.not. do_ocean_bgc_restore) then  !{
+! Return if we don't want to use this package
+if (.not. do_ocean_bgc_restore) then
   return
-endif  !}
+endif
 
-if (.not. allocated(biotic)) then  !{
+if (.not. allocated(biotic)) then
 
-!
-!       allocate storage for biotic array
-!
+  ! allocate storage for biotic array
+  allocate ( biotic(instances) )
 
-  allocate ( biotic          (instances) )
+  ! loop over the names, saving them into the biotic array
+  do n = 1, instances
 
-!
-!       loop over the names, saving them into the biotic array
-!
-
-  do n = 1, instances  !{
-
-    if (fm_get_value(path_to_names, name, index = n)) then  !{
+    if (fm_get_value(path_to_names, name, index = n)) then
       biotic(n)%name = name
-    else  !}{
+    else
       write (name,*) n
       call mpp_error(FATAL, trim(error_header) //        &
            'Bad field name for index ' // trim(name))
-    endif  !}
+    endif
 
-  enddo  !}
+  enddo
 
-endif  !}
+endif
 
-!
-!       Set up the ocean-atmosphere gas flux fields
-!
-
+! Set up the ocean-atmosphere gas flux fields
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
-do n = 1, instances  !{
+do n = 1, instances
 
   name = biotic(n)%name
-  if (name(1:1) .eq. '_') then  !{
+  if (name(1:1) .eq. '_') then
     suffix = ' '
-  else  !}{
+  else
     suffix = '_' // name
-  endif  !}
+  endif
 
-!
-!       Coupler fluxes
-!
-
+  ! Coupler fluxes
   biotic(n)%ind_co2_flux = aof_set_coupler_flux('co2_flux' // suffix,                           &
        flux_type = 'air_sea_gas_flux', implementation = 'ocmip2',                               &
        mol_wt = WTMCO2, param = (/ 9.36e-07, 9.7561e-06 /),                                                      &
@@ -1702,16 +1251,11 @@ do n = 1, instances  !{
        ice_restart_file = default_ice_restart_file,                                             &
        ocean_restart_file = default_ocean_restart_file,                                         &
        caller = caller_str)
-
-!
-!       Coupler fields
-!
-
-enddo  !} n
+enddo
 
 return
 
-end subroutine  ocean_bgc_restore_flux_init  !}
+end subroutine  ocean_bgc_restore_flux_init
 !</SUBROUTINE> NAME="ocean_bgc_restore_flux_init"
 
 !#######################################################################
@@ -1723,37 +1267,16 @@ end subroutine  ocean_bgc_restore_flux_init  !}
 !       Save pointers to various "types", such as Grid and Domains.
 ! </DESCRIPTION>
 
-subroutine ocean_bgc_restore_init  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!       local parameters
-!
+subroutine ocean_bgc_restore_init
 
 character(len=64), parameter    :: sub_name = 'ocean_bgc_restore_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
 real, parameter :: rho_avg = 1024.5
 real, parameter :: sperd = 24.0 * 3600.0
-real, parameter :: spery = 365.25 * sperd
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 
 integer                                                 :: n
 character(len=fm_field_name_len)                        :: name
@@ -1768,218 +1291,152 @@ character(len=fm_string_len), pointer, dimension(:)     :: good_list
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-!       Initialize the restoring package
-!
-
+! Initialize the restoring package
 package_index = otpm_set_tracer_package(package_name,            &
      restart_file = default_restart_file,                             &
      caller = trim(mod_name) // '(' // trim(sub_name) // ')')
 
-!
-!       Check whether to use this package
-!
-
+! Check whether to use this package
 path_to_names = '/ocean_mod/tracer_packages/' // trim(package_name) // '/names'
 instances = fm_get_length(path_to_names)
-if (instances .lt. 0) then  !{
+if (instances .lt. 0) then
   call mpp_error(FATAL, trim(error_header) // ' Could not get number of instances')
-endif  !}
-
-!
-!       Check some things
-!
+endif
 
 write (stdoutunit,*)
-if (instances .eq. 0) then  !{
+if (instances .eq. 0) then
   write (stdoutunit,*) trim(note_header), ' No instances'
   do_ocean_bgc_restore = .false.
-else  !}{
-  if (instances .eq. 1) then  !{
+else
+  if (instances .eq. 1) then
     write (stdoutunit,*) trim(note_header), ' ', instances, ' instance'
-  else  !}{
+  else
     write (stdoutunit,*) trim(note_header), ' ', instances, ' instances'
-  endif  !}
+  endif
   do_ocean_bgc_restore = .true.
-endif  !}
+endif
 
 module_initialized = .true.
 
-!
-!       Return if we don't want to use this package,
-!       after changing the list back
-!
-
-if (.not. do_ocean_bgc_restore) then  !{
+! Return if we don't want to use this package,
+! after changing the list back
+if (.not. do_ocean_bgc_restore) then
   return
-endif  !}
+endif
 
-!
-!       allocate storage for biotic array
-!
-
+! allocate storage for biotic array
 allocate ( biotic(instances) )
 
-!
-!       loop over the names, saving them into the biotic array
-!
-
-do n = 1, instances  !{
-
-  if (fm_get_value(path_to_names, name, index = n)) then  !{
+! loop over the names, saving them into the biotic array
+do n = 1, instances
+  if (fm_get_value(path_to_names, name, index = n)) then
     biotic(n)%name = name
-  else  !}{
+  else
     write (name,*) n
     call mpp_error(FATAL, trim(error_header) //        &
          'Bad field name for index ' // trim(name))
-  endif  !}
+  endif
+enddo
 
-enddo  !}
 
-!
-!       Set up the field input
-!
-
+! Set up the field input
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
-do n = 1, instances  !{
+do n = 1, instances
 
   name = biotic(n)%name
-  if (name(1:1) .eq. '_') then  !{
+  if (name(1:1) .eq. '_') then
     suffix = ' '
     long_suffix = ' '
-  else  !}{
+  else
     suffix = '_' // name
     long_suffix = ' (' // trim(name) // ')'
-  endif  !}
+  endif
 
-!
-!       NO3
-!
-
+  ! NO3
   biotic(n)%ind_no3 = otpm_set_prog_tracer('no3' // suffix, package_name,   &
        longname = 'Nitrate' // trim(long_suffix),                      &
        units = 'mol/kg', flux_units = 'mol/m^2/s',             &
        caller = caller_str)
 
-!
-!       NH4
-!
-
+  ! NH4
   biotic(n)%ind_nh4 = otpm_set_prog_tracer('nh4' // suffix, package_name,   &
        longname = 'Ammonia' // '(' // trim(name) // ')',               &
        units = 'mol/kg', flux_units = 'mol/m^2/s',             &
        caller = caller_str)
 
-!
-!       PO4
-!
-
+  ! PO4
   biotic(n)%ind_po4 = otpm_set_prog_tracer('po4' // suffix, package_name,   &
        longname = 'Phosphate' // trim(long_suffix),             &
        units = 'mol/kg', flux_units = 'mol/m^2/s',             &
        caller = caller_str)
 
-!
-!       Dissolved Fe (assumed to be all available to phytoplankton)
-!
-
+  ! Dissolved Fe (assumed to be all available to phytoplankton)
   biotic(n)%ind_fed = otpm_set_prog_tracer('fed' // suffix, package_name,   &
        longname = 'Dissolved Iron' // '(' // trim(name) // ')',        &
        units = 'mol/kg', flux_units = 'mol/m^2/s',             &
        caller = caller_str)
 
-!
-!       Fep (Sinking detrital/particulate iron)
-!
-
+  ! Fep (Sinking detrital/particulate iron)
   biotic(n)%ind_fep = otpm_set_diag_tracer('fep' // suffix, package_name,   &
        longname = 'Particulate Iron' // '(' // trim(name) // ')',      &
        restart_file = default_restart_file, units = 'mol/kg')
 
-!
-!       SiO4
-!
-
+  ! SiO4
   biotic(n)%ind_sio4 = otpm_set_prog_tracer('sio4' // suffix, package_name, &
        longname = 'Silicate' // '(' // trim(name) // ')',              &
        units = 'mol/kg', flux_units = 'mol/m^2/s',             &
        caller = caller_str)
 
-!
-!       DON
-!
+  ! DON
   biotic(n)%ind_don = otpm_set_prog_tracer('don' // suffix, package_name,   &
        longname = 'DON' // '(' // trim(name) // ')',                   &
        units = 'mol/kg', flux_units = 'mol/m^2/s',             &
        caller = caller_str)
 
-!
-!       DOP
-!
+  ! DOP
   biotic(n)%ind_dop = otpm_set_prog_tracer('dop' // suffix, package_name,   &
        longname = 'DOP' // '(' // trim(name) // ')',                   &
        units = 'mol/kg', flux_units = 'mol/m^2/s',             &
        caller = caller_str)
 
-!
-!       LDOC
-!
+  ! LDOC
   biotic(n)%ind_ldoc = otpm_set_prog_tracer('ldoc' // suffix, package_name, &
        longname = 'labile DOC' // '(' // trim(name) // ')',            &
        units = 'mol/kg', flux_units = 'mol/m^2/s',             &
        caller = caller_str)
 
-!
-!       DIC
-!
+  ! DIC
   biotic(n)%ind_dic = otpm_set_prog_tracer('dic' // suffix, package_name,   &
        longname = 'DIC' // '(' // trim(name) // ')',                   &
        units = 'mol/kg', flux_units = 'mol/m^2/s',             &
        caller = caller_str)
 
-!
-!       O2
-!
+  ! O2
   biotic(n)%ind_o2 = otpm_set_prog_tracer('o2' // suffix, package_name,     &
        longname = 'Oxygen' // '(' // trim(name) // ')',                &
        units = 'mol/kg', flux_units = 'mol/m^2/s',             &
        caller = caller_str)
 
-!
-!       ALK (Total carbonate alkalinity)
-!
-
+  ! ALK (Total carbonate alkalinity)
   biotic(n)%ind_alk = otpm_set_prog_tracer('alk' // suffix, package_name,   &
        longname = 'Alkalinity' // '(' // trim(name) // ')',            &
        units = 'mol/kg', flux_units = 'mol/m^2/s',             &
        caller = caller_str)
 
-enddo  !} n
+enddo
 
+! Process the namelists
 
-!
-!-----------------------------------------------------------------------
-!       Process the namelists
-!-----------------------------------------------------------------------
-!
+! Add the package name to the list of good namelists, to be used
+! later for a consistency check
 
-!
-!       Add the package name to the list of good namelists, to be used
-!       later for a consistency check
-!
-
-if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) .le. 0) then  !{
+if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) .le. 0) then
   call mpp_error(FATAL, trim(error_header) //                           &
        ' Could not add ' // trim(package_name) // ' to "good_namelists" list')
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
-!       Set up the *global* namelist
-!-----------------------------------------------------------------------
-!
-
+! Set up the *global* namelist
 call fm_util_start_namelist(package_name, '*global*', caller = caller_str, no_overwrite = .true., &
      check = .true.)
 
@@ -2003,22 +1460,13 @@ call fm_util_set_value('htotal_in', 1.0e-08)
 
 call fm_util_end_namelist(package_name, '*global*', caller = caller_str, check = .true.)
 
-!
-!-----------------------------------------------------------------------
-!       Set up the instance namelists
-!-----------------------------------------------------------------------
-!
+! Set up the instance namelists
 
 t_mask(:) = .true.
 
-do n = 1, instances  !{
+do n = 1, instances
 
-!
-!-----------------------------------------------------------------------
-!       create the instance namelist
-!-----------------------------------------------------------------------
-!
-
+  ! create the instance namelist
   call fm_util_start_namelist(package_name, biotic(n)%name, caller = caller_str, no_overwrite = .true., &
        check = .true.)
 
@@ -2029,7 +1477,7 @@ do n = 1, instances  !{
   call fm_util_set_value('soft_tissue_pump', .false.)
   call fm_util_set_value('stp_temperature', 10.0)
   call fm_util_set_value('stp_salinity', 34.7)
-! alkalinity is in ueq/kg, converted to eq/m^3
+  ! alkalinity is in ueq/kg, converted to eq/m^3
   call fm_util_set_value('stp_alkalinity', 2370.0 * 1024.5 * 1.0e-06)
   call fm_util_set_value('local_restart_file', default_local_restart_file)
   call fm_util_set_value('fe_ballast_assoc', .false.)
@@ -2076,16 +1524,7 @@ do n = 1, instances  !{
   call fm_util_set_value('rpcaco3', 0.070/12*16/117*100)
   call fm_util_set_value('rpsio2', 0.026/12*16/117*60)
   call fm_util_set_value('wsink', 3.0/sperd)
-!Old Wanninkhof numbers
-!  call fm_util_set_value('sc_co2_0', 2073.1)
-!  call fm_util_set_value('sc_co2_1', -125.62)
-!  call fm_util_set_value('sc_co2_2', 3.6276)
-!  call fm_util_set_value('sc_co2_3', -0.043219)
-!  call fm_util_set_value('sc_o2_0', 1638.0)
-!  call fm_util_set_value('sc_o2_1', -81.83)
-!  call fm_util_set_value('sc_o2_2', 1.483)
-!  call fm_util_set_value('sc_o2_3', -0.008004)
-!New Wanninkhof numbers
+  ! Wanninkhof numbers
   call fm_util_set_value('sc_co2_0', 2068.9)
   call fm_util_set_value('sc_co2_1', -118.63)
   call fm_util_set_value('sc_co2_2', 2.9311)
@@ -2097,10 +1536,7 @@ do n = 1, instances  !{
 
   call fm_util_end_namelist(package_name, biotic(n)%name, check = .true., caller = caller_str)
 
-!
-!       create some sub-namelists
-!
-
+  ! create some sub-namelists
   call fm_util_start_namelist(trim(package_name), trim(biotic(n)%name) // '+norm_remin',     &
        caller = caller_str, no_overwrite = .true., &
        check = .true.)
@@ -2157,25 +1593,22 @@ do n = 1, instances  !{
 
   call fm_util_end_namelist(trim(package_name), trim(biotic(n)%name) // '+r_bio_tau_prod', caller = caller_str)
 
-enddo  !} n
+enddo
 
-!
 !       Check for any errors in the number of fields in the namelists for this package
-!
-
 good_list => fm_util_get_string_array('/ocean_mod/GOOD/namelists/' // trim(package_name) // '/good_values',   &
      caller = trim(mod_name) // '(' // trim(sub_name) // ')')
-if (associated(good_list)) then  !{
+if (associated(good_list)) then
   call fm_util_check_for_bad_fields('/ocean_mod/namelists/' // trim(package_name), good_list,       &
        caller = trim(mod_name) // '(' // trim(sub_name) // ')')
   deallocate(good_list)
-else  !}{
+else
   call mpp_error(FATAL,trim(error_header) // ' Empty "' // trim(package_name) // '" list')
-endif  !}
+endif
 
 return
 
-end subroutine ocean_bgc_restore_init  !}
+end subroutine ocean_bgc_restore_init
 ! </SUBROUTINE> NAME="ocean_bgc_restore_init"
 
 
@@ -2190,21 +1623,7 @@ end subroutine ocean_bgc_restore_init  !}
 
 subroutine ocean_bgc_restore_init_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,       &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -2226,30 +1645,9 @@ integer, intent(in)                                     :: taum1
 type(time_type), intent(in)                             :: model_time
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 
-!
-!       local parameters
-!
-
-character(len=64), parameter    :: sub_name = 'ocean_bgc_restore_initialize_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-integer :: i
+integer :: i, j, m, n
 integer :: i_bnd_off
 integer :: j_bnd_off
-integer :: j
-integer :: m
-integer :: n
 integer :: nn
 integer :: ind
 
@@ -2258,17 +1656,14 @@ real    :: epsln=1.0e-30
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
-do n = 1, instances  !{
+do n = 1, instances
 
-!
-!       CO2 flux
-!
-
+   ! CO2 flux
   ind = biotic(n)%ind_co2_flux
   if (.not. field_exist('INPUT/'//trim(ocean_fields%bc(ind)%ocean_restart_file),   &
-                        ocean_fields%bc(ind)%field(ind_alpha)%name)) then  !{
+                        ocean_fields%bc(ind)%field(ind_alpha)%name)) then
 
-    call ocmip2_co2calc(isd, ied, jsd, jed, isc, iec, jsc, jec,         &
+    call ocmip2_co2calc(isd, jsd, isc, iec, jsc, jec,         &
          grid_tmask(isd:ied,jsd:jed,1),                                 &
          t_prog(indtemp)%field(isd:ied,jsd:jed,1,taum1),                &
          t_prog(indsal)%field(isd:ied,jsd:jed,1,taum1),                 &
@@ -2280,16 +1675,11 @@ do n = 1, instances  !{
          co2star = biotic(n)%csurf, alpha = biotic(n)%alpha,            &
          pco2surf = biotic(n)%pco2surf)
 
-!
-!---------------------------------------------------------------------
-!  Compute the Schmidt number of CO2 in seawater using the 
-!  formulation presented by Wanninkhof (1992, J. Geophys. Res., 97,
-!  7373-7382).
-!---------------------------------------------------------------------
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    ! Compute the Schmidt number of CO2 in seawater using the 
+    ! formulation presented by Wanninkhof (1992, J. Geophys. Res., 97,
+    ! 7373-7382).
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%sc_co2(i,j) =                                                 &
              biotic(n)%sc_co2_0 + t_prog(indtemp)%field(i,j,1,taum1) *          &
              (biotic(n)%sc_co2_1 + t_prog(indtemp)%field(i,j,1,taum1) *         &
@@ -2301,21 +1691,16 @@ do n = 1, instances  !{
              biotic(n)%alpha(i,j) * sc_no_term(i,j) * rho(i,j,1,taum1)
         ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) = &
              biotic(n)%csurf(i,j) * sc_no_term(i,j) * rho(i,j,1,taum1)
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
-  endif  !}
+  endif
 
-!
-!       O2 flux
-!
-
+  ! O2 flux
   ind = biotic(n)%ind_o2_flux
   if (.not. field_exist('INPUT/'//trim(ocean_fields%bc(ind)%ocean_restart_file),    &
-                        ocean_fields%bc(ind)%field(ind_alpha)%name)) then  !{
+                        ocean_fields%bc(ind)%field(ind_alpha)%name)) then
 
-!
-!---------------------------------------------------------------------
 !  Compute the oxygen saturation concentration at 1 atm total
 !  pressure in mol/m^3 given the temperature (t, in deg C) and
 !  the salinity (s, in permil)
@@ -2331,11 +1716,8 @@ do n = 1, instances  !{
 !
 ! check value: T = 10 deg C, S = 35 permil,
 !              o2_saturation = 0.282015 mol/m^3
-!---------------------------------------------------------------------
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    do j = jsc, jec
+      do i = isc, iec
         tt(i) = 298.15 - t_prog(indtemp)%field(i,j,1,taum1)
         tk(i) = 273.15 + t_prog(indtemp)%field(i,j,1,taum1)
         ts(i) = log(tt(i) / tk(i))
@@ -2349,29 +1731,21 @@ do n = 1, instances  !{
                  t_prog(indsal)%field(i,j,1,taum1) *                    &
                  (b_0 + b_1*ts(i) + b_2*ts2(i) + b_3*ts3(i) +           &
                   c_0*t_prog(indsal)%field(i,j,1,taum1))) * grid_tmask(i,j,1)
-      enddo  !} i
-    enddo  !} j 
+      enddo
+    enddo
 
-!
-!       convert from ml/l to mol/m^3
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    ! convert from ml/l to mol/m^3
+    do j = jsc, jec
+      do i = isc, iec
         o2_saturation(i,j) = o2_saturation(i,j) * (1000.0/22391.6)
-      enddo  !} i
-    enddo  !} j 
+      enddo
+    enddo
 
-!
-!---------------------------------------------------------------------
-!  Compute the Schmidt number of O2 in seawater using the 
-!  formulation proposed by Keeling et al. (1998, Global Biogeochem.
-!  Cycles, 12, 141-163).
-!---------------------------------------------------------------------
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    ! Compute the Schmidt number of O2 in seawater using the 
+    ! formulation proposed by Keeling et al. (1998, Global Biogeochem.
+    ! Cycles, 12, 141-163).
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%sc_o2(i,j) =                                                  &
              biotic(n)%sc_o2_0 + t_prog(indtemp)%field(i,j,1,taum1) *           &
              (biotic(n)%sc_o2_1 + t_prog(indtemp)%field(i,j,1,taum1) *          &
@@ -2382,15 +1756,15 @@ do n = 1, instances  !{
              o2_saturation(i,j) * sc_no_term(i,j)
         ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =         &
              t_prog(biotic(n)%ind_o2)%field(i,j,1,taum1) * sc_no_term(i,j) * rho(i,j,1,taum1)
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
-  endif  !}
-enddo  !} n
+  endif
+enddo
 
 return
 
-end subroutine ocean_bgc_restore_init_sfc  !}
+end subroutine ocean_bgc_restore_init_sfc
 ! </SUBROUTINE> NAME="ocean_bgc_restore_init_sfc"
 
 
@@ -2403,21 +1777,7 @@ end subroutine ocean_bgc_restore_init_sfc  !}
 
 subroutine ocean_bgc_restore_sum_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,        &
      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -2439,24 +1799,6 @@ integer, intent(in)                                     :: taum1
 type(time_type), intent(in)                             :: model_time
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 
-!
-!       local parameters
-!
-
-character(len=64), parameter    :: sub_name = 'ocean_bgc_restore_sum_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
 integer :: i
 integer :: i_bnd_off
 integer :: j_bnd_off
@@ -2470,11 +1812,11 @@ real    :: epsln=1.0e-30
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
-do n = 1, instances  !{
+do n = 1, instances
 
     ind = biotic(n)%ind_co2_flux
 
-    call ocmip2_co2calc(isd, ied, jsd, jed, isc, iec, jsc, jec,         &
+    call ocmip2_co2calc(isd, jsd, isc, iec, jsc, jec,         &
          grid_tmask(isd:ied,jsd:jed,1),                                 &
          t_prog(indtemp)%field(isd:ied,jsd:jed,1,taum1),                &
          t_prog(indsal)%field(isd:ied,jsd:jed,1,taum1),                 &
@@ -2486,16 +1828,11 @@ do n = 1, instances  !{
          co2star = biotic(n)%csurf, alpha = biotic(n)%alpha,            &
          pco2surf = biotic(n)%pco2surf)
 
-!
-!---------------------------------------------------------------------
-!  Compute the Schmidt number of CO2 in seawater using the 
-!  formulation presented by Wanninkhof (1992, J. Geophys. Res., 97,
-!  7373-7382).
-!---------------------------------------------------------------------
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    ! Compute the Schmidt number of CO2 in seawater using the 
+    ! formulation presented by Wanninkhof (1992, J. Geophys. Res., 97,
+    ! 7373-7382).
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%sc_co2(i,j) =                                                 &
              biotic(n)%sc_co2_0 + t_prog(indtemp)%field(i,j,1,taum1) *          &
              (biotic(n)%sc_co2_1 + t_prog(indtemp)%field(i,j,1,taum1) *         &
@@ -2508,13 +1845,11 @@ do n = 1, instances  !{
         ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =         &
              ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) +    &
              biotic(n)%csurf(i,j) * sc_no_term(i,j) * rho(i,j,1,taum1)
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
     ind = biotic(n)%ind_o2_flux
 
-!
-!---------------------------------------------------------------------
 !  Compute the oxygen saturation concentration at 1 atm total
 !  pressure in mol/m^3 given the temperature (t, in deg C) and
 !  the salinity (s, in permil)
@@ -2530,11 +1865,8 @@ do n = 1, instances  !{
 !
 ! check value: T = 10 deg C, S = 35 permil,
 !              o2_saturation = 0.282015 mol/m^3
-!---------------------------------------------------------------------
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    do j = jsc, jec
+      do i = isc, iec
         tt(i) = 298.15 - t_prog(indtemp)%field(i,j,1,taum1)
         tk(i) = 273.15 + t_prog(indtemp)%field(i,j,1,taum1)
         ts(i) = log(tt(i) / tk(i))
@@ -2548,29 +1880,21 @@ do n = 1, instances  !{
                  t_prog(indsal)%field(i,j,1,taum1) *                &
                  (b_0 + b_1*ts(i) + b_2*ts2(i) + b_3*ts3(i) +       &
                   c_0*t_prog(indsal)%field(i,j,1,taum1))) * grid_tmask(i,j,1) 
-      enddo  !} i
-    enddo  !} j 
+      enddo
+    enddo
 
-!
-!       convert from ml/l to mol/m^3
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    ! convert from ml/l to mol/m^3
+    do j = jsc, jec
+      do i = isc, iec
         o2_saturation(i,j) = o2_saturation(i,j) * (1000.0/22391.6)
-      enddo  !} i
-    enddo  !} j 
+      enddo
+    enddo
 
-!
-!---------------------------------------------------------------------
-!  Compute the Schmidt number of O2 in seawater using the 
-!  formulation proposed by Keeling et al. (1998, Global Biogeochem.
-!  Cycles, 12, 141-163).
-!---------------------------------------------------------------------
-!
-
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    ! Compute the Schmidt number of O2 in seawater using the 
+    ! formulation proposed by Keeling et al. (1998, Global Biogeochem.
+    ! Cycles, 12, 141-163).
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%sc_o2(i,j) =                                                  &
              biotic(n)%sc_o2_0 + t_prog(indtemp)%field(i,j,1,taum1) *           &
              (biotic(n)%sc_o2_1 + t_prog(indtemp)%field(i,j,1,taum1) *          &
@@ -2583,14 +1907,14 @@ do n = 1, instances  !{
         ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =         &
              ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) +    &
              t_prog(biotic(n)%ind_o2)%field(i,j,1,taum1) * sc_no_term(i,j) * rho(i,j,1,taum1)
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
-enddo  !} n
+enddo
 
 return
 
-end subroutine ocean_bgc_restore_sum_sfc  !}
+end subroutine ocean_bgc_restore_sum_sfc
 ! </SUBROUTINE> NAME="ocean_bgc_restore_sum_sfc"
 
 
@@ -2601,40 +1925,14 @@ end subroutine ocean_bgc_restore_sum_sfc  !}
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
 
-subroutine ocean_bgc_restore_zero_sfc(Ocean_fields)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine ocean_bgc_restore_zero_sfc(Ocean_fields)
 
 type(coupler_2d_bc_type), intent(inout) :: Ocean_fields
-
-!
-!       local parameters
-!
-
-character(len=64), parameter    :: sub_name = 'ocean_bgc_restore_zero_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 
 integer         :: n
 integer         :: ind
 
-do n = 1, instances  !{
+do n = 1, instances
 
   ind = biotic(n)%ind_co2_flux
 
@@ -2646,11 +1944,11 @@ do n = 1, instances  !{
   ocean_fields%bc(ind)%field(ind_alpha)%values = 0.0
   ocean_fields%bc(ind)%field(ind_csurf)%values = 0.0
 
-enddo  !} n
+enddo
 
 return
 
-end subroutine ocean_bgc_restore_zero_sfc  !}
+end subroutine ocean_bgc_restore_zero_sfc
 ! </SUBROUTINE> NAME="ocean_bgc_restore_zero_sfc"
 
 
@@ -2660,17 +1958,8 @@ end subroutine ocean_bgc_restore_zero_sfc  !}
 ! <DESCRIPTION>
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
-
 subroutine ocean_bgc_restore_avg_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,        &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -2689,29 +1978,10 @@ type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 integer                                                 :: Ocean_avg_kount
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 
-!
-!       local parameters
-!
-
-character(len=64), parameter    :: sub_name = 'ocean_bgc_restore_avg_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 
 integer :: i_bnd_off
 integer :: j_bnd_off
-integer :: i
-integer :: j
-integer :: n
+integer :: i, j, n
 integer :: ind
 real    :: divid
 
@@ -2720,39 +1990,39 @@ j_bnd_off = jsc - jsc_bnd
 
 divid = 1./float(ocean_avg_kount)
 
-do n = 1, instances  !{
+do n = 1, instances
 
   ind = biotic(n)%ind_co2_flux
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-      if (grid_tmask(i,j,1) == 1.0) then  !{
+  do j = jsc, jec
+    do i = isc, iec
+      if (grid_tmask(i,j,1) == 1.0) then
         ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) * divid
         ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) * divid
-      endif  !}
-    enddo  !} i
-  enddo  !} j
+      endif
+    enddo
+  enddo
 
   ind = biotic(n)%ind_o2_flux
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-      if (grid_tmask(i,j,1) == 1.0) then  !{
+  do j = jsc, jec
+    do i = isc, iec
+      if (grid_tmask(i,j,1) == 1.0) then
         ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) * divid
         ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) * divid
-      endif  !}
-    enddo  !} i
-  enddo  !} j
+      endif
+    enddo
+  enddo
 
-enddo  !} n
+enddo
 
 return
 
-end subroutine ocean_bgc_restore_avg_sfc  !}
+end subroutine ocean_bgc_restore_avg_sfc
 ! </SUBROUTINE> NAME="ocean_bgc_restore_avg_sfc"
 
 
@@ -2763,37 +2033,9 @@ end subroutine ocean_bgc_restore_avg_sfc  !}
 !       Initialize surface fields for flux calculations
 ! </DESCRIPTION>
 
-subroutine ocean_bgc_restore_sfc_end  !{
+subroutine ocean_bgc_restore_sfc_end
 
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!       local parameters
-!
-
-character(len=64), parameter    :: sub_name = 'ocean_bgc_restore_sfc_end'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-return
-
-end subroutine ocean_bgc_restore_sfc_end  !}
+end subroutine ocean_bgc_restore_sfc_end
 ! </SUBROUTINE> NAME="ocean_bgc_restore_sfc_end"
 
 
@@ -2807,21 +2049,7 @@ end subroutine ocean_bgc_restore_sfc_end  !}
 ! </DESCRIPTION>
 
 subroutine ocean_bgc_restore_source(isc, iec, jsc, jec, nk, isd, ied, jsd, jed, &
-     T_prog, T_diag, taum1, model_time, grid_tmask, grid_kmt, rho_dzt, dtts)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     T_prog, T_diag, taum1, model_time, Grid, Time, grid_kmt, rho_dzt, dtts)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
@@ -2836,30 +2064,13 @@ type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
 type(ocean_diag_tracer_type), intent(inout), dimension(:)       :: T_diag
 integer, intent(in)                                             :: taum1
 type(time_type), intent(in)                                     :: model_time
-real, dimension(isd:,jsd:,:), intent(in)                        :: grid_tmask
+type(ocean_grid_type), intent(in)                               :: Grid
+type(ocean_time_type), intent(in)                               :: Time
 integer, dimension(isd:,jsd:), intent(in)                       :: grid_kmt
 real, dimension(isd:,jsd:,:,:), intent(in)                      :: rho_dzt
 real, intent(in)                                                :: dtts
 
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-character(len=64), parameter    :: sub_name = 'ocean_bgc_restore_source'
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-integer :: i
-integer :: j
-integer :: k
-integer :: kmax
-integer :: n
+integer :: i, j, k, kmax, n
 integer :: ind_no3
 integer :: ind_nh4
 integer :: ind_po4
@@ -2885,56 +2096,26 @@ real :: jtot
 real :: SoverPstar2
 real :: expkT
 real :: fpon_protected
-real, dimension(isc:iec,jsc:jec,nk)     :: grid_tmask_comp
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
 
-!if (no_source) then  !{
-  !write (stdoutunit,*) 'NOTE: ', trim(sub_name),                 &
-       !': skipping ocean_bgc_restore_source calculations'
-  !return
-!else  !}{
-  !write (stdoutunit,*) 'NOTE: ', trim(sub_name),                 &
-       !': doing ocean_bgc_restore_source calculations'
-!endif  !}
-
-!
-!       get the model month
-!
-
+! get the model month
 call get_date(model_time, year, month, day,                &
               hour, minute, second)
 
-!
-!-----------------------------------------------------------------------
-!     calculate the source terms for BIOTICs
-!-----------------------------------------------------------------------
-!
+! calculate the source terms for BIOTICs
 
-!
-!---------------------------------------------------------------------
-!     calculate interpolated NO3_star, PO4_star, SiO4_star and Alk_star
-!---------------------------------------------------------------------
-!
-
+! calculate interpolated NO3_star, PO4_star, SiO4_star and Alk_star
 call time_interp_external(no3_star_id, model_time, no3_star_t)
 call time_interp_external(po4_star_id, model_time, po4_star_t)
 call time_interp_external(fed_star_id, model_time, fed_star_t)
 call time_interp_external(sio4_star_id, model_time, sio4_star_t)
 call time_interp_external(alk_star_id, model_time, alk_star_t)
 
-!
-!       Loop over multiple instances
-!
-
-do n = 1, instances  !{
+! Loop over multiple instances
+do n = 1, instances
 
   ind_no3 = biotic(n)%ind_no3
   ind_nh4 = biotic(n)%ind_nh4
@@ -2950,236 +2131,196 @@ do n = 1, instances  !{
   ind_o2 = biotic(n)%ind_o2
   km_c = biotic(n)%km_c
 
-!
-!-----------------------------------------------------------------------
-!     Production
-!-----------------------------------------------------------------------
-!
-!
-!       compute NO3 restoring term and correct for partial
-!       production in the bottom box
-!
+  ! Production
 
-  do k = 1, km_c  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! compute NO3 restoring term and correct for partial
+  ! production in the bottom box
+  do k = 1, km_c
+    do j = jsc, jec
+      do i = isc, iec
         if (t_prog(ind_no3)%field(i,j,k,taum1) .gt.             &
             no3_star_t(i,j,k) *                                 &
-            biotic(n)%nut_depl%mask(i,j,month)) then  !{
+            biotic(n)%nut_depl%mask(i,j,month)) then
           biotic(n)%jprod_no3(i,j,k) =                              &
                (t_prog(ind_no3)%field(i,j,k,taum1) -            &
                 no3_star_t(i,j,k) *                             &
                 biotic(n)%nut_depl%mask(i,j,month)) *           &
-               biotic(n)%r_bio_tau_prod%mask(i,j,month) * grid_tmask(i,j,k)
-        else  !}{
+               biotic(n)%r_bio_tau_prod%mask(i,j,month) * Grid%tmask(i,j,k)
+        else
           biotic(n)%jprod_no3(i,j,k) = 0.0
-        endif  !}
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+        endif
+      enddo
+    enddo
+  enddo
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
       biotic(n)%jprod_no3(i,j,km_c) = biotic(n)%jprod_no3(i,j,km_c) *   &
            biotic(n)%comp_depth_frac(i,j)
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-!
-!       compute NH4 restoring term and correct for partial
-!       production in the bottom box
-!
-
-  do k = 1, km_c !{
-    do j = jsc, jec !{
-      do i = isc, iec   !{
-        if (t_prog(ind_nh4)%field(i,j,k,taum1) .gt. 0.0) then  !{
+  ! compute NH4 restoring term and correct for partial
+  ! production in the bottom box
+  do k = 1, km_c
+    do j = jsc, jec
+      do i = isc, iec
+        if (t_prog(ind_nh4)%field(i,j,k,taum1) .gt. 0.0) then
           biotic(n)%jprod_nh4(i,j,k) =                              &
                t_prog(ind_nh4)%field(i,j,k,taum1) *           &
-               biotic(n)%r_bio_tau_nh4 * grid_tmask(i,j,k)
-        else  !}{
+               biotic(n)%r_bio_tau_nh4 * Grid%tmask(i,j,k)
+        else
           biotic(n)%jprod_nh4(i,j,k) = 0.0
-        endif  !}
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+        endif
+      enddo
+    enddo
+  enddo
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
       biotic(n)%jprod_nh4(i,j,km_c) = biotic(n)%jprod_nh4(i,j,km_c) *   &
            biotic(n)%comp_depth_frac(i,j)
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-!
-!       compute PO4 restoring term and correct for partial
-!       production in the bottom box
-!
-
-  do k = 1, km_c  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! compute PO4 restoring term and correct for partial
+  ! production in the bottom box
+  do k = 1, km_c
+    do j = jsc, jec
+      do i = isc, iec
         if (t_prog(ind_po4)%field(i,j,k,taum1) .gt.             &
             po4_star_t(i,j,k) *                                 &
-            biotic(n)%nut_depl%mask(i,j,month)) then  !{
+            biotic(n)%nut_depl%mask(i,j,month)) then
           biotic(n)%jprod_po4(i,j,k) =                              &
                (t_prog(ind_po4)%field(i,j,k,taum1) -            &
                 po4_star_t(i,j,k) *                             &
                 biotic(n)%nut_depl%mask(i,j,month)) *           &
-               biotic(n)%r_bio_tau_prod%mask(i,j,month) * grid_tmask(i,j,k)
-        else  !}{
+               biotic(n)%r_bio_tau_prod%mask(i,j,month) * Grid%tmask(i,j,k)
+        else
           biotic(n)%jprod_po4(i,j,k) = 0.0
-        endif  !}
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+        endif
+      enddo
+    enddo
+  enddo
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
       biotic(n)%jprod_po4(i,j,km_c) = biotic(n)%jprod_po4(i,j,km_c) *   &
            biotic(n)%comp_depth_frac(i,j)
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-!
-!       compute Fed restoring term and correct for partial
-!       production in the bottom box
-!
-
-  do k = 1, km_c  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! compute Fed restoring term and correct for partial
+  ! production in the bottom box
+  do k = 1, km_c
+    do j = jsc, jec
+      do i = isc, iec
         if (t_prog(ind_fed)%field(i,j,k,taum1) .gt.             &
             fed_star_t(i,j,k) *                                 &
-            biotic(n)%nut_depl%mask(i,j,month)) then  !{
+            biotic(n)%nut_depl%mask(i,j,month)) then
           biotic(n)%jprod_fed(i,j,k) =                              &
                (t_prog(ind_fed)%field(i,j,k,taum1) -            &
                 fed_star_t(i,j,k) *                             &
                 biotic(n)%nut_depl%mask(i,j,month)) *           &
-               biotic(n)%r_bio_tau_prod%mask(i,j,month) * grid_tmask(i,j,k)
-        else  !}{
+               biotic(n)%r_bio_tau_prod%mask(i,j,month) * Grid%tmask(i,j,k)
+        else
           biotic(n)%jprod_fed(i,j,k) = 0.0
-        endif  !}
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+        endif
+      enddo
+    enddo
+  enddo
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec 
       biotic(n)%jprod_fed(i,j,km_c) = biotic(n)%jprod_fed(i,j,km_c) *   &
            biotic(n)%comp_depth_frac(i,j)
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-!
-!       compute nitrogen fixation
-!
-!
 
-  do k = 1, km_c  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! compute nitrogen fixation
+  do k = 1, km_c
+    do j = jsc, jec
+      do i = isc, iec
        biotic(n)%jprod_n_norm(i,j,k) = biotic(n)%jprod_nh4(i,j,k) +     &
          biotic(n)%jprod_no3(i,j,k)
-!       if(biotic(n)%jprod_po4(i,j,k)*biotic(n)%n_2_p >                 &
-!           biotic(n)%jprod_n_norm(i,j,k)) then !{
-!         biotic(n)%jprod_p_norm(i,j,k) = biotic(n)%jprod_n_norm(i,j,k) &
-!           * biotic(n)%p_2_n
-!         biotic(n)%jprod_p_fix(i,j,k) = (biotic(n)%jprod_po4(i,j,k)    &
-!               - biotic(n)%jprod_p_norm(i,j,k)) *                      &
-!               biotic(n)%r_bio_tau_fix * biotic(n)%bio_tau
-!         biotic(n)%jprod_n_fix(i,j,k) = biotic(n)%jprod_p_fix(i,j,k) * &
-!           biotic(n)%n_2_p_fix
-!       else  !}{
-!          biotic(n)%jprod_p_norm(i,j,k) = biotic(n)%jprod_po4(i,j,k)
-!          biotic(n)%jprod_p_fix(i,j,k) = 0.0
-!          biotic(n)%jprod_n_fix(i,j,k) = 0.0
-!       endif !}
        biotic(n)%jprod_p_norm(i,j,k) = biotic(n)%jprod_po4(i,j,k)
        biotic(n)%jprod_p_fix(i,j,k) = 0.0
        biotic(n)%jprod_n_fix(i,j,k) = 0.0
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
       biotic(n)%jprod_p_norm(i,j,km_c) = biotic(n)%jprod_p_norm(i,j,km_c) *   &
            biotic(n)%comp_depth_frac(i,j)
       biotic(n)%jprod_p_fix(i,j,km_c) = biotic(n)%jprod_p_fix(i,j,km_c) *   &
            biotic(n)%comp_depth_frac(i,j)
       biotic(n)%jprod_n_fix(i,j,km_c) = biotic(n)%jprod_n_fix(i,j,km_c) *   &
            biotic(n)%comp_depth_frac(i,j)
-    enddo  !} i
-  enddo  !} j
+    enddo 
+  enddo
 
-!
-!       compute SiO4 restoring term and correct for partial
-!       production in the bottom box
-!
-
-  do k = 1, km_c  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! compute SiO4 restoring term and correct for partial
+  ! production in the bottom box
+  do k = 1, km_c
+    do j = jsc, jec
+      do i = isc, iec
           if (t_prog(ind_sio4)%field(i,j,k,taum1) .gt.          &
-              sio4_star_t(i,j,k)) then  !{
+              sio4_star_t(i,j,k)) then
             biotic(n)%jprod_sio4(i,j,k) =                       &
                  (t_prog(ind_sio4)%field(i,j,k,taum1) -         &
                   sio4_star_t(i,j,k)) *                         &
-                 biotic(n)%r_bio_tau * grid_tmask(i,j,k)
-          else  !}{
+                 biotic(n)%r_bio_tau * Grid%tmask(i,j,k)
+          else
             biotic(n)%jprod_sio4(i,j,k) = 0.0
-        endif !}
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+        endif
+      enddo
+    enddo
+  enddo
 
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%jprod_sio4(i,j,km_c) =                        &
              biotic(n)%jprod_sio4(i,j,km_c) *                   &
              biotic(n)%comp_depth_frac(i,j)
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
-!
-!       compute Alk restoring term and correct for partial
-!       production in the bottom box
-!
-
-    do k = 1, km_c  !{
-      do j = jsc, jec  !{
-        do i = isc, iec  !{
+    ! compute Alk restoring term and correct for partial
+    ! production in the bottom box
+    do k = 1, km_c
+      do j = jsc, jec
+        do i = isc, iec
           if ((t_prog(ind_alk)%field(i,j,k,taum1) +            &
             t_prog(ind_no3)%field(i,j,k,taum1)) * 35.0 /       &
             (t_prog(indsal)%field(i,j,k,taum1) + 1e-40) .gt.             &
-              alk_star_t(i,j,k)) then  !{
+              alk_star_t(i,j,k)) then
             biotic(n)%jprod_alk(i,j,k) =                       &
                  ((t_prog(ind_alk)%field(i,j,k,taum1) +        &
             t_prog(ind_no3)%field(i,j,k,taum1)) * 35.0 /       &
             (t_prog(indsal)%field(i,j,k,taum1) + 1e-40) -         &
                   alk_star_t(i,j,k)) *                         &
-                 biotic(n)%r_bio_tau * grid_tmask(i,j,k)
-          else  !}{
+                 biotic(n)%r_bio_tau * Grid%tmask(i,j,k)
+          else
             biotic(n)%jprod_alk(i,j,k) = 0.0
-          endif  !}
-        enddo  !} i
-      enddo  !} j
-    enddo  !} k
+          endif
+        enddo
+      enddo
+    enddo
 
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%jprod_alk(i,j,km_c) =                        &
              biotic(n)%jprod_alk(i,j,km_c) *                   &
              biotic(n)%comp_depth_frac(i,j)
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
-!
-! Do not allow production in bottom level
-!
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    ! Do not allow production in bottom level
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%jprod_no3(i,j,grid_kmt(i,j)) = 0.0
         biotic(n)%jprod_nh4(i,j,grid_kmt(i,j)) = 0.0
         biotic(n)%jprod_po4(i,j,grid_kmt(i,j)) = 0.0
@@ -3190,65 +2331,56 @@ do n = 1, instances  !{
         biotic(n)%jprod_fed(i,j,grid_kmt(i,j)) = 0.0
         biotic(n)%jprod_sio4(i,j,grid_kmt(i,j)) = 0.0
         biotic(n)%jprod_alk(i,j,grid_kmt(i,j)) = 0.0
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
-!
-!-----------------------------------------------------------------------
-!     Food Web Processing
-!-----------------------------------------------------------------------
-!
-  do k = 1, km_c  !{
-    do j = jsc, jec !{
-      do i = isc, iec   !{
+  ! Food Web Processing
+  do k = 1, km_c
+    do j = jsc, jec
+      do i = isc, iec
         jtot=max(biotic(n)%jprod_n_norm(i,j,k) +                                &
             biotic(n)%jprod_n_fix(i,j,k),1.0e-30)
           expkT = exp(biotic(n)%kappa_eppley * t_prog(indtemp)%field(i,j,k,taum1))
         SoverPstar2=-0.5 + 0.5 * sqrt(1.0 + 4.0 * jtot /                        &
             (expkT * biotic(n)%Prodstar))
         biotic(n)%fracl(i,j,k) = SoverPstar2 / (1.0 + SoverPstar2) *            &
-            grid_tmask(i,j,k)
+            Grid%tmask(i,j,k)
         biotic(n)%jprod_pon(i,j,k) = max(0.0,jtot * (exp(biotic(n)%kappa_remin *&
              t_prog(indtemp)%field(i,j,k,taum1)) *                              &
             (biotic(n)%fdetl0 * biotic(n)%fracl(i,j,k) + biotic(n)%fdets0 *     &
             (1.0 - biotic(n)%fracl(i,j,k))) - biotic(n)%phi_don)) *             &
-            grid_tmask(i,j,k)
+            Grid%tmask(i,j,k)
         biotic(n)%jprod_pop(i,j,k) = biotic(n)%jprod_pon(i,j,k) / jtot *        &
             (biotic(n)%jprod_p_norm(i,j,k) + biotic(n)%jprod_p_fix(i,j,k))
         biotic(n)%jprod_pofe(i,j,k) = biotic(n)%jprod_pon(i,j,k) / jtot *       &
             biotic(n)%jprod_fed(i,j,k)
-        biotic(n)%jldoc(i,j,k) = jtot * biotic(n)%phi_ldoc * grid_tmask(i,j,k)
-        biotic(n)%jdon(i,j,k) = jtot * biotic(n)%phi_don * grid_tmask(i,j,k)
+        biotic(n)%jldoc(i,j,k) = jtot * biotic(n)%phi_ldoc * Grid%tmask(i,j,k)
+        biotic(n)%jdon(i,j,k) = jtot * biotic(n)%phi_don * Grid%tmask(i,j,k)
         biotic(n)%jdop(i,j,k) = (biotic(n)%jprod_p_norm(i,j,k) +                &
             biotic(n)%jprod_p_fix(i,j,k)) * biotic(n)%phi_dop *                 &
-            grid_tmask(i,j,k)
+            Grid%tmask(i,j,k)
         biotic(n)%jnh4_graz(i,j,k) = (jtot - biotic(n)%jprod_pon(i,j,k) -       &
-            biotic(n)%jdon(i,j,k)) * grid_tmask(i,j,k)
+            biotic(n)%jdon(i,j,k)) * Grid%tmask(i,j,k)
         biotic(n)%jpo4_graz(i,j,k) = (biotic(n)%jprod_p_norm(i,j,k) +           &
             biotic(n)%jprod_p_fix(i,j,k) - biotic(n)%jprod_pop(i,j,k) -         &
-            biotic(n)%jdop(i,j,k)) * grid_tmask(i,j,k)
+            biotic(n)%jdop(i,j,k)) * Grid%tmask(i,j,k)
         biotic(n)%jfe_graz(i,j,k) = (biotic(n)%jprod_fed(i,j,k)                &
-            - biotic(n)%jprod_pofe(i,j,k)) * grid_tmask(i,j,k)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+            - biotic(n)%jprod_pofe(i,j,k)) * Grid%tmask(i,j,k)
+      enddo
+    enddo
+  enddo
 
-!
-!
-!   Accumulate first level of flux
-!
-!
-
-  do j=jsc,jec  !{
-    do i=isc,iec  !{
+  ! Accumulate first level of flux
+  do j=jsc,jec
+    do i=isc,iec
       biotic(n)%fsio2(i,j,1) = biotic(n)%jprod_sio4(i,j,1) *        &
-        rho_dzt(i,j,1,taum1) * grid_tmask(i,j,1)
+        rho_dzt(i,j,1,taum1) * Grid%tmask(i,j,1)
       biotic(n)%fcaco3(i,j,1) = 0.5 * biotic(n)%jprod_alk(i,j,1) *  &
-        rho_dzt(i,j,1,taum1) * grid_tmask(i,j,1)
+        rho_dzt(i,j,1,taum1) * Grid%tmask(i,j,1)
       biotic(n)%fpon(i,j,1) = biotic(n)%jprod_pon(i,j,1) *          &
-         rho_dzt(i,j,1,taum1) * grid_tmask(i,j,1)
+         rho_dzt(i,j,1,taum1) * Grid%tmask(i,j,1)
       biotic(n)%fpop(i,j,1) = biotic(n)%jprod_pop(i,j,1) *          &
-         rho_dzt(i,j,1,taum1) * grid_tmask(i,j,1)
+         rho_dzt(i,j,1,taum1) * Grid%tmask(i,j,1)
       biotic(n)%jfe_ads(i,j,1)=min(biotic(n)%kfe_max_prime,         &
         (biotic(n)%kfe_org / 2.0 * biotic(n)%fpon(i,j,1) *          &
         biotic(n)%mass_2_n + biotic(n)%kfe_bal / 2.0 *              &
@@ -3262,114 +2394,95 @@ do n = 1, instances  !{
       biotic(n)%jpofe(i,j,1) = 0.0
       biotic(n)%jsio4(i,j,1) = 0.0
       biotic(n)%jcaco3(i,j,1) = 0.0
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-  do k=2,nk-1  !{
-    do j=jsc,jec  !{
-      do i=isc,iec  !{
+  do k=2,nk-1
+    do j=jsc,jec
+      do i=isc,iec
         biotic(n)%fsio2(i,j,k) = biotic(n)%fsio2(i,j,k-1) *                    &
-          biotic(n)%r_1plusintzscale_si(k) * grid_tmask(i,j,k)
-!
-! Calculate regeneration term
-!
-        biotic(n)%jsio4(i,j,k) = (biotic(n)%fsio2(i,j,k-1) * grid_tmask(i,j,k) &
-          - biotic(n)%fsio2(i,j,k) * grid_tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
-!
-! Add production within box to flux
-!
+          biotic(n)%r_1plusintzscale_si(k) * Grid%tmask(i,j,k)
+
+        ! Calculate regeneration term
+        biotic(n)%jsio4(i,j,k) = (biotic(n)%fsio2(i,j,k-1) * Grid%tmask(i,j,k) &
+          - biotic(n)%fsio2(i,j,k) * Grid%tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
+
+        ! Add production within box to flux
         biotic(n)%fsio2(i,j,k) = biotic(n)%fsio2(i,j,k) +                      &
           biotic(n)%jprod_sio4(i,j,k) *                                        &
-          rho_dzt(i,j,k,taum1) * grid_tmask(i,j,k)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+          rho_dzt(i,j,k,taum1) * Grid%tmask(i,j,k)
+      enddo
+    enddo
+  enddo
 
-  do k=2,nk-1  !{
-    do j=jsc,jec  !{
-      do i=isc,iec  !{
+  do k=2,nk-1
+    do j=jsc,jec
+      do i=isc,iec
         biotic(n)%fcaco3(i,j,k) = biotic(n)%fcaco3(i,j,k-1) *                  &
-          biotic(n)%r_1plusintzscale_ca(k) * grid_tmask(i,j,k)
-!
-! Calculate regeneration term
-!
-        biotic(n)%jcaco3(i,j,k) = (biotic(n)%fcaco3(i,j,k-1) * grid_tmask(i,j,k) &
-          - biotic(n)%fcaco3(i,j,k) * grid_tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
-!
-! Add production within box to flux
-!
+          biotic(n)%r_1plusintzscale_ca(k) * Grid%tmask(i,j,k)
+
+        ! Calculate regeneration term
+        biotic(n)%jcaco3(i,j,k) = (biotic(n)%fcaco3(i,j,k-1) * Grid%tmask(i,j,k) &
+          - biotic(n)%fcaco3(i,j,k) * Grid%tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
+
+        ! Add production within box to flux
         biotic(n)%fcaco3(i,j,k) = biotic(n)%fcaco3(i,j,k) + 0.5 *              &
           biotic(n)%jprod_alk(i,j,k) *                                         &
-          rho_dzt(i,j,k,taum1) * grid_tmask(i,j,k)
-        enddo  !} i
-      enddo  !} j
-    enddo  !} k
+          rho_dzt(i,j,k,taum1) * Grid%tmask(i,j,k)
+        enddo
+      enddo
+    enddo
 
 if(biotic(n)%remin_ocmip2) then
-!
-!
-!   OCMIP2 Interior Remineralization Scheme
-!
-!   F(z) = F75 * (z / 75)^-0.9
+  ! OCMIP2 Interior Remineralization Scheme
 
-  do k = 2, km_c  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! F(z) = F75 * (z / 75)^-0.9
+  do k = 2, km_c
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%fpon(i,j,k) = biotic(n)%fpon(i,j,k-1) +       &
           biotic(n)%jprod_pon(i,j,k) *                          &
-          rho_dzt(i,j,k,taum1) * grid_tmask(i,j,k)
+          rho_dzt(i,j,k,taum1) * Grid%tmask(i,j,k)
         biotic(n)%fpop(i,j,k) = biotic(n)%fpop(i,j,k-1) +       &
           biotic(n)%jprod_pop(i,j,k) *                          &
-          rho_dzt(i,j,k,taum1) * grid_tmask(i,j,k)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+          rho_dzt(i,j,k,taum1) * Grid%tmask(i,j,k)
+      enddo
+    enddo
+  enddo
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
       biotic(n)%flux_pon(i,j) = biotic(n)%fpon(i,j,km_c)
       biotic(n)%flux_pop(i,j) = biotic(n)%fpop(i,j,km_c)
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-  do k = km_c, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
-!
-!   Calculate the flux at the base of each layer below the
-!   compensation depth
-!
+  do k = km_c, nk
+    do j = jsc, jec
+      do i = isc, iec
+        ! Calculate the flux at the base of each layer below the
+        ! compensation depth
         biotic(n)%fpon(i,j,k) = biotic(n)%flux_pon(i,j) *         &
-             grid_tmask(i,j,k) * biotic(n)%zforg(k)
+             Grid%tmask(i,j,k) * biotic(n)%zforg(k)
         biotic(n)%fpop(i,j,k) = biotic(n)%flux_pop(i,j) *         &
-             grid_tmask(i,j,k) * biotic(n)%zforg(k)
-!
-!   Calculate regeneration term
-!
-        biotic(n)%jpon(i,j,k) = (biotic(n)%fpon(i,j,k-1) * grid_tmask(i,j,k)   &
-          - biotic(n)%fpon(i,j,k) * grid_tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
-        biotic(n)%jpop(i,j,k) = (biotic(n)%fpop(i,j,k-1) * grid_tmask(i,j,k)   &
-          - biotic(n)%fpop(i,j,k) * grid_tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
-!
-!
+             Grid%tmask(i,j,k) * biotic(n)%zforg(k)
+
+        ! Calculate regeneration term
+        biotic(n)%jpon(i,j,k) = (biotic(n)%fpon(i,j,k-1) * Grid%tmask(i,j,k)   &
+          - biotic(n)%fpon(i,j,k) * Grid%tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
+        biotic(n)%jpop(i,j,k) = (biotic(n)%fpop(i,j,k-1) * Grid%tmask(i,j,k)   &
+          - biotic(n)%fpop(i,j,k) * Grid%tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
+      enddo
+    enddo
+  enddo
 elseif(biotic(n)%remin_protection) then
-!
-!
-!   Ballast Protection Interior Remineralization Scheme
-!
-!   remin = g * max(0.0 , Forg - rpcaco3 * Fcaco3 - rpsio2 * Fsio2)
-!
-!
-  do k=2,nk-1  !{
-    do j=jsc,jec  !{
-      do i=isc,iec  !{
-!
-! Remineralization of unprotected organic material and
-! previously protected particulate organic material
-!
+  ! Ballast Protection Interior Remineralization Scheme
+  ! remin = g * max(0.0 , Forg - rpcaco3 * Fcaco3 - rpsio2 * Fsio2)
+  do k=2,nk-1
+    do j=jsc,jec
+      do i=isc,iec
+         ! Remineralization of unprotected organic material and
+         ! previously protected particulate organic material
         fpon_protected = biotic(n)%rpsio2 * biotic(n)%fsio2(i,j,k-1) +         &
           biotic(n)%rpcaco3 * biotic(n)%fcaco3(i,j,k-1) + 1.0e-30
         biotic(n)%fpon(i,j,k) = min(biotic(n)%fpon(i,j,k-1),                  &
@@ -3379,32 +2492,29 @@ elseif(biotic(n)%remin_protection) then
           biotic(n)%fsio2(i,j,k)) + biotic(n)%rpcaco3 *                        &
           (biotic(n)%fcaco3(i,j,k-1) - biotic(n)%fcaco3(i,j,k))) *             &
           min(biotic(n)%fpon(i,j,k-1),fpon_protected) /                        &
-          fpon_protected * biotic(n)%r_1plusintzscale_n(k)) * grid_tmask(i,j,k)
-!
-! Apply N change to P assuming equal partitioning between protected,
-! previously protected and unprotected particulate organic material
-!
+          fpon_protected * biotic(n)%r_1plusintzscale_n(k)) * Grid%tmask(i,j,k)
+
+        ! Apply N change to P assuming equal partitioning between protected,
+        ! previously protected and unprotected particulate organic material
         biotic(n)%fpop(i,j,k) = biotic(n)%fpon(i,j,k) /                        &
           max(biotic(n)%fpon(i,j,k-1),1e-30) * biotic(n)%fpop(i,j,k-1)
-!
-! Calculate regeneration term
-!
-        biotic(n)%jpon(i,j,k) = (biotic(n)%fpon(i,j,k-1) * grid_tmask(i,j,k)   &
-          - biotic(n)%fpon(i,j,k) * grid_tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
-        biotic(n)%jpop(i,j,k) = (biotic(n)%fpop(i,j,k-1)  * grid_tmask(i,j,k)  &
-          - biotic(n)%fpop(i,j,k) * grid_tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
-!
-! Add production within box to flux
-!
+
+        ! Calculate regeneration term
+        biotic(n)%jpon(i,j,k) = (biotic(n)%fpon(i,j,k-1) * Grid%tmask(i,j,k)   &
+          - biotic(n)%fpon(i,j,k) * Grid%tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
+        biotic(n)%jpop(i,j,k) = (biotic(n)%fpop(i,j,k-1)  * Grid%tmask(i,j,k)  &
+          - biotic(n)%fpop(i,j,k) * Grid%tmask(i,j,k+1)) / rho_dzt(i,j,k,taum1)
+
+        ! Add production within box to flux
         biotic(n)%fpon(i,j,k) = biotic(n)%fpon(i,j,k) +                    &
           biotic(n)%jprod_pon(i,j,k) *                                     &
-          rho_dzt(i,j,k,taum1) * grid_tmask(i,j,k)
+          rho_dzt(i,j,k,taum1) * Grid%tmask(i,j,k)
         biotic(n)%fpop(i,j,k) = biotic(n)%fpop(i,j,k) +                    &
           biotic(n)%jprod_pop(i,j,k) *                                     &
-          rho_dzt(i,j,k,taum1) * grid_tmask(i,j,k)
-    enddo  !} i
-  enddo  !} j
-  enddo  !} k
+          rho_dzt(i,j,k,taum1) * Grid%tmask(i,j,k)
+    enddo
+  enddo
+  enddo
 elseif (biotic(n)%remin_density) then
 elseif (biotic(n)%remin_lability) then
 elseif (biotic(n)%remin_temp) then
@@ -3412,17 +2522,14 @@ elseif (biotic(n)%remin_viscosity) then
 elseif (biotic(n)%remin_zoop_resp) then
 endif
 
-!
+
 ! Choose between associating particulate Fe with ballast and organic matter, 
 ! or just with organic matter
-!
-if (biotic(n)%fe_ballast_assoc) then  !{
-  do k=2,nk-1  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
-!
-! Apply N change to Fe incorporating adsorption and desorption
-!
+if (biotic(n)%fe_ballast_assoc) then
+  do k=2,nk-1
+    do j = jsc, jec
+      do i = isc, iec
+         ! Apply N change to Fe incorporating adsorption and desorption
         biotic(n)%jfe_ads(i,j,k)=min(biotic(n)%kfe_max_prime , (biotic(n)%kfe_org  &
           / 2.0 * (biotic(n)%fpon(i,j,k-1)+biotic(n)%fpon(i,j,k)) *            &
           biotic(n)%mass_2_n + biotic(n)%kfe_bal / 2.0 *                         &
@@ -3438,17 +2545,15 @@ if (biotic(n)%fe_ballast_assoc) then  !{
           biotic(n)%fsio2(i,j,k-1) * 60.0 + biotic(n)%fcaco3(i,j,k-1)    &
           * 100.0) * max(0.0,t_diag(ind_fep)%field(i,j,k))               &
           * biotic(n)%wsink *                                            &
-          (1.0 - grid_tmask(i,j,k) + grid_tmask(i,j,k+1))
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
-else !}{
-  do k=2,nk-1  !{
-    do j=jsc,jec  !{
-      do i=isc,iec  !{
-!
-! Apply N change to Fe incorporating adsorption and desorption
-!
+          (1.0 - Grid%tmask(i,j,k) + Grid%tmask(i,j,k+1))
+      enddo
+    enddo
+  enddo
+else
+  do k=2,nk-1
+    do j=jsc,jec
+      do i=isc,iec
+         ! Apply N change to Fe incorporating adsorption and desorption
         biotic(n)%jfe_ads(i,j,k)=min(biotic(n)%kfe_max_prime , (biotic(n)%kfe_org  &
           / 2.0 * (biotic(n)%fpon(i,j,k-1)+biotic(n)%fpon(i,j,k)) *            &
           biotic(n)%mass_2_n + biotic(n)%kfe_bal / 2.0 *                         &
@@ -3460,15 +2565,15 @@ else !}{
         biotic(n)%jpofe(i,j,k) = biotic(n)%jpon(i,j,k) /                 &
           max(1.0e-30,biotic(n)%fpon(i,j,k-1)) *                         &
           max(0.0,t_diag(ind_fep)%field(i,j,k)) * biotic(n)%wsink *       &
-          (1.0 - grid_tmask(i,j,k) + grid_tmask(i,j,k+1))
-        enddo  !} i
-      enddo  !} j
-    enddo  !} k
-  endif  !}
+          (1.0 - Grid%tmask(i,j,k) + Grid%tmask(i,j,k+1))
+        enddo
+      enddo
+    enddo
+  endif
 
 
-  do j=jsc,jec  !{
-    do i=isc,iec  !{
+  do j=jsc,jec
+    do i=isc,iec
       biotic(n)%fsio2(i,j,nk) = 0.0
       biotic(n)%fcaco3(i,j,nk) = 0.0
       biotic(n)%fpon(i,j,nk) = 0.0
@@ -3483,9 +2588,8 @@ else !}{
         max(0.0,t_prog(ind_fed)%field(i,j,nk,taum1))
       biotic(n)%jfe_des(i,j,nk)=biotic(n)%kfe_des *              &
         max(0.0,t_diag(ind_fep)%field(i,j,nk))
-!
-! Calculate regeneration term
-!
+
+      ! Calculate regeneration term
       biotic(n)%jsio4(i,j,nk) = (biotic(n)%fsio2(i,j,nk-1) -   &
         biotic(n)%fsio2(i,j,nk)) / rho_dzt(i,j,nk,taum1)
       biotic(n)%jcaco3(i,j,nk) = (biotic(n)%fcaco3(i,j,nk-1) - &
@@ -3495,388 +2599,315 @@ else !}{
       biotic(n)%jpop(i,j,nk) = (biotic(n)%fpop(i,j,nk-1) -     &
         biotic(n)%fpop(i,j,nk)) / rho_dzt(i,j,nk,taum1)
       biotic(n)%jpofe(i,j,nk) = 0.0
-    enddo  !} i
-  enddo  !} j
+    enddo
+  enddo
 
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    do j = jsc, jec
+      do i = isc, iec
       kmax=min(km_c,grid_kmt(i,j))
       biotic(n)%flux_sio2(i,j) = biotic(n)%fsio2(i,j,kmax)
       biotic(n)%flux_caco3(i,j) = biotic(n)%fcaco3(i,j,kmax)
       biotic(n)%flux_pon(i,j) = biotic(n)%fpon(i,j,kmax)
       biotic(n)%flux_pop(i,j) = biotic(n)%fpop(i,j,kmax)
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    do j = jsc, jec
+      do i = isc, iec
       biotic(n)%jfe_sink(i,j,1)=                               &
         - max(0.0,t_diag(ind_fep)%field(i,j,1)) *        &
-        biotic(n)%wsink / rho_dzt(i,j,1,taum1) * grid_tmask(i,j,1)
-      enddo  !} i
-    enddo  !} j
+        biotic(n)%wsink / rho_dzt(i,j,1,taum1) * Grid%tmask(i,j,1)
+      enddo
+    enddo
 
-  do k = 2, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 2, nk
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%jfe_sink(i,j,k)=                             &
           (max(0.0,t_diag(ind_fep)%field(i,j,k-1)) -     &
           max(0.0,t_diag(ind_fep)%field(i,j,k))) *       &
-          biotic(n)%wsink / rho_dzt(i,j,k,taum1) * grid_tmask(i,j,k)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
-!
-!
-!-----------------------------------------------------------------------
-!
-!     CALCULATE SOURCE/SINK TERMS FOR EACH TRACER
-!
-!-----------------------------------------------------------------------
-!
-!
-!-----------------------------------------------------------------------
-!     NO3
-!-----------------------------------------------------------------------
-!
+          biotic(n)%wsink / rho_dzt(i,j,k,taum1) * Grid%tmask(i,j,k)
+      enddo
+    enddo
+  enddo
 
-  do k = 1, km_c  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
-!      if (t_prog(ind_o2)%field(i,j,k,taum1) .le. biotic(n)%o2_min .and.  &
-!       t_prog(ind_no3)%field(i,j,k,taum1) .ge. biotic(n)%no3_min) then  !{
-!            biotic(n)%jdenit(i,j,k) = biotic(n)%n_2_n_denit*jpon(i,j,k)
-!        else
-          biotic(n)%jdenit(i,j,k) = 0.0
-!        endif  !}
+  ! CALCULATE SOURCE/SINK TERMS FOR EACH TRACER
+
+  ! NO3
+  do k = 1, km_c
+    do j = jsc, jec
+      do i = isc, iec
+         biotic(n)%jdenit(i,j,k) = 0.0
         biotic(n)%jno3(i,j,k) =  biotic(n)%r_bio_tau_nitrif_s *             &
         max(0.0,t_prog(ind_nh4)%field(i,j,k,taum1)) -                       &
         biotic(n)%jprod_no3(i,j,k) - biotic(n)%jdenit(i,j,k)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-  do k=km_c + 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
-!      if (t_prog(ind_o2)%field(i,j,k,taum1) .le. biotic(n)%o2_min .and.    &
-!       t_prog(ind_no3)%field(i,j,k,taum1) .ge. biotic(n)%no3_min) then  !{
-!         biotic(n)%jdenit(i,j,k) = biotic(n)%n_2_n_denit *                 &
-!         biotic(n)%jpon(i,j,k)
-!      else
+  do k=km_c + 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%jdenit(i,j,k) = 0.0
-!      endif  !}
-      biotic(n)%jno3(i,j,k) = biotic(n)%r_bio_tau_nitrif_d *                &
+        biotic(n)%jno3(i,j,k) = biotic(n)%r_bio_tau_nitrif_d *                &
         max(0.0,t_prog(ind_nh4)%field(i,j,k,taum1)) -                       &
           biotic(n)%jdenit(i,j,k)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         t_prog(ind_no3)%th_tendency(i,j,k) = t_prog(ind_no3)%th_tendency(i,j,k) +  &
           biotic(n)%jno3(i,j,k) * rho_dzt(i,j,k,taum1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-!
-!-----------------------------------------------------------------------
-!     NH4
-!-----------------------------------------------------------------------
-!
-
-  do k = 1, km_c  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! NH4
+  do k = 1, km_c
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%jnh4(i,j,k) = biotic(n)%jnh4_graz(i,j,k)               &
           - biotic(n)%jprod_nh4(i,j,k)                                   &
           + biotic(n)%r_bio_tau_don * max(0.0,t_prog(ind_don)%field(i,j,k,taum1)) &
           - biotic(n)%r_bio_tau_nitrif_s *                               &
           max(0.0,t_prog(ind_nh4)%field(i,j,k,taum1))                    &
           +(1.0 - biotic(n)%phi_don)*biotic(n)%jpon(i,j,k)  
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-  do k=km_c + 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k=km_c + 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%jnh4(i,j,k) =(1.0 - biotic(n)%phi_don) *               &
           biotic(n)%jpon(i,j,k)                                          &
           + biotic(n)%r_bio_tau_don * max(0.0,t_prog(ind_don)%field(i,j,k,taum1)) &
           - biotic(n)%r_bio_tau_nitrif_d *                               &
           max(0.0,t_prog(ind_nh4)%field(i,j,k,taum1)) 
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         t_prog(ind_nh4)%th_tendency(i,j,k) = t_prog(ind_nh4)%th_tendency(i,j,k) +  &
           biotic(n)%jnh4(i,j,k) * rho_dzt(i,j,k,taum1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-!
-!-----------------------------------------------------------------------
-!     PO4
-!-----------------------------------------------------------------------
-!
-
-  do k = 1, km_c  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! PO4
+  do k = 1, km_c
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%jpo4(i,j,k) = - biotic(n)%jprod_p_norm(i,j,k) -        &
           biotic(n)%jprod_p_fix(i,j,k) + biotic(n)%jpo4_graz(i,j,k) +    &
           biotic(n)%r_bio_tau_dop * max(0.0,t_prog(ind_dop)%field(i,j,k,taum1)) + &
          (1.0 - biotic(n)%phi_dop) * biotic(n)%jpop(i,j,k)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-  do k=km_c + 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k=km_c + 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%jpo4(i,j,k) =  (1.0 - biotic(n)%phi_dop) *             &
           biotic(n)%jpop(i,j,k) + biotic(n)%r_bio_tau_dop *              &
           max(0.0,t_prog(ind_dop)%field(i,j,k,taum1))
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         t_prog(ind_po4)%th_tendency(i,j,k) = t_prog(ind_po4)%th_tendency(i,j,k) +  &
              biotic(n)%jpo4(i,j,k) * rho_dzt(i,j,k,taum1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-!
-!-----------------------------------------------------------------------
-!     Fe dissolved
-!-----------------------------------------------------------------------
-!
-
-  do k = 1, km_c  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! Fe dissolved
+  do k = 1, km_c
+    do j = jsc, jec
+      do i = isc, iec
         t_prog(ind_fed)%th_tendency(i,j,k) = t_prog(ind_fed)%th_tendency(i,j,k) +  &
              (biotic(n)%jfe_graz(i,j,k) - biotic(n)%jprod_fed(i,j,k)    &
              - biotic(n)%jfe_ads(i,j,k) + biotic(n)%jfe_des(i,j,k) +    &
              biotic(n)%jpofe(i,j,k)) * rho_dzt(i,j,k,taum1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-  do k=km_c + 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k=km_c + 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         t_prog(ind_fed)%th_tendency(i,j,k) = t_prog(ind_fed)%th_tendency(i,j,k) + &
           (biotic(n)%jfe_des(i,j,k) - biotic(n)%jfe_ads(i,j,k) +        &
           biotic(n)%jpofe(i,j,k)) * rho_dzt(i,j,k,taum1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-!
-!-----------------------------------------------------------------------
-!     Fe particulate
-!-----------------------------------------------------------------------
-!
-
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! Fe particulate
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         t_diag(ind_fep)%field(i,j,k) = t_diag(ind_fep)%field(i,j,k) + &
              (biotic(n)%jprod_pofe(i,j,k) + biotic(n)%jfe_ads(i,j,k) -  &
              biotic(n)%jfe_des(i,j,k) - biotic(n)%jpofe(i,j,k) +        &
              biotic(n)%jfe_sink(i,j,k)) * dtts
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-!
-!-----------------------------------------------------------------------
-!     LDOC
-!-----------------------------------------------------------------------
-!
-
-  do k = 1, km_c  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! LDOC
+  do k = 1, km_c
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%jldoc(i,j,k) = biotic(n)%jldoc(i,j,k)                    &
           - biotic(n)%r_bio_tau_ldoc * max(0.0,t_prog(ind_ldoc)%field(i,j,k,taum1))
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-  do k = km_c + 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = km_c + 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%jldoc(i,j,k) =                                           &
           - biotic(n)%r_bio_tau_ldoc * max(0.0,t_prog(ind_ldoc)%field(i,j,k,taum1))
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         t_prog(ind_ldoc)%th_tendency(i,j,k) = t_prog(ind_ldoc)%th_tendency(i,j,k) + &
           biotic(n)%jldoc(i,j,k) * rho_dzt(i,j,k,taum1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-!
-!-----------------------------------------------------------------------
-!     DON
-!-----------------------------------------------------------------------
-!
-
-  do k = 1, km_c  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! DON
+  do k = 1, km_c
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%jdon(i,j,k) = biotic(n)%jdon(i,j,k)                      &
         +  biotic(n)%phi_don * biotic(n)%jpon(i,j,k)                       &
           - biotic(n)%r_bio_tau_don * max(0.0,t_prog(ind_don)%field(i,j,k,taum1))
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-  do k = km_c + 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = km_c + 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%jdon(i,j,k) = biotic(n)%phi_don * biotic(n)%jpon(i,j,k)  &
           - biotic(n)%r_bio_tau_don * max(0.0,t_prog(ind_don)%field(i,j,k,taum1))
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         t_prog(ind_don)%th_tendency(i,j,k) = t_prog(ind_don)%th_tendency(i,j,k) +      &
           biotic(n)%jdon(i,j,k) * rho_dzt(i,j,k,taum1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-!
-!-----------------------------------------------------------------------
-!     DOP
-!-----------------------------------------------------------------------
-!
-
-  do k = 1, km_c  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! DOP
+  do k = 1, km_c
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%jdop(i,j,k) = biotic(n)%jdop(i,j,k)                      &
           +  biotic(n)%phi_dop * biotic(n)%jpop(i,j,k)                     &
           - biotic(n)%r_bio_tau_dop * max(0.0,t_prog(ind_dop)%field(i,j,k,taum1))
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-  do k = km_c + 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = km_c + 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%jdop(i,j,k) = biotic(n)%phi_dop * biotic(n)%jpop(i,j,k)  &
           - biotic(n)%r_bio_tau_dop * max(0.0,t_prog(ind_dop)%field(i,j,k,taum1))
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         t_prog(ind_dop)%th_tendency(i,j,k) = t_prog(ind_dop)%th_tendency(i,j,k) +      &
           biotic(n)%jdop(i,j,k) * rho_dzt(i,j,k,taum1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-!
-!-----------------------------------------------------------------------
-!     SiO4
-!-----------------------------------------------------------------------
-!
-
-  do k = 1, km_c  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! SiO4
+  do k = 1, km_c
+    do j = jsc, jec
+      do i = isc, iec
         biotic(n)%jsio4(i,j,k) = biotic(n)%jsio4(i,j,k) -                  &
           biotic(n)%jprod_sio4(i,j,k)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         t_prog(ind_sio4)%th_tendency(i,j,k) = t_prog(ind_sio4)%th_tendency(i,j,k) +  &
           biotic(n)%jsio4(i,j,k) * rho_dzt(i,j,k,taum1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-!
-!-----------------------------------------------------------------------
-!     ALK
-!-----------------------------------------------------------------------
-!
-
-  do k = 1, km_c  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! ALK
+  do k = 1, km_c
+    do j = jsc, jec
+      do i = isc, iec
         t_prog(ind_alk)%th_tendency(i,j,k) = t_prog(ind_alk)%th_tendency(i,j,k) + &
           (2.0 * biotic(n)%jcaco3(i,j,k) - biotic(n)%jprod_alk(i,j,k)   &
           - biotic(n)%jno3(i,j,k) + biotic(n)%jnh4(i,j,k)) *            &
           rho_dzt(i,j,k,taum1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-  do k = km_c + 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = km_c + 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         t_prog(ind_alk)%th_tendency(i,j,k) = t_prog(ind_alk)%th_tendency(i,j,k) + &
           (2.0 * biotic(n)%jcaco3(i,j,k) - biotic(n)%jno3(i,j,k) +      &
           biotic(n)%jnh4(i,j,k)) * rho_dzt(i,j,k,taum1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-!
-!-----------------------------------------------------------------------
-!     O2
-!-----------------------------------------------------------------------
-!
-!
-! O2 production from nitrate, ammonia and nitrogen fixation and
-! O2 consumption from production of NH4 from non-sinking particles,
-! and DOM
-!
+  ! O2
 
-  do k = 1, km_c  !{
-    do j =jsc, jec  !{
-      do i = isc, iec  !{
+  ! O2 production from nitrate, ammonia and nitrogen fixation and
+  ! O2 consumption from production of NH4 from non-sinking particles,
+  ! and DOM
+  do k = 1, km_c
+    do j =jsc, jec
+      do i = isc, iec
         biotic(n)%jo2(i,j,k) = (biotic(n)%o_2_no3 *                        &
           biotic(n)%jprod_no3(i,j,k)                                       &
           + biotic(n)%o_2_nh4 * (biotic(n)%jprod_nh4(i,j,k) +              &
-          biotic(n)%jprod_n_fix(i,j,k))) * grid_tmask(i,j,k)
-!
-! If O2 is present
-!
+          biotic(n)%jprod_n_fix(i,j,k))) * Grid%tmask(i,j,k)
+
+        ! If O2 is present
         if (t_prog(ind_o2)%field(i,j,k,taum1) .gt. biotic(n)%o2_min)       &
-             then  !{
+             then
           biotic(n)%jo2(i,j,k) = biotic(n)%jo2(i,j,k) - biotic(n)%o_2_nh4 *&
             (biotic(n)%jnh4_graz(i,j,k) + biotic(n)%r_bio_tau_don *        &
             max(0.0,t_prog(ind_don)%field(i,j,k,taum1)) + (1.0 - biotic(n)%phi_don) &
@@ -3884,363 +2915,119 @@ else !}{
             biotic(n)%o_2_c * biotic(n)%jldoc(i,j,k) -                     &
             biotic(n)%o_2_nitrif * biotic(n)%r_bio_tau_nitrif_s *          &
             max(0.0,t_prog(ind_nh4)%field(i,j,k,taum1))
-        endif  !}
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+        endif
+      enddo
+    enddo
+  enddo
 
-!
-! O2 consumption from production of NH4 from sinking particles and DOM
-! O2 consumption from nitrification
-!
-  do k = km_c + 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
-!
-! If O2 is present
-!
-      if (t_prog(ind_o2)%field(i,j,k,taum1) .gt. biotic(n)%o2_min) then  !{
+  ! O2 consumption from production of NH4 from sinking particles and DOM
+  ! O2 consumption from nitrification
+  do k = km_c + 1, nk
+    do j = jsc, jec
+      do i = isc, iec
+      ! If O2 is present
+      if (t_prog(ind_o2)%field(i,j,k,taum1) .gt. biotic(n)%o2_min) then
         biotic(n)%jo2(i,j,k) = - biotic(n)%o_2_nh4 *                       &
           ((1.0 - biotic(n)%phi_don) * biotic(n)%jpon(i,j,k) +             &
           biotic(n)%r_bio_tau_don * max(0.0,t_prog(ind_don)%field(i,j,k,taum1))) +  &
             biotic(n)%o_2_c * biotic(n)%jldoc(i,j,k) -                     &
             biotic(n)%o_2_nitrif * biotic(n)%r_bio_tau_nitrif_d *          &
             max(0.0,t_prog(ind_nh4)%field(i,j,k,taum1))
-        else  !}{
+        else
           biotic(n)%jo2(i,j,k) = 0.0
-          endif  !}
-      enddo  !} i
-    enddo  !} k
-  enddo  !} j
+          endif
+      enddo
+    enddo
+  enddo
 
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         t_prog(ind_o2)%th_tendency(i,j,k) = t_prog(ind_o2)%th_tendency(i,j,k) + &
           biotic(n)%jo2(i,j,k) * rho_dzt(i,j,k,taum1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-!
-!-----------------------------------------------------------------------
-!     DIC
-!-----------------------------------------------------------------------
-!
-
-  do k = 1, km_c  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  ! DIC
+  do k = 1, km_c
+    do j = jsc, jec
+      do i = isc, iec
         t_prog(ind_dic)%th_tendency(i,j,k) = t_prog(ind_dic)%th_tendency(i,j,k) + &
           (biotic(n)%c_2_n * (biotic(n)%jno3(i,j,k) +                             &
           biotic(n)%jnh4(i,j,k)) - biotic(n)%jldoc(i,j,k) +                       &
           biotic(n)%jcaco3(i,j,k) - 0.5 * biotic(n)%jprod_alk(i,j,k)) *           &
           rho_dzt(i,j,k,taum1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-  do k = km_c + 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = km_c + 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         t_prog(ind_dic)%th_tendency(i,j,k) = t_prog(ind_dic)%th_tendency(i,j,k) + &
           (biotic(n)%c_2_n * (biotic(n)%jno3(i,j,k)                               &
           + biotic(n)%jnh4(i,j,k)) - biotic(n)%jldoc(i,j,k) +                     &
           biotic(n)%jcaco3(i,j,k)) * rho_dzt(i,j,k,taum1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       Save variables for diagnostics
-!-----------------------------------------------------------------------
-!
-
-!
-!       set up the grid mask on the computational grid so that we
-!       will not need to implicitly copy arrays in the following
-!       subroutine calls
-!
-
-grid_tmask_comp = grid_tmask(isc:iec,jsc:jec,:)
-
-if (id_o2_sat .gt. 0) then
-  used = send_data(id_o2_sat, o2_saturation(:,:),       &
-       model_time, rmask = grid_tmask_comp(:,:,1))
-endif
-
-do n = 1, instances  !{
-
-  if (biotic(n)%id_sc_co2 .gt. 0) then
-    used = send_data(biotic(n)%id_sc_co2,               &
-         biotic(n)%sc_co2(:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_sc_o2 .gt. 0) then
-    used = send_data(biotic(n)%id_sc_o2,                &
-         biotic(n)%sc_o2(:,:),                          &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_alpha .gt. 0) then
-    used = send_data(biotic(n)%id_alpha,                &
-         biotic(n)%alpha(:,:),                          &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_csurf .gt. 0) then
-    used = send_data(biotic(n)%id_csurf,                &
-         biotic(n)%csurf(:,:),                          &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_pco2surf .gt. 0) then
-    used = send_data(biotic(n)%id_pco2surf,             &
-         biotic(n)%pco2surf(:,:),                       &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_flux_pon .gt. 0) then
-    used = send_data(biotic(n)%id_flux_pon,             &
-         biotic(n)%flux_pon(:,:),                       &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_flux_pop .gt. 0) then
-    used = send_data(biotic(n)%id_flux_pop,             &
-         biotic(n)%flux_pop(:,:),                       &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_flux_sio2 .gt. 0) then
-    used = send_data(biotic(n)%id_flux_sio2,            &
-         biotic(n)%flux_sio2(:,:),                      &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_flux_caco3 .gt. 0) then
-    used = send_data(biotic(n)%id_flux_caco3,           &
-         biotic(n)%flux_caco3(:,:),                     &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (biotic(n)%id_htotal .gt. 0) then
-    used = send_data(biotic(n)%id_htotal,               &
-         biotic(n)%htotal(:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-
-  if (biotic(n)%id_jprod_alk .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_alk,            &
-         biotic(n)%jprod_alk(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_fed .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_fed,            &
-         biotic(n)%jprod_fed(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_n_fix .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_n_fix,          &
-         biotic(n)%jprod_n_fix(:,:,:),                  &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_no3 .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_no3,            &
-         biotic(n)%jprod_no3(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_nh4 .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_nh4,            &
-         biotic(n)%jprod_nh4(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_p_fix .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_p_fix,          &
-         biotic(n)%jprod_p_fix(:,:,:),                  &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_po4 .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_po4,            &
-         biotic(n)%jprod_po4(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_pofe .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_pofe,           &
-         biotic(n)%jprod_pofe(:,:,:),                   &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_pon .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_pon,            &
-         biotic(n)%jprod_pon(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_pop .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_pop,            &
-         biotic(n)%jprod_pop(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jprod_sio4 .gt. 0) then
-    used = send_data(biotic(n)%id_jprod_sio4,           &
-         biotic(n)%jprod_sio4(:,:,:),                   &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jcaco3 .gt. 0) then
-    used = send_data(biotic(n)%id_jcaco3,               &
-         biotic(n)%jcaco3(:,:,:),                       &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jfe_ads .gt. 0) then
-    used = send_data(biotic(n)%id_jfe_ads,              &
-         biotic(n)%jfe_ads(:,:,:),                      &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jfe_des .gt. 0) then
-    used = send_data(biotic(n)%id_jfe_des,              &
-         biotic(n)%jfe_des(:,:,:),                      &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jfe_graz .gt. 0) then
-    used = send_data(biotic(n)%id_jfe_graz,             &
-         biotic(n)%jfe_graz(:,:,:),                     &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jfe_sink .gt. 0) then
-    used = send_data(biotic(n)%id_jfe_sink,             &
-         biotic(n)%jfe_sink(:,:,:),                     &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jno3 .gt. 0) then
-    used = send_data(biotic(n)%id_jno3,                 &
-         biotic(n)%jno3(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jnh4 .gt. 0) then
-    used = send_data(biotic(n)%id_jnh4,                 &
-         biotic(n)%jnh4(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jnh4_graz .gt. 0) then
-    used = send_data(biotic(n)%id_jnh4_graz,            &
-         biotic(n)%jnh4_graz(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jpo4 .gt. 0) then
-    used = send_data(biotic(n)%id_jpo4,                 &
-         biotic(n)%jpo4(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jpo4_graz .gt. 0) then
-    used = send_data(biotic(n)%id_jpo4_graz,            &
-         biotic(n)%jpo4_graz(:,:,:),                    &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jpofe .gt. 0) then
-    used = send_data(biotic(n)%id_jpofe,                &
-         biotic(n)%jpofe(:,:,:),                        &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jpon .gt. 0) then
-    used = send_data(biotic(n)%id_jpon,                 &
-         biotic(n)%jpon(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jpop .gt. 0) then
-    used = send_data(biotic(n)%id_jpop,                 &
-         biotic(n)%jpop(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jsio4 .gt. 0) then
-    used = send_data(biotic(n)%id_jsio4,                &
-         biotic(n)%jsio4(:,:,:),                        &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jdenit .gt. 0) then
-    used = send_data(biotic(n)%id_jdenit,               &
-         biotic(n)%jdenit(:,:,:),                       &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jdon .gt. 0) then
-    used = send_data(biotic(n)%id_jdon,                 &
-         biotic(n)%jdon(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jdop .gt. 0) then
-    used = send_data(biotic(n)%id_jdop,                 &
-         biotic(n)%jdop(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jldoc .gt. 0) then
-    used = send_data(biotic(n)%id_jldoc,                &
-         biotic(n)%jldoc(:,:,:),                        &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_jo2 .gt. 0) then
-    used = send_data(biotic(n)%id_jo2,                  &
-         biotic(n)%jo2(:,:,:),                          &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_fpon .gt. 0) then
-    used = send_data(biotic(n)%id_fpon,                 &
-         biotic(n)%fpon(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_fpop .gt. 0) then
-    used = send_data(biotic(n)%id_fpop,                 &
-         biotic(n)%fpop(:,:,:),                         &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_fracl .gt. 0) then
-    used = send_data(biotic(n)%id_fracl,                &
-         biotic(n)%fracl(:,:,:),                        &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_fsio2 .gt. 0) then
-    used = send_data(biotic(n)%id_fsio2,                &
-         biotic(n)%fsio2(:,:,:),                        &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if (biotic(n)%id_fcaco3 .gt. 0) then
-    used = send_data(biotic(n)%id_fcaco3,               &
-         biotic(n)%fcaco3(:,:,:),                       &
-         model_time, rmask = grid_tmask_comp(:,:,:),    &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-
-enddo  !} n
+! Save variables for diagnostics
+call diagnose_2d_comp(Time, Grid, id_o2_sat, o2_saturation(:,:))
+do n = 1, instances
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_sc_co2, biotic(n)%sc_co2(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_sc_o2, biotic(n)%sc_o2(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_alpha, biotic(n)%alpha(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_csurf, biotic(n)%csurf(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_pco2surf, biotic(n)%pco2surf(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_flux_pon, biotic(n)%flux_pon(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_flux_pop, biotic(n)%flux_pop(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_flux_sio2, biotic(n)%flux_sio2(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_flux_caco3, biotic(n)%flux_caco3(:,:))
+   call diagnose_2d_comp(Time, Grid, biotic(n)%id_htotal, biotic(n)%htotal(:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_alk, biotic(n)%jprod_alk(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_fed, biotic(n)%jprod_fed(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_n_fix, biotic(n)%jprod_n_fix(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_no3, biotic(n)%jprod_no3(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_nh4, biotic(n)%jprod_nh4(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_p_fix, biotic(n)%jprod_p_fix(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_po4, biotic(n)%jprod_po4(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_pofe, biotic(n)%jprod_pofe(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_pon, biotic(n)%jprod_pon(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_pop, biotic(n)%jprod_pop(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jprod_sio4,biotic(n)%jprod_sio4(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jcaco3,biotic(n)%jcaco3(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jfe_ads, biotic(n)%jfe_ads(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jfe_des, biotic(n)%jfe_des(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jfe_graz, biotic(n)%jfe_graz(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jfe_sink, biotic(n)%jfe_sink(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jno3, biotic(n)%jno3(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jnh4, biotic(n)%jnh4(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jnh4_graz, biotic(n)%jnh4_graz(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jpo4, biotic(n)%jpo4(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jpo4_graz, biotic(n)%jpo4_graz(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jpofe, biotic(n)%jpofe(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jpon, biotic(n)%jpon(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jpop, biotic(n)%jpop(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jsio4, biotic(n)%jsio4(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jdenit, biotic(n)%jdenit(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jdon, biotic(n)%jdon(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jdop, biotic(n)%jdop(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jldoc, biotic(n)%jldoc(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_jo2, biotic(n)%jo2(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_fpon, biotic(n)%fpon(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_fpop, biotic(n)%fpop(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_fracl, biotic(n)%fracl(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_fsio2, biotic(n)%fsio2(:,:,:))
+   call diagnose_3d_comp(Time, Grid, biotic(n)%id_fcaco3, biotic(n)%fcaco3(:,:,:))
+enddo
 
 return
 
-end subroutine  ocean_bgc_restore_source  !}
+end subroutine  ocean_bgc_restore_source
 ! </SUBROUTINE> NAME="ocean_bgc_restore_source"
 
 
@@ -4251,29 +3038,10 @@ end subroutine  ocean_bgc_restore_source  !}
 ! Initialize variables, read in namelists, calculate constants for a given run
 ! and allocate diagnostic arrays
 ! </DESCRIPTION>
-
 subroutine ocean_bgc_restore_start(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,  &
      T_prog, T_diag, taup1, model_time, grid_dat, grid_tmask, grid_kmt,         &
      grid_xt, grid_yt, grid_zt, grid_zw, grid_dzt, grid_name, grid_tracer_axes, &
-     mpp_domain2d, rho_dzt)  !{
-
-!
-!-----------------------------------------------------------------------
-!       modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-use time_interp_external_mod, only: init_external_field
-use diag_manager_mod, only        : register_diag_field, diag_axis_init
-use field_manager_mod, only       : fm_get_index
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     mpp_domain2d, rho_dzt)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -4301,27 +3069,12 @@ integer, dimension(3), intent(in)                       :: grid_tracer_axes
 type(domain2d), intent(in)                              :: mpp_domain2d
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
 
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
 character(len=64), parameter    :: sub_name = 'ocean_bgc_restore_start'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-!
 !----------------------------------------------------------------------
 !
 !       Global values to apply the following inhibitions
@@ -4350,14 +3103,9 @@ character(len=256), parameter   :: note_header =                                
 !       wlon,elon,nlat,slat value in mask set to factor).
 !  
 !----------------------------------------------------------------------
-!
+
 integer                                         :: done
-integer                                         :: i
-integer                                         :: j
-integer                                         :: k
-integer                                         :: l
-integer                                         :: m
-integer                                         :: n
+integer                                         :: i, j, k, l, m, n
 character(len=fm_field_name_len)                :: name
 character(len=fm_field_name_len+1)              :: suffix
 character(len=fm_field_name_len+3)              :: long_suffix
@@ -4386,49 +3134,25 @@ integer                                         :: id_restart
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-! =====================================================================
-!       begin of executable code
-! =====================================================================
-!
-!
-!-----------------------------------------------------------------------
-!       give info
-!-----------------------------------------------------------------------
-!
-
 write(stdoutunit,*) 
 write(stdoutunit,*) trim(note_header),                     &
                   'Starting ', trim(package_name), ' module'
 
-!
-!       Determine indices for temperature and salinity
-!
-
+! Determine indices for temperature and salinity
 indtemp = fm_get_index('/ocean_mod/prog_tracers/temp')
-if (indtemp .le. 0) then  !{
+if (indtemp .le. 0) then
   call mpp_error(FATAL,trim(error_header) // ' Could not get the temperature index')
-endif  !}
+endif
 
 indsal = fm_get_index('/ocean_mod/prog_tracers/salt')
-if (indsal .le. 0) then  !{
+if (indsal .le. 0) then
   call mpp_error(FATAL,trim(error_header) // ' Could not get the salinity index')
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
-!     dynamically allocate the global BIOTIC arrays
-!-----------------------------------------------------------------------
-!
-
+! dynamically allocate the global BIOTIC arrays
 call allocate_arrays(isc, iec, jsc, jec, nk, isd, ied, jsd, jed)
 
-!
-!-----------------------------------------------------------------------
-!       save the *global* namelist values
-!-----------------------------------------------------------------------
-!
-
+! save the *global* namelist values
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
 call fm_util_start_namelist(package_name, '*global*', caller = caller_str)
@@ -4453,125 +3177,87 @@ htotal_in          =  fm_util_get_real   ('htotal_in', scalar = .true.)
 
 call fm_util_end_namelist(package_name, '*global*', caller = caller_str)
 
-!
-!-----------------------------------------------------------------------
-!       Open up the Alk file for restoring
-!-----------------------------------------------------------------------
-!
-
+! Open up the Alk file for restoring
 alk_star_id = init_external_field(alk_star_file,                &
                                   alk_star_name,                &
                                   domain = mpp_domain2d)
-if (alk_star_id .eq. 0) then  !{
+if (alk_star_id .eq. 0) then
   call mpp_error(FATAL,                                         &
        trim(sub_name) //                                        &
        ': Error: could not open alk_star file: ' //             &
        trim(alk_star_file))
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
-!       Open up the Fed file for restoring
-!-----------------------------------------------------------------------
-!
-
+! Open up the Fed file for restoring
 fed_star_id = init_external_field(fed_star_file,                &
                                   fed_star_name,                &
                                   domain = mpp_domain2d)
-if (alk_star_id .eq. 0) then  !{
+if (alk_star_id .eq. 0) then
   call mpp_error(FATAL,                                         &
        trim(sub_name) //                                        &
        ': Error: could not open fed_star file: ' //             &
        trim(fed_star_file))
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
-!       Open up the NO3 file for restoring
-!-----------------------------------------------------------------------
-!
-
+! Open up the NO3 file for restoring
 no3_star_id = init_external_field(no3_star_file,                &
                                   no3_star_name,                &
                                   domain = mpp_domain2d)
-if (no3_star_id .eq. 0) then  !{
+if (no3_star_id .eq. 0) then
   call mpp_error(FATAL,                                         &
        trim(sub_name) //                                        &
        ': Error: could not open no3_star file: ' //             &
        trim(no3_star_file))
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
-!       Open up the PO4 file for restoring
-!-----------------------------------------------------------------------
-!
-
+! Open up the PO4 file for restoring
 po4_star_id = init_external_field(po4_star_file,                &
                                   po4_star_name,                &
                                   domain = mpp_domain2d)
-if (po4_star_id .eq. 0) then  !{
+if (po4_star_id .eq. 0) then
   call mpp_error(FATAL,                                         &
        trim(sub_name) //                                        &
        ': Error: could not open po4_star file: ' //             &
        trim(po4_star_file))
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
-!       Open up the SiO4 file for restoring
-!-----------------------------------------------------------------------
-!
-
+! Open up the SiO4 file for restoring
 sio4_star_id = init_external_field(sio4_star_file,              &
                                   sio4_star_name,               &
                                   domain = mpp_domain2d)
-if (sio4_star_id .eq. 0) then  !{
+if (sio4_star_id .eq. 0) then
   call mpp_error(FATAL,                                         &
        trim(sub_name) //                                        &
        ': Error: could not open sio4_star file: ' //            &
        trim(sio4_star_file))
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
-!       Open up the files for boundary conditions
-!-----------------------------------------------------------------------
-!
-
+! Open up the files for boundary conditions
 dep_wet_id = init_external_field(dep_wet_file,          &
                                      dep_wet_name,          &
                                      domain = mpp_domain2d)
-if (dep_wet_id .eq. 0) then  !{
+if (dep_wet_id .eq. 0) then
   call mpp_error(FATAL, trim(error_header) //                   &
        'Could not open wet deposition file: ' //          &
        trim(dep_wet_file))
-endif  !}
+endif
 
 dep_dry_id = init_external_field(dep_dry_file,          &
                                      dep_dry_name,          &
                                      domain = mpp_domain2d)
-if (dep_dry_id .eq. 0) then  !{
+if (dep_dry_id .eq. 0) then
   call mpp_error(FATAL, trim(error_header) //                   &
        'Could not open dry deposition file: ' //          &
        trim(dep_dry_file))
-endif  !}
+endif
 
-!
 ! set default values for htotal_scale bounds
-!
-
 htotal_scale_lo(:,:) = htotal_scale_lo_in
 htotal_scale_hi(:,:) = htotal_scale_hi_in
 
 
-!
-!-----------------------------------------------------------------------
-!       read in the namelists for each instance
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
+! read in the namelists for each instance
+do n = 1, instances
 
   call fm_util_start_namelist(package_name, biotic(n)%name, caller = caller_str)
 
@@ -4697,23 +3383,18 @@ do n = 1, instances  !{
 
   call fm_util_end_namelist(trim(package_name), trim(biotic(n)%name) // '+r_bio_tau_prod', caller = caller_str)
 
-enddo  !} n
+enddo
 
 
-!
-!-----------------------------------------------------------------------
-!     calculate the index for the box containing the compensation depth
-!-----------------------------------------------------------------------
-!
-
+! calculate the index for the box containing the compensation depth
 km_c_max = 0
-do n = 1, instances  !{
+do n = 1, instances
   call locate(grid_zw, nk, biotic(n)%compensation_depth,        &
               biotic(n)%km_c, nearest = .true.)
   if (grid_zw(biotic(n)%km_c) .lt.                              &
-      biotic(n)%compensation_depth) then  !{
+      biotic(n)%compensation_depth) then
     biotic(n)%km_c = biotic(n)%km_c + 1
-  endif  !}
+  endif
 
   write (stdoutunit,*) trim(note_header),                         &
                      'The compensation depth for instance ',    &
@@ -4723,75 +3404,57 @@ do n = 1, instances  !{
                      grid_zw(biotic(n)%km_c-1),                 &
                      ' m and ', grid_zw(biotic(n)%km_c), ' m'
   km_c_max = max(km_c_max, biotic(n)%km_c)
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       read in the norm_remin namelist data
-!-----------------------------------------------------------------------
-!
+! read in the norm_remin namelist data
+do n = 1, instances
 
-do n = 1, instances  !{
-
-!
-!       Check some things
-!
-
-  if (associated(biotic(n)%norm_remin%wlon)) then  !{
+  if (associated(biotic(n)%norm_remin%wlon)) then
     len_w = size(biotic(n)%norm_remin%wlon)
-  else  !}{
+  else
     len_w = 0
-  endif  !}
-  if (associated(biotic(n)%norm_remin%elon)) then  !{
+  endif
+  if (associated(biotic(n)%norm_remin%elon)) then
     len_e = size(biotic(n)%norm_remin%elon)
-  else  !}{
+  else
     len_e = 0
-  endif  !}
-  if (associated(biotic(n)%norm_remin%slat)) then  !{
+  endif
+  if (associated(biotic(n)%norm_remin%slat)) then
     len_s = size(biotic(n)%norm_remin%slat)
-  else  !}{
+  else
     len_s = 0
-  endif  !}
-  if (associated(biotic(n)%norm_remin%nlat)) then  !{
+  endif
+  if (associated(biotic(n)%norm_remin%nlat)) then
     len_n = size(biotic(n)%norm_remin%nlat)
-  else  !}{
+  else
     len_n = 0
-  endif  !}
+  endif
 
-  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then  !{
+  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then
     call mpp_error(FATAL, trim(error_header) // ' Region sizes are not equal for ' // trim(biotic(n)%name))
-  endif  !}
+  endif
 
-  if (size(biotic(n)%norm_remin%t_mask) .ne. 12) then  !{
+  if (size(biotic(n)%norm_remin%t_mask) .ne. 12) then
     call mpp_error(FATAL, trim(error_header) // ' t_mask size is not 12 for ' // trim(biotic(n)%name))
-  endif  !}
+  endif
 
-!
-!       set all of the values to the default
-!
-
+  ! set all of the values to the default
   biotic(n)%norm_remin%mask(:,:,:) = 1.0
 
-  if (len_w .gt. 0) then  !{
+  if (len_w .gt. 0) then
 
     write (stdoutunit,*)
     write (stdoutunit,*) trim(note_header), 'Process norm_remin array for ', trim(biotic(n)%name)
     write (stdoutunit,*)
 
-!
-!       set values for this time-level
-!
-
+    ! set values for this time-level
     done = 0
-    do l = 1, 12  !{
-      if (biotic(n)%norm_remin%t_mask(l)) then  !{
-        if (done .eq. 0) then  !{
+    do l = 1, 12
+      if (biotic(n)%norm_remin%t_mask(l)) then
+        if (done .eq. 0) then
 
-!
-!       set the values via the input values, saving this time index
-!       afterwards
-!
-
+          ! set the values via the input values, saving this time index
+          ! afterwards
           write (stdoutunit,*) 'Assigning month ', l
           call set_array(biotic(n)%norm_remin%mask(:,:,l),        &
                   isd, ied, jsd, jed, grid_xt, grid_yt, grid_kmt, &
@@ -4802,87 +3465,66 @@ do n = 1, instances  !{
                   biotic(n)%norm_remin%factor, 1.0,               &
                   'Normal remineralization', biotic(n)%norm_remin%coastal_only)
           done = l
-        else  !}{
-
-!
-!       Duplicate the values for a previous time-level
-!
+        else
+          ! Duplicate the values for a previous time-level
           write (stdoutunit,*) 'Duplicating month ', done, ' as ', l
           biotic(n)%norm_remin%mask(:,:,l) = biotic(n)%norm_remin%mask(:,:,done)
-        endif  !}
-      endif  !}
-    enddo  !} l
-  endif  !}
+        endif
+      endif
+    enddo
+  endif
 
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       read in the no_caco3 namelist data
-!-----------------------------------------------------------------------
-!
+! read in the no_caco3 namelist data
+do n = 1, instances
 
-do n = 1, instances  !{
-
-!
-!       Check some things
-!
-
-  if (associated(biotic(n)%no_caco3%wlon)) then  !{
+  if (associated(biotic(n)%no_caco3%wlon)) then
     len_w = size(biotic(n)%no_caco3%wlon)
-  else  !}{
+  else
     len_w = 0
-  endif  !}
-  if (associated(biotic(n)%no_caco3%elon)) then  !{
+  endif
+  if (associated(biotic(n)%no_caco3%elon)) then
     len_e = size(biotic(n)%no_caco3%elon)
-  else  !}{
+  else
     len_e = 0
-  endif  !}
-  if (associated(biotic(n)%no_caco3%slat)) then  !{
+  endif
+  if (associated(biotic(n)%no_caco3%slat)) then
     len_s = size(biotic(n)%no_caco3%slat)
-  else  !}{
+  else
     len_s = 0
-  endif  !}
-  if (associated(biotic(n)%no_caco3%nlat)) then  !{
+  endif
+  if (associated(biotic(n)%no_caco3%nlat)) then
     len_n = size(biotic(n)%no_caco3%nlat)
-  else  !}{
+  else
     len_n = 0
-  endif  !}
+  endif
 
-  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then  !{
+  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then
     call mpp_error(FATAL, trim(error_header) // ' Region sizes are not equal for ' // trim(biotic(n)%name))
-  endif  !}
+  endif
 
-  if (size(biotic(n)%no_caco3%t_mask) .ne. 12) then  !{
+  if (size(biotic(n)%no_caco3%t_mask) .ne. 12) then
     call mpp_error(FATAL, trim(error_header) // ' t_mask size is not 12 for ' // trim(biotic(n)%name))
-  endif  !}
+  endif
 
-!
-!       set all of the values to the default
-!
-
+  ! set all of the values to the default
   biotic(n)%no_caco3%mask(:,:,:) = 1.0
 
-  if (len_w .gt. 0) then  !{
+  if (len_w .gt. 0) then
 
     write (stdoutunit,*)
     write (stdoutunit,*) trim(note_header), 'Process no_caco3 array for ', trim(biotic(n)%name)
     write (stdoutunit,*)
 
-!
-!       set values for this time-level
-!
-
+    ! set values for this time-level
     done = 0
-    do l = 1, 12  !{
-      if (biotic(n)%no_caco3%t_mask(l)) then  !{
-        if (done .eq. 0) then  !{
+    do l = 1, 12
+      if (biotic(n)%no_caco3%t_mask(l)) then
+        if (done .eq. 0) then
 
-!
-!       set the values via the input values, saving this time index
-!       afterwards
-!
-
+          ! set the values via the input values, saving this time index
+          ! afterwards
           write (stdoutunit,*) 'Assigning month ', l
           call set_array(biotic(n)%no_caco3%mask(:,:,l),                &
                   isd, ied, jsd, jed, grid_xt, grid_yt, grid_kmt,       &
@@ -4893,87 +3535,67 @@ do n = 1, instances  !{
                   biotic(n)%no_caco3%factor, 1.0,                       &
                   'Carbonate inhibition', biotic(n)%no_caco3%coastal_only)
           done = l
-        else  !}{
+        else
 
-!
-!       Duplicate the values for a previous time-level
-!
+          ! Duplicate the values for a previous time-level
           write (stdoutunit,*) 'Duplicating month ', done, ' as ', l
           biotic(n)%no_caco3%mask(:,:,l) = biotic(n)%no_caco3%mask(:,:,done)
-        endif  !}
-      endif  !}
-    enddo  !} l
-  endif  !}
+        endif
+      endif
+    enddo
+  endif
 
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       read in the nut_depl namelist data
-!-----------------------------------------------------------------------
-!
+! read in the nut_depl namelist data
+do n = 1, instances
 
-do n = 1, instances  !{
-
-!
-!       Check some things
-!
-
-  if (associated(biotic(n)%nut_depl%wlon)) then  !{
+  if (associated(biotic(n)%nut_depl%wlon)) then
     len_w = size(biotic(n)%nut_depl%wlon)
-  else  !}{
+  else
     len_w = 0
-  endif  !}
-  if (associated(biotic(n)%nut_depl%elon)) then  !{
+  endif
+  if (associated(biotic(n)%nut_depl%elon)) then
     len_e = size(biotic(n)%nut_depl%elon)
-  else  !}{
+  else
     len_e = 0
-  endif  !}
-  if (associated(biotic(n)%nut_depl%slat)) then  !{
+  endif
+  if (associated(biotic(n)%nut_depl%slat)) then
     len_s = size(biotic(n)%nut_depl%slat)
-  else  !}{
+  else
     len_s = 0
-  endif  !}
-  if (associated(biotic(n)%nut_depl%nlat)) then  !{
+  endif
+  if (associated(biotic(n)%nut_depl%nlat)) then
     len_n = size(biotic(n)%nut_depl%nlat)
-  else  !}{
+  else
     len_n = 0
-  endif  !}
+  endif
 
-  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then  !{
+  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then
     call mpp_error(FATAL, trim(error_header) // ' Region sizes are not equal for ' // trim(biotic(n)%name))
-  endif  !}
+  endif
 
-  if (size(biotic(n)%nut_depl%t_mask) .ne. 12) then  !{
+  if (size(biotic(n)%nut_depl%t_mask) .ne. 12) then
     call mpp_error(FATAL, trim(error_header) // ' t_mask size is not 12 for ' // trim(biotic(n)%name))
-  endif  !}
+  endif
 
-!
-!       set all of the values to the default
-!
-
+  ! set all of the values to the default
   biotic(n)%nut_depl%mask(:,:,:) = 1.0
 
-  if (len_w .gt. 0) then  !{
+  if (len_w .gt. 0) then
 
     write (stdoutunit,*)
     write (stdoutunit,*) trim(note_header), 'Process nut_depl array for ', trim(biotic(n)%name)
     write (stdoutunit,*)
 
-!
-!       set values for this time-level
-!
-
+    ! set values for this time-level
     done = 0
-    do l = 1, 12  !{
-      if (biotic(n)%nut_depl%t_mask(l)) then  !{
-        if (done .eq. 0) then  !{
-      
-!
-!       set the values via the input values, saving this time index
-!       afterwards
-!
+    do l = 1, 12
+      if (biotic(n)%nut_depl%t_mask(l)) then
+        if (done .eq. 0) then
 
+           ! set the values via the input values, saving this time index
+           ! afterwards
           write (stdoutunit,*) 'Assigning month ', l
           call set_array(biotic(n)%nut_depl%mask(:,:,l),                &
                   isd, ied, jsd, jed, grid_xt, grid_yt, grid_kmt,       &
@@ -4984,87 +3606,67 @@ do n = 1, instances  !{
                   biotic(n)%nut_depl%factor, 1.0,                       &
                   'Nutrient depletion', biotic(n)%nut_depl%coastal_only)
           done = l
-        else  !}{
+        else
 
-!
-!       Duplicate the values for a previous time-level
-!
+          ! Duplicate the values for a previous time-level
           write (stdoutunit,*) 'Duplicating month ', done, ' as ', l
           biotic(n)%nut_depl%mask(:,:,l) = biotic(n)%nut_depl%mask(:,:,done)
-        endif  !}
-      endif  !}
-    enddo  !} l
-  endif  !}
+        endif
+      endif
+    enddo
+  endif
 
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       read in the r_bio_tau_prod namelist data
-!-----------------------------------------------------------------------
-!
+! read in the r_bio_tau_prod namelist data
+do n = 1, instances
 
-do n = 1, instances  !{
-
-!
-!       Check some things
-!
-
-  if (associated(biotic(n)%r_bio_tau_prod%wlon)) then  !{
+  if (associated(biotic(n)%r_bio_tau_prod%wlon)) then
     len_w = size(biotic(n)%r_bio_tau_prod%wlon)
-  else  !}{
+  else
     len_w = 0
-  endif  !}
-  if (associated(biotic(n)%r_bio_tau_prod%elon)) then  !{
+  endif
+  if (associated(biotic(n)%r_bio_tau_prod%elon)) then
     len_e = size(biotic(n)%r_bio_tau_prod%elon)
-  else  !}{
+  else
     len_e = 0
-  endif  !}
-  if (associated(biotic(n)%r_bio_tau_prod%slat)) then  !{
+  endif
+  if (associated(biotic(n)%r_bio_tau_prod%slat)) then
     len_s = size(biotic(n)%r_bio_tau_prod%slat)
-  else  !}{
+  else
     len_s = 0
-  endif  !}
-  if (associated(biotic(n)%r_bio_tau_prod%nlat)) then  !{
+  endif
+  if (associated(biotic(n)%r_bio_tau_prod%nlat)) then
     len_n = size(biotic(n)%r_bio_tau_prod%nlat)
-  else  !}{
+  else
     len_n = 0
-  endif  !}
+  endif
 
-  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then  !{
+  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then
     call mpp_error(FATAL, trim(error_header) // ' Region sizes are not equal for ' // trim(biotic(n)%name))
-  endif  !}
+  endif
 
-  if (size(biotic(n)%r_bio_tau_prod%t_mask) .ne. 12) then  !{
+  if (size(biotic(n)%r_bio_tau_prod%t_mask) .ne. 12) then
     call mpp_error(FATAL, trim(error_header) // ' t_mask size is not 12 for ' // trim(biotic(n)%name))
-  endif  !}
+  endif
 
-!
-!       set all of the values to the default
-!
-
+  ! set all of the values to the default
   biotic(n)%r_bio_tau_prod%mask(:,:,:) = 1.0
 
-  if (len_w .gt. 0) then  !{
+  if (len_w .gt. 0) then
 
     write (stdoutunit,*)
     write (stdoutunit,*) trim(note_header), 'Process r_bio_tau_prod array for ', trim(biotic(n)%name)
     write (stdoutunit,*)
 
-!
-!       set values for this time-level
-!
-
+    ! set values for this time-level
     done = 0
-    do l = 1, 12  !{
-      if (biotic(n)%r_bio_tau_prod%t_mask(l)) then  !{
-        if (done .eq. 0) then  !{
+    do l = 1, 12
+      if (biotic(n)%r_bio_tau_prod%t_mask(l)) then
+        if (done .eq. 0) then
 
-!
-!       set the values via the input values, saving this time index
-!       afterwards
-!
-
+          ! set the values via the input values, saving this time index
+          ! afterwards
           write (stdoutunit,*) 'Assigning month ', l
           call set_array(biotic(n)%r_bio_tau_prod%mask(:,:,l),             &
                   isd, ied, jsd, jed, grid_xt, grid_yt, grid_kmt,       &
@@ -5075,46 +3677,33 @@ do n = 1, instances  !{
                   biotic(n)%r_bio_tau_prod%factor, 1.0,                    &
                   'Primary production limitation', biotic(n)%r_bio_tau_prod%coastal_only)
           done = l
-        else  !}{
+        else
 
-!
-!       Duplicate the values for a previous time-level
-!
+          ! Duplicate the values for a previous time-level
           write (stdoutunit,*) 'Duplicating month ', done, ' as ', l
           biotic(n)%r_bio_tau_prod%mask(:,:,l) = biotic(n)%r_bio_tau_prod%mask(:,:,done)
-        endif  !}
-      endif  !}
-    enddo  !} l
-  endif  !}
+        endif
+      endif
+    enddo
+  endif
 
-enddo  !} n
+enddo
 
-!
-!       multiply by the restoring factor
-!
-
-do n = 1, instances  !{
+! multiply by the restoring factor
+do n = 1, instances
   biotic(n)%r_bio_tau_prod%mask(:,:,:) =                                &
        biotic(n)%r_bio_tau * biotic(n)%r_bio_tau_prod%mask(:,:,:)
-enddo  !} n
-!
-!-----------------------------------------------------------------------
-!     calculate the index for the box containing the compensation depth
+enddo
 
-!
-!-----------------------------------------------------------------------
-!     calculate the index for the box containing the compensation depth
-!-----------------------------------------------------------------------
-!
-
+! calculate the index for the box containing the compensation depth
 km_c_max = 0
-do n = 1, instances  !{
+do n = 1, instances
   call locate(grid_zw, nk, biotic(n)%compensation_depth,        &
               biotic(n)%km_c, nearest = .true.)
   if (grid_zw(biotic(n)%km_c) .lt.                              &
-      biotic(n)%compensation_depth) then  !{
+      biotic(n)%compensation_depth) then
     biotic(n)%km_c = biotic(n)%km_c + 1
-  endif  !}
+  endif
 
   write (stdoutunit,*) trim(note_header),                         &
                      'The compensation depth for instance ',    &
@@ -5124,75 +3713,56 @@ do n = 1, instances  !{
                      grid_zw(biotic(n)%km_c-1),                 &
                      ' m and ', grid_zw(biotic(n)%km_c), ' m'
   km_c_max = max(km_c_max, biotic(n)%km_c)
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       read in the norm_remin namelist data
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
-
-!
-!       Check some things
-!
-
-  if (associated(biotic(n)%norm_remin%wlon)) then  !{
+! read in the norm_remin namelist data
+do n = 1, instances
+  if (associated(biotic(n)%norm_remin%wlon)) then
     len_w = size(biotic(n)%norm_remin%wlon)
-  else  !}{
+  else
     len_w = 0
-  endif  !}
-  if (associated(biotic(n)%norm_remin%elon)) then  !{
+  endif
+  if (associated(biotic(n)%norm_remin%elon)) then
     len_e = size(biotic(n)%norm_remin%elon)
-  else  !}{
+  else
     len_e = 0
-  endif  !}
-  if (associated(biotic(n)%norm_remin%slat)) then  !{
+  endif
+  if (associated(biotic(n)%norm_remin%slat)) then
     len_s = size(biotic(n)%norm_remin%slat)
-  else  !}{
+  else
     len_s = 0
-  endif  !}
-  if (associated(biotic(n)%norm_remin%nlat)) then  !{
+  endif
+  if (associated(biotic(n)%norm_remin%nlat)) then
     len_n = size(biotic(n)%norm_remin%nlat)
-  else  !}{
+  else
     len_n = 0
-  endif  !}
+  endif
 
-  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then  !{
+  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then
     call mpp_error(FATAL, trim(error_header) // ' Region sizes are not equal for ' // trim(biotic(n)%name))
-  endif  !}
+  endif
 
-  if (size(biotic(n)%norm_remin%t_mask) .ne. 12) then  !{
+  if (size(biotic(n)%norm_remin%t_mask) .ne. 12) then
     call mpp_error(FATAL, trim(error_header) // ' t_mask size is not 12 for ' // trim(biotic(n)%name))
-  endif  !}
+  endif
 
-!
-!       set all of the values to the default
-!
-
+  ! set all of the values to the default
   biotic(n)%norm_remin%mask(:,:,:) = 1.0
 
-  if (len_w .gt. 0) then  !{
+  if (len_w .gt. 0) then
 
     write (stdoutunit,*)
     write (stdoutunit,*) trim(note_header), 'Process norm_remin array for ', trim(biotic(n)%name)
     write (stdoutunit,*)
 
-!
-!       set values for this time-level
-!
-
+    ! set values for this time-level
     done = 0
-    do l = 1, 12  !{
-      if (biotic(n)%norm_remin%t_mask(l)) then  !{
-        if (done .eq. 0) then  !{
+    do l = 1, 12
+      if (biotic(n)%norm_remin%t_mask(l)) then
+        if (done .eq. 0) then
 
-!
-!       set the values via the input values, saving this time index
-!       afterwards
-!
-
+          ! set the values via the input values, saving this time index
+          ! afterwards
           write (stdoutunit,*) 'Assigning month ', l
           call set_array(biotic(n)%norm_remin%mask(:,:,l),        &
                   isd, ied, jsd, jed, grid_xt, grid_yt, grid_kmt, &
@@ -5203,87 +3773,66 @@ do n = 1, instances  !{
                   biotic(n)%norm_remin%factor, 1.0,               &
                   'Normal remineralization', biotic(n)%norm_remin%coastal_only)
           done = l
-        else  !}{
+        else
 
-!
-!       Duplicate the values for a previous time-level
-!
+          ! Duplicate the values for a previous time-level
           write (stdoutunit,*) 'Duplicating month ', done, ' as ', l
           biotic(n)%norm_remin%mask(:,:,l) = biotic(n)%norm_remin%mask(:,:,done)
-        endif  !}
-      endif  !}
-    enddo  !} l
-  endif  !}
+        endif
+      endif
+    enddo
+  endif
 
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       read in the no_caco3 namelist data
-!-----------------------------------------------------------------------
-!
+! read in the no_caco3 namelist data
+do n = 1, instances
 
-do n = 1, instances  !{
-
-!
-!       Check some things
-!
-
-  if (associated(biotic(n)%no_caco3%wlon)) then  !{
+  if (associated(biotic(n)%no_caco3%wlon)) then
     len_w = size(biotic(n)%no_caco3%wlon)
-  else  !}{
+  else
     len_w = 0
-  endif  !}
-  if (associated(biotic(n)%no_caco3%elon)) then  !{
+  endif
+  if (associated(biotic(n)%no_caco3%elon)) then
     len_e = size(biotic(n)%no_caco3%elon)
-  else  !}{
+  else
     len_e = 0
-  endif  !}
-  if (associated(biotic(n)%no_caco3%slat)) then  !{
+  endif
+  if (associated(biotic(n)%no_caco3%slat)) then
     len_s = size(biotic(n)%no_caco3%slat)
-  else  !}{
+  else
     len_s = 0
-  endif  !}
-  if (associated(biotic(n)%no_caco3%nlat)) then  !{
+  endif
+  if (associated(biotic(n)%no_caco3%nlat)) then
     len_n = size(biotic(n)%no_caco3%nlat)
-  else  !}{
+  else
     len_n = 0
-  endif  !}
+  endif
 
-  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then  !{
+  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then
     call mpp_error(FATAL, trim(error_header) // ' Region sizes are not equal for ' // trim(biotic(n)%name))
-  endif  !}
+  endif
 
-  if (size(biotic(n)%no_caco3%t_mask) .ne. 12) then  !{
+  if (size(biotic(n)%no_caco3%t_mask) .ne. 12) then
     call mpp_error(FATAL, trim(error_header) // ' t_mask size is not 12 for ' // trim(biotic(n)%name))
-  endif  !}
+  endif
 
-!
-!       set all of the values to the default
-!
-
+  ! set all of the values to the default
   biotic(n)%no_caco3%mask(:,:,:) = 1.0
 
-  if (len_w .gt. 0) then  !{
+  if (len_w .gt. 0) then
 
     write (stdoutunit,*)
     write (stdoutunit,*) trim(note_header), 'Process no_caco3 array for ', trim(biotic(n)%name)
     write (stdoutunit,*)
 
-!
-!       set values for this time-level
-!
-
+    ! set values for this time-level
     done = 0
-    do l = 1, 12  !{
-      if (biotic(n)%no_caco3%t_mask(l)) then  !{
-        if (done .eq. 0) then  !{
-
-!
-!       set the values via the input values, saving this time index
-!       afterwards
-!
-
+    do l = 1, 12
+      if (biotic(n)%no_caco3%t_mask(l)) then
+        if (done .eq. 0) then
+          ! set the values via the input values, saving this time index
+          ! afterwards
           write (stdoutunit,*) 'Assigning month ', l
           call set_array(biotic(n)%no_caco3%mask(:,:,l),                &
                   isd, ied, jsd, jed, grid_xt, grid_yt, grid_kmt,       &
@@ -5294,87 +3843,65 @@ do n = 1, instances  !{
                   biotic(n)%no_caco3%factor, 1.0,                       &
                   'Carbonate inhibition', biotic(n)%no_caco3%coastal_only)
           done = l
-        else  !}{
-
-!
-!       Duplicate the values for a previous time-level
-!
+        else
+          ! Duplicate the values for a previous time-level
           write (stdoutunit,*) 'Duplicating month ', done, ' as ', l
           biotic(n)%no_caco3%mask(:,:,l) = biotic(n)%no_caco3%mask(:,:,done)
-        endif  !}
-      endif  !}
-    enddo  !} l
-  endif  !}
+        endif
+      endif
+    enddo
+  endif
 
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       read in the nut_depl namelist data
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
-
-!
-!       Check some things
-!
-
-  if (associated(biotic(n)%nut_depl%wlon)) then  !{
+! read in the nut_depl namelist data
+do n = 1, instances
+  if (associated(biotic(n)%nut_depl%wlon)) then
     len_w = size(biotic(n)%nut_depl%wlon)
-  else  !}{
+  else
     len_w = 0
-  endif  !}
-  if (associated(biotic(n)%nut_depl%elon)) then  !{
+  endif
+  if (associated(biotic(n)%nut_depl%elon)) then
     len_e = size(biotic(n)%nut_depl%elon)
-  else  !}{
+  else
     len_e = 0
-  endif  !}
-  if (associated(biotic(n)%nut_depl%slat)) then  !{
+  endif
+  if (associated(biotic(n)%nut_depl%slat)) then
     len_s = size(biotic(n)%nut_depl%slat)
-  else  !}{
+  else
     len_s = 0
-  endif  !}
-  if (associated(biotic(n)%nut_depl%nlat)) then  !{
+  endif
+  if (associated(biotic(n)%nut_depl%nlat)) then
     len_n = size(biotic(n)%nut_depl%nlat)
-  else  !}{
+  else
     len_n = 0
-  endif  !}
+  endif
 
-  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then  !{
+  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then
     call mpp_error(FATAL, trim(error_header) // ' Region sizes are not equal for ' // trim(biotic(n)%name))
-  endif  !}
+  endif
 
-  if (size(biotic(n)%nut_depl%t_mask) .ne. 12) then  !{
+  if (size(biotic(n)%nut_depl%t_mask) .ne. 12) then
     call mpp_error(FATAL, trim(error_header) // ' t_mask size is not 12 for ' // trim(biotic(n)%name))
-  endif  !}
+  endif
 
-!
-!       set all of the values to the default
-!
-
+  ! set all of the values to the default
   biotic(n)%nut_depl%mask(:,:,:) = 1.0
 
-  if (len_w .gt. 0) then  !{
+  if (len_w .gt. 0) then
 
     write (stdoutunit,*)
     write (stdoutunit,*) trim(note_header), 'Process nut_depl array for ', trim(biotic(n)%name)
     write (stdoutunit,*)
 
-!
-!       set values for this time-level
-!
-
+    ! set values for this time-level
     done = 0
-    do l = 1, 12  !{
-      if (biotic(n)%nut_depl%t_mask(l)) then  !{
-        if (done .eq. 0) then  !{
+    do l = 1, 12
+      if (biotic(n)%nut_depl%t_mask(l)) then
+        if (done .eq. 0) then
 
-!
-!       set the values via the input values, saving this time index
-!       afterwards
-!
-
+          ! set the values via the input values, saving this time index
+          ! afterwards
           write (stdoutunit,*) 'Assigning month ', l
           call set_array(biotic(n)%nut_depl%mask(:,:,l),                &
                   isd, ied, jsd, jed, grid_xt, grid_yt, grid_kmt,       &
@@ -5385,87 +3912,65 @@ do n = 1, instances  !{
                   biotic(n)%nut_depl%factor, 1.0,                       &
                   'Nutrient depletion', biotic(n)%nut_depl%coastal_only)
           done = l
-        else  !}{
-
-!
-!       Duplicate the values for a previous time-level
-!
+        else
+          ! Duplicate the values for a previous time-level
           write (stdoutunit,*) 'Duplicating month ', done, ' as ', l
           biotic(n)%nut_depl%mask(:,:,l) = biotic(n)%nut_depl%mask(:,:,done)
-        endif  !}
-      endif  !}
-    enddo  !} l
-  endif  !}
+        endif
+      endif
+    enddo 
+  endif
 
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       read in the r_bio_tau_prod namelist data
-!-----------------------------------------------------------------------
-!
+! read in the r_bio_tau_prod namelist data
+do n = 1, instances
 
-do n = 1, instances  !{
-
-!
-!       Check some things
-!
-
-  if (associated(biotic(n)%r_bio_tau_prod%wlon)) then  !{
+  if (associated(biotic(n)%r_bio_tau_prod%wlon)) then
     len_w = size(biotic(n)%r_bio_tau_prod%wlon)
-  else  !}{
+  else
     len_w = 0
-  endif  !}
-  if (associated(biotic(n)%r_bio_tau_prod%elon)) then  !{
+  endif
+  if (associated(biotic(n)%r_bio_tau_prod%elon)) then
     len_e = size(biotic(n)%r_bio_tau_prod%elon)
-  else  !}{
+  else
     len_e = 0
-  endif  !}
-  if (associated(biotic(n)%r_bio_tau_prod%slat)) then  !{
+  endif
+  if (associated(biotic(n)%r_bio_tau_prod%slat)) then
     len_s = size(biotic(n)%r_bio_tau_prod%slat)
-  else  !}{
+  else
     len_s = 0
-  endif  !}
-  if (associated(biotic(n)%r_bio_tau_prod%nlat)) then  !{
+  endif
+  if (associated(biotic(n)%r_bio_tau_prod%nlat)) then
     len_n = size(biotic(n)%r_bio_tau_prod%nlat)
-  else  !}{
+  else
     len_n = 0
-  endif  !}
+  endif
 
-  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then  !{
+  if (len_e .ne. len_w .or. len_w .ne. len_s .or. len_s .ne. len_n) then
     call mpp_error(FATAL, trim(error_header) // ' Region sizes are not equal for ' // trim(biotic(n)%name))
-  endif  !}
+  endif
 
-  if (size(biotic(n)%r_bio_tau_prod%t_mask) .ne. 12) then  !{
+  if (size(biotic(n)%r_bio_tau_prod%t_mask) .ne. 12) then
     call mpp_error(FATAL, trim(error_header) // ' t_mask size is not 12 for ' // trim(biotic(n)%name))
-  endif  !}
+  endif
 
-!
-!       set all of the values to the default
-!
-
+  ! set all of the values to the default
   biotic(n)%r_bio_tau_prod%mask(:,:,:) = 1.0
 
-  if (len_w .gt. 0) then  !{
+  if (len_w .gt. 0) then
 
     write (stdoutunit,*)
     write (stdoutunit,*) trim(note_header), 'Process r_bio_tau_prod array for ', trim(biotic(n)%name)
     write (stdoutunit,*)
 
-!
-!       set values for this time-level
-!
-
+    ! set values for this time-level
     done = 0
-    do l = 1, 12  !{
-      if (biotic(n)%r_bio_tau_prod%t_mask(l)) then  !{
-        if (done .eq. 0) then  !{
-
-!
-!       set the values via the input values, saving this time index
-!       afterwards
-!
-
+    do l = 1, 12
+      if (biotic(n)%r_bio_tau_prod%t_mask(l)) then
+        if (done .eq. 0) then
+          ! set the values via the input values, saving this time index
+          ! afterwards
           write (stdoutunit,*) 'Assigning month ', l
           call set_array(biotic(n)%r_bio_tau_prod%mask(:,:,l),             &
                   isd, ied, jsd, jed, grid_xt, grid_yt, grid_kmt,       &
@@ -5476,37 +3981,26 @@ do n = 1, instances  !{
                   biotic(n)%r_bio_tau_prod%factor, 1.0,                    &
                   'Primary production limitation', biotic(n)%r_bio_tau_prod%coastal_only)
           done = l
-        else  !}{
-
-!
-!       Duplicate the values for a previous time-level
-!
+        else
+          ! Duplicate the values for a previous time-level
           write (stdoutunit,*) 'Duplicating month ', done, ' as ', l
           biotic(n)%r_bio_tau_prod%mask(:,:,l) = biotic(n)%r_bio_tau_prod%mask(:,:,done)
-        endif  !}
-      endif  !}
-    enddo  !} l
-  endif  !}
+        endif
+      endif
+    enddo
+  endif
 
-enddo  !} n
+enddo
 
-!
-!       multiply by the restoring factor
-!
-
-do n = 1, instances  !{
+! multiply by the restoring factor
+do n = 1, instances
   biotic(n)%r_bio_tau_prod%mask(:,:,:) =                                &
        biotic(n)%r_bio_tau * biotic(n)%r_bio_tau_prod%mask(:,:,:)
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
-!     initialize special arrays for remineralization
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
-  do k = 1, nk  !{
+! initialize special arrays for remineralization
+do n = 1, instances
+  do k = 1, nk
     biotic(n)%r_intzscale_n(k) = biotic(n)%gamma_det /        &
         biotic(n)%wsink * grid_dzt(k)
     biotic(n)%r_1plusintzscale_n(k) = 1.0 / (1.0 +            &
@@ -5517,46 +4011,38 @@ do n = 1, instances  !{
         grid_dzt(k) / biotic(n)%ca_remin_depth)
     biotic(n)%zforg(k) = (grid_zw(k) /                        &
           biotic(n)%compensation_depth) ** (-biotic(n)%martin_coeff)
-  enddo  !} k
-enddo  !} n
+  enddo
+enddo
 
-!
-!-----------------------------------------------------------------------
-!       Read in additional information for a restart.
-!
-!       We must process all of the instances before restoring any files
-!       as all fields must be registered before the fields are
-!       restored, and fields from different instances may be in the
-!       same file.
-!
-!       Note that the restart file names here must be different from
-!       those for the tracer values.
-!-----------------------------------------------------------------------
-!
+! Read in additional information for a restart.
+
+! We must process all of the instances before restoring any files
+! as all fields must be registered before the fields are
+! restored, and fields from different instances may be in the
+! same file.
+
+! Note that the restart file names here must be different from
+! those for the tracer values.
 
 allocate(restart(instances))
 allocate(local_restart_file(instances))
 
 write(stdoutunit,*)
 
-do n = 1, instances  !{
+do n = 1, instances
 
-!
-!       Set the suffix for this instance (if instance name is "_",
-!       then use a blank suffix).
-!
+   ! Set the suffix for this instance (if instance name is "_",
+   ! then use a blank suffix).
 
-  if (biotic(n)%name(1:1) .eq. '_') then  !{
+  if (biotic(n)%name(1:1) .eq. '_') then
     suffix = ' '
-  else  !}{
+  else
     suffix = '_' // biotic(n)%name
-  endif  !}
+  endif
 
-!
-!       Check whether we are already using this restart file, if so,
-!       we do not want to duplicate it in the list of restart files
-!       since we only read each restart file once.
-!
+  ! Check whether we are already using this restart file, if so,
+  ! we do not want to duplicate it in the list of restart files
+  ! since we only read each restart file once.
 
   ind = 0
   do l = 1, num_restart
@@ -5572,37 +4058,29 @@ do n = 1, instances  !{
     local_restart_file(ind) = trim(biotic(n)%local_restart_file)
   end if
 
-!
-!       Check whether the field already exists in the restart file.
-!       If not, then set a default value.
-!
+  ! Check whether the field already exists in the restart file.
+  ! If not, then set a default value.
 
   fld_exist = field_exist('INPUT/' // trim(biotic(n)%local_restart_file), 'htotal' // trim(suffix) )
 
-  if ( fld_exist ) then  !{
+  if ( fld_exist ) then
     write (stdoutunit,*) trim(note_header),                       &
          'Reading additional information for instance ',        &
          ': Initializing instance ', trim(biotic(n)%name)
-  else  !}{
+  else
     write (stdoutunit,*) trim(note_header),                       &
          'Initializing instance ', trim(biotic(n)%name)
     biotic(n)%htotal(:,:) = htotal_in
-  endif  !}
+  endif
 
-!
-!       Register the field for restart
-!
-
+  ! Register the field for restart
   id_restart = register_restart_field(restart(ind), biotic(n)%local_restart_file,       &
                     'htotal' // trim(suffix), biotic(n)%htotal,                         &
                     domain=mpp_domain2d, mandatory=fld_exist )
 
-enddo  !}
+enddo
 
-!
-!       Restore the restart fields if the file exists
-!
-
+! Restore the restart fields if the file exists
 do l = 1, num_restart
   if (file_exist('INPUT/' // trim(local_restart_file(l)))) then
     call restore_state(restart(l))
@@ -5611,15 +4089,9 @@ end do
 
 deallocate(local_restart_file)
 
-!
-!-----------------------------------------------------------------------
-!     Set up analyses
-!-----------------------------------------------------------------------
-!
+! Set up analyses
 
-!
-!       register the fields
-!
+! register the fields
 
 suffix = '_' // package_name
 long_suffix = ' (' // trim(package_name) // ')'
@@ -5629,15 +4101,15 @@ id_o2_sat = register_diag_field(trim(diag_name),                        &
      model_time, 'O2 saturation' // trim(long_suffix), ' ',             &
      missing_value = -1.0e+10)
 
-do n = 1, instances  !{
+do n = 1, instances
 
-  if (biotic(n)%name(1:1) .eq. '_') then  !{
+  if (biotic(n)%name(1:1) .eq. '_') then
     suffix = ' '
     long_suffix = ' '
-  else  !}{
+  else
     suffix = '_' // biotic(n)%name
     long_suffix = ' (' // trim(biotic(n)%name) // ')'
-  endif  !}
+  endif
 
 
   biotic(n)%id_sc_co2 = register_diag_field(trim(diag_name),                    &
@@ -5880,20 +4352,16 @@ do n = 1, instances  !{
        model_time, 'CaCO3 change' // trim(long_suffix), ' ',                            &
        missing_value = -1.0e+10)
 
-enddo  !} n
+enddo
 
-!
-!       integrate the total concentrations of some tracers
-!       for the start of the run
-!
+! integrate the total concentrations of some tracers
+! for the start of the run
 
-!
-!       Use taup1 time index for the start of a run, and taup1 time
-!       index for the end of a run so that we are integrating the
-!       same time level and should therefore get identical results
-!
+! Use taup1 time index for the start of a run, and taup1 time
+! index for the end of a run so that we are integrating the
+! same time level and should therefore get identical results
 
-do n = 1, instances  !{
+do n = 1, instances
   total_alkalinity = 0.0
   total_ammonia = 0.0
   total_dic = 0.0
@@ -5906,9 +4374,9 @@ do n = 1, instances  !{
   total_o2 = 0.0
   total_phosphate = 0.0
   total_silicate = 0.0
-  do k = 1,nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1,nk
+    do j = jsc, jec
+      do i = isc, iec
         total_nitrate = total_nitrate +                         &
              t_prog(biotic(n)%ind_no3)%field(i,j,k,taup1) *     &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
@@ -5945,9 +4413,9 @@ do n = 1, instances  !{
         total_alkalinity = total_alkalinity +                   &
              t_prog(biotic(n)%ind_alk)%field(i,j,k,taup1) *     &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
   call mpp_sum(total_nitrate)
   call mpp_sum(total_ammonia)
@@ -6014,13 +4482,7 @@ do n = 1, instances  !{
   write (stdoutunit,                                              &
          '(/'' Total real alkalinity  = '',es19.12,'' Geq'')')  &
               (total_alkalinity + total_nitrate) * 1.0e-09
-enddo  !} n
-
-!
-!-----------------------------------------------------------------------
-!     give info
-!-----------------------------------------------------------------------
-!
+enddo
 
 write(stdoutunit,*)
 write(stdoutunit,*) trim(note_header), 'Tracer runs initialized'
@@ -6028,7 +4490,7 @@ write(stdoutunit,*)
 
 return
 
-end subroutine  ocean_bgc_restore_start  !}
+end subroutine  ocean_bgc_restore_start
 ! </SUBROUTINE> NAME="ocean_bgc_restore_start"
 
 !#######################################################################
@@ -6091,15 +4553,7 @@ subroutine set_array(array, isd, ied, jsd, jed,                 &
                      xt, yt, kmt,                               &
                      num_regions, wlon_in, elon_in, slat, nlat, &
                      set_value, unset_value, name,              &
-                     coastal_only)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+                     coastal_only)
 
 integer, intent(in)                             :: isd
 integer, intent(in)                             :: ied
@@ -6119,21 +4573,11 @@ real, dimension(num_regions), intent(in)        :: wlon_in
 real, dimension(isd:,jsd:), intent(in)          :: xt
 real, dimension(isd:,jsd:), intent(in)          :: yt
 
-!
-!       local parameters
-!
-
 character(len=64), parameter    :: sub_name = 'set_array'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!       local variables
-!
 
 integer :: i, j, n
 real, dimension(:), allocatable :: wlon
@@ -6142,9 +4586,7 @@ real, dimension(:), allocatable :: elon
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-!       save the longitudes in case they need to be modified
-!
+  ! save the longitudes in case they need to be modified
 
 allocate(wlon(num_regions))
 allocate(elon(num_regions))
@@ -6152,101 +4594,81 @@ allocate(elon(num_regions))
 wlon(:) = wlon_in(:)
 elon(:) = elon_in(:)
 
-!
 ! loop over the regions, applying changes as necessary
-!
 
-do n = 1, num_regions  !{
+do n = 1, num_regions
 
-  if (nlat(n) .ge. slat(n)) then  !{
+  if (nlat(n) .ge. slat(n)) then
     write (stdoutunit,*)
     write (stdoutunit,*) trim(note_header),                          &
                        trim(name), ' region: ', n
 
-!
-!       make sure that all longitudes are in the range [0,360]
-!
-
-    do while (wlon(n) .gt. 360.0)  !{
+    ! make sure that all longitudes are in the range [0,360]
+    do while (wlon(n) .gt. 360.0)
       wlon(n) = wlon(n) - 360.0
-    enddo  !}
-    do while (wlon(n) .lt. 0.0)  !{
+    enddo
+    do while (wlon(n) .lt. 0.0)
       wlon(n) = wlon(n) + 360.0
-    enddo  !}
-    do while (elon(n) .gt. 360.0)  !{
+    enddo
+    do while (elon(n) .gt. 360.0)
       elon(n) = elon(n) - 360.0
-    enddo  !}
-    do while (elon(n) .lt. 0.0)  !{
+    enddo
+    do while (elon(n) .lt. 0.0)
       elon(n) = elon(n) + 360.0
-    enddo  !}
+    enddo
 
-!
-!       if the southern and northern latitudes are the same, then
-!       find the grid box which encompasses them ...
-!
+    ! if the southern and northern latitudes are the same, then
+    ! find the grid box which encompasses them ...
 
-    if (slat(n) .eq. nlat(n)) then  !{
+    if (slat(n) .eq. nlat(n)) then
 
      call mpp_error(FATAL, trim(error_header) //                &
                     'Equal latitudes not supported')
 
-    elseif (wlon(n) .eq. elon(n)) then  !}{
+    elseif (wlon(n) .eq. elon(n)) then
 
      call mpp_error(FATAL, trim(error_header) //                &
                     'Equal longitudes not supported')
 
-    else  !}{
-
-!
-!       ... else find all boxes where the center lies in the
-!       rectangular region
-!
-
-      do j = jsd, jed  !{
-        do i = isd, ied  !{
+    else
+       ! ... else find all boxes where the center lies in the
+       ! rectangular region
+      do j = jsd, jed
+        do i = isd, ied
           if (nlat(n) .ge. yt(i,j) .and.                        &
               slat(n) .le. yt(i,j) .and.                        &
-              lon_between(xt(i,j), wlon(n), elon(n))) then  !{
+              lon_between(xt(i,j), wlon(n), elon(n))) then
             array(i,j) = set_value
-          endif  !}
-        enddo  !} i
-      enddo  !} j
+          endif
+        enddo
+      enddo
+    endif
+  endif
+enddo
 
-    endif  !}
+! if desired only apply mask to coastal regions
 
-  endif  !}
-
-enddo  !} n
-
-!
-!       if desired only apply mask to coastal regions
-!
-
-if (coastal_only) then  !{
-  do j = jsd, jed  !{
-    do i = isd, ied  !{
+if (coastal_only) then
+  do j = jsd, jed
+    do i = isd, ied
       if (kmt(i,j) .ne. 0 .and.                         &
-          array(i,j) .eq. set_value) then  !{
+          array(i,j) .eq. set_value) then
 
-!
-!       if all the surrounding points are ocean, then this is not
-!       a coastal point, therefore reset the mask
-!
+         ! if all the surrounding points are ocean, then this is not
+         ! a coastal point, therefore reset the mask
 
         if (kmt(i-1,j) .ne. 0 .and.                     &
             kmt(i+1,j) .ne. 0 .and.                     &
             kmt(i,j-1) .ne. 0 .and.                     &
-            kmt(i,j+1) .ne. 0) then  !{
+            kmt(i,j+1) .ne. 0) then
           array(i,j) = unset_value
-        endif  !}
-      endif  !}
-    enddo  !} i
-  enddo  !} j
-endif  !}
+        endif
+      endif
+    enddo
+  enddo
+endif
 
-!
-!       clean up
-!
+! clean up
 
 deallocate(wlon)
 deallocate(elon)
@@ -6266,62 +4688,40 @@ contains
 !       e       = east longitude of boundary
 !
 
-function lon_between(x_in, w, e)  !{
-
-implicit none
-
-!
-!       function definition
-!
+function lon_between(x_in, w, e)
 
 logical :: lon_between
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
 
 real, intent(in)                :: x_in
 real, intent(in)                :: w
 real, intent(in)                :: e
 
-!
-!       local variables
-!
-
-!real                   :: w
-!real                   :: e
 real                    :: x
 
-!
-!       Save input values so we may modify them safely
-!
+! Save input values so we may modify them safely
 
 x = x_in
 
-!
-!       make sure that all longitudes are in the range [0,360]
-!
+! make sure that all longitudes are in the range [0,360]
 
-do while (x .gt. 360.0)  !{
+do while (x .gt. 360.0)
   x = x - 360.0
-enddo  !}
-do while (x .lt. 0.0)  !{
+enddo
+do while (x .lt. 0.0)
   x = x + 360.0
-enddo  !}
+enddo
  
-if (w .gt. e) then  !{
+if (w .gt. e) then
   lon_between = w .le. x .or. x .le. e
-else  !}{
+else
   lon_between = w .le. x .and. x .le. e
-endif  !}
+endif
 
 return
 
-end function  lon_between  !}
+end function  lon_between
 
-end subroutine  set_array  !}
+end subroutine  set_array
 ! </SUBROUTINE> NAME="set_array"
 
-end module  ocean_bgc_restore_mod  !}
+end module  ocean_bgc_restore_mod

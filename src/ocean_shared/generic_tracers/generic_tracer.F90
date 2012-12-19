@@ -102,8 +102,6 @@ contains
 
     integer :: ioun, io_status, ierr
     integer :: stdoutunit,stdlogunit
-    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_register'
-
     stdoutunit=stdout();stdlogunit=stdlog()
     ! provide for namelist over-ride of defaults 
 
@@ -174,7 +172,6 @@ contains
 
     integer :: ioun, io_status, ierr
     integer :: stdoutunit,stdlogunit
-    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_init'
 
     stdoutunit=stdout();stdlogunit=stdlog()
     ! provide for namelist over-ride of defaults 
@@ -219,7 +216,6 @@ contains
   end subroutine generic_tracer_init
 
   subroutine generic_tracer_register_diag
-    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_register_diag'
     type(g_tracer_type), pointer    :: g_tracer,g_tracer_next
     
     !Diagnostics register for the fields common to All generic tracers
@@ -243,7 +239,7 @@ contains
     
     if(do_generic_TOPAZ)  call generic_TOPAZ_register_diag(diag_list)    
 
-    if(do_generic_ERGOM)  call generic_ERGOM_register_diag(diag_list)    
+    if(do_generic_ERGOM)  call generic_ERGOM_register_diag()
 
     if(do_generic_BLING)  call generic_BLING_register_diag()    
     
@@ -267,7 +263,6 @@ contains
   subroutine generic_tracer_coupler_get(IOB_struc)
     type(coupler_2d_bc_type), intent(in)    :: IOB_struc
 
-    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_coupler_get'
     !All generic tracers
     !Update tracer boundary values (%stf and %triver) from coupler fluxes foreach tracer in the prog_tracer_list
     call g_tracer_coupler_get(tracer_list,IOB_struc)
@@ -341,8 +336,6 @@ contains
     real, dimension(ilb:,jlb:),optional ,    intent(in) :: current_wave_stress
 
 
-    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_update_from_source'
-
     !    if(do_generic_CFC)    call generic_CFC_update_from_source(tracer_list) !Nothing to do for CFC
 
     if(do_generic_TOPAZ)  call generic_TOPAZ_update_from_source(tracer_list,Temp,Salt,rho_dzt,dzt,&
@@ -383,8 +376,6 @@ contains
     real,    intent(in) :: dt
     integer, intent(in) ::tau
     type(time_type),                intent(in) :: model_time
-
-    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_update_from_bottom'
 
     !    if(do_generic_CFC)    call generic_CFC_update_from_bottom(tracer_list)!Nothing to do for CFC 
 
@@ -514,8 +505,6 @@ contains
     real, dimension(ilb:,jlb:),  intent(in) :: ST,SS
     real, dimension(ilb:,jlb:,:,:), intent(in)              :: rho
 
-    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_coupler_set'
-
     !Set coupler fluxes from tracer boundary values (%stf and %triver)for each tracer in the prog_tracer_list
     !User must identify these tracers (not all tracers in module need to set coupler)
     !User must provide the calculations for these boundary values.
@@ -569,7 +558,6 @@ contains
   !  </TEMPLATE>
   ! </SUBROUTINE>
   subroutine generic_tracer_end
-    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_end'
     if(do_generic_CFC) call generic_CFC_end
     if(do_generic_TOPAZ)  call generic_TOPAZ_end
     if(do_generic_ERGOM)  call generic_ERGOM_end

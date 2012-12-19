@@ -1,4 +1,5 @@
 module ocean_density_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies 
 !</CONTACT>
@@ -399,7 +400,7 @@ use fms_io_mod,          only: register_restart_field, save_restart, restore_sta
 use fms_io_mod,          only: reset_field_pointer, restart_file_type
 use mpp_domains_mod,     only: mpp_update_domains, mpp_global_sum
 use mpp_domains_mod,     only: BITWISE_EXACT_SUM, NON_BITWISE_EXACT_SUM
-use mpp_mod,             only: input_nml_file, stdout, stdlog, mpp_chksum
+use mpp_mod,             only: input_nml_file, stdout, stdlog
 use platform_mod,        only: i8_kind
 use time_manager_mod,    only: time_type, increment_time
 use field_manager_mod,   only: fm_get_index
@@ -414,7 +415,7 @@ use ocean_types_mod,      only: ocean_domain_type, ocean_grid_type, ocean_thickn
 use ocean_types_mod,      only: ocean_time_type, ocean_time_steps_type, ocean_options_type
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_density_type, ocean_external_mode_type
 use ocean_types_mod,      only: ocean_diag_tracer_type, ocean_lagrangian_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, diagnose_2d, diagnose_3d, write_chksum_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk6
 use ocean_workspace_mod,  only: wrk1_v, wrk2_v, wrk3_v, wrk4_v
 use ocean_workspace_mod,  only: wrk1_2d, wrk2_2d, wrk3_2d, wrk4_2d
@@ -1039,7 +1040,7 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
 
    ! specify coefficients for the polynomical equations of state 
    ! and perform some pointwise tests.  
-   call density_coeffs_init(Time, Dens, use_blobs)
+   call density_coeffs_init()
 
    filename = 'ocean_density.res.nc'    
    id_restart_rho = register_restart_field(Den_restart, filename, 'rho', Dens%rho(:,:,:,taup1), &
@@ -1526,11 +1527,7 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
 ! Initialize the EOS coefficients, and write some test values.  
 ! </DESCRIPTION>
 !
-  subroutine density_coeffs_init(Time, Dens, use_blobs)
-
-    type(ocean_time_type),   intent(in) :: Time
-    type(ocean_density_type),intent(in) :: Dens
-    logical,                 intent(in) :: use_blobs
+  subroutine density_coeffs_init()
 
     integer :: stdoutunit
     real    :: rho_neutralrho
@@ -1541,59 +1538,59 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
     stdoutunit=stdout()
 
     ! for the TESO10 EOS 
-    mbfj_rho   = 1.017775176234136d+3
-    mbfj_alpha = 2.435473441547041d-4
-    mbfj_beta  = 7.284367916939847d-4
+    mbfj_rho   = 1.017775176234136e+3
+    mbfj_alpha = 2.435473441547041e-4
+    mbfj_beta  = 7.284367916939847e-4
     mb_neutralrho=1033.093610463980
 
-    v01 =  9.998420897506056d+2
+    v01 =  9.998420897506056e+2
     v02 =  2.839940833161907
-    v03 = -3.147759265588511d-2
-    v04 =  1.181805545074306d-3
+    v03 = -3.147759265588511e-2
+    v04 =  1.181805545074306e-3
     v05 = -6.698001071123802
-    v06 = -2.986498947203215d-2
-    v07 =  2.327859407479162d-4
-    v08 = -3.988822378968490d-2
-    v09 =  5.095422573880500d-4
-    v10 = -1.426984671633621d-5
-    v11 =  1.645039373682922d-7
-    v12 = -2.233269627352527d-2
-    v13 = -3.436090079851880d-4
-    v14 =  3.726050720345733d-6
-    v15 = -1.806789763745328d-4
-    v16 =  6.876837219536232d-7
-    v17 = -3.087032500374211d-7
-    v18 = -1.988366587925593d-8
-    v19 = -1.061519070296458d-11
-    v20 =  1.550932729220080d-10
+    v06 = -2.986498947203215e-2
+    v07 =  2.327859407479162e-4
+    v08 = -3.988822378968490e-2
+    v09 =  5.095422573880500e-4
+    v10 = -1.426984671633621e-5
+    v11 =  1.645039373682922e-7
+    v12 = -2.233269627352527e-2
+    v13 = -3.436090079851880e-4
+    v14 =  3.726050720345733e-6
+    v15 = -1.806789763745328e-4
+    v16 =  6.876837219536232e-7
+    v17 = -3.087032500374211e-7
+    v18 = -1.988366587925593e-8
+    v19 = -1.061519070296458e-11
+    v20 =  1.550932729220080e-10
     v21 =  1.0
-    v22 =  2.775927747785646d-3
-    v23 = -2.349607444135925d-5
-    v24 =  1.119513357486743d-6
-    v25 =  6.743689325042773d-10
-    v26 = -7.521448093615448d-3
-    v27 = -2.764306979894411d-5
-    v28 =  1.262937315098546d-7
-    v29 =  9.527875081696435d-10
-    v30 = -1.811147201949891d-11
-    v31 = -3.303308871386421d-5
-    v32 =  3.801564588876298d-7
-    v33 = -7.672876869259043d-9
-    v34 = -4.634182341116144d-11
-    v35 =  2.681097235569143d-12
-    v36 =  5.419326551148740d-6
-    v37 = -2.742185394906099d-5
-    v38 = -3.212746477974189d-7
-    v39 =  3.191413910561627d-9
-    v40 = -1.931012931541776d-12
-    v41 = -1.105097577149576d-7
-    v42 =  6.211426728363857d-10
-    v43 = -1.119011592875110d-10
-    v44 = -1.941660213148725d-11
-    v45 = -1.864826425365600d-14
-    v46 =  1.119522344879478d-14
-    v47 = -1.200507748551599d-15
-    v48 =  6.057902487546866d-17
+    v22 =  2.775927747785646e-3
+    v23 = -2.349607444135925e-5
+    v24 =  1.119513357486743e-6
+    v25 =  6.743689325042773e-10
+    v26 = -7.521448093615448e-3
+    v27 = -2.764306979894411e-5
+    v28 =  1.262937315098546e-7
+    v29 =  9.527875081696435e-10
+    v30 = -1.811147201949891e-11
+    v31 = -3.303308871386421e-5
+    v32 =  3.801564588876298e-7
+    v33 = -7.672876869259043e-9
+    v34 = -4.634182341116144e-11
+    v35 =  2.681097235569143e-12
+    v36 =  5.419326551148740e-6
+    v37 = -2.742185394906099e-5
+    v38 = -3.212746477974189e-7
+    v39 =  3.191413910561627e-9
+    v40 = -1.931012931541776e-12
+    v41 = -1.105097577149576e-7
+    v42 =  6.211426728363857e-10
+    v43 = -1.119011592875110e-10
+    v44 = -1.941660213148725e-11
+    v45 = -1.864826425365600e-14
+    v46 =  1.119522344879478e-14
+    v47 = -1.200507748551599e-15
+    v48 =  6.057902487546866e-17
 
     ! Save some multiples
     two_v03 = 2.0*v03
@@ -1679,116 +1676,116 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
     ! 25 coefficients in the preTEOS10 equation of state 
     if(temp_variable==CONSERVATIVE_TEMP) then
 
-        jmfwg_rho   = 1017.842890411975d0
-        jmfwg_alpha = 2.436057013634649d-4
-        jmfwg_beta  = 7.314818108935248d-4
+        jmfwg_rho   = 1017.842890411975
+        jmfwg_alpha = 2.436057013634649e-4
+        jmfwg_beta  = 7.314818108935248e-4
 
-        a0  =  9.9983912878771446d+02
-        a1  =  7.0687133522652896d+00
-        a2  = -2.2746841916232965d-02
-        a3  =  5.6569114861400121d-04
-        a4  =  2.3849975952593345d+00
-        a5  =  3.1761924314867009d-04
-        a6  =  1.7459053010547962d-03
-        a7  =  1.2192536310173776d-02
-        a8  =  2.4643435731663949d-07
-        a9  =  4.0525405332794888d-06
-        a10 = -2.3890831309113187d-08
-        a11 = -5.9016182471196891d-12
+        a0  =  9.9983912878771446e+02
+        a1  =  7.0687133522652896
+        a2  = -2.2746841916232965e-02
+        a3  =  5.6569114861400121e-04
+        a4  =  2.3849975952593345
+        a5  =  3.1761924314867009e-04
+        a6  =  1.7459053010547962e-03
+        a7  =  1.2192536310173776e-02
+        a8  =  2.4643435731663949e-07
+        a9  =  4.0525405332794888e-06
+        a10 = -2.3890831309113187e-08
+        a11 = -5.9016182471196891e-12
 
-        b0  =  1.0000000000000000d+00 
-        b1  =  7.0051665739672298d-03
-        b2  = -1.5040804107377016d-05 
-        b3  =  5.3943915288426715d-07
-        b4  =  3.3811600427083414d-10
-        b5  =  1.5599507046153769d-03
-        b6  = -1.8137352466500517d-06
-        b7  = -3.3580158763335367d-10
-        b8  =  5.7149997597561099d-06
-        b9  =  7.8025873978107375d-10
-        b10 =  7.1038052872522844d-06
-        b11 = -2.1692301739460094d-17
-        b12 = -8.2564080016458560d-18
+        b0  =  1.0000000000000000
+        b1  =  7.0051665739672298e-03
+        b2  = -1.5040804107377016e-05 
+        b3  =  5.3943915288426715e-07
+        b4  =  3.3811600427083414e-10
+        b5  =  1.5599507046153769e-03
+        b6  = -1.8137352466500517e-06
+        b7  = -3.3580158763335367e-10
+        b8  =  5.7149997597561099e-06
+        b9  =  7.8025873978107375e-10
+        b10 =  7.1038052872522844e-06
+        b11 = -2.1692301739460094e-17
+        b12 = -8.2564080016458560e-18
 
         ! Coefficients for neutral density based on McDougall/Jackett (2005).
         ! To be replaced by Klocker/McDougall approach in near future. 
-        rho_neutralrho=1024.43863927763d0
+        rho_neutralrho=1024.43863927763
         
-        a0n =  1.0022048243661291d+003
-        a1n =  2.0634684367767725d-001
-        a2n =  8.0483030880783291d-002
-        a3n = -3.6670094757260206d-004
-        a4n = -1.4602011474139313d-003
-        a5n = -2.5860953752447594d-003
-        a6n = -3.0498135030851449d-007
+        a0n =  1.0022048243661291e+003
+        a1n =  2.0634684367767725e-001
+        a2n =  8.0483030880783291e-002
+        a3n = -3.6670094757260206e-004
+        a4n = -1.4602011474139313e-003
+        a5n = -2.5860953752447594e-003
+        a6n = -3.0498135030851449e-007
 
-        b0n =  1.0000000000000000d+000 
-        b1n =  4.4946117492521496d-005
-        b2n =  7.9275128750339643d-005
-        b3n = -1.2358702241599250d-007
-        b4n = -4.1775515358142458d-009
-        b5n = -4.3024523119324234d-004
-        b6n =  6.3377762448794933d-006
-        b7n = -7.2640466666916413d-010
-        b8n = -5.1075068249838284d-005
-        b9n = -5.8104725917890170d-009
+        b0n =  1.0000000000000000
+        b1n =  4.4946117492521496e-005
+        b2n =  7.9275128750339643e-005
+        b3n = -1.2358702241599250e-007
+        b4n = -4.1775515358142458e-009
+        b5n = -4.3024523119324234e-004
+        b6n =  6.3377762448794933e-006
+        b7n = -7.2640466666916413e-010
+        b8n = -5.1075068249838284e-005
+        b9n = -5.8104725917890170e-009
 
 
     elseif(temp_variable==POTENTIAL_TEMP) then 
     
-        jmfwg_rho   =  1017.728868019642d0
-        jmfwg_alpha = 2.525481286927133d-4
-        jmfwg_beta  = 7.379638527217575d-4
+        jmfwg_rho   =  1017.728868019642
+        jmfwg_alpha = 2.525481286927133e-4
+        jmfwg_beta  = 7.379638527217575e-4
 
-        a0  =  9.9984085444849347d+02
-        a1  =  7.3471625860981584d+00
-        a2  = -5.3211231792841769d-02
-        a3  =  3.6492439109814549d-04
-        a4  =  2.5880571023991390d+00
-        a5  = -6.7168282786692355d-03
-        a6  =  1.9203202055760151d-03
-        a7  =  1.1798263740430364d-02
-        a8  =  9.8920219266399117d-08
-        a9  =  4.6996642771754730d-06
-        a10 = -2.5862187075154352d-08
-        a11 = -3.2921414007960662d-12
+        a0  =  9.9984085444849347e+02
+        a1  =  7.3471625860981584
+        a2  = -5.3211231792841769e-02
+        a3  =  3.6492439109814549e-04
+        a4  =  2.5880571023991390
+        a5  = -6.7168282786692355e-03
+        a6  =  1.9203202055760151e-03
+        a7  =  1.1798263740430364e-02
+        a8  =  9.8920219266399117e-08
+        a9  =  4.6996642771754730e-06
+        a10 = -2.5862187075154352e-08
+        a11 = -3.2921414007960662e-12
 
-        b0  =  1.0000000000000000d+00 
-        b1  =  7.2815210113327091d-03
-        b2  = -4.4787265461983921d-05 
-        b3  =  3.3851002965802430d-07
-        b4  =  1.3651202389758572d-10
-        b5  =  1.7632126669040377d-03
-        b6  = -8.8066583251206474d-06
-        b7  = -1.8832689434804897d-10
-        b8  =  5.7463776745432097d-06
-        b9  =  1.4716275472242334d-09
-        b10 =  6.7103246285651894d-06
-        b11 = -2.4461698007024582d-17
-        b12 = -9.1534417604289062d-18
+        b0  =  1.0000000000000000
+        b1  =  7.2815210113327091e-03
+        b2  = -4.4787265461983921e-05 
+        b3  =  3.3851002965802430e-07
+        b4  =  1.3651202389758572e-10
+        b5  =  1.7632126669040377e-03
+        b6  = -8.8066583251206474e-06
+        b7  = -1.8832689434804897e-10
+        b8  =  5.7463776745432097e-06
+        b9  =  1.4716275472242334e-09
+        b10 =  6.7103246285651894e-06
+        b11 = -2.4461698007024582e-17
+        b12 = -9.1534417604289062e-18
 
         ! Coefficients for neutral density based on McDougall/Jackett (2005).
         ! To be replaced by Klocker/McDougall approach in near future. 
-        rho_neutralrho=1024.59416751197d0
+        rho_neutralrho=1024.59416751197
 
-        a0n =  1.0023063688892480d+003
-        a1n =  2.2280832068441331d-001
-        a2n =  8.1157118782170051d-002
-        a3n = -4.3159255086706703d-004
-        a4n = -1.0304537539692924d-004
-        a5n = -3.1710675488863952d-003
-        a6n = -1.7052298331414675d-007
+        a0n =  1.0023063688892480e+003
+        a1n =  2.2280832068441331e-001
+        a2n =  8.1157118782170051e-002
+        a3n = -4.3159255086706703e-004
+        a4n = -1.0304537539692924e-004
+        a5n = -3.1710675488863952e-003
+        a6n = -1.7052298331414675e-007
 
-        b0n =  1.0000000000000000d+000 
-        b1n =  4.3907692647825900d-005
-        b2n =  7.8717799560577725d-005
-        b3n = -1.6212552470310961d-007
-        b4n = -2.3850178558212048d-009
-        b5n = -5.1268124398160734d-004
-        b6n =  6.0399864718597388d-006
-        b7n = -2.2744455733317707d-009
-        b8n = -3.6138532339703262d-005
-        b9n = -1.3409379420216683d-009
+        b0n =  1.0000000000000000
+        b1n =  4.3907692647825900e-005
+        b2n =  7.8717799560577725e-005
+        b3n = -1.6212552470310961e-007
+        b4n = -2.3850178558212048e-009
+        b5n = -5.1268124398160734e-004
+        b6n =  6.0399864718597388e-006
+        b7n = -2.2744455733317707e-009
+        b8n = -3.6138532339703262e-005
+        b9n = -1.3409379420216683e-009
        
     endif 
 
@@ -1941,7 +1938,6 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
   type(ocean_density_type),       intent(inout) :: Dens
   type(ocean_diag_tracer_type),   intent(inout) :: T_diag(:)
   
-  logical :: used
   integer :: tau
 
   tau   = Time%tau
@@ -1988,79 +1984,52 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
          potential_density(Dens%rho_salinity(:,:,:,tau), Temp%field(:,:,:,tau), 4000.0)
   endif
 
-  if (id_neutral_rho > 0) & 
-       used = send_data (id_neutral_rho, Dens%neutralrho(:,:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,:),                  &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-  if (id_pot_rho > 0) & 
-       used = send_data (id_pot_rho, Dens%potrho(:,:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,:),          &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grd, id_neutral_rho, Dens%neutralrho(:,:,:))
+  call diagnose_3d(Time, Grd, id_pot_rho, Dens%potrho(:,:,:))
 
 
   if (id_pot_rho_0 > 0) then 
     if (ind_potrho_0 .gt. 0) then
-      used = send_data (id_pot_rho_0, T_diag(ind_potrho_0)%field(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+       call diagnose_3d(Time, Grd, id_pot_rho_0, T_diag(ind_potrho_0)%field(:,:,:))
     else
       wrk1(:,:,:) = potential_density(Dens%rho_salinity(:,:,:,tau), Temp%field(:,:,:,tau), 0.0)
-      used = send_data (id_pot_rho_0, wrk1(:,:,:),  &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_pot_rho_0, wrk1(:,:,:))
     endif
   endif
 
   if (id_pot_rho_1 > 0) then 
     if (ind_potrho_1 .gt. 0) then
-      used = send_data (id_pot_rho_1, T_diag(ind_potrho_1)%field(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+       call diagnose_3d(Time, Grd, id_pot_rho_1, T_diag(ind_potrho_1)%field(:,:,:))
     else
       wrk1(:,:,:) = potential_density(Dens%rho_salinity(:,:,:,tau), Temp%field(:,:,:,tau), 1000.0)
-      used = send_data (id_pot_rho_1, wrk1(:,:,:),  &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_pot_rho_1, wrk1(:,:,:))
     endif
   endif
 
   if (id_pot_rho_2 > 0) then 
     if (ind_potrho_2 .gt. 0) then
-      used = send_data (id_pot_rho_2, T_diag(ind_potrho_2)%field(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+       call diagnose_3d(Time, Grd, id_pot_rho_2, T_diag(ind_potrho_2)%field(:,:,:))
     else
       wrk1(:,:,:) = potential_density(Dens%rho_salinity(:,:,:,tau), Temp%field(:,:,:,tau), 2000.0)
-      used = send_data (id_pot_rho_2, wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),&
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_pot_rho_2, wrk1(:,:,:))
     endif
   endif
 
   if (id_pot_rho_3 > 0) then 
     if (ind_potrho_3 .gt. 0) then
-      used = send_data (id_pot_rho_3, T_diag(ind_potrho_3)%field(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+       call diagnose_3d(Time, Grd, id_pot_rho_3, T_diag(ind_potrho_3)%field(:,:,:))
     else
       wrk1(:,:,:) = potential_density(Dens%rho_salinity(:,:,:,tau), Temp%field(:,:,:,tau), 3000.0)
-      used = send_data (id_pot_rho_3, wrk1(:,:,:),  &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_pot_rho_3, wrk1(:,:,:))
     endif
   endif
 
   if (id_pot_rho_4 > 0) then 
     if (ind_potrho_4 .gt. 0) then
-      used = send_data (id_pot_rho_4, T_diag(ind_potrho_4)%field(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+       call diagnose_3d(Time, Grd, id_pot_rho_4, T_diag(ind_potrho_4)%field(:,:,:))
     else
       wrk1(:,:,:) = potential_density(Dens%rho_salinity(:,:,:,tau), Temp%field(:,:,:,tau), 4000.0)
-      used = send_data (id_pot_rho_4, wrk1(:,:,:),  &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_pot_rho_4, wrk1(:,:,:))
     endif
   endif
 
@@ -2136,21 +2105,8 @@ end subroutine ocean_density_diag
   logical,                        intent(in)    :: use_blobs
   type(time_type)                               :: next_time 
   
-  logical :: used
   integer :: i, j, k
   integer :: tau, taup1
-  real    :: mass, massip1, massjp1
-  real    :: density_tau         =0.0
-  real    :: density_taup1       =0.0
-  real    :: volume_tau          =0.0
-  real    :: volume_taup1        =0.0
-  real    :: volume_taup12       =0.0
-  real    :: mass_tau            =0.0
-  real    :: mass_taup1          =0.0
-  real    :: pbot_adjust         =0.0
-  real    :: eta_adjust          =0.0
-  real    :: eta_adjust_approx   =0.0
-  real    :: eta_adjust_cstvolume=0.0
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -2611,8 +2567,6 @@ end subroutine update_ocean_density
     real, dimension(isd:ied,jsd:jed,nk) :: neutral_density_field
 
     integer :: i, j, k
-    real    :: t1, t2, s1, sp5, p1, p1t1
-    real    :: num, den
 
     if ( .not. module_is_initialized ) then 
       call mpp_error(FATAL, &
@@ -2891,7 +2845,6 @@ end subroutine update_ocean_density
   real    :: eta_adjust          =0.0
   real    :: eta_adjust_approx   =0.0
   real    :: eta_adjust_cstvolume=0.0
-  real    :: press_ave, mass_cell
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -2906,36 +2859,16 @@ end subroutine update_ocean_density
                                     Time, Dens%drhodT(:,:,:), Dens%drhodS(:,:,:), Dens%drhodP(:,:,:))
   endif 
 
-  if (id_press > 0) then
-       used = send_data (id_press, Dens%pressure_at_depth(:,:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,:),                   &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
+  call diagnose_3d(Time, Grd, id_press, Dens%pressure_at_depth(:,:,:))
 
   if (use_blobs) then
-     if (id_rho > 0) then
-          used = send_data (id_rho, Dens%rhoT(:,:,:), &
-          Time%model_time, rmask=Grd%tmask(:,:,:),    &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif     
-     if (id_rhoE > 0) then 
-          used = send_data (id_rhoE, Dens%rho(:,:,:,tau), &
-          Time%model_time, rmask=Grd%tmask(:,:,:),        &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif 
+     call diagnose_3d(Time, Grd, id_rho, Dens%rhoT(:,:,:))
+     call diagnose_3d(Time, Grd, id_rhoE, Dens%rho(:,:,:,tau))
   else
-     if (id_rho > 0) then 
-          used = send_data (id_rho, Dens%rho(:,:,:,tau), &
-          Time%model_time, rmask=Grd%tmask(:,:,:),       &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-     endif 
+     call diagnose_3d(Time, Grd, id_rho, Dens%rho(:,:,:,tau))
   endif
 
-  if (id_eos_salinity > 0) then
-       used = send_data (id_eos_salinity, Dens%rho_salinity(:,:,:,tau), &
-       Time%model_time, rmask=Grd%tmask(:,:,:),                         &
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_eos_salinity, Dens%rho_salinity(:,:,:,tau))
 
   if(id_int_rhodz > 0) then 
       wrk1_2d(:,:) = 0.0
@@ -2946,9 +2879,7 @@ end subroutine update_ocean_density
             enddo
          enddo
       enddo
-      used = send_data (id_int_rhodz, wrk1_2d(:,:), &
-           Time%model_time,rmask=Grd%tmask(:,:,1),  &
-           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+      call diagnose_2d(Time, Grd, id_int_rhodz, wrk1_2d(:,:))
   endif
 
   next_time = increment_time(Time%model_time, int(dtts), 0)
@@ -2971,9 +2902,7 @@ end subroutine update_ocean_density
             enddo
          enddo
       enddo
-      used = send_data (id_pot_rho_wt, wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_pot_rho_wt, wrk1(:,:,:))
   endif
 
   if (need_data(id_pot_rho_et,next_time)) then 
@@ -2988,9 +2917,7 @@ end subroutine update_ocean_density
             enddo
          enddo
       enddo
-      used = send_data (id_pot_rho_et, wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_pot_rho_et, wrk1(:,:,:))
   endif
 
   if (need_data(id_pot_rho_nt,next_time)) then 
@@ -3005,9 +2932,7 @@ end subroutine update_ocean_density
             enddo
          enddo
       enddo
-      used = send_data (id_pot_rho_nt, wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d(Time, Grd, id_pot_rho_nt, wrk1(:,:,:))
   endif
 
 
@@ -3196,11 +3121,7 @@ end subroutine compute_density_diagnostics
         enddo
     endif 
 
-    if (id_smax_dianeutral > 0) then 
-        used = send_data (id_smax_dianeutral, smax(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:),     &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif
+    call diagnose_3d(Time, Grd, id_smax_dianeutral, smax(:,:,:))
 
 
     ! some initialization 
@@ -3273,26 +3194,10 @@ end subroutine compute_density_diagnostics
         enddo
     endif
 
-    if (id_grad_nrho > 0) then 
-        used = send_data (id_grad_nrho, wrk4_v(:,:,:,1), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),    &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif
-    if (id_grad_lrpotrho > 0) then 
-        used = send_data (id_grad_lrpotrho, wrk4_v(:,:,:,2), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),        &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif
-    if (id_grad_nrho_lrpotrho > 0) then 
-        used = send_data (id_grad_nrho_lrpotrho, wrk5(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),         &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif
-    if (id_watermass_factor > 0) then 
-        used = send_data (id_watermass_factor, Dens%watermass_factor(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),                        &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif
+    call diagnose_3d(Time, Grd, id_grad_nrho, wrk4_v(:,:,:,1))
+    call diagnose_3d(Time, Grd, id_grad_lrpotrho, wrk4_v(:,:,:,2))
+    call diagnose_3d(Time, Grd, id_grad_nrho_lrpotrho, wrk5(:,:,:))
+    call diagnose_3d(Time, Grd, id_watermass_factor, Dens%watermass_factor(:,:,:))
 
 
     ! For stratification_factor, move derivatives to centre
@@ -3355,16 +3260,8 @@ end subroutine compute_density_diagnostics
        enddo
     enddo
 
-    if (id_stratification_factor > 0) then 
-        used = send_data (id_stratification_factor, Dens%stratification_factor(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),                                  &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif
-    if (id_stratification_axis > 0) then 
-        used = send_data (id_stratification_axis, wrk1(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:),         &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif
+    call diagnose_3d(Time, Grd, id_stratification_factor, Dens%stratification_factor(:,:,:))
+    call diagnose_3d(TIme, Grd, id_stratification_axis, wrk1(:,:,:))
 
 
   end subroutine compute_diagnostic_factors
@@ -3724,15 +3621,9 @@ end subroutine compute_density_diagnostics
 
     endif
 
-    if (id_drhodtheta > 0) used = send_data (id_drhodtheta, density_theta(:,:,:), &
-         Time%model_time, rmask=Grd%tmask(:,:,:),                                 &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    if (id_drhodsalt  > 0) used = send_data (id_drhodsalt, density_salinity(:,:,:), &
-         Time%model_time, rmask=Grd%tmask(:,:,:),                                   &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    if (id_drhodpress > 0) used = send_data (id_drhodpress, density_press(:,:,:), &
-         Time%model_time, rmask=Grd%tmask(:,:,:),                                 &   
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+    call diagnose_3d(TIme, Grd, id_drhodtheta, density_theta(:,:,:))
+    call diagnose_3d(Time, Grd, id_drhodsalt, density_salinity(:,:,:))
+    call diagnose_3d(Time, Grd, id_drhodpress, density_press(:,:,:))
     if (id_sound_speed2 > 0) then 
         wrk1(:,:,:) = 0.0  
         do k=1,nk
@@ -3744,9 +3635,7 @@ end subroutine compute_density_diagnostics
               enddo
            enddo
         enddo
-        used = send_data (id_sound_speed2, wrk1(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:),  &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+        call diagnose_3d(Time, Grd, id_sound_speed2, wrk1(:,:,:))
     endif
     if(id_thermal_expand > 0) then 
         wrk1(:,:,:) = 0.0  
@@ -3757,9 +3646,7 @@ end subroutine compute_density_diagnostics
               enddo
            enddo
         enddo
-        used = send_data (id_thermal_expand, wrk1(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:),    &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+        call diagnose_3d(Time, Grd, id_thermal_expand, wrk1(:,:,:))
     endif 
     if(id_haline_contract > 0) then 
         wrk1(:,:,:) = 0.0  
@@ -3770,9 +3657,7 @@ end subroutine compute_density_diagnostics
               enddo
            enddo
         enddo
-        used = send_data (id_haline_contract, wrk1(:,:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,:),     &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+        call diagnose_3d(Time, Grd, id_haline_contract, wrk1(:,:,:))
     endif 
 
 
@@ -4103,19 +3988,11 @@ end subroutine compute_density_diagnostics
        pressure(:,:,:) = press(:,:,:)
     endif 
 
-    call calc_cabbeling_thermobaricity(rho, salinity, theta, pressure, Time, &
+    call calc_cabbeling_thermobaricity(rho, salinity, theta, pressure, &
     density_theta, density_salinity, density_press, cabbeling_param, thermobaric_param)
 
-    if(id_cabbeling > 0) then  
-      used = send_data (id_cabbeling, cabbeling_param(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),         &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif 
-    if(id_thermobaricity > 0) then 
-      used = send_data (id_thermobaricity, thermobaric_param(:,:,:), &
-             Time%model_time, rmask=Grd%tmask(:,:,:),                &
-             is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-    endif 
+    call diagnose_3d(Time, Grd, id_cabbeling, cabbeling_param(:,:,:))
+    call diagnose_3d(Time, Grd, id_thermobaricity, thermobaric_param(:,:,:))
 
 
   end subroutine cabbeling_thermobaricity
@@ -4134,14 +4011,13 @@ end subroutine compute_density_diagnostics
 !
 ! </DESCRIPTION>
 !
-  subroutine calc_cabbeling_thermobaricity(rho, salinity, theta, press, Time, &
+  subroutine calc_cabbeling_thermobaricity(rho, salinity, theta, press, &
              density_theta, density_salinity, density_press, cabbeling_param, thermobaric_param)
 
     real, dimension(isd:,jsd:,:), intent(in)    :: rho
     real, dimension(isd:,jsd:,:), intent(in)    :: salinity
     real, dimension(isd:,jsd:,:), intent(in)    :: theta
     real, dimension(isd:,jsd:,:), intent(in)    :: press
-    type(ocean_time_type),        intent(in)    :: Time
     real, dimension(isd:,jsd:,:), intent(in)    :: density_theta
     real, dimension(isd:,jsd:,:), intent(in)    :: density_salinity
     real, dimension(isd:,jsd:,:), intent(in)    :: density_press
@@ -4541,12 +4417,8 @@ subroutine ocean_density_chksum(Time, Dens, use_blobs)
   type(ocean_time_type),    intent(in) :: Time
   type(ocean_density_type), intent(in) :: Dens
   logical,                  intent(in) :: use_blobs
-  integer(i8_kind)                     :: chk_sum
 
   integer :: taup1
-
-  integer :: stdoutunit 
-  stdoutunit=stdout() 
 
   if (.not. module_is_initialized) then 
     call mpp_error(FATAL,&
@@ -4555,35 +4427,15 @@ subroutine ocean_density_chksum(Time, Dens, use_blobs)
 
   taup1 = Time%taup1 
 
-  wrk1(isc:iec,jsc:jec,:) = Dens%rho(isc:iec,jsc:jec,:,taup1)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for rho(taup1)        = ',  chk_sum
-
+  call write_chksum_3d('rho(taup1)', Dens%rho(COMP,:,taup1)*Grd%tmask(COMP,:))
   if (use_blobs) then
-     wrk1(isc:iec,jsc:jec,:) = Dens%rhoT(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-     chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-     write(stdoutunit,*) 'chksum for rhoT(taup1)       = ',  chk_sum
+     call write_chksum_3d('rhoT(taup1)', Dens%rhoT(COMP,:)*Grd%tmask(COMP,:))
   endif
-
-  wrk1(isc:iec,jsc:jec,:) = Dens%pressure_at_depth(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for pressure_at_depth = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = denominator_r(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for denominator_r     = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Dens%drhodT(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for drhodT            = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Dens%drhodS(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for drhodS            = ',  chk_sum
-
-  wrk1(isc:iec,jsc:jec,:) = Dens%drhodz_zt(isc:iec,jsc:jec,:)*Grd%tmask(isc:iec,jsc:jec,:)
-  chk_sum                 = mpp_chksum(wrk1(isc:iec,jsc:jec,:))
-  write(stdoutunit,*) 'chksum for drhodz_zt         = ',  chk_sum
+  call write_chksum_3d('pressure_at_depth', Dens%pressure_at_depth(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('denominator_r', denominator_r(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('drhodT', Dens%drhodT(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('drhodS', Dens%drhodS(COMP,:)*Grd%tmask(COMP,:))
+  call write_chksum_3d('drhodz_zt', Dens%drhodz_zt(COMP,:)*Grd%tmask(COMP,:))
 
 end subroutine ocean_density_chksum
 ! </SUBROUTINE>  NAME="ocean_density_chksum"
@@ -4692,15 +4544,9 @@ subroutine compute_buoyfreq(Time, Thickness, salinity, theta, Dens, use_blobs)
      enddo
   enddo
   if(id_buoyfreq2_wt > 0) then 
-      used = send_data (id_buoyfreq2_wt, -grav*rho0r*wrk3(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),               & 
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_buoyfreq2_wt, -grav*rho0r*wrk3(:,:,:))
   endif
-  if(id_drhodz_wt > 0) then 
-      used = send_data (id_drhodz_wt, wrk3(:,:,:),  &
-           Time%model_time, rmask=Grd%tmask(:,:,:), & 
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
+  call diagnose_3d(Time, Grd, id_drhodz_wt, wrk3(:,:,:))
 
   ! drhodz and squared buoyancy frequency at T-cell point 
   wrk4(:,:,:) = 0.0
@@ -4754,20 +4600,10 @@ subroutine compute_buoyfreq(Time, Thickness, salinity, theta, Dens, use_blobs)
 
 
   if(id_buoyfreq2_zt > 0) then 
-       used = send_data (id_buoyfreq2_zt, -grav*rho0r*wrk4(:,:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,:),                    & 
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_buoyfreq2_zt, -grav*rho0r*wrk4(:,:,:))
   endif 
-  if(id_drhodz_zt > 0) then 
-       used = send_data (id_drhodz_zt, wrk4(:,:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,:),     & 
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
-  if(id_drhodz_diag > 0) then 
-       used = send_data (id_drhodz_diag, Dens%drhodz_diag(:,:,:), &
-       Time%model_time, rmask=Grd%tmask(:,:,:),                   & 
-       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif 
+  call diagnose_3d(Time, Grd, id_drhodz_zt, wrk4(:,:,:))
+  call diagnose_3d(Time, Grd, id_drhodz_diag, Dens%drhodz_diag(:,:,:))
 
   ! dTdz and dSdz  at T-cell point 
   wrk3(:,:,:) = 0.0

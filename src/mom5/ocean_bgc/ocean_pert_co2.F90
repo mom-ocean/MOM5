@@ -49,35 +49,12 @@
 !
 ! </INFO>
 !
+module  ocean_pert_co2_mod
 
-!
-!------------------------------------------------------------------
-!
-!       Module ocean_pert_co2_mod
-!
-!------------------------------------------------------------------
-!
-
-module  ocean_pert_co2_mod  !{
-
-!
-!------------------------------------------------------------------
-!
-!       Global definitions
-!
-!------------------------------------------------------------------
-!
-
-!
-!----------------------------------------------------------------------
-!
-!       Modules
-!
-!----------------------------------------------------------------------
-!
-
+use atmos_ocean_fluxes_mod, only: aof_set_coupler_flux
+use diag_manager_mod,   only: register_diag_field, diag_axis_init
+use field_manager_mod,  only: fm_get_index
 use time_manager_mod,   only: time_type
-use diag_manager_mod,   only: send_data
 use field_manager_mod,  only: fm_field_name_len, fm_path_name_len, fm_string_len
 use field_manager_mod,  only: fm_get_length, fm_get_value, fm_new_value
 use fms_mod,            only: field_exist
@@ -91,39 +68,15 @@ use fm_util_mod,        only: fm_util_check_for_bad_fields, fm_util_set_value
 use fm_util_mod,        only: fm_util_get_string, fm_util_get_logical, fm_util_get_integer, fm_util_get_real
 use fm_util_mod,        only: fm_util_get_logical_array, fm_util_get_real_array, fm_util_get_string_array
 use fm_util_mod,        only: fm_util_start_namelist, fm_util_end_namelist
-use coupler_types_mod,  only: ind_alpha, ind_csurf, coupler_2d_bc_type
-use ocean_types_mod,    only: ocean_prog_tracer_type
+use coupler_types_mod,  only: ind_alpha, ind_csurf, coupler_2d_bc_type, ind_flux
+use ocean_types_mod,    only: ocean_prog_tracer_type, ocean_grid_type, ocean_time_type
 use ocmip2_co2calc_mod, only: ocmip2_co2_alpha
-
-!
-!----------------------------------------------------------------------
-!
-!       force all variables to be "typed"
-!
-!----------------------------------------------------------------------
-!
+use ocean_util_mod,     only: diagnose_2d, diagnose_2d_comp
 
 implicit none
 
-!
-!----------------------------------------------------------------------
-!
-!       Make all routines and variables private by default
-!
-!----------------------------------------------------------------------
-!
-
 private
 
-!
-!----------------------------------------------------------------------
-!
-!       Public routines
-!
-!----------------------------------------------------------------------
-!
-
-!public  :: ocean_pert_co2_bbc
 public  :: ocean_pert_co2_end
 public  :: ocean_pert_co2_init
 public  :: ocean_pert_co2_flux_init
@@ -134,25 +87,8 @@ public  :: ocean_pert_co2_init_sfc
 public  :: ocean_pert_co2_avg_sfc
 public  :: ocean_pert_co2_sum_sfc
 public  :: ocean_pert_co2_zero_sfc
-!public  :: ocean_pert_co2_sfc_end
-
-!
-!----------------------------------------------------------------------
-!
-!       Private routines
-!
-!----------------------------------------------------------------------
-!
 
 private :: allocate_arrays
-
-!
-!----------------------------------------------------------------------
-!
-!       Private parameters
-!
-!----------------------------------------------------------------------
-!
 
 character(len=fm_field_name_len), parameter     :: package_name = 'ocean_pert_co2'
 character(len=48), parameter                    :: mod_name = 'ocean_pert_co2_mod'
@@ -161,15 +97,6 @@ character(len=fm_string_len), parameter         :: default_restart_file = 'ocean
 character(len=fm_string_len), parameter         :: default_ice_restart_file = 'ice_perturbation_co2.res.nc'
 character(len=fm_string_len), parameter         :: default_ocean_restart_file = 'ocean_pert_co2_airsea_flux.res.nc'
 
-!
-!----------------------------------------------------------------------
-!
-!       Private types
-!
-!----------------------------------------------------------------------
-!
- 
-!
 !  pert_tco2_global           = global annual surface mean perturbation TCO2 concentration
 !  pert_tco2_global_wrk       = work variable used in calculation of
 !                         pert_tco2_global
@@ -178,9 +105,7 @@ character(len=fm_string_len), parameter         :: default_ocean_restart_file = 
 !  sal_global_wrk       = work variable used in calculation of
 !                         sal_global
 !  do_pert_co2_virtual_flux  = true to compute virtual flux for perturbation TCO2
-!
-
-type instance_type  !{
+type instance_type
 
   real, _ALLOCATABLE, dimension(:,:)    :: alpha  _NULL
   real, _ALLOCATABLE, dimension(:,:)    :: csurf  _NULL
@@ -212,25 +137,9 @@ type instance_type  !{
   real, _ALLOCATABLE, dimension(:,:)    :: z0  _NULL
   real, _ALLOCATABLE, dimension(:,:)    :: z1  _NULL
 
-end type instance_type  !}
-
-!
-!----------------------------------------------------------------------
-!
-!       Public variables
-!
-!----------------------------------------------------------------------
-!
+end type instance_type
 
 logical, public :: do_ocean_pert_co2
-
-!
-!----------------------------------------------------------------------
-!
-!       Private variables
-!
-!----------------------------------------------------------------------
-!
 
 integer                                 :: indsal
 integer                                 :: indtemp
@@ -240,28 +149,14 @@ logical                                 :: module_initialized = .false.
 character(len=128) :: version = '$Id: ocean_pert_co2.F90,v 1.1.2.1 2012/05/15 15:55:19 smg Exp $'
 character(len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
 
-!
-!----------------------------------------------------------------------
-!
 !       Calculated parameters (with possible initial input values):
 !
 !  global_wrk_duration  = total time during calculation of global
 !                         variables
-!
-!----------------------------------------------------------------------
-!
 
 real, allocatable, dimension(:,:)               :: sc_no_term
 type(instance_type), allocatable, dimension(:)  :: instance
 integer                                         :: instances
-
-!
-!-----------------------------------------------------------------------
-!
-!       Subroutine and function definitions
-!
-!-----------------------------------------------------------------------
-!
 
 contains
 
@@ -272,16 +167,7 @@ contains
 !     Dynamically allocate arrays
 ! </DESCRIPTION>
 !
-
-subroutine allocate_arrays(isc, iec, jsc, jec, nk, isd, ied, jsd, jed)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine allocate_arrays(isc, iec, jsc, jec, nk, isd, ied, jsd, jed)
 
 integer, intent(in)     :: isc
 integer, intent(in)     :: iec
@@ -293,78 +179,52 @@ integer, intent(in)     :: jsd
 integer, intent(in)     :: jed
 integer, intent(in)     :: nk
 
-!
-!       local variables
-!
+integer :: i, j, n
 
-integer :: i
-integer :: j
-integer :: n
-
-!
-!-----------------------------------------------------------------------
-!     start executable code
-!-----------------------------------------------------------------------
-!     
-
-!
-!       global variables
-!
-
+! global variables
 allocate( sc_no_term(isc:iec,jsc:jec) )
 
-!
-!       initialize some arrays
-!
-
+! initialize some arrays
 sc_no_term(isc:iec,jsc:jec) = 1.0
 
-!
 !       allocate instance array elements
-!
-
-do n = 1, instances  !{
-
+do n = 1, instances
   allocate( instance(n)%csurf(isc:iec,jsc:jec) )
   allocate( instance(n)%alpha(isc:iec,jsc:jec) )
   allocate( instance(n)%pco2surf(isc:iec,jsc:jec) )
   allocate( instance(n)%z0(isc:iec,jsc:jec) )
   allocate( instance(n)%z1(isc:iec,jsc:jec) )
-  if (instance(n)%do_pert_co2_virtual_flux) then  !{
+  if (instance(n)%do_pert_co2_virtual_flux) then
     allocate( instance(n)%vstf_pert_tco2(isc:iec,jsc:jec) )
-  endif  !}
+  endif
   allocate( instance(n)%sc_co2(isc:iec,jsc:jec) )
+enddo
 
-enddo  !}
-
-!
 !       initialize instance array elements
-!
+do n = 1, instances
 
-do n = 1, instances  !{
-
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+  do j = jsc, jec
+    do i = isc, iec
       instance(n)%csurf(i,j) = 0.0
       instance(n)%alpha(i,j) = 0.0
       instance(n)%pco2surf(i,j) = 0.0
       instance(n)%sc_co2(i,j) = 0.0
       instance(n)%z0(i,j) = 0.0
       instance(n)%z1(i,j) = 0.0
-    enddo  !} i
-  enddo  !} j
-  if (instance(n)%do_pert_co2_virtual_flux) then  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+    enddo
+  enddo
+  if (instance(n)%do_pert_co2_virtual_flux) then
+    do j = jsc, jec
+      do i = isc, iec
         instance(n)%vstf_pert_tco2(i,j) = 0.0
-      enddo  !} i
-    enddo  !} j
-  endif  !}
+      enddo
+    enddo
+  endif
 
-enddo  !} n
+enddo
 
 return
-end subroutine  allocate_arrays  !}
+end subroutine  allocate_arrays
 ! </SUBROUTINE> NAME="allocate_arrays"
 
 
@@ -375,52 +235,9 @@ end subroutine  allocate_arrays  !}
 !     calculate the surface boundary conditions
 ! </DESCRIPTION>
 !
+subroutine ocean_pert_co2_bbc
 
-subroutine ocean_pert_co2_bbc  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-character(len=64), parameter    :: sub_name = 'ocean_pert_co2_bbc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-return
-
-end subroutine  ocean_pert_co2_bbc  !}
+end subroutine  ocean_pert_co2_bbc
 ! </SUBROUTINE> NAME="ocean_pert_co2_bbc"
 
 
@@ -431,23 +248,8 @@ end subroutine  ocean_pert_co2_bbc  !}
 !     Clean up various quantities for this run.
 ! </DESCRIPTION>
 !
-
 subroutine ocean_pert_co2_end(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,        &
-     T_prog, grid_dat, grid_tmask, mpp_domain2d, rho_dzt, taup1)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     T_prog, grid_dat, grid_tmask, mpp_domain2d, rho_dzt, taup1)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -465,72 +267,34 @@ real, dimension(isd:,jsd:,:), intent(in)         :: grid_tmask
 type(domain2d), intent(in)                              :: mpp_domain2d
 real, dimension(isd:,jsd:,:,:), intent(in)       :: rho_dzt
 
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-character(len=64), parameter    :: sub_name = 'ocean_pert_co2_end'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
 integer                                 :: i
 integer                                 :: j
 integer                                 :: k
-integer                                 :: lun
 integer                                 :: n
-character(len=fm_field_name_len+1)      :: suffix
 real                                    :: total_pert_tco2
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-!-----------------------------------------------------------------------
-!     statement functions
-!-----------------------------------------------------------------------
-!
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-!
 !       integrate the total concentrations of some tracers
 !       for the end of the run
-!
 
-!
 !       Use taup1 time index for the start of a run, and taup1 time
 !       index for the end of a run so that we are integrating the
 !       same time level and should therefore get identical results
-!
-
-do n = 1, instances  !{
+do n = 1, instances
 
   total_pert_tco2 = 0.0
 
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         total_pert_tco2 = total_pert_tco2 +                             &
              t_prog(instance(n)%ind_pert_tco2)%field(i,j,k,taup1) *     &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
   call mpp_sum(total_pert_tco2)
 
@@ -538,18 +302,12 @@ do n = 1, instances  !{
   write (stdoutunit,                                                      &
        '(/'' Total pert TCO2  = '',es19.12,'' Gmol-C'')')               &
        total_pert_tco2 * 1.0e-09
-enddo  !} n
-
-!
-!-----------------------------------------------------------------------
-!       save out additional information for a restart
-!-----------------------------------------------------------------------
-!
+enddo
 
 write(stdoutunit,*)
 
 return
-end subroutine  ocean_pert_co2_end  !}
+end subroutine  ocean_pert_co2_end
 ! </SUBROUTINE> NAME="ocean_pert_co2_end"
 
 
@@ -561,135 +319,55 @@ end subroutine  ocean_pert_co2_end  !}
 ! </DESCRIPTION>
 !
 
-subroutine ocean_pert_co2_sbc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,       &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                                &
-     T_prog, taum1, model_time, grid_tmask, ice_ocean_boundary_fluxes)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-use coupler_types_mod, only       : coupler_2d_bc_type, ind_flux
-use mpp_mod, only                 : mpp_sum
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine ocean_pert_co2_sbc(isc, iec, jsc, jec,       &
+     isc_bnd, jsc_bnd,                      &
+     T_prog, Grid, Time, ice_ocean_boundary_fluxes)
 
 integer, intent(in)                                             :: isc
 integer, intent(in)                                             :: iec
 integer, intent(in)                                             :: jsc
 integer, intent(in)                                             :: jec
-integer, intent(in)                                             :: nk
-integer, intent(in)                                             :: isd
-integer, intent(in)                                             :: ied
-integer, intent(in)                                             :: jsd
-integer, intent(in)                                             :: jed
 integer, intent(in)                                             :: isc_bnd
-integer, intent(in)                                             :: iec_bnd
 integer, intent(in)                                             :: jsc_bnd
-integer, intent(in)                                             :: jec_bnd
 type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
-integer, intent(in)                                             :: taum1
-type(time_type), intent(in)                                     :: model_time
-real, dimension(isd:,jsd:,:), intent(in)                        :: grid_tmask
+type(ocean_grid_type), intent(in)                               :: Grid
+type(ocean_time_type), intent(in)                               :: Time
 type(coupler_2d_bc_type), intent(in)                            :: ice_ocean_boundary_fluxes
 
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-character(len=64), parameter    :: sub_name = 'ocean_pert_co2_sbc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-integer :: i
+integer :: i, j, k, n, m
 integer :: i_bnd_off
 integer :: j_bnd_off
-integer :: j
-integer :: k
-integer :: n
-integer :: m
 integer :: kz
 logical :: used
 
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-!
-!---------------------------------------------------------------------
 !     use the surface fluxes from the coupler
 !       stf is in mol/m^2/s, flux from coupler is positive upwards
-!---------------------------------------------------------------------
-!
-
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
-do n = 1, instances  !{
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
+do n = 1, instances
+  do j = jsc, jec
+    do i = isc, iec
       t_prog(instance(n)%ind_pert_tco2)%stf(i,j) =                      &
             -ice_ocean_boundary_fluxes%bc(instance(n)%ind_co2_flux)%field(ind_flux)%values(i-i_bnd_off,j-j_bnd_off)
-    enddo  !} i
-  enddo  !} j
-enddo  !} n 
+    enddo
+  enddo
+enddo
 
-!
-!---------------------------------------------------------------------
 !     add in the virtual fluxes as defined by equations (2) and (3)
 !     in the OCMIP2 ABIOTIC HOWTO.
 !       Note: the factor of 1000 is to convert the delta salinity from
 !             model units to PSU
-!---------------------------------------------------------------------
-!
 
-!
-!-----------------------------------------------------------------------
 !       Save variables for diagnostics
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
-
-  if (instance(n)%id_sc_co2 .gt. 0) then
-    used = send_data(instance(n)%id_sc_co2, instance(n)%sc_co2(:,:),    &
-         model_time, rmask = grid_tmask(isc:iec,jsc:jec,1))
-  endif
-
-  if (instance(n)%id_sfc_flux_pert_co2 .gt. 0) then !{
-    used = send_data(instance(n)%id_sfc_flux_pert_co2,          &
-         t_prog(instance(n)%ind_pert_tco2)%stf(:,:),            &
-         model_time, rmask = grid_tmask(:,:,1),                 &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif !}
-
-enddo  !} n
+do n = 1, instances
+   call diagnose_2d_comp(Time, Grid, instance(n)%id_sc_co2, instance(n)%sc_co2(:,:))
+   call diagnose_2d(Time, Grid, instance(n)%id_sfc_flux_pert_co2, t_prog(instance(n)%ind_pert_tco2)%stf(:,:))
+enddo
 
 return
 
-end subroutine  ocean_pert_co2_sbc  !}
+end subroutine  ocean_pert_co2_sbc
 ! </SUBROUTINE> NAME="ocean_pert_co2_sbc"
 
 
@@ -700,35 +378,13 @@ end subroutine  ocean_pert_co2_sbc  !}
 !       Set up any extra fields needed by the ocean-atmosphere gas fluxes
 ! </DESCRIPTION>
 
-subroutine ocean_pert_co2_flux_init  !{
-
-use atmos_ocean_fluxes_mod, only: aof_set_coupler_flux
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!       local parameters
-!
+subroutine ocean_pert_co2_flux_init
 
 character(len=64), parameter    :: sub_name = 'ocean_pert_co2_flux_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 
 integer                                                 :: n
 character(len=fm_field_name_len)                        :: name
@@ -739,108 +395,80 @@ character(len=256)                                      :: caller_str
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
 !       First, perform some initialization if this module has not been
 !       initialized because the normal initialization routine will
 !       not have been called as part of the normal ocean model
 !       initialization if this is an Atmosphere pe of a coupled
 !       model running in concurrent mode
-!
+if (.not. module_initialized) then
 
-if (.not. module_initialized) then  !{
-
-!
-!       Initialize the package
-!
-
+   ! Initialize the package
   package_index = otpm_set_tracer_package(package_name,            &
        restart_file = default_restart_file,     &
        caller = trim(mod_name) // '(' // trim(sub_name) // ')')
 
-!
-!       Check whether to use this package
-!
-
+  ! Check whether to use this package
   path_to_names = '/ocean_mod/tracer_packages/' // trim(package_name) // '/names'
   instances = fm_get_length(path_to_names)
-  if (instances .lt. 0) then  !{
+  if (instances .lt. 0) then
     call mpp_error(FATAL, trim(error_header) // ' Could not get number of instances')
-  endif  !}
-
-!
-!       Check some things
-!
+  endif
 
   write (stdoutunit,*)
-  if (instances .eq. 0) then  !{
+  if (instances .eq. 0) then
     write (stdoutunit,*) trim(note_header), ' No instances'
     do_ocean_pert_co2 = .false.
-  else  !}{
-    if (instances .eq. 1) then  !{
+  else
+    if (instances .eq. 1) then
       write (stdoutunit,*) trim(note_header), ' ', instances, ' instance'
-    else  !}{
+    else
       write (stdoutunit,*) trim(note_header), ' ', instances, ' instances'
-    endif  !}
+    endif
     do_ocean_pert_co2 = .true.
-  endif  !}
+  endif
 
   module_initialized = .true.
 
-endif  !}
+endif
 
-!
-!       Return if we don't want to use this package
-!
-
-if (.not. do_ocean_pert_co2) then  !{
+! Return if we don't want to use this package
+if (.not. do_ocean_pert_co2) then
   return
-endif  !}
+endif
 
-if (.not. allocated(instance)) then  !{
+if (.not. allocated(instance)) then
 
-!
-!       allocate storage for instance array
-!
-
+   ! allocate storage for instance array
   allocate ( instance(instances) )
 
-!
-!       loop over the names, saving them into the instance array
-!
+  ! loop over the names, saving them into the instance array
+  do n = 1, instances
 
-  do n = 1, instances  !{
-
-    if (fm_get_value(path_to_names, name, index = n)) then  !{
+    if (fm_get_value(path_to_names, name, index = n)) then
       instance(n)%name = name
-    else  !}{
+    else
       write (name,*) n
       call mpp_error(FATAL, trim(error_header) //        &
            'Bad field name for index ' // trim(name))
-    endif  !}
+    endif
 
-  enddo  !}
+  enddo
 
-endif  !}
+endif
 
-!
-!       Set up the ocean-atmosphere gas flux fields
-!
-
+! Set up the ocean-atmosphere gas flux fields
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
-do n = 1, instances  !{
+do n = 1, instances
 
   name = instance(n)%name
-  if (name(1:1) .eq. '_') then  !{
+  if (name(1:1) .eq. '_') then
     suffix = ' '
-  else  !}{
+  else
     suffix = '_' // name
-  endif  !}
+  endif
 
-!
-!       Coupler fluxes
-!
-
+  ! Coupler fluxes
   instance(n)%ind_co2_flux = aof_set_coupler_flux('pert_co2_flux' // suffix,                    &
        flux_type = 'air_sea_gas_flux', implementation = 'linear',                               &
        mol_wt = WTMCO2, param = (/ 4.033e-10, 2.0, 1.0 /),                                                       &
@@ -852,20 +480,15 @@ do n = 1, instances  !{
        '/implementation', scalar = .true.)
   if (.not. (instance(n)%implementation .eq. 'linear' .or.              &
              instance(n)%implementation .eq. 'ocmip2' .or.              &
-             instance(n)%implementation .eq. 'ocmip2_data')) then  !{
+             instance(n)%implementation .eq. 'ocmip2_data')) then
     call mpp_error(FATAL, trim(error_header) //                         &
          'Unsupported flux implementation: "' // trim(instance(n)%implementation) // '"')
-  endif  !}
-
-!
-!       Coupler fields
-!
-
-enddo  !} n
+  endif
+enddo
 
 return
 
-end subroutine  ocean_pert_co2_flux_init  !}
+end subroutine  ocean_pert_co2_flux_init
 ! </SUBROUTINE> NAME="ocean_pert_co2_flux_init"
 
 
@@ -878,189 +501,116 @@ end subroutine  ocean_pert_co2_flux_init  !}
 !       Save pointers to various "types", such as Grid and Domains.
 ! </DESCRIPTION>
 
-subroutine ocean_pert_co2_init  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!       local parameters
-!
+subroutine ocean_pert_co2_init
 
 character(len=64), parameter    :: sub_name = 'ocean_pert_co2_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 
 integer                                                 :: n
 character(len=fm_field_name_len)                        :: name
 character(len=fm_path_name_len)                         :: path_to_names
 character(len=fm_field_name_len+1)                      :: suffix
-character(len=fm_string_len)                            :: string
 character(len=fm_field_name_len+3)                      :: long_suffix
-logical, dimension(12)                                  :: t_mask
 character(len=256)                                      :: caller_str
 character(len=fm_string_len), pointer, dimension(:)     :: good_list
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-!
-!       Initialize the package
-!
-
+  ! Initialize the package
 package_index = otpm_set_tracer_package(package_name,            &
      restart_file = default_restart_file,   &
      caller = trim(mod_name) // '(' // trim(sub_name) // ')')
 
-!
-!       Check whether to use this package
-!
-
+! Check whether to use this package
 path_to_names = '/ocean_mod/tracer_packages/' // trim(package_name) // '/names'
 instances = fm_get_length(path_to_names)
-if (instances .lt. 0) then  !{
+if (instances .lt. 0) then
   call mpp_error(FATAL, trim(error_header) // ' Could not get number of instances')
-endif  !}
-
-!
-!       Check some things
-!
+endif
 
 write (stdoutunit,*)
-if (instances .eq. 0) then  !{
+if (instances .eq. 0) then
   write (stdoutunit,*) trim(note_header), ' No instances'
   do_ocean_pert_co2 = .false.
-else  !}{
-  if (instances .eq. 1) then  !{
+else
+  if (instances .eq. 1) then
     write (stdoutunit,*) trim(note_header), ' ', instances, ' instance'
-  else  !}{
+  else
     write (stdoutunit,*) trim(note_header), ' ', instances, ' instances'
-  endif  !}
+  endif
   do_ocean_pert_co2 = .true.
-endif  !}
+endif
 
 module_initialized = .true.
 
-!
-!       Return if we don't want to use this package
-!
-
-if (.not. do_ocean_pert_co2) then  !{
+! Return if we don't want to use this package
+if (.not. do_ocean_pert_co2) then
   return
-endif  !}
+endif
 
-!
-!       allocate storage for instance array
-!
-
+! allocate storage for instance array
 allocate ( instance(instances) )
 
-!
-!       loop over the names, saving them into the instance array
-!
+! loop over the names, saving them into the instance array
+do n = 1, instances
 
-do n = 1, instances  !{
-
-  if (fm_get_value(path_to_names, name, index = n)) then  !{
+  if (fm_get_value(path_to_names, name, index = n)) then
     instance(n)%name = name
-  else  !}{
+  else
     write (name,*) n
     call mpp_error(FATAL, trim(error_header) //        &
          'Bad field name for index ' // trim(name))
-  endif  !}
+  endif
 
-enddo  !}
+enddo
 
-!
-!       Set up the field input
-!
-
+! Set up the field input
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
-do n = 1, instances  !{
+do n = 1, instances
 
   name = instance(n)%name
-  if (name(1:1) .eq. '_') then  !{
+  if (name(1:1) .eq. '_') then
     suffix = ' '
     long_suffix = ' '
-  else  !}{
+  else
     suffix = '_' // name
     long_suffix = ' (' // trim(name) // ')'
-  endif  !}
+  endif
 
-!
-!       perturbation TCO2
-!
-
+  ! perturbation TCO2
   instance(n)%ind_pert_tco2 = otpm_set_prog_tracer('pert_tco2' // suffix,       &
        package_name,                                                            &
        longname = 'perturbation TCO2' // trim(long_suffix),                     &
        units = 'mol/kg', flux_units = 'mol/m^2/s',                             &
        caller = caller_str)
 
-enddo  !} n
+enddo
 
-!
-!-----------------------------------------------------------------------
 !       Process the namelists
-!-----------------------------------------------------------------------
-!
 
-!
 !       Add the package name to the list of good namelists, to be used
 !       later for a consistency check
-!
-
-if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) .le. 0) then  !{
+if (fm_new_value('/ocean_mod/GOOD/good_namelists', package_name, append = .true.) .le. 0) then
   call mpp_error(FATAL, trim(error_header) //                           &
        ' Could not add ' // trim(package_name) // ' to "good_namelists" list')
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
-!       Set up the *global* namelist
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!       Set up the instance namelists
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
-
-!
-!       create the instance namelist
-!
-
+! Set up the instance namelists
+do n = 1, instances
+   ! create the instance namelist
   call fm_util_start_namelist(package_name, instance(n)%name, caller = caller_str, no_overwrite = .true., &
        check = .true.)
 
   call fm_util_set_value('sal_global', 35.0)                            ! PSU
   call fm_util_set_value('do_pert_co2_virtual_flux', .false.)
   call fm_util_set_value('pert_tco2_global', 2.0)                       ! mol/m^3
-!Old Wanninkhof numbers
-!  call fm_util_set_value('sc_co2_0', 2073.1)
-!  call fm_util_set_value('sc_co2_1', -125.62)
-!  call fm_util_set_value('sc_co2_2', 3.6276)
-!  call fm_util_set_value('sc_co2_3', -0.043219)
-!New Wanninkhof numbers
+
+  ! New Wanninkhof numbers
   call fm_util_set_value('sc_co2_0', 2068.9)
   call fm_util_set_value('sc_co2_1', -118.63)
   call fm_util_set_value('sc_co2_2', 2.9311)
@@ -1068,25 +618,22 @@ do n = 1, instances  !{
 
   call fm_util_end_namelist(package_name, instance(n)%name, check = .true., caller = caller_str)
 
-enddo  !} n
+enddo
 
-!
-!       Check for any errors in the number of fields in the namelists for this package
-!
-
+! Check for any errors in the number of fields in the namelists for this package
 good_list => fm_util_get_string_array('/ocean_mod/GOOD/namelists/' // trim(package_name) // '/good_values',     &
      caller = trim(mod_name) // '(' // trim(sub_name) // ')')
-if (associated(good_list)) then  !{
+if (associated(good_list)) then
   call fm_util_check_for_bad_fields('/ocean_mod/namelists/' // trim(package_name), good_list,                   &
        caller = trim(mod_name) // '(' // trim(sub_name) // ')')
   deallocate(good_list)
-else  !}{
+else
   call mpp_error(FATAL,trim(error_header) // ' Empty "' // trim(package_name) // '" list')
-endif  !}
+endif
 
 return
 
-end subroutine ocean_pert_co2_init  !}
+end subroutine ocean_pert_co2_init
 ! </SUBROUTINE> NAME="ocean_pert_co2_init"
 
 
@@ -1098,69 +645,29 @@ end subroutine ocean_pert_co2_init  !}
 !
 !       Note: this subroutine should be merged into ocean_pert_co2_start
 ! </DESCRIPTION>
-
-subroutine ocean_pert_co2_init_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,  &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine ocean_pert_co2_init_sfc(isc, iec, jsc, jec, isd, ied, jsd, jed,  &
+     isc_bnd, jsc_bnd,                                         &
+     Ocean_fields, T_prog, rho, taum1, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
 integer, intent(in)                                     :: jsc
 integer, intent(in)                                     :: jec
-integer, intent(in)                                     :: nk
 integer, intent(in)                                     :: isd
 integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
 integer, intent(in)                                     :: jed
 integer, intent(in)                                     :: isc_bnd
-integer, intent(in)                                     :: iec_bnd
 integer, intent(in)                                     :: jsc_bnd
-integer, intent(in)                                     :: jec_bnd
 type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 type(ocean_prog_tracer_type), dimension(:), intent(in)  :: T_prog
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho
 integer, intent(in)                                     :: taum1
-type(time_type), intent(in)                             :: model_time
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 
-!
-!       local parameters
-!
-
-character(len=64), parameter    :: sub_name = 'ocean_pert_co2_init_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-integer :: i
+integer :: i, j, m, n
 integer :: i_bnd_off
 integer :: j_bnd_off
-integer :: j
-integer :: m
-integer :: n
 integer :: nn
 integer :: ind
 
@@ -1169,56 +676,45 @@ real    :: epsln=1.0e-30
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
-do n = 1, instances  !{
+do n = 1, instances
 
-!
-!       CO2 flux
-!
-
+   ! CO2 flux
   ind = instance(n)%ind_co2_flux
   if (.not. field_exist('INPUT/'//trim(Ocean_fields%bc(ind)%ocean_restart_file),    &
-                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then  !{
+                        Ocean_fields%bc(ind)%field(ind_alpha)%name)) then
+     !  Compute the moist air compensation term (placed in alpha) and the
+     !  surface delta ocean perturbation CO2
 
-!
-!---------------------------------------------------------------------
-!  Compute the moist air compensation term (placed in alpha) and the
-!  surface delta ocean perturbation CO2
-!---------------------------------------------------------------------
-!
-
-!
-!       z0 has units of ppm/(umol/kg) and z1 has units of 1/(umol/kg),
-!       and we need to convert then to (kg/kg)/(mol/m^3) and 1/(mol/m^3), respectively
-!
-!       Changed 0.31618 to 0.031618, as it appears to have been an error in the paper
-!
-
-    if (instance(n)%implementation .eq. 'linear') then  !{
-      do j = jsc, jec  !{
-        do i = isc, iec  !{
+     ! z0 has units of ppm/(umol/kg) and z1 has units of 1/(umol/kg),
+     ! and we need to convert then to (kg/kg)/(mol/m^3) and 1/(mol/m^3), respectively
+     
+     ! Changed 0.31618 to 0.031618, as it appears to have been an error in the paper
+    if (instance(n)%implementation .eq. 'linear') then
+      do j = jsc, jec
+        do i = isc, iec
           instance(n)%alpha(i,j) = (1.0 - exp(20.1050 -                                           &
                0.0097982 * (t_prog(indtemp)%field(i,j,1,taum1) + 273.15) -                        &
                6163.10 / (t_prog(indtemp)%field(i,j,1,taum1) + 273.15))) * 1.0e+06 * grid_tmask(i,j,1)
-        enddo  !} i
-      enddo  !} j
-    else  !}{
+        enddo
+      enddo
+    else
       call ocmip2_co2_alpha(                                                    &
-           isd, ied, jsd, jed, isc, iec, jsc, jec,                              &
+           isd, jsd, isc, iec, jsc, jec,                              &
            t_prog(indtemp)%field(isd:ied,jsd:jed,1,taum1),                      &
            t_prog(indsal)%field(isd:ied,jsd:jed,1,taum1), grid_tmask(isd:ied,jsd:jed,1), instance(n)%alpha)
-      do j = jsc, jec  !{
-        do i = isc, iec  !{
+      do j = jsc, jec
+        do i = isc, iec
           instance(n)%sc_co2(i,j) =                                             &
              instance(n)%sc_co2_0 + t_prog(indtemp)%field(i,j,1,taum1) *        &
              (instance(n)%sc_co2_1 + t_prog(indtemp)%field(i,j,1,taum1) *       &
               (instance(n)%sc_co2_2 + t_prog(indtemp)%field(i,j,1,taum1) *      &
                instance(n)%sc_co2_3)) * grid_tmask(i,j,1)
           sc_no_term(i,j) = sqrt(660.0 / (instance(n)%sc_co2(i,j) + epsln)) * grid_tmask(i,j,1)
-        enddo  !} i
-      enddo  !} j
-    endif  !}
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+        enddo
+      enddo
+    endif
+    do j = jsc, jec
+      do i = isc, iec
         instance(n)%z0(i,j) = (1.7561 -                                                         &
              0.031618 * t_prog(indtemp)%field(i,j,1,taum1) +                                    &
              0.0004444 * t_prog(indtemp)%field(i,j,1,taum1)**2) * grid_tmask(i,j,1)
@@ -1234,16 +730,16 @@ do n = 1, instances  !{
              instance(n)%alpha(i,j) * rho(i,j,1,taum1) * sc_no_term(i,j)
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              instance(n)%csurf(i,j) * rho(i,j,1,taum1) * sc_no_term(i,j)
-      enddo  !} i
-    enddo  !} j
+      enddo
+    enddo
 
-  endif  !}
+  endif
 
-enddo  !} n
+enddo
 
 return
 
-end subroutine ocean_pert_co2_init_sfc  !}
+end subroutine ocean_pert_co2_init_sfc
 ! </SUBROUTINE> NAME="ocean_pert_co2_init_sfc"
 
 
@@ -1254,68 +750,29 @@ end subroutine ocean_pert_co2_init_sfc  !}
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
 
-subroutine ocean_pert_co2_sum_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,   &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd,                                        &
-     Ocean_fields, T_prog, rho, taum1, model_time, grid_tmask)  !{
-
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine ocean_pert_co2_sum_sfc(isc, iec, jsc, jec, isd, ied, jsd, jed,   &
+     isc_bnd, jsc_bnd,                            &
+     Ocean_fields, T_prog, rho, taum1, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
 integer, intent(in)                                     :: jsc
 integer, intent(in)                                     :: jec
-integer, intent(in)                                     :: nk
 integer, intent(in)                                     :: isd
 integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
 integer, intent(in)                                     :: jed
 integer, intent(in)                                     :: isc_bnd
-integer, intent(in)                                     :: iec_bnd
 integer, intent(in)                                     :: jsc_bnd
-integer, intent(in)                                     :: jec_bnd
 type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 type(ocean_prog_tracer_type), intent(in), dimension(:)  :: T_prog
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho
 integer, intent(in)                                     :: taum1
-type(time_type), intent(in)                             :: model_time
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 
-!
-!       local parameters
-!
-
-character(len=64), parameter    :: sub_name = 'ocean_pert_co2_sum_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-integer :: i
+integer :: i, j, n, nn
 integer :: i_bnd_off
 integer :: j_bnd_off
-integer :: j
-integer :: n
-integer :: nn
 integer :: ind
 
 real    :: epsln=1.0e-30
@@ -1323,50 +780,43 @@ real    :: epsln=1.0e-30
 i_bnd_off = isc - isc_bnd
 j_bnd_off = jsc - jsc_bnd
 
-do n = 1, instances  !{
+do n = 1, instances
 
     ind = instance(n)%ind_co2_flux
 
-!
-!---------------------------------------------------------------------
-!  Compute the moist air compensation term (placed in alpha) and the
-!  surface delta ocean perturbation CO2
-!---------------------------------------------------------------------
-!
+    !  Compute the moist air compensation term (placed in alpha) and the
+    !  surface delta ocean perturbation CO2
 
-!
-!       z0 has units of ppm/(umol/kg) and z1 has units of 1/(umol/kg),
-!       and we need to convert then to (kg/kg)/(mol/m^3) and 1/(mol/m^3), respectively
-!
-!       Changed 0.31618 to 0.031618, as it appears to have been an error in the paper
-!
+    !       z0 has units of ppm/(umol/kg) and z1 has units of 1/(umol/kg),
+    !       and we need to convert then to (kg/kg)/(mol/m^3) and 1/(mol/m^3), respectively
 
-    if (instance(n)%implementation .eq. 'linear') then  !{
-      do j = jsc, jec  !{
-        do i = isc, iec  !{
+    !       Changed 0.31618 to 0.031618, as it appears to have been an error in the paper
+    if (instance(n)%implementation .eq. 'linear') then
+      do j = jsc, jec
+        do i = isc, iec
           instance(n)%alpha(i,j) = (1.0 - exp(20.1050 -                                           &
                0.0097982 * (t_prog(indtemp)%field(i,j,1,taum1) + 273.15) -                        &
                6163.10 / (t_prog(indtemp)%field(i,j,1,taum1) + 273.15))) * 1.0e+06 * grid_tmask(i,j,1)
-        enddo  !} i
-      enddo  !} j
-    else  !}{
+        enddo
+      enddo
+    else
       call ocmip2_co2_alpha(                                                    &
-           isd, ied, jsd, jed, isc, iec, jsc, jec,                              &
+           isd, jsd, isc, iec, jsc, jec,                              &
            t_prog(indtemp)%field(isd:ied,jsd:jed,1,taum1),                      &
            t_prog(indsal)%field(isd:ied,jsd:jed,1,taum1), grid_tmask(isd:ied,jsd:jed,1), instance(n)%alpha)
-      do j = jsc, jec  !{
-        do i = isc, iec  !{
+      do j = jsc, jec
+        do i = isc, iec
           instance(n)%sc_co2(i,j) =                                             &
              instance(n)%sc_co2_0 + t_prog(indtemp)%field(i,j,1,taum1) *        &
              (instance(n)%sc_co2_1 + t_prog(indtemp)%field(i,j,1,taum1) *       &
               (instance(n)%sc_co2_2 + t_prog(indtemp)%field(i,j,1,taum1) *      &
                instance(n)%sc_co2_3)) * grid_tmask(i,j,1)
           sc_no_term(i,j) = sqrt(660.0 / (instance(n)%sc_co2(i,j) + epsln)) * grid_tmask(i,j,1)
-        enddo  !} i
-      enddo  !} j
-    endif  !}
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+        enddo
+      enddo
+    endif
+    do j = jsc, jec
+      do i = isc, iec
         instance(n)%z0(i,j) = (1.7561 -                                                         &
              0.031618 * t_prog(indtemp)%field(i,j,1,taum1) +                                    &
              0.0004444 * t_prog(indtemp)%field(i,j,1,taum1)**2) * grid_tmask(i,j,1)
@@ -1384,14 +834,13 @@ do n = 1, instances  !{
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) +            &
              instance(n)%csurf(i,j) * rho(i,j,1,taum1) * sc_no_term(i,j)
-      enddo  !} i
-    enddo  !} j
-
-enddo  !} n
+      enddo
+    enddo
+enddo
 
 return
 
-end subroutine ocean_pert_co2_sum_sfc  !}
+end subroutine ocean_pert_co2_sum_sfc
 ! </SUBROUTINE> NAME="ocean_pert_co2_sum_sfc"
 
 
@@ -1401,52 +850,23 @@ end subroutine ocean_pert_co2_sum_sfc  !}
 ! <DESCRIPTION>
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
-
-subroutine ocean_pert_co2_zero_sfc(Ocean_fields)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine ocean_pert_co2_zero_sfc(Ocean_fields)
 
 type(coupler_2d_bc_type), intent(inout) :: Ocean_fields
-
-!
-!       local parameters
-!
-
-character(len=64), parameter    :: sub_name = 'ocean_pert_co2_zero_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
 
 integer         :: n
 integer         :: ind
 
-do n = 1, instances  !{
-
+do n = 1, instances
   ind = instance(n)%ind_co2_flux
 
   Ocean_fields%bc(ind)%field(ind_alpha)%values = 0.0
   Ocean_fields%bc(ind)%field(ind_csurf)%values = 0.0
-
-enddo  !} n
+enddo
 
 return
 
-end subroutine ocean_pert_co2_zero_sfc  !}
+end subroutine ocean_pert_co2_zero_sfc
 ! </SUBROUTINE> NAME="ocean_pert_co2_zero_sfc"
 
 
@@ -1457,63 +877,24 @@ end subroutine ocean_pert_co2_zero_sfc  !}
 !       Sum surface fields for flux calculations
 ! </DESCRIPTION>
 
-subroutine ocean_pert_co2_avg_sfc(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,    &
-     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+subroutine ocean_pert_co2_avg_sfc(isc, iec, jsc, jec, isd, jsd,     &
+     isc_bnd, jsc_bnd, Ocean_fields, Ocean_avg_kount, grid_tmask)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
 integer, intent(in)                                     :: jsc
 integer, intent(in)                                     :: jec
-integer, intent(in)                                     :: nk
 integer, intent(in)                                     :: isd
-integer, intent(in)                                     :: ied
 integer, intent(in)                                     :: jsd
-integer, intent(in)                                     :: jed
 integer, intent(in)                                     :: isc_bnd
-integer, intent(in)                                     :: iec_bnd
 integer, intent(in)                                     :: jsc_bnd
-integer, intent(in)                                     :: jec_bnd
 type(coupler_2d_bc_type), intent(inout)                 :: Ocean_fields
 integer                                                 :: Ocean_avg_kount
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 
-!
-!       local parameters
-!
-
-character(len=64), parameter    :: sub_name = 'ocean_pert_co2_avg_sfc'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
 integer :: i_bnd_off
 integer :: j_bnd_off
-integer :: i
-integer :: j
-integer :: n
+integer :: i, j, n
 integer :: ind
 real    :: divid
 
@@ -1522,26 +903,25 @@ j_bnd_off = jsc - jsc_bnd
 
 divid = 1./float(Ocean_avg_kount)
 
-do n = 1, instances  !{
+do n = 1, instances
 
   ind = instance(n)%ind_co2_flux
 
-  do j = jsc, jec  !{
-    do i = isc, iec  !{
-      if (grid_tmask(i,j,1) == 1.0) then  !{
+  do j = jsc, jec
+    do i = isc, iec
+      if (grid_tmask(i,j,1) == 1.0) then
         Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_alpha)%values(i-i_bnd_off,j-j_bnd_off) * divid
         Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) =                 &
              Ocean_fields%bc(ind)%field(ind_csurf)%values(i-i_bnd_off,j-j_bnd_off) * divid
-      endif  !}
-    enddo  !} i
-  enddo  !} j
-
-enddo  !} n
+      endif
+    enddo
+  enddo
+enddo
 
 return
 
-end subroutine ocean_pert_co2_avg_sfc  !}
+end subroutine ocean_pert_co2_avg_sfc
 ! </SUBROUTINE> NAME="ocean_pert_co2_avg_sfc"
 
 
@@ -1551,38 +931,9 @@ end subroutine ocean_pert_co2_avg_sfc  !}
 ! <DESCRIPTION>
 !       Initialize surface fields for flux calculations
 ! </DESCRIPTION>
+subroutine ocean_pert_co2_sfc_end 
 
-subroutine ocean_pert_co2_sfc_end  !{
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-!
-!       local parameters
-!
-
-character(len=64), parameter    :: sub_name = 'ocean_pert_co2_sfc_end'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-return
-
-end subroutine ocean_pert_co2_sfc_end  !}
+end subroutine ocean_pert_co2_sfc_end 
 ! </SUBROUTINE> NAME="ocean_pert_co2_sfc_end"
 
 
@@ -1595,127 +946,24 @@ end subroutine ocean_pert_co2_sfc_end  !}
 !     of hooks required in MOM base code)
 ! </DESCRIPTION>
 !
+subroutine ocean_pert_co2_source(Grid, Time)
 
-subroutine ocean_pert_co2_source(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,     &
-     T_prog, model_time, grid_tmask)  !{
+type(ocean_grid_type), intent(in) :: Grid
+type(ocean_time_type), intent(in) :: Time
 
-!
-!-----------------------------------------------------------------------
-!     modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
-
-integer, intent(in)                                             :: isc
-integer, intent(in)                                             :: iec
-integer, intent(in)                                             :: jsc
-integer, intent(in)                                             :: jec
-integer, intent(in)                                             :: nk
-integer, intent(in)                                             :: isd
-integer, intent(in)                                             :: ied
-integer, intent(in)                                             :: jsd
-integer, intent(in)                                             :: jed
-type(ocean_prog_tracer_type), intent(inout), dimension(:)       :: T_prog
-type(time_type), intent(in)                                     :: model_time
-real, dimension(isd:,jsd:,:), intent(in)                        :: grid_tmask
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
-
-character(len=64), parameter    :: sub_name = 'ocean_pert_co2_source'
-character(len=256), parameter   :: error_header =                               &
-     '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-
-!
-!-----------------------------------------------------------------------
-!     local variables
-!-----------------------------------------------------------------------
-!
-
-integer :: i
-integer :: j
-integer :: k
 integer :: n
-logical :: used
-real, dimension(isc:iec,jsc:jec,nk)     :: grid_tmask_comp
 
-!
-! =====================================================================
-!     begin executable code
-! =====================================================================
-!
-
-!
-!-----------------------------------------------------------------------
-!     calculate the source terms
-!-----------------------------------------------------------------------
-!
-
-!
-!       Loop over multiple instances
-!
-
-!
-!-----------------------------------------------------------------------
-!       Save variables for diagnostics
-!-----------------------------------------------------------------------
-!
-
-!
-!       set up the grid mask on the computational grid so that we
-!       will not need to implicitly copy arrays in the following
-!       subroutine calls
-!
-
-grid_tmask_comp = grid_tmask(isc:iec,jsc:jec,:)
-
-do n = 1, instances  !{
-
-  if (instance(n)%id_alpha .gt. 0) then
-    used = send_data(instance(n)%id_alpha,              &
-         instance(n)%alpha(:,:),                        &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (instance(n)%id_csurf .gt. 0) then
-    used = send_data(instance(n)%id_csurf,              &
-         instance(n)%csurf(:,:),                        &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (instance(n)%id_pco2surf .gt. 0) then
-    used = send_data(instance(n)%id_pco2surf,           &
-         instance(n)%pco2surf(:,:),                     &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (instance(n)%id_z0 .gt. 0) then
-    used = send_data(instance(n)%id_z0,                 &
-         instance(n)%z0(:,:),                           &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-  if (instance(n)%id_z1 .gt. 0) then
-    used = send_data(instance(n)%id_z1,                 &
-         instance(n)%z1(:,:),                           &
-         model_time, rmask = grid_tmask_comp(:,:,1))
-  endif
-
-enddo  !} n
+do n = 1, instances
+   call diagnose_2d_comp(Time, Grid, instance(n)%id_alpha, instance(n)%alpha(:,:))
+   call diagnose_2d_comp(Time, Grid, instance(n)%id_csurf, instance(n)%csurf(:,:))
+   call diagnose_2d_comp(Time, Grid, instance(n)%id_pco2surf, instance(n)%pco2surf(:,:))
+   call diagnose_2d_comp(Time, Grid, instance(n)%id_z0, instance(n)%z0(:,:))
+   call diagnose_2d_comp(Time, Grid, instance(n)%id_z1, instance(n)%z1(:,:))
+enddo
 
 return
 
-end subroutine  ocean_pert_co2_source  !}
+end subroutine  ocean_pert_co2_source
 ! </SUBROUTINE> NAME="ocean_pert_co2_source"
 
 
@@ -1727,29 +975,9 @@ end subroutine  ocean_pert_co2_source  !}
 ! for a given run and allocate diagnostic arrays
 ! </DESCRIPTION>
 !
-
 subroutine ocean_pert_co2_start(isc, iec, jsc, jec, nk, isd, ied, jsd, jed,     &
      T_prog, taup1, model_time, grid_dat, grid_tmask,                           &
-     grid_tracer_axes, mpp_domain2d, rho_dzt)  !{
-
-!
-!-----------------------------------------------------------------------
-!       modules (have to come first)
-!-----------------------------------------------------------------------
-!
-
-!use time_manager_mod, only        : days_in_year, days_in_month
-!use time_manager_mod, only        : set_date
-use diag_manager_mod, only        : register_diag_field, diag_axis_init
-use field_manager_mod, only       : fm_get_index
-
-implicit none
-
-!
-!-----------------------------------------------------------------------
-!       Arguments
-!-----------------------------------------------------------------------
-!
+     grid_tracer_axes, rho_dzt)
 
 integer, intent(in)                                     :: isc
 integer, intent(in)                                     :: iec
@@ -1766,37 +994,15 @@ type(time_type), intent(in)                             :: model_time
 real, dimension(isd:,jsd:), intent(in)                  :: grid_dat
 real, dimension(isd:,jsd:,:), intent(in)                :: grid_tmask
 integer, dimension(:), intent(in)                       :: grid_tracer_axes
-type(domain2d), intent(in)                              :: mpp_domain2d
 real, dimension(isd:,jsd:,:,:), intent(in)              :: rho_dzt
-
-!
-!-----------------------------------------------------------------------
-!     local parameters
-!-----------------------------------------------------------------------
-!
 
 character(len=64), parameter    :: sub_name = 'ocean_pert_co2_start'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
-real, parameter :: rho_avg = 1024.5
-real, parameter :: sperd = 24.0 * 3600.0
-real, parameter :: spery = 365.25 * sperd
-
-!
-!-----------------------------------------------------------------------
-!       local variables
-!-----------------------------------------------------------------------
-!
-
-integer                                 :: i
-integer                                 :: j
-integer                                 :: k
-integer                                 :: n
+integer                                 :: i, j, k, n
 character(len=fm_field_name_len+1)      :: suffix
 character(len=fm_field_name_len+3)      :: long_suffix
 character(len=256)                      :: caller_str
@@ -1805,60 +1011,29 @@ real                                    :: total_pert_tco2
   integer :: stdoutunit 
   stdoutunit=stdout() 
 
-
-!
-! =====================================================================
-!       begin of executable code
-! =====================================================================
-!
-!
-!-----------------------------------------------------------------------
-!       give info
-!-----------------------------------------------------------------------
-!
-
 write(stdoutunit,*) 
 write(stdoutunit,*) trim(note_header),                     &
                   'Starting ', trim(package_name), ' module'
 
-!
 !       Determine indices for temperature and salinity
-!
-
 indtemp = fm_get_index('/ocean_mod/prog_tracers/temp')
-if (indtemp .le. 0) then  !{
+if (indtemp .le. 0) then
   call mpp_error(FATAL,trim(error_header) // ' Could not get the temperature index')
-endif  !}
+endif
 
 indsal = fm_get_index('/ocean_mod/prog_tracers/salt')
-if (indsal .le. 0) then  !{
+if (indsal .le. 0) then
   call mpp_error(FATAL,trim(error_header) // ' Could not get the salinity index')
-endif  !}
+endif
 
-!
-!-----------------------------------------------------------------------
-!     dynamically allocate the global arrays
-!-----------------------------------------------------------------------
-!
-
+! dynamically allocate the global arrays
 call allocate_arrays(isc, iec, jsc, jec, nk, isd, ied, jsd, jed)
 
-!
-!-----------------------------------------------------------------------
-!       save the *global* namelist values
-!-----------------------------------------------------------------------
-!
-
+! save the *global* namelist values
 caller_str = trim(mod_name) // '(' // trim(sub_name) // ')'
 
-!
-!-----------------------------------------------------------------------
-!       read in the namelists for each instance
-!-----------------------------------------------------------------------
-!
-
-do n = 1, instances  !{
-
+! read in the namelists for each instance
+do n = 1, instances
   call fm_util_start_namelist(package_name, instance(n)%name, caller = caller_str)
 
   instance(n)%sal_global                = fm_util_get_real   ('sal_global', scalar = .true.)
@@ -1870,49 +1045,20 @@ do n = 1, instances  !{
   instance(n)%sc_co2_3                  = fm_util_get_real   ('sc_co2_3', scalar = .true.)
 
   call fm_util_end_namelist(package_name, instance(n)%name, caller = caller_str)
+enddo
 
-enddo  !} n
-      
-!
-!-----------------------------------------------------------------------
-!       read in additional information for a restart
-!-----------------------------------------------------------------------
-!
-
-write(stdoutunit,*)
-
-!
-!-----------------------------------------------------------------------
-!
-!       initialize some arrays which are held constant for this
-!       simulation
-!
-!-----------------------------------------------------------------------
-!
-
-!
-!-----------------------------------------------------------------------
 !     Set up analyses
-!-----------------------------------------------------------------------
-!
 
-!
-!       register the global fields
-!
-
-!
 !       register the instance fields
-!
+do n = 1, instances
 
-do n = 1, instances  !{
-
-  if (instance(n)%name(1:1) .eq. '_') then  !{
+  if (instance(n)%name(1:1) .eq. '_') then
     suffix = ' '
     long_suffix = ' '
-  else  !}{
+  else
     suffix = '_' // instance(n)%name
     long_suffix = ' (' // trim(instance(n)%name) // ')'
-  endif  !}
+  endif
 
   instance(n)%id_sc_co2 = register_diag_field(trim(diag_name),          &
        'sc_co2_' // trim(suffix), grid_tracer_axes(1:2),                &
@@ -1947,33 +1093,27 @@ do n = 1, instances  !{
        'sfc_flux_pert_co2' // trim(suffix), grid_tracer_axes(1:2),              &
        model_time, 'CO2 surface flux' // trim(long_suffix), 'mol m^-1 s^-1',    &
        missing_value = -1.0e+10)
+enddo
 
-enddo  !} n
-
-!
 !       integrate the total concentrations of some tracers
 !       for the start of the run
-!
 
-!
 !       Use taup1 time index for the start of a run, and taup1 time
 !       index for the end of a run so that we are integrating the
 !       same time level and should therefore get identical results
-!
-
-do n = 1, instances  !{
+do n = 1, instances
 
   total_pert_tco2 = 0.0
 
-  do k = 1, nk  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
+  do k = 1, nk
+    do j = jsc, jec
+      do i = isc, iec
         total_pert_tco2 = total_pert_tco2 +                             &
              t_prog(instance(n)%ind_pert_tco2)%field(i,j,k,taup1) *       &
              grid_dat(i,j) * grid_tmask(i,j,k) * rho_dzt(i,j,k,taup1)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} k
+      enddo
+    enddo
+  enddo
 
   call mpp_sum(total_pert_tco2)
 
@@ -1981,13 +1121,7 @@ do n = 1, instances  !{
   write (stdoutunit,                                                      &
        '(/'' Total pert TCO2  = '',es19.12,'' Gmol-C'')')               &
        total_pert_tco2 * 1.0e-09
-enddo  !} n
-
-!
-!-----------------------------------------------------------------------
-!     give info
-!-----------------------------------------------------------------------
-!
+enddo
 
 write(stdoutunit,*)
 write(stdoutunit,*) trim(note_header), 'ocean_pert CO2 tracer runs initialized'
@@ -1995,7 +1129,7 @@ write(stdoutunit,*)
 
 return
 
-end subroutine  ocean_pert_co2_start  !}
+end subroutine  ocean_pert_co2_start
 ! </SUBROUTINE> NAME="ocean_pert_co2_start"
 
-end module  ocean_pert_co2_mod  !}
+end module  ocean_pert_co2_mod

@@ -66,9 +66,6 @@ contains
 !ALL PE subroutine on Ocean!  Due to otpm design the fluxes should be initialized like this on ALL PE's!
   subroutine ocean_generic_flux_init
 
-    integer :: ind
-    character(len=fm_string_len)   :: g_tracer_name,longname, package,units,old_package
-    real :: const_init_value
     character(len=fm_string_len), parameter :: sub_name = 'ocean_generic_flux_init'
     type(g_tracer_type), pointer :: g_tracer_list,g_tracer,g_tracer_next
 
@@ -122,7 +119,7 @@ contains
     character(len=fm_string_len)   :: g_tracer_name,longname, package,units,old_package,restart_file
     type(g_tracer_type), pointer :: g_tracer_list,g_tracer,g_tracer_next
     real :: const_init_value
-    integer :: ntau, ind, length
+    integer :: ntau, ind
 
 
     if (module_initialized) return 
@@ -173,10 +170,10 @@ contains
 
        if(package .ne. old_package) then
 
-          if (fm_new_value('/ocean_mod/GOOD/good_namelists', package, append = .true.) .le. 0) then  !{
+          if (fm_new_value('/ocean_mod/GOOD/good_namelists', package, append = .true.) .le. 0) then
              call mpp_error(FATAL, trim(sub_name) //                           &
                   ' Could not add ' // trim(package) // ' to "good_namelists" list')
-          endif  !}
+          endif
 
           ind=otpm_set_tracer_package(package, restart_file=restart_file)
           old_package=package
@@ -260,7 +257,6 @@ contains
   !   call ocean_generic_sum_sfc(Disd,Djsd, Ocean, T_prog, Dens, Time ) 
   !  </TEMPLATE>
   ! </SUBROUTINE>
-
   subroutine ocean_generic_sum_sfc(Disd,Djsd, Ocean, T_prog, Dens, Time )
     integer,                  intent(in)                    :: Disd,Djsd
     type(ocean_public_type), intent(inout)                  :: Ocean
@@ -274,20 +270,18 @@ contains
     character(len=fm_string_len)      :: g_tracer_name
     character(len=fm_string_len), parameter :: sub_name = 'ocean_generic_sum_sfc'
 
-
-
     indtemp=-1
     indsal=-1
 
     indtemp = fm_get_index('/ocean_mod/prog_tracers/temp')
-    if (indtemp .le. 0) then  !{
+    if (indtemp .le. 0) then
        call mpp_error(FATAL,trim(sub_name) // ' Could not get the temperature index')
-    endif  !}
+    endif
 
     indsal = fm_get_index('/ocean_mod/prog_tracers/salt')
-    if (indsal .le. 0) then  !{
+    if (indsal .le. 0) then
        call mpp_error(FATAL,trim(sub_name) // ' Could not get the salinity index')
-    endif  !}
+    endif
 
     !Get the tracer list
     call generic_tracer_get_list(g_tracer_list)
@@ -341,7 +335,6 @@ contains
   !   call ocean_generic_sbc(Ice_ocean_boundary_fluxes,Disd,Djsd, T_prog )
   !  </TEMPLATE>
   ! </SUBROUTINE>
-
   subroutine ocean_generic_sbc(Ice_ocean_boundary_fluxes,Disd,Djsd, T_prog, runoff )
     type(coupler_2d_bc_type), intent(in)                            :: Ice_ocean_boundary_fluxes
     integer,                  intent(in)                            :: Disd,Djsd
@@ -353,13 +346,9 @@ contains
     character(len=fm_string_len)      :: g_tracer_name
     character(len=fm_string_len), parameter :: sub_name = 'update_generic_tracer_sbc'
 
-
-    !
     !Extract the tracer surface fields from coupler 
-    !
     call generic_tracer_coupler_get(Ice_ocean_boundary_fluxes)
 
-    !
     !Update T_prog fields from generic tracer fields
     !
     !Get the tracer list
@@ -381,9 +370,7 @@ contains
           if (_ALLOCATED(g_tracer%btf) )&
                call g_tracer_get_values(g_tracer,g_tracer_name,'btf',   T_prog(g_tracer_index)%btf,   Disd,Djsd)
 
-          !
           !If the tracer has runoff fill in the T_prog(n)%trunoff and  T_prog(n)%runoff_tracer_flux
-          !
           if(_ALLOCATED(g_tracer%trunoff)) then
              !Fill in T_prog(n)%trunoff
 
@@ -429,16 +416,15 @@ contains
   !  </DESCRIPTION>
   !  <TEMPLATE>
   !   call ocean_generic_column_physics(Thickness, hblt_depth, Time, Grid, dtts, Disd,Djsd, T_prog, T_diag,&
-  !                                     sw_pen,opacity, diff_cbt, Dens, river, Velocity )
+  !                                     sw_pen,opacity, diff_cbt, river, Velocity )
   !  </TEMPLATE>
   ! </SUBROUTINE>
   subroutine ocean_generic_column_physics(Thickness, hblt_depth, Time, Grid, dtts, Disd,Djsd, T_prog, T_diag,&
-       sw_pen,opacity, diff_cbt, Dens, Velocity)
+       sw_pen,opacity, diff_cbt, Velocity)
     integer,                  intent(in)                            :: Disd,Djsd
     type(ocean_grid_type), intent(in)                               :: Grid
     type(ocean_time_type), intent(in)                               :: Time
     type(ocean_thickness_type), intent(in)                          :: Thickness
-    type(ocean_density_type), intent(in)                            :: Dens
     type(ocean_Velocity_type), intent(in)                           :: Velocity
     real, intent(in), dimension(Disd:,Djsd:)                        :: hblt_depth,sw_pen
     real, intent(in), dimension(Disd:,Djsd:,:)                      :: opacity
@@ -458,16 +444,14 @@ contains
     character(len=fm_string_len)      :: g_tracer_name
     character(len=fm_string_len), parameter :: sub_name = 'ocean_generic_column_physics'
 
-    !
-    !Update the fields of the generic tracers from T_prog
-    !
-    !
-    !Get the tracer list
+    ! Update the fields of the generic tracers from T_prog
+
+    ! Get the tracer list
     call generic_tracer_get_list(g_tracer_list)
     if(.NOT. associated(g_tracer_list)) call mpp_error(FATAL, trim(sub_name)//&
          ": No tracer in the list.")
 
-    !For each tracer name get its T_prog index and set its field
+    ! For each tracer name get its T_prog index and set its field
     g_tracer=>g_tracer_list  
     call mpp_clock_begin(id_clock_gt_set_vals)
     do
@@ -479,7 +463,7 @@ contains
 
           call g_tracer_set_values(g_tracer,g_tracer_name,'field', T_prog(g_tracer_index)%field(:,:,:,Time%taup1), &
                                    Disd,Djsd,ntau=Time%taup1)
-          !T_prog(n)%K33_implicit is used in vertdiff method below for calculating vertical diffusivity
+          ! T_prog(n)%K33_implicit is used in vertdiff method below for calculating vertical diffusivity
           call g_tracer_set_values(g_tracer,g_tracer_name,'tendency',T_prog(g_tracer_index)%K33_implicit,Disd,Djsd)
 
        else
@@ -498,9 +482,7 @@ contains
     enddo
     call mpp_clock_end(id_clock_gt_set_vals)
 
-    !
     !Update from sources
-    !
     indtemp=-1
     indsal=-1
 
@@ -538,9 +520,8 @@ contains
 
     call mpp_clock_end(id_clock_gt_source)
     deallocate(max_wavelength_band,sw_pen_band,opacity_band)
-    !
-    !Explicit Vertical Diffusion
-    !
+
+    ! Explicit Vertical Diffusion
 
     call mpp_clock_begin(id_clock_gt_vertdiff)
 
@@ -548,9 +529,8 @@ contains
          dtts, rho0, Time%taup1)
 
     call mpp_clock_end(id_clock_gt_vertdiff)
-    !
+
     ! Update bottom fields after vertical processes
-    !
     call mpp_clock_begin(id_clock_gt_btm)
     call generic_tracer_update_from_bottom(dtts, Time%taup1, Time%model_time)
     call mpp_clock_end(id_clock_gt_btm)
@@ -616,7 +596,6 @@ contains
 
     call generic_tracer_get_list(g_tracer_list)
     call g_tracer_get_pointer(g_tracer_list,name,'field', ptr )
-!    call g_tracer_get_values(g_tracer_list,name,'field', field )
     field = ptr
   end subroutine ocean_generic_get_field_4D
 
@@ -628,7 +607,7 @@ contains
 
     call generic_tracer_get_list(g_tracer_list)
     call g_tracer_get_pointer(g_tracer_list,name,'field', ptr )
-!    call g_tracer_get_values(g_tracer_list,name,'field', field )
+
     field = ptr
     
   end subroutine ocean_generic_get_field_3D

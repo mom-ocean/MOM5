@@ -88,7 +88,7 @@ type, public                                                    :: ocean_residen
   integer                                                       :: id_restore_region = -1
   integer                                                       :: id_change = -1
   logical                                                       :: int_found = .false.
-  character(len=fm_field_name_len)                              :: int_module_name = ' '
+  character(len=128)                                            :: int_module_name = ' '
   real, dimension(:), pointer                                   :: int_params => NULL()
   logical, dimension(:), pointer                                :: int_flags => NULL()
   character(len=fm_string_len), dimension(:), pointer           :: int_strings => NULL()
@@ -110,7 +110,7 @@ type, public                                                    :: ocean_residen
   real, dimension(:), pointer                                   :: bottom_bnd => NULL()
   integer                                                       :: num_geog_regions = 0
   integer                                                       :: id_restore_region = -1
-  character(len=fm_field_name_len)                              :: module_name = ' '
+  character(len=128)                                            :: module_name = ' '
   real, dimension(:), pointer                                   :: params => NULL()
   logical, dimension(:), pointer                                :: flags => NULL()
   character(len=fm_string_len), dimension(:), pointer           :: strings => NULL()
@@ -175,10 +175,6 @@ type(ocean_residency_instance_type), dimension(:), pointer      :: array
 character(len=64), parameter    :: sub_name = 'ocean_residency_get_instances'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
 !
 !-----------------------------------------------------------------------
@@ -192,7 +188,6 @@ integer                                 :: ind
 integer                                 :: nn
 integer                                 :: num_elements
 logical                                 :: do_integrand
-character(len=fm_field_name_len)        :: module_name_check
 
 if (module_name .eq. ' ') then  !{
   call mpp_error(FATAL, trim(error_header) // ' No module name given')
@@ -361,8 +356,6 @@ character(len=*), intent(in), optional          :: caller
 !
 
 character(len=256)      :: error_header
-character(len=256)      :: warn_header
-character(len=256)      :: note_header
 character(len=128)      :: caller_str
 integer                 :: i
 integer                 :: j
@@ -384,10 +377,6 @@ endif  !}
 
 error_header = '==>Error from ' // trim(mod_name) //   &
                '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
-warn_header = '==>Warning from ' // trim(mod_name) //  &
-              '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
-note_header = '==>Note from ' // trim(mod_name) //     &
-              '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
   
 !
 ! check that the array is as long as depth dimension
@@ -605,8 +594,6 @@ integer                         :: n
 real, dimension(:), allocatable :: west_bnd
 real, dimension(:), allocatable :: east_bnd
 character(len=256)              :: error_header
-character(len=256)              :: warn_header
-character(len=256)              :: note_header
 character(len=128)              :: caller_str
 real                            :: restore_region_value_use
 real                            :: integrate_region_value_use
@@ -626,10 +613,6 @@ endif  !}
 
 error_header = '==>Error from ' // trim(mod_name) //   &
                '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
-warn_header = '==>Warning from ' // trim(mod_name) //  &
-              '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
-note_header = '==>Note from ' // trim(mod_name) //     &
-              '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
 
 !
 !       set some default values in case they have not been set in the argument list
@@ -940,7 +923,7 @@ end subroutine  ocean_residency_set_region_geog  !}
 !
 
 subroutine ocean_residency_set_region_3d(isd, ied, jsd, jed, nk, array,         &
-                     variable, bounds, kmt, name,                               &
+                     variable, bounds, kmt,                                &
                      restore_region_value, integrate_region_value, swap,        &
                      initialize, caller)  !{
 
@@ -961,7 +944,6 @@ real, dimension(isd:,jsd:,:), intent(inout)             :: array
 real, dimension(isd:,jsd:,:), intent(in)                :: variable
 real, dimension(:), intent(in)                          :: bounds
 integer, dimension(isd:,jsd:), intent(in)               :: kmt
-character*(*), intent(in)                               :: name
 real, intent(in), optional                              :: restore_region_value
 real, intent(in), optional                              :: integrate_region_value
 logical, intent(in), optional                           :: swap
@@ -985,8 +967,6 @@ integer                 :: k
 integer                 :: n
 logical                 :: restore_region
 character(len=256)      :: error_header
-character(len=256)      :: warn_header
-character(len=256)      :: note_header
 character(len=128)      :: caller_str
 real                    :: restore_region_value_use
 real                    :: integrate_region_value_use
@@ -1005,10 +985,6 @@ endif  !}
 
 error_header = '==>Error from ' // trim(mod_name) //   &
                '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
-warn_header = '==>Warning from ' // trim(mod_name) //  &
-              '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
-note_header = '==>Note from ' // trim(mod_name) //     &
-              '(' // trim(sub_name) // ')' // trim(caller_str) // ':'
 
 !
 !       check that an even number of bounds have been given

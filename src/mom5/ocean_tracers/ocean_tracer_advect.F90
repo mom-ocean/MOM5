@@ -164,10 +164,12 @@ use ocean_parameters_mod,  only: ADVECT_PSOM, ADVECT_MDMDT_TEST
 use ocean_parameters_mod,  only: TWO_LEVEL
 use ocean_parameters_mod,  only: missing_value, onesixth, rho0, rho0r
 use ocean_topog_mod,       only: ocean_topog_init
-use ocean_tracer_util_mod, only: tracer_psom_chksum, rebin_onto_rho
+use ocean_tracer_util_mod, only: tracer_psom_chksum
 use ocean_types_mod,       only: ocean_domain_type, ocean_grid_type, ocean_density_type, ocean_time_type
 use ocean_types_mod,       only: ocean_prog_tracer_type, ocean_thickness_type, ocean_adv_vel_type
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk1_2d 
+use ocean_util_mod,        only: diagnose_2d, diagnose_3d
+use ocean_tracer_util_mod, only: diagnose_3d_rho
 
 implicit none
 
@@ -317,10 +319,6 @@ type  :: tracer_mdfl_type
 end type tracer_mdfl_type
 
 #endif
-
-!work array on neutral density space
-integer :: neutralrho_nk
-real, dimension(:,:,:),   allocatable :: nrho_work 
 
 ! for psom, the mass of seawater in a tracer cell 
 ! and the tendency for use with diagnostics 
@@ -504,14 +502,13 @@ contains
 ! Initialize the tracer advection module.
 ! </DESCRIPTION>
 !
-subroutine ocean_tracer_advect_init (Grid, Domain, Time, Dens, T_prog, dtime, obc, debug)
+subroutine ocean_tracer_advect_init (Grid, Domain, Time, Dens, T_prog, obc, debug)
 
   type(ocean_grid_type),        intent(in), target   :: Grid
   type(ocean_domain_type),      intent(in), target   :: Domain
   type(ocean_time_type),        intent(in)           :: Time
   type(ocean_density_type),     intent(in)           :: Dens
   type(ocean_prog_tracer_type), intent(inout)        :: T_prog(:)
-  real,                         intent(in)           :: dtime 
   logical,                      intent(in)           :: obc
   logical,                      intent(in), optional :: debug
   
@@ -726,10 +723,6 @@ subroutine ocean_tracer_advect_init (Grid, Domain, Time, Dens, T_prog, dtime, ob
              , xflags = Domain%xflags, yflags = Domain%yflags, xhalo=1, yhalo=1,name='flux'&
              , x_cyclic_offset = Domain%x_cyclic_offset, y_cyclic_offset = Domain%y_cyclic_offset)
 
-   ! for binning some diagnostics to neutral density space 
-   neutralrho_nk = size(Dens%neutralrho_ref(:))
-       allocate( nrho_work(isd:ied,jsd:jed,neutralrho_nk) )
-       nrho_work(:,:,:) = 0.0  
 
   ! for the gyre/overturning diagnostic
   call gyre_overturn_diagnose_init(Time, T_prog(:))
@@ -746,7 +739,7 @@ subroutine ocean_tracer_advect_init (Grid, Domain, Time, Dens, T_prog, dtime, ob
   allocate( sm(isd:ied,jsd:jed,nk) )
   sm(:,:,:)            = 0.0
 
-  call advection_diag_init(Time, Dens, T_prog(:))
+  call advection_diag_init(Time, T_prog(:))
   call watermass_diag_init(Time, Dens)
 
   ! initialize clock ids 
@@ -769,10 +762,9 @@ end subroutine ocean_tracer_advect_init
 ! Initialize the main tracer advection diagnostics. 
 ! </DESCRIPTION>
 !
-subroutine advection_diag_init (Time, Dens, T_prog)
+subroutine advection_diag_init (Time, T_prog)
 
   type(ocean_time_type),        intent(in)  :: Time
-  type(ocean_density_type),     intent(in)  :: Dens
   type(ocean_prog_tracer_type), intent(in)  :: T_prog(:)
 
   integer :: n  
@@ -1084,7 +1076,7 @@ subroutine gyre_overturn_diagnose_init(Time, T_prog)
   type(ocean_time_type),        intent(in)  :: Time
   type(ocean_prog_tracer_type), intent(in)  :: T_prog(:)
 
-  integer :: i, j, k, n, nbasin
+  integer :: i, j, n, nbasin
 
   allocate (id_merid_flux_advect(0:5,num_prog_tracers))        
   allocate (id_merid_flux_over(0:5,num_prog_tracers))        
@@ -1945,13 +1937,13 @@ subroutine horz_advect_tracer(Time, Adv_vel, Thickness, Dens, T_prog, Tracer, nt
 
       case (ADVECT_MDFL_SUP_B)
           Tracer%wrk1(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sup_b(Time, Adv_vel, Tracer, Thickness, Tracer%field(:,:,:,taum1), dtime)
+          -advect_tracer_mdfl_sup_b(Time, Adv_vel, Thickness, Tracer%field(:,:,:,taum1), dtime)
       case (ADVECT_MDFL_SWEBY)
           Tracer%wrk1(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sweby(Time, Adv_vel, Tracer, Thickness, Tracer%field(:,:,:,taum1), dtime, sweby_limiter=1.0)
+          -advect_tracer_mdfl_sweby(Time, Adv_vel, Thickness, Tracer%field(:,:,:,taum1), dtime, sweby_limiter=1.0)
       case (ADVECT_DST_LINEAR)
           Tracer%wrk1(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sweby(Time, Adv_vel, Tracer, Thickness, Tracer%field(:,:,:,taum1), dtime, sweby_limiter=0.0)
+          -advect_tracer_mdfl_sweby(Time, Adv_vel, Thickness, Tracer%field(:,:,:,taum1), dtime, sweby_limiter=0.0)
       case (ADVECT_PSOM)
           Tracer%wrk1(isc:iec,jsc:jec,:) =  &
           -advect_tracer_psom(Time, Adv_vel, Tracer, Thickness, dtime, ntracer, do_passive_sq=.false.)
@@ -1961,10 +1953,10 @@ subroutine horz_advect_tracer(Time, Adv_vel, Thickness, Dens, T_prog, Tracer, nt
 
       case (ADVECT_MDFL_SWEBY_TEST)
           Tracer%wrk1(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sweby_test(Time, Adv_vel, Tracer, Thickness, Tracer%field(:,:,:,taum1), dtime, sweby_limiter=1.0)
+          -advect_tracer_mdfl_sweby_test(Time, Adv_vel, Thickness, Tracer%field(:,:,:,taum1), dtime, sweby_limiter=1.0)
       case (ADVECT_DST_LINEAR_TEST)
           Tracer%wrk1(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sweby_test(Time, Adv_vel, Tracer, Thickness, Tracer%field(:,:,:,taum1), dtime, sweby_limiter=0.0)
+          -advect_tracer_mdfl_sweby_test(Time, Adv_vel, Thickness, Tracer%field(:,:,:,taum1), dtime, sweby_limiter=0.0)
       case (ADVECT_MDPPM_TEST)
           Tracer%wrk1(isc:iec,jsc:jec,:) =  &
           -advect_tracer_mdppm_test(Time, Adv_vel, Tracer, Thickness, Tracer%field(:,:,:,taum1), dtime)
@@ -2023,24 +2015,16 @@ subroutine horz_advect_tracer(Time, Adv_vel, Thickness, Dens, T_prog, Tracer, nt
       ! send some diagnostics 
 
       if (id_horz_advect(ntracer) > 0 .and. Tracer%horz_advect_scheme /= ADVECT_PSOM) then 
-           used = send_data(id_horz_advect(ntracer), Tracer%conversion*Tracer%wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                                        &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_horz_advect(ntracer), Tracer%conversion*Tracer%wrk1(:,:,:))
       endif 
       if (id_psom_advect(ntracer) > 0 .and. Tracer%horz_advect_scheme == ADVECT_PSOM) then 
-           used = send_data(id_psom_advect(ntracer), Tracer%conversion*Tracer%wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                                        &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_psom_advect(ntracer), Tracer%conversion*Tracer%wrk1(:,:,:))
       endif 
       if (id_xflux_adv(ntracer) > 0) then 
-           used = send_data(id_xflux_adv(ntracer), Tracer%conversion*flux_x(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_xflux_adv(ntracer), Tracer%conversion*flux_x(:,:,:))
       endif 
       if (id_yflux_adv(ntracer) > 0) then 
-           used = send_data(id_yflux_adv(ntracer), Tracer%conversion*flux_y(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:), &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_yflux_adv(ntracer), Tracer%conversion*flux_y(:,:,:))
       endif 
 
       if (id_xflux_adv_int_z(ntracer) > 0) then 
@@ -2048,9 +2032,7 @@ subroutine horz_advect_tracer(Time, Adv_vel, Thickness, Dens, T_prog, Tracer, nt
           do k=1,nk
              tmp_flux(isc:iec,jsc:jec) = tmp_flux(isc:iec,jsc:jec) +  flux_x(isc:iec,jsc:jec,k) 
           enddo
-          used = send_data(id_xflux_adv_int_z(ntracer), Tracer%conversion*tmp_flux(:,:), &
-               Time%model_time, rmask=Grd%tmask(:,:,1), &
-               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+          call diagnose_2d(Time, Grd, id_xflux_adv_int_z(ntracer), Tracer%conversion*tmp_flux(:,:))
       endif
 
       if (id_yflux_adv_int_z(ntracer) > 0) then 
@@ -2058,9 +2040,7 @@ subroutine horz_advect_tracer(Time, Adv_vel, Thickness, Dens, T_prog, Tracer, nt
           do k=1,nk
              tmp_flux(isc:iec,jsc:jec) = tmp_flux(isc:iec,jsc:jec) +  flux_y(isc:iec,jsc:jec,k) 
           enddo
-          used = send_data(id_yflux_adv_int_z(ntracer), Tracer%conversion*tmp_flux(:,:), &
-               Time%model_time, rmask=Grd%tmask(:,:,1), &
-               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+          call diagnose_2d(Time, Grd, id_yflux_adv_int_z(ntracer), Tracer%conversion*tmp_flux(:,:))
       endif
 
       if (have_obc) then
@@ -2073,7 +2053,7 @@ subroutine horz_advect_tracer(Time, Adv_vel, Thickness, Dens, T_prog, Tracer, nt
       ! for gyre/overturning diagnostics
       ! Note we need to call this from within advect_tracer_sweby_all
       if(compute_gyre_overturn_diagnose) then
-         call gyre_overturn_diagnose(Time, Adv_vel, Tracer, Thickness, ntracer)
+         call gyre_overturn_diagnose(Time, Adv_vel, Tracer, ntracer)
       endif
 
   endif   ! endif for (.not. advect_sweby_all)
@@ -2109,7 +2089,6 @@ subroutine vert_advect_tracer(Time, Adv_vel, Dens, Thickness, T_prog, Tracer, nt
 
   integer :: tau, taum1
   integer :: i,j,k
-  real    :: temporary 
 
   if(zero_tracer_advect_vert) return 
 
@@ -2182,9 +2161,7 @@ subroutine vert_advect_tracer(Time, Adv_vel, Dens, Thickness, T_prog, Tracer, nt
       enddo
 
       if(id_tracer_advection(ntracer) > 0) then 
-          used = send_data(id_tracer_advection(ntracer), Tracer%conversion*advect_tendency(:,:,:), &
-               Time%model_time, rmask=Grd%tmask(:,:,:),                                            &
-               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_tracer_advection(ntracer), Tracer%conversion*advect_tendency(:,:,:))
       endif
 
       ! for watermass_diag 
@@ -2209,18 +2186,14 @@ subroutine vert_advect_tracer(Time, Adv_vel, Dens, Thickness, T_prog, Tracer, nt
 
       ! send some more diagnostics 
       if (id_vert_advect(ntracer) > 0) then 
-           used = send_data(id_vert_advect(ntracer), Tracer%conversion*Tracer%wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                                        &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_vert_advect(ntracer), Tracer%conversion*Tracer%wrk1(:,:,:))
       endif 
       if (id_zflux_adv(ntracer) > 0)  then 
-          used = send_data(id_zflux_adv(ntracer), Tracer%conversion*flux_z(:,:,:),&
-          Time%model_time, rmask=Grd%tmask(:,:,:),                                &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+         call diagnose_3d(Time, Grd, id_zflux_adv(ntracer), Tracer%conversion*flux_z(:,:,:))
       endif 
 
       if(ntracer == num_prog_tracers) then 
-         call watermass_diag(Time, Dens, Thickness)
+         call watermass_diag(Time, Dens)
       endif 
 
   endif  ! endif for (.not. advect_sweby_all)
@@ -2400,8 +2373,8 @@ function horz_advect_tracer_4th_order(Adv_vel, Tracer_field)
 
      do j=jsc,jec
         do i=isc-1,iec
-           im1   = tmask_fourth(i-1,j,k)*(i-1) + (1.0-tmask_fourth(i-1,j,k))*i
-           ip2   = tmask_fourth(i+2,j,k)*(i+2) + (1.0-tmask_fourth(i+2,j,k))*(i+1)    
+           im1   = int(tmask_fourth(i-1,j,k)*(i-1) + (1.0-tmask_fourth(i-1,j,k))*i)
+           ip2   = int(tmask_fourth(i+2,j,k)*(i+2) + (1.0-tmask_fourth(i+2,j,k))*(i+1))
            flux_x(i,j,k) = Grd%dyte(i,j)*Adv_vel%uhrho_et(i,j,k)*  &
                 (a4*(tracer_fourth(i+1,j,k)+tracer_fourth(i,j,k)) + &
                  b4*(tracer_fourth(ip2,j,k)+tracer_fourth(im1,j,k)))
@@ -2410,8 +2383,8 @@ function horz_advect_tracer_4th_order(Adv_vel, Tracer_field)
 
      do j=jsc-1,jec
         do i=isc,iec
-           jm1   = tmask_fourth(i,j-1,k)*(j-1) + (1.0-tmask_fourth(i,j-1,k))*j
-           jp2   = tmask_fourth(i,j+2,k)*(j+2) + (1.0-tmask_fourth(i,j+2,k))*(j+1)    
+           jm1   = int(tmask_fourth(i,j-1,k)*(j-1) + (1.0-tmask_fourth(i,j-1,k))*j)
+           jp2   = int(tmask_fourth(i,j+2,k)*(j+2) + (1.0-tmask_fourth(i,j+2,k))*(j+1))
            flux_y(i,j,k) = Grd%dxtn(i,j)*Adv_vel%vhrho_nt(i,j,k)*&
                 (a4*(tracer_fourth(i,j+1,k)+tracer_fourth(i,j,k)) + &
                  b4*(tracer_fourth(i,jp2,k)+tracer_fourth(i,jm1,k)))
@@ -2484,8 +2457,8 @@ function horz_advect_tracer_6th_order(Adv_vel, Tracer_field)
         do i=isc-1,iec
            if (tmask_sixth(i-2,j,k)*tmask_sixth(i-1,j,k) == 0 .or. &
                tmask_sixth(i+3,j,k)*tmask_sixth(i+2,j,k) == 0) then
-               im1   = tmask_sixth(i-1,j,k)*(i-1) + (1.0-tmask_sixth(i-1,j,k))*i
-               ip2   = tmask_sixth(i+2,j,k)*(i+2) + (1.0-tmask_sixth(i+2,j,k))*(i+1)    
+               im1   = int(tmask_sixth(i-1,j,k)*(i-1) + (1.0-tmask_sixth(i-1,j,k))*i)
+               ip2   = int(tmask_sixth(i+2,j,k)*(i+2) + (1.0-tmask_sixth(i+2,j,k))*(i+1))
                flux_x(i,j,k) = Grd%dyte(i,j)*Adv_vel%uhrho_et(i,j,k)   &
                     *(  a4*(tracer_sixth(i+1,j,k)+tracer_sixth(i,j,k)) &
                       + b4*(tracer_sixth(ip2,j,k)+tracer_sixth(im1,j,k)))
@@ -2502,8 +2475,8 @@ function horz_advect_tracer_6th_order(Adv_vel, Tracer_field)
         do i=isc,iec
            if (tmask_sixth(i,j-2,k)*tmask_sixth(i,j-1,k) == 0 .or. &
                tmask_sixth(i,j+3,k)*tmask_sixth(i,j+2,k) == 0) then
-               jm1   = tmask_sixth(i,j-1,k)*(j-1) + (1.0-tmask_sixth(i,j-1,k))*j
-               jp2   = tmask_sixth(i,j+2,k)*(j+2) + (1.0-tmask_sixth(i,j+2,k))*(j+1)    
+               jm1   = int(tmask_sixth(i,j-1,k)*(j-1) + (1.0-tmask_sixth(i,j-1,k))*j)
+               jp2   = int(tmask_sixth(i,j+2,k)*(j+2) + (1.0-tmask_sixth(i,j+2,k))*(j+1))
                flux_y(i,j,k) = Grd%dxtn(i,j)*Adv_vel%vhrho_nt(i,j,k) &
                *(  a4*(tracer_sixth(i,j+1,k)+tracer_sixth(i,j,k))    &
                  + b4*(tracer_sixth(i,jp2,k)+tracer_sixth(i,jm1,k)))
@@ -3194,11 +3167,10 @@ end function vert_advect_tracer_quickmom3
 !
 ! </DESCRIPTION>
 !
-function advect_tracer_mdfl_sup_b(Time, Adv_vel, Tracer, Thickness, Tracer_field, dtime)
+function advect_tracer_mdfl_sup_b(Time, Adv_vel, Thickness, Tracer_field, dtime)
 
   type(ocean_time_type),        intent(in) :: Time
   type(ocean_adv_vel_type),     intent(in) :: Adv_vel
-  type(ocean_prog_tracer_type), intent(in) :: Tracer
   type(ocean_thickness_type),   intent(in) :: Thickness
   real, dimension(isd:,jsd:,:), intent(in) :: Tracer_field
   real,                         intent(in) :: dtime
@@ -3475,11 +3447,10 @@ end function advect_tracer_mdfl_sup_b
 !
 ! </DESCRIPTION>
 !
-function advect_tracer_mdfl_sweby_test(Time, Adv_vel, Tracer, Thickness, Tracer_field, dtime, sweby_limiter)
+function advect_tracer_mdfl_sweby_test(Time, Adv_vel, Thickness, Tracer_field, dtime, sweby_limiter)
 
   type(ocean_time_type),        intent(in) :: Time
   type(ocean_adv_vel_type),     intent(in) :: Adv_vel
-  type(ocean_prog_tracer_type), intent(in) :: Tracer
   type(ocean_thickness_type),   intent(in) :: Thickness
   real, dimension(isd:,jsd:,:), intent(in) :: Tracer_field
   real,                         intent(in) :: dtime
@@ -3813,11 +3784,10 @@ end function advect_tracer_mdfl_sweby_test
 !
 ! </DESCRIPTION>
 !
-function advect_tracer_mdfl_sweby(Time, Adv_vel, Tracer, Thickness, Tracer_field, dtime, sweby_limiter)
+function advect_tracer_mdfl_sweby(Time, Adv_vel, Thickness, Tracer_field, dtime, sweby_limiter)
 
   type(ocean_time_type),        intent(in) :: Time
   type(ocean_adv_vel_type),     intent(in) :: Adv_vel
-  type(ocean_prog_tracer_type), intent(in) :: Tracer
   type(ocean_thickness_type),   intent(in) :: Thickness
   real, dimension(isd:,jsd:,:), intent(in) :: Tracer_field
   real,                         intent(in) :: dtime
@@ -4132,7 +4102,6 @@ subroutine advect_tracer_sweby_all(Time, Adv_vel, Dens, T_prog, Thickness, dtime
   real                                        :: Rjm, Rj, Rjp, cfl, massflux
   real                                        :: d0, d1, thetaP, psiP 
   real                                        :: thetaM, psiM
-  real                                        :: temporary 
   integer, dimension(num_prog_tracers)        :: id_update
 
   call mpp_clock_begin(id_clock_mdfl_sweby_all)
@@ -4233,15 +4202,11 @@ subroutine advect_tracer_sweby_all(Time, Adv_vel, Dens, T_prog, Thickness, dtime
      call mpp_clock_end(id_clock_mdfl_sweby_mpi)
 
      call mpp_clock_begin(id_clock_mdfl_sweby_dia)
-     if (id_zflux_adv(n) > 0) used = send_data(id_zflux_adv(n),&
-         T_prog(n)%conversion*flux_z(:,:,:),                   &
-         Time%model_time, rmask=Grd%tmask(:,:,:),              &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     if (id_zflux_adv(n) > 0) call diagnose_3d(Time, Grd, id_zflux_adv(n), &
+         T_prog(n)%conversion*flux_z(:,:,:))
 
-     if (id_advection_z(n) > 0) used = send_data(id_advection_z(n), &
-         T_prog(n)%conversion*wrk1(:,:,:),                          &
-         Time%model_time, rmask=Grd%tmask(:,:,:),                   &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     if (id_advection_z(n) > 0) call diagnose_3d(Time, Grd, id_advection_z(n), &
+         T_prog(n)%conversion*wrk1(:,:,:))
      call mpp_clock_end(id_clock_mdfl_sweby_dia)
     
   enddo ! end of n-loop for tracers  
@@ -4326,13 +4291,9 @@ subroutine advect_tracer_sweby_all(Time, Adv_vel, Dens, T_prog, Thickness, dtime
      call mpp_clock_end(id_clock_mdfl_sweby_mpi)
 
      call mpp_clock_begin(id_clock_mdfl_sweby_dia)
-     if (id_xflux_adv(n) > 0) used = send_data(id_xflux_adv(n), T_prog(n)%conversion*flux_x(:,:,:), &
-          Time%model_time, rmask=Grd%tmask(:,:,:), &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     if (id_xflux_adv(n) > 0) call diagnose_3d(Time, Grd, id_xflux_adv(n), T_prog(n)%conversion*flux_x(:,:,:))
 
-     if (id_advection_x(n) > 0) used = send_data(id_advection_x(n), T_prog(n)%conversion*wrk1(:,:,:), &
-                                       Time%model_time, rmask=Grd%tmask(:,:,:),                       &
-                                       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     if (id_advection_x(n) > 0) call diagnose_3d(Time, Grd, id_advection_x(n), T_prog(n)%conversion*wrk1(:,:,:))
 
      if (id_xflux_adv_int_z(n) > 0) then 
          tmp_flux(:,:) = 0.0
@@ -4343,9 +4304,7 @@ subroutine advect_tracer_sweby_all(Time, Adv_vel, Dens, T_prog, Thickness, dtime
                enddo
             enddo
          enddo
-         used = send_data(id_xflux_adv_int_z(n), T_prog(n)%conversion*tmp_flux(:,:), &
-              Time%model_time, rmask=Grd%tmask(:,:,1), &
-              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+         call diagnose_2d(Time, Grd, id_xflux_adv_int_z(n), T_prog(n)%conversion*tmp_flux(:,:))
      endif
      call mpp_clock_end(id_clock_mdfl_sweby_dia)
 
@@ -4462,15 +4421,11 @@ subroutine advect_tracer_sweby_all(Time, Adv_vel, Dens, T_prog, Thickness, dtime
 
      ! diagnostics 
 
-     if (id_yflux_adv(n) > 0) used = send_data(id_yflux_adv(n), &
-                      T_prog(n)%conversion*flux_y(:,:,:),       &
-                      Time%model_time, rmask=Grd%tmask(:,:,:),  &
-                      is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     if (id_yflux_adv(n) > 0) call diagnose_3d(Time, Grd, id_yflux_adv(n), &
+                      T_prog(n)%conversion*flux_y(:,:,:))
 
-     if (id_advection_y(n) > 0) used = send_data(id_advection_y(n), &
-                      T_prog(n)%conversion*wrk1(:,:,:),             &
-                      Time%model_time, rmask=Grd%tmask(:,:,:),      &
-                      is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     if (id_advection_y(n) > 0) call diagnose_3d(Time, Grd, id_advection_y(n), &
+                      T_prog(n)%conversion*wrk1(:,:,:))
 
      if (id_yflux_adv_int_z(n) > 0) then 
          tmp_flux(:,:) = 0.0
@@ -4481,15 +4436,11 @@ subroutine advect_tracer_sweby_all(Time, Adv_vel, Dens, T_prog, Thickness, dtime
                        enddo
                     enddo
                  enddo
-         used = send_data(id_yflux_adv_int_z(n), T_prog(n)%conversion*tmp_flux(:,:), &
-                 Time%model_time, rmask=Grd%tmask(:,:,1),                            &
-                 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+                 call diagnose_2d(Time, Grd, id_yflux_adv_int_z(n), T_prog(n)%conversion*tmp_flux(:,:))
      endif
 
      if (id_sweby_advect(n) > 0) then 
-          used = send_data(id_sweby_advect(n), T_prog(n)%conversion*T_prog(n)%wrk1(:,:,:), &
-                      Time%model_time, rmask=Grd%tmask(:,:,:),                             &
-                      is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+        call diagnose_3d(Time, Grd, id_sweby_advect(n), T_prog(n)%conversion*T_prog(n)%wrk1(:,:,:))
      endif
 
      advect_tendency(:,:,:) = 0.0
@@ -4527,13 +4478,13 @@ subroutine advect_tracer_sweby_all(Time, Adv_vel, Dens, T_prog, Thickness, dtime
       ! It must be checked, if still correct with the new scheme
       ! for gyre/overturning diagnostics
       if(compute_gyre_overturn_diagnose) then
-         call gyre_overturn_diagnose(Time, Adv_vel, T_prog(n), Thickness, n)
+         call gyre_overturn_diagnose(Time, Adv_vel, T_prog(n), n)
       endif
 
       call mpp_clock_end(id_clock_mdfl_sweby_dia)
   enddo ! end of tracer n-loop
 
-  call watermass_diag(Time, Dens, Thickness)
+  call watermass_diag(Time, Dens)
   
   call mpp_clock_end(id_clock_mdfl_sweby_all)
 
@@ -5471,24 +5422,17 @@ function advect_tracer_mdppm_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
   integer                                  :: i, j, k
   integer                                  :: kp1, kp2, km1, km2
   integer                                  :: tau, taum1
-  real                                     :: Rjm, Rj, Rjp
-  real                                     :: d0, d1, thetaP, psiP 
-  real                                     :: thetaM, psiM
 
   real                                     :: cfl, massflux, massflux_bt, dMx, dMn
   real                                     :: Sim2,Sim1,Si,Sip1,Sip2
 
   real                                     :: da2,da4,da3m,da3p
   real                                     :: mskm2,mskm1,msk0,mskp1,mskp2
-  real                                     :: qmp,qlc
-  real                                     :: dM4m,dM4p,qav,qul,qmd,qmin,qmax,x,y,z,w
-  real,parameter                           :: oneSixth=1./6., r24=1./24., r12=1./12.
-  real,parameter                           :: fourThirds=4./3., twoThirds=2./3.
+  real,parameter                           :: oneSixth=1./6., r12=1./12.
+  real,parameter                           :: twoThirds=2./3.
   real,dimension(isc-4:iec+4,jsc-4:jec+4)  :: da, aL, aR, a6, d1m, d1p, d1mm, d1pp
   real,dimension(isc-4:iec+4,jsc-4:jec+4,nk) :: dak
-  real                                     :: dakm1, dakp1
 
-real :: tmin0,tmax0
   call mpp_clock_begin(id_clock_mdppm_test)
 
   ftp          = 0.0
@@ -5524,10 +5468,6 @@ real :: tmin0,tmax0
         enddo
      enddo
   enddo
-!ajacall get_tracer_stats(tracer_mdppm(isc:iec,jsc:jec,:),tmin0,tmax0)
-!ajacall stats(mass_mdppm(isc:iec,jsc:jec,:),'M')
-!ajacall stats(tracer_mdppm(isc:iec,jsc:jec,:),'T')
-!ajacall stats(tracermass_mdppm(isc:iec,jsc:jec,:),'TM')
 !
 ! Calculate vertical flux at the top and bottom of the boxes
 !
@@ -5623,7 +5563,7 @@ real :: tmin0,tmax0
        call ppm_limit_ifc(isc,iec,jsc,jec, tracer_mdppm(isc-4,jsc-4,k), dak(isc-4,jsc-4,k), aL,aR)
      elseif (Tracer%ppm_hlimiter.eq.3) then
        call ppm_limit_sh(isc,iec,jsc,jec, &
-                        tmask_mdppm(isc-4,jsc-4,k), tracer_mdppm(isc-4,jsc-4,k), &
+                        tracer_mdppm(isc-4,jsc-4,k), &
                         d1m, d1p, d1mm, d1pp, aL, aR)
      else
        call mpp_error(FATAL,&
@@ -5697,10 +5637,6 @@ real :: tmin0,tmax0
   call mpp_update_domains (tracer_mdppm, Dom_mdppm%domain2d, flags=XUPDATE)
   call mpp_update_domains (tracermass_mdppm, Dom_mdppm%domain2d, flags=XUPDATE)
   call mpp_update_domains (mass_mdppm, Dom_mdppm%domain2d, flags=XUPDATE)
-!ajacall stats(mass_mdppm(isc:iec,jsc:jec,:),'M(w)')
-!ajacall stats(tracer_mdppm(isc:iec,jsc:jec,:),'T(w)')
-!ajacall stats(tracermass_mdppm(isc:iec,jsc:jec,:),'TM(w)')
-!ajacall tracer_stats(tracer_mdppm(isc:iec,jsc:jec,:),Tmin0,Tmax0,'w')
 
 !
 ! Calculate flux at the eastern wall of the boxes
@@ -5776,7 +5712,7 @@ real :: tmin0,tmax0
       call ppm_limit_ifc(isc,iec,jsc,jec, tracer_mdppm(isc-4,jsc-4,k), da, aL, aR)
     elseif (Tracer%ppm_hlimiter.eq.3) then
       call ppm_limit_sh(isc,iec,jsc,jec, &
-                       tmask_mdppm(isc-4,jsc-4,k), tracer_mdppm(isc-4,jsc-4,k), &
+                       tracer_mdppm(isc-4,jsc-4,k), &
                        d1m, d1p, d1mm, d1pp, aL, aR)
     else
       call mpp_error(FATAL,&
@@ -5921,7 +5857,7 @@ real :: tmin0,tmax0
       call ppm_limit_ifc(isc,iec,jsc,jec, tracer_mdppm(isc-4,jsc-4,k), da, aL, aR)
     elseif (Tracer%ppm_hlimiter.eq.3) then
       call ppm_limit_sh(isc,iec,jsc,jec, &
-                       tmask_mdppm(isc-4,jsc-4,k), tracer_mdppm(isc-4,jsc-4,k), &
+                       tracer_mdppm(isc-4,jsc-4,k), &
                        d1m, d1p, d1mm, d1pp, aL, aR)
     else
       call mpp_error(FATAL,&
@@ -5987,18 +5923,8 @@ real :: tmin0,tmax0
       enddo !i                                                
     enddo !j                                                  
                                                               
-!aja! Keep a copy of vertical velocity for next level             
-!aja    do j=jsc,jec                                              
-!aja      do i=isc,iec                                            
-!aja        wkm1(i,j) = Adv_vel%wrho_bt(i,j,k)                       
-!aja      enddo !i                                                
-!aja    enddo !j                                                  
                                                               
   enddo !k                                                    
-!ajacall stats(mass_mdppm(isc:iec,jsc:jec,:),'M(v)')
-!ajacall stats(tracer_mdppm(isc:iec,jsc:jec,:),'T(v)')
-!ajacall tracer_stats(tracer_mdppm(isc:iec,jsc:jec,:),Tmin0,Tmax0,'')
-!ajacall stats(tracermass_mdppm(isc:iec,jsc:jec,:),'TM(v)')
 
   call mpp_clock_end(id_clock_mdppm_test)
 
@@ -6060,22 +5986,16 @@ function advect_tracer_mdppm(Time, Adv_vel, Tracer, Thickness, Tracer_field, dti
   integer                                  :: i, j, k
   integer                                  :: kp1, kp2, km1, km2
   integer                                  :: tau, taum1
-  real                                     :: Rjm, Rj, Rjp
-  real                                     :: d0, d1, thetaP, psiP 
-  real                                     :: thetaM, psiM
 
   real                                     :: cfl, massflux, dMx, dMn
   real                                     :: Sim2,Sim1,Si,Sip1,Sip2
 
   real                                     :: da2,da4,da3m,da3p
   real                                     :: mskm2,mskm1,msk0,mskp1,mskp2
-  real                                     :: qmp,qlc
-  real                                     :: dM4m,dM4p,qav,qul,qmd,qmin,qmax,x,y,z,w
-  real,parameter                           :: oneSixth=1./6., r24=1./24., r12=1./12.
-  real,parameter                           :: fourThirds=4./3., twoThirds=2./3.
+  real,parameter                           :: oneSixth=1./6., r12=1./12.
+  real,parameter                           :: twoThirds=2./3.
   real,dimension(isc-4:iec+4,jsc-4:jec+4)  :: da, aL, aR, a6, d1m, d1p, d1mm, d1pp
   real,dimension(isc-4:iec+4,jsc-4:jec+4,nk) :: dak
-  real                                     :: dakm1, dakp1
 
   call mpp_clock_begin(id_clock_mdppm)
 
@@ -6203,7 +6123,7 @@ function advect_tracer_mdppm(Time, Adv_vel, Tracer, Thickness, Tracer_field, dti
        call ppm_limit_ifc(isc,iec,jsc,jec, tracer_mdppm(isc-4,jsc-4,k), dak(isc-4,jsc-4,k), aL,aR)
      elseif (Tracer%ppm_hlimiter.eq.3) then
        call ppm_limit_sh(isc,iec,jsc,jec, &
-                        tmask_mdppm(isc-4,jsc-4,k), tracer_mdppm(isc-4,jsc-4,k), &
+                        tracer_mdppm(isc-4,jsc-4,k), &
                         d1m, d1p, d1mm, d1pp, aL, aR)
      else
        call mpp_error(FATAL,&
@@ -6339,7 +6259,7 @@ function advect_tracer_mdppm(Time, Adv_vel, Tracer, Thickness, Tracer_field, dti
       call ppm_limit_ifc(isc,iec,jsc,jec, tracer_mdppm(isc-4,jsc-4,k), da, aL, aR)
      elseif (Tracer%ppm_hlimiter.eq.3) then
       call ppm_limit_sh(isc,iec,jsc,jec, &
-                        tmask_mdppm(isc-4,jsc-4,k), tracer_mdppm(isc-4,jsc-4,k), &
+                        tracer_mdppm(isc-4,jsc-4,k), &
                         d1m, d1p, d1mm, d1pp, aL, aR)
     else
        call mpp_error(FATAL,&
@@ -6476,7 +6396,7 @@ function advect_tracer_mdppm(Time, Adv_vel, Tracer, Thickness, Tracer_field, dti
       call ppm_limit_ifc(isc,iec,jsc,jec, tracer_mdppm(isc-4,jsc-4,k), da, aL, aR)
      elseif (Tracer%ppm_hlimiter.eq.3) then
        call ppm_limit_sh(isc,iec,jsc,jec, &
-                        tmask_mdppm(isc-4,jsc-4,k), tracer_mdppm(isc-4,jsc-4,k), &
+                        tracer_mdppm(isc-4,jsc-4,k), &
                         d1m, d1p, d1mm, d1pp, aL, aR)
     else
        call mpp_error(FATAL,&
@@ -6659,11 +6579,11 @@ end subroutine ppm_limit_ifc
 ! by d1p(i+1). However, in order to re-use this limiter for the all directions
 ! (to simplify debugging) I have opted for the less efficient form for now. - AJA
 ! </NOTE>
-subroutine ppm_limit_sh(isc,iec,jsc,jec, tmask, tracer, d1m, d1p, d1mm, d1pp, aL, aR)
+subroutine ppm_limit_sh(isc,iec,jsc,jec, tracer, d1m, d1p, d1mm, d1pp, aL, aR)
 implicit none
 ! Arguments
 integer, intent(in) :: isc,iec,jsc,jec
-real, dimension(isc-4:iec+4,jsc-4:jec+4), intent(in)    :: tmask, tracer, d1m, d1p, d1mm, d1pp
+real, dimension(isc-4:iec+4,jsc-4:jec+4), intent(in)    :: tracer, d1m, d1p, d1mm, d1pp
 real, dimension(isc-4:iec+4,jsc-4:jec+4), intent(inout) :: aL, aR
 ! Local
 real    :: Si,Sim1,Sip1
@@ -6676,8 +6596,6 @@ integer :: i,j
         ! This block monotonizes the parabola by adjusting the left and right values
         ! Limiter from Suresh and Huynh, 1997
         Si   = tracer(i,j)
-!       d1m = ( Si - Sim1 ) * tmask(i-1,j)
-!       d1p = ( Sip1 - Si ) * tmask(i+1,j)
         Sim1 = Si - d1m(i,j)               ! Sim1 = tracer(i-1,j)
         Sip1 = Si + d1p(i,j)               ! Sip1 = tracer(i+1,j)
 
@@ -6760,33 +6678,21 @@ function advect_tracer_mdmdt_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
   integer                                  :: i, j, k
   integer                                  :: kp1, kp2, kp3, kp4, km1, km2, km3
   integer                                  :: tau, taum1
-  real                                     :: Rjm, Rj, Rjp
-  real                                     :: d0, d1, thetaP, psiP 
-  real                                     :: thetaM, psiM
 
-  real                                     :: cfl, massflux, massflux_bt, dMx, dMn
-  real                                     :: Sim2,Sim1,Si,Sip1,Sip2
+  real                                     :: cfl, massflux
 
-  real                                     :: da2,da4,da3m,da3p
-  real                                     :: mskm2,mskm1,msk0,mskp1,mskp2
-  real                                     :: qmp,qlc
-  real                                     :: dM4m,dM4p,qav,qul,qmd,qmin,qmax,x,y,z,w
-  real,parameter                           :: oneSixth=1./6., r24=1./24., r12=1./12.
-  real,parameter                           :: fourThirds=4./3., twoThirds=2./3.
-  real,dimension(isc-4:iec+4,jsc-4:jec+4)  :: da, aL, aR, a6, d1m, d1p, d1mm, d1pp
-  real,dimension(isc-4:iec+4,jsc-4:jec+4,nk) :: dak
-  real                                     :: dakm1, dakp1
-  real,parameter                           :: sweby_limiter=1.0
+#ifdef DEBUG_OS7MP
   real :: tmin0,tmax0
+#endif
 
   real :: Phi, Qippp, Qipp, Qip, Qi, Qim, Qimm, Qimmm
   real :: MskPPP, MskPP, MskP, Msk, MskM, MskMM, MskMMM, MskC
   real :: Fac, rp1h_cfl
   real :: DelP, DelM, DelPP, DelMM, DelPPP, DelMMM
   real :: Del2, Del2P, Del2M, Del2PP, Del2MM
-  real :: Del3, Del3P, Del3M, Del3PP, Del3MM
+  real :: Del3P, Del3M, Del3PP, Del3MM
   real :: Del4, Del4P, Del4M
-  real :: Del5, Del5P, Del5M
+  real :: Del5P, Del5M
   real :: Del6
 
 #undef  DEBUG_OS7MP
@@ -6977,7 +6883,7 @@ function advect_tracer_mdmdt_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
   call mpp_update_domains (mass_mdmdt, Dom_mdmdt%domain2d, flags=XUPDATE)
 
 #ifdef DEBUG_OS7MP
-  call tracer_stats(tracer_mdmdt(isc:iec,jsc:jec,:),tmask_mdmdt(isc:iec,jsc:jec,:),Tmin0,Tmax0,'mdmdtafter Z')
+  call tracer_stats(tracer_mdmdt(isc:iec,jsc:jec,:),Tmin0,Tmax0,'mdmdtafter Z')
 #endif
 
   ! calculate flux at the eastern wall of the boxes
@@ -7099,20 +7005,6 @@ function advect_tracer_mdmdt_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
           if (Tracer%mdt_scheme==1) &
             Phi = max(0.0, min(2.0 / (1.0 - cfl), Phi, 2.0*rp1h_cfl ))
 
-   !!     ! MP limiter (revised curvature)
-   !!     A = 4.0 * Del2 - Del2P
-   !!     B = 4.0 * Del2P - Del2
-   !!     dM4p = max(min(A,B,Del2,Del2P),0.0)+min(max(A,B,Del2,Del2P),0.0)
-   !!     A = 4.0 * Del2 - Del2M
-   !!     B = 4.0 * Del2M - Del2
-   !!     dM4m = max(min(A,B,Del2,Del2M),0.0)+min(max(A,B,Del2,Del2M),0.0)
-
-   !!     ! MP limiter
-   !!     PhiMD =
-   !!     PhiLC = 
-   !!     PhiMin = max( min(0.0, PhiMD),                &
-   !!                   min(0.0, 2.0*rp1h_cfl, PhiLC) )
-
           ! Flux takes form of limited LW flux (DT04, eq. 8)
           Phi = Phi * 0.5 * (1.0 - cfl)
           flux_x(i,j,k) =  massflux * (Qi + Phi * DelP) * MskP
@@ -7148,7 +7040,7 @@ function advect_tracer_mdmdt_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
   call mpp_update_domains (mass_mdmdt, Dom_mdmdt%domain2d, flags=YUPDATE)
 
 #ifdef DEBUG_OS7MP
-  call tracer_stats(tracer_mdmdt(isc:iec,jsc:jec,:),tmask_mdmdt(isc:iec,jsc:jec,:),Tmin0,Tmax0,'mdmdtafter U')
+  call tracer_stats(tracer_mdmdt(isc:iec,jsc:jec,:),Tmin0,Tmax0,'mdmdtafter U')
 #endif
 
   do k=1,nk
@@ -7303,7 +7195,7 @@ function advect_tracer_mdmdt_test(Time, Adv_vel, Tracer, Thickness, Tracer_field
   enddo ! end of k-loop
 
 #ifdef DEBUG_OS7MP
-  call tracer_stats(tracer_mdmdt(isc:iec,jsc:jec,:),tmask_mdmdt(isc:iec,jsc:jec,:),Tmin0,Tmax0,'mdmdt')
+  call tracer_stats(tracer_mdmdt(isc:iec,jsc:jec,:),Tmin0,Tmax0,'mdmdt')
 #endif
 
   call mpp_clock_end(id_clock_mdmdt_test)
@@ -7353,12 +7245,11 @@ end function advect_tracer_mdmdt_test
 !
 ! </DESCRIPTION>
   
-  subroutine gyre_overturn_diagnose(Time, Adv_vel, Tracer, Thickness, ntracer)
+  subroutine gyre_overturn_diagnose(Time, Adv_vel, Tracer, ntracer)
 
   type(ocean_time_type),        intent(in) :: Time
   type(ocean_adv_vel_type),     intent(in) :: Adv_vel
   type(ocean_prog_tracer_type), intent(in) :: Tracer
-  type(ocean_thickness_type),   intent(in) :: Thickness
   integer,                      intent(in) :: ntracer
 
   integer :: i, j, k, tau, nbasin
@@ -7510,11 +7401,10 @@ end subroutine gyre_overturn_diagnose
 ! advection of temperature and salinity.
 ! </DESCRIPTION>
 !
-subroutine watermass_diag(Time, Dens, Thickness)
+subroutine watermass_diag(Time, Dens)
 
   type(ocean_time_type),      intent(in)  :: Time
   type(ocean_density_type),   intent(in)  :: Dens 
-  type(ocean_thickness_type), intent(in)  :: Thickness
 
   integer :: i,j,k,tau
 
@@ -7535,44 +7425,12 @@ subroutine watermass_diag(Time, Dens, Thickness)
         enddo
      enddo
   enddo
-  if(id_neut_rho_advect > 0) then
-      used = send_data(id_neut_rho_advect, wrk2(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),    &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_wdian_rho_advect > 0) then 
-      used = send_data(id_wdian_rho_advect, wrk3(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_tform_rho_advect > 0) then 
-      used = send_data(id_tform_rho_advect, wrk4(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_neut_rho_advect_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work) 
-      used = send_data (id_neut_rho_advect_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                          &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_wdian_rho_advect_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk3, nrho_work) 
-      used = send_data (id_wdian_rho_advect_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                           &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_tform_rho_advect_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk4, nrho_work) 
-      used = send_data (id_tform_rho_advect_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                           &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-
-
+  call diagnose_3d(Time, Grd, id_neut_rho_advect, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_rho_advect, wrk3(:,:,:))
+  call diagnose_3d(Time, Grd, id_tform_rho_advect, wrk4(:,:,:))
+  call diagnose_3d_rho(Time, Dens, id_neut_rho_advect_on_nrho, wrk2)
+  call diagnose_3d_rho(Time, Dens, id_wdian_rho_advect_on_nrho, wrk3)
+  call diagnose_3d_rho(Time, Dens, id_tform_rho_advect_on_nrho, wrk4)
 
   ! temperature contributions 
   do k=1,nk
@@ -7585,43 +7443,12 @@ subroutine watermass_diag(Time, Dens, Thickness)
         enddo
      enddo
   enddo
-  if(id_neut_temp_advect > 0) then
-      used = send_data(id_neut_temp_advect, wrk2(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_wdian_temp_advect > 0) then 
-      used = send_data(id_wdian_temp_advect, wrk3(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_tform_temp_advect > 0) then 
-      used = send_data(id_tform_temp_advect, wrk4(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_neut_temp_advect_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work) 
-      used = send_data (id_neut_temp_advect_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                           &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_wdian_temp_advect_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk3, nrho_work) 
-      used = send_data (id_wdian_temp_advect_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                            &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_tform_temp_advect_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk4, nrho_work) 
-      used = send_data (id_tform_temp_advect_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                            &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-
+  call diagnose_3d(Time, Grd, id_neut_temp_advect, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_temp_advect, wrk3(:,:,:))
+  call diagnose_3d(Time, Grd, id_tform_temp_advect, wrk4(:,:,:))
+  call diagnose_3d_rho(Time, Dens, id_neut_temp_advect_on_nrho, wrk2)
+  call diagnose_3d_rho(Time, Dens, id_wdian_temp_advect_on_nrho, wrk3)
+  call diagnose_3d_rho(Time, Dens, id_tform_temp_advect_on_nrho, wrk4)
 
   ! salinity contributions 
   do k=1,nk
@@ -7634,43 +7461,12 @@ subroutine watermass_diag(Time, Dens, Thickness)
         enddo
      enddo
   enddo
-  if(id_neut_salt_advect > 0) then
-      used = send_data(id_neut_salt_advect, wrk2(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_wdian_salt_advect > 0) then 
-      used = send_data(id_wdian_salt_advect, wrk3(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_tform_salt_advect > 0) then 
-      used = send_data(id_tform_salt_advect, wrk4(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_neut_salt_advect_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work) 
-      used = send_data (id_neut_salt_advect_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                           &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_wdian_salt_advect_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk3, nrho_work) 
-      used = send_data (id_wdian_salt_advect_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                            &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_tform_salt_advect_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk4, nrho_work) 
-      used = send_data (id_tform_salt_advect_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                            &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-
+  call diagnose_3d(Time, Grd, id_neut_salt_advect, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_salt_advect, wrk3(:,:,:))
+  call diagnose_3d(Time, Grd, id_tform_salt_advect, wrk4(:,:,:))
+  call diagnose_3d_rho(Time, Dens, id_neut_salt_advect_on_nrho, wrk2)
+  call diagnose_3d_rho(Time, Dens, id_wdian_salt_advect_on_nrho, wrk3)
+  call diagnose_3d_rho(Time, Dens, id_tform_salt_advect_on_nrho, wrk4)
 
 end subroutine watermass_diag
 ! </SUBROUTINE> NAME="watermass_diag"
@@ -7764,16 +7560,16 @@ subroutine compute_adv_diss(Time, Adv_vel, Thickness, T_prog, Tracer, ntracer, d
           -horz_advect_tracer_quickmom3(Adv_vel, Tracer, wrk1, wrk1)
       case (ADVECT_MDFL_SUP_B)
           wrk2(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sup_b(Time, Adv_vel, Tracer, Thickness, wrk1, dtime)
+          -advect_tracer_mdfl_sup_b(Time, Adv_vel, Thickness, wrk1, dtime)
       case (ADVECT_MDFL_SWEBY)
           wrk2(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sweby(Time, Adv_vel, Tracer, Thickness, wrk1, dtime, sweby_limiter=1.0)
+          -advect_tracer_mdfl_sweby(Time, Adv_vel, Thickness, wrk1, dtime, sweby_limiter=1.0)
       case (ADVECT_DST_LINEAR)
           wrk2(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sweby(Time, Adv_vel, Tracer, Thickness, wrk1, dtime, sweby_limiter=0.0)
+          -advect_tracer_mdfl_sweby(Time, Adv_vel, Thickness, wrk1, dtime, sweby_limiter=0.0)
       case (ADVECT_DST_LINEAR_TEST)
           wrk2(isc:iec,jsc:jec,:) =  &
-          -advect_tracer_mdfl_sweby_test(Time, Adv_vel, Tracer, Thickness, wrk1, dtime, sweby_limiter=0.0)
+          -advect_tracer_mdfl_sweby_test(Time, Adv_vel, Thickness, wrk1, dtime, sweby_limiter=0.0)
       case (ADVECT_MDPPM)
           wrk2(isc:iec,jsc:jec,:) =  &
           -advect_tracer_mdppm(Time, Adv_vel, Tracer, Thickness, wrk1, dtime)
@@ -7863,14 +7659,10 @@ subroutine compute_adv_diss(Time, Adv_vel, Thickness, T_prog, Tracer, ntracer, d
      enddo
   enddo
 
-  used = send_data(id_tracer_adv_diss(ntracer), wrk4(:,:,:), &
-         Time%model_time, rmask=Grd%tmask(:,:,:),            &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grd, id_tracer_adv_diss(ntracer), wrk4(:,:,:))
 
   if(id_tracer2_advection(ntracer) > 0) then 
-      used = send_data(id_tracer2_advection(ntracer), wrk1(:,:,:)*Tracer%conversion**2, &
-           Time%model_time, rmask=Grd%tmask(:,:,:),                                     &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     call diagnose_3d(Time, Grd, id_tracer2_advection(ntracer), wrk1(:,:,:)*Tracer%conversion**2)
   endif
 
   call mpp_clock_end(id_clock_adv_diss)
@@ -7917,9 +7709,8 @@ end subroutine get_tracer_stats
 ! NOTE: This is a debugging tool and not for normal use.
 !
 ! </DESCRIPTION>
-subroutine tracer_stats(A,Mask,tmin0,tmax0,label)
+subroutine tracer_stats(A,tmin0,tmax0,label)
   real, dimension(isc:iec,jsc:jec,nk), intent(in) :: A
-  real, dimension(isc:iec,jsc:jec,nk), intent(in) :: Mask
   real, intent(in) :: tmin0,tmax0
   character(len=*), intent(in) :: label
   integer :: i,j,k
@@ -7956,10 +7747,8 @@ end subroutine
 ! <DESCRIPTION>
 !  Write out restart files registered through register_restart_file
 ! </DESCRIPTION>
-subroutine ocean_tracer_advect_restart(T_prog, time_stamp)
+subroutine ocean_tracer_advect_restart(T_prog)
   type(ocean_prog_tracer_type), intent(in)           :: T_prog(:)
-  character(len=*),             intent(in), optional :: time_stamp
-   integer :: tau, taup1
 
   if(ANY(T_prog(1:num_prog_tracers)%horz_advect_scheme == ADVECT_PSOM) )then
      call save_restart(Adv_restart)

@@ -176,9 +176,9 @@ module ocean_parameters_mod
   real, public :: grav = 9.80
 
   ! specific heat capacity J/(kg degC) for seawater 
-  real, public            :: cp_ocean           = 3992.10322329649d0  
-  real, parameter, public :: CP_OCEAN_PRETEOS10 = 3992.10322329649d0  
-  real, parameter, public :: CP_OCEAN_TEOS10    = 3991.86795711963d0 
+  real, public            :: cp_ocean           = 3992.10322329649
+  real, parameter, public :: CP_OCEAN_PRETEOS10 = 3992.10322329649
+  real, parameter, public :: CP_OCEAN_TEOS10    = 3991.86795711963
 
   ! specific heat capacity J/(kg degC) for calving land ice. 
   ! this value is consistent with that used in the GFDL land model. 
@@ -196,7 +196,7 @@ module ocean_parameters_mod
 
   ! product of rho0*cp_ocean
   ! (kg/m^3)*(cal/kg/deg C)(joules/cal) = (joules/m^3/deg C)
-  real, public :: rho_cp = 1035.0 * 3992.10322329649d0 
+  real, public :: rho_cp = 1035.0 * 3992.10322329649
 
   ! freezing point of fresh water at standard atmos pressure 
   real, public :: tfreeze  = 273.15
@@ -238,10 +238,10 @@ contains
 subroutine ocean_parameters_init()
 
     integer :: stdoutunit, stdlogunit
-    integer :: ioun, io_status, ierr
+    integer :: ioun, io_status
 
     stdoutunit = stdout()
-    stdlogunit = stdlog()	
+    stdlogunit = stdlog()
 
 #ifdef INTERNAL_FILE_NML
     read (input_nml_file, nml=ocean_parameters_nml, iostat=io_status)

@@ -244,24 +244,24 @@ module ocean_vert_kpp_mom4p1_mod
 !</NAMELIST>
 
 use constants_mod,    only: epsln
-use diag_manager_mod, only: register_diag_field, register_static_field, send_data
+use diag_manager_mod, only: register_diag_field, register_static_field
 use fms_mod,          only: FATAL, NOTE, WARNING, stdout, stdlog
 use fms_mod,          only: write_version_number, open_namelist_file, check_nml_error, close_file
 use fms_mod,          only: read_data
 use mpp_domains_mod,  only: mpp_update_domains, NUPDATE, EUPDATE
-use mpp_domains_mod,  only: mpp_global_sum, NON_BITWISE_EXACT_SUM
 use mpp_mod,          only: input_nml_file, mpp_error
 
 use ocean_density_mod,     only: density, density_delta_z, density_delta_sfc
 use ocean_domains_mod,     only: get_local_indices
 use ocean_parameters_mod,  only: grav, cp_ocean, missing_value, von_karman 
 use ocean_parameters_mod,  only: ZSIGMA, PSIGMA, rho0r, rho0, PRESSURE_BASED
-use ocean_tracer_util_mod, only: rebin_onto_rho
 use ocean_types_mod,       only: ocean_grid_type, ocean_domain_type
 use ocean_types_mod,       only: ocean_prog_tracer_type, ocean_diag_tracer_type
 use ocean_types_mod,       only: ocean_velocity_type, ocean_density_type
 use ocean_types_mod,       only: ocean_time_type, ocean_time_steps_type, ocean_thickness_type
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4, wrk5
+use ocean_util_mod,        only: diagnose_2d, diagnose_3d, diagnose_sum
+use ocean_tracer_util_mod, only: diagnose_3d_rho
 
 implicit none
 
@@ -418,9 +418,6 @@ logical :: calc_visc_on_cgrid=.false.    ! calculate viscosity directly on c-gri
 logical :: smooth_ri_kmax_eq_kmu=.false. ! to set details for smoothing the richardson number
 real    :: shear_instability_flag    = 1.0     ! set to 1.0 if shear_instability=.true.
 
-! work array on neutral density space
-integer :: neutralrho_nk
-real, dimension(:,:,:),   allocatable :: nrho_work 
 
 ! internally set for computing watermass diagnstics
 logical :: compute_watermass_diag = .false. 
@@ -496,8 +493,8 @@ namelist /ocean_vert_kpp_mom4p1_nml/ use_this_module, shear_instability, double_
                                      limit_with_hekman, limit_ghats, hbl_with_rit,          &
                                      radiation_large, radiation_zero, radiation_iow,        &
                                      use_sbl_bottom_flux, wsfc_combine_runoff_calve,        &
-			             bvf_from_below, variable_vtc, use_max_shear,           &
-			             linear_hbl, calc_visc_on_cgrid, smooth_ri_kmax_eq_kmu
+                                     bvf_from_below, variable_vtc, use_max_shear,           &
+                                     linear_hbl, calc_visc_on_cgrid, smooth_ri_kmax_eq_kmu
                                  
 
 contains
@@ -537,7 +534,7 @@ subroutine ocean_vert_kpp_mom4p1_init (Grid, Domain, Time, Time_steps, Dens, T_p
   real :: zeta  ! = stability parameter d/L
   real :: usta
 
-  integer :: i, j, k, kmax, n, ioun, io_status, ierr
+  integer :: i, j, n, ioun, io_status, ierr
   integer :: rib_dim = 3
 
   integer :: stdoutunit,stdlogunit 
@@ -764,11 +761,6 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
     wsfc(n)%wsfc(:,:) = 0.0
   enddo  
 
-  ! for diagnostics on neutral density surfaces 
-  neutralrho_nk = size(Dens%neutralrho_ref(:))
-  allocate( nrho_work(isd:ied,jsd:jed,neutralrho_nk) )
-  nrho_work(:,:,:) = 0.0  
-
 !-----------------------------------------------------------------------
 !     initialize some constants for kmix subroutines, and initialize
 !     for kmix subroutine "wscale" the 2D-lookup table for wm and ws
@@ -866,18 +858,18 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
                      missing_value=missing_value, range=(/-1.e10,1.e10/))
      endif
      id_wbot(n)   = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_wbot_KPP', &
-     		  Grd%tracer_axes(1:2), Time%model_time,				   &
-     		  'tracer flux through sbl-bottom', trim(T_prog(n)%flux_units), 	   &
-     		  missing_value=missing_value, range=(/-1.e10,1.e10/))
+          Grd%tracer_axes(1:2), Time%model_time,  &
+          'tracer flux through sbl-bottom', trim(T_prog(n)%flux_units),    &
+          missing_value=missing_value, range=(/-1.e10,1.e10/))
   enddo
   id_ghats(1) = register_diag_field ('ocean_model', 'temp_ghats_KPP', &
-  	       Grd%tracer_axes(1:3), Time%model_time,		      &
-  	       'nonlocal term ghats * diff_cbt from KPP', 'none',     &
-  	       missing_value=missing_value, range=(/-1.e10,1.e10/))
+       Grd%tracer_axes(1:3), Time%model_time,      &
+       'nonlocal term ghats * diff_cbt from KPP', 'none',     &
+       missing_value=missing_value, range=(/-1.e10,1.e10/))
   id_ghats(2) = register_diag_field ('ocean_model', 'salt_ghats_KPP', &
-  	       Grd%tracer_axes(1:3), Time%model_time,	              &
-  	       'nonlocal term ghats * diff_cbt from KPP', 'none',     &
-  	       missing_value=missing_value, range=(/-1.e10,1.e10/))
+       Grd%tracer_axes(1:3), Time%model_time,             &
+       'nonlocal term ghats * diff_cbt from KPP', 'none',     &
+       missing_value=missing_value, range=(/-1.e10,1.e10/))
 
   id_diff_cbt_kpp_t = register_diag_field('ocean_model','diff_cbt_kpp_t',         &
        Grd%tracer_axes(1:3),Time%model_time, 'vert diffusivity from kpp for temp',&
@@ -1162,7 +1154,7 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
 !     internal wave activity, static instability, and local shear 
 !     instability.
 !-----------------------------------------------------------------------
-      call ri_iwmix(Time, Thickness, Dens%rho(:,:,:,tau), visc_cbu, diff_cbt)
+      call ri_iwmix(visc_cbu, diff_cbt)
 
 
 !-----------------------------------------------------------------------
@@ -1197,10 +1189,7 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
 !-----------------------------------------------------------------------
 
       call blmix_kpp(Thickness, diff_cbt, visc_cbu)
-      if (id_ws > 0) then 
-        used = send_data(id_ws, wrk1(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:),  &
-                         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-      endif 
+      call diagnose_3d(Time, Grd, id_ws, wrk1(:,:,:))
 
 !-----------------------------------------------------------------------
 !     enhance diffusivity at interface kbl - 1
@@ -1352,9 +1341,7 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
                              /(temporary + epsln)
                      enddo
                   enddo
-                  if(id_wbot(n) > 0) used = send_data(id_wbot(n), wrk2(:,:,1), &
-                       Time%model_time, rmask=Grd%tmask(:,:,1),                &
-                       is_in=isc, js_in=jsc, ie_in=iec, je_in=jec) 
+                  call diagnose_2d(Time, Grd, id_wbot(n), wrk2(:,:,1))
               endif
 
 
@@ -1481,26 +1468,20 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
               if (n==index_temp .or. n==index_salt) then
                   if(id_ghats(ni) > 0) then 
                       if (limit_ghats) then
-                          used = send_data(id_ghats(ni), min(ghats(:,:,:)*diff_cbt(:,:,:,ni),1.), &
-                               Time%model_time, rmask=Grd%tmask(:,:,:),  			  &
-                               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+                         call diagnose_3d(Time, Grd, id_ghats(ni), min(ghats(:,:,:)*diff_cbt(:,:,:,ni),1.))
                       else
-                          used = send_data(id_ghats(n), ghats(:,:,:)*diff_cbt(:,:,:,ni), &
-                               Time%model_time, rmask=Grd%tmask(:,:,:),  		 &
-                               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+                         call diagnose_3d(Time, Grd, id_ghats(n), ghats(:,:,:)*diff_cbt(:,:,:,ni))
                       endif
                   endif
               endif
 
               if (id_nonlocal(n) > 0) then 
-                  used = send_data(id_nonlocal(n),T_prog(n)%conversion*T_prog(n)%wrk1(:,:,:), &
-                       Time%model_time, rmask=Grd%tmask(:,:,:),                               &
-                       is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+                 call diagnose_3d(Time, Grd, id_nonlocal(n),T_prog(n)%conversion*T_prog(n)%wrk1(:,:,:))
               endif
 
            enddo   ! enddo for n-loop 
 
-           call watermass_diag(Time, T_prog, Dens, Thickness)
+           call watermass_diag(Time, T_prog, Dens)
 
        endif   ! endif for non_local_kpp
 
@@ -1509,17 +1490,9 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
 !     send mixing related fields resulting just from kpp
 !-----------------------------------------------------------------------
 
-   if (id_diff_cbt_kpp_t > 0) used = send_data(id_diff_cbt_kpp_t, diff_cbt(:,:,:,1), &
-                                     Time%model_time, rmask=Grd%tmask(:,:,:),        &
-                                     is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-   if (id_diff_cbt_kpp_s > 0) used = send_data(id_diff_cbt_kpp_s, diff_cbt(:,:,:,2), &
-                                     Time%model_time, rmask=Grd%tmask(:,:,:),        &
-                                     is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-   if (id_hblt > 0) used = send_data(id_hblt, hblt(:,:),            &
-                           Time%model_time, rmask=Grd%tmask(:,:,1), &
-                           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+       call diagnose_3d(Time, Grd, id_diff_cbt_kpp_t, diff_cbt(:,:,:,1))
+       call diagnose_3d(Time, Grd, id_diff_cbt_kpp_s, diff_cbt(:,:,:,2))
+       call diagnose_2d(Time, Grd, id_hblt, hblt(:,:))
 
 end subroutine vert_mix_kpp_mom4p1
 ! </SUBROUTINE> NAME="vert_mix_kpp_mom4p1"
@@ -1592,8 +1565,6 @@ subroutine bldepth(Thickness, sw_frac_zt)
   real, parameter :: c0     = 0.0
   real, parameter :: cekman = 0.7  ! constant for Ekman depth
   real, parameter :: cmonob = 1.0  ! constant for Monin-Obukhov depth
-  real, parameter :: hbf    = 1.0  ! fraction of bld which absorbed solar radiation 
-                                   ! contributes to surface buoyancy forcing
   real, parameter :: vtc_fac = 200.! factor after Danabasoglu et al. (A.3) 
 
 ! find bulk Richardson number at every grid level until > Ricr
@@ -1616,7 +1587,7 @@ subroutine bldepth(Thickness, sw_frac_zt)
           Rib(i,j,:) = 0.0
           kbl(i,j)   = MAX(Grd%kmt(i,j),2)
           hbl(i,j)   = Thickness%depth_zt(i,j,kbl(i,j))
-          iwet	     = iwet + min(Grd%kmt(i,j),1)
+          iwet       = iwet + min(Grd%kmt(i,j),1)
         enddo
       enddo
 
@@ -1654,14 +1625,14 @@ subroutine bldepth(Thickness, sw_frac_zt)
               ! compute the turbulent shear contribution to Rib
               ! eqn. (23)
               if (bvf_from_below) then
-	         bvfr = sqrt(abs(0.5*                            &
-                   ( dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) +  &
-                     dbloc(i,j,klp1) / Thickness%dzwt(i,j,klp1) ) ))
+                 bvfr = sqrt(abs(0.5*                            &
+                      ( dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) +  &
+                      dbloc(i,j,klp1) / Thickness%dzwt(i,j,klp1) ) ))
               else
-	         bvfr = sqrt(abs(0.5*                              &
-                    ( dbloc(i,j,klm1) / Thickness%dzwt(i,j,klm1) +  &
-                     dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) ) ))
-	      endif
+                 bvfr = sqrt(abs(0.5*                              &
+                      ( dbloc(i,j,klm1) / Thickness%dzwt(i,j,klm1) +  &
+                      dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) ) ))
+              endif
     
               ! to ensure bitwise compatible with earlier code where default was vtc_flag=0.0 
               Vtsq =   Thickness%depth_zt(i,j,kl) * ws(i,j) * bvfr  &
@@ -1692,7 +1663,7 @@ subroutine bldepth(Thickness, sw_frac_zt)
                   if(((rit(i,j,kl-1).lt.0).or.(rit(i,j,kl).lt.0)).and.hbl_with_rit) then  
 
                       ! Rib(i,j,ku) is not relevant, because locally unstable
-                      Rib(i,j,ku) =  Ricr*0.1			    
+                      Rib(i,j,ku) =  Ricr*0.1
 
                   else
 
@@ -1756,14 +1727,14 @@ subroutine bldepth(Thickness, sw_frac_zt)
                 ! compute the turbulent shear contribution to Rib
                 ! eqn. (23).
                 if (bvf_from_below) then
-	          bvfr = sqrt(abs(0.5*                              &
-                    ( dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) +    &
-                      dbloc(i,j,klp1) / Thickness%dzwt(i,j,klp1) ) ))
+                   bvfr = sqrt(abs(0.5*                              &
+                        ( dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) +    &
+                        dbloc(i,j,klp1) / Thickness%dzwt(i,j,klp1) ) ))
                 else
-	          bvfr = sqrt(abs(0.5*                              &
-                    ( dbloc(i,j,klm1) / Thickness%dzwt(i,j,klm1) +  &
-                      dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) ) ))
-	        endif
+                   bvfr = sqrt(abs(0.5*                              &
+                        ( dbloc(i,j,klm1) / Thickness%dzwt(i,j,klm1) +  &
+                        dbloc(i,j,kl  ) / Thickness%dzwt(i,j,kl) ) ))
+                endif
     
                 ! to ensure bitwise compatible with earlier code where default was vtc_flag=0.0 
                 Vtsq =   Thickness%depth_zt(i,j,kl) * ws(i,j) * bvfr  &
@@ -1795,7 +1766,7 @@ subroutine bldepth(Thickness, sw_frac_zt)
                   if(((rit(i,j,kl-1).lt.0).or.(rit(i,j,kl).lt.0)).and.hbl_with_rit) then  
 
                       ! Rib(i,j,ku) is not relevant, because locally unstable
-                      Rib(i,j,kdn) =  Ricr*0.1			    
+                      Rib(i,j,kdn) =  Ricr*0.1
 
                   else
 
@@ -1817,8 +1788,8 @@ subroutine bldepth(Thickness, sw_frac_zt)
                       else
                          hbl(i,j) = (-b_co + sqrt(sqrt_arg)) / (c2*a_co)
                       endif
-		      
-		      kbl(i,j) = kl
+
+                      kbl(i,j) = kl
                       iwet     = iwet - 1
 
                   endif
@@ -2130,18 +2101,14 @@ end subroutine wscale
 !      diff_cbt = diffusion coefficient at bottom of "t" cells (m**2/s)         <BR/>  
 ! </DESCRIPTION>
 !
-subroutine ri_iwmix(Time, Thickness, rho, visc_cbu, diff_cbt)
+subroutine ri_iwmix(visc_cbu, diff_cbt)
 
-  type(ocean_time_type),          intent(in)    :: Time
-  type(ocean_thickness_type),     intent(in)    :: Thickness
-  real, dimension(isd:,jsd:,:),   intent(in)    :: rho
   real, dimension(isd:,jsd:,:),   intent(inout) :: visc_cbu
   real, dimension(isd:,jsd:,:,:), intent(inout) :: diff_cbt
   
   real, parameter :: Riinfty = 0.8  ! local Richardson Number limit for shear instability
   real            :: Rigg, ratio, frit, fcont, friu, fconu
-  real            :: kv_up, kv_dn
-  integer         :: i, j, k, kmax
+  integer         :: i, j, k
 
   if (calc_visc_on_cgrid) then
 !-----------------------------------------------------------------------
@@ -2951,16 +2918,14 @@ end subroutine watermass_diag_init
 ! Diagnose effects from KPP nonlocal on the watermass transformation.
 ! </DESCRIPTION>
 !
-subroutine watermass_diag(Time, T_prog, Dens, Thickness)
+subroutine watermass_diag(Time, T_prog, Dens)
 
   type(ocean_time_type),          intent(in) :: Time
   type(ocean_prog_tracer_type),   intent(in) :: T_prog(:)
   type(ocean_density_type),       intent(in) :: Dens
-  type(ocean_thickness_type),     intent(in) :: Thickness
 
   integer :: i,j,k,tau
   real, dimension(isd:ied,jsd:jed) :: eta_tend
-  real    :: eta_tend_glob
 
   if (.not.module_is_initialized) then 
     call mpp_error(FATAL, &
@@ -2990,42 +2955,12 @@ subroutine watermass_diag(Time, T_prog, Dens, Thickness)
         enddo
      enddo
   enddo
-  if(id_neut_rho_kpp_nloc > 0) then
-      used = send_data(id_neut_rho_kpp_nloc, wrk2(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),      &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_wdian_rho_kpp_nloc > 0) then
-      used = send_data(id_wdian_rho_kpp_nloc, wrk3(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),       &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_tform_rho_kpp_nloc > 0) then
-      used = send_data(id_tform_rho_kpp_nloc, wrk4(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),       &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_neut_rho_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work)  
-      used = send_data(id_neut_rho_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                           &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_wdian_rho_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk3, nrho_work)  
-      used = send_data(id_wdian_rho_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                            &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_tform_rho_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk4, nrho_work)  
-      used = send_data(id_tform_rho_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                            &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
+  call diagnose_3d(Time, Grd, id_neut_rho_kpp_nloc, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_rho_kpp_nloc, wrk3(:,:,:))
+  call diagnose_3d(Time, Grd, id_tform_rho_kpp_nloc, wrk4(:,:,:))
+  call diagnose_3d_rho(Time, Dens, id_neut_rho_kpp_nloc_on_nrho, wrk2)
+  call diagnose_3d_rho(Time, Dens, id_wdian_rho_kpp_nloc_on_nrho, wrk3)
+  call diagnose_3d_rho(Time, Dens, id_tform_rho_kpp_nloc_on_nrho, wrk4)
 
   if(id_eta_tend_kpp_nloc > 0 .or. id_eta_tend_kpp_nloc_glob > 0) then
       eta_tend(:,:) = 0.0
@@ -3036,16 +2971,8 @@ subroutine watermass_diag(Time, T_prog, Dens, Thickness)
             enddo
          enddo
       enddo
-      if(id_eta_tend_kpp_nloc > 0) then 
-          used = send_data (id_eta_tend_kpp_nloc, eta_tend(:,:),&
-               Time%model_time, rmask=Grd%tmask(:,:,1),         &
-               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-      endif
-      if(id_eta_tend_kpp_nloc_glob > 0) then 
-          eta_tend(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*eta_tend(:,:)
-          eta_tend_glob = mpp_global_sum(Dom%domain2d, eta_tend(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-          used          = send_data (id_eta_tend_kpp_nloc_glob, eta_tend_glob, Time%model_time)
-      endif
+      call diagnose_2d(Time, Grd, id_eta_tend_kpp_nloc, eta_tend(:,:))
+      call diagnose_sum(Time, Grd, Dom, id_eta_tend_kpp_nloc_glob, eta_tend, cellarea_r)
   endif
 
 
@@ -3065,44 +2992,12 @@ subroutine watermass_diag(Time, T_prog, Dens, Thickness)
         enddo
      enddo
   enddo
-  if(id_neut_temp_kpp_nloc > 0) then
-      used = send_data(id_neut_temp_kpp_nloc, wrk2(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),       &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_wdian_temp_kpp_nloc > 0) then
-      used = send_data(id_wdian_temp_kpp_nloc, wrk3(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),        &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_tform_temp_kpp_nloc > 0) then
-      used = send_data(id_tform_temp_kpp_nloc, wrk4(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),        &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_neut_temp_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work)  
-      used = send_data(id_neut_temp_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                            &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_wdian_temp_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk3, nrho_work)  
-      used = send_data(id_wdian_temp_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                             &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_tform_temp_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk4, nrho_work)  
-      used = send_data(id_tform_temp_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                             &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-
-
+  call diagnose_3d(Time, Grd, id_neut_temp_kpp_nloc, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_temp_kpp_nloc, wrk3(:,:,:))
+  call diagnose_3d(Time, Grd, id_tform_temp_kpp_nloc, wrk4(:,:,:))
+  call diagnose_3d_rho(Time, Dens, id_neut_temp_kpp_nloc_on_nrho, wrk2)
+  call diagnose_3d_rho(Time, Dens, id_wdian_temp_kpp_nloc_on_nrho, wrk3)
+  call diagnose_3d_rho(Time, Dens, id_tform_temp_kpp_nloc_on_nrho, wrk4)
 
   ! salt related contribution  
   wrk1(:,:,:) = 0.0
@@ -3120,43 +3015,12 @@ subroutine watermass_diag(Time, T_prog, Dens, Thickness)
         enddo
      enddo
   enddo
-  if(id_neut_salt_kpp_nloc > 0) then
-      used = send_data(id_neut_salt_kpp_nloc, wrk2(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),       &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_wdian_salt_kpp_nloc > 0) then
-      used = send_data(id_wdian_salt_kpp_nloc, wrk3(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),        &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_tform_salt_kpp_nloc > 0) then
-      used = send_data(id_tform_salt_kpp_nloc, wrk4(:,:,:),&
-           Time%model_time, rmask=Grd%tmask(:,:,:),        &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-  endif
-  if(id_neut_salt_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk2, nrho_work)  
-      used = send_data(id_neut_salt_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                            &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_wdian_salt_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk3, nrho_work)  
-      used = send_data(id_wdian_salt_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                             &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-  if(id_tform_salt_kpp_nloc_on_nrho > 0) then
-      nrho_work(:,:,:) = 0.0
-      call rebin_onto_rho (Dens%neutralrho_bounds, Dens%neutralrho, wrk4, nrho_work)  
-      used = send_data(id_tform_salt_kpp_nloc_on_nrho, nrho_work(:,:,:),&
-           Time%model_time,                                             &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=neutralrho_nk)
-  endif
-
+  call diagnose_3d(Time, Grd, id_neut_salt_kpp_nloc, wrk2(:,:,:))
+  call diagnose_3d(Time, Grd, id_wdian_salt_kpp_nloc, wrk3(:,:,:))
+  call diagnose_3d(Time, Grd, id_tform_salt_kpp_nloc, wrk4(:,:,:))
+  call diagnose_3d_rho(Time, Dens, id_neut_salt_kpp_nloc_on_nrho, wrk2)
+  call diagnose_3d_rho(Time, Dens, id_wdian_salt_kpp_nloc_on_nrho, wrk3)
+  call diagnose_3d_rho(Time, Dens, id_tform_salt_kpp_nloc_on_nrho, wrk4)
 
 end subroutine watermass_diag
 ! </SUBROUTINE>  NAME="watermass_diag"
@@ -3172,6 +3036,7 @@ subroutine mom4_get_hblt(fld)
 
   real, intent(out) :: fld(isc:,jsc:)
 
+<<<<<<< HEAD
   fld(isc:iec, jsc:jec) = hblt(isc:iec, jsc:jec)
   
 end subroutine mom4_get_hblt

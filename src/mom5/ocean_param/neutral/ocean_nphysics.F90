@@ -51,7 +51,7 @@ module ocean_nphysics_mod
 !</NAMELIST>
 
 use constants_mod,    only: epsln, pi
-use diag_manager_mod, only: register_diag_field, send_data
+use diag_manager_mod, only: register_diag_field
 use fms_mod,          only: FATAL, WARNING, NOTE
 use fms_mod,          only: file_exist
 use fms_mod,          only: open_namelist_file, check_nml_error, close_file, write_version_number

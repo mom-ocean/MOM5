@@ -56,7 +56,7 @@ module ocean_vert_pp_mod
 !</NAMELIST>
 
 use constants_mod,       only: pi, epsln
-use diag_manager_mod,    only: register_diag_field, send_data
+use diag_manager_mod,    only: register_diag_field
 use fms_mod,             only: open_namelist_file, check_nml_error, close_file, write_version_number
 use fms_mod,             only: FATAL, NOTE, stdout, stdlog
 use mpp_mod,             only: input_nml_file, mpp_error
@@ -71,6 +71,7 @@ use ocean_types_mod,      only: ocean_velocity_type, ocean_density_type
 use ocean_types_mod,      only: ocean_time_steps_type, ocean_time_type, ocean_thickness_type
 use ocean_vert_util_mod,  only: ri_for_cgrid 
 use ocean_workspace_mod,  only: wrk1, wrk1_v
+use ocean_util_mod,       only: diagnose_3d, diagnose_3d_u
 
 implicit none
 
@@ -355,7 +356,6 @@ end subroutine ocean_vert_pp_init
   integer :: i, j, k
   integer :: taum1
   real    :: t1, t2, t3
-  logical :: used
 
   if(.not. use_this_module) then 
     return 
@@ -433,17 +433,9 @@ end subroutine ocean_vert_pp_init
 
   diff_cbt(isc:iec,jsc:jec,:,2) = diff_cbt(isc:iec,jsc:jec,:,1)
 
-  if (id_diff_cbt_pp > 0) used = send_data(id_diff_cbt_pp, diff_cbt(:,:,:,1), &
-                                 Time%model_time, rmask=Grd%tmask(:,:,:), &
-                                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-  if (id_visc_cbt_pp > 0) used = send_data(id_visc_cbt_pp, visc_cbt(:,:,:), &
-                                 Time%model_time, rmask=Grd%tmask(:,:,:),   &
-                                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-  if (id_visc_cbu_pp > 0) used = send_data(id_visc_cbu_pp, visc_cbu(:,:,:), &
-                                 Time%model_time, rmask=Grd%umask(:,:,:),   &
-                                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+  call diagnose_3d(Time, Grd, id_diff_cbt_pp, diff_cbt(:,:,:,1))
+  call diagnose_3d(Time, Grd, id_visc_cbt_pp, visc_cbt(:,:,:))
+  call diagnose_3d_u(Time, Grd, id_visc_cbu_pp, visc_cbu(:,:,:))
 
 end subroutine vert_mix_pp
 ! </SUBROUTINE> NAME="vert_mix_pp"

@@ -48,8 +48,8 @@
    integer, intent(in)       :: nlev
 
 ! !DEFINED PARAMETERS:
-   REALTYPE, parameter       :: anLimitFact = 0.5D0
-   REALTYPE, parameter       :: small       = 1.0D-10
+   REALTYPE, parameter       :: anLimitFact = 0.5
+   REALTYPE, parameter       :: small       = 1.0e-10
 
 !
 ! !REVISION HISTORY:

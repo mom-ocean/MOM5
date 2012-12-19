@@ -242,7 +242,7 @@ use ocean_diagnostics_mod,        only: ocean_diag_init, ocean_diagnostics
 use ocean_domains_mod,            only: ocean_domain_init, set_ocean_domain, get_local_indices
 use ocean_form_drag_mod,          only: ocean_form_drag_init, compute_visc_form_drag
 use ocean_grids_mod,              only: ocean_grids_init, set_ocean_grid_size 
-use ocean_grids_mod,              only: set_ocean_hgrid_arrays, set_ocean_vgrid_arrays
+use ocean_grids_mod,              only: set_ocean_hgrid_arrays, set_ocean_vgrid_arrays, init_grids_diag
 use ocean_increment_eta_mod,      only: ocean_increment_eta_init, ocean_increment_eta_source
 use ocean_increment_tracer_mod,   only: ocean_increment_tracer_init, ocean_increment_tracer_source
 use ocean_increment_velocity_mod, only: ocean_increment_velocity_init, ocean_increment_velocity_source
@@ -273,7 +273,7 @@ use ocean_parameters_mod,         only: TWO_LEVEL, THREE_LEVEL
 use ocean_parameters_mod,         only: GEOPOTENTIAL, ZSTAR, ZSIGMA, PRESSURE, PSTAR, PSIGMA
 use ocean_parameters_mod,         only: DEPTH_BASED, PRESSURE_BASED
 use ocean_parameters_mod,         only: QUASI_HORIZONTAL, TERRAIN_FOLLOWING
-use ocean_parameters_mod,         only: VERTMIX_GOTM
+use ocean_parameters_mod,         only: VERTMIX_GOTM, cp_ocean
 use ocean_sbc_mod,                only: ocean_sbc_init, initialize_ocean_sfc, ocean_sfc_end
 use ocean_sbc_mod,                only: sum_ocean_sfc, avg_ocean_sfc, get_ocean_sbc, flux_adjust
 use ocean_sbc_mod,                only: ocean_sfc_restart
@@ -668,7 +668,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     endif
     allocate(Ocean_state)
     Ocean_state%is_ocean_pe = Ocean%is_ocean_pe !This is Not utilized in MOM currently
-
+    
     call ocean_parameters_init()
 
     ! set clock ids
@@ -1098,10 +1098,12 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     call ocean_workspace_init(Domain, Grid)
     call set_ocean_hgrid_arrays(Domain, Grid)
     call ocean_topog_init(Domain, Grid, 'INPUT/grid_spec.nc', vert_coordinate_type)
-    call ocean_obc_init(have_obc, Time, Time_steps, Domain, Grid, Ocean_options, &
+    call ocean_obc_init(have_obc, Time_steps, Domain, Grid, Ocean_options, &
           vert_coordinate, debug=debug)
-    call set_ocean_vgrid_arrays(Time, Domain, Grid, have_obc)
+    call set_ocean_vgrid_arrays(Domain, Grid, have_obc)
     call ocean_util_init(Domain, Grid)
+
+    call init_grids_diag(Grid, Time)
 
     ! saved for use in the FMS coupler
     Ocean%axes(:) = Grid%tracer_axes(:) 
@@ -1174,7 +1176,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
                                      
     ! initialize diagnostic tracers 
     T_diag => ocean_diag_tracer_init(Time, Thickness, vert_coordinate_type, num_diag_tracers,&
-                                     cmip_units, use_blobs, debug=debug)    
+                                     use_blobs)
 
     call ocean_advection_velocity_init(Grid, Domain, Time, Time_steps, Thickness, Adv_vel, &
                                        vert_coordinate_class, horz_grid, have_obc, use_blobs, debug=debug)
@@ -1229,16 +1231,16 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     call ocean_bih_friction_init(Grid, Domain, Time, Ocean_options, dtime_u, have_obc, horz_grid, debug=debug)    
     call ocean_momentum_source_init(Grid, Domain, Time, Ocean_options, debug=debug)    
     call ocean_form_drag_init(Grid, Domain, Time, Time_steps, Ocean_options, debug=debug)    
-    call ocean_tracer_advect_init(Grid, Domain, Time, Dens, T_prog(:), dtime_t, have_obc, debug=debug)
+    call ocean_tracer_advect_init(Grid, Domain, Time, Dens, T_prog(:), have_obc, debug=debug)
     call ocean_velocity_advect_init(Grid, Domain, Time, have_obc, horz_grid, debug=debug)
     call ocean_convect_init(Grid, Domain, Time, Dens, T_prog(:), Ocean_options, dtime_t)
-    call ocean_sbc_init(Grid, Domain, Time, T_prog(:), T_diag(:), Velocity, Ocean, Dens, &
+    call ocean_sbc_init(Grid, Domain, Time, T_prog(:), T_diag(:), Ocean, Dens, &
                         time_tendency, dtime_t, horz_grid)
-    call ocean_bbc_init(Grid, Domain, Time, Dens, T_prog(:), Velocity, Ocean_options, vert_coordinate_type, horz_grid)
+    call ocean_bbc_init(Grid, Domain, Time, T_prog(:), Velocity, Ocean_options, vert_coordinate_type, horz_grid)
     call ocean_shortwave_init(Grid, Domain, Time, Dens, vert_coordinate, Ocean_options)
     call ocean_sponges_tracer_init(Grid, Domain, Time, T_prog(:), dtime_t, Ocean_options)
-    call ocean_sponges_velocity_init(Grid, Domain, Time, Velocity, dtime_u, Ocean_options)
-    call ocean_sponges_eta_init(Grid, Domain, Time, Ext_mode, dtime_t, Ocean_options)
+    call ocean_sponges_velocity_init(Grid, Domain, Time, dtime_u, Ocean_options)
+    call ocean_sponges_eta_init(Grid, Domain, Time, dtime_t, Ocean_options)
     call ocean_xlandmix_init(Grid, Domain, Time, Dens, T_prog(:), Ocean_options, dtime_t)    
     call ocean_xlandinsert_init(Grid, Domain, Time, Dens, T_prog(:), Ocean_options, dtts)    
     call ocean_riverspread_init(Grid, Domain, Ocean_options, dtime_t)
@@ -1262,7 +1264,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
 
 #ifdef ENABLE_ODA    
-    call init_oda(Domain, Grid, Time, T_prog(:), Velocity, Ext_mode)
+    call init_oda(Domain, Grid, Time, T_prog(:))
 #endif
 
     call ocean_drifters_init(Domain, Grid, Time, T_prog(:), Velocity, Adv_vel)
@@ -1453,13 +1455,13 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
        ! compute "flux adjustments" (e.g., surface tracer restoring, flux correction)
        call mpp_clock_begin(id_flux_adjust)
-       call flux_adjust(Time, T_diag(1:num_diag_tracers), Dens, Thickness, Ext_mode, &
+       call flux_adjust(Time, T_diag(1:num_diag_tracers), Dens, Ext_mode, &
                         T_prog(1:num_prog_tracers), Velocity, river, melt, pme)
        call mpp_clock_end(id_flux_adjust)
 
        ! calculate bottom momentum fluxes and bottom tracer fluxes
        call mpp_clock_begin(id_bbc)
-       call get_ocean_bbc(Time, Thickness, Ext_mode, Dens, Velocity, T_prog(1:num_prog_tracers), Waves)
+       call get_ocean_bbc(Time, Thickness, Dens, Velocity, T_prog(1:num_prog_tracers), Waves)
        call mpp_clock_end(id_bbc)
 
        ! add shortwave heating to T_prog%th_tendency 
@@ -1492,7 +1494,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
        ! compute ocean tendencies from tracer packages
        call mpp_clock_begin(id_otpm_source)
        call ocean_tpm_source(isd, ied, jsd, jed, Domain, Grid, T_prog(:), T_diag(:), &
-            Time, Thickness, Dens, opacity, surf_blthick, dtts)
+            Time, Thickness, Dens, surf_blthick, dtts)
        call mpp_clock_end(id_otpm_source)
 
        ! set ocean surface boundary conditions for the tracer packages
@@ -1533,7 +1535,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
        ! add discharge of dense shelf water into abyss to T_prog%th_tendency and mass using NCAR OFP scheme 
        call mpp_clock_begin(id_overflow_OFP)
-       call overflow_OFP (Time, Thickness, Ext_mode, Velocity, T_prog(1:num_prog_tracers), &
+       call overflow_OFP (Time, Thickness, T_prog(1:num_prog_tracers), &
                           Dens, index_temp, index_salt)
        call mpp_clock_end(id_overflow_OFP)
 
@@ -1569,7 +1571,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
           call mpp_clock_end(id_bottom_smooth)
        endif
        ! get prescribed OBC data from files
-       if (have_obc) call ocean_obc_prepare(Time, Thickness, Ext_mode, T_prog(1:num_prog_tracers))
+       if (have_obc) call ocean_obc_prepare(Time, T_prog(1:num_prog_tracers))
 
        ! computed vertical integral of mass forcing used for eta and pbot update
        call mpp_clock_begin(id_mass_forcing)
@@ -1705,7 +1707,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
        ! update to time=taup1 the value of tracer concentrations
        call mpp_clock_begin(id_tracer)
-       call update_ocean_tracer(Time, Dens, Adv_vel, Thickness, pme, diff_cbt, Dens%pressure_at_depth, &
+       call update_ocean_tracer(Time, Dens, Adv_vel, Thickness, pme, diff_cbt, &
             T_prog(1:num_prog_tracers), T_diag(1:num_diag_tracers), Lagrangian_system, Velocity,       &
             Ext_mode, EL_diag(:), use_blobs)
        call mpp_clock_end(id_tracer)
@@ -1729,7 +1731,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
        ! perform extra calculations for the ocean tracer packages
        call mpp_clock_begin(id_otpm_tracer)
        call ocean_tpm_tracer(Domain, T_prog(:), T_diag(:), Grid, Time, Thickness, Dens, dtts, &
-            surf_blthick, swflx_vis, opacity, diff_cbt, river, Velocity)
+            surf_blthick, swflx_vis, opacity, diff_cbt, Velocity)
        call mpp_clock_end(id_otpm_tracer)
 
        ! fill processor halos for tracers(taup1).
@@ -1772,13 +1774,12 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
     ! vertical integral of forcing used for barotropic dynamics 
     call mpp_clock_begin(id_barotropic_forcing)
-    call ocean_barotropic_forcing(Time, Thickness, Velocity, Ext_mode) 
+    call ocean_barotropic_forcing(Time, Velocity, Ext_mode) 
     call mpp_clock_end(id_barotropic_forcing)
 
     ! update (udrho,vdrho) and eta_t_bar or pbot_t_bar using barotropic timesteps 
     call mpp_clock_begin(id_barotropic_update)
-    call update_ocean_barotropic (Time, Dens, Thickness, Velocity, Adv_vel, &
-                                  T_prog(index_temp), T_prog(index_salt),   &
+    call update_ocean_barotropic (Time, Dens, Thickness, Adv_vel, &
                                   Ext_mode, patm, pme, river)
     call mpp_clock_end(id_barotropic_update)
 
@@ -1825,7 +1826,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     if(horz_grid == MOM_BGRID) then 
        call update_ocean_velocity_bgrid(Time, Thickness, barotropic_split, vert_coordinate_class, Ext_mode, Velocity) 
     else 
-       call update_ocean_velocity_cgrid(Time, Thickness, barotropic_split, vert_coordinate_class, Adv_vel, Ext_mode, Velocity) 
+       call update_ocean_velocity_cgrid(Time, Thickness, Adv_vel, Ext_mode, Velocity) 
     endif 
     call mpp_clock_end(id_velocity)
 
@@ -1836,7 +1837,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     ! perform some numerical diagnostics (e.g., tracer and mass conservation, CFL checks, etc.)
     call mpp_clock_begin(id_diagnostics)
     call ocean_diagnostics(Time, Thickness, T_prog(1:num_prog_tracers), T_diag(1:num_diag_tracers), &
-                           Adv_vel, Ext_mode, Dens, Velocity, Lagrangian_system, &
+                           Adv_vel, Ext_mode, Dens, Velocity, &
                            pme, melt, runoff, calving, visc_cbt)
     call mpp_clock_end(id_diagnostics)
 
@@ -1861,7 +1862,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     ! modifications to prognostic variables using ocean data assimilation 
 #ifdef ENABLE_ODA
     call mpp_clock_begin(id_oda)
-    call oda(Time, T_prog(1:num_prog_tracers), Velocity, Ext_mode)
+    call oda(Time, T_prog(1:num_prog_tracers))
     call mpp_clock_end(id_oda)
 #endif
 
@@ -2095,9 +2096,9 @@ end subroutine ocean_model_data1D_get
     call ocean_thickness_end(Time, Grid, Thickness)
     call ocean_density_end(Time, Dens, use_blobs)
     if(have_obc) call ocean_obc_end(Time, have_obc)
-    call ocean_sfc_end(Ocean_sfc)
+    call ocean_sfc_end()
     call ocean_vert_mix_end(Time)
-    call ocean_drifters_end(Grid)
+    call ocean_drifters_end()
     call ocean_wave_end(Time, Waves)
     
     write (stdoutunit,'(//,1x,a)') &
@@ -2229,7 +2230,7 @@ end subroutine ocean_model_data1D_get
      character(len=*), intent(in), optional :: timestamp
 
      call ocean_tracer_restart(Time, T_prog, timestamp)
-     call ocean_tracer_advect_restart(T_prog, timestamp)
+     call ocean_tracer_advect_restart(T_prog)
      call ocean_nphysics_restart(timestamp)
      call ocean_nphysics_new_restart(timestamp)
      call ocean_bih_friction_restart(timestamp)
@@ -2239,7 +2240,7 @@ end subroutine ocean_model_data1D_get
      call ocean_barotropic_restart(Time, Ext_mode, timestamp)
      call ocean_thickness_restart(Time, Thickness, timestamp)
      call ocean_density_restart(Time, Dens, timestamp)
-     if(have_obc) call ocean_obc_restart(timestamp)
+     if(have_obc) call ocean_obc_restart()
      call ocean_sfc_restart(timestamp)
      call ocean_vert_mix_restart(timestamp)
 
@@ -2867,10 +2868,10 @@ end subroutine mom4_U_to_T_2d
 !  |       |       |       |     \ | /
 !  |       |im,jm  |i,jm   |      \|/ rot angle
 !  B-------B-------B-------B    ---X-------------> x
-!  |       |       |       |      /|\ 
+!  |       |       |       |      /|\
 !  |       |       |       |     / | \
 !  |---A---|---A---|---A---|       |  \lat  
-!  |       |       |       |       |   \   
+!  |       |       |       |       |   \
 !  |       |       |       |
 !  B-------B-------B-------B
 !

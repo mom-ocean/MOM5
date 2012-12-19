@@ -1,4 +1,5 @@
 module ocean_bihgen_friction_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S. M. Griffies 
 !</CONTACT>
@@ -225,13 +226,13 @@ module ocean_bihgen_friction_mod
 !</NAMELIST>
 !
 use constants_mod,       only: pi, radius, epsln
-use diag_manager_mod,    only: register_diag_field, register_static_field, send_data
+use diag_manager_mod,    only: register_diag_field, register_static_field
 use fms_mod,             only: open_namelist_file, check_nml_error
 use fms_mod,             only: write_version_number, close_file
 use fms_mod,             only: FATAL, NOTE, stdout, stdlog, read_data
 use mpp_domains_mod,     only: mpp_update_domains, mpp_global_field
 use mpp_domains_mod,     only: mpp_global_min, mpp_global_max, BGRID_NE
-use mpp_mod,             only: input_nml_file, mpp_error, mpp_max, mpp_sum, mpp_pe, mpp_chksum 
+use mpp_mod,             only: input_nml_file, mpp_error, mpp_max, mpp_sum, mpp_pe
 
 use ocean_domains_mod,    only: get_local_indices
 use ocean_obc_mod,        only: ocean_obc_enhance_visc_back
@@ -239,7 +240,7 @@ use ocean_operators_mod,  only: BAY, BAX, BDX_EU, BDY_NU, FDX_U, FDY_U, FMX, FMY
 use ocean_parameters_mod, only: missing_value, oneeigth, omega_earth, rho0, rho0r
 use ocean_types_mod,      only: ocean_time_type, ocean_grid_type, ocean_domain_type, ocean_adv_vel_type
 use ocean_types_mod,      only: ocean_thickness_type, ocean_velocity_type, ocean_options_type
-use ocean_util_mod,       only: write_timestamp
+use ocean_util_mod,       only: write_timestamp, diagnose_3d_u, diagnose_2d_u, diagnose_2d, write_chksum_3d
 use ocean_workspace_mod,  only: wrk1, wrk2, wrk1_v, wrk2_v, wrk3_v, wrk1_v2d
 
 implicit none
@@ -769,15 +770,13 @@ ierr = check_nml_error(io_status,'ocean_bihgen_friction_nml')
      id_umask_next_to_land = register_static_field('ocean_model', 'umask_next_to_land_bih',&
             Grd%vel_axes_uv(1:3),'U-cell mask for cells next to land for bihgen module',   &
             'dimensionless', missing_value=missing_value, range=(/-10.0,10.0/))
-     used = send_data (id_umask_next_to_land, umask_next_to_land(isc:iec,jsc:jec,:), &
-            Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
+     call diagnose_3d_u(Time, Grd, id_umask_next_to_land, umask_next_to_land(:,:,:))
   endif 
 
   id_visc_crit_bih = register_static_field ('ocean_model', 'visc_crit_bih', &
                      Grd%vel_axes_uv(1:2), 'critical viscosity', 'm^4/sec', &
                      missing_value=missing_value, range=(/0.0,1.e20/))
-  if (id_visc_crit_bih > 0) used = send_data (id_visc_crit_bih, visc_crit(isc:iec,jsc:jec), &
-                            Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
+  call diagnose_2d_u(Time, Grd, id_visc_crit_bih, visc_crit(:,:))
 
 
   ! ensure that background viscosities are not too large 
@@ -857,21 +856,13 @@ ierr = check_nml_error(io_status,'ocean_bihgen_friction_nml')
                    'U-cell background cross-stream bih visc', 'm^4/sec',                         &
                    missing_value=missing_value, range=(/-10.0,1.e20/))
 
-  if (id_aiso_back > 0) then 
-    used = send_data (id_aiso_back, aiso_back(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-  endif 
-  if (id_aaniso_back > 0) then 
-    used = send_data (id_aaniso_back, aaniso_back(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-  endif 
+  call diagnose_3d_u(Time, Grd, id_aiso_back, aiso_back(:,:,:))
+  call diagnose_3d_u(Time, Grd, id_aaniso_back, aaniso_back(:,:,:))
   if (id_along_back > 0) then 
-    used = send_data (id_along_back, aiso_back(isc:iec,jsc:jec,:)+0.5*aaniso_back(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
+     call diagnose_3d_u(Time, Grd, id_along_back, aiso_back(:,:,:)+0.5*aaniso_back(:,:,:))
   endif 
   if (id_across_back > 0) then 
-    used = send_data (id_across_back, aiso_back(isc:iec,jsc:jec,:)-0.5*aaniso_back(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
+     call diagnose_3d_u(Time, Grd, id_across_back, aiso_back(:,:,:)-0.5*aaniso_back(:,:,:))
   endif 
 
   id_horz_bih_diss = register_diag_field ('ocean_model', 'horz_bih_diss', Grd%vel_axes_uv(1:3),      &
@@ -946,7 +937,7 @@ subroutine bihgen_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, en
   real, dimension(0:1,0:1,isc:iec,jsc:jec,nk) :: aaniso_smag
   real    :: uvmag, umag, vmag, velocity_gamma
   integer :: i, j, k, n
-  integer :: ip, jq, jjq, iip
+  integer :: ip, jq
   integer :: taum1, tau
 
   real :: u1_m10, u2_m10
@@ -1394,25 +1385,12 @@ subroutine bihgen_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, en
       enddo
       call mpp_update_domains (bih_viscosity(:,:), Dom%domain2d)    
 
-      if (id_aiso > 0)    used = send_data (id_aiso, aiso(:,:,:), &
-           Time%model_time, rmask=Grd%umask(:,:,:),               &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      call diagnose_3d_u(Time, Grd, id_aiso, aiso(:,:,:))
+      call diagnose_3d_u(Time, Grd, id_visc_diverge, visc_diverge(:,:,:))
+      call diagnose_3d_u(Time, Grd, id_aaniso, wrk1(:,:,:))
 
-      if (id_visc_diverge > 0)    used = send_data (id_visc_diverge, visc_diverge(:,:,:), &
-           Time%model_time, rmask=Grd%umask(:,:,:),                                       &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-      if (id_aaniso > 0)  used = send_data (id_aaniso, wrk1(:,:,:), &
-           Time%model_time, rmask=Grd%umask(:,:,:),                 &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-      if (id_along > 0)   used = send_data (id_along,  aiso(:,:,:)+0.5*wrk1(:,:,:),  &
-           Time%model_time, rmask=Grd%umask(:,:,:),                                  &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
-
-      if (id_across > 0)  used = send_data (id_across, aiso(:,:,:)-0.5*wrk1(:,:,:),  &
-           Time%model_time, rmask=Grd%umask(:,:,:),                                  &
-           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      if (id_along > 0)  call diagnose_3d_u(Time, Grd, id_along,  aiso(:,:,:)+0.5*wrk1(:,:,:))
+      if (id_across > 0) call diagnose_3d_u(Time, Grd, id_across, aiso(:,:,:)-0.5*wrk1(:,:,:))
 
       if (id_horz_bih_diss > 0)  then
           do k=1,nk
@@ -1424,50 +1402,21 @@ subroutine bihgen_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, en
                 enddo
              enddo
           enddo
-          used = send_data (id_horz_bih_diss, wrk2(:,:,:),&
-          Time%model_time, rmask=Grd%umask(:,:,:),        &
-          is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+          call diagnose_3d_u(Time, Grd, id_horz_bih_diss, wrk2(:,:,:))
       endif 
 
-      if (id_bih_fric_u > 0) then 
-         if(use_side_drag_friction) then 
-            used = send_data(id_bih_fric_u, wrk3_v(isc:iec,jsc:jec,:,1), &
-            Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-         else 
-            used = send_data(id_bih_fric_u, wrk1_v(isc:iec,jsc:jec,:,1), &
-            Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-         endif 
-      endif   
+      if(use_side_drag_friction) then
+         call diagnose_3d_u(Time, Grd, id_bih_fric_u, wrk3_v(:,:,:,1))
+         call diagnose_3d_u(Time, Grd, id_bih_fric_v, wrk3_v(:,:,:,2))
+      else 
+         call diagnose_3d_u(Time, Grd, id_bih_fric_u, wrk1_v(:,:,:,1))
+         call diagnose_3d_u(Time, Grd, id_bih_fric_v, wrk1_v(:,:,:,2))
+      endif
 
-      if (id_bih_fric_v > 0) then 
-         if(use_side_drag_friction) then 
-            used = send_data(id_bih_fric_v, wrk3_v(isc:iec,jsc:jec,:,2), &
-            Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-         else 
-            used = send_data(id_bih_fric_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-            Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-         endif 
-      endif 
-
-      if (id_bih_plus_side_fric_u > 0) then 
-         used = send_data(id_bih_plus_side_fric_u, wrk1_v(isc:iec,jsc:jec,:,1), &
-         Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-      endif 
-
-      if (id_bih_plus_side_fric_v > 0) then 
-         used = send_data(id_bih_plus_side_fric_v, wrk1_v(isc:iec,jsc:jec,:,2), &
-         Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-      endif 
-
-      if (id_side_drag_friction_u > 0) then 
-           used = send_data(id_side_drag_friction_u, wrk2_v(isc:iec,jsc:jec,:,1), &
-           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-      endif 
-
-      if (id_side_drag_friction_v > 0) then 
-           used = send_data(id_side_drag_friction_v, wrk2_v(isc:iec,jsc:jec,:,2), &
-           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-      endif 
+      call diagnose_3d_u(Time, Grd, id_bih_plus_side_fric_u, wrk1_v(:,:,:,1))
+      call diagnose_3d_u(Time, Grd, id_bih_plus_side_fric_v, wrk1_v(:,:,:,2))
+      call diagnose_3d_u(Time, Grd, id_side_drag_friction_u, wrk2_v(:,:,:,1))
+      call diagnose_3d_u(Time, Grd, id_side_drag_friction_v, wrk2_v(:,:,:,2))
 
   endif    ! endif for energy_analysis_step
 
@@ -1476,12 +1425,9 @@ subroutine bihgen_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, en
       write(stdoutunit,*) ' ' 
       write(stdoutunit,*) 'From ocean_bihgen_friction_mod: friction chksums'
       call write_timestamp(Time%model_time)
-      write(stdoutunit,*) 'rho_dzu(tau)       = ', &
-                         mpp_chksum(Thickness%rho_dzu(isc:iec,jsc:jec,:,tau)*Grd%umask(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'bihgen friction(1) = ', &
-                         mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,1)*Grd%umask(isc:iec,jsc:jec,:))
-      write(stdoutunit,*) 'bihgen friction(2) = ', &
-                         mpp_chksum(wrk1_v(isc:iec,jsc:jec,:,2)*Grd%umask(isc:iec,jsc:jec,:))
+      call write_chksum_3d('rho_dzu(tau)', Thickness%rho_dzu(COMP,:,tau)*Grd%umask(COMP,:))
+      call write_chksum_3d('bihgen friction(1)', wrk1_v(COMP,:,1)*Grd%umask(COMP,:))
+      call write_chksum_3d('bihgen friction(2)', wrk1_v(COMP,:,2)*Grd%umask(COMP,:))
   endif 
 
 
@@ -1561,10 +1507,7 @@ subroutine ncar_boundary_scale_read(Time)
   id_ncar_rescale = register_static_field('ocean_model', 'ncar_rescale', Grd%vel_axes_uv(1:3),&
                     'rescaling used for the background viscosity', 'dimensionless',           &
                      missing_value=missing_value, range=(/-10.0,1.e10/))
-  if (id_ncar_rescale > 0) then 
-    used = send_data (id_ncar_rescale, ncar_rescale(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-  endif 
+  call diagnose_3d_u(Time, Grd, id_ncar_rescale, ncar_rescale(:,:,:))
 
   ! need these viscosities in the halo regions
   call mpp_update_domains (aiso_back(:,:,:),   Dom%domain2d)    
@@ -1750,11 +1693,7 @@ subroutine ncar_boundary_scale_create(Time)
   id_ncar_rescale = register_static_field('ocean_model', 'ncar_rescale', Grd%vel_axes_uv(1:3),&
                     'rescaling used for the background viscosity', 'dimensionless',           &
                      missing_value=missing_value, range=(/-10.0,1.e10/))
-  if (id_ncar_rescale > 0) then 
-    used = send_data (id_ncar_rescale, ncar_rescale(isc:iec,jsc:jec,:), &
-           Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,:))
-  endif 
-
+  call diagnose_3d_u(Time, Grd, id_ncar_rescale, ncar_rescale(:,:,:))
 
   ! need these viscosities in the halo regions
   call mpp_update_domains (aiso_back(:,:,:),   Dom%domain2d)    
@@ -1994,7 +1933,6 @@ subroutine compute_neptune_velocity(Time)
 
   type(ocean_time_type), intent(in) :: Time
   real, dimension(isd:ied,jsd:jed)  :: neptune_fu
-  real, dimension(isd:ied,jsd:jed)  :: neptune_psi
   real, dimension(isd:ied,jsd:jed)  :: neptune_length
   real                              :: active_cells
   integer                           :: i,j,k
@@ -2093,26 +2031,17 @@ subroutine compute_neptune_velocity(Time)
   id_neptune_bih_u = register_static_field('ocean_model', 'neptune_bih_u',                &
                    Grd%vel_axes_uv(1:2), 'Zonal velocity from neptune biharmonic scheme', &
                    'm/sec', missing_value=missing_value, range=(/-1.e10,1.e10/))
-  if (id_neptune_bih_u > 0) then 
-    used = send_data (id_neptune_bih_u, neptune_velocity(isc:iec,jsc:jec,1), &
-                      Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
-  endif 
+  call diagnose_2d_u(Time, Grd, id_neptune_bih_u, neptune_velocity(:,:,1))
 
   id_neptune_bih_v = register_static_field('ocean_model', 'neptune_bih_v',                     &
                    Grd%vel_axes_uv(1:2), 'Meridional velocity from neptune biharmonic scheme', &
                    'm/sec', missing_value=missing_value, range=(/-1.e10,1.e10/))
-  if (id_neptune_bih_v  > 0) then 
-    used = send_data (id_neptune_bih_v, neptune_velocity(isc:iec,jsc:jec,2), &
-                      Time%model_time, rmask=Grd%umask(isc:iec,jsc:jec,1))
-  endif 
+  call diagnose_2d_u(Time, Grd, id_neptune_bih_v, neptune_velocity(:,:,2))
 
   id_neptune_fu   = register_static_field('ocean_model', 'neptune_fu',                            &
                     Grd%tracer_axes(1:2),'Coriolis parameter used for  neptune parameterization', &
                     '1/sec', missing_value=missing_value, range=(/-1.e3,1.e3/))
-  if (id_neptune_fu  > 0) then 
-    used = send_data (id_neptune_fu, neptune_fu(isc:iec,jsc:jec), &
-                      Time%model_time, rmask=Grd%tmask(isc:iec,jsc:jec,1))
-  endif 
+  call diagnose_2d(Time, Grd, id_neptune_fu, neptune_fu(:,:))
 
 end subroutine compute_neptune_velocity
 ! </SUBROUTINE> NAME="compute_neptune_velocity"

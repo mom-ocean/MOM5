@@ -153,7 +153,7 @@ module ocean_shortwave_gfdl_mod
 
 use axis_utils_mod,           only: frac_index
 use constants_mod,            only: epsln, c2dbars
-use diag_manager_mod,         only: register_diag_field, send_data
+use diag_manager_mod,         only: register_diag_field
 use field_manager_mod,        only: fm_get_index
 use fms_mod,                  only: write_version_number, open_namelist_file, close_file, check_nml_error
 use fms_mod,                  only: stdout, stdlog, FATAL, NOTE
@@ -169,6 +169,7 @@ use ocean_types_mod,          only: ocean_time_type, ocean_domain_type, ocean_gr
 use ocean_types_mod,          only: ocean_prog_tracer_type, ocean_diag_tracer_type
 use ocean_types_mod,          only: ocean_thickness_type, ocean_options_type
 use ocean_workspace_mod,      only: wrk1, wrk2, wrk3, wrk4 
+use ocean_util_mod,           only: diagnose_2d
 
 implicit none
 
@@ -266,14 +267,6 @@ contains
     type(ocean_time_type),     intent(in)         :: Time
     integer,                   intent(in)         :: ver_coordinate
     type(ocean_options_type),  intent(inout)      :: Ocean_options
-
-    character(len=48),  parameter :: sub_name = 'ocean_shortwave_gfdl_init'
-    character(len=256), parameter :: error_header = '==>Error from ' // trim(mod_name) //   &
-                                                    '(' // trim(sub_name) // '): '
-    character(len=256), parameter :: warn_header = '==>Warning from ' // trim(mod_name) //  &
-                                                   '(' // trim(sub_name) // '): '
-    character(len=256), parameter :: note_header = '==>Note from ' // trim(mod_name) //     &
-                                                   '(' // trim(sub_name) // '): '
 
     integer :: unit, io_status, ierr, i, j
 #ifdef MOM_STATIC_ARRAYS    
@@ -592,9 +585,7 @@ subroutine sw_source_gfdl(Time, Thickness, T_diag, swflx, swflx_vis, index_irr, 
         sat_chl(i,j) = Grd%tmask(i,j,1)*max(0.0,chl_data(i,j))
       enddo
     enddo
-    if (id_sat_chl > 0) used = send_data (id_sat_chl, sat_chl(:,:), &
-                               Time%model_time,rmask=Grd%tmask(:,:,1), &
-                               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+    call diagnose_2d(Time, Grd, id_sat_chl, sat_chl(:,:))
   endif
 
   ! F_vis is the amount of light in the shortwave verses the long wave. 
@@ -619,9 +610,7 @@ subroutine sw_source_gfdl(Time, Thickness, T_diag, swflx, swflx_vis, index_irr, 
     enddo
 
   endif
-  if (id_f_vis > 0) used = send_data (id_f_vis, f_vis(:,:),        &
-                           Time%model_time,rmask=Grd%tmask(:,:,1), &
-                           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  call diagnose_2d(Time, Grd, id_f_vis, f_vis(:,:))
 
   ! zero out the fractional decay 
   sw_fk_zt(:,:) = 0.0

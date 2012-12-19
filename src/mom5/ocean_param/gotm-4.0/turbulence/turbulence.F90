@@ -602,15 +602,15 @@
 
    allocate(num(0:nlev),stat=rc)
    if (rc /= 0) stop 'init_turbulence: Error allocating (num)'
-   num = 1.0D-6
+   num = 1.0e-6
 
    allocate(nuh(0:nlev),stat=rc)
    if (rc /= 0) stop 'init_turbulence: Error allocating (nuh)'
-   nuh = 1.0D-6
+   nuh = 1.0e-6
 
    allocate(nus(0:nlev),stat=rc)
    if (rc /= 0) stop 'init_turbulence: Error allocating (nus)'
-   nus = 1.0D-6
+   nus = 1.0e-6
 
    allocate(gamu(0:nlev),stat=rc)
    if (rc /= 0) stop 'init_turbulence: Error allocating (gamu)'

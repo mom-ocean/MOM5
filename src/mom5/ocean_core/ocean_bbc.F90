@@ -126,13 +126,11 @@ use fms_mod,              only: open_namelist_file, check_nml_error, write_versi
 use fms_mod,              only: close_file, read_data
 use mpp_mod,              only: input_nml_file, mpp_error, FATAL, WARNING, stdout, stdlog
 use mpp_domains_mod,      only: mpp_update_domains, BGRID_NE
-use mpp_domains_mod,      only: mpp_global_sum, NON_BITWISE_EXACT_SUM
 
 use ocean_domains_mod,    only: get_local_indices
 use ocean_parameters_mod, only: missing_value, TERRAIN_FOLLOWING
 use ocean_parameters_mod, only: onefourth, rho0, rho0r, cp_ocean, von_karman
 use ocean_parameters_mod, only: MOM_BGRID, MOM_CGRID
-use ocean_tracer_util_mod,only: rebin_onto_rho
 use ocean_types_mod,      only: ocean_velocity_type, ocean_domain_type
 use ocean_types_mod,      only: ocean_grid_type, ocean_prog_tracer_type
 use ocean_types_mod,      only: ocean_time_type, ocean_thickness_type
@@ -141,6 +139,7 @@ use ocean_types_mod,      only: ocean_external_mode_type
 use ocean_workspace_mod,  only: wrk1_2d, wrk2_2d
 use wave_types_mod,       only: ocean_wave_type
 use ocean_wave_mod,       only: wave_model_is_initialised
+use ocean_util_mod,       only: diagnose_2d, diagnose_2d_u, diagnose_sum
 
 implicit none
 
@@ -245,13 +244,12 @@ contains
 ! Initialize the bottom boundary condition module
 ! </DESCRIPTION>
 !
-subroutine ocean_bbc_init(Grid, Domain, Time, Dens, T_prog, Velocity, &
+subroutine ocean_bbc_init(Grid, Domain, Time, T_prog, Velocity, &
                           Ocean_options, vert_coordinate_type, hor_grid)
 
 type(ocean_grid_type),   target, intent(in)    :: Grid
 type(ocean_domain_type), target, intent(in)    :: Domain
 type(ocean_time_type),           intent(in)    :: Time
-type(ocean_density_type),        intent(in)    :: Dens
 type(ocean_prog_tracer_type),    intent(inout) :: T_prog(:)
 type(ocean_velocity_type),       intent(inout) :: Velocity
 type(ocean_options_type),        intent(inout) :: Ocean_options
@@ -535,10 +533,7 @@ id_geo_heat = register_static_field ('ocean_model', 'geo_heat',   &
               Grd%tracer_axes(1:2), 'Geothermal heating', 'W/m^2',&     
               missing_value=missing_value, range=(/-10.0,1e6/),   &
               standard_name='upward_geothermal_heat_flux_at_sea_floor')
-if (id_geo_heat > 0) then 
-    used = send_data (id_geo_heat, geo_heat(:,:)*cp_ocean, Time%model_time, &
-           rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-endif
+call diagnose_2d(Time, Grd, id_geo_heat, geo_heat(:,:)*cp_ocean)
 
 id_eta_tend_geoheat = register_diag_field('ocean_model',             &
        'eta_tend_geoheat', Grd%tracer_axes(1:2),Time%model_time   ,  &
@@ -597,23 +592,20 @@ end subroutine ocean_bbc_init
 !
 ! </DESCRIPTION>
 !
-subroutine get_ocean_bbc(Time, Thickness, Ext_mode, Dens, Velocity, T_prog, Waves)
+subroutine get_ocean_bbc(Time, Thickness, Dens, Velocity, T_prog, Waves)
 
 type(ocean_time_type),          intent(in)    :: Time
 type(ocean_thickness_type),     intent(in)    :: Thickness
-type(ocean_external_mode_type), intent(in)    :: Ext_mode
 type(ocean_density_type),       intent(in)    :: Dens 
 type(ocean_velocity_type),      intent(inout) :: Velocity
 type(ocean_prog_tracer_type),   intent(inout) :: T_prog(:)
 type(ocean_wave_type),          intent(inout) :: Waves
 
-integer :: i, j, k, kbot, n
+integer :: i, j, kbot, n
 integer :: taum1, tau, tstep
 real    :: uvmag, argument, distance 
 real    :: umag, vmag
 real    :: rhobot_inv, alphabot 
-real    :: mass_inv, ubarotropic, vbarotropic
-real    :: global_mean 
 
 if (.not. module_is_initialized) then 
    call mpp_error(FATAL,'==>Error from ocean_bbc_mod (get_ocean_bbc): module must be initialized')
@@ -759,16 +751,8 @@ if (id_eta_tend_geoheat > 0 .or. id_eta_tend_geoheat_glob > 0) then
        enddo
     enddo
 
-    if(id_eta_tend_geoheat > 0) then  
-        used = send_data(id_eta_tend_geoheat, wrk1_2d(:,:),&
-             Time%model_time, rmask=Grd%tmask(:,:,1),      &
-             is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-    endif
-    if(id_eta_tend_geoheat_glob > 0) then  
-        wrk1_2d(:,:) = Grd%tmask(:,:,1)*Grd%dat(:,:)*wrk1_2d(:,:)
-        global_mean  = mpp_global_sum(Dom%domain2d, wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)*cellarea_r
-        used         = send_data (id_eta_tend_geoheat_glob, global_mean, Time%model_time)
-    endif
+    call diagnose_2d(Time, Grd, id_eta_tend_geoheat, wrk1_2d(:,:))
+    call diagnose_sum(Time, Grd, Dom, id_eta_tend_geoheat_glob, wrk1_2d, cellarea_r)
 
 endif
 
@@ -838,9 +822,9 @@ integer,                        intent(in)    :: tstep
 
 real,parameter:: twopi=2.*pi
 
-  real    :: omega, cdrag, cold, cnew, ruff, rauh, hu, dist, wave_p_u, wave_u_u
+  real    :: omega, cdrag, cold, cnew, ruff, rauh, dist, wave_p_u, wave_u_u
   real    :: bot_vel, u_vel, v_vel   ! Velocity in the bottommost layer. 
-  real    :: ustar, ustar2, ucomb, ucskin, uskin   ! friction velocities in wave & skin boundary layers
+  real    :: ustar, ustar2, ucomb, ucskin  ! friction velocities in wave & skin boundary layers
   integer:: i, j, icount, kmu
   integer, parameter::  itmax=10
 
@@ -876,11 +860,11 @@ real,parameter:: twopi=2.*pi
             ! determined by matching log-profiles of outer and wave-boundary layer, see Kuhrts et al. (2004) Eq. (1,2)
             ! Waves%-quantities are defined at the t-grid. 
                 
-	    ! put wave_u onto the u-grid
+            ! put wave_u onto the u-grid
             wave_u_u = max(wave_u(i,j),   wave_u(i+1,j), &
                            wave_u(i,j+1), wave_u(i+1,j+1))
             
-	    if (wave_u_u > epsln) then
+            if (wave_u_u > epsln) then
 
                 ! put wave_p onto the u-grid
                 wave_p_u = max(Waves%wave_p(i,j),   Waves%wave_p(i+1,j), &
@@ -950,22 +934,10 @@ real,parameter:: twopi=2.*pi
   enddo
 
   ! diagnostics 
-  if (id_cur_wav_dr > 0) then 
-    used = send_data(id_cur_wav_dr, Velocity%current_wave_stress(:,:), Time%model_time, &
-           rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if (id_wave_s > 0) then 
-    used = send_data(id_wave_s, wave_s(:,:), Time%model_time, &
-           rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if (id_wave_u > 0) then 
-    used = send_data(id_wave_u, wave_u(:,:), Time%model_time, &
-           rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
-  if (id_iter > 0) then 
-    used = send_data(id_iter, wrk2_2d(:,:), Time%model_time, &
-           rmask=Grd%umask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-  endif 
+  call diagnose_2d(Time, Grd, id_cur_wav_dr, Velocity%current_wave_stress(:,:))
+  call diagnose_2d(Time, Grd, id_wave_s, wave_s(:,:))
+  call diagnose_2d(Time, Grd, id_wave_u, wave_u(:,:))
+  call diagnose_2d_u(Time, Grd, id_iter, wrk2_2d(:,:))
 
   if(debug_this_module) then 
       write(stdoutunit,*) 'ocean_wave_model: end wave_drag_diag'
@@ -994,7 +966,7 @@ subroutine wave_u_diag(wave_u, wave_s, Waves)
   real, dimension(isd:,jsd:), intent(inout) :: wave_s
   type(ocean_wave_type),      intent(inout) :: Waves
 
-  real    :: cm, H_rms, omega, U_m, ampli, f_w, wk_times_depth, ruff, grain
+  real    :: omega, U_m, ampli, f_w, wk_times_depth, ruff, grain
   integer :: i, j
   real,parameter:: twopi=2.*pi
 

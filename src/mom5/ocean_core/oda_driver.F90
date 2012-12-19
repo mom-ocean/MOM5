@@ -213,10 +213,8 @@ contains
 ! <IN NAME="Grid" TYPE="ocean_grid_type"></IN>  
 ! <IN NAME="Ocn_Time" TYPE="ocean_time_type"></IN>
 ! <IN NAME="T_prog" TYPE="ocean_tracer_type(:)"></IN>
-! <IN NAME="Velocity" TYPE="ocean_velocity_type"></IN>
-! <IN NAME="Ext_mode" TYPE="ocean_external_mode_type"></IN>
   
-  subroutine init_oda(Domain, Grid, Ocn_Time, T_prog, Velocity, Ext_mode)
+  subroutine init_oda(Domain, Grid, Ocn_Time, T_prog)
     ! initialize First_guess and Analysis grid and domain information
     ! grids are identical to ocean_model grid.  Halo size may differ.
 
@@ -233,8 +231,6 @@ contains
     type(ocean_grid_type), target :: Grid ! domain and grid information for ocean model
     type(ocean_time_type), target :: Ocn_Time
     type(ocean_prog_tracer_type), intent(in) :: T_prog(:)
-    type(ocean_velocity_type), intent(in), optional :: Velocity
-    type(ocean_external_mode_type), intent(in), optional  :: Ext_mode
 
     type(time_type), pointer :: Time
 
@@ -563,20 +559,16 @@ contains
 ! </DESCRIPTION>
 ! <IN NAME="Ocn_Time" TYPE="ocean_type_type"></IN>
 ! <INOUT NAME="T_prog" TYPE="ocean_prog_tracer_type(:)"></INOUT>
-! <INOUT NAME="Velocity" TYPE="ocean_velocity_type"></INOUT>    
-! <INOUT NAME="Ext_mode" TYPE="ocean_external_mode_type"></INOUT>
 ! <INOUT NAME="Thickness" TYPE="ocean_thickness_type"></INOUT>
 ! <INOUT NAME="Dens" TYPE="ocean_density_type"></INOUT>
   
-  subroutine oda(Ocn_Time, T_prog, Velocity, Ext_mode, Thickness, Dens)
+  subroutine oda(Ocn_Time, T_prog, Thickness, Dens)
 
 !  use eakf_mod, only : ensemble_filter
     use diag_manager_mod, only : send_data
 
     type(ocean_time_type), target :: Ocn_Time
     type(ocean_prog_tracer_type), intent(inout) :: T_prog(:)
-    type(ocean_velocity_type), intent(inout), optional :: Velocity
-    type(ocean_external_mode_type), intent(inout), optional :: Ext_mode
     type(ocean_thickness_type), intent(inout), optional :: Thickness  
     type(ocean_density_type), intent(inout), optional :: Dens
     
@@ -585,7 +577,7 @@ contains
 ! snz adds a time-step index as the analysis time-step using time_step
     integer :: time_step_index = 0
 
-    integer :: ia, ja, ka, i,j, k, m, n, nprof, nsfc, itt, tau, taup1, &
+    integer :: i,j, k, m, n, nprof, nsfc, itt, tau, taup1, &
          nprof_g
     real :: t, u, v, tfg, z1, z2
     logical :: assim_time, used
@@ -816,11 +808,7 @@ contains
        
            
    if (assim_time .and. (save_omf_snaps .or. save_oma_snaps)) call close_profile_snaps(nprof)
-
-!   call mpp_sync()
    
-99  continue
-    
     if (id_omf > 0) used = send_data(id_omf,omf(isc:iec,jsc:jec,:),&
          &Time,rmask=Grd%tmask(isc-Dom%ioff:iec-Dom%ioff,&
          jsc-Dom%joff:jec-Dom%joff,:))

@@ -1,4 +1,5 @@
 module ocean_blob_util_mod
+#define COMP isc:iec,jsc:jec
 !
 !<CONTACT EMAIL="m.bates@student.unsw.edu.au"> Michael L. Bates
 !</CONTACT>
@@ -52,7 +53,7 @@ use fms_mod,         only: error_mesg, FATAL, WARNING, stdout, stderr, mpp_error
 use fms_mod,         only: read_data
 use mpp_domains_mod, only: mpp_global_sum, mpp_get_neighbor_pe, mpp_update_domains
 use mpp_domains_mod, only: NORTH, SOUTH, EAST, WEST
-use mpp_mod,         only: mpp_chksum, mpp_sum, NULL_PE
+use mpp_mod,         only: mpp_sum, NULL_PE
 
 use ocean_parameters_mod, only: onehalf, rho0r, grav, omega_earth
 use ocean_parameters_mod, only: GEOPOTENTIAL, ZSTAR, DEPTH_BASED
@@ -61,6 +62,7 @@ use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_time_type
 use ocean_types_mod,      only: ocean_blob_type, ocean_grid_type, ocean_external_mode_type
 use ocean_types_mod,      only: ocean_domain_type, ocean_density_type, blob_grid_type
 use ocean_workspace_mod,  only: wrk1, wrk2
+use ocean_util_mod,       only: write_chksum_3d, write_chksum_3d_int
 
 implicit none
 
@@ -729,36 +731,36 @@ subroutine blob_chksum(T_prog, head_static_free, head_static_bott, &
      endif
   enddo
 
-  write(stdoutunit, fmti) 'chksum for blob counter             =', mpp_chksum(blob_counter(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for blob latitude            =', mpp_chksum(grdlat(isc:iec,jsc:jec,1:nk))  
-  write(stdoutunit, fmti) 'chksum for blob longitude           =', mpp_chksum(grdlon(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for blob depth               =', mpp_chksum(grddepth(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for blob geodepth            =', mpp_chksum(grdgeodepth(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for blob vertical coord. (st)=', mpp_chksum(grdst(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for blob mass                =', mpp_chksum(grdmass(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for blob density             =', mpp_chksum(grddens(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for blob volume              =', mpp_chksum(grdvolume(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for blob zonal velocity      =', mpp_chksum(grdu(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for blob meridional velocity =', mpp_chksum(grdv(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for blob vertical velocity   =', mpp_chksum(grdw(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for blob entrainment velocity=', mpp_chksum(grdent(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for stretching function 1    =', mpp_chksum(grdh1(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for stretching function 2    =', mpp_chksum(grdh2(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for blob number              =', mpp_chksum(grdnum(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for blob step size           =', mpp_chksum(grdstep(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for number of blob steps     =', mpp_chksum(grdnsteps(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for number of E system steps =', mpp_chksum(grdmsteps(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for zonal cell index (i)     =', mpp_chksum(grdi(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for meridional cell index (j)=', mpp_chksum(grdj(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmti) 'chksum for depth cell index (k)     =', mpp_chksum(grdk(isc:iec,jsc:jec,1:nk))
+  call write_chksum_3d_int('blob counter', blob_counter(COMP,1:nk))
+  call write_chksum_3d('blob latitude', grdlat(COMP,1:nk))  
+  call write_chksum_3d('blob longitude', grdlon(COMP,1:nk))
+  call write_chksum_3d('blob depth', grddepth(COMP,1:nk))
+  call write_chksum_3d('blob geodepth', grdgeodepth(COMP,1:nk))
+  call write_chksum_3d('blob vertical coord. (st)', grdst(COMP,1:nk))
+  call write_chksum_3d('blob mass', grdmass(COMP,1:nk))
+  call write_chksum_3d('blob density', grddens(COMP,1:nk))
+  call write_chksum_3d('blob volume', grdvolume(COMP,1:nk))
+  call write_chksum_3d('blob zonal velocity', grdu(COMP,1:nk))
+  call write_chksum_3d('blob meridional velocity', grdv(COMP,1:nk))
+  call write_chksum_3d('blob vertical velocity', grdw(COMP,1:nk))
+  call write_chksum_3d('blob entrainment velocity', grdent(COMP,1:nk))
+  call write_chksum_3d('stretching function 1', grdh1(COMP,1:nk))
+  call write_chksum_3d('stretching function 2', grdh2(COMP,1:nk))
+  call write_chksum_3d_int('blob number', grdnum(COMP,1:nk))
+  call write_chksum_3d('blob step size', grdstep(COMP,1:nk))
+  call write_chksum_3d_int('number of blob steps', grdnsteps(COMP,1:nk))
+  call write_chksum_3d_int('number of E system steps', grdmsteps(COMP,1:nk))
+  call write_chksum_3d_int('zonal cell index (i)', grdi(COMP,1:nk))
+  call write_chksum_3d_int('meridional cell index (j)', grdj(COMP,1:nk))
+  call write_chksum_3d_int('depth cell index (k)', grdk(COMP,1:nk))
   do n=1,num_prog_tracers    
      if (n==index_temp) then
-        write(stdoutunit,fmti) 'chksum for blob heat content        =', mpp_chksum(grdtracer(isc:iec,jsc:jec,1:nk,n))
-        write(stdoutunit,fmti) 'chksum for blob temp concentration  =', mpp_chksum(grdfield(isc:iec,jsc:jec,1:nk,n))
+        call write_chksum_3d('blob heat content', grdtracer(COMP,1:nk,n))
+        call writE_chksum_3d('blob temp concentration', grdfield(COMP,1:nk,n))
      else
         tname = trim(T_prog(n)%name)//' content'
-        write(stdoutunit,fmti) 'chksum for blob '//tname(1:19)//' =', mpp_chksum(grdtracer(isc:iec,jsc:jec,1:nk,n))
-        write(stdoutunit,fmti) 'chksum for '//fname(1:19)//'      =', mpp_chksum(grdfield(isc:iec,jsc:jec,1:nk,n))
+        call write_chksum_3d('blob '//tname(1:19), grdtracer(COMP,1:nk,n))
+        call write_chksum_3d(fname(1:19), grdfield(COMP,1:nk,n))
      endif
   enddo
   write(stdoutunit, '(a)') 'end blob chksums'
@@ -779,25 +781,18 @@ end subroutine blob_chksum
 !
 ! </DESCRIPTION>
 !
-subroutine lagrangian_system_chksum(Time, L_system)
+subroutine lagrangian_system_chksum(L_system)
 
-  type(ocean_time_type),       intent(in) :: Time
   type(ocean_lagrangian_type), intent(in) :: L_system
 
-  integer :: tau, taup1
   integer :: stdoutunit
   character(len=*), parameter :: fmt="(a,x,i20)"
 
   stdoutunit=stdout()
-  tau   = Time%tau
-  taup1 = Time%taup1
 
-  write(stdoutunit, fmt) 'chksum for T-grid upper cell rho_dzt (taup1) =', &
-       mpp_chksum(L_system%rho_dztup(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmt) 'chksum for T-grid lower cell rho_dzt (taup1) =', &
-       mpp_chksum(L_system%rho_dztlo(isc:iec,jsc:jec,1:nk))
-  write(stdoutunit, fmt) 'chksum for T-grid blob convergence (taup1)   =', &
-       mpp_chksum(L_system%conv_blob(isc:iec,jsc:jec,1:nk))
+  call write_chksum_3d('T-grid upper cell rho_dzt (taup1)', L_system%rho_dztup(COMP,1:nk))
+  call write_chksum_3d('T-grid lower cell rho_dzt (taup1)', L_system%rho_dztlo(COMP,1:nk))
+  call write_chksum_3d('T-grid blob convergence (taup1)', L_system%conv_blob(COMP,1:nk))
   write(stdoutunit, fmt) 'end Lagrangian system chksums'
 
 end subroutine lagrangian_system_chksum

@@ -203,7 +203,6 @@ use ocean_operators_mod,         only: FAX, FAY, FMX, FMY, BDX_ET, BDY_NT
 use ocean_parameters_mod,        only: missing_value, onehalf, onefourth, oneeigth, DEPTH_BASED
 use ocean_parameters_mod,        only: rho0r, rho0, grav
 use ocean_sigma_transport_mod,   only: tmask_sigma_on, tmask_sigma  
-use ocean_tracer_util_mod,       only: rebin_onto_rho
 use ocean_types_mod,             only: ocean_grid_type, ocean_domain_type, ocean_density_type
 use ocean_types_mod,             only: ocean_prog_tracer_type, ocean_thickness_type
 use ocean_types_mod,             only: ocean_time_type, ocean_time_steps_type
@@ -1535,7 +1534,7 @@ subroutine nphysicsA (Time, Thickness, Dens, rho, T_prog, &
   ! gm_diffusivity passed to neutral_physics for use in computing form drag
   gm_diffusivity(:,:,:) = agm_array(:,:,:)
 
-  call nphysics_diagnostics(Time, T_prog, Dens, Thickness) 
+  call nphysics_diagnostics(Time, T_prog, Dens) 
 
   call gm_velocity(Thickness, Time)
 
@@ -3844,16 +3843,14 @@ end function slope_function_gm
 ! <DESCRIPTION>
 !  Send some diagnostics to diagnostics manager. 
 ! </DESCRIPTION>
-subroutine nphysics_diagnostics(Time, T_prog, Dens, Thickness)
+subroutine nphysics_diagnostics(Time, T_prog, Dens)
 
   type(ocean_time_type),        intent(in)  :: Time
   type(ocean_prog_tracer_type), intent(in)  :: T_prog(:)
   type(ocean_density_type),     intent(in)  :: Dens
-  type(ocean_thickness_type),   intent(in)  :: Thickness
 
-  integer :: i, j, k, nn
+  integer :: k, nn
   integer :: tau
-  real    :: temporary, tmp1, tmp2
   real, dimension(isd:ied,jsd:jed) :: tmp_flux
 
   tau = Time%tau

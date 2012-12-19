@@ -55,7 +55,7 @@ module ocean_increment_eta_mod
 !  </DATA>
 !</NAMELIST>
 !
-use diag_manager_mod,         only: register_diag_field, send_data
+use diag_manager_mod,         only: register_diag_field
 use fms_mod,                  only: write_version_number, open_namelist_file, close_file
 use fms_mod,                  only: file_exist
 use fms_mod,                  only: open_namelist_file, check_nml_error, close_file
@@ -71,7 +71,7 @@ use ocean_parameters_mod,     only: missing_value
 use ocean_types_mod,          only: ocean_domain_type, ocean_grid_type, ocean_thickness_type
 use ocean_types_mod,          only: ocean_External_mode_type, ocean_time_type 
 use ocean_workspace_mod,      only: wrk1_2d, wrk2_2d
-
+use ocean_util_mod,           only: diagnose_2d
 use ocean_parameters_mod,     only: rho0
 implicit none
 
@@ -242,7 +242,7 @@ subroutine ocean_increment_eta_source(Time, Ext_mode)
   type(ocean_external_mode_type), intent(inout) :: Ext_mode
 
   integer :: taum1, tau
-  integer :: i, j, k, n
+  integer :: i, j
   integer :: days,secs
 
   if(.not. use_this_module) return 
@@ -274,10 +274,7 @@ subroutine ocean_increment_eta_source(Time, Ext_mode)
 
    endif
 
-   if (id_increment_tend > 0) used = send_data(id_increment_tend,                 &
-         wrk2_2d(:,:), Time%model_time, rmask=Grd%tmask(:,:,1), &
-         is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
-
+   call diagnose_2d(Time, Grd, id_increment_tend, wrk2_2d(:,:))
 
   return
 

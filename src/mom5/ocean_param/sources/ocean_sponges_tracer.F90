@@ -52,7 +52,7 @@ module ocean_sponges_tracer_mod
 !  </DATA> 
 !</NAMELIST>
 !
-use diag_manager_mod,         only: register_diag_field, send_data
+use diag_manager_mod,         only: register_diag_field
 use fms_mod,                  only: write_version_number, open_namelist_file, close_file
 use fms_mod,                  only: file_exist
 use fms_mod,                  only: open_namelist_file, check_nml_error, close_file
@@ -68,6 +68,7 @@ use ocean_parameters_mod,     only: missing_value
 use ocean_types_mod,          only: ocean_domain_type, ocean_grid_type, ocean_thickness_type
 use ocean_types_mod,          only: ocean_prog_tracer_type, ocean_options_type, ocean_time_type 
 use ocean_workspace_mod,      only: wrk1, wrk2
+use ocean_util_mod,           only: diagnose_3d
 
 implicit none
 
@@ -320,9 +321,8 @@ subroutine sponge_tracer_source(Time, Thickness, T_prog)
 
      endif
 
-     if (id_sponge_tend(n) > 0) used = send_data(id_sponge_tend(n),                 &
-         T_prog(n)%conversion*wrk2(:,:,:), Time%model_time, rmask=Grd%tmask(:,:,:), &
-         is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+     if (id_sponge_tend(n) > 0) call diagnose_3d(Time, Grd, id_sponge_tend(n), &
+         T_prog(n)%conversion*wrk2(:,:,:))
 
   enddo
 

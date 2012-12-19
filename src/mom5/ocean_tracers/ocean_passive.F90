@@ -202,7 +202,7 @@ private shelfbowl_init
 type passive_type
   real, allocatable , dimension(:,:,:) :: mask
   character(len=fm_field_name_len) :: name
-  character(len=30)                :: init_condition 
+  character(len=128)               :: init_condition
   integer                          :: index, diag_index
   real                             :: init_surface
   real                             :: init_value
@@ -307,8 +307,6 @@ subroutine ocean_passive_init(Domain, Grid, Ocean_options, debug)
   character(len=64), parameter :: sub_name = 'ocean_passive_init'
   character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-  character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
   character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
@@ -626,21 +624,21 @@ subroutine ocean_passive_tracer_init(T_prog, T_diag, rho, &
   do nt=1,num_prog_tracers 
      do n=1,instances 
         
-	if(trim(T_prog(nt)%name)=='passive_'//trim(passive(n)%name)) then 
+        if(trim(T_prog(nt)%name)=='passive_'//trim(passive(n)%name)) then 
 
            if( passive(n)%restore ) then 
 
-	      T_diag(passive(n)%diag_index)%field = 0.
-	      do k=1,nk
+              T_diag(passive(n)%diag_index)%field = 0.
+              do k=1,nk
                 do j=jsd,jed
                   do i=isd,ied
                      if (T_prog(nt)%field(i,j,k,tau) > 0.00001) then 
                         ! set a mask to 1 if restoring is required
-			T_diag(passive(n)%diag_index)%field(i,j,k) = 1.
-			T_prog(nt)%field(i,j,k,1) = passive(n)%init_value
-			T_prog(nt)%field(i,j,k,2) = passive(n)%init_value
-			T_prog(nt)%field(i,j,k,3) = passive(n)%init_value
-		     endif
+                        T_diag(passive(n)%diag_index)%field(i,j,k) = 1.
+                        T_prog(nt)%field(i,j,k,1) = passive(n)%init_value
+                        T_prog(nt)%field(i,j,k,2) = passive(n)%init_value
+                        T_prog(nt)%field(i,j,k,3) = passive(n)%init_value
+                     endif
                   enddo
                 enddo
               enddo
@@ -657,7 +655,7 @@ subroutine ocean_passive_tracer_init(T_prog, T_diag, rho, &
            if(trim(passive(n)%init_condition)=='temp_surface') then 
               isotherm=passive(n)%init_surface
               call surface_init(isotherm, 'temp', T_prog(index_temp)%field(:,:,:,tau), & 
-	                        T_prog(nt)%field(:,:,:,1))
+                   T_prog(nt)%field(:,:,:,1))
               write(stdoutunit,'(a,a,a,f12.3)')                                        &
                 '==>From passive_tracer_surface_init: passive tracer ',T_prog(nt)%name,&
                 ' initialized to isotherm (C) = ',isotherm
@@ -670,7 +668,7 @@ subroutine ocean_passive_tracer_init(T_prog, T_diag, rho, &
                    enddo
                 enddo
              enddo
-	   endif
+          endif
            if(trim(passive(n)%init_condition)=='rho_surface') then 
              isorho=passive(n)%init_surface
              call surface_init(isorho, 'rho', rho, T_prog(nt)%field(:,:,:,1))
@@ -1001,7 +999,7 @@ subroutine patch_init_klevel(field, name)
   real, dimension(isd:,jsd:,:), intent(inout) :: field 
   character(len=*),             intent(in)    :: name 
 
-  integer :: i, j, k, n
+  integer :: i, j, n
   integer :: start, strlen, klevel, digit  
   real    :: x_min,x_max,y_min,y_max
   real    :: x_mid,y_mid,xnd,ynd,scl,rr
@@ -1195,14 +1193,14 @@ subroutine update_tracer_passive(num_prog_tracers, T_prog, T_diag, dtts, taup1)
         do n=1,instances 
 
            if( trim(T_prog(nt)%name)=='passive_'//trim(passive(n)%name) .and. passive(n)%restore ) then 
-	      do k=1,nk
+              do k=1,nk
                 do j=jsd,jed
                   do i=isd,ied
 
-	             mask = T_diag(passive(n)%diag_index)%field(i,j,k)
+                     mask = T_diag(passive(n)%diag_index)%field(i,j,k)
                      temp_t = T_prog(nt)%field(i,j,k,taup1)
-        	     T_prog(nt)%field(i,j,k,taup1) = mask * passive(n)%init_value &
-		     + (1.- mask) * T_prog(nt)%field(i,j,k,taup1)
+                     T_prog(nt)%field(i,j,k,taup1) = mask * passive(n)%init_value &
+                          + (1.- mask) * T_prog(nt)%field(i,j,k,taup1)
 
                      ! store the tendency as source for computing tracer conservation diagnostics
                      T_prog(nt)%source(i,j,k) = T_prog(nt)%source(i,j,k) &
