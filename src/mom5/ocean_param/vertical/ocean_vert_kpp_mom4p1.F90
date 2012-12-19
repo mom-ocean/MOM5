@@ -3036,7 +3036,6 @@ subroutine mom4_get_hblt(fld)
 
   real, intent(out) :: fld(isc:,jsc:)
 
-<<<<<<< HEAD
   fld(isc:iec, jsc:jec) = hblt(isc:iec, jsc:jec)
   
 end subroutine mom4_get_hblt
