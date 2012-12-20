@@ -4792,9 +4792,9 @@ subroutine ocean_nphysics_coeff_end(Time, agm_array, aredi_array, &
 
   call write_chksum_3d('ending agm_array', agm_array(COMP,:)*Grd%tmask(COMP,:))
   call write_chksum_3d('ending aredi_array', aredi_array(COMP,:)*Grd%tmask(COMP,:))
-  call write_chksum_3d('ending rossby_radius', rossby_radius(COMP)*Grd%tmask(COMP,1))
-  call write_chksum_3d('ending rossby_radius_raw', rossby_radius_raw(COMP)*Grd%tmask(COMP,1))
-  call write_chksum_3d('ending bczone_radius', bczone_radius(COMP)*Grd%tmask(COMP,1))
+  call write_chksum_2d('ending rossby_radius', rossby_radius(COMP)*Grd%tmask(COMP,1))
+  call write_chksum_2d('ending rossby_radius_raw', rossby_radius_raw(COMP)*Grd%tmask(COMP,1))
+  call write_chksum_2d('ending bczone_radius', bczone_radius(COMP)*Grd%tmask(COMP,1))
 
 end subroutine ocean_nphysics_coeff_end
 ! </SUBROUTINE> NAME="ocean_nphysics_coeff_end"
