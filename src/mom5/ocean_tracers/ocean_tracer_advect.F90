@@ -862,22 +862,22 @@ subroutine advection_diag_init (Time, T_prog)
     else
 
       id_tracer_advection(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_advection', &
-                   Grd%tracer_axes_flux_x(1:3), Time%model_time, 'rho*dzt*advection tendency',         &
+                   Grd%tracer_axes(1:3), Time%model_time, 'rho*dzt*advection tendency',         &
                    'kg/(sec*m^2)', missing_value=missing_value, range=(/-1.e18,1.e18/))
       id_tracer2_advection(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_sq_advection',    &
-                   Grd%tracer_axes_flux_x(1:3), Time%model_time, 'rho*dzt*advection tendency for tracer sqrd',&
+                   Grd%tracer_axes(1:3), Time%model_time, 'rho*dzt*advection tendency for tracer sqrd',&
                    'kg/(m^2*s)*(tracer squared)', missing_value=missing_value, range=(/-1.e18,1.e18/))
       id_sweby_advect(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_sweby_advect', &
-                   Grd%tracer_axes_flux_x(1:3), Time%model_time, 'rho*dzt*sweby advect tendency',     &
+                   Grd%tracer_axes(1:3), Time%model_time, 'rho*dzt*sweby advect tendency',     &
                    'kg/(sec*m^2)', missing_value=missing_value, range=(/-1.e18,1.e18/))
       id_psom_advect(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_psom_advect',   &
-                   Grd%tracer_axes_flux_x(1:3), Time%model_time, 'rho*dzt*psom advect tendency',      &
+                   Grd%tracer_axes(1:3), Time%model_time, 'rho*dzt*psom advect tendency',      &
                    'kg/(sec*m^2)', missing_value=missing_value, range=(/-1.e18,1.e18/))
       id_horz_advect(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_horz_advect', &
-                   Grd%tracer_axes_flux_x(1:3), Time%model_time, 'rho*dzt*horz advect tendency',    &
+                   Grd%tracer_axes(1:3), Time%model_time, 'rho*dzt*horz advect tendency',    &
                    'kg/(sec*m^2)', missing_value=missing_value, range=(/-1.e18,1.e18/))
       id_vert_advect(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_vert_advect', &
-                   Grd%tracer_axes_flux_x(1:3), Time%model_time, 'rho*dzt*vert advect tendency',    &
+                   Grd%tracer_axes(1:3), Time%model_time, 'rho*dzt*vert advect tendency',    &
                    'kg/(sec*m^2)', missing_value=missing_value, range=(/-1.e18,1.e18/))
       id_advection_x(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_x_adv', &
                    Grd%tracer_axes(1:3), Time%model_time, 'rho*dzt*x-advective tendency',     &
