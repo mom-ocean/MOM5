@@ -535,21 +535,6 @@ subroutine blob_util_init(Grid, Domain, PE_info, Blob_domain, &
      Info%maxlat(i) = maxval(vert_t(2,:,i,:))
   enddo
 
-contains
-
-  subroutine nferror(description)
-    character(len=*) :: description
-    if (nfstatus /= NF_NOERR) then
-       write (stdoutunit, *) ' '
-       write (stdoutunit, *) 'ocean_blob_util_mod, blob_util_init: problem '//trim(description)
-       write (stdoutunit, *) 'error code =', nfstatus
-       if (nfstatus==NF_EEDGE)        write(stdoutunit, *) '==>Start+count exceeds dimension bound'
-       if (nfstatus==NF_EINVALCOORDS) write(stdoutunit, *) '==>Index exceeds dimension bound'
-       
-       call mpp_error(FATAL, 'ocean_blob_util_mod, blob_util_init: problem '//trim(description))
-    endif
-  end subroutine nferror
-
 end subroutine blob_util_init
 ! </SUBROUTINE>  NAME="blob_util_init"
 

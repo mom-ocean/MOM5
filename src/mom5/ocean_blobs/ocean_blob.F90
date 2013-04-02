@@ -827,24 +827,6 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
 
 contains
   
-
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-! This is a nested subroutine for checking netcdf read errors          !
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  subroutine nferror(description)
-    character(len=*) :: description
-    if (nfstatus /= NF_NOERR) then
-       write (stdoutunit, *) ' '
-       write (stdoutunit, *) 'ocean_blob_util_mod, blob_util_init: problem '//trim(description)
-       write (stdoutunit, *) 'error code =', nfstatus
-       if (nfstatus==NF_EEDGE)        write(stdoutunit, *) '==>Start+count exceeds dimension bound'
-       if (nfstatus==NF_EINVALCOORDS) write(stdoutunit, *) '==>Index exceeds dimension bound'
-       if (nfstatus==NF_ENOTVAR)      write(stdoutunit, *) '==>Variable not found'
-       
-       call mpp_error(FATAL, 'ocean_blob_mod, ocean_blob_init: problem '//trim(description))
-    endif
-  end subroutine nferror
-
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! This is a nested subroutine that reads the restart files for blobs   !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
