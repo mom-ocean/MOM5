@@ -842,7 +842,7 @@ contains
     integer :: hashid, numberid, typeid, iid, jid, kid
     integer :: stepid, h1id, h2id, nstepsid, mstepsid, densityid
     integer :: n, m, i, j, k, type, nblobs, nblobs0
-    logical :: found_restart
+    logical :: found_restart, restart_per_pe
     
     ! We have two restart files, and we need to read them in separately.
     ! The first is to read in the gridded data.  The second is to read
@@ -872,6 +872,14 @@ contains
     ! Open the blob file and read in the blob attributes.
     filename = 'INPUT/ocean_blobs.res.nc'
     inquire(file=trim(filename),exist=found_restart)
+
+    ! Search for a PE-exclusive file if a single file does not exist
+    restart_per_pe = .false.
+    if (.not. found_restart) then
+       write(filename(1:29),'("INPUT/ocean_blobs.res.nc.", I4.4)') mpp_pe()
+       inquire(file=trim(filename), exist=found_restart)
+       if (found_restart) restart_per_pe = .true.
+    end if
 
     if(found_restart) then
        write(stdoutunit, '(/,a,/)') 'Reading in blobs restart from '//trim(filename)
@@ -1024,6 +1032,10 @@ contains
 
        print('(a22,i3,a3,i10)'),  'number of blobs on PE ',Info%pe_this,' =',nblobs
        call mpp_sum(nblobs)
+       if (restart_per_pe) then
+           call mpp_sum(nblobs_in_file)
+           call mpp_sum(nblobs0)
+       end if
        write(stdoutunit,'(a,i10)') 'global number of blobs     =', nblobs
        write(stdoutunit,'(a,i10)') 'blobs in file              =', nblobs_in_file
        write(stdoutunit,'(a,i10)') 'empty blobs in file        =', nblobs0
