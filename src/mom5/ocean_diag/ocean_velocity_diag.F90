@@ -2071,7 +2071,7 @@ subroutine energy_analysis (Time, Thickness, Ext_mode, Adv_vel, Dens,    &
       call write_chksum_3d('Velocity%u(n=2,taum1)', Velocity%u(COMP,:,2,taum1)*Grd%tmasken(COMP,:,2))
       call write_chksum_3d('Velocity%u(n=2,tau)', Velocity%u(COMP,:,2,tau)*Grd%tmasken(COMP,:,2))
       call write_chksum_3d('Velocity%u(n=2,taup1)', Velocity%u(COMP,:,2,taup1)*Grd%tmasken(COMP,:,2))
-      call write_chksum_3d('ubar(n=1)', ubar(COMP,1)*Grd%tmasken(COMP,1,1))
+      call write_chksum_2d('ubar(n=1)', ubar(COMP,1)*Grd%tmasken(COMP,1,1))
       call write_chksum_2d('ubar(n=2)', ubar(COMP,2)*Grd%tmasken(COMP,1,2))
 
       write(stdoutunit,*)'================================='
