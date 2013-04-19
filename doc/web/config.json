@@ -1,7 +1,8 @@
 {
     "project_heading": "Modular Ocean Model (MOM)",
     "project_title": "MOM",
-    "tags": [{"tag": "5.0.1", "commit": "2534bdc3b4bce6d08424174abda7b1ab6be0c29d"},
+    "tags": [{"tag": "5.0.2", "commit": "8e524daedf27c1aaa35b4069efb38abc7575b4b5"},
+             {"tag": "5.0.1", "commit": "2534bdc3b4bce6d08424174abda7b1ab6be0c29d"},
              {"tag": "5.0.1-beta0", "commit": "09cae4e1bd838efcb862d45bfc61ff074f849f9b"},
              {"tag": "5.0.0", "commit": "305729e4f67c239802d38eb2446c3cee8fc5276a"},
              {"tag": "5.0.0-beta0", "commit": "7ffd65ae4dd6a4a6c06ebff910326c1bc35c8f01"}

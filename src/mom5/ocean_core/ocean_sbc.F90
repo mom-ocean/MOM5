@@ -3695,7 +3695,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
   real                             :: pme_restore_total, flx_restore_total 
   real                             :: pme_correct_total, flx_correct_total 
   real                             :: tmp_delta_salinity 
-  integer                          :: i, j, k, tau, taum1
+  integer                          :: i, j, k, n, tau, taum1
   logical                          :: used
   
   tau      = Time%tau
@@ -4150,8 +4150,17 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
      enddo
   endif
 
+  ! mpp update domain is needed for vertical mixing schemes such
+  ! as KPP and GOTM, as well as to get c-grid version of smf.
   if(id_tau_x_correction > 0 .or. id_tau_y_correction > 0) then 
      call mpp_update_domains(tau_x_correction(:,:),tau_y_correction(:,:),Dom%domain2d,gridtype=BGRID_NE)
+
+     do j=jsd,jed
+        do i=isd,ied
+           Velocity%smf_bgrid(i,j,1) = Velocity%smf_bgrid(i,j,1) + tau_x_correction(i,j)
+           Velocity%smf_bgrid(i,j,2) = Velocity%smf_bgrid(i,j,2) + tau_y_correction(i,j)
+        enddo
+     enddo
 
      ! c-grid version of correction 
      do j=jsc,jec
@@ -4176,8 +4185,26 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
         enddo
      enddo
 
-  endif 
+     ! for use in forcing momentum
+     if(horz_grid == MOM_BGRID) then
+        do n=1,2
+           do j=jsd,jed
+              do i=isd,ied
+                 Velocity%smf(i,j,n) = Velocity%smf_bgrid(i,j,n)
+              enddo
+           enddo
+        enddo
+     else
+        do n=1,2
+           do j=jsc,jec
+              do i=isc,iec
+                 Velocity%smf(i,j,n) = Velocity%smf_cgrid(i,j,n)
+              enddo
+           enddo
+        enddo
+     endif
 
+  endif
 
   if(horz_grid == MOM_BGRID) then 
 
