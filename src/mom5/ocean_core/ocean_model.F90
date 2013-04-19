@@ -571,6 +571,7 @@ private
   public mom4_set_swheat_fr
   public mom4_get_pointers_to_variables
   public mom4_get_streamfunction
+  public mom4_ghost_prognostics
 
   public    ocean_model_data_get
   interface ocean_model_data_get
@@ -3189,53 +3190,71 @@ subroutine mom4_set_swheat_fr(swheat_fr_input)
 end subroutine mom4_set_swheat_fr
 
 !#######################################################################
-subroutine mom4_get_pointers_to_variables(t, s, u, v, eta, deta_dt, eta_barotropic, rho, &
-     wrhot, geodepth_zt, pbot_t, cos_rot, sin_rot, timestring, if_pressure_coordinate, tau)   
-  
-  real, optional, pointer :: &
-       t(:, :, :, :), s(:, :, :, :), u(:, :, :, :), v(:, :, :, :), eta(:, :, :), &
-       deta_dt(:, :), eta_barotropic(:, :, :), rho(:, :, :), &
-       pbot_t(:,:,:),wrhot(:,:,:), geodepth_zt(:,:,:), cos_rot(:, :), sin_rot(:, :);
-  character(len = *), optional, intent(out) :: timestring;
-  logical, optional, intent(out) :: if_pressure_coordinate;
-  integer, optional, intent(out) :: tau;
-  
-  integer :: year, month, day, hour, minute, second;
-  
-  if(present(tau)) tau = time%taup1;
-  if(present(t)) t => t_prog(index_temp)%field(isc:iec, jsc:jec, :, :);  
-  if(present(s)) s => t_prog(index_salt)%field(isc:iec, jsc:jec, :, :);  
-  if(present(u)) u => velocity%u(isc:iec, jsc:jec, :, 1, :);
-  if(present(v)) v => velocity%u(isc:iec, jsc:jec, :, 2, :);
-  if(present(rho)) rho => dens%neutralrho(isc:iec, jsc:jec, :);
-  if(present(wrhot)) wrhot => Adv_vel%wrho_bt(isc:iec, jsc:jec, :);
-  if(present(pbot_t)) pbot_t => ext_mode%pbot_t(isc:iec, jsc:jec, :);
-  if(present(geodepth_zt)) geodepth_zt => Thickness%geodepth_zt(isc:iec, jsc:jec, :);
-  if(present(cos_rot)) cos_rot => grid%cos_rot(isc:iec, jsc:jec);
-  if(present(sin_rot)) sin_rot => grid%sin_rot(isc:iec, jsc:jec);
-  if(present(eta) .and. (vert_coordinate_class == depth_based)) then; eta => ext_mode%eta_t(isc:iec, jsc:jec, :);  
-  else if(present(eta)) then; eta => ext_mode%anompb(isc:iec, jsc:jec, :);
-  endif;  
-  
-  if(present(deta_dt) .and. (vert_coordinate_class == depth_based)) then; deta_dt => ext_mode%deta_dt(isc:iec, jsc:jec);  
-  else if(present(deta_dt)) then; deta_dt => ext_mode%dpbot_dt(isc:iec, jsc:jec);
-  endif;  
-  
-  if(present(eta_barotropic) .and. (vert_coordinate_class == depth_based)) then; eta_barotropic => ext_mode%eta_t_bar(isc:iec, jsc:jec, :);
-  else if(present(eta_barotropic)) then; eta_barotropic => ext_mode%anompb_bar(isc:iec, jsc:jec, :);
-  endif;       
-  
-  if(present(timestring)) then
-     call get_date(time%model_time, year, month, day, hour, minute, second);
-     write(unit = timestring, fmt = '(a10,2i1,a1,2i1,a1,i4,a1,2i1,a1,2i1)') &
-          'MOM time: ', month/10, mod(month, 10), '/', day/10, mod(day, 10), '/', year, ' ', hour/10, mod(hour, 10), ':', minute/10, mod(minute, 10)
-  endif; 
-  if(present(if_pressure_coordinate)) then; if_pressure_coordinate = (vert_coordinate_class == pressure_based); 
-  endif;
-  
-end subroutine mom4_get_pointers_to_variables
+    subroutine mom4_get_pointers_to_variables(time0, grid0, domain0, thickness0, density0, tracers0, &
+         t, s, u, v, eta, rho, wrhot, geodepth_zt, pbot_t, cos_rot, sin_rot, tau, timestring, ghosted)   
+
+      type(ocean_time_type), pointer, optional, intent(out) :: time0;
+      type(ocean_grid_type), pointer, optional, intent(out) :: grid0;  
+      type(ocean_domain_type), pointer, optional, intent(out) :: domain0;  
+      type(ocean_thickness_type), pointer, optional, intent(out) :: thickness0;  
+      type(ocean_density_type), pointer, optional, intent(out) :: density0;  
+      type(ocean_prog_tracer_type), pointer, optional, intent(out) :: tracers0(:);  
+      real, optional, pointer, intent(out) :: t(:, :, :, :), s(:, :, :, :), u(:, :, :, :), v(:, :, :, :), &
+          eta(:, :, :), rho(:, :, :), wrhot(:,:,:),  geodepth_zt(:,:,:), pbot_t(:,:,:),cos_rot(:, :), sin_rot(:, :);
+      integer, optional, intent(out) :: tau;
+      character(len = *), optional, intent(out) :: timestring;
+      logical, optional, intent(in) :: ghosted;  
+
+      integer :: i1, i2, j1, j2, year, month, day, hour, minute, second;
+
+        if(present(tau)) tau = time%taup1;
+
+        i1 = isc; i2 = iec; j1 = jsc; j2 = jec;
+        if(present(ghosted)) then; if(ghosted) then; i1 = isd; i2 = ied; j1 = jsd; j2 = jed; 
+            endif;  
+        endif;
+
+        if(present(time0)) time0 => time; 
+        if(present(grid0)) grid0 => grid; 
+        if(present(domain0)) domain0 => domain; 
+        if(present(thickness0)) thickness0 => thickness; 
+        if(present(density0)) density0 => dens; 
+        if(present(tracers0)) tracers0 => t_prog(:); 
+
+        if(present(t)) t => t_prog(index_temp)%field(i1:i2, j1:j2, :, :);
+        if(present(s)) s => t_prog(index_salt)%field(i1:i2, j1:j2, :, :);  
+        if(present(u)) u => velocity%u(i1:i2, j1:j2, :, 1, :);
+        if(present(v)) v => velocity%u(i1:i2, j1:j2, :, 2, :);
+        if(present(eta)) eta => ext_mode%eta_t(i1:i2, j1:j2, :);    
+        if(present(rho)) rho => dens%neutralrho(i1:i2, j1:j2, :);
+
+        if(present(wrhot)) wrhot => Adv_vel%wrho_bt(i1:i2, j1:j2, :);
+        if(present(pbot_t)) pbot_t => ext_mode%pbot_t(i1:i2, j1:j2, :);
+        if(present(geodepth_zt)) geodepth_zt => Thickness%geodepth_zt(i1:i2, j1:j2, :);
+
+        if(present(cos_rot)) cos_rot => grid%cos_rot(i1:i2, j1:j2);
+        if(present(sin_rot)) sin_rot => grid%sin_rot(i1:i2, j1:j2);
+
+        if(present(timestring)) then
+            call get_date(time%model_time, year, month, day, hour, minute, second);
+            write(unit = timestring, fmt = '(a10,2i1,a1,2i1,a1,i4,a1,2i1,a1,2i1)') &
+                'MOM time: ', month/10, mod(month, 10), '/', day/10, mod(day, 10), '/', year, ' ', hour/10, mod(hour, 10), ':', minute/10, mod(minute, 10)
+        endif; 
+
+    end subroutine
 
 !#######################################################################
+    subroutine mom4_ghost_prognostics()
+
+      integer :: i;  
+
+        call mpp_update_domains(ext_mode%eta_t, domain = domain%domain2d);
+        call mpp_update_domains(velocity%u(:, :, :, 1, :), velocity%u(:, :, :, 2, :), domain = domain%domain2d, gridtype = bgrid_ne);
+        do i = 1, size(array = t_prog); call mpp_update_domains(t_prog(i)%field, domain = domain%domain2d);
+        enddo;
+
+    end subroutine
+
 function mom4_get_streamfunction() result(psi)   
   
   use ocean_barotropic_mod
