@@ -375,7 +375,7 @@ integer :: id_eta_tend_gm_flx_glob    =-1
 integer :: id_eta_tend_ndiff_flx      =-1
 integer :: id_eta_tend_ndiff_flx_glob =-1
 
-integer, dimension(:), allocatable  :: id_neutral_physics_ndiffuse ! tendency from GM 
+integer, dimension(:), allocatable  :: id_neutral_physics_ndiffuse ! tendency from neutral diffusion 
 integer, dimension(:), allocatable  :: id_neutral_physics_gm       ! tendency from GM 
 integer, dimension(:), allocatable  :: id_k33_implicit          ! K33 handled implicitly in time 
 integer, dimension(:), allocatable  :: id_flux_x_ndiffuse       ! i-directed tracer flux from neutral diffuse
