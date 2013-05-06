@@ -495,8 +495,8 @@ void create_realistic_topog(int nx_dst, int ny_dst, const double *x_dst, const d
   }
   if(vgrid_file) process_topo(nk, depth, num_levels, zw, tripolar_grid, cyclic_x, cyclic_y,
 			      full_cell, flat_bottom, adjust_topo, fill_isolated_cells, min_thickness,
-			      open_very_this_cell, fraction_full_cell, round_shallow, deepen_shallow, fill_shallow, kmt_min,
-			      dont_change_landmask, domain, debug );
+			      open_very_this_cell, fraction_full_cell, round_shallow, deepen_shallow, fill_shallow,
+			      dont_change_landmask, kmt_min, domain, debug );
   
   free(depth_src);
   free(mask_src);
