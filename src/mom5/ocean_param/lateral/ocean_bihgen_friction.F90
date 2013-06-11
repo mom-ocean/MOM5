@@ -230,7 +230,7 @@ use diag_manager_mod,    only: register_diag_field, register_static_field
 use fms_mod,             only: open_namelist_file, check_nml_error
 use fms_mod,             only: write_version_number, close_file
 use fms_mod,             only: FATAL, NOTE, stdout, stdlog, read_data
-use mpp_domains_mod,     only: mpp_update_domains, mpp_global_field
+use mpp_domains_mod,     only: mpp_update_domains, mpp_global_field, XUPDATE 
 use mpp_domains_mod,     only: mpp_global_min, mpp_global_max, BGRID_NE
 use mpp_mod,             only: input_nml_file, mpp_error, mpp_max, mpp_sum, mpp_pe
 
@@ -365,8 +365,8 @@ real, dimension(isd:ied,jsd:jed)    :: tmpfdely1
 real, dimension(isd:ied,jsd:jed)    :: tmpfdely2
 real, dimension(isd:ied,jsd:jed)    :: tmp1
 real, dimension(isd:ied,jsd:jed)    :: tmp2
-real, dimension(isc:iec,jsc:jec,nk) :: cos2theta
-real, dimension(isc:iec,jsc:jec,nk) :: sin2theta
+real, dimension(isc:iec,jsc:jec)    :: cos2theta
+real, dimension(isc:iec,jsc:jec)    :: sin2theta
 
 #else
 
@@ -400,8 +400,8 @@ real, dimension(:,:), allocatable   :: tmpfdely1
 real, dimension(:,:), allocatable   :: tmpfdely2
 real, dimension(:,:), allocatable   :: tmp1
 real, dimension(:,:), allocatable   :: tmp2
-real, dimension(:,:,:), allocatable :: cos2theta
-real, dimension(:,:,:), allocatable :: sin2theta
+real, dimension(:,:), allocatable   :: cos2theta
+real, dimension(:,:), allocatable   :: sin2theta
 
 #endif
 
@@ -415,9 +415,9 @@ type(ocean_grid_type), pointer   :: Grd => NULL()
 type(ocean_domain_type), pointer :: Dom => NULL()
 
 character(len=256) :: version=&
-     '=>Using: ocean_bihgen_friction.F90 ($Id: ocean_bihgen_friction.F90,v 1.1.2.4 2012/05/29 18:40:20 Stephen.Griffies Exp $)'
+     '=>Using: ocean_bihgen_friction.F90 ($Id: ocean_bihgen_friction.F90,v 1.1.2.5.14.1 2013/04/03 13:25:25 smg Exp $)'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: mom5_siena_201303_smg $'
 
 logical :: use_this_module       = .false.
 logical :: debug_this_module     = .false.
@@ -628,8 +628,8 @@ ierr = check_nml_error(io_status,'ocean_bihgen_friction_nml')
   allocate (tmpfdely2(isd:ied,jsd:jed))   
   allocate (tmp1(isd:ied,jsd:jed))
   allocate (tmp2(isd:ied,jsd:jed))
-  allocate (cos2theta(isc:iec,jsc:jec,nk))
-  allocate (sin2theta(isc:iec,jsc:jec,nk))
+  allocate (cos2theta(isc:iec,jsc:jec))
+  allocate (sin2theta(isc:iec,jsc:jec))
   
 #endif
 
@@ -937,7 +937,7 @@ subroutine bihgen_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, en
   real, dimension(0:1,0:1,isc:iec,jsc:jec,nk) :: aaniso_smag
   real    :: uvmag, umag, vmag, velocity_gamma
   integer :: i, j, k, n
-  integer :: ip, jq
+  integer :: ip, jq, jjq, iip
   integer :: taum1, tau
 
   real :: u1_m10, u2_m10
@@ -1016,24 +1016,6 @@ subroutine bihgen_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, en
      call mpp_update_domains (divergence_t(:,:,:), Dom%domain2d)    
   endif 
 
-  do k=1,nk
-     do j=jsc,jec
-        do i=isc,iec
-           if(equatorial_zonal .and. abs(Grd%yu(i,j)) <= equatorial_zonal_lat) then
-             sin2theta(i,j,k) = 0.0
-             cos2theta(i,j,k) = 1.0
-           else
-             usqrd = (Velocity%u(i,j,k,1,taum1) - neptune_velocity(i,j,1))**2
-             vsqrd = (Velocity%u(i,j,k,2,taum1) - neptune_velocity(i,j,2))**2
-             umagr = 1.0/(epsln + usqrd + vsqrd)
-             sin2theta(i,j,k) = 2.0*(Velocity%u(i,j,k,1,taum1) - neptune_velocity(i,j,1))* &
-                                    (Velocity%u(i,j,k,2,taum1) - neptune_velocity(i,j,2))*umagr
-             cos2theta(i,j,k) = (usqrd - vsqrd)*umagr
-           endif
-        enddo
-     enddo
-  enddo
-
   ! big k-loop 
   do k=1,nk
 
@@ -1052,6 +1034,17 @@ subroutine bihgen_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, en
            strain_metric  = -(Velocity%u(i,j,k,1,taum1)-neptune_velocity(i,j,1))*Grd%dh1dy(i,j) &
                             -(Velocity%u(i,j,k,2,taum1)-neptune_velocity(i,j,2))*Grd%dh2dx(i,j)  
 
+           if(equatorial_zonal .and. abs(Grd%yu(i,j)) <= equatorial_zonal_lat) then  
+             sin2theta(i,j) = 0.0
+             cos2theta(i,j) = 1.0
+           else 
+             usqrd = (Velocity%u(i,j,k,1,taum1)-neptune_velocity(i,j,1))**2
+             vsqrd = (Velocity%u(i,j,k,2,taum1)-neptune_velocity(i,j,2))**2
+             umagr = 1.0/(epsln + usqrd + vsqrd)
+             sin2theta(i,j) = 2.0*(Velocity%u(i,j,k,1,taum1)-neptune_velocity(i,j,1)) &
+                                 *(Velocity%u(i,j,k,2,taum1)-neptune_velocity(i,j,2))*umagr
+             cos2theta(i,j) = (usqrd-vsqrd)*umagr
+           endif  
 
           ! compute stress tensor components for the four triads.  
           ! expanded do-loops are faster.
@@ -1087,50 +1080,50 @@ subroutine bihgen_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, en
            ip=0 ; jq=0 
            tension =  dxuer_ip0*(u1_00-u1_m10)-dyunr_jq0*(u2_00-u2_0m1)+tension_metric
            strain  =  dxuer_ip0*(u2_00-u2_m10)+dyunr_jq0*(u1_00-u1_0m1)+strain_metric
-           delta   =  0.5*(strain*cos2theta(i,j,k) - tension*sin2theta(i,j,k))
+           delta   =  0.5*(strain*cos2theta(i,j) - tension*sin2theta(i,j))
            deform  = sqrt(tension**2 + strain**2)
            aiso_smag(ip,jq,i,j,k)    = min(visc_crit(i,j), aiso_back(i,j,k)   + fsmag_iso(i,j)*deform   + visc_diverge(i,j,k))
            aaniso_smag(ip,jq,i,j,k)  = min(visc_crit(i,j), aaniso_back(i,j,k) + fsmag_aniso(i,j)*deform + visc_diverge(i,j,k))
            aiso_smag(ip,jq,i,j,k)    = sqrt(aiso_smag(ip,jq,i,j,k))
            aaniso_smag(ip,jq,i,j,k)  = sqrt(aaniso_smag(ip,jq,i,j,k))
-           stress001(i,j,k) = aiso_smag(ip,jq,i,j,k)*tension + aaniso_smag(ip,jq,i,j,k)*delta*sin2theta(i,j,k)
-           stress002(i,j,k) = aiso_smag(ip,jq,i,j,k)*strain  - aaniso_smag(ip,jq,i,j,k)*delta*cos2theta(i,j,k)
+           stress001(i,j,k) = aiso_smag(ip,jq,i,j,k)*tension + aaniso_smag(ip,jq,i,j,k)*delta*sin2theta(i,j)
+           stress002(i,j,k) = aiso_smag(ip,jq,i,j,k)*strain  - aaniso_smag(ip,jq,i,j,k)*delta*cos2theta(i,j)
 
            ip=1 ; jq=0 
            tension =  dxuer_ip1*(u1_10-u1_00)-dyunr_jq0*(u2_00-u2_0m1)+tension_metric
            strain  =  dxuer_ip1*(u2_10-u2_00)+dyunr_jq0*(u1_00-u1_0m1)+strain_metric
-           delta   =  0.5*(strain*cos2theta(i,j,k) - tension*sin2theta(i,j,k))
+           delta   =  0.5*(strain*cos2theta(i,j) - tension*sin2theta(i,j))
            deform  = sqrt(tension**2 + strain**2)
            aiso_smag(ip,jq,i,j,k)    = min(visc_crit(i,j), aiso_back(i,j,k)   + fsmag_iso(i,j)*deform   + visc_diverge(i,j,k))
            aaniso_smag(ip,jq,i,j,k)  = min(visc_crit(i,j), aaniso_back(i,j,k) + fsmag_aniso(i,j)*deform + visc_diverge(i,j,k))
            aiso_smag(ip,jq,i,j,k)    = sqrt(aiso_smag(ip,jq,i,j,k))
            aaniso_smag(ip,jq,i,j,k)  = sqrt(aaniso_smag(ip,jq,i,j,k))
-           stress101(i,j,k) = aiso_smag(ip,jq,i,j,k)*tension + aaniso_smag(ip,jq,i,j,k)*delta*sin2theta(i,j,k)
-           stress102(i,j,k) = aiso_smag(ip,jq,i,j,k)*strain  - aaniso_smag(ip,jq,i,j,k)*delta*cos2theta(i,j,k)
+           stress101(i,j,k) = aiso_smag(ip,jq,i,j,k)*tension + aaniso_smag(ip,jq,i,j,k)*delta*sin2theta(i,j)
+           stress102(i,j,k) = aiso_smag(ip,jq,i,j,k)*strain  - aaniso_smag(ip,jq,i,j,k)*delta*cos2theta(i,j)
 
            ip=0 ; jq=1
            tension =  dxuer_ip0*(u1_00-u1_m10)-dyunr_jq1*(u2_01-u2_00)+tension_metric
            strain  =  dxuer_ip0*(u2_00-u2_m10)+dyunr_jq1*(u1_01-u1_00)+strain_metric
-           delta   =  0.5*(strain*cos2theta(i,j,k) - tension*sin2theta(i,j,k))
+           delta   =  0.5*(strain*cos2theta(i,j) - tension*sin2theta(i,j))
            deform  = sqrt(tension**2 + strain**2)
            aiso_smag(ip,jq,i,j,k)    = min(visc_crit(i,j), aiso_back(i,j,k)   + fsmag_iso(i,j)*deform   + visc_diverge(i,j,k))
            aaniso_smag(ip,jq,i,j,k)  = min(visc_crit(i,j), aaniso_back(i,j,k) + fsmag_aniso(i,j)*deform + visc_diverge(i,j,k))
            aiso_smag(ip,jq,i,j,k)    = sqrt(aiso_smag(ip,jq,i,j,k))
            aaniso_smag(ip,jq,i,j,k)  = sqrt(aaniso_smag(ip,jq,i,j,k))
-           stress011(i,j,k) = aiso_smag(ip,jq,i,j,k)*tension + aaniso_smag(ip,jq,i,j,k)*delta*sin2theta(i,j,k)
-           stress012(i,j,k) = aiso_smag(ip,jq,i,j,k)*strain  - aaniso_smag(ip,jq,i,j,k)*delta*cos2theta(i,j,k)
+           stress011(i,j,k) = aiso_smag(ip,jq,i,j,k)*tension + aaniso_smag(ip,jq,i,j,k)*delta*sin2theta(i,j)
+           stress012(i,j,k) = aiso_smag(ip,jq,i,j,k)*strain  - aaniso_smag(ip,jq,i,j,k)*delta*cos2theta(i,j)
 
            jq=1 ; ip=1
            tension =  dxuer_ip1*(u1_10-u1_00)-dyunr_jq1*(u2_01-u2_00)+tension_metric
            strain  =  dxuer_ip1*(u2_10-u2_00)+dyunr_jq1*(u1_01-u1_00)+strain_metric
-           delta   =  0.5*(strain*cos2theta(i,j,k) - tension*sin2theta(i,j,k))
+           delta   =  0.5*(strain*cos2theta(i,j) - tension*sin2theta(i,j))
            deform  = sqrt(tension**2 + strain**2)
            aiso_smag(ip,jq,i,j,k)    = min(visc_crit(i,j), aiso_back(i,j,k)   + fsmag_iso(i,j)*deform   + visc_diverge(i,j,k))
            aaniso_smag(ip,jq,i,j,k)  = min(visc_crit(i,j), aaniso_back(i,j,k) + fsmag_aniso(i,j)*deform + visc_diverge(i,j,k))
            aiso_smag(ip,jq,i,j,k)    = sqrt(aiso_smag(ip,jq,i,j,k))
            aaniso_smag(ip,jq,i,j,k)  = sqrt(aaniso_smag(ip,jq,i,j,k))
-           stress111(i,j,k) = aiso_smag(ip,jq,i,j,k)*tension + aaniso_smag(ip,jq,i,j,k)*delta*sin2theta(i,j,k)
-           stress112(i,j,k) = aiso_smag(ip,jq,i,j,k)*strain  - aaniso_smag(ip,jq,i,j,k)*delta*cos2theta(i,j,k)
+           stress111(i,j,k) = aiso_smag(ip,jq,i,j,k)*tension + aaniso_smag(ip,jq,i,j,k)*delta*sin2theta(i,j)
+           stress112(i,j,k) = aiso_smag(ip,jq,i,j,k)*strain  - aaniso_smag(ip,jq,i,j,k)*delta*cos2theta(i,j)
 
         enddo
      enddo
@@ -1219,30 +1212,30 @@ subroutine bihgen_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, en
            ip=0 ; jq=0 
            tension =  dxuer_ip0*(u1_00-u1_m10)-dyunr_jq0*(u2_00-u2_0m1)+tension_metric
            strain  =  dxuer_ip0*(u2_00-u2_m10)+dyunr_jq0*(u1_00-u1_0m1)+strain_metric
-           delta   =  0.5*(strain*cos2theta(i,j,k) - tension*sin2theta(i,j,k))
-           stress001(i,j,k) = aiso_smag(ip,jq,i,j,k)*tension + aaniso_smag(ip,jq,i,j,k)*delta*sin2theta(i,j,k)
-           stress002(i,j,k) = aiso_smag(ip,jq,i,j,k)*strain  - aaniso_smag(ip,jq,i,j,k)*delta*cos2theta(i,j,k)
+           delta   =  0.5*(strain*cos2theta(i,j) - tension*sin2theta(i,j))
+           stress001(i,j,k) = aiso_smag(ip,jq,i,j,k)*tension + aaniso_smag(ip,jq,i,j,k)*delta*sin2theta(i,j)
+           stress002(i,j,k) = aiso_smag(ip,jq,i,j,k)*strain  - aaniso_smag(ip,jq,i,j,k)*delta*cos2theta(i,j)
 
            ip=1 ; jq=0 
            tension =  dxuer_ip1*(u1_10-u1_00)-dyunr_jq0*(u2_00-u2_0m1)+tension_metric
            strain  =  dxuer_ip1*(u2_10-u2_00)+dyunr_jq0*(u1_00-u1_0m1)+strain_metric
-           delta   =  0.5*(strain*cos2theta(i,j,k) - tension*sin2theta(i,j,k))
-           stress101(i,j,k) = aiso_smag(ip,jq,i,j,k)*tension + aaniso_smag(ip,jq,i,j,k)*delta*sin2theta(i,j,k)
-           stress102(i,j,k) = aiso_smag(ip,jq,i,j,k)*strain  - aaniso_smag(ip,jq,i,j,k)*delta*cos2theta(i,j,k)
+           delta   =  0.5*(strain*cos2theta(i,j) - tension*sin2theta(i,j))
+           stress101(i,j,k) = aiso_smag(ip,jq,i,j,k)*tension + aaniso_smag(ip,jq,i,j,k)*delta*sin2theta(i,j)
+           stress102(i,j,k) = aiso_smag(ip,jq,i,j,k)*strain  - aaniso_smag(ip,jq,i,j,k)*delta*cos2theta(i,j)
 
            ip=0 ; jq=1
            tension =  dxuer_ip0*(u1_00-u1_m10)-dyunr_jq1*(u2_01-u2_00)+tension_metric
            strain  =  dxuer_ip0*(u2_00-u2_m10)+dyunr_jq1*(u1_01-u1_00)+strain_metric
-           delta   =  0.5*(strain*cos2theta(i,j,k) - tension*sin2theta(i,j,k))
-           stress011(i,j,k) = aiso_smag(ip,jq,i,j,k)*tension + aaniso_smag(ip,jq,i,j,k)*delta*sin2theta(i,j,k)
-           stress012(i,j,k) = aiso_smag(ip,jq,i,j,k)*strain  - aaniso_smag(ip,jq,i,j,k)*delta*cos2theta(i,j,k)
+           delta   =  0.5*(strain*cos2theta(i,j) - tension*sin2theta(i,j))
+           stress011(i,j,k) = aiso_smag(ip,jq,i,j,k)*tension + aaniso_smag(ip,jq,i,j,k)*delta*sin2theta(i,j)
+           stress012(i,j,k) = aiso_smag(ip,jq,i,j,k)*strain  - aaniso_smag(ip,jq,i,j,k)*delta*cos2theta(i,j)
 
            jq=1 ; ip=1
            tension =  dxuer_ip1*(u1_10-u1_00)-dyunr_jq1*(u2_01-u2_00)+tension_metric
            strain  =  dxuer_ip1*(u2_10-u2_00)+dyunr_jq1*(u1_01-u1_00)+strain_metric
-           delta   =  0.5*(strain*cos2theta(i,j,k) - tension*sin2theta(i,j,k))
-           stress111(i,j,k) = aiso_smag(ip,jq,i,j,k)*tension + aaniso_smag(ip,jq,i,j,k)*delta*sin2theta(i,j,k)
-           stress112(i,j,k) = aiso_smag(ip,jq,i,j,k)*strain  - aaniso_smag(ip,jq,i,j,k)*delta*cos2theta(i,j,k)
+           delta   =  0.5*(strain*cos2theta(i,j) - tension*sin2theta(i,j))
+           stress111(i,j,k) = aiso_smag(ip,jq,i,j,k)*tension + aaniso_smag(ip,jq,i,j,k)*delta*sin2theta(i,j)
+           stress112(i,j,k) = aiso_smag(ip,jq,i,j,k)*strain  - aaniso_smag(ip,jq,i,j,k)*delta*cos2theta(i,j)
 
         enddo
      enddo
@@ -1546,8 +1539,8 @@ subroutine ncar_boundary_scale_create(Time)
   integer, dimension(nx) :: iwp
   integer, dimension(nx) :: nwbp_global
 
-  real, dimension(nx,ny)            :: dxtn_global
-  real, dimension(nx,ny)            :: kmu_global
+  real, dimension(nx,jsc:jec)       :: dxtn_global
+  real, dimension(nx,jsc:jec)       :: kmu_global
   real, dimension(isd:ied,jsd:jed)  :: kmu_tmp
   real, dimension(isd:ied,jsd:jed)  :: ncar_rescale2d
   real, dimension(nx)               :: dist_g 
@@ -1573,8 +1566,8 @@ subroutine ncar_boundary_scale_create(Time)
   ncar_rescale(:,:,:) = 0.0
   ncar_rescale2d(:,:) = 0.0
 
-  call mpp_global_field(Dom%domain2d,kmu_tmp,kmu_global)  
-  call mpp_global_field(Dom%domain2d,Grd%dxtn,dxtn_global)
+  call mpp_global_field(Dom%domain2d,kmu_tmp,kmu_global, flags=XUPDATE)  
+  call mpp_global_field(Dom%domain2d,Grd%dxtn,dxtn_global, flags=XUPDATE)
 
   do k=1,nk
      do j=jsc,jec
@@ -1594,7 +1587,7 @@ subroutine ncar_boundary_scale_create(Time)
                    ip1=i  
                endif
            endif
-           if(kmu_global(i,j+Dom%joff)<k .and. kmu_global(ip1,j+Dom%joff) >= k) then 
+           if(kmu_global(i,j)<k .and. kmu_global(ip1,j) >= k) then 
                ncount      = ncount+1
                iwp(ncount) = i
            endif
@@ -1624,23 +1617,23 @@ subroutine ncar_boundary_scale_create(Time)
            elseif ( i .ge. index  .and.  i .le. indexo ) then
                dist_g(i) = 0.0
            elseif ( (i .gt. indexo) ) then
-               dist_g(i) = dxtn_global(i,j+Dom%joff)+dist_g(i-1)
+               dist_g(i) = dxtn_global(i,j)+dist_g(i-1)
            elseif ( i .lt. index ) then
                if (indexo .le. Grd%ni) then
                    if (i .eq. 1) then
                        dist_g(i) = 0.0
                        do ii=indexo+1,Grd%ni
-                          dist_g(i)=dxtn_global(ii,j+Dom%joff) + dist_g(i)
+                          dist_g(i)=dxtn_global(ii,j) + dist_g(i)
                        enddo
-                       dist_g(i) = dxtn_global(i,j+Dom%joff)+dist_g(i)
+                       dist_g(i) = dxtn_global(i,j)+dist_g(i)
                    else
-                       dist_g(i) = dxtn_global(i,j+Dom%joff)+dist_g(i-1)
+                       dist_g(i) = dxtn_global(i,j)+dist_g(i-1)
                    endif
                else
                    if (i .le. (indexo - Grd%ni)) then
                        dist_g(i) = 0.0
                    else
-                       dist_g(i) = dxtn_global(i,j+Dom%joff)+dist_g(i-1)
+                       dist_g(i) = dxtn_global(i,j)+dist_g(i-1)
                    endif
                endif
            endif

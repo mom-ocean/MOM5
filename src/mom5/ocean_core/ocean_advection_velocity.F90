@@ -80,13 +80,25 @@ module ocean_advection_velocity_mod
 !
 !  <DATA NAME="read_advection_velocity" TYPE="logical">
 !  For reading in a file with specified zonal, meridional,
-!  and vertical components to the advection velocity.
+!  and vertical components to the advective velocity.
 !  The file should have velocity at the east face of T-cell,
 !  north face, and bottom, just as on a C-grid.  The units 
 !  should be m/s for each component.  MOM then multiplies
 !  but the appropriate thickness and density factors to 
 !  generate transport for use in the model.  
-!  Default read_zonal_advection_velocity=.false.
+!  Default read_advection_velocity=.false.
+!  </DATA> 
+!
+!  <DATA NAME="read_advection_transport" TYPE="logical">
+!  For reading in a file with specified zonal, meridional,
+!  and vertical components to the advection transport.
+!  The file should have transport at the east face of T-cell,
+!  north face, and bottom, just as on a C-grid.  The units 
+!  should be (kg/m^3)*(m^2/sec) for horz components, and
+!  (kg/m^3)*(m/sec) for vertical component.  MOM then uses 
+!  these fields directly to initialize uhrho_et, vhrho_nt,
+!  and wrho_bt.  
+!  Default read_advection_transport=.false.
 !  </DATA> 
 !
 !  <DATA NAME="constant_advection_velocity" TYPE="logical">
@@ -210,13 +222,13 @@ public ocean_advection_velocity
 public ocean_advection_velocity_end
 
 private check_vert_cfl_blobs
-private read_advect_velocity
+private read_advection
 private inflow_nboundary_init
 
 character(len=128) :: version=&
-     '$Id: ocean_advection_velocity.F90,v 1.1.2.7 2012/06/01 20:47:08 Stephen.Griffies Exp $'
+     '$Id: ocean_advection_velocity.F90,v 1.1.2.8.16.2 2013/04/03 19:00:31 smg Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: mom5_siena_201303_smg $'
 
 logical :: have_obc              = .false.
 logical :: module_is_initialized = .FALSE.
@@ -225,10 +237,12 @@ real    :: max_advection_velocity       = -1.0
 logical :: debug_this_module            = .false.
 logical :: inflow_nboundary             = .false. 
 logical :: read_advection_velocity      = .false.
+logical :: read_advection_transport     = .false.
 logical :: constant_advection_velocity  = .false. 
 
 namelist /ocean_advection_velocity_nml/ debug_this_module, max_advection_velocity, inflow_nboundary,  &
-                                        read_advection_velocity, constant_advection_velocity
+                                        read_advection_velocity, read_advection_transport,            &
+                                        constant_advection_velocity
 
 contains
 
@@ -347,9 +361,10 @@ subroutine ocean_advection_velocity_init(Grid, Domain, Time, Time_steps, Thickne
     call inflow_nboundary_init
   endif 
 
-  if(read_advection_velocity) then 
-    call read_advect_velocity(Time, Thickness, Adv_vel)
-  endif 
+  if(read_advection_velocity .or. read_advection_transport) then 
+    call read_advection(Time, Thickness, Adv_vel)
+  endif
+  
   if(constant_advection_velocity) then 
     write(stdoutunit,'(a)') &
     '==>Note: Using ocean_advection_velocity_mod with constant_advection_velocity=.true.'  
@@ -537,9 +552,9 @@ end subroutine ocean_advection_velocity_init
 ! Compute thickness weighted and density weighted advection velocity 
 ! components for the B-grid on the T-cells and U-cells. 
 !
-! U-cell advective components are not used for Cgrid, so we do not
+! U-cell advective components are not used for Cgrid, so we do not 
 ! update the u-cell components.  Instead, simply keep values at their
-! initial setting of 0.0.
+! initial setting of 0.0.  
 !
 ! </DESCRIPTION>
 !
@@ -875,21 +890,39 @@ end subroutine check_vert_cfl_blobs
 
 
 !#######################################################################
-! <SUBROUTINE NAME="read_advect_velocity">
+! <SUBROUTINE NAME="read_advection">
 !
 ! <DESCRIPTION>
-! For reading in the advection velocity components.  Assume that 
-! the advection velocity components read in from a file are in units 
-! of meter/sec and placed on the T-cell faces, as in a C-grid ocean model.  
-! 
-! This routine assumes that the read-in velocity components already 
-! have the proper masking.  
+! To read in advection velocity components or advection transport
+! components.
 !
-! The main application of this routine is for developing idealized
-! test cases for tracer advection.   
+! This routine assumes that the read-in components are masked.  
+!
+! A/ read_advection_velocity=.true. 
+! Assume (x,y,z) advection velocity components read in and are in units 
+! of meter/sec, and placed on the T-cell faces, as in a C-grid ocean model.  
+! An application of this option is for developing idealized test cases
+! for tracer advection.
+!
+! B/ read_advection_transport=.true. 
+! Assume (x,y,z) advection transport components read in from a file.
+! The file should have transport at the east face of T-cell,
+! north face, and bottom, just as on a C-grid. The units should be
+! uhrho_et = (kg/m^3)*(m^2/sec)
+! vhrho_nt = (kg/m^3)*(m^2/sec)
+! wrho_bt  = (kg/m^3)*(m/sec)
+! MOM then uses these read fields to initialize uhrho_et, vhrho_nt,
+! and wrho_bt. 
+! An application of this option is for diagnosing the advection
+! operator and advection fluxes when reading in the time mean
+! uhrho_et, vhrho_nt, and wrho_bt and initializing tracer concentration
+! with a time mean value. Assuming we have also saved the time mean
+! advection operator, we may then diagnose the eddy correlation
+! contribution to tracer transport. 
+!
 ! </DESCRIPTION>
 !
-subroutine read_advect_velocity(Time, Thickness, Adv_vel)
+subroutine read_advection(Time, Thickness, Adv_vel)
 
   type(ocean_time_type),      intent(in)    :: Time
   type(ocean_thickness_type), intent(in)    :: Thickness
@@ -918,47 +951,85 @@ subroutine read_advect_velocity(Time, Thickness, Adv_vel)
       '==>Error from ocean_advection_velocity_mod: read_advect_velocity cannot find ocean_advect_velocity.nc.')
   endif
 
-  if(horz_grid == MOM_BGRID) then 
-     do k=1,nk
-        Adv_vel%uhrho_et(:,:,k) = rho0*ue(:,:,k)*BAY(Thickness%dzu(:,:,k)) 
-        Adv_vel%vhrho_nt(:,:,k) = rho0*vn(:,:,k)*BAX(Thickness%dzu(:,:,k)) 
-        Adv_vel%wrho_bt(:,:,k)  = rho0*wb(:,:,k)
-        Adv_vel%uhrho_eu(:,:,k) = REMAP_ET_TO_EU(Adv_vel%uhrho_et(:,:,k))                                       
-        Adv_vel%vhrho_nu(:,:,k) = REMAP_NT_TO_NU(Adv_vel%vhrho_nt(:,:,k))                                       
-        Adv_vel%wrho_bu(:,:,k)  = REMAP_BT_TO_BU(Adv_vel%wrho_bt(:,:,k))
-     enddo
-  else 
 
-     ! U-cell advective components are not used for Cgrid
-     do k=1,nk
-        Adv_vel%uhrho_et(:,:,k) = rho0*ue(:,:,k)*Thickness%dzten(:,:,k,1) 
-        Adv_vel%vhrho_nt(:,:,k) = rho0*vn(:,:,k)*Thickness%dzten(:,:,k,2) 
-        Adv_vel%wrho_bt(:,:,k)  = rho0*wb(:,:,k)
-     enddo
-  endif 
+  if(read_advection_velocity) then 
+      if(horz_grid == MOM_BGRID) then 
 
+          do k=1,nk
+             Adv_vel%uhrho_et(:,:,k) = rho0*ue(:,:,k)*BAY(Thickness%dzu(:,:,k)) 
+             Adv_vel%vhrho_nt(:,:,k) = rho0*vn(:,:,k)*BAX(Thickness%dzu(:,:,k)) 
+             Adv_vel%wrho_bt(:,:,k)  = rho0*wb(:,:,k)
+             Adv_vel%uhrho_eu(:,:,k) = REMAP_ET_TO_EU(Adv_vel%uhrho_et(:,:,k))                                       
+             Adv_vel%vhrho_nu(:,:,k) = REMAP_NT_TO_NU(Adv_vel%vhrho_nt(:,:,k))                                       
+             Adv_vel%wrho_bu(:,:,k)  = REMAP_BT_TO_BU(Adv_vel%wrho_bt(:,:,k))
+          enddo
 
-  id_ue = register_static_field('ocean_model','ue', Grd%tracer_axes_flux_x(1:3), &
-          'zonal C-grid velocity from file','m/s', range=(/-1e3,1e3/))
+      else 
+
+          ! U-cell advective components are not used for Cgrid
+          do k=1,nk
+             Adv_vel%uhrho_et(:,:,k) = rho0*ue(:,:,k)*Thickness%dzten(:,:,k,1) 
+             Adv_vel%vhrho_nt(:,:,k) = rho0*vn(:,:,k)*Thickness%dzten(:,:,k,2) 
+             Adv_vel%wrho_bt(:,:,k)  = rho0*wb(:,:,k)
+          enddo
+
+      endif
+
+      id_ue = register_static_field('ocean_model','ue', Grd%tracer_axes_flux_x(1:3), &
+           'zonal C-grid velocity from file','m/s', range=(/-1e3,1e3/))
+      id_vn = register_static_field('ocean_model','vn', Grd%tracer_axes_flux_y(1:3), &
+           'meridional C-grid velocity from file','m/s', range=(/-1e3,1e3/)) 
+      id_wb = register_static_field('ocean_model','wb', Grd%tracer_axes_wt(1:3), &
+           'vertical C-grid velocity from file','m/s', range=(/-1e3,1e3/))
+
+      
+  endif
+
+  if(read_advection_transport) then 
+      if(horz_grid == MOM_BGRID) then 
+
+          do k=1,nk
+             Adv_vel%uhrho_et(:,:,k) = ue(:,:,k)
+             Adv_vel%vhrho_nt(:,:,k) = vn(:,:,k)
+             Adv_vel%wrho_bt(:,:,k)  = wb(:,:,k)
+             Adv_vel%uhrho_eu(:,:,k) = REMAP_ET_TO_EU(Adv_vel%uhrho_et(:,:,k))                                       
+             Adv_vel%vhrho_nu(:,:,k) = REMAP_NT_TO_NU(Adv_vel%vhrho_nt(:,:,k))                                       
+             Adv_vel%wrho_bu(:,:,k)  = REMAP_BT_TO_BU(Adv_vel%wrho_bt(:,:,k))
+          enddo
+
+      else 
+
+          ! U-cell advective components are not used for Cgrid
+          do k=1,nk
+             Adv_vel%uhrho_et(:,:,k) = ue(:,:,k)
+             Adv_vel%vhrho_nt(:,:,k) = vn(:,:,k)
+             Adv_vel%wrho_bt(:,:,k)  = wb(:,:,k)
+          enddo
+
+      endif
+
+      id_ue = register_static_field('ocean_model','ue', Grd%tracer_axes_flux_x(1:3), &
+           'zonal C-grid transport from file','(kg/m^3)*(m^2/sec)', range=(/-1e12,1e12/))
+      id_vn = register_static_field('ocean_model','vn', Grd%tracer_axes_flux_y(1:3), &
+           'meridional C-grid transport from file','(kg/m^3)*(m^2/sec)', range=(/-1e12,1e12/))
+      id_wb = register_static_field('ocean_model','wb', Grd%tracer_axes_wt(1:3),     &
+           'vertical C-grid transport from file','m/s', range=(/-1e12,1e12/))
+
+      
+  endif
+
+  
   if (id_ue > 0) used = send_data(id_ue, ue(isc:iec,jsc:jec,:), Time%model_time)
+  if (id_vn > 0) used = send_data(id_vn, vn(isc:iec,jsc:jec,:), Time%model_time)
+  if (id_wb > 0) used = send_data(id_wb, wb(isc:iec,jsc:jec,:), Time%model_time)
 
   id_ue_rhodzt = register_static_field('ocean_model','ue_rhodzt', Grd%tracer_axes_flux_x(1:3), &
                  'zonal C-grid velocity*rhodzt from file','(kg/m3)*m^2/s', range=(/-1e6,1e6/))
   if (id_ue_rhodzt > 0) used = send_data(id_ue_rhodzt, Adv_vel%uhrho_et(isc:iec,jsc:jec,:), Time%model_time)
 
-
-  id_vn = register_static_field('ocean_model','vn', Grd%tracer_axes_flux_y(1:3), &
-          'meridional C-grid velocity from file','m/s', range=(/-1e3,1e3/))
-  if (id_vn > 0) used = send_data(id_vn, vn(isc:iec,jsc:jec,:), Time%model_time)
-
   id_vn_rhodzt = register_static_field('ocean_model','vn_rhodzt', Grd%tracer_axes_flux_y(1:3), &
                  'merid C-grid velocity*rhodzt from file','(kg/m3)*m^2/s', range=(/-1e6,1e6/))
   if (id_vn_rhodzt > 0) used = send_data(id_vn_rhodzt, Adv_vel%vhrho_nt(isc:iec,jsc:jec,:), Time%model_time)
-
-
-  id_wb = register_static_field('ocean_model','wb', Grd%tracer_axes_wt(1:3), &
-          'vertical C-grid velocity from file','m/s', range=(/-1e3,1e3/))
-  if (id_wb > 0) used = send_data(id_wb, wb(isc:iec,jsc:jec,:), Time%model_time)
 
   id_wb_rho = register_static_field('ocean_model','wb_rho', Grd%tracer_axes_wt(1:3), &
               'vertical C-grid velocity*rho from file','(kg/m3)*m/s', range=(/-1e6,1e6/))
@@ -966,8 +1037,8 @@ subroutine read_advect_velocity(Time, Thickness, Adv_vel)
 
 
 
-end subroutine read_advect_velocity
-! </SUBROUTINE> NAME="read_advect_velocity"
+end subroutine read_advection
+! </SUBROUTINE> NAME="read_advection"
 
 
 !#######################################################################
