@@ -827,6 +827,24 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
 
 contains
   
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+! This is a nested subroutine for checking netcdf read errors          !
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  subroutine nferror(description)
+    character(len=*) :: description
+    if (nfstatus /= NF_NOERR) then
+       write (stdoutunit, *) ' '
+       write (stdoutunit, *) 'ocean_blob_util_mod, blob_util_init: problem '//trim(description)
+       write (stdoutunit, *) 'error code =', nfstatus
+       if (nfstatus==NF_EEDGE)        write(stdoutunit, *) '==>Start+count exceeds dimension bound'
+       if (nfstatus==NF_EINVALCOORDS) write(stdoutunit, *) '==>Index exceeds dimension bound'
+       if (nfstatus==NF_ENOTVAR)      write(stdoutunit, *) '==>Variable not found'
+       
+       call mpp_error(FATAL, 'ocean_blob_mod, ocean_blob_init: problem '//trim(description))
+    endif
+  end subroutine nferror
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! This is a nested subroutine that reads the restart files for blobs   !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -841,8 +859,8 @@ contains
     integer :: dragid, entid, ageid, heightid
     integer :: hashid, numberid, typeid, iid, jid, kid
     integer :: stepid, h1id, h2id, nstepsid, mstepsid, densityid
-    integer :: n, m, i, j, k, type, nblobs, nblobs0
-    logical :: found_restart, restart_per_pe
+    integer :: n, m, i, j, k, type, nblobs, fileno
+    logical :: found_restart, distributed, next_file_exists
     
     ! We have two restart files, and we need to read them in separately.
     ! The first is to read in the gridded data.  The second is to read
@@ -872,18 +890,30 @@ contains
     ! Open the blob file and read in the blob attributes.
     filename = 'INPUT/ocean_blobs.res.nc'
     inquire(file=trim(filename),exist=found_restart)
+    if (found_restart) then
+       distributed=.false.
+       next_file_exists=.true.
+    else
+       write(filename(1:29), '("INPUT/ocean_blobs.res.nc.", I4.4)') 0
+       inquire(file=trim(filename),exist=found_restart)
+       if (found_restart) then
+          distributed=.true.
+          next_file_exists=.true.
+       else
+          if (.NOT.Time%init) then
+             call mpp_error(FATAL,&
+                  'Expecting file '//trim(filename)//' or similar to exist.&
+                  &This file was not found and Time%init=.false.')
+          endif
+       endif
+    endif
 
-    ! Search for a PE-exclusive file if a single file does not exist
-    restart_per_pe = .false.
-    if (.not. found_restart) then
-       write(filename(1:29),'("INPUT/ocean_blobs.res.nc.", I4.4)') mpp_pe()
-       inquire(file=trim(filename), exist=found_restart)
-       if (found_restart) restart_per_pe = .true.
-    end if
+    fileno=0
+    nblobs=0
 
-    if(found_restart) then
+    do while (next_file_exists) 
        write(stdoutunit, '(/,a,/)') 'Reading in blobs restart from '//trim(filename)
-
+    
        ierr = nf_open(trim(filename), NF_NOWRITE, ncid)
        if (ierr .ne. NF_NOERR) write(stderrunit,'(a)') 'blobs, readrestart: nf_open failed'
 
@@ -917,7 +947,7 @@ contains
        typeid     = inq_var(ncid, 'type')
        nstepsid   = inq_var(ncid, 'nsteps')
        mstepsid   = inq_var(ncid, 'model_steps')
-       allocate(tracerid(num_prog_tracers))
+       if (fileno==0) allocate(tracerid(num_prog_tracers))
        do n=1, num_prog_tracers
           if (n==index_temp) then 
              tracerid(n) = inq_var(ncid, 'heat')
@@ -926,8 +956,6 @@ contains
           endif
        enddo
 
-       nblobs  = 0
-       nblobs0 = 0
        ! Cycle through the blobs.  Ignore empty entries and blobs that are not
        ! in this compute domain.  If a blob is on this compute domain, then
        ! we read in the saved data, and derive other data (such as field,
@@ -937,11 +965,9 @@ contains
           type = get_int(ncid, typeid, m)
           i = get_int(ncid, iid, m)
           j = get_int(ncid, jid, m)
-          
+
           ! if type==0, it is an empty entry, so we just ignore it
-          if(type == 0) then
-             nblobs0 = nblobs0 + 1
-          else
+          if(type /= 0) then
              ! Check if we are in the compute domain. If we are not, 
              ! then ignore the blob.  If we are, then read in the 
              ! blob's data.
@@ -981,7 +1007,7 @@ contains
                 i = blob%i
                 j = blob%j
                 k = blob%k
-                
+
                 ! new blobs were created implicitly in time, and thus, their 
                 ! properties belong to the next time step and have not been
                 ! taken into account in diagnostics
@@ -1030,27 +1056,20 @@ contains
           endif !type == 0
        enddo !n=1,nblobs_in_file
 
-       print('(a22,i3,a3,i10)'),  'number of blobs on PE ',Info%pe_this,' =',nblobs
-       call mpp_sum(nblobs)
-       if (restart_per_pe) then
-           call mpp_sum(nblobs_in_file)
-           call mpp_sum(nblobs0)
-       end if
-       write(stdoutunit,'(a,i10)') 'global number of blobs     =', nblobs
-       write(stdoutunit,'(a,i10)') 'blobs in file              =', nblobs_in_file
-       write(stdoutunit,'(a,i10)') 'empty blobs in file        =', nblobs0
-       if(nblobs_in_file-nblobs0 .ne. nblobs) call mpp_error(FATAL,&
-            'blob, readrestart, number of non-empty blobs not equal to number'&
-            //' of blobs read into global domain')
-
-    else
-       if (.NOT.Time%init) then
-          call mpp_error(FATAL,&
-               'Expecting file '//trim(filename)//' to exist.&
-               &This file was not found and Time%init=.false.')
+       if (distributed) then
+          fileno=fileno+1
+          write(filename(1:29), '("INPUT/ocean_blobs.res.nc.", I4.4)') fileno
+          inquire(file=trim(filename),exist=found_restart)
+          if (.not. found_restart) next_file_exists=.false.
+       else
+          next_file_exists=.false.
        endif
 
-    endif!found_restart
+    enddo
+
+    print('(a22,i3,a3,i10)'),  'number of blobs on PE ',Info%pe_this,' =',nblobs
+    call mpp_sum(nblobs)
+    write(stdoutunit,'(a,i10)') 'global number of blobs     =', nblobs
 
   end subroutine readrestart
 
