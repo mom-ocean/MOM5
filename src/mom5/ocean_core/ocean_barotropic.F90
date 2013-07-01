@@ -945,7 +945,7 @@ contains
 !
 subroutine ocean_barotropic_init(Grid, Domain, Time, Time_steps, Ocean_options, Ext_mode, obc, &
                                  ver_coordinate, ver_coordinate_class, hor_grid, cmip_units,   &
-                                 use_blobs, velocity_override, debug)
+                                 use_blobs, introduce_blobs, velocity_override, debug)
 
   type(ocean_grid_type),          intent(in), target   :: Grid
   type(ocean_domain_type),        intent(in), target   :: Domain
@@ -959,6 +959,7 @@ subroutine ocean_barotropic_init(Grid, Domain, Time, Time_steps, Ocean_options, 
   integer,                        intent(in)           :: hor_grid 
   logical,                        intent(in)           :: cmip_units
   logical,                        intent(in)           :: use_blobs
+  logical,                        intent(in)           :: introduce_blobs
   logical,                        intent(in)           :: velocity_override
   logical,                        intent(in), optional :: debug
 
@@ -1436,7 +1437,7 @@ subroutine ocean_barotropic_init(Grid, Domain, Time, Time_steps, Ocean_options, 
          call ocean_obc_update_boundary_baro(eta_t_bt(:,:,:), 'T')
       endif
   endif
-  call read_barotropic(Time, Ext_mode, use_blobs)
+  call read_barotropic(Time, Ext_mode, use_blobs, introduce_blobs)
 
   if(Time%init .and. zero_eta_ic) then 
       call mpp_error(NOTE, &
@@ -5205,13 +5206,14 @@ end subroutine barotropic_energy
 ! <DESCRIPTION>
 !  Read in external mode fields from restart file.
 ! </DESCRIPTION>
-subroutine read_barotropic(Time, Ext_mode, use_blobs)
+subroutine read_barotropic(Time, Ext_mode, use_blobs, introduce_blobs)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_external_mode_type), intent(inout) :: Ext_mode
   logical,                        intent(in)    :: use_blobs
+  logical,                        intent(in)    :: introduce_blobs
 
-  character*128 file_name
+  character*128 file_name, baro_filename
   integer, dimension(4) :: siz 
   integer  :: tau, taum1, taup1
 
@@ -5223,6 +5225,7 @@ subroutine read_barotropic(Time, Ext_mode, use_blobs)
   taup1 = Time%taup1
 
   file_name = 'ocean_barotropic.res.nc'
+  baro_filename = file_name
   if(tendency==THREE_LEVEL) then 
       id_restart(1) = register_restart_field(Bar_restart, file_name, 'eta_t', Ext_mode%eta_t(:,:,tau),&
                Ext_mode%eta_t(:,:,taup1), domain=Dom%domain2d)
@@ -5277,7 +5280,7 @@ subroutine read_barotropic(Time, Ext_mode, use_blobs)
   id_restart(13)= register_restart_field(Bar_restart, file_name, 'forcing_v_bt',Ext_mode%forcing_bt(:,:,2), &
        domain=Dom%domain2d) 
 
-  if (use_blobs) then
+  if (use_blobs .and. .not. introduce_blobs) then
       id_restart(14) = register_restart_field(Bar_restart, file_name, 'deta_dt', &
                        Ext_mode%deta_dt(:,:), domain=Dom%domain2d)
   endif 
@@ -5346,7 +5349,15 @@ subroutine read_barotropic(Time, Ext_mode, use_blobs)
       call mpp_update_domains(Ext_mode%eta_nonbouss(:,:,:),   Dom%domain2d)
       call mpp_update_domains(Ext_mode%forcing_bt(:,:,1), Ext_mode%forcing_bt(:,:,2),&
                               Dom%domain2d,gridtype=GRID_NE)
-      if (use_blobs) call mpp_update_domains(Ext_mode%deta_dt(:,:), Dom%domain2d)
+      if (use_blobs .and. .not. introduce_blobs) then
+         call mpp_update_domains(Ext_mode%deta_dt(:,:), Dom%domain2d)
+      elseif (use_blobs .and. introduce_blobs) then
+         ! If we are introducing blobs, deta_dt will not have been in the restart file, but, it
+         ! will need to be written to the restart file at the end of this run.
+         id_restart(14) = register_restart_field(Bar_restart, baro_filename, 'deta_dt', &
+                          Ext_mode%deta_dt(:,:), domain=Dom%domain2d)
+
+      endif
 
   endif
 

@@ -361,7 +361,7 @@ contains
 !
 subroutine ocean_thickness_init  (Time, Time_steps, Domain, Grid, Ext_mode, Thickness, &
                                  ver_coordinate, ver_coordinate_class, ver_coordinate_type, &
-                                 blobs, dtimein, debug)
+                                 blobs, introduce_blobs, dtimein, debug)
 
   type(ocean_time_type),          intent(in)           :: Time
   type(ocean_time_steps_type),    intent(in)           :: Time_steps 
@@ -373,6 +373,7 @@ subroutine ocean_thickness_init  (Time, Time_steps, Domain, Grid, Ext_mode, Thic
   integer,                        intent(in)           :: ver_coordinate_class
   integer,                        intent(in)           :: ver_coordinate_type
   logical,                        intent(in)           :: blobs
+  logical,                        intent(in)           :: introduce_blobs
   real,                           intent(in)           :: dtimein
   logical,                        intent(in), optional :: debug
 
@@ -628,7 +629,7 @@ subroutine ocean_thickness_init  (Time, Time_steps, Domain, Grid, Ext_mode, Thic
   call thickness_initialize(Grid, Thickness) 
 
   ! modify time dependent vertical grid arrays based on restart values   
-  call thickness_restart(Time, Grid, Ext_mode, Thickness)
+  call thickness_restart(Time, Grid, Ext_mode, Thickness, introduce_blobs)
 
   if(debug_this_module) then 
     write(stdoutunit,*) ' '
@@ -2122,12 +2123,13 @@ end subroutine ocean_thickness_init_adjust
 !
 ! </DESCRIPTION>
 !
-subroutine thickness_restart (Time, Grid, Ext_mode, Thickness)
+subroutine thickness_restart (Time, Grid, Ext_mode, Thickness, introduce_blobs)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_grid_type),          intent(in)    :: Grid  
   type(ocean_external_mode_type), intent(in)    :: Ext_mode
   type(ocean_thickness_type),     intent(inout) :: Thickness
+  logical,                        intent(in)    :: introduce_blobs
 
   character*128 file_name
   integer :: tau, taum1, taup1, id_restart
@@ -2142,45 +2144,9 @@ subroutine thickness_restart (Time, Grid, Ext_mode, Thickness)
   taup1 = Time%taup1
 
   file_name = 'ocean_thickness.res.nc'
-  if(tendency==THREE_LEVEL) then 
-     id_restart_rho_dzt = register_restart_field(Thk_restart, file_name, 'rho_dzt', Thickness%rho_dzt(:,:,:,tau), &
-          Thickness%rho_dzt(:,:,:,taup1), Dom%domain2d)
-  elseif(tendency==TWO_LEVEL) then
-     if (use_blobs) then
-        id_restart_rho_dztL = register_restart_field(Thk_restart, file_name, 'rho_dztL', &
-             Thickness%rho_dztL(:,:,:,taup1), Dom%domain2d)
-        id_restart_rho_dztT = register_restart_field(Thk_restart, file_name, 'rho_dztT', &
-             Thickness%rho_dztT(:,:,:,taup1), Dom%domain2d)
-     else
-        id_restart_rho_dzt = register_restart_field(Thk_restart,  file_name, 'rho_dzt',  &
-             Thickness%rho_dzt(:,:,:,taup1), Dom%domain2d)
-     endif
-  endif
-  id_restart = register_restart_field(Thk_restart, file_name, 'dzt_dst', &
-       Thickness%dzt_dst(:,:,:), Dom%domain2d)
-  id_restart = register_restart_field(Thk_restart, file_name, 'dstlo', &
-       Thickness%dstlo(:,:,:), Dom%domain2d)
-  id_restart = register_restart_field(Thk_restart, file_name, 'dstup', &
-       Thickness%dstup(:,:,:), Dom%domain2d)
-  id_restart = register_restart_field(Thk_restart, file_name, 'dswt', &
-       Thickness%dswt(:,:,:), Dom%domain2d)
-  id_restart = register_restart_field(Thk_restart, file_name, 'dst', &
-       Thickness%dst(:,:,:), Dom%domain2d)
-  id_restart = register_restart_field(Thk_restart, file_name, 'pbot0', &
-       Thickness%pbot0(:,:), Dom%domain2d)
-  if (use_blobs) then
-     id_restart = register_restart_field(Thk_restart, file_name, 'dztloL', &
-          Thickness%dztloL(:,:,:), Dom%domain2d)
-     id_restart = register_restart_field(Thk_restart, file_name, 'dztupL', &
-          Thickness%dztupL(:,:,:), Dom%domain2d)
-  endif
-  if(vert_coordinate_class==PRESSURE_BASED) then 
-     id_restart = register_restart_field(Thk_restart, file_name, 'depth_st', &
-          Thickness%depth_st(:,:,:), Dom%domain2d)
-     id_restart = register_restart_field(Thk_restart, file_name, 'depth_swt', &
-          Thickness%depth_swt(:,:,:), Dom%domain2d)
-  endif
-
+  call register_thickness_restart(Time, introduce_blobs, file_name, Thickness)
+  call register_thickness_restart_blobs(Time, introduce_blobs, file_name, Thickness)
+  
   if (.NOT. file_exist('INPUT/ocean_thickness.res.nc')) then
      if (.NOT.Time%init) then 
         call mpp_error(FATAL,&
@@ -2206,6 +2172,22 @@ subroutine thickness_restart (Time, Grid, Ext_mode, Thickness)
       ! initialize to nonzero to eliminate NaNs when mask 
       ! out processors and then change layout upon a restart 
       if (use_blobs) then
+         if (introduce_blobs) then
+            ! Introducing blobs mid-run, we set the total thickness to that of the E system.
+            ! The L system is assumed to be zero and has already been set in thickness_initialize
+            Thickness%dztT(:,:,:,1)     = Thickness%dzt(:,:,:)      
+            Thickness%dztT(:,:,:,2)     = Thickness%dzt(:,:,:)      
+            Thickness%dztT(:,:,:,3)     = Thickness%dzt(:,:,:)      
+            Thickness%dzuT(:,:,:)       = Thickness%dzu(:,:,:)      
+            Thickness%dzwtT(:,:,:)      = Thickness%dzwt(:,:,:)     
+            Thickness%dzwuT(:,:,:)      = Thickness%dzwu(:,:,:)     
+            Thickness%dztloT(:,:,:)     = Thickness%dztlo(:,:,:)    
+            Thickness%dztupT(:,:,:)     = Thickness%dztup(:,:,:)    
+            Thickness%rho_dztT(:,:,:,:) = Thickness%rho_dzt(:,:,:,:)
+            Thickness%rho_dzuT(:,:,:,:) = Thickness%rho_dzu(:,:,:,:)
+            Thickness%mass_uT(:,:,:)    = Thickness%mass_u(:,:,:)   
+         endif
+
          where (Thickness%rho_dztT(:,:,:,taup1)==0.) Thickness%rho_dztT(:,:,:,taup1) = rho0*thickness_dzt_min_init
          call mpp_update_domains(Thickness%rho_dztL(:,:,:,taup1), Dom%domain2d)
          call mpp_update_domains(Thickness%rho_dztT(:,:,:,taup1), Dom%domain2d)
@@ -2907,6 +2889,104 @@ subroutine thickness_restart (Time, Grid, Ext_mode, Thickness)
 
 end subroutine thickness_restart
 ! </SUBROUTINE> NAME="thickness_restart"
+
+!#######################################################################
+! <SUBROUTINE NAME="register_thickness_restart">
+!
+! <DESCRIPTION>
+! Registers fields for the thickness restart file that are not directly
+! associated with the partitioning that arises due to blobs.
+! </DESCRIPTION>
+!
+subroutine register_thickness_restart(Time, ignore_blobs, file_name, Thickness)
+                                      
+
+  type(ocean_time_type),          intent(in)    :: Time
+  logical,                        intent(in)    :: ignore_blobs
+  character(len=128),             intent(in)    :: file_name
+  type(ocean_thickness_type),     intent(inout) :: Thickness
+
+  integer :: tau, taum1, taup1, id_restart
+
+  integer :: stdoutunit 
+  stdoutunit=stdout() 
+
+  tau   = Time%tau
+  taum1 = Time%taum1
+  taup1 = Time%taup1
+
+  if(tendency==THREE_LEVEL) then 
+     id_restart_rho_dzt = register_restart_field(Thk_restart, file_name, 'rho_dzt', Thickness%rho_dzt(:,:,:,tau), &
+          Thickness%rho_dzt(:,:,:,taup1), Dom%domain2d)
+  elseif(tendency==TWO_LEVEL) then
+     if (ignore_blobs .or. .not. use_blobs) then
+        id_restart_rho_dzt = register_restart_field(Thk_restart,  file_name, 'rho_dzt',  &
+             Thickness%rho_dzt(:,:,:,taup1), Dom%domain2d)
+     endif
+  endif
+  id_restart = register_restart_field(Thk_restart, file_name, 'dzt_dst', &
+       Thickness%dzt_dst(:,:,:), Dom%domain2d)
+  id_restart = register_restart_field(Thk_restart, file_name, 'dstlo', &
+       Thickness%dstlo(:,:,:), Dom%domain2d)
+  id_restart = register_restart_field(Thk_restart, file_name, 'dstup', &
+       Thickness%dstup(:,:,:), Dom%domain2d)
+  id_restart = register_restart_field(Thk_restart, file_name, 'dswt', &
+       Thickness%dswt(:,:,:), Dom%domain2d)
+  id_restart = register_restart_field(Thk_restart, file_name, 'dst', &
+       Thickness%dst(:,:,:), Dom%domain2d)
+  id_restart = register_restart_field(Thk_restart, file_name, 'pbot0', &
+       Thickness%pbot0(:,:), Dom%domain2d)
+  if(vert_coordinate_class==PRESSURE_BASED) then 
+     id_restart = register_restart_field(Thk_restart, file_name, 'depth_st', &
+          Thickness%depth_st(:,:,:), Dom%domain2d)
+     id_restart = register_restart_field(Thk_restart, file_name, 'depth_swt', &
+          Thickness%depth_swt(:,:,:), Dom%domain2d)
+  endif
+
+
+
+
+end subroutine register_thickness_restart
+! </SUBROUTINE> NAME="register_thickness_restart"
+
+!#######################################################################
+! <SUBROUTINE NAME="register_thickness_restart_blobs">
+!
+! <DESCRIPTION>
+! Registers restart fields that are directly associated with the 
+! partitioning that arises from use of the embedded Lagrangian model.
+! </DESCRIPTION>
+!
+subroutine register_thickness_restart_blobs(Time, ignore_blobs, file_name, Thickness)
+                                            
+
+  type(ocean_time_type),          intent(in)    :: Time
+  logical,                        intent(in)    :: ignore_blobs
+  character(len=128),             intent(in)    :: file_name
+  type(ocean_thickness_type),     intent(inout) :: Thickness
+
+  integer :: tau, taum1, taup1, id_restart
+
+  integer :: stdoutunit 
+  stdoutunit=stdout() 
+
+  tau   = Time%tau
+  taum1 = Time%taum1
+  taup1 = Time%taup1
+
+  if (use_blobs .and. .not. ignore_blobs) then
+     id_restart_rho_dztL = register_restart_field(Thk_restart, file_name, 'rho_dztL', &
+          Thickness%rho_dztL(:,:,:,taup1), Dom%domain2d)
+     id_restart_rho_dztT = register_restart_field(Thk_restart, file_name, 'rho_dztT', &
+          Thickness%rho_dztT(:,:,:,taup1), Dom%domain2d)
+     id_restart = register_restart_field(Thk_restart, file_name, 'dztloL', &
+          Thickness%dztloL(:,:,:), Dom%domain2d)
+     id_restart = register_restart_field(Thk_restart, file_name, 'dztupL', &
+          Thickness%dztupL(:,:,:), Dom%domain2d)
+  endif
+
+end subroutine register_thickness_restart_blobs
+! </SUBROUTINE> NAME="register_thickness_restart_blobs"
 
 
 !#######################################################################
@@ -4124,14 +4204,25 @@ end subroutine thickness_details
 ! <DESCRIPTION>
 !  Write out restart files registered through register_restart_file
 ! </DESCRIPTION>
-subroutine ocean_thickness_restart(Time, Thickness, time_stamp)
+subroutine ocean_thickness_restart(Time, Thickness, introduce_blobs, time_stamp)
   type(ocean_time_type),      intent(in)           :: Time
-  type(ocean_thickness_type), intent(in)           :: Thickness
+  type(ocean_thickness_type), intent(inout)        :: Thickness
+  logical,                    intent(in)           :: introduce_blobs
   character(len=*),           intent(in), optional :: time_stamp
-   integer :: tau, taup1
+
+  character(len=128) :: filename
+  integer :: tau, taup1
 
   tau    = Time%tau
   taup1  = Time%taup1
+
+  if (introduce_blobs) then
+     ! If we have introduced blobs this run, we need to change the variables that are saved
+     ! in the restarts.  So, we create a new restart file object with all the fields we
+     ! need saved at the end of this run.
+     filename = 'ocean_thickness.res.nc'
+     call register_thickness_restart_blobs(Time, .false., filename, Thickness)
+  endif
 
   if(tendency==THREE_LEVEL) then 
      call reset_field_pointer(Thk_restart, id_restart_rho_dzt, Thickness%rho_dzt(:,:,:,tau), &
@@ -4158,10 +4249,11 @@ end subroutine ocean_thickness_restart
 ! Write basic elements of thickness derived type to restart 
 ! </DESCRIPTION>
 !
-subroutine ocean_thickness_end (Time, Grid, Thickness)
+subroutine ocean_thickness_end (Time, Grid, introduce_blobs, Thickness)
 
   type(ocean_time_type),      intent(in)           :: Time
   type(ocean_grid_type),      intent(in)           :: Grid  
+  logical,                    intent(in)           :: introduce_blobs
   type(ocean_thickness_type), intent(inout)        :: Thickness
 
   integer :: stdoutunit 
@@ -4180,7 +4272,7 @@ subroutine ocean_thickness_end (Time, Grid, Thickness)
     return
   endif 
 
-  call ocean_thickness_restart(Time, Thickness)
+  call ocean_thickness_restart(Time, Thickness, introduce_blobs)
 
   write(stdoutunit,*) ' '
   write(stdoutunit,*) 'From ocean_thickness_mod: ending thickness checksums'
