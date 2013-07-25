@@ -158,8 +158,13 @@ module ocean_model_mod
 !  </DATA> 
 !
 !  <DATA NAME="use_blobs" TYPE="logical">
-!  For introducing Lagrangian blobs.
+!  For using Lagrangian blobs.
 !  Default use_blobs=.false.   
+!  </DATA>
+!  
+!  <DATA NAME="introduce_blobs" TYPE="logical">
+!  For the Lagrangian blobs after a model has already been running.
+!  Default introduce_blobs=.false.
 !  </DATA>
 !  
 !  <DATA NAME="use_velocity_override" TYPE="logical">
@@ -594,6 +599,7 @@ private
   logical :: have_obc              =.false.   
   logical :: cmip_units            =.false.
   logical :: use_blobs             =.false.
+  logical :: introduce_blobs       =.false.
   logical :: use_velocity_override =.false.
   
   type, public ::  ocean_state_type; private
@@ -608,7 +614,8 @@ private
   namelist /ocean_model_nml/ time_tendency, impose_init_from_restart, reinitialize_thickness,    &
                              baroclinic_split, barotropic_split, surface_height_split,           &
                              layout, io_layout, debug, vertical_coordinate, dt_ocean, cmip_units,&
-                             horizontal_grid, use_blobs, use_velocity_override, mask_table
+                             horizontal_grid, use_blobs, use_velocity_override, mask_table,      &
+                             introduce_blobs
 
 contains
 
@@ -796,6 +803,24 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
          write (stdoutunit,*) ' '
          call mpp_error(FATAL,&
               '==>Error from ocean_model_mod: time_tendency must be "twolevel" for use_blobs=.true.')
+
+         if (introduce_blobs) then
+            if(file_exist('INPUT/ocean_blobs_gridded.res.nc')) then
+               write (stdoutunit,*) ' '
+               Write (stdoutunit,*) '==>Fatal: You are running MOM with introduce_blobs=.true. and use_blobs=.true.'
+               write (stdoutunit,*) ' But blob restart exists so blobs have already run.                           '
+               write (stdoutunit,*) ' Please set introduce_blobs=.false.                                           '
+               write (stdoutunit,*) ' '
+               call mpp_error(FATAL,&
+                    '==>Error from ocean_model_mod: introduce_blobs=.true. but blobs have been run previously')
+            else
+               write (stdoutunit,*) ' '
+               write (stdoutunit,*) '==>Note: You are running MOM with introduce_blobs=.true. and use_blobs=.true.  '
+               write (stdoutunit,*) '         Blobs are being introduced to a run that did not previously have them.'
+               write (stdoutunit,*) ' '
+               
+            endif
+         endif
       endif
 
     elseif(time_tendency=='twolevel') then  
@@ -1149,13 +1174,14 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     call ocean_tracer_util_init(Grid, Domain, use_blobs)
     call ocean_coriolis_init(Grid, Domain, Time, Time_steps, Ocean_options, horz_grid, debug=debug)
     call ocean_velocity_init(Grid, Domain, Time, Time_steps, Ocean_options, Velocity, &
-                             horz_grid, have_obc, use_blobs, use_velocity_override, debug=debug)
+                             horz_grid, have_obc, use_blobs, introduce_blobs, &
+                             use_velocity_override, debug=debug)
     call ocean_barotropic_init(Grid, Domain, Time, Time_steps, Ocean_options, Ext_mode, have_obc,       &
                                vert_coordinate, vert_coordinate_class, horz_grid, cmip_units, use_blobs,&
-                               use_velocity_override, debug=debug)    
+                               introduce_blobs, use_velocity_override, debug=debug)    
     call ocean_thickness_init(Time, Time_steps, Domain, Grid, Ext_mode, Thickness,          &
                               vert_coordinate, vert_coordinate_class, vert_coordinate_type, &
-                              use_blobs, dtime_t, debug=debug)
+                              use_blobs, introduce_blobs, dtime_t, debug=debug)
     call ocean_operators_init(Grid, Domain, Thickness, horz_grid)
 
     ! initialize prognostic tracers 
@@ -1168,7 +1194,8 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
                                      use_blobs)
 
     call ocean_advection_velocity_init(Grid, Domain, Time, Time_steps, Thickness, Adv_vel, &
-                                       vert_coordinate_class, horz_grid, have_obc, use_blobs, debug=debug)
+                                       vert_coordinate_class, horz_grid, have_obc, use_blobs, &
+                                       introduce_blobs, debug=debug)
 
     call ocean_density_init(Grid, Domain, Time, Time_steps, Thickness, T_prog(:), T_diag(:), Ocean_options, &
                             Dens, vert_coordinate, use_blobs, debug=debug)
@@ -1176,7 +1203,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     ! Note, this is the earliest the blob and lagrangian system initializations can be called
     allocate(EL_diag(0:num_prog_tracers))
     call ocean_blob_init(Grid, Domain, Time, T_prog, Dens, Thickness, Lagrangian_system, Ext_mode, EL_diag, &
-                         Ocean_options, dtime_t, vert_coordinate_class, vert_coordinate, use_blobs)
+                         Ocean_options, dtime_t, vert_coordinate_class, vert_coordinate, use_blobs, introduce_blobs)
 
     ! comptute total density in a grid cell 
     call calculate_rhoT(Time, Dens, Thickness)
@@ -2055,7 +2082,7 @@ end subroutine ocean_model_data1D_get
     call ocean_tpm_end(Domain, Grid, T_prog(:), T_diag(:), Time, Thickness)
     call ocean_velocity_end(Time, Velocity, use_blobs)
     call ocean_barotropic_end(Time, Ext_mode)
-    call ocean_thickness_end(Time, Grid, Thickness)
+    call ocean_thickness_end(Time, Grid, introduce_blobs, Thickness)
     call ocean_density_end(Time, Dens, use_blobs)
     if(have_obc) call ocean_obc_end(Time, have_obc)
     call ocean_sfc_end()
@@ -2200,7 +2227,7 @@ end subroutine ocean_model_data1D_get
      call ocean_sigma_transport_restart(timestamp)
      call ocean_velocity_restart(Time, Velocity, use_blobs, timestamp)
      call ocean_barotropic_restart(Time, Ext_mode, timestamp)
-     call ocean_thickness_restart(Time, Thickness, timestamp)
+     call ocean_thickness_restart(Time, Thickness, introduce_blobs, timestamp)
      call ocean_density_restart(Time, Dens, timestamp)
      if(have_obc) call ocean_obc_restart()
      call ocean_sfc_restart(timestamp)

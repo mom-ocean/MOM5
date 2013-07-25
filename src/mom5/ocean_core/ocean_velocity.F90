@@ -312,7 +312,8 @@ contains
 ! </DESCRIPTION>
 !
 subroutine ocean_velocity_init (Grid, Domain, Time, Time_steps, Ocean_options, &
-                                Velocity, hor_grid, obc, use_blobs, velocity_override, debug)
+                                Velocity, hor_grid, obc, use_blobs, introduce_blobs, &
+                                velocity_override, debug)
 
   type(ocean_grid_type),   target, intent(in)    :: Grid
   type(ocean_domain_type), target, intent(in)    :: Domain
@@ -322,6 +323,7 @@ subroutine ocean_velocity_init (Grid, Domain, Time, Time_steps, Ocean_options, &
   type(ocean_velocity_type),       intent(inout) :: Velocity
   integer,                         intent(in)    :: hor_grid 
   logical,                         intent(in)    :: use_blobs
+  logical,                         intent(in)    :: introduce_blobs
   logical,                         intent(in)    :: obc
   logical,                         intent(in)    :: velocity_override
   logical,               optional, intent(in)    :: debug
@@ -332,6 +334,7 @@ subroutine ocean_velocity_init (Grid, Domain, Time, Time_steps, Ocean_options, &
   integer               :: tau_m0, tau_m1
   integer, dimension(4) :: siz 
   character(len=128)    :: filename
+  character(len=128)    :: velfilename
 
   integer :: stdoutunit,stdlogunit 
   stdoutunit=stdout();stdlogunit=stdlog() 
@@ -605,6 +608,7 @@ subroutine ocean_velocity_init (Grid, Domain, Time, Time_steps, Ocean_options, &
   endif
 
   filename = 'ocean_velocity.res.nc'
+  velfilename = filename
   if(tendency==THREE_LEVEL) then
      id_restart_u = register_restart_field(Vel_restart, filename,'u',Velocity%u(:,:,:,1,tau), &
           Velocity%u(:,:,:,1,taup1), Dom%domain2d)
@@ -615,7 +619,7 @@ subroutine ocean_velocity_init (Grid, Domain, Time, Time_steps, Ocean_options, &
           Dom%domain2d )
      id_restart_v = register_restart_field(Vel_restart, filename,'v',Velocity%u(:,:,:,2,taup1), &
           Dom%domain2d )
-     if (use_blobs) then
+     if (use_blobs .and. .not. introduce_blobs) then
         id_restart_px = register_restart_field(Vel_restart, filename,'pressurex',Velocity%press_force(:,:,:,1),&
              Dom%domain2d )
         id_restart_py = register_restart_field(Vel_restart, filename,'pressurey',Velocity%press_force(:,:,:,2),&
@@ -683,16 +687,30 @@ subroutine ocean_velocity_init (Grid, Domain, Time, Time_steps, Ocean_options, &
           if(horz_grid == MOM_BGRID) then 
              call mpp_update_domains(Velocity%u(:,:,:,1,taup1), Velocity%u(:,:,:,2,taup1),&
                   Dom%domain2d,gridtype=BGRID_NE)
-             if(use_blobs) then
+             if(use_blobs .and. .not. introduce_blobs) then
                 call mpp_update_domains(Velocity%press_force(:,:,:,1), Velocity%press_force(:,:,:,2),&
                   Dom%domain2d,gridtype=BGRID_NE)
+             elseif(use_blobs .and. introduce_blobs) then
+                ! If we are introducing blobs, pressurex and pressurey will not have been in the
+                ! restart file, but, they will be written to the restart file at the end of this run.
+                id_restart_px = register_restart_field(Vel_restart, velfilename,'pressurex',&
+                     Velocity%press_force(:,:,:,1),Dom%domain2d )
+                id_restart_py = register_restart_field(Vel_restart, velfilename,'pressurey',&
+                     Velocity%press_force(:,:,:,2),Dom%domain2d )        
              endif
           else 
              call mpp_update_domains(Velocity%u(:,:,:,1,taup1), Velocity%u(:,:,:,2,taup1),&
                   Dom%domain2d,gridtype=CGRID_NE)
-             if(use_blobs) then
+             if(use_blobs .and. .not. introduce_blobs) then
                 call mpp_update_domains(Velocity%press_force(:,:,:,1), Velocity%press_force(:,:,:,2),&
                   Dom%domain2d,gridtype=CGRID_NE)
+             elseif(use_blobs .and. introduce_blobs) then
+                ! If we are introducing blobs, pressurex and pressurey will not have been in the
+                ! restart file, but, they will be written to the restart file at the end of this run.
+                id_restart_px = register_restart_field(Vel_restart, velfilename,'pressurex',&
+                     Velocity%press_force(:,:,:,1),Dom%domain2d )
+                id_restart_py = register_restart_field(Vel_restart, velfilename,'pressurey',&
+                     Velocity%press_force(:,:,:,2),Dom%domain2d )        
              endif
           endif 
 

@@ -255,7 +255,8 @@ contains
 ! </DESCRIPTION>
 !
 subroutine ocean_advection_velocity_init(Grid, Domain, Time, Time_steps, Thickness, Adv_vel, &
-                                         ver_coordinate_class, hor_grid, obc, use_blobs, debug)
+                                         ver_coordinate_class, hor_grid, obc, use_blobs,     &
+                                         introduce_blobs, debug)
 
   type(ocean_grid_type),       intent(in), target   :: Grid
   type(ocean_domain_type),     intent(in), target   :: Domain  
@@ -267,6 +268,7 @@ subroutine ocean_advection_velocity_init(Grid, Domain, Time, Time_steps, Thickne
   integer,                     intent(in)           :: hor_grid
   logical,                     intent(in)           :: obc
   logical,                     intent(in)           :: use_blobs
+  logical,                     intent(in)           :: introduce_blobs
   logical,                     intent(in), optional :: debug
 
   character(len=128) :: filename
@@ -381,17 +383,19 @@ subroutine ocean_advection_velocity_init(Grid, Domain, Time, Time_steps, Thickne
   if (use_blobs) then
      filename = 'ocean_adv_vel.res.nc'
      id_adv_vel_restart = register_restart_field(adv_vel_restart, filename, 'wrho_bt', &
-                                                 Adv_vel%wrho_bt(:,:,:), domain=Dom%domain2d)
+          Adv_vel%wrho_bt(:,:,:), domain=Dom%domain2d)
 
-     if(file_exist('INPUT/'//trim(filename))) then
-        write(stdoutunit, '(/a)') 'Reading in advective velocity data from '//trim(filename)
-        call restore_state( adv_vel_restart, id_adv_vel_restart )
-        
-     else
-        if (.NOT.Time%init) then
-           call mpp_error(FATAL,&
-                'Expecting file '//trim(filename)//' to exist.&
-                &This file was not found and Time%init=.false.')
+     if (.not. introduce_blobs) then
+        if(file_exist('INPUT/'//trim(filename))) then
+           write(stdoutunit, '(/a)') 'Reading in advective velocity data from '//trim(filename)
+           call restore_state( adv_vel_restart, id_adv_vel_restart )
+
+        else
+           if (.NOT.Time%init) then
+              call mpp_error(FATAL,&
+                   'Expecting file '//trim(filename)//' to exist.&
+                   &This file was not found and Time%init=.false.')
+           endif
         endif
      endif
   endif
