@@ -4717,6 +4717,22 @@ subroutine vert_diffuse_implicit_diag(Time, Thickness, T_prog, diff_cbt, work, n
       nmix=1
   endif
 
+  ! diagnose upgradient vertical diffusive flux
+  if (id_zflux_diff(n) > 0) then
+     flux_z(:,:,:) = 0.0
+     do k=1,nk-1
+        kp = k+1
+        do j=jsc,jec
+           do i=isc,iec
+              flux_z(i,j,k) = rho0*Grd%tmask(i,j,kp)*diff_cbt(i,j,k,nmix)                  &
+                              *(T_prog(n)%field(i,j,k,taup1)-T_prog(n)%field(i,j,kp,taup1))&
+                              /Thickness%dzwt(i,j,k)
+          enddo
+       enddo
+     enddo
+     call diagnose_3d(Time, Grd, id_zflux_diff(n), flux_z(:,:,:)*T_prog(n)%conversion)     
+  endif
+
 
   ! diagnose update due to implicit time stepping
   if (id_vdiffuse_impl(n) > 0) then
@@ -4729,7 +4745,7 @@ subroutine vert_diffuse_implicit_diag(Time, Thickness, T_prog, diff_cbt, work, n
             enddo
          enddo
       enddo
-      call diagnose_3d(TIme, Grd, id_vdiffuse_impl(n), wrk1(:,:,:)*T_prog(n)%conversion)
+      call diagnose_3d(Time, Grd, id_vdiffuse_impl(n), wrk1(:,:,:)*T_prog(n)%conversion)
   endif
 
 

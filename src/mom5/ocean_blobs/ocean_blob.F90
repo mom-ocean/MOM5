@@ -289,7 +289,7 @@ contains
 subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
                             L_system, Ext_mode, EL_diag, Ocean_options,    &
                             dtimein, ver_coordinate_class, ver_coordinate, &
-                            use_blobs)
+                            use_blobs, introduce_blobs)
 
   type(ocean_grid_type),          intent(in), target :: Grid
   type(ocean_domain_type),        intent(in), target :: Domain
@@ -305,6 +305,7 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
   integer,                        intent(in)         :: ver_coordinate_class
   integer,                        intent(in)         :: ver_coordinate
   logical,                        intent(in)         :: use_blobs
+  logical,                        intent(in)         :: introduce_blobs
 
   integer :: nfstatus
   integer :: m, n, i, j, k
@@ -859,8 +860,8 @@ contains
     integer :: dragid, entid, ageid, heightid
     integer :: hashid, numberid, typeid, iid, jid, kid
     integer :: stepid, h1id, h2id, nstepsid, mstepsid, densityid
-    integer :: n, m, i, j, k, type, nblobs, nblobs0
-    logical :: found_restart
+    integer :: n, m, i, j, k, type, nblobs, fileno
+    logical :: found_restart, distributed, next_file_exists
     
     ! We have two restart files, and we need to read them in separately.
     ! The first is to read in the gridded data.  The second is to read
@@ -875,188 +876,204 @@ contains
     id_restart(1) = register_restart_field(gridded_restart, filename, 'blob_counter', &
                                            blob_counter(:,:,:), domain=Dom%domain2d)
 
-    if(file_exist('INPUT/'//trim(filename))) then
-       write(stdoutunit, '(/a)') 'Reading in some gridded blobs data from '//trim(filename)
-       call restore_state( gridded_restart, id_restart(1) )
+    if (.not. introduce_blobs) then
+       if(file_exist('INPUT/'//trim(filename))) then
+          write(stdoutunit, '(/a)') 'Reading in some gridded blobs data from '//trim(filename)
+          call restore_state( gridded_restart, id_restart(1) )
 
-    else
-      if (.NOT.Time%init) then
-           call mpp_error(FATAL,&
-           'Expecting file '//trim(filename)//' to exist.&
-           &This file was not found and Time%init=.false.')
-      endif
-    endif
-
-    ! Open the blob file and read in the blob attributes.
-    filename = 'INPUT/ocean_blobs.res.nc'
-    inquire(file=trim(filename),exist=found_restart)
-
-    if(found_restart) then
-       write(stdoutunit, '(/,a,/)') 'Reading in blobs restart from '//trim(filename)
-
-       ierr = nf_open(trim(filename), NF_NOWRITE, ncid)
-       if (ierr .ne. NF_NOERR) write(stderrunit,'(a)') 'blobs, readrestart: nf_open failed'
-
-       ierr = nf_inq_unlimdim(ncid, dimid)
-       if (ierr .ne. NF_NOERR) write(stderrunit,'(a)') 'blobs, readrestart: nf_inq_unlimdim failed'
-
-       ierr = nf_inq_dimlen(ncid, dimid, nblobs_in_file)
-       if (ierr .ne. NF_NOERR) write(stderrunit,*) 'blobs, readrestart: nf_inq_dimlen failed'
-
-       iid        = inq_var(ncid, 'i')
-       jid        = inq_var(ncid, 'j')
-       kid        = inq_var(ncid, 'k')
-       latid      = inq_var(ncid, 'lat')
-       lonid      = inq_var(ncid, 'lon')
-       geodepthid = inq_var(ncid, 'geodepth')
-       stid       = inq_var(ncid, 'st')
-       massid     = inq_var(ncid, 'mass')
-       densityid  = inq_var(ncid, 'density')
-       uid        = inq_var(ncid, 'u')
-       vid        = inq_var(ncid, 'v')
-       wid        = inq_var(ncid, 'w')
-       entid      = inq_var(ncid, 'ent')
-       dragid     = inq_var(ncid, 'drag')
-       ageid      = inq_var(ncid, 'age')
-       heightid   = inq_var(ncid, 'height')
-       h1id       = inq_var(ncid, 'h1')
-       h2id       = inq_var(ncid, 'h2')
-       stepid     = inq_var(ncid, 'step')
-       hashid     = inq_var(ncid, 'hash')
-       numberid   = inq_var(ncid, 'number')
-       typeid     = inq_var(ncid, 'type')
-       nstepsid   = inq_var(ncid, 'nsteps')
-       mstepsid   = inq_var(ncid, 'model_steps')
-       allocate(tracerid(num_prog_tracers))
-       do n=1, num_prog_tracers
-          if (n==index_temp) then 
-             tracerid(n) = inq_var(ncid, 'heat')
-          else
-             tracerid(n) = inq_var(ncid, trim(T_prog(n)%name))
+       else
+          if (.NOT.Time%init) then
+             call mpp_error(FATAL,&
+                  'Expecting file '//trim(filename)//' to exist.&
+                  &This file was not found and Time%init=.false.')
           endif
-       enddo
+       endif
 
-       nblobs  = 0
-       nblobs0 = 0
-       ! Cycle through the blobs.  Ignore empty entries and blobs that are not
-       ! in this compute domain.  If a blob is on this compute domain, then
-       ! we read in the saved data, and derive other data (such as field,
-       ! grid cell etc.).  Then, we put it into the linked list.
-       do m=1,nblobs_in_file
-          ! get horizontal coordinate information of the blobs and type information
-          type = get_int(ncid, typeid, m)
-          i = get_int(ncid, iid, m)
-          j = get_int(ncid, jid, m)
-          
-          ! if type==0, it is an empty entry, so we just ignore it
-          if(type == 0) then
-             nblobs0 = nblobs0 + 1
+       ! Open the blob file and read in the blob attributes.
+       filename = 'INPUT/ocean_blobs.res.nc'
+       inquire(file=trim(filename),exist=found_restart)
+       if (found_restart) then
+          distributed=.false.
+          next_file_exists=.true.
+       else
+          write(filename(1:29), '("INPUT/ocean_blobs.res.nc.", I4.4)') 0
+          inquire(file=trim(filename),exist=found_restart)
+          if (found_restart) then
+             distributed=.true.
+             next_file_exists=.true.
           else
-             ! Check if we are in the compute domain. If we are not, 
-             ! then ignore the blob.  If we are, then read in the 
-             ! blob's data.
-             if (isc<=i .and. i<=iec .and. jsc<=j .and. j<=jec) then
-                nblobs = nblobs + 1
-                allocate(blob)
-                blob%lon         = get_double(ncid, lonid,      m)
-                blob%lat         = get_double(ncid, latid,      m)
-                blob%geodepth    = get_double(ncid, geodepthid, m)
-                blob%st          = get_double(ncid, stid,       m)
-                blob%mass        = get_double(ncid, massid,     m)
-                blob%density     = get_double(ncid, densityid,  m)
-                blob%v(1)        = get_double(ncid, uid,        m)
-                blob%v(2)        = get_double(ncid, vid,        m)
-                blob%v(3)        = get_double(ncid, wid,        m)
-                blob%ent         = get_double(ncid, entid,      m)
-                blob%drag        = get_double(ncid, dragid,     m)
-                blob%age         = get_double(ncid, ageid,      m)
-                blob%height      = get_double(ncid, heightid,   m)
-                blob%h1          = get_double(ncid, h1id,       m)
-                blob%h2          = get_double(ncid, h2id,       m)
-                blob%step        = get_double(ncid, stepid,     m)
-                blob%hash        = get_int(ncid,    hashid,     m)
-                blob%number      = get_int(ncid,    numberid,   m)
-                blob%nsteps      = get_int(ncid,    nstepsid,   m)
-                blob%model_steps = get_int(ncid,    mstepsid,   m)
-                blob%k           = get_int(ncid,    kid,        m)
-                blob%i           = i
-                blob%j           = j
-                allocate(blob%tracer(num_prog_tracers))
-                allocate(blob%field(num_prog_tracers))
-                do n=1,num_prog_tracers
-                   blob%tracer(n) = get_double(ncid, tracerid(n), m)
-                   blob%field(n)  = blob%tracer(n) / blob%mass
-                enddo
+             if (.NOT.Time%init) then
+                call mpp_error(FATAL,&
+                     'Expecting file '//trim(filename)//' or similar to exist.&
+                     &This file was not found and Time%init=.false.')
+             endif
+          endif
+       endif
 
-                i = blob%i
-                j = blob%j
-                k = blob%k
-                
-                ! new blobs were created implicitly in time, and thus, their 
-                ! properties belong to the next time step and have not been
-                ! taken into account in diagnostics
-                if(blob%new) then
-                   EL_diag(0)%new(i,j,k) = EL_diag(0)%new(i,j,k) + blob%mass
+       fileno=0
+       nblobs=0
+
+       do while (next_file_exists) 
+          write(stdoutunit, '(/,a,/)') 'Reading in blobs restart from '//trim(filename)
+
+          ierr = nf_open(trim(filename), NF_NOWRITE, ncid)
+          if (ierr .ne. NF_NOERR) write(stderrunit,'(a)') 'blobs, readrestart: nf_open failed'
+
+          ierr = nf_inq_unlimdim(ncid, dimid)
+          if (ierr .ne. NF_NOERR) write(stderrunit,'(a)') 'blobs, readrestart: nf_inq_unlimdim failed'
+
+          ierr = nf_inq_dimlen(ncid, dimid, nblobs_in_file)
+          if (ierr .ne. NF_NOERR) write(stderrunit,*) 'blobs, readrestart: nf_inq_dimlen failed'
+
+          iid        = inq_var(ncid, 'i')
+          jid        = inq_var(ncid, 'j')
+          kid        = inq_var(ncid, 'k')
+          latid      = inq_var(ncid, 'lat')
+          lonid      = inq_var(ncid, 'lon')
+          geodepthid = inq_var(ncid, 'geodepth')
+          stid       = inq_var(ncid, 'st')
+          massid     = inq_var(ncid, 'mass')
+          densityid  = inq_var(ncid, 'density')
+          uid        = inq_var(ncid, 'u')
+          vid        = inq_var(ncid, 'v')
+          wid        = inq_var(ncid, 'w')
+          entid      = inq_var(ncid, 'ent')
+          dragid     = inq_var(ncid, 'drag')
+          ageid      = inq_var(ncid, 'age')
+          heightid   = inq_var(ncid, 'height')
+          h1id       = inq_var(ncid, 'h1')
+          h2id       = inq_var(ncid, 'h2')
+          stepid     = inq_var(ncid, 'step')
+          hashid     = inq_var(ncid, 'hash')
+          numberid   = inq_var(ncid, 'number')
+          typeid     = inq_var(ncid, 'type')
+          nstepsid   = inq_var(ncid, 'nsteps')
+          mstepsid   = inq_var(ncid, 'model_steps')
+          if (fileno==0) allocate(tracerid(num_prog_tracers))
+          do n=1, num_prog_tracers
+             if (n==index_temp) then 
+                tracerid(n) = inq_var(ncid, 'heat')
+             else
+                tracerid(n) = inq_var(ncid, trim(T_prog(n)%name))
+             endif
+          enddo
+
+          ! Cycle through the blobs.  Ignore empty entries and blobs that are not
+          ! in this compute domain.  If a blob is on this compute domain, then
+          ! we read in the saved data, and derive other data (such as field,
+          ! grid cell etc.).  Then, we put it into the linked list.
+          do m=1,nblobs_in_file
+             ! get horizontal coordinate information of the blobs and type information
+             type = get_int(ncid, typeid, m)
+             i = get_int(ncid, iid, m)
+             j = get_int(ncid, jid, m)
+
+             ! if type==0, it is an empty entry, so we just ignore it
+             if(type /= 0) then
+                ! Check if we are in the compute domain. If we are not, 
+                ! then ignore the blob.  If we are, then read in the 
+                ! blob's data.
+                if (isc<=i .and. i<=iec .and. jsc<=j .and. j<=jec) then
+                   nblobs = nblobs + 1
+                   allocate(blob)
+                   blob%lon         = get_double(ncid, lonid,      m)
+                   blob%lat         = get_double(ncid, latid,      m)
+                   blob%geodepth    = get_double(ncid, geodepthid, m)
+                   blob%st          = get_double(ncid, stid,       m)
+                   blob%mass        = get_double(ncid, massid,     m)
+                   blob%density     = get_double(ncid, densityid,  m)
+                   blob%v(1)        = get_double(ncid, uid,        m)
+                   blob%v(2)        = get_double(ncid, vid,        m)
+                   blob%v(3)        = get_double(ncid, wid,        m)
+                   blob%ent         = get_double(ncid, entid,      m)
+                   blob%drag        = get_double(ncid, dragid,     m)
+                   blob%age         = get_double(ncid, ageid,      m)
+                   blob%height      = get_double(ncid, heightid,   m)
+                   blob%h1          = get_double(ncid, h1id,       m)
+                   blob%h2          = get_double(ncid, h2id,       m)
+                   blob%step        = get_double(ncid, stepid,     m)
+                   blob%hash        = get_int(ncid,    hashid,     m)
+                   blob%number      = get_int(ncid,    numberid,   m)
+                   blob%nsteps      = get_int(ncid,    nstepsid,   m)
+                   blob%model_steps = get_int(ncid,    mstepsid,   m)
+                   blob%k           = get_int(ncid,    kid,        m)
+                   blob%i           = i
+                   blob%j           = j
+                   allocate(blob%tracer(num_prog_tracers))
+                   allocate(blob%field(num_prog_tracers))
                    do n=1,num_prog_tracers
-                      EL_diag(n)%new(i,j,k) = EL_diag(n)%new(i,j,k) + blob%tracer(n)
+                      blob%tracer(n) = get_double(ncid, tracerid(n), m)
+                      blob%field(n)  = blob%tracer(n) / blob%mass
                    enddo
-                endif
 
-                blob%depth = blob%geodepth + Ext_mode%eta_t(i,j,taup1)
-                blob%new   = .false.
+                   i = blob%i
+                   j = blob%j
+                   k = blob%k
 
-                blob%densityr = 1./blob%density
+                   ! new blobs were created implicitly in time, and thus, their 
+                   ! properties belong to the next time step and have not been
+                   ! taken into account in diagnostics
+                   if(blob%new) then
+                      EL_diag(0)%new(i,j,k) = EL_diag(0)%new(i,j,k) + blob%mass
+                      do n=1,num_prog_tracers
+                         EL_diag(n)%new(i,j,k) = EL_diag(n)%new(i,j,k) + blob%tracer(n)
+                      enddo
+                   endif
 
-                if (vert_coordinate_class == DEPTH_BASED) then
-                   blob%volume = blob%mass * rho0r
-                else
-                   blob%volume = blob%mass * blob%densityr
-                endif
+                   blob%depth = blob%geodepth + Ext_mode%eta_t(i,j,taup1)
+                   blob%new   = .false.
 
-                ! Insert the blob into its correct place in the linked
-                ! Give an error if the type is unrecognised. type==1 is 
-                ! a static free blob and type==2 is a static bottom blob, 
-                ! type==3 is a dynamic free blob and type==4 is a dynamic 
-                ! bottom blob.  type==0 means that it is an empty entry.
-                if (type==1) then
-                   call insert_blob(blob, head_static_free)
-                elseif(type==2) then
-                   call insert_blob(blob, head_static_bott)
-                elseif(type==3) then
-                   call allocate_interaction_memory(blob, free_total_ns)
-                   call insert_blob(blob, head_dynamic_free)
-                elseif(type==4) then
-                   call allocate_interaction_memory(blob, bott_total_ns)
-                   call insert_blob(blob, head_dynamic_bott)
-                else
-                   write(stdoutunit,'(a)') &
-                        'blob, readrestart, blob is of unidentified type'
-                   call mpp_error(FATAL, &
-                        'blob, readrestart, blob is of unidentified type')
-                endif
+                   blob%densityr = 1./blob%density
 
-                nullify(blob)
-             endif !on this pe
-          endif !type == 0
-       enddo !n=1,nblobs_in_file
+                   if (vert_coordinate_class == DEPTH_BASED) then
+                      blob%volume = blob%mass * rho0r
+                   else
+                      blob%volume = blob%mass * blob%densityr
+                   endif
+
+                   ! Insert the blob into its correct place in the linked
+                   ! Give an error if the type is unrecognised. type==1 is 
+                   ! a static free blob and type==2 is a static bottom blob, 
+                   ! type==3 is a dynamic free blob and type==4 is a dynamic 
+                   ! bottom blob.  type==0 means that it is an empty entry.
+                   if (type==1) then
+                      call insert_blob(blob, head_static_free)
+                   elseif(type==2) then
+                      call insert_blob(blob, head_static_bott)
+                   elseif(type==3) then
+                      call allocate_interaction_memory(blob, free_total_ns)
+                      call insert_blob(blob, head_dynamic_free)
+                   elseif(type==4) then
+                      call allocate_interaction_memory(blob, bott_total_ns)
+                      call insert_blob(blob, head_dynamic_bott)
+                   else
+                      write(stdoutunit,'(a)') &
+                           'blob, readrestart, blob is of unidentified type'
+                      call mpp_error(FATAL, &
+                           'blob, readrestart, blob is of unidentified type')
+                   endif
+
+                   nullify(blob)
+                endif !on this pe
+             endif !type == 0
+          enddo !n=1,nblobs_in_file
+
+          if (distributed) then
+             fileno=fileno+1
+             write(filename(1:29), '("INPUT/ocean_blobs.res.nc.", I4.4)') fileno
+             inquire(file=trim(filename),exist=found_restart)
+             if (.not. found_restart) next_file_exists=.false.
+          else
+             next_file_exists=.false.
+          endif
+
+       enddo
 
        print('(a22,i3,a3,i10)'),  'number of blobs on PE ',Info%pe_this,' =',nblobs
        call mpp_sum(nblobs)
        write(stdoutunit,'(a,i10)') 'global number of blobs     =', nblobs
-       write(stdoutunit,'(a,i10)') 'blobs in file              =', nblobs_in_file
-       write(stdoutunit,'(a,i10)') 'empty blobs in file        =', nblobs0
-       if(nblobs_in_file-nblobs0 .ne. nblobs) call mpp_error(FATAL,&
-            'blob, readrestart, number of non-empty blobs not equal to number'&
-            //' of blobs read into global domain')
 
-    else
-       if (.NOT.Time%init) then
-          call mpp_error(FATAL,&
-               'Expecting file '//trim(filename)//' to exist.&
-               &This file was not found and Time%init=.false.')
-       endif
-
-    endif!found_restart
+    endif
 
   end subroutine readrestart
 

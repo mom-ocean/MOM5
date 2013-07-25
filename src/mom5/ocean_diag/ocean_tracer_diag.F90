@@ -166,6 +166,7 @@ integer :: vert_coordinate_class=1
 
 ! for diagnostics clocks 
 integer :: id_compute_subduction 
+integer :: id_compute_tracer_mld 
 integer :: id_mixed_layer_depth
 integer :: id_mixed_layer_depth_dtheta
 integer :: id_potrho_mixed_layer
@@ -290,6 +291,18 @@ integer :: id_subduction_nrho      =-1
 integer :: id_subduction_dhdt_nrho =-1
 integer :: id_subduction_horz_nrho =-1
 integer :: id_subduction_vert_nrho =-1
+integer, dimension(:), allocatable :: id_subduction_tracer
+integer, dimension(:), allocatable :: id_subduction_dhdt_tracer
+integer, dimension(:), allocatable :: id_subduction_horz_tracer
+integer, dimension(:), allocatable :: id_subduction_vert_tracer
+integer, dimension(:), allocatable :: id_subduction_mld_zflux_diff
+logical :: compute_subduction_diags = .false.
+
+
+! for tracer integrated over mixed layer
+integer, dimension(:), allocatable :: id_tracer_mld
+logical :: compute_tracer_mld_diags = .false.
+
 
 ! for mixed layer depth based solely on depth where SST - temp(k) = dtheta
 integer :: id_mld_dtheta =-1
@@ -340,6 +353,7 @@ public send_tracer_variance
 public diagnose_eta_tend_3dflux
 
 private compute_subduction 
+private compute_tracer_mld
 private mixed_layer_depth 
 private mixed_layer_depth_dtheta 
 private potrho_mixed_layer 
@@ -514,6 +528,19 @@ ierr = check_nml_error(io_status,'ocean_tracer_diag_nml')
     id_global_variance(:) = -1
     id_k_variance(:)      = -1
 
+    allocate( id_subduction_tracer(num_prog_tracers) )
+    allocate( id_subduction_dhdt_tracer(num_prog_tracers) )
+    allocate( id_subduction_horz_tracer(num_prog_tracers) )
+    allocate( id_subduction_vert_tracer(num_prog_tracers) )
+    allocate( id_subduction_mld_zflux_diff(num_prog_tracers) )
+    allocate( id_tracer_mld(num_prog_tracers) )
+    id_subduction_tracer(:)         = -1
+    id_subduction_dhdt_tracer(:)    = -1
+    id_subduction_horz_tracer(:)    = -1
+    id_subduction_vert_tracer(:)    = -1
+    id_subduction_mld_zflux_diff(:) = -1
+    id_tracer_mld(:)                = -1 
+    
     do n=1,num_prog_tracers
 
        if(T_prog(n)%name == 'temp') then 
@@ -625,6 +652,50 @@ ierr = check_nml_error(io_status,'ocean_tracer_diag_nml')
         Time%model_time, 'Global area weighted mean surface '//trim(T_prog(n)%name)//' in liquid seawater'        &
        ,trim(T_prog(n)%units), missing_value=missing_value, range=(/-10.0,1000.0/))
 
+
+       id_subduction_tracer(n) =                                                 &
+        register_diag_field ('ocean_model','subduction_'//trim(T_prog(n)%name),  &
+        Grd%tracer_axes(1:2), Time%model_time,                                   &
+        'Tracer transport across mld from subduction for '//trim(T_prog(n)%name),&  
+        'kg/sec * '//trim(T_prog(n)%units), missing_value=missing_value, range=(/-1.e20,1.e20/))
+       if(id_subduction_tracer(n) > 0) compute_subduction_diags = .true.
+
+       id_subduction_dhdt_tracer(n) =                                               &
+        register_diag_field ('ocean_model','subduction_dhdt_'//trim(T_prog(n)%name),&
+        Grd%tracer_axes(1:2), Time%model_time,                                      &
+        'Tracer transport across mld from dhdt for '//trim(T_prog(n)%name),         &
+        'kg/sec * '//trim(T_prog(n)%units), missing_value=missing_value, range=(/-1.e20,1.e20/))
+       if(id_subduction_dhdt_tracer(n) > 0) compute_subduction_diags = .true.
+
+       id_subduction_horz_tracer(n) =                                                     &
+        register_diag_field ('ocean_model','subduction_horz_'//trim(T_prog(n)%name),      &
+        Grd%tracer_axes(1:2),Time%model_time,                                             &
+        'Tracer transport across mld from from horz advection for '//trim(T_prog(n)%name),&
+        'kg/sec * '//trim(T_prog(n)%units), missing_value=missing_value, range=(/-1.e20,1.e20/))
+       if(id_subduction_horz_tracer(n) > 0) compute_subduction_diags = .true.
+
+       id_subduction_vert_tracer(n) =                                                    &
+        register_diag_field ('ocean_model','subduction_vert_'//trim(T_prog(n)%name),     &
+        Grd%tracer_axes(1:2), Time%model_time,                                           &
+        'Tracer transport across mld from vertical advection for '//trim(T_prog(n)%name),&
+        'kg/sec * '//trim(T_prog(n)%units), missing_value=missing_value, range=(/-1.e20,1.e20/))
+       if(id_subduction_vert_tracer(n) > 0) compute_subduction_diags = .true.
+
+       id_subduction_mld_zflux_diff(n) =                                                     &
+        register_diag_field ('ocean_model','subduction_mld_zflux_diff'//trim(T_prog(n)%name),&
+        Grd%tracer_axes(1:2), Time%model_time,                                               &
+        'Tracer transport from vertical diffusion at base of mld for '//trim(T_prog(n)%name),&
+        'kg/sec * '//trim(T_prog(n)%units), missing_value=missing_value, range=(/-1.e20,1.e20/))
+       if(id_subduction_mld_zflux_diff(n) > 0) compute_subduction_diags = .true.
+
+       id_tracer_mld(n) =                                                                              &
+        register_diag_field ('ocean_model',trim(T_prog(n)%name)//'_mld',                               &
+        Grd%tracer_axes(1:2), Time%model_time,                                                         &
+        'Vertically integrated tracer [sum(rho_dzt*tracer)] in mixed layer for '//trim(T_prog(n)%name),&
+        'kg/m^2 * '//trim(T_prog(n)%units), missing_value=missing_value, range=(/-1.e20,1.e20/))
+       if(id_tracer_mld(n) > 0) compute_tracer_mld_diags = .true.
+
+
     enddo
 
     id_kappa_sort = register_diag_field ('ocean_model','kappa_sort', &
@@ -668,46 +739,55 @@ ierr = check_nml_error(io_status,'ocean_tracer_diag_nml')
              Grd%tracer_axes(1:2), Time%model_time,                   &
              'rate of mass transferred below the mixed layer base',   &
              'kg/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
+    if(id_subduction > 0) compute_subduction_diags = .true.
 
     id_subduction_mld = register_diag_field ('ocean_model', 'subduction_mld',&
              Grd%tracer_axes(1:2), Time%model_time,                          &
              'mixed layer depth used for subduction diagnostics',            &
              'm', missing_value=missing_value, range=(/-1.e2,1.e20/))
+    if(id_subduction_mld > 0) compute_subduction_diags = .true.
 
     id_subduction_dhdt = register_diag_field ('ocean_model', 'subduction_dhdt',  &
              Grd%tracer_axes(1:2), Time%model_time,                              &
              'rate of mass transferred below the mixed layer base due to dh/dt', &
              'kg/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
+    if(id_subduction_dhdt > 0) compute_subduction_diags = .true.
 
     id_subduction_horz = register_diag_field ('ocean_model', 'subduction_horz',       &
              Grd%tracer_axes(1:2), Time%model_time,                                   &
              'rate of mass transferred below the mixed layer base due to horz advect',&
              'kg/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
+    if(id_subduction_horz > 0) compute_subduction_diags = .true.
 
     id_subduction_vert = register_diag_field ('ocean_model', 'subduction_vert',       &
              Grd%tracer_axes(1:2), Time%model_time,                                   &
              'rate of mass transferred below the mixed layer base due to vert advect',&
              'kg/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
+    if(id_subduction_vert > 0) compute_subduction_diags = .true.
 
     id_subduction_nrho = register_diag_field ('ocean_model', 'subduction_nrho',                     & 
              Dens%neutralrho_axes(1:3), Time%model_time,                                            &
              'rate of mass transferred below the mixed layer base as binned to neutral rho classes',&
              'kg/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
+    if(id_subduction_nrho > 0) compute_subduction_diags = .true.
 
     id_subduction_dhdt_nrho = register_diag_field ('ocean_model', 'subduction_dhdt_nrho',                       & 
              Dens%neutralrho_axes(1:3), Time%model_time,                                                        &
              'rate of mass transferred below the mixed layer base due to dhdt as binned to neutral rho classes',&
              'kg/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
+    if(id_subduction_dhdt_nrho > 0) compute_subduction_diags = .true.
 
     id_subduction_horz_nrho = register_diag_field ('ocean_model', 'subduction_horz_nrho',                                & 
              Dens%neutralrho_axes(1:3), Time%model_time,                                                                 &
              'rate of mass transferred below the mixed layer base due to horz velocity as binned to neutral rho classes',&
              'kg/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
+    if(id_subduction_horz_nrho > 0) compute_subduction_diags = .true.
 
     id_subduction_vert_nrho = register_diag_field ('ocean_model', 'subduction_vert_nrho',                                & 
              Dens%neutralrho_axes(1:3), Time%model_time,                                                                 &
              'rate of mass transferred below the mixed layer base due to vert velocity as binned to neutral rho classes',&
              'kg/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
+    if(id_subduction_vert_nrho > 0) compute_subduction_diags = .true.
 
     id_depth_of_potrho = register_diag_field ('ocean_model', 'depth_of_potrho', &
                          Dens%potrho_axes(1:3), Time%model_time,                &
@@ -735,6 +815,8 @@ ierr = check_nml_error(io_status,'ocean_tracer_diag_nml')
 
 
     ! define clock integers 
+    id_compute_subduction          = mpp_clock_id('(Ocean tracer_diag: compute_subduction)',grain=CLOCK_ROUTINE)
+    id_compute_tracer_mld          = mpp_clock_id('(Ocean tracer_diag: compute_tracer_mld)',grain=CLOCK_ROUTINE)
     id_mixed_layer_depth_dtheta    = mpp_clock_id('(Ocean tracer_diag: mld_dtheta)'        ,grain=CLOCK_ROUTINE)
     id_mixed_layer_depth           = mpp_clock_id('(Ocean tracer_diag: mld)'               ,grain=CLOCK_ROUTINE)
     id_potrho_mixed_layer          = mpp_clock_id('(Ocean tracer_diag: rho_mld)'           ,grain=CLOCK_ROUTINE)
@@ -775,7 +857,7 @@ ierr = check_nml_error(io_status,'ocean_tracer_diag_nml')
 
 subroutine ocean_tracer_diagnostics(Time, Thickness, T_prog, T_diag, Dens, &
                                     Ext_mode, Velocity, Adv_vel, &
-                                    pme, melt, runoff, calving)
+                                    diff_cbt, pme, melt, runoff, calving)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_thickness_type),     intent(in)    :: Thickness
@@ -785,6 +867,7 @@ subroutine ocean_tracer_diagnostics(Time, Thickness, T_prog, T_diag, Dens, &
   type(ocean_external_mode_type), intent(in)    :: Ext_mode
   type(ocean_velocity_type),      intent(in)    :: Velocity
   type(ocean_adv_vel_type),       intent(in)    :: Adv_vel
+  real, dimension(isd:,jsd:,:,:), intent(in)    :: diff_cbt
   real, dimension(isd:,jsd:),     intent(in)    :: pme
   real, dimension(isd:,jsd:),     intent(in)    :: melt
   real, dimension(isd:,jsd:),     intent(in)    :: runoff
@@ -836,12 +919,19 @@ subroutine ocean_tracer_diagnostics(Time, Thickness, T_prog, T_diag, Dens, &
      .or. need_data(id_subduction_horz, next_time)      .or. need_data(id_subduction_vert, next_time)      &
      .or. need_data(id_subduction_nrho, next_time)      .or. need_data(id_subduction_dhdt_nrho, next_time) &
      .or. need_data(id_subduction_horz_nrho, next_time) .or. need_data(id_subduction_vert_nrho, next_time) &
-     .or. need_data(id_subduction_mld, next_time) ) then  
-    call compute_subduction(Time, Thickness, Velocity, Adv_vel, Dens,         &
+     .or. need_data(id_subduction_mld, next_time)       .or. compute_subduction_diags) then  
+    call compute_subduction(Time, Thickness, Velocity, Adv_vel, Dens, T_prog, &
                             T_prog(index_salt)%field(isd:ied,jsd:jed,:,taup1),&
-                            T_prog(index_temp)%field(isd:ied,jsd:jed,:,taup1))
+                            T_prog(index_temp)%field(isd:ied,jsd:jed,:,taup1),&
+                            diff_cbt)
   endif
   call mpp_clock_end(id_compute_subduction)
+
+  call mpp_clock_begin(id_compute_tracer_mld)
+  call compute_tracer_mld(Time, Thickness, Dens, T_prog,                     &
+                          T_prog(index_salt)%field(isd:ied,jsd:jed,:,taup1), &
+                          T_prog(index_temp)%field(isd:ied,jsd:jed,:,taup1))
+  call mpp_clock_end(id_compute_tracer_mld)
 
   ! compute tracer as function of potential density 
   call mpp_clock_begin(id_diagnose_tracer_on_rho)
@@ -1216,19 +1306,22 @@ end subroutine mixed_layer_depth_dtheta
 !
 !  Stephen.Griffies
 !  March 2012 
+!  Updated for tracer transport July 2013
 ! </DESCRIPTION>
 !
-subroutine compute_subduction(Time, Thickness, Velocity, Adv_vel, Dens, salinity, theta)
+subroutine compute_subduction(Time, Thickness, Velocity, Adv_vel, Dens, T_prog, salinity, theta, diff_cbt)
 
   type(ocean_time_type),        intent(in)    :: Time
   type(ocean_thickness_type),   intent(in)    :: Thickness  ! taup1 values 
   type(ocean_velocity_type),    intent(in)    :: Velocity 
   type(ocean_adv_vel_type),     intent(in)    :: Adv_vel    ! tau values 
   type(ocean_density_type),     intent(inout) :: Dens
+  type(ocean_prog_tracer_type), intent(in)    :: T_prog(:)  ! for other than temp/saln tracers 
   real, dimension(isd:,jsd:,:), intent(in)    :: salinity   ! taup1 value
   real, dimension(isd:,jsd:,:), intent(in)    :: theta      ! taup1 value
+  real, dimension(isd:,jsd:,:,:), intent(in)  :: diff_cbt
 
-  integer :: i,j,k,kmt
+  integer :: i,j,k,kmt,n,nmix 
   integer :: tau, taup1 
   real    :: denominator, denominator_r
   real    :: W1, W2 
@@ -1440,10 +1533,228 @@ kloop:  do k=1,nk-1
      enddo
      call diagnose_3d_rho(Time, Dens, id_subduction_nrho, wrk1)
   endif
-  
+
+
+
+  !!!!!!! tracer diagnostic calculations !!!!!!!  
+
+  do n=1,num_prog_tracers
+
+     if (n==index_salt) then
+        nmix=2
+     else
+        nmix=1
+     endif
+
+     ! compute downgradient vertical diffusive flux (assume time-implicit calculation)
+     wrk1(:,:,:) = 0.0
+     if(id_subduction_mld_zflux_diff(n) > 0) then   
+        do k=1,nk-1
+           do j=jsc,jec
+              do i=isc,iec
+                 wrk1(i,j,k) = -1.0*rho0*Grd%tmask(i,j,k+1)*diff_cbt(i,j,k,nmix)            &
+                              *(T_prog(n)%field(i,j,k,taup1)-T_prog(n)%field(i,j,k+1,taup1))&
+                              /Thickness%dzwt(i,j,k)
+              enddo
+           enddo
+        enddo
+     endif 
+
+     if(    id_subduction_tracer(n)     >0 .or. id_subduction_dhdt_tracer(n)   >0 .or. id_subduction_horz_tracer(n)>0 &
+       .or. id_subduction_vert_tracer(n)>0 .or. id_subduction_mld_zflux_diff(n)>0) then   
+
+        ! interpolate tracer concentration and vertical diffusive flux to base of mld 
+        wrk1_2d(:,:) = 0.0  ! interpolated tracer 
+        wrk2_2d(:,:) = 0.0  ! interpolated zflux 
+
+        ! shallow mld_tau 
+        do j=jsc,jec
+           do i=isc,iec
+              if(mld_tau(i,j) <= Thickness%depth_zt(i,j,1)) then
+                 wrk1_2d(i,j) = T_prog(n)%field(i,j,k,tau)
+                 wrk2_2d(i,j) = wrk1(i,j,k)
+              endif
+           enddo
+        enddo
+
+        ! intermediate mld_tau 
+        do j=jsc,jec
+           do i=isc,iec
+     kloopB:  do k=1,nk-1
+                 if(Thickness%depth_zt(i,j,k) < mld_tau(i,j) .and. mld_tau(i,j) <= Thickness%depth_zt(i,j,k+1)) then 
+                    if(Grd%tmask(i,j,k+1) > 0) then
+                       W1= mld_tau(i,j) - Thickness%depth_zt(i,j,k)
+                       W2= Thickness%depth_zt(i,j,k+1) - mld_tau(i,j)
+                       denominator_r = 1.0/(W1 + W2 + epsln)
+                       wrk1_2d(i,j)  = (T_prog(n)%field(i,j,k,tau)*W2 + T_prog(n)%field(i,j,k+1,tau)*W1)*denominator_r
+                       wrk2_2d(i,j)  = (wrk1(i,j,k)*W2 + wrk1(i,j,k+1)*W1)*denominator_r 
+                       exit kloopB
+                    endif
+                 endif
+              enddo kloopB
+           enddo
+        enddo
+
+        ! deep mld_tau 
+        do j=jsc,jec
+           do i=isc,iec
+              kmt = Grd%kmt(i,j)
+              if(kmt > 0) then 
+                 if(mld_tau(i,j) > Thickness%depth_zt(i,j,kmt)) then
+                    wrk1_2d(i,j) = T_prog(n)%field(i,j,kmt,tau)
+                    wrk2_2d(i,j) = wrk1(i,j,kmt)
+                 endif
+              endif 
+           enddo
+        enddo
+
+    endif 
+ 
+    ! write diagnostics 
+    wrk3_2d(:,:) = 0.0
+
+    if(id_subduction_tracer(n) > 0) then 
+       wrk3_2d(:,:) = subduction(:,:)*wrk1_2d(:,:)
+       used = send_data (id_subduction_tracer(n), wrk3_2d(:,:), &
+       Time%model_time, rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+    endif 
+    if(id_subduction_dhdt_tracer(n) > 0) then 
+       wrk3_2d(:,:) = subduction_dhdt(:,:)*wrk1_2d(:,:)
+       used = send_data (id_subduction_dhdt_tracer(n), wrk3_2d(:,:), &
+       Time%model_time, rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+    endif 
+    if(id_subduction_horz_tracer(n) > 0) then 
+       wrk3_2d(:,:) = subduction_horz(:,:)*wrk1_2d(:,:)
+       used = send_data (id_subduction_horz_tracer(n), wrk3_2d(:,:), &
+       Time%model_time, rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+    endif 
+    if(id_subduction_vert_tracer(n) > 0) then 
+       wrk3_2d(:,:) = subduction_vert(:,:)*wrk1_2d(:,:)
+       used = send_data (id_subduction_vert_tracer(n), wrk3_2d(:,:), &
+       Time%model_time, rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+    endif 
+    if(id_subduction_mld_zflux_diff(n) > 0) then 
+       wrk3_2d(:,:) = wrk2_2d(:,:)*Grd%dat(:,:)
+       used = send_data (id_subduction_mld_zflux_diff(n), wrk3_2d(:,:), &
+       Time%model_time, rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+    endif 
+
+
+  enddo   ! end of n-loop 
 
 end subroutine compute_subduction
 ! </SUBROUTINE>  NAME="compute_subduction"
+
+
+!#######################################################################
+! <SUBROUTINE NAME="compute_tracer_mld">
+!
+! <DESCRIPTION>
+!
+! Diagnose the vertically integrated tracer within the mixed layer.
+!
+! Work with taup1 values, since Thickness type is filled with taup1
+! thickness fields.   
+!
+! Stephen.Griffies@noaa.gov
+! July 2013
+! </DESCRIPTION>
+!
+subroutine compute_tracer_mld(Time, Thickness, Dens, T_prog, salinity, theta)
+
+  type(ocean_time_type),        intent(in)    :: Time
+  type(ocean_thickness_type),   intent(in)    :: Thickness  ! taup1 values 
+  type(ocean_density_type),     intent(inout) :: Dens
+  type(ocean_prog_tracer_type), intent(in)    :: T_prog(:) 
+  real, dimension(isd:,jsd:,:), intent(in)    :: salinity   ! taup1 value
+  real, dimension(isd:,jsd:,:), intent(in)    :: theta      ! taup1 value
+
+  integer :: i,j,k,kp1,n
+  integer :: taup1
+  real, dimension(isd:ied,jsd:jed) :: mld
+
+  
+  if (.not.module_is_initialized) then 
+    call mpp_error(FATAL, &
+    '==>Error from ocean_tracer_diag_mod (compute_tracer_mld): module needs initialization')
+  endif
+
+  if(.not. compute_tracer_mld_diags) return 
+
+  taup1 = Time%taup1
+
+  ! compute mld using taup1 values. 
+  ! Note the Thickness type is filled with taup1 thickness fields.   
+  call calc_mixed_layer_depth(Thickness, salinity, theta,                &
+                              Dens%rho(isd:ied,jsd:jed,:,taup1),         &
+                              Dens%pressure_at_depth(isd:ied,jsd:jed,:), &
+                              mld(:,:), smooth_mld_for_subduction)
+
+ 
+  ! determine column masking function
+  wrk1(:,:,:) = 0.0
+  k=1
+  do j=jsc,jec
+     do i=isc,iec
+        if(Grd%tmask(i,j,k)==1.0) then 
+            if(Thickness%depth_zwt(i,j,k) >= mld(i,j)) then
+                wrk1(i,j,1)    = mld(i,j)/Thickness%depth_zwt(i,j,k)
+                wrk1(i,j,2:nk) = 0.0
+            endif
+        endif
+     enddo
+  enddo
+  
+  ! k>1 
+  do j=jsc,jec
+     do i=isc,iec
+        kloopA:    do k=2,nk
+           if(Grd%tmask(i,j,k)==1.0) then 
+               if(Thickness%depth_zwt(i,j,k)   >= mld(i,j) .and. &
+                  Thickness%depth_zwt(i,j,k-1) <  mld(i,j)) then
+                   kp1 = min(k+1,nk)
+                   wrk1(i,j,1:k-1)  = 1.0
+                   wrk1(i,j,k)      = (mld(i,j)-Thickness%depth_zwt(i,j,k-1))/Thickness%dzt(i,j,k)
+                   wrk1(i,j,kp1:nk) = 0.0
+                   exit kloopA
+               endif
+           endif
+        enddo kloopA
+     enddo
+  enddo
+
+  k=nk
+  do j=jsc,jec
+     do i=isc,iec
+        if(Grd%tmask(i,j,k)==1.0) then 
+            if(Thickness%depth_zwt(i,j,k) <= mld(i,j)) then
+                wrk1(i,j,:) = 1.0
+            endif
+        endif
+     enddo
+  enddo
+ 
+  ! compute the vertically integrated tracer within the mixed layer   
+  do n=1,num_prog_tracers
+     if(id_tracer_mld(n) > 0) then
+         wrk1_2d(:,:) = 0.0
+         do k=1,nk
+            do j=jsc,jec
+               do i=isc,iec
+                  wrk1_2d(i,j) = wrk1_2d(i,j) &
+                               + wrk1(i,j,k)*Thickness%rho_dzt(i,j,k,taup1)*T_prog(n)%field(i,j,k,taup1)
+               enddo
+            enddo
+         enddo
+         used = send_data (id_tracer_mld(n), wrk1_2d(:,:), &
+         Time%model_time, rmask=Grd%tmask(:,:,1), is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+    endif 
+  enddo
+  
+
+end subroutine compute_tracer_mld
+! </SUBROUTINE>  NAME="compute_tracer_mld"
+
 
 
 !#######################################################################
