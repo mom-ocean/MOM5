@@ -1828,7 +1828,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     call mpp_clock_begin(id_diagnostics)
     call ocean_diagnostics(Time, Thickness, T_prog(1:num_prog_tracers), T_diag(1:num_diag_tracers), &
                            Adv_vel, Ext_mode, Dens, Velocity, &
-                           pme, melt, runoff, calving, visc_cbt)
+                           pme, melt, runoff, calving, visc_cbt, diff_cbt)
     call mpp_clock_end(id_diagnostics)
 
     ! fill halo values for the velocity field 
