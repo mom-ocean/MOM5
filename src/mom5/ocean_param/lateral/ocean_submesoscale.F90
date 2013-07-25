@@ -104,11 +104,6 @@ module ocean_submesoscale_mod
 !  Number of iterations for the smooothing of horizontal transport. 
 !  Default smooth_advect_transport_num=2.
 !  </DATA> 
-!  <DATA NAME="submeso_diag_advect_transport" TYPE="logical">
-!  For diagnosing the advective mass transport even when 
-!  using the skew approach.  
-!  Default submeso_diag_advect_transport=.false.
-!  </DATA> 
 !
 !  <DATA NAME="submeso_diffusion" TYPE="logical">
 !  For computing a horizontal diffusive flux in the boundary layer
@@ -265,6 +260,9 @@ integer :: id_psiy_submeso         =-1
 integer :: id_tx_trans_submeso     =-1
 integer :: id_ty_trans_submeso     =-1
 integer :: id_tz_trans_submeso     =-1
+integer :: id_tx_trans_submeso_adv =-1
+integer :: id_ty_trans_submeso_adv =-1
+integer :: id_tz_trans_submeso_adv =-1
 integer :: id_tx_trans_nrho_submeso=-1
 integer :: id_ty_trans_nrho_submeso=-1
 integer :: id_tz_trans_nrho_submeso=-1
@@ -453,7 +451,7 @@ private compute_flux_z
 private compute_psi
 private compute_psi_legacy
 private compute_bldepth 
-private compute_transport 
+private compute_advect_transport 
 private compute_submeso_skewsion
 private compute_submeso_upwind 
 private compute_submeso_sweby
@@ -498,7 +496,10 @@ real              :: transport_convert=1.0e-9
 
 ! for eta_tend diagnostics (internally set)
 logical :: diagnose_eta_tend_submeso_flx=.false. 
-logical :: diagnose_eta_tend_subdiff_flx=.false. 
+logical :: diagnose_eta_tend_subdiff_flx=.false.
+
+! internally determined 
+logical :: diag_advect_transport = .false.
 
 ! nml parameters 
 logical :: use_this_module               = .false.
@@ -507,7 +508,6 @@ logical :: submeso_skew_flux             = .true.
 logical :: submeso_advect_flux           = .false.
 logical :: submeso_advect_upwind         = .true. 
 logical :: submeso_advect_sweby          = .false. 
-logical :: submeso_diag_advect_transport = .false.
 logical :: submeso_advect_limit          = .false. 
 logical :: submeso_advect_zero_bdy       = .false.
 logical :: submeso_limit_flux            = .true.
@@ -545,8 +545,7 @@ namelist /ocean_submesoscale_nml/ use_this_module, debug_this_module, diag_step,
                                   smooth_advect_transport_num,                          &
                                   submeso_skew_flux, submeso_advect_flux,               &
                                   submeso_advect_upwind, submeso_advect_sweby,          &
-                                  submeso_diag_advect_transport, submeso_advect_limit,  &
-                                  submeso_advect_zero_bdy,                              &
+                                  submeso_advect_limit, submeso_advect_zero_bdy,        &
                                   submeso_diffusion, submeso_diffusion_scale,           &
                                   submeso_diffusion_biharmonic  
 
@@ -920,16 +919,39 @@ contains
 
     id_uhrho_et_submeso = register_diag_field ('ocean_model', 'uhrho_et_submeso', &
         Grd%tracer_axes_flux_x(1:3), Time%model_time,                             &
-       'i-component of submesoscale mass transport',                              &
+       'i-component of submesoscale advective mass transport',                    &
        '(kg/m^3)*m^2/sec', missing_value=missing_value, range=(/-1.e10,1.e10/))
+    if(id_uhrho_et_submeso > 0) diag_advect_transport = .true. 
+
     id_vhrho_nt_submeso = register_diag_field ('ocean_model', 'vhrho_nt_submeso', &
         Grd%tracer_axes_flux_y(1:3), Time%model_time,                             &
-       'j-component of submesoscale mass transport',                              &
+       'j-component of submesoscale advective mass transport',                    &
        '(kg/m^3)*m^2/sec', missing_value=missing_value, range=(/-1.e10,1.e10/))
+    if(id_vhrho_nt_submeso > 0) diag_advect_transport = .true. 
+
     id_wrho_bt_submeso = register_diag_field ('ocean_model', 'wrho_bt_submeso', &
         Grd%tracer_axes_wt(1:3), Time%model_time,                               &
-       'k-component of submesoscale mass transport',                            &
+       'k-component of submesoscale advective mass transport',                  &
        '(kg/m^3)*m/sec', missing_value=missing_value, range=(/-1.e10,1.e10/))
+    if(id_wrho_bt_submeso > 0) diag_advect_transport = .true. 
+
+    id_tx_trans_submeso_adv = register_diag_field ('ocean_model', 'tx_trans_submeso_adv', &
+        Grd%tracer_axes_flux_x(1:3), Time%model_time,                                     &
+       'i-component of submesoscale advective mass transport',                            &
+       'kg/sec', missing_value=missing_value, range=(/-1.e10,1.e10/))
+    if(id_tx_trans_submeso_adv > 0) diag_advect_transport = .true. 
+
+    id_ty_trans_submeso_adv = register_diag_field ('ocean_model', 'ty_trans_submeso_adv', &
+        Grd%tracer_axes_flux_y(1:3), Time%model_time,                                     &
+       'j-component of submesoscale advective mass transport',                            &
+       'kg/sec', missing_value=missing_value, range=(/-1.e10,1.e10/))
+    if(id_ty_trans_submeso_adv > 0) diag_advect_transport = .true. 
+    
+    id_tz_trans_submeso_adv = register_diag_field ('ocean_model', 'tz_trans_submeso_adv', &
+        Grd%tracer_axes_wt(1:3), Time%model_time,                                         &
+       'k-component of submesoscale advective mass transport',                            &
+       'kg/sec', missing_value=missing_value, range=(/-1.e10,1.e10/))
+    if(id_tz_trans_submeso_adv > 0) diag_advect_transport = .true. 
 
     if(submeso_diffusion_biharmonic) then 
         id_subdiff_diffusivity = register_diag_field ('ocean_model', 'subdiff_diffusivity', &
@@ -1206,8 +1228,8 @@ end subroutine ocean_submesoscale_init
      call compute_psi(Time, Dens, Thickness)
   endif 
 
-  if(submeso_diag_advect_transport .or. submeso_advect_flux) then 
-     call compute_transport(Time, Dens, Thickness)
+  if(diag_advect_transport .or. submeso_advect_flux) then 
+     call compute_advect_transport(Time, Dens, Thickness)
   endif 
 
   ! compute tracer flux components and their convergence
@@ -1982,7 +2004,7 @@ end subroutine compute_psi_legacy
 
 
 !#######################################################################
-! <SUBROUTINE NAME="compute_transport">
+! <SUBROUTINE NAME="compute_advect_transport">
 !
 ! <DESCRIPTION>
 ! Compute the mass transport from submeso.  
@@ -2009,7 +2031,7 @@ end subroutine compute_psi_legacy
 !
 ! </DESCRIPTION>
 !
-subroutine compute_transport(Time, Dens, Thickness)
+subroutine compute_advect_transport(Time, Dens, Thickness)
 
   type(ocean_time_type),      intent(in) :: Time
   type(ocean_density_type),   intent(in) :: Dens
@@ -2176,6 +2198,9 @@ subroutine compute_transport(Time, Dens, Thickness)
   ! send diagnostics 
 
   call diagnose_3d(Time, Grd, id_dmu_submeso, wrk1(:,:,:))
+  call diagnose_3d(Time, Grd, id_uhrho_et_submeso, uhrho_et_submeso(:,:,:))
+  call diagnose_3d(Time, Grd, id_vhrho_nt_submeso, vhrho_nt_submeso(:,:,:))
+  call diagnose_3d(Time, Grd, id_wrho_bt_submeso, wrho_bt_submeso(:,:,1:nk))
 
   if (id_u_et_submeso > 0) then
       wrk1 = 0.0 
@@ -2214,9 +2239,41 @@ subroutine compute_transport(Time, Dens, Thickness)
       enddo
       call diagnose_3d(Time, Grd, id_w_bt_submeso, wrk1(:,:,:))
   endif
-  call diagnose_3d(Time, Grd, id_uhrho_et_submeso, uhrho_et_submeso(:,:,:))
-  call diagnose_3d(Time, Grd, id_vhrho_nt_submeso, vhrho_nt_submeso(:,:,:))
-  call diagnose_3d(Time, Grd, id_wrho_bt_submeso, wrho_bt_submeso(:,:,1:nk))
+
+  
+  !  for submeso_advect_flux, tx_trans_submeso_adv = tx_trans_submeso, as for other components.
+  !  for submeso_shew_flux, they are distinct.  it is useful when running with skew approach to
+  !  diagnose the advective mass transports from submeso. GM has an analogous diagnostic.  
+  if (id_tx_trans_submeso_adv > 0 .or. id_ty_trans_submeso_adv > 0 .or. id_tz_trans_submeso_adv > 0) then 
+
+      wrk1_v(:,:,:,:) = 0.0
+      wrk1(:,:,:)     = 0.0
+      do k=1,nk
+         do j=jsc,jec
+            do i=isc,iec
+               wrk1_v(i,j,k,1) = transport_convert*uhrho_et_submeso(i,j,k)*Grd%dyte(i,j)
+               wrk1_v(i,j,k,2) = transport_convert*vhrho_nt_submeso(i,j,k)*Grd%dxtn(i,j)
+               wrk1(i,j,k)     = transport_convert*wrho_bt_submeso(i,j,k)*Grd%dat(i,j)
+            enddo
+         enddo
+      enddo
+      if (id_tx_trans_submeso_adv > 0) then 
+          used = send_data (id_tx_trans_submeso_adv, wrk1_v(:,:,:,1), &
+               Time%model_time, rmask=Grd%tmask(:,:,:),               &
+               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      endif
+      if (id_ty_trans_submeso_adv > 0) then 
+          used = send_data (id_ty_trans_submeso_adv, wrk1_v(:,:,:,2), &
+               Time%model_time, rmask=Grd%tmask(:,:,:),               &
+               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      endif
+      if (id_tz_trans_submeso_adv > 0) then 
+          used = send_data (id_tz_trans_submeso_adv, wrk1(:,:,:), &
+               Time%model_time, rmask=Grd%tmask(:,:,:),           &
+               is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+      endif
+
+  endif
 
 
   ! mass transports (skew approach diagnoses transports in compute_submeso_skewsion).
@@ -2258,8 +2315,8 @@ subroutine compute_transport(Time, Dens, Thickness)
       call write_chksum_3d('wrho_bt_submeso', wrho_bt_submeso(COMP,1:nk)*Grd%tmask(COMP,:))
   endif
 
-end subroutine compute_transport
-! </SUBROUTINE> NAME="compute_transport"
+end subroutine compute_advect_transport
+! </SUBROUTINE> NAME="compute_advect_transport"
 
 
 !#######################################################################
