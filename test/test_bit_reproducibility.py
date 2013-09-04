@@ -51,10 +51,11 @@ class ModelTestSetup:
         self.wait(run_id)
 
         # Read the output file and check that run suceeded.
+        output = 'run_script.sh.o%s' % run_id.split('.')[0]
         s = ''
-        with open('run_script.x.out', 'r') as f:
+        with open(output, 'r') as f:
             s = f.read()
-        assert 'run finished' in s
+        assert 'NOTE: Natural end-of-script.' in s
 
         return s
 
@@ -77,6 +78,8 @@ class TestBitReproducibility(ModelTestSetup):
         """
         Extract the norms from model run output.
         """
+
+        return None
 
     def test_MOM_SIS(self):
         """
