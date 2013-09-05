@@ -5,6 +5,7 @@ import subprocess
 import time
 
 # qsub doesn't like the -l wd option on the command line, so need to make a script.
+# NOTE: this is only an 8 core job, however needs a lot of memory, hence the oversubscription.
 
 run_script = """
 #!/bin/csh -f
@@ -12,8 +13,8 @@ run_script = """
 #PBS -P v45
 #PBS -q express
 #PBS -l walltime=00:10:00
-#PBS -l ncpus=32
-#PBS -l mem=63Gb
+#PBS -l ncpus=16
+#PBS -l mem=32Gb
 #PBS -l wd
 
 ./MOM_run.csh --platform nci --type %s --experiment %s --download_input_data
@@ -74,25 +75,38 @@ class ModelTestSetup:
 
 class TestBitReproducibility(ModelTestSetup):
 
-    def get_norms(self, output):
+    def expected_checksums(self, type, experiment):
+
+        s = ''
+        with open('%s.%s.checksums.txt' % (type, experiment)) as f:
+            s = f.read()
+
+        return s
+
+    def get_checksums(self, output):
         """
-        Extract the norms from model run output.
+        Extract checksums from model run output.
         """
 
-        return None
+        s = ''
+        for line in output.splitlines(True):
+            if '[chksum]' in line:
+                s += line
 
-    def test_MOM_SIS(self):
+        return s
+
+    def test_om3_core3(self):
         """
         Test whether MOM_SIS model runs give reproducible and expected results.
 
         Run the model for a single day (or month, for now), read a norm from the output, compare to existing norm. 
         """
 
-        expected_norms = []
+        type = 'MOM_SIS'
+        experiment = 'om3_core3'
 
-        assert self.build('MOM_SIS')
+        assert self.build(type)
 
-        output = self.run('MOM_SIS', 'om3_core3')
+        output = self.run(type, experiment)
 
-        assert get_norms(output) == expected_norms, "Norms do not match."
-
+        assert self.get_checksums(output) == self.expected_checksums(type, experiment), "Checksums do not match."
