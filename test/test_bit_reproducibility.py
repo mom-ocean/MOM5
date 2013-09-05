@@ -20,16 +20,18 @@ run_script = """
 ./MOM_run.csh --platform nci --type %s --experiment %s --download_input_data
 """
 
-class ModelTestSetup:
+class ModelTestSetup(object):
 
     def __init__(self): 
 
-        self.exp_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../', 'exp')
+        self.my_path = os.path.dirname(os.path.realpath(__file__))
+        self.exp_path = os.path.join(self.my_path, '../', 'exp')
 
     def build(self, model_type):
 
         os.chdir(self.exp_path)
         ret = subprocess.check_call(['./MOM_compile.csh', '--platform', 'nci', '--type', model_type])
+        os.chdir(self.my_path)
 
         if ret == 0:
             return True
@@ -58,6 +60,8 @@ class ModelTestSetup:
             s = f.read()
         assert 'NOTE: Natural end-of-script.' in s
 
+        os.chdir(self.my_path)
+
         return s
 
     def wait(self, run_id):
@@ -75,10 +79,13 @@ class ModelTestSetup:
 
 class TestBitReproducibility(ModelTestSetup):
 
+    def __init__(self):
+        super(TestBitReproducibility, self).__init__()
+
     def expected_checksums(self, type, experiment):
 
         s = ''
-        with open('%s.%s.checksums.txt' % (type, experiment)) as f:
+        with open(os.path.join(self.my_path, '%s.%s.checksums.txt' % (type, experiment))) as f:
             s = f.read()
 
         return s
