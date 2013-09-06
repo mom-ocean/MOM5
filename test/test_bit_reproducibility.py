@@ -16,6 +16,7 @@ run_script = """
 #PBS -l ncpus=16
 #PBS -l mem=32Gb
 #PBS -l wd
+#PBS -N TC_%s
 
 ./MOM_run.csh --platform nci --type %s --experiment %s --download_input_data
 """
@@ -44,7 +45,7 @@ class ModelTestSetup(object):
         
         # Write script out as a file.
         with open('run_script.sh', 'w+') as f:
-            f.write(run_script % (model_type, exp))
+            f.write(run_script % (exp, model_type, exp))
 
         # Submit the experiment
         run_id = subprocess.check_output(['qsub', 'run_script.sh'])
