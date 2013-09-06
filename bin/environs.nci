@@ -5,4 +5,5 @@
          module load hdf5
          module load netcdf
          module load openmpi
+         module load git-annex
          setenv mpirunCommand   "mpirun -np"
