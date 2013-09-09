@@ -1,0 +1,582 @@
+module auscom_ice_mod
+!
+!==========================================================================
+
+! AusCOM modules:
+use auscom_ice_parameters_mod
+
+!MOM4 modules: 
+use fms_mod,         only: file_exist
+use fms_mod,         only: open_namelist_file, close_file, check_nml_error
+use mpp_domains_mod, only: mpp_update_domains, domain2d
+use mpp_mod,         only: mpp_broadcast, mpp_pe, mpp_npes
+use mpp_mod,         only: stdlog, stdout
+use mpp_domains_mod, only: mpp_get_compute_domain, &
+                           mpp_get_data_domain, &
+                           mpp_get_global_domain, &
+                           mpp_global_field
+use ocean_types_mod, only: ice_ocean_boundary_type, &
+                           ocean_public_type, &
+                           ocean_domain_type
+use ocean_types_mod, only: ocean_prog_tracer_type, &
+                           ocean_diag_tracer_type, &
+                           ocean_Thickness_type, &
+                           ocean_grid_type, &
+                           ocean_time_type, &
+                           ocean_time_steps_type
+use ocean_grids_mod, only: set_ocean_grid_size
+
+use time_manager_mod, only: time_type
+
+use constants_mod, only: rho_cp &  !(J/m^3/deg C) rho_cp == rho0*cp_ocean
+                        ,rho0r  &  !(m^3/kg)  rho0r == 1.0/rho0
+                        ,rho0   &  ! 1.035e3 kg/m^3 (rho_sw)
+                        ,hlv    &  ! 2.500e6 J/kg
+                        ,hlf    &  ! 3.34e5  J/kg
+                        ,cp_ocean  ! 3989.24495292815 J/kg/deg
+
+implicit none
+
+logical :: new_icepatm = .true.
+logical :: use_fwflux  = .true.
+
+real, dimension(:,:), allocatable :: &
+          FW_FREEZE, & ! ice form/melt associated water flux (m/s)
+          AQICE,     & ! accumulated ice form/melt flux (C*m)
+          QICE         ! total column cooling from ice formation (in C*m) 
+                       ! (ICEFLUX can be either time accumulated or averaged!)  
+
+integer :: ATIME       ! accumulated time for ice formation calculation (s)  
+
+integer :: iisd, iied, jjsd, jjed, iisc, iiec, jjsc, jjec
+integer :: master_task = 0
+ 
+
+real :: salref = 34.7           !psu, NOT as used in POP (i.e., msu)
+real :: salice = 4.0            !psu, re-set as in CICE
+
+real :: dt_ocean
+
+contains
+
+!============================================================================
+subroutine auscom_ice_init(domain, Time_steps)
+
+implicit none
+
+type(domain2d) :: domain
+type(ocean_time_steps_type) :: Time_steps
+integer :: i, j, ioun, io_status, ierr
+
+! provide for namelist over-ride of default values
+  ioun =  open_namelist_file()
+  read (ioun,auscom_ice_nml,IOSTAT=io_status)
+  write (stdlog(),auscom_ice_nml)
+  write (stdout(),'(/)')
+  write (stdout(),auscom_ice_nml)
+  ierr = check_nml_error(io_status,'auscom_ice_nml')
+  call close_file (ioun)
+
+call mpp_get_compute_domain(domain,iisc,iiec,jjsc,jjec)
+call mpp_get_data_domain   (domain,iisd,iied,jjsd,jjed)
+
+allocate(QICE (iisc:iiec,jjsc:jjec));     QICE(:,:)  = 0
+allocate(AQICE(iisc:iiec,jjsc:jjec));     AQICE(:,:) = 0
+allocate(FW_FREEZE(iisc:iiec,jjsc:jjec)); FW_FREEZE(:,:) = 0
+
+ATIME = 0
+
+
+dt_ocean = Time_steps%dtts
+
+end subroutine auscom_ice_init
+
+!============================================================================
+subroutine auscom_ice_formation_old(Time,T_prog,Thickness,stepfactor)
+!
+!calculate ice formation (including top layer and 'sub-surface' layers)
+!adapted from POP (ice.F, v 1.2.2.10, dated 2002/02/22) 
+!
+
+implicit none
+
+real, intent(in) :: stepfactor
+type(ocean_time_type), intent(in)           :: Time
+type(ocean_prog_tracer_type), intent(inout) :: T_prog(:)
+type(ocean_Thickness_type), intent(in)      :: Thickness
+!
+real :: dzk, temk, salk, salkm1, POTICE
+real :: cp_over_lhfusion = rho_cp/hlf/1000.0
+       !cp_over_lhfusion = rho_sw*cp_sw/(latent_heat_fusion*rho_fw)
+       !   (/deg C)        (J/m^3/deg C)      (J/kg)     (1000kg/m^3) 
+real :: epsilon = 1.0e-20       !as in POP
+
+integer :: i, j, k
+integer :: index_temp, index_salt, tlev
+integer :: num_prog_tracers
+
+tlev=Time%taup1
+
+num_prog_tracers = size(T_prog)
+do i=1, num_prog_tracers
+   if (T_prog(i)%name == 'temp') index_temp = i
+   if (T_prog(i)%name == 'salt') index_salt = i
+enddo
+
+!  initialize flux to zero
+QICE   = 0.0  
+
+!-----------------------------------------------------------------------
+! compute frazil ice formation for sub-surface layers. if ice
+! forms in lower layers but layers above are warm - the heat is
+! used to melt the ice. the ice formation occurs at salinity, Si.
+! this volume is replaced with an equal volume at the salinity of
+! the layer above. the total ice heat flux is accumulated. 
+!
+! (???) WARNING: unless a monotone advection scheme is in place, 
+! advective errors could lead to temps that are far below freezing
+! in some locations and this scheme will form lots of ice.
+! ice formation should be limited to the top layer (kmxice=1)
+! if the advection scheme is not monotone.
+!-----------------------------------------------------------------------
+
+do j = jjsc, jjec
+do i = iisc, iiec
+
+  POTICE = 0.0
+
+  do k = kmxice, 2, -1
+
+    !***
+    !*** potice is the potential amount of ice formation 
+    !*** (potice>0) or melting (potice<0) in layer k
+    !***
+    dzk = Thickness%dzt(i,j,k) + epsilon
+    temk = T_prog(index_temp)%field(i,j,k,tlev)
+    salk = T_prog(index_salt)%field(i,j,k,tlev)
+    salkm1 = T_prog(index_salt)%field(i,j,k-1,tlev)
+ 
+    POTICE = (-0.054*salk - temk) * dzk        !in degC*m
+ 
+    !***
+    !*** if POTICE < 0, use the heat to melt any ice from lower layers
+    !*** if POTICE > 0, keep on freezing (QICE < 0)
+    !***
+ 
+    POTICE = max(POTICE, QICE(i,j))
+ 
+    !***
+    !*** adjust tracer values based on freeze/melt
+    !***
+ 
+    temk = temk + POTICE/dzk
+ 
+    !B: *** may need revisit this part!
+    if (use_fwflux) then 
+       salk = (salk * (dzk + cp_over_lhfusion * QICE(i,j)) &
+            + cp_over_lhfusion * (salkm1 * (POTICE - QICE(i,j)) - salice * POTICE)) &
+            / dzk 
+    else
+       salk = salk + (salref - salice) * POTICE * cp_over_lhfusion / dzk
+    endif
+ 
+    QICE(i,j) = QICE(i,j) - POTICE  ! accumulate (vertically) freezing potential
+
+    T_prog(index_temp)%field(i,j,k,tlev) = temk
+    T_prog(index_salt)%field(i,j,k,tlev) = salk
+     
+  enddo  !loop k = kmxice, 2, -1
+
+  !NOTE: now QICE <= 0 (means possible ice formation in lower layers!)
+
+  !*** now repeat the above algorithm for the surface layer. when fresh
+  !*** water flux formulation is used, the surface layer does not get
+  !*** any salt from other layers. instead, its volume changes. 
+
+  k = 1
+
+  dzk = Thickness%dzt(i,j,k) + epsilon
+  temk = T_prog(index_temp)%field(i,j,k,tlev)
+  salk = T_prog(index_salt)%field(i,j,k,tlev)
+
+  POTICE = (-0.054*salk - temk) * dzk   !in degC*m 
+  !surface layer ice form[>0]/melt[<0] potential
+
+  POTICE = max(POTICE, QICE(i,j)) 
+  !*tricky but making sense!
+
+  temk = temk + POTICE/dzk              !adjust temperature
+  if (use_fwflux) then                  !adjust salinity
+     salk = (salk * (dzk + cp_over_lhfusion * QICE(i,j)) &
+            - salice * QICE(i,j) * cp_over_lhfusion ) / dzk  
+  else
+     salk = salk + (salref - salice) * POTICE * cp_over_lhfusion / dzk
+  endif
+
+    QICE(i,j) = QICE(i,j) - POTICE
+
+    !***let any residual heat in the upper layer melt previously formed ice
+    AQICE(i,j) = AQICE(i,j) + stepfactor * QICE(i,j) * rho_cp     ![J/m^2]
+
+    !---------------------------------------------------------------
+    !recalculate freezing potential based on adjusted T.
+    !only interested in melt potential now (POTICE < 0) - use this
+    !melt to offset any accumulated freezing (AQICE < 0) and
+    !adjust T and S to reflect this melting. when freshwater flux
+    !formulation, compute the associated freshwater flux instead of
+    !adjusting S.
+    !---------------------------------------------------------------
+
+    POTICE = (-0.054*salk - temk) * dzk
+    POTICE = max(POTICE, AQICE(i,j)/rho_cp)			![degC*m] 
+
+    temk = temk + POTICE / dzk
+
+    if (use_fwflux) then
+      FW_FREEZE(i,j) = stepfactor * min(POTICE, QICE(i,j)) * &
+                       cp_over_lhfusion / dt_ocean
+    else
+      salk = salk + (salref - salice) * POTICE * cp_over_lhfusion / dzk
+    endif
+
+    AQICE(i,j) = AQICE(i,j) - stepfactor * POTICE * rho_cp   	![J/m^2]
+    T_prog(index_temp)%field(i,j,k,tlev) = temk
+    T_prog(index_salt)%field(i,j,k,tlev) = salk
+
+enddo     !loop j
+enddo     !loop i
+
+end subroutine auscom_ice_formation_old
+
+!============================================================================
+subroutine auscom_ice_formation_new(time,T_prog,Thickness, Frazil)
+!
+!calculate ice formation (including top layer and 'sub-surface' layers)
+!adapted from POP (ice.F, v 1.11, dated 2003/01/28)
+!
+
+! Calculate Frazil as a diagnstic tracer. This should allow us to balance heat budgets
+
+! Using pointers to array sections. Can use array syntax. Much clearer. POTICE now an ARRAY
+
+implicit none
+
+type(ocean_time_type), intent(in)           :: time
+type(ocean_prog_tracer_type), intent(inout),target :: T_prog(:)
+type(ocean_Thickness_type), intent(in),target      :: Thickness
+type(ocean_diag_tracer_type), intent(inout),target :: Frazil
+!
+real :: dzk, temk, salk
+real, dimension(:,:),allocatable ::  POTICE, temk_orig
+real :: cp_over_lhfusion = rho_cp/hlf/1000.0
+       !cp_over_lhfusion = rho_sw*cp_sw/(latent_heat_fusion*rho_fw)
+       !   (/deg C)        (J/m^3/deg C)      (J/kg)     (1000kg/m^3)
+real :: epsilon = 1.0e-20       !as in POP
+
+integer :: i, j, k, index_temp, index_salt, tlev
+integer :: num_prog_tracers
+
+real, pointer :: PTR_TEMP(:,:),PTR_SALT(:,:),PTR_THICK(:,:), PTR_FRAZIL(:,:)
+
+tlev=time%taup1
+
+num_prog_tracers = size(T_prog)
+do i=1, num_prog_tracers
+   if (T_prog(i)%name == 'temp') index_temp = i
+   if (T_prog(i)%name == 'salt') index_salt = i
+enddo
+
+allocate(POTICE(iisc:iiec,jjsc:jjec),temk_orig(iisc:iiec,jjsc:jjec))
+
+!  initialize flux to zero
+QICE   = 0.0
+
+!-----------------------------------------------------------------------
+! compute frazil ice formation for sub-surface layers. if ice
+! forms in lower layers but layers above are warm - the heat is
+! used to melt the ice. the ice formation occurs at salinity, Si.
+! this volume is replaced with an equal volume at the salinity of
+! the layer above. the total ice heat flux is accumulated.
+!
+! (???) WARNING: unless a monotone advection scheme is in place,
+! advective errors could lead to temps that are far below freezing
+! in some locations and this scheme will form lots of ice.
+! ice formation should be limited to the top layer (kmxice=1)
+! if the advection scheme is not monotone.
+!-----------------------------------------------------------------------
+
+POTICE = 0.0
+
+do k = kmxice, 1, -1
+   PTR_TEMP => T_prog(index_temp)%field(iisc:iiec,jjsc:jjec,k,tlev)
+   PTR_SALT => T_prog(index_salt)%field(iisc:iiec,jjsc:jjec,k,tlev)
+   PTR_THICK => Thickness%dzt(iisc:iiec,jjsc:jjec,k)
+   PTR_FRAZIL => Frazil%field(iisc:iiec,jjsc:jjec,k)
+
+   !***
+   !*** potice is the potential amount of ice formation
+   !*** (potice>0) or melting (potice<0) in layer k
+   !***
+   temk_orig = T_prog(index_temp)%field(iisc:iiec,jjsc:jjec,k,tlev)
+
+   POTICE = (-0.054* PTR_SALT - PTR_TEMP) * PTR_THICK
+
+   !***
+   !*** if POTICE < 0, use the heat to melt any ice from lower layers
+   !*** if POTICE > 0, keep on freezing (QICE < 0)
+   !***
+
+   POTICE = max(POTICE, QICE)
+
+   !***
+   !*** adjust tracer values based on freeze/melt
+   !***
+
+   PTR_TEMP = PTR_TEMP + POTICE / PTR_THICK
+
+   if (iceform_adj_salt) then 
+      PTR_SALT = PTR_SALT + (salref - salice) * POTICE * cp_over_lhfusion / PTR_THICK
+   endif
+
+   QICE = QICE - POTICE  ! accumulate (vertically) freezing potential
+
+
+ !-----------------------------------------------------------------------
+ !
+ ! let any residual heat in the upper layer melt previously formed ice
+ !
+ !-----------------------------------------------------------------------
+
+  if ( k == 1 ) then
+    AQICE = AQICE + QICE       !in degC*m
+
+ !-----------------------------------------------------------------------
+ !
+ ! recalculate freezing potential based on adjusted T, S.  only interested 
+ ! in melt potential now (POTICE < 0) -------- use this melt to offset any 
+ ! accumulated freezing (AQICE < 0) and adjust T,S to reflect this melting 
+ !
+ !-----------------------------------------------------------------------
+
+   POTICE = (-0.054* PTR_SALT - PTR_TEMP) * PTR_THICK
+
+ !surface layer ice form[>0]/melt[<0] potential
+
+    POTICE = max(POTICE, AQICE)
+ !tricky......
+    AQICE = AQICE - POTICE
+
+ !
+ ! adjust T, S again:
+ !
+
+     PTR_TEMP = PTR_TEMP + POTICE / PTR_THICK
+
+   if (iceform_adj_salt) then 
+      PTR_SALT = PTR_SALT + (salref - salice) * POTICE * cp_over_lhfusion / PTR_THICK
+   endif
+
+   
+
+ !-----------------------------------------------------------------------
+ !
+ ! compute the heat flux for input to the sea ice model. 
+ ! note that either:
+ !   AQICE<0 and SST=Tfreeze => qflux = -AQICE >0 (net ice made), or  
+ !   AQICE=0 and SST>Tfreeze => qflux ~ Tfreeze-SST <0 (melt potential)
+ !
+ ! REMARK: qflux ( QICE below) is needed only if it's time to communicate
+ !         with oasis. however, in order to isolate this subroutine from 
+ !         any coupling details, qflux is computed at every ocean time 
+ !         step (but only the last calculated one is sent to oasis/ice). 
+ !         Note qflux will be converted to W/m^2 later in get_o2i_fields
+ !         when coupling actually happens.
+ !-----------------------------------------------------------------------
+
+   POTICE = (-0.054* PTR_SALT - PTR_TEMP) * PTR_THICK
+   QICE = POTICE - AQICE 
+
+  endif
+  PTR_FRAZIL = rho_cp * frazil_factor * ( PTR_TEMP - temk_orig) * PTR_THICK 
+enddo  !loop k = kmxice, 1, -1
+
+ATIME = ATIME + dt_ocean
+
+deallocate(temk_orig,POTICE)
+
+end subroutine auscom_ice_formation_new
+
+!=========================================================================
+subroutine auscom_ice_heatflux_old(Time,T_prog,Thickness)
+!----------------------------------------------------------------
+!POP apporach to set up ice foramtion/melting potential heatflux 
+!to be sent to ocean. (ice formation heat flux is accumulated for
+!time average within the coupling interval...but melting is NOT!)
+!
+!should be called once per coupling interval, before into_ice. 
+!----------------------------------------------------------------
+ 
+implicit none
+
+type(ocean_time_type), intent(in)            :: time    
+type(ocean_prog_tracer_type), intent(inout)  :: T_prog(:)
+type(ocean_Thickness_type), intent(in)       :: Thickness
+type (ocean_public_type) :: Ocean_sfc
+!   
+integer :: num_prog_tracers
+integer :: i, j, index_temp, index_salt, tlev
+
+real :: dz1, tem, sal, potice
+real :: epsilon = 1.0e-20 
+
+tlev = time%taup1
+
+num_prog_tracers = size(T_prog)
+do i=1, num_prog_tracers
+   if (T_prog(i)%name == 'temp') index_temp = i
+   if (T_prog(i)%name == 'salt') index_salt = i
+enddo
+
+do j = jjsc, jjec
+do i = iisc, iiec
+
+   potice = 0.0
+   dz1 = Thickness%dzt(i,j,1) + epsilon
+   tem = T_prog(index_temp)%field(i,j,1,tlev)
+   sal = T_prog(index_salt)%field(i,j,1,tlev)
+
+   !calculate the melt potential
+   if (fixmeltT) then
+     potice = (Tmelt - tem) * dz1
+   else
+     potice = (-0.054*sal - tem) * dz1
+   endif
+
+   !merge the ice formation and melt potential fluxes (in J/m^2)
+   if (AQICE(i,j) < 0.0) then 
+     Ocean_sfc%frazil(i,j) = -AQICE(i,j)    !ice formation w/ pop_icediag [J/m^2] 
+   else
+     !artifitially reduce the potential ice melt heatflux (icemlt_factor<=1) 
+     Ocean_sfc%frazil(i,j) = min(potice, 0.0) * icemlt_factor	!let <= 0   30/04/08
+   endif
+
+   !so ICEFLUX > 0 means ice formation
+   !           < 0           melting 
+enddo
+enddo
+
+end subroutine auscom_ice_heatflux_old
+
+!=========================================================================
+subroutine auscom_ice_heatflux(Ocean_sfc)
+!----------------------------------------------------------------
+!POP apporach to set up ice foramtion/melting potential heatflux
+!to be sent to ocean. (ice formation heat flux is accumulated for
+!time average within the coupling interval...but melting is NOT!)
+!
+!should be called once per coupling interval, before into_ice.
+!----------------------------------------------------------------
+
+implicit none
+
+type (ocean_public_type), intent(inout) :: Ocean_sfc
+
+integer :: i, j
+real :: tem, sal, ssl, hgt, potice
+real :: epsilon = 1.0e-20
+
+QICE = 0.0
+
+do j = jjsc, jjec
+do i = iisc, iiec
+
+   potice = 0.0
+
+   tem = Ocean_sfc%t_surf(i,j) - 273.15      !t_surf is in Kelvin
+   sal = Ocean_sfc%s_surf(i,j)               !sea surface salinity
+   ssl = Ocean_sfc%sea_lev(i,j)              !sea level hight
+   hgt = max(epsilon, tlthk0 + ssl)          !top layer Thickness (m)
+   !hgt = max(epsilon, 5.0 + ssl)             !top layer Thickness (m)
+   !hgt = 5.0 + ssl
+  
+!B: 20090810 set option for fixed melting point (to reduce melting potential!)
+!
+!        --------A-----(Tfrz)------B----(Tmelt)------C------->SST
+!                   (-0.054*sal)      (e.g. -0.5) 
+!------------------------------------------------------------------------------
+  if (fixmeltT) then
+    if (tem >= Tmelt) then                   !(C)
+      potice = (Tmelt - tem) * hgt
+      !<0, melting potential
+    else if (tem <= -0.054*sal) then        !(A)
+      potice = (-0.054*sal - tem) * hgt
+      !>0, forming 
+    else                                      !(B) 
+      potice = 0.0
+      !    nothing happens
+    endif
+  else
+    potice = (-0.054*sal - tem) * hgt
+  endif
+!-------------------------------------------------------------------------------
+
+   !calculate the melt potential
+   if (fixmeltT) then
+     potice = (Tmelt - tem) * hgt 
+   else 
+     potice = (-0.054*sal - tem) * hgt
+   endif
+
+   QICE(i,j) = potice * rho_cp               ![J/m^2]
+
+enddo
+enddo 
+
+!merge the ice formation and melt potential fluxes (in J/m^2)
+!
+where (AQICE >= 0.0 )
+  !ICEFLUX = QICE
+  Ocean_sfc%frazil = min(QICE, 0.0)
+elsewhere
+  Ocean_sfc%frazil = -AQICE
+endwhere
+ 
+!convert ice flux from J/m^2 to W/m^2
+Ocean_sfc%frazil = Ocean_sfc%frazil * frazil_factor / float(dt_cpl)
+
+!reset the accumulated ice flux:
+AQICE = 0.0
+
+end subroutine auscom_ice_heatflux
+
+!=========================================================================
+subroutine auscom_ice_heatflux_new(Ocean_sfc)
+!
+! convert the iceflux m*degC into W/m^2 as required by ice model and set 
+! the accumulated AQICE and ATIME back to zero. 
+! called once in a coupling interval before calling get_o2i_fields.
+
+implicit none
+type (ocean_public_type) :: Ocean_sfc
+
+integer :: i, j
+
+do j = jjsc, jjec
+do i = iisc, iiec
+
+  Ocean_sfc%frazil(i,j) = QICE(i,j) * frazil_factor * rho_cp / float(ATIME)
+  ! here ATIME can be accumulated time (seconds) in a coupling interval 
+  ! or just the ocean time step, depending how often the ice_formation_new
+  ! is called  (21/07/2008, E. Hunke suggested POP calls ice_foramtion
+  !                         once per coupling interval) 
+
+enddo
+enddo
+
+AQICE = 0.0
+ATIME = 0
+
+end subroutine auscom_ice_heatflux_new
+
+!===========================================================================
+end module auscom_ice_mod
