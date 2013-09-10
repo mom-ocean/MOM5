@@ -2,9 +2,9 @@
 # Minimal compile script for fully coupled model CM2M experiments
 
 set echo
-set platform      = gfortran    # A unique identifier for your platfo
-                                # This corresponds to the mkmf templates in $root/bin dir.
-set type          = MOM_solo    # Type of the experiment
+set platform      = gfortran   # A unique identifier for your platform
+                               # This corresponds to the mkmf templates in $root/bin dir.
+set type          = MOM_solo   # Type of the experiment
 set help = 0
 
 set argv = (`getopt -u -o h -l type: -l platform:  -l help  --  $*`)
