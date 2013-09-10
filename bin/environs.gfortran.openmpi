@@ -1,0 +1,2 @@
+         setenv PATH ${PATH}:.
+         setenv mpirunCommand   "mpirun -np"
