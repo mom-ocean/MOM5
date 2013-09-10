@@ -652,10 +652,10 @@ do jf = 1,num_fields_out
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%frazil(iisd:iied,jjsd:jjed)
   case('dssldx') 
     !vwork_local => Ocean_sfc%gradient(:,:,1)
-    vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1)
+    !vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1)
   case('dssldy') 
     !vwork_local => Ocean_sfc%gradient(:,:,2)
-    vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2)
+    !vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2)
   case DEFAULT
   call mpp_error(FATAL,&
       '==>Error from into_coupler: Unknown quantity.')
@@ -843,13 +843,13 @@ do jf =  1, num_fields_in
   case('fprec')
      Ice_ocean_boundary%fprec(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('aice')
-     Ice_ocean_boundary%aice(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     !Ice_ocean_boundary%aice(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('mh_flux')
-     Ice_ocean_boundary%mh_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     !Ice_ocean_boundary%mh_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('wfimelt')
-     Ice_ocean_boundary%wfimelt(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     !Ice_ocean_boundary%wfimelt(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('wfiform')
-     Ice_ocean_boundary%wfiform(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     !Ice_ocean_boundary%wfiform(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case DEFAULT
 ! Probable error. Leave as warning for the moment. RASF
    call mpp_error(WARNING,&
@@ -913,8 +913,8 @@ if ( write_restart ) then
           case('s_surf'); vtmp = Ocean_sfc%s_surf(iisd:iied,jjsd:jjed); fld_ice='sss_i'
           case('u_surf'); vtmp = Ocean_sfc%u_surf(iisd:iied,jjsd:jjed); fld_ice='ssu_i'
           case('v_surf'); vtmp = Ocean_sfc%v_surf(iisd:iied,jjsd:jjed); fld_ice='ssv_i'
-          case('dssldx'); vtmp = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1); fld_ice='sslx_i'
-          case('dssldy'); vtmp = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2); fld_ice='ssly_i'
+          !case('dssldx'); vtmp = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1); fld_ice='sslx_i'
+          !case('dssldy'); vtmp = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2); fld_ice='ssly_i'
           case('frazil'); vtmp = Ocean_sfc%frazil(iisd:iied,jjsd:jjed); fld_ice='pfmice_i'
         end select
 

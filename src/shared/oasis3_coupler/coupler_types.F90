@@ -41,10 +41,40 @@ module coupler_types_mod
 !</DESCRIPTION>
 !
 
+use field_manager_mod, only: fm_field_name_len, fm_string_len
+
 implicit none ; private
+
+type, public    :: coupler_2d_values_type
+  character(len=fm_field_name_len)                      :: name = ' '
+  real, pointer, dimension(:,:)                         :: values => NULL()
+  logical                                               :: mean = .true.
+  logical                                               :: override = .false.
+  integer                                               :: id_diag = 0
+  character(len=fm_string_len)                          :: long_name = ' '
+  character(len=fm_string_len)                          :: units = ' '
+end type coupler_2d_values_type
+
+type, public    :: coupler_2d_field_type  !{
+  character(len=fm_field_name_len)                      :: name = ' '
+  integer                                               :: num_fields = 0
+  type(coupler_2d_values_type), pointer, dimension(:)   :: field => NULL()
+  character(len=fm_string_len)                          :: flux_type = ' '
+  character(len=fm_string_len)                          :: implementation = ' '
+  real, pointer, dimension(:)                           :: param => NULL()
+  logical, pointer, dimension(:)                        :: flag => NULL()
+  integer                                               :: atm_tr_index = 0
+  character(len=fm_string_len)                          :: ice_restart_file = ' '
+  character(len=fm_string_len)                          :: ocean_restart_file = ' '
+  logical                                               :: use_atm_pressure
+  logical                                               :: use_10m_wind_speed
+  logical                                               :: pass_through_ice
+  real                                                  :: mol_wt = 0.0
+end type coupler_2d_field_type
 
 type, public :: coupler_2d_bc_type 
   integer    :: num_bcs = 0
+  type(coupler_2d_field_type), pointer, dimension(:)    :: bc => NULL()
 end type coupler_2d_bc_type
 
 end module coupler_types_mod 

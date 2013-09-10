@@ -379,11 +379,11 @@ program main
              Ice_ocean_boundary% fprec (isc:iec,jsc:jec),           &
              Ice_ocean_boundary% runoff (isc:iec,jsc:jec),          &
              Ice_ocean_boundary% calving (isc:iec,jsc:jec),         &
-             Ice_ocean_boundary% p (isc:iec,jsc:jec),               &
-             Ice_ocean_boundary% aice(isc:iec,jsc:jec),             &
-             Ice_ocean_boundary% mh_flux(isc:iec,jsc:jec),          &
-             Ice_ocean_boundary% wfimelt(isc:iec,jsc:jec),          &
-             Ice_ocean_boundary% wfiform(isc:iec,jsc:jec))
+             Ice_ocean_boundary% p (isc:iec,jsc:jec))
+             !Ice_ocean_boundary% aice(isc:iec,jsc:jec),             &
+             !Ice_ocean_boundary% mh_flux(isc:iec,jsc:jec),          &
+             !Ice_ocean_boundary% wfimelt(isc:iec,jsc:jec),          &
+             !Ice_ocean_boundary% wfiform(isc:iec,jsc:jec))
 
   Ice_ocean_boundary%u_flux          = 0.0
   Ice_ocean_boundary%v_flux          = 0.0
@@ -400,10 +400,10 @@ program main
   Ice_ocean_boundary%runoff          = 0.0
   Ice_ocean_boundary%calving         = 0.0
   Ice_ocean_boundary%p               = 0.0
-  Ice_ocean_boundary%aice            = 0.0
-  Ice_ocean_boundary%mh_flux         = 0.0
-  Ice_ocean_boundary% wfimelt        = 0.0
-  Ice_ocean_boundary% wfiform        = 0.0
+  !Ice_ocean_boundary%aice            = 0.0
+  !Ice_ocean_boundary%mh_flux         = 0.0
+  !Ice_ocean_boundary% wfimelt        = 0.0
+  !Ice_ocean_boundary% wfiform        = 0.0
 
   call external_coupler_sbc_init(Ocean_sfc%domain, dt_cpld, Run_len)
 
@@ -536,8 +536,8 @@ end subroutine ocean_solo_restart
       call data_override('OCN', 'runoff',          x%runoff         , Time_next)
       call data_override('OCN', 'calving',         x%calving        , Time_next)
       call data_override('OCN', 'p',               x%p              , Time_next)
-      call data_override('OCN', 'aice',            x%aice           , Time_next)
-      call data_override('OCN', 'mh_flux',         x%mh_flux        , Time_next)
+      !call data_override('OCN', 'aice',            x%aice           , Time_next)
+      !call data_override('OCN', 'mh_flux',         x%mh_flux        , Time_next)
 call mpp_sync()
             
   end subroutine ice_ocn_bnd_from_data
