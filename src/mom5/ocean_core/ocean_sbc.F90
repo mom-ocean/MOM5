@@ -1693,6 +1693,18 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
        '(kg/m^3)*(m/sec)', missing_value=missing_value,range=(/-1.e10,1.e10/),                 &
        standard_name='rainfall_flux')   
 
+#ifdef AusCOM
+ id_wfimelt = register_diag_field('ocean_model','wfimelt', Grd%tracer_axes(1:2),  &
+       Time%model_time, 'water into ocean due to ice melt (>0 enters ocean)',         &
+       '(kg/m^3)*(m/sec)', missing_value=missing_value,range=(/-1.e-1,1.e-1/),&
+       standard_name='icemelt_flux')
+
+ id_wfiform = register_diag_field('ocean_model','wfiform', Grd%tracer_axes(1:2),  &
+       Time%model_time, 'water out of ocean due to ice form (>0 enters ocean)',         &
+       '(kg/m^3)*(m/sec)', missing_value=missing_value,range=(/-1.e-1,1.e-1/),&
+       standard_name='iceform_flux')
+#endif
+
   id_swflx = register_diag_field('ocean_model','swflx', Grd%tracer_axes(1:2),  &
        Time%model_time, 'shortwave flux into ocean (>0 heats ocean)', 'W/m^2', &
        missing_value=missing_value,range=(/-1.e10,1.e10/),                     &

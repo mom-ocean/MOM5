@@ -843,13 +843,13 @@ do jf =  1, num_fields_in
   case('fprec')
      Ice_ocean_boundary%fprec(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('aice')
-     !Ice_ocean_boundary%aice(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     Ice_ocean_boundary%aice(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('mh_flux')
-     !Ice_ocean_boundary%mh_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     Ice_ocean_boundary%mh_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('wfimelt')
-     !Ice_ocean_boundary%wfimelt(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     Ice_ocean_boundary%wfimelt(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('wfiform')
-     !Ice_ocean_boundary%wfiform(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     Ice_ocean_boundary%wfiform(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case DEFAULT
 ! Probable error. Leave as warning for the moment. RASF
    call mpp_error(WARNING,&
