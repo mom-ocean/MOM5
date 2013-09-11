@@ -59,13 +59,8 @@ endif
 
 if ( $type == EBM ) then
     set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DLAND_BND_TRACERS -DOVERLOAD_C8 -DOVERLOAD_C4 -DOVERLOAD_R4" )
-<<<<<<< HEAD
 else if( $type == ACCESS-OM ) then
     set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DACCESS" )
-=======
-else if( $type == MOM_ACCESS ) then
-    set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI" )
->>>>>>> mom-80: Fix compile scripts and move some auscom specific coupling files.
 endif
 
 #
@@ -86,24 +81,12 @@ set lib_include_dirs = "$root/include $code_dir/shared/include $code_dir/shared/
 source ./FMS_compile.csh
 set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean"
 
-<<<<<<< HEAD
-=======
-set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean"
-else if( $type == MOM_ACCESS ) then
-    set includes = "$includes -I$executable:h:h/MOM_ACCESS"
-endif
-
->>>>>>> mom-80: Fix compile scripts and move some auscom specific coupling files.
 # Build the core ocean.
 cd $root/exp
 source ./ocean_compile.csh
 if ( $status ) exit $status
 
-<<<<<<< HEAD
 if( $type != MOM_solo && $type != ACCESS-OM ) then
-=======
-if( $type != MOM_solo && $type != MOM_ACCESS ) then
->>>>>>> mom-80: Fix compile scripts and move some auscom specific coupling files.
     cd $root/exp
     source ./ice_compile.csh
     if ( $status ) exit $status

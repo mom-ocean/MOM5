@@ -1215,7 +1215,12 @@ module ocean_types_mod
      real, pointer, dimension(:,:) :: ustoke          =>NULL() ! x-dir surface stokes drift
      real, pointer, dimension(:,:) :: vstoke          =>NULL() ! y-dir surface stokes drift
      real, pointer, dimension(:,:) :: wavlen          =>NULL() ! wave length
-
+#ifdef AusCOM
+     real, pointer, dimension(:,:) :: aice             =>NULL() !  ice fraction
+     real, pointer, dimension(:,:) :: mh_flux          =>NULL() ! heat flux from melting ice (W/m^2)
+     real, pointer, dimension(:,:) :: wfimelt          =>NULL() ! water flux from melting ice (kg/m^2/s)
+     real, pointer, dimension(:,:) :: wfiform          =>NULL() ! water flux from forming ice (kg/m^2/s)
+#endif
      integer :: xtype                                          ! REGRID, REDIST or DIRECT
 
      type(coupler_2d_bc_type)      :: fluxes                   ! array of fields used for additional tracers
@@ -1235,6 +1240,9 @@ module ocean_types_mod
      real, pointer, dimension(:,:)    :: frazil  =>NULL() ! accumulated heating (J/m^2) from 
                                                           ! frazil formation in the ocean 
      real, pointer, dimension(:,:)    :: area    =>NULL() ! T-cell area.
+#ifdef AusCOM
+     real, pointer, dimension(:,:,:)  :: gradient =>NULL() ! x/y slopes of sea surface.
+#endif
      logical, pointer, dimension(:,:) :: maskmap =>NULL()! A pointer to an array indicating which
                                                          ! logical processors are actually used for
                                                          ! the ocean code. The other logical

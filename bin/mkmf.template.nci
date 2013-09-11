@@ -10,8 +10,8 @@ LD = mpif90
 #########
 # flags #
 #########
-DEBUG =
-REPRO = on
+DEBUG = on
+REPRO = 
 VERBOSE =
 
 MAKEFLAGS += --jobs=4
@@ -21,7 +21,7 @@ INCLUDE   = -I$(NETCDF_ROOT)/include
 FPPFLAGS := -fpp -Wp,-w $(INCLUDE)
 FFLAGS := -fno-alias -safe-cray-ptr -ftz -assume byterecl -i4 -r8 -nowarn
 FFLAGS_OPT = -O3 -debug minimal -fp-model precise
-FFLAGS_DEBUG = -g -O0 -check -check noarg_temp_created -check nopointer -warn -warn noerrors -fpe0 -traceback -ftrapuv
+FFLAGS_DEBUG = -g -O0 -debug all  -check -check noarg_temp_created -check nopointer -warn -warn noerrors -fpe0 -traceback -ftrapuv
 FFLAGS_REPRO = -O2 -debug minimal -no-vec -fp-model precise
 FFLAGS_VERBOSE = -v -V -what
 
