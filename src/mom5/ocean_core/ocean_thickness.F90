@@ -1488,6 +1488,7 @@ subroutine ocean_thickness_init_adjust(Grid, Time, Dens, Ext_mode, Thickness)
   real, dimension(isd:ied,jsd:jed) :: fraction_differ 
   real, dimension(isd:ied,jsd:jed) :: rescale_mass
   real, dimension(isd:ied,jsd:jed) :: ht_mod
+  real, dimension(isd:ied,jsd:jed,nk) :: inv_dzt_dst
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -1535,7 +1536,6 @@ subroutine ocean_thickness_init_adjust(Grid, Time, Dens, Ext_mode, Thickness)
   write(stdoutunit,'(/a/)') &
   '==>Note: ocean_thickness_init_adjust adjusting time=0 vgrid using in situ density.'
 
-  wrk1(:,:,:) = 0.0
   wrk2(:,:,:) = 0.0
   wrk3(:,:,:) = 0.0
   wrk4(:,:,:) = 0.0
@@ -1564,7 +1564,7 @@ subroutine ocean_thickness_init_adjust(Grid, Time, Dens, Ext_mode, Thickness)
            Thickness%dzt(i,j,k)       =  Thickness%dst(i,j,k)*Thickness%dzt_dst(i,j,k)
            Thickness%rho_dzt(i,j,k,:) =  density_tmp*Thickness%dzt(i,j,k)
            Thickness%rho_dztr(i,j,k)  =  1.0/(Thickness%rho_dzt(i,j,k,tau)+epsln)
-           wrk1(i,j,k)                =  1.0/Thickness%dzt_dst(i,j,k)  
+           inv_dzt_dst(i,j,k)         =  1.0/Thickness%dzt_dst(i,j,k)
         enddo
      enddo
   enddo
@@ -1661,7 +1661,7 @@ subroutine ocean_thickness_init_adjust(Grid, Time, Dens, Ext_mode, Thickness)
            Thickness%dztup(i,j,k)     =  Thickness%dstup(i,j,k)*Thickness%dzt_dst(i,j,k)
            Thickness%rho_dzt(i,j,k,:) =  density_tmp*Thickness%dzt(i,j,k)
            Thickness%rho_dztr(i,j,k)  =  1.0/(Thickness%rho_dzt(i,j,k,tau)+epsln)
-           wrk1(i,j,k)                =  1.0/Thickness%dzt_dst(i,j,k)  
+           inv_dzt_dst(i,j,k)         =  1.0/Thickness%dzt_dst(i,j,k)
         enddo
      enddo
   enddo
@@ -1780,7 +1780,7 @@ subroutine ocean_thickness_init_adjust(Grid, Time, Dens, Ext_mode, Thickness)
       do k=1,nk-1
          do j=jsd,jed
             do i=isd,ied
-               Thickness%dzwt(i,j,k) = 2.0*Thickness%dswt(i,j,k)/(wrk1(i,j,k)+wrk1(i,j,k+1)) 
+               Thickness%dzwt(i,j,k) = 2.0*Thickness%dswt(i,j,k)/(inv_dzt_dst(i,j,k)+inv_dzt_dst(i,j,k+1))
             enddo
          enddo
       enddo
