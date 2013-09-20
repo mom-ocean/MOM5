@@ -3,6 +3,8 @@
 import sys
 import nose
 import nose.loader as loader
+import subprocess
+import test_bit_reproducibility as tb
 import optparse
 
 def main():
@@ -14,10 +16,15 @@ def main():
 
     (opts, _) = parser.parse_args()
 
-    l = loader.TestLoader()
-    suite = l.loadTestsFromName("test_bit_reproducibility.py:TestBitReproducibility.test_%s" % opts.experiment)
+    if 'test_%s' % opts.experiment in dir(tb.TestBitReproducibility):
+        l = loader.TestLoader()
+        suite = l.loadTestsFromName("test_bit_reproducibility.py:TestBitReproducibility.test_%s" % opts.experiment)
+        ret = nose.run(suite=suite, argv=[sys.argv[0]]) 
+    else:
+        # Specific test was not found. Try to just run the experiment directly.
+        ret = subprocess.check_call(['./MOM_run.csh', '--platform', opts.platform, '--type', opts.type, '--experiment', opts.experiment])
 
-    return nose.run(suite=suite, argv=[sys.argv[0]]) 
+    return ret
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(not main())
