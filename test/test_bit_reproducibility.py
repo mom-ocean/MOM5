@@ -11,14 +11,14 @@ run_script = """
 #!/bin/csh -f
 
 #PBS -P v45
-#PBS -q express
-#PBS -l walltime=00:10:00
-#PBS -l ncpus=16
-#PBS -l mem=32Gb
+#PBS -q %s
+#PBS -l walltime=%s
+#PBS -l ncpus=%s
+#PBS -l mem=%s
 #PBS -l wd
 #PBS -N %s
 
-./MOM_run.csh --platform nci --type %s --experiment %s --download_input_data
+./MOM_run.csh --platform nci --type %s --experiment %s --download_input_data --npes %s
 """
 
 class ModelTestSetup(object):
@@ -28,7 +28,7 @@ class ModelTestSetup(object):
         self.my_path = os.path.dirname(os.path.realpath(__file__))
         self.exp_path = os.path.join(self.my_path, '../', 'exp')
 
-    def run(self, model_type, exp):
+    def run(self, model_type, exp, queue='normal', walltime='00:10:00', ncpus='16', mem='32Gb',):
 
         os.chdir(self.exp_path)
 
@@ -36,7 +36,7 @@ class ModelTestSetup(object):
         
         # Write script out as a file.
         with open('run_script.sh', 'w+') as f:
-            f.write(run_script % (run_name, model_type, exp))
+            f.write(run_script % (queue, walltime, ncpus, mem, run_name, model_type, exp, ncpus))
 
         # Submit the experiment
         run_id = subprocess.check_output(['qsub', 'run_script.sh'])
@@ -110,7 +110,34 @@ class TestBitReproducibility(ModelTestSetup):
 
     def test_om3_core1(self):
 
-        type = 'MOM_SIS'
-        experiment = 'om3_core1'
+        self.run('MOM_SIS', 'om3_core1')
 
-        self.run(type, experiment)
+    def test_atlantic1(self):
+
+        self.run('MOM_SIS', 'atlantic1', ncpus='32', mem='64Gb')
+
+    def test_MOM_SIS_TOPAZ(self):
+
+        self.run('MOM_SIS', 'MOM_SIS_TOPAZ')
+
+    def test_MOM_SIS_BLING(self):
+
+        self.run('MOM_SIS', 'MOM_SIS_BLING')
+
+    def test_CM2_1_p1(self):
+
+        self.run('CM2M', 'CM2.1.P1', ncpus, '64', mem='128Gb')
+
+    def test_CM2M_coarse_BLING(self):
+
+        self.run('CM2M', 'CM2M_coarse_BLING', ncpus, '64', mem='128Gb')
+
+    def test_ESM2M_pi_control_C2(self):
+
+        self.run('ESM2M', 'ESM2M_pi_control_C2', ncpus, '128', mem='256Gb')
+
+    def test_ICCMp1(self):
+
+        self.run('ICCM', 'ICCMp1', ncpus, '64', mem='128Gb')
+
+
