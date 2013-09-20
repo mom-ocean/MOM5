@@ -28,17 +28,6 @@ class ModelTestSetup(object):
         self.my_path = os.path.dirname(os.path.realpath(__file__))
         self.exp_path = os.path.join(self.my_path, '../', 'exp')
 
-    def build(self, model_type):
-
-        os.chdir(self.exp_path)
-        ret = subprocess.check_call(['./MOM_compile.csh', '--platform', 'nci', '--type', model_type])
-        os.chdir(self.my_path)
-
-        if ret == 0:
-            return True
-        else:
-            return False
-
     def run(self, model_type, exp):
 
         os.chdir(self.exp_path)
@@ -115,8 +104,13 @@ class TestBitReproducibility(ModelTestSetup):
         type = 'MOM_SIS'
         experiment = 'om3_core3'
 
-        assert self.build(type)
-
         output = self.run(type, experiment)
 
         assert self.get_checksums(output) == self.expected_checksums(type, experiment), "Checksums do not match."
+
+    def test_om3_core1(self):
+
+        type = 'MOM_SIS'
+        experiment = 'om3_core1'
+
+        self.run(type, experiment)
