@@ -20,7 +20,8 @@ def main():
     if 'test_%s' % opts.experiment in dir(tb.TestBitReproducibility):
         l = loader.TestLoader()
         suite = l.loadTestsFromName("test_bit_reproducibility.py:TestBitReproducibility.test_%s" % opts.experiment)
-        ret = nose.run(suite=suite, argv=[sys.argv[0]]) 
+        # nose returns False on failure - want 1. 
+        ret = not nose.run(suite=suite, argv=[sys.argv[0]]) 
     else:
 
         my_path = os.path.dirname(os.path.realpath(__file__))
@@ -33,4 +34,4 @@ def main():
     return ret
 
 if __name__ == "__main__":
-    sys.exit(not main())
+    sys.exit(main())

@@ -223,7 +223,7 @@ echo "About to run the command $runCommand"
 if ( $valid_npes ) then
     echo "ERROR: This experiment is designed to run on $valid_npes pes. Please specify --npes  $valid_npes "
     echo "Note:  In order to change the default npes for an expeiment the user may need to edit the values of layouts and atmos_npes and ocean_npes in the input.nml and run the mpi command manually in the working dir"
-    exit 0 
+    exit 1 
 endif
 
 #   --- run the model ---
