@@ -5,7 +5,6 @@ import subprocess
 import time
 
 # qsub doesn't like the -l wd option on the command line, so need to make a script.
-# NOTE: this is only an 8 core job, however needs a lot of memory, hence the oversubscription.
 
 run_script = """
 #!/bin/csh -f
@@ -126,18 +125,18 @@ class TestBitReproducibility(ModelTestSetup):
 
     def test_CM2_1_p1(self):
 
-        self.run('CM2M', 'CM2.1.P1', ncpus, '64', mem='128Gb')
+        self.run('CM2M', 'CM2.1.P1', ncpus='64', mem='128Gb')
 
     def test_CM2M_coarse_BLING(self):
 
-        self.run('CM2M', 'CM2M_coarse_BLING', ncpus, '64', mem='128Gb')
+        self.run('CM2M', 'CM2M_coarse_BLING', ncpus='64', mem='128Gb')
 
     def test_ESM2M_pi_control_C2(self):
 
-        self.run('ESM2M', 'ESM2M_pi_control_C2', ncpus, '128', mem='256Gb')
+        self.run('ESM2M', 'ESM2M_pi_control_C2', ncpus='128', mem='256Gb')
 
     def test_ICCMp1(self):
 
-        self.run('ICCM', 'ICCMp1', ncpus, '64', mem='128Gb')
+        self.run('ICCM', 'ICCMp1', ncpus='64', mem='128Gb')
 
 
