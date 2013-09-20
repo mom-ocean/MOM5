@@ -16,7 +16,7 @@ run_script = """
 #PBS -l ncpus=16
 #PBS -l mem=32Gb
 #PBS -l wd
-#PBS -N TC_%s
+#PBS -N %s
 
 ./MOM_run.csh --platform nci --type %s --experiment %s --download_input_data
 """
@@ -42,10 +42,12 @@ class ModelTestSetup(object):
     def run(self, model_type, exp):
 
         os.chdir(self.exp_path)
+
+        run_name = "TC_%s" % exp
         
         # Write script out as a file.
         with open('run_script.sh', 'w+') as f:
-            f.write(run_script % (exp, model_type, exp))
+            f.write(run_script % (run_name, model_type, exp))
 
         # Submit the experiment
         run_id = subprocess.check_output(['qsub', 'run_script.sh'])
@@ -55,7 +57,7 @@ class ModelTestSetup(object):
         self.wait(run_id)
 
         # Read the output file and check that run suceeded.
-        output = 'run_script.sh.o%s' % run_id.split('.')[0]
+        output = '%s.o%s' % (run_name, run_id.split('.')[0])
         s = ''
         with open(output, 'r') as f:
             s = f.read()
