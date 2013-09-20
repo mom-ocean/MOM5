@@ -32,6 +32,8 @@ class ModelTestSetup(object):
         os.chdir(self.exp_path)
 
         run_name = "TC_%s" % exp
+        # -N value is a maximum of 15 chars.
+        run_name = run_name[0:15]
         
         # Write script out as a file.
         with open('run_script.sh', 'w+') as f:
