@@ -133,7 +133,7 @@ set echo
     echo "cp $name.input.tar.gz $workdir"
     echo "cd $workdir"
     echo "tar zxvf $name.input.tar.gz"
-    echo "Or use the --download option to do this automatically"
+    echo "Or use the --download_input_data option to do this automatically"
     exit 1
 
     endif
