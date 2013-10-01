@@ -379,7 +379,7 @@ program main
              Ice_ocean_boundary% fprec (isc:iec,jsc:jec),           &
              Ice_ocean_boundary% runoff (isc:iec,jsc:jec),          &
              Ice_ocean_boundary% calving (isc:iec,jsc:jec),         &
-             Ice_ocean_boundary% p (isc:iec,jsc:jec)                &
+             Ice_ocean_boundary% p (isc:iec,jsc:jec),               &
              Ice_ocean_boundary% aice(isc:iec,jsc:jec),             &
              Ice_ocean_boundary% mh_flux(isc:iec,jsc:jec),          &
              Ice_ocean_boundary% wfimelt(isc:iec,jsc:jec),          &
