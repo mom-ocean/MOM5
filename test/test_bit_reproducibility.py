@@ -9,7 +9,7 @@ import time
 run_script = """
 #!/bin/csh -f
 
-#PBS -P v45
+#PBS -P x77
 #PBS -q %s
 #PBS -l walltime=%s
 #PBS -l ncpus=%s
@@ -17,7 +17,7 @@ run_script = """
 #PBS -l wd
 #PBS -N %s
 
-./MOM_run.csh --platform nci --type %s --experiment %s --download_input_data --npes %s
+./MOM_run.csh --platform nci --type %s --experiment %s --download_input_data %s
 """
 
 class ModelTestSetup(object):
@@ -27,17 +27,26 @@ class ModelTestSetup(object):
         self.my_path = os.path.dirname(os.path.realpath(__file__))
         self.exp_path = os.path.join(self.my_path, '../', 'exp')
 
-    def run(self, model_type, exp, queue='normal', walltime='00:10:00', ncpus='16', mem='32Gb',):
+    def run(self, model_type, exp, queue='normal', walltime='00:10:00', ncpus='16', npes=None, mem='32Gb',):
+        """
+        ncpus is for requested cpus, npes is for how many mom uses.
+        """
 
         os.chdir(self.exp_path)
 
         run_name = "TC_%s" % exp
         # -N value is a maximum of 15 chars.
         run_name = run_name[0:15]
+
+        if npes != None:
+            npes = '--npes %s' % npes
+        else:
+            npes = ''
         
         # Write script out as a file.
         with open('run_script.sh', 'w+') as f:
-            f.write(run_script % (queue, walltime, ncpus, mem, run_name, model_type, exp, ncpus))
+            if npes != None:
+                f.write(run_script % (queue, walltime, ncpus, mem, run_name, model_type, exp, npes))
 
         # Submit the experiment
         run_id = subprocess.check_output(['qsub', 'run_script.sh'])
@@ -51,9 +60,11 @@ class ModelTestSetup(object):
         s = ''
         with open(output, 'r') as f:
             s = f.read()
-        assert 'NOTE: Natural end-of-script.' in s
 
         os.chdir(self.my_path)
+
+        print s
+        assert 'NOTE: Natural end-of-script.' in s
 
         return s
 
@@ -115,7 +126,7 @@ class TestBitReproducibility(ModelTestSetup):
 
     def test_atlantic1(self):
 
-        self.run('MOM_SIS', 'atlantic1', ncpus='32', mem='64Gb')
+        self.run('MOM_SIS', 'atlantic1', ncpus='32', npes='24', mem='64Gb')
 
     def test_MOM_SIS_TOPAZ(self):
 
@@ -125,9 +136,9 @@ class TestBitReproducibility(ModelTestSetup):
 
         self.run('MOM_SIS', 'MOM_SIS_BLING')
 
-    def test_CM2_1_p1(self):
+    def test_CM2_1p1(self):
 
-        self.run('CM2M', 'CM2.1.P1', ncpus='64', mem='128Gb')
+        self.run('CM2M', 'CM2.1p1', ncpus='64', npes='45', mem='128Gb')
 
     def test_CM2M_coarse_BLING(self):
 
@@ -135,7 +146,7 @@ class TestBitReproducibility(ModelTestSetup):
 
     def test_ESM2M_pi_control_C2(self):
 
-        self.run('ESM2M', 'ESM2M_pi_control_C2', ncpus='128', mem='256Gb')
+        self.run('ESM2M', 'ESM2M_pi_control_C2', ncpus='128', npes='120', mem='256Gb')
 
     def test_ICCMp1(self):
 
