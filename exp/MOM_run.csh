@@ -98,7 +98,6 @@ set executable    = $root/exec/$platform/$type/fms_$type.x      # executable cre
 #set archive       = $ARCHIVE/$type #Large directory to host the input and output data.
 
 
-
 #===========================================================================
 # The user need not change any of the following
 #===========================================================================
@@ -114,36 +113,35 @@ set time_stamp    = $root/bin/time_stamp.csh          # path to cshell to genera
 set echo
 
 # Check if the user has extracted the input data
-  if ( ! -d $inputDataDir ) then
-
+if ( ! -e $namelist ) then
     if( $download ) then
-	cd $root/data/archives
-	git annex get $name.input.tar.gz
-	mkdir -p $workdir
-	cp $name.input.tar.gz $workdir
-	cd $workdir
-	tar zxvf $name.input.tar.gz
+        cd $root/data/archives
+        git annex get $name.input.tar.gz
+        mkdir -p $workdir
+        cp $name.input.tar.gz $workdir
+        cd $workdir
+        tar zxvf $name.input.tar.gz
     else  
-
-    echo "ERROR: the experiment directory '$inputDataDir' does not exist or does not contain input and preprocessing data directories!"
-    echo "Please copy the input data from the MOM data directory. This may required downloading data from a remote git annex if you do not already have the data locally."
-    echo "cd $root/data/archives"
-    echo "git annex get $name.input.tar.gz"
-    echo "mkdir -p $workdir"
-    echo "cp $name.input.tar.gz $workdir"
-    echo "cd $workdir"
-    echo "tar zxvf $name.input.tar.gz"
-    echo "Or use the --download_input_data option to do this automatically"
-    exit 1
-
+        echo "ERROR: the experiment directory '$inputDataDir' does not exist or does not contain input and preprocessing data directories!"
+        echo "Please copy the input data from the MOM data directory. This may required downloading data from a remote git annex if you do not already have the data locally."
+        echo "cd $root/data/archives"
+        echo "git annex get $name.input.tar.gz"
+        echo "mkdir -p $workdir"
+        echo "cp $name.input.tar.gz $workdir"
+        echo "cd $workdir"
+        echo "tar zxvf $name.input.tar.gz"
+        echo "Or use the --download_input_data option to do this automatically"
+        exit 1
     endif
-  endif
+endif
 
 # setup directory structure
-  if ( ! -d $expdir )         mkdir -p $expdir
-  if ( ! -d $expdir/RESTART ) mkdir -p $expdir/RESTART
+if ( ! -d $expdir )         mkdir -p $expdir
+if ( ! -d $expdir/RESTART ) mkdir -p $expdir/RESTART
 
-#
+#Change to expdir
+cd $expdir
+
 #Check the existance of essential input files
 #
 #  if ( ! -e $inputDataDir/grid_spec.nc ) then
@@ -155,51 +153,41 @@ set echo
 #    exit 1
 #  endif
 
+if ( ! -e $namelist ) then
+    echo "ERROR: required input file does not exist $namelist "
+    exit 1
+endif
+if ( ! -e $datatable ) then
+    echo "ERROR: required input file does not exist $datatable "
+    exit 1
+endif
+if ( ! -e $diagtable ) then
+    echo "ERROR: required input file does not exist $diagtable "
+    exit 1
+endif
+if ( ! -e $fieldtable ) then
+    echo "ERROR: required input file does not exist $fieldtable "
+    exit 1
+endif
 
+cp $namelist   input.nml
+cp $datatable  data_table
+cp $diagtable  diag_table
+cp $fieldtable field_table 
 
 # --- make sure executable is up to date ---
-  set makeFile = Makefile
-  cd $executable:h
-  make -f $makeFile
-  if ( $status != 0 ) then
+set makeFile = Makefile
+cd $executable:h
+make -f $makeFile
+if ( $status != 0 ) then
     unset echo
     echo "ERROR: make failed"
     exit 1
-  endif
+endif
 #-------------------------------------------
 
-#Change to expdir
-
-  cd $expdir
-
-# Create INPUT directory. Make a link instead of copy
-# 
-if ( ! -d $expdir/INPUT   ) mkdir -p $expdir/INPUT
-
-  if ( ! -e $namelist ) then
-    echo "ERROR: required input file does not exist $namelist "
-    exit 1
-  endif
-  if ( ! -e $datatable ) then
-    echo "ERROR: required input file does not exist $datatable "
-    exit 1
-  endif
-  if ( ! -e $diagtable ) then
-    echo "ERROR: required input file does not exist $diagtable "
-    exit 1
-  endif
-  if ( ! -e $fieldtable ) then
-    echo "ERROR: required input file does not exist $fieldtable "
-    exit 1
-  endif
-
-  cp $namelist   input.nml
-  cp $datatable  data_table
-  cp $diagtable  diag_table
-  cp $fieldtable field_table 
-
 #Preprocessings
-  $root/exp/preprocessing.csh
+$root/exp/preprocessing.csh
   
 if ( $type == CM2M & $npes != 45 ) then
     set valid_npes = 45
