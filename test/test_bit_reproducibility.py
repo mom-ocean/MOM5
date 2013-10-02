@@ -57,16 +57,18 @@ class ModelTestSetup(object):
 
         # Read the output file and check that run suceeded.
         output = '%s.o%s' % (run_name, run_id.split('.')[0])
-        s = ''
+        error = '%s.e%s' % (run_name, run_id.split('.')[0])
+        so = ''
         with open(output, 'r') as f:
-            s = f.read()
+            so = f.read()
+        with open(error, 'r') as f:
+            se = f.read()
 
         os.chdir(self.my_path)
 
-        print s
-        assert 'NOTE: Natural end-of-script.' in s
-
-        return s
+        print so
+        print se
+        assert 'NOTE: Natural end-of-script.' in so
 
     def wait(self, run_id):
 
@@ -146,10 +148,9 @@ class TestBitReproducibility(ModelTestSetup):
 
     def test_ESM2M_pi_control_C2(self):
 
-        self.run('ESM2M', 'ESM2M_pi_control_C2', ncpus='128', npes='120', mem='256Gb')
+        self.run('ESM2M', 'ESM2M_pi-control_C2', ncpus='128', npes='120', mem='256Gb')
 
     def test_ICCMp1(self):
 
         self.run('ICCM', 'ICCMp1', ncpus='64', mem='128Gb')
-
 
