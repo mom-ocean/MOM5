@@ -139,6 +139,17 @@ endif
 if ( ! -d $expdir )         mkdir -p $expdir
 if ( ! -d $expdir/RESTART ) mkdir -p $expdir/RESTART
 
+# --- make sure executable is up to date ---
+set makeFile = Makefile
+cd $executable:h
+make -f $makeFile
+if ( $status != 0 ) then
+    unset echo
+    echo "ERROR: make failed"
+    exit 1
+endif
+#-------------------------------------------
+
 #Change to expdir
 cd $expdir
 
@@ -174,17 +185,6 @@ cp $namelist   input.nml
 cp $datatable  data_table
 cp $diagtable  diag_table
 cp $fieldtable field_table 
-
-# --- make sure executable is up to date ---
-set makeFile = Makefile
-cd $executable:h
-make -f $makeFile
-if ( $status != 0 ) then
-    unset echo
-    echo "ERROR: make failed"
-    exit 1
-endif
-#-------------------------------------------
 
 #Preprocessings
 $root/exp/preprocessing.csh
