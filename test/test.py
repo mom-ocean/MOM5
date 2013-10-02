@@ -17,7 +17,7 @@ def main():
 
     (opts, _) = parser.parse_args()
 
-    experiment = opts.experiment.replace('.', '_')
+    experiment = opts.experiment.replace('.', '_').replace('-', '_')
 
     if 'test_%s' % experiment in dir(tb.TestBitReproducibility):
         l = loader.TestLoader()
