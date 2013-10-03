@@ -146,7 +146,7 @@ integer :: ierr
 integer :: limt, ljmt, i, j
 integer :: step
 
-character(len=6), parameter :: cp_modnam='mom4xx'  ! Component model name same as in namcouple
+character(len=6), parameter :: cp_modnam='momxx'  ! Component model name same as in namcouple
 
 integer :: imt_global, jmt_global                  ! 2D global layout 
 integer :: imt_local, jmt_local                    ! 2D global layout 

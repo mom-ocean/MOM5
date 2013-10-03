@@ -10,9 +10,10 @@ LD = mpif90
 #########
 # flags #
 #########
-DEBUG = on
-REPRO = 
+DEBUG =
+REPRO =
 VERBOSE =
+OPT = on
 
 MAKEFLAGS += --jobs=4
 
