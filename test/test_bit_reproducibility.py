@@ -27,7 +27,7 @@ class ModelTestSetup(object):
         self.my_path = os.path.dirname(os.path.realpath(__file__))
         self.exp_path = os.path.join(self.my_path, '../', 'exp')
 
-    def run(self, model_type, exp, queue='normal', walltime='00:10:00', ncpus='16', npes=None, mem='32Gb',):
+    def run(self, model_type, exp, queue='normal', walltime='00:10:00', ncpus='32', npes=None, mem='64Gb',):
         """
         ncpus is for requested cpus, npes is for how many mom uses.
         """
