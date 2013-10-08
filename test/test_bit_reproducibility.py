@@ -70,6 +70,8 @@ class ModelTestSetup(object):
         print se
         assert 'NOTE: Natural end-of-script.' in so
 
+        return (so, se)
+
     def wait(self, run_id):
 
         while True:
@@ -118,7 +120,7 @@ class TestBitReproducibility(ModelTestSetup):
         type = 'MOM_SIS'
         experiment = 'om3_core3'
 
-        output = self.run(type, experiment)
+        (output, _) = self.run(type, experiment)
 
         assert self.get_checksums(output) == self.expected_checksums(type, experiment), "Checksums do not match."
 
@@ -144,7 +146,7 @@ class TestBitReproducibility(ModelTestSetup):
 
     def test_CM2M_coarse_BLING(self):
 
-        self.run('CM2M', 'CM2M_coarse_BLING', ncpus='64', mem='128Gb')
+        self.run('CM2M', 'CM2M_coarse_BLING', ncpus='64', npes='45', mem='128Gb')
 
     def test_ESM2M_pi_control_C2(self):
 
@@ -152,5 +154,5 @@ class TestBitReproducibility(ModelTestSetup):
 
     def test_ICCMp1(self):
 
-        self.run('ICCM', 'ICCMp1', ncpus='64', mem='128Gb')
+        self.run('ICCM', 'ICCMp1', ncpus='64', npes='45', mem='128Gb')
 
