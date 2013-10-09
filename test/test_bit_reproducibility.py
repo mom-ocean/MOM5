@@ -132,6 +132,10 @@ class TestBitReproducibility(ModelTestSetup):
 
         self.run('MOM_SIS', 'atlantic1', ncpus='32', npes='24', mem='64Gb')
 
+    def test_mom4p1_ebm1(self):
+
+        self.run('EBM', 'mom4p1_ebm1', ncpus='32', npes='17', mem='64Gb')
+
     def test_MOM_SIS_TOPAZ(self):
 
         self.run('MOM_SIS', 'MOM_SIS_TOPAZ')
