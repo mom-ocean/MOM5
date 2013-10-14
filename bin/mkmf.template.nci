@@ -4,13 +4,19 @@
 ############
 # commands #
 ############
-FC = mpif90
-CC = icc
-LD = mpif90
+ifneq ($(VTRACE),)
+    FC = mpif90-vt
+    CC = mpicc-vt
+    LD = mpif90-vt
+else
+    FC = mpif90
+    CC = mpicc
+    LD = mpif90
+endif
+
 #########
 # flags #
 #########
-DEBUG =
 REPRO =
 VERBOSE =
 OPT = on
