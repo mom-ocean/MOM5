@@ -136,8 +136,8 @@ integer :: num_coupling_proc   ! Number of processes involved in the coupling
 logical :: parallel_coupling
 
 integer :: jf
-character(len=9) :: choceout
-character(len=3) :: chout
+character(len=12) :: choceout
+character(len=6) :: chout
 
 !
 ! Coupling associated variables
@@ -146,7 +146,7 @@ integer :: ierr
 integer :: limt, ljmt, i, j
 integer :: step
 
-character(len=6), parameter :: cp_modnam='momxx'  ! Component model name same as in namcouple
+character(len=6), parameter :: cp_modnam='mom5xx'  ! Component model name same as in namcouple
 
 integer :: imt_global, jmt_global                  ! 2D global layout 
 integer :: imt_local, jmt_local                    ! 2D global layout 
@@ -455,10 +455,10 @@ endif
 !DHB
 if (mpp_pe() == mpp_root_pe() .or. parallel_coupling) then
   il_out = 85 + mpp_pe()
-  write(chout,'(I3.3)')il_out
-  choceout='oceout'//chout
+  write(chout,'(I6.6)'), il_out
+  choceout='oceout'//trim(chout)
   open(il_out,file=choceout,form='formatted')
-  print *, 'MOM4: (init_cpl), my_task opened log file: ', mpp_pe(), trim(choceout)
+  print *, 'MOM: (init_cpl), my_task opened log file: ', mpp_pe(), trim(choceout)
 endif
 
 
