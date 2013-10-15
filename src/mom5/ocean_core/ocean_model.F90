@@ -2039,7 +2039,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 #ifdef AusCOM
     ! performing horizontal mixing to fix the Red Sea and Gulf Bay salinity drift (Aug. 2010)
     ! for ACCESS simulations (no SSS restoring)
-    if (redsea_gulfbay_sfix .and. do_sfix_now) then
+    if (redsea_gulfbay_sfix .and. do_sfix_now .and. .false.) then
       call mpp_clock_begin(id_sfix)
       if (mpp_pe() == mpp_root_pe()) then
          write(110,*) 'MOM4, calling redsea_gulfbay_hmix_s at runtime = ', int_sec
