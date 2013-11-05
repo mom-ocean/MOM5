@@ -4,5 +4,5 @@
          module load intel-cc
          module load hdf5
          module load netcdf
-         module load openmpi
+         module load openmpi/1.6.5-mlx
          setenv mpirunCommand   "mpirun -np"
