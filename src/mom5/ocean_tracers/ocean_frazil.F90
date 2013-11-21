@@ -566,15 +566,14 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
           enddo
 
       else 
-#ifndef AusCOM
-
+#ifdef AusCOM
+       do j=jsc,jec
+             do i=isc,iec
+                do k=1,nk
+#else
           do k=1,nk 
              do j=jsc,jec
                 do i=isc,iec 
-#else
-          do j=jsc,jec
-             do i=isc,iec
-                do k=1,nk
 #endif
                    T_diag(index_frazil)%field(i,j,k) = 0.0
                    if(Grd%tmask(i,j,k) > 0.0) then 
