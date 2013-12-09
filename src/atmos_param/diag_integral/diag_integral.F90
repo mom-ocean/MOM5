@@ -103,8 +103,7 @@ integer             ::    &
                                    ! of output
 
 
-namelist / diag_integral_nml /      &
-                                output_interval, time_units,  &
+namelist /diag_integral_nml/  output_interval, time_units,  &
                                 file_name, print_header, &
                                 fields_per_print_line
 

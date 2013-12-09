@@ -33,7 +33,7 @@ logical :: sst_degk = .false.  ! when sst_degk=true the input sst data is in deg
 !amip date for repeating single day (rsd) option
  integer :: repeat_date(3)=(/-1,-1,-1/)
 
-namelist / ice_spec_nml / mcm_ice, do_leads, minimum_ice_concentration, &
+namelist /ice_spec_nml/ mcm_ice, do_leads, minimum_ice_concentration, &
                           minimum_ice_thickness, sst_degk, sst_pert, repeat_date
 
 contains

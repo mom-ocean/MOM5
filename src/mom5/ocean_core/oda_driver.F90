@@ -195,7 +195,7 @@ module oda_driver_mod
   
   public :: init_oda, oda
 
-  namelist /oda_nml / use_this_module,assim_method, assim_start_lat,         &
+  namelist /oda_nml/ use_this_module,assim_method, assim_start_lat,         &
             assim_end_lat, nk_asm, assim_interval, do_iau, do_convect_adjust,&
             max_profiles, max_sfc_obs, save_omf_snaps,                       &
             save_oma_snaps, assim_layout
