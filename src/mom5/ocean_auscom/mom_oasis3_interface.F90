@@ -322,67 +322,11 @@ endif
 !
 if (parallel_coupling) then
   allocate(vwork(iisc:iiec,jjsc:jjec))
-
-#ifdef SUBCPUS 
-    !split cpus at the same colum  into groups
-    irow= mpp_pe()/pe_layout(1)
-    jcol = mod(mpp_pe(),pe_layout(1))
-    call MPI_Comm_split(mom4_comm, jcol, irow, col_comm, ierr)
-    !call MPI_Comm_rank(col_comm, row_id, ierr)
-    call MPI_Barrier(mom4_comm, ierr)
-
-    !declare subarray types
-    sizes(1)=imt_local; sizes(2)=jmt_local
-    subsizes=sizes
-    starts(1)=0; starts(2)=0
-    call mpi_type_create_subarray(2, sizes, subsizes, starts, mpi_order_fortran, &
-                                mpi_real8, sendsubarray, ierr)
-    call mpi_type_commit(sendsubarray,ierr)
-    !if (my_task == 0) then ! create recv buffer in main cpu
-     sizes(1)=imt_local; sizes(2)=jmt_global
-     subsizes(1)=imt_local; subsizes(2)=jmt_local
-     starts(1)=0; starts(2)=0
-     call mpi_type_create_subarray(2, sizes, subsizes, starts, mpi_order_fortran, &
-                                   mpi_real8, recvsubarray, ierr)
-     call mpi_type_commit(recvsubarray, ierr)
-     extent = sizeof(realvalue)
-     start = 0
-     call mpi_type_create_resized(recvsubarray, start, extent, resizedrecvsubarray, ierr)
-     call mpi_type_commit(resizedrecvsubarray,ierr)
-    !end if
-    allocate(counts(pe_layout(2)),disps(pe_layout(2)))  !for cpus in the same column
-    forall (jf=1:pe_layout(2)) counts(jf) = 1
-    do jf=1,  pe_layout(2)
-      disps(jf) = (jf-1) * imt_local * jmt_local
-    end do
-#endif
 else
   allocate(vwork(isg:ieg,jsg:jeg))
 endif
   vwork=0.0
 
-
-!layout: 
-!- |--layout(1) --|
-!  |  c c c c c 
-!  |  c c c c c
-!(2)  . . . 
-!  |  c c c c c
-!-
-!only layout(1) cpus involve in coupling
-!the partition is the combination of blocks of cpus at in the same column 
-!because cice has to use slenderX1 patition type
-#ifdef SUBCPUS 
-if (parallel_coupling .and. mpp_pe() < pe_layout(1) ) then
-  iiscpl = mpp_pe() * imt_local +1 
-  iiecpl = iiscpl -1 + imt_local
-  jjscpl = 1  
-  jjecpl = jmt_global
-  
-  allocate(vwork_2(iiscpl:iiecpl,jjscpl:jjecpl))
-  vwork_2 = 0.0
-endif
-#endif
 
   ! Define name (as in namcouple) and declare each field sent/received by oce:
   !ice ==> ocn
@@ -431,8 +375,6 @@ endif
        endif
      enddo
      if (.not. fmatch) then
-       !write(6,*) 'coupler_init: (fields in) jf, imom_name_read, fields_in = ',&
-       !           jf, mom_name_read(jf)
        call mpp_error(FATAL,'coupler_init: Illegal input name' )
      endif
      fmatch = .false.
@@ -466,14 +408,7 @@ endif
     write(il_out, *) "data domain:",mpp_pe(), iisd, iied, jjsd, jjed 
     write(il_out, *) "global domain:",mpp_pe(), isg, ieg, jsg, jeg 
     write(il_out, *) "global layout nx x ny:",pe_layout(1), pe_layout(2) 
-#ifdef SUBCPUS 
-    if(parallel_coupling .and. mpp_pe() < pe_layout(1)) then
-      write(il_out, *) "partition for coupling :", iiscpl, iiecpl, jjscpl, jjecpl 
-    endif
-#endif
     flush(il_out)
-
-!dhb
 
   il_paral (:) = 0
   if (.not. parallel_coupling) then 
@@ -484,22 +419,14 @@ endif
     send_after_ocean_update = .true.
   else !if( parallel_coupling .and. mpp_pe() < pe_layout(1) ) then
 
-! ???
   il_paral ( clim_strategy ) = clim_Box
 !every cpu gets coupling
   il_paral ( clim_offset   ) = (ieg-isg+1)*(jjsc-jsg)+(iisc-isg)
   il_paral ( clim_SizeX    ) = iiec-iisc+1
   il_paral ( clim_SizeY    ) = jjec-jjsc+1
   il_paral ( clim_LdX      ) = ieg-isg+1
-!only pe_layout(1) cpus get involved in coupling
-!  il_paral ( clim_offset   ) = iisc-isg
-!  il_paral ( clim_SizeX    ) = iiec-iisc+1
-!  il_paral ( clim_SizeY    ) = jeg-jsg+1
-!  il_paral ( clim_LdX      ) = ieg-isg+1
     send_before_ocean_update = .false.
     send_after_ocean_update = .true.
-  ! send_before_ocean_update = .true. ! ?????
-  ! send_after_ocean_update = .false. ! ?????
   
   endif
 
@@ -514,7 +441,6 @@ endif
   var_shape(4)= ubound(vwork,2)     ! max index for the coupling field local dim
 
 
-!if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling .and.  mpp_pe() < pe_layout(1) )) then
 if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling )) then
   !
   ! The following steps need to be done:
@@ -531,8 +457,6 @@ if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling )) then
   !       -Define the parallel decomposition associated to the port of each
   !        field; here no decomposition for all ports.
   !
-
-
 
   call prism_def_partition_proto (id_partition, il_paral, ierr)
 
@@ -584,28 +508,22 @@ logical, intent(in),optional :: before_ocean_update ! Flag to indicate whether
 integer:: jf, ierr, i, j
 
 real, pointer, dimension(:,:) :: vwork_local
-!dhb
 real, dimension(iisd:iied,jjsd:jjed) :: vtmp
 real, dimension(isg:ieg,jsg:jeg) :: gtmp
 
-!DHB
   character*80 :: fname='fields_o2i_in_ocn.nc'
   integer :: ncid,currstep,ll,ilout
   data currstep/0/
   save currstep
-!dhb
 
 ! Check if  we want to couple at this call.
 
 if ( before_ocean_update .and. (.not. send_before_ocean_update) ) return
 if ( (.not. before_ocean_update) .and. (.not. send_after_ocean_update) ) return
 
-!DHB
   currstep=currstep+1
   
   if (mpp_pe() == mpp_root_pe()) then
-    write(il_out,*)
-    write(il_out,*) '(into_coupler) sending coupling fields at stime= ', step
     if (chk_o2i_fields) then
       if ( .not. file_exist(trim(fname)) ) then
         call create_ncfile(trim(fname),ncid,imt_global,jmt_global,ll=1,ilout=il_out)
@@ -615,7 +533,6 @@ if ( (.not. before_ocean_update) .and. (.not. send_after_ocean_update) ) return
       call write_nc_1Dtime(real(step),currstep,'time',ncid)
     endif
   endif
-!dhb
 
 !20110329: gradient is now calculated in initialize_ocean_sfc to avoid the domain boundary shift!
 !!!Ocean_sfc%gradient(:,:,:) = GRAD_BAROTROPIC_P(Ocean_sfc%sea_lev(:,:))
@@ -627,34 +544,23 @@ do jf = 1,num_fields_out
      if(jf .ne. 1) call mpp_clock_begin(id_oasis_send1)
 
 ! Just point to array. Don't need to copy.
-!
-!!!
   vtmp(:,:) = 0.0
-!!!
   coupling_fields_out: select case( trim(fields_out(jf)))
   case('t_surf')
-    !vwork_local => Ocean_sfc%t_surf
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%t_surf(iisd:iied,jjsd:jjed)
   case('s_surf')
-    !vwork_local => Ocean_sfc%s_surf
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%s_surf(iisd:iied,jjsd:jjed)
   case('u_surf')
-    !vwork_local => Ocean_sfc%u_surf
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%u_surf(iisd:iied,jjsd:jjed)
   case('v_surf')
-    !vwork_local => Ocean_sfc%v_surf
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%v_surf(iisd:iied,jjsd:jjed)
   case('sea_lev')
-    !vwork_local => Ocean_sfc%sea_lev
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%sea_lev(iisd:iied,jjsd:jjed)
   case('frazil')
-    !vwork_local => Ocean_sfc%frazil
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%frazil(iisd:iied,jjsd:jjed)
   case('dssldx') 
-    !vwork_local => Ocean_sfc%gradient(:,:,1)
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1)
   case('dssldy') 
-    !vwork_local => Ocean_sfc%gradient(:,:,2)
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2)
   case DEFAULT
   call mpp_error(FATAL,&
@@ -662,34 +568,14 @@ do jf = 1,num_fields_out
   end select coupling_fields_out
 
   if(.not. parallel_coupling) then  
-      !call mpp_global_field(Ocean_sfc%domain, vwork_local(iisc:iiec,jjsc:jjec), vwork)
       call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), vwork)
   else
-#ifdef SUBCPUS
-      call mpi_gatherv(vtmp(iisc:iiec,jjsc:jjec),1,sendsubarray,vwork_2,counts,disps,resizedrecvsubarray, &
-                0,col_comm,ierr)
-      call MPI_Barrier(mom4_comm, ierr)
-#else
       vwork = vtmp
-#endif
   endif
 
- ! if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling .and. mpp_pe() < pe_layout(1))) then
   if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling )) then
 
-!    print *, 'MOM4: into_coupler putting field at step = ', trim(fields_out(jf)), ' ', step
-#ifdef SUBCPUS
-      call prism_put_proto(id_var_out(jf),step,vwork_2,ierr)
-#else
       call prism_put_proto(id_var_out(jf),step,vwork,ierr) 
-#endif
-!dhb:
-!      write(200+jf,'(10e14.6)') vwork
-!      call flush(200+jf)
-!
-!DHB
-      write(il_out,*)
-      write(il_out,*)'(into_ice) sent: ', fields_out(jf), step, ierr
   
       if (chk_o2i_fields) then
         if (parallel_coupling) then 
@@ -702,7 +588,6 @@ do jf = 1,num_fields_out
             call write_nc2D(ncid, trim(fields_out(jf)), vwork, 1, imt_global,jmt_global, &
                         currstep,ilout=il_out)
         endif
-!dhb
     endif
 
     if (ierr /= prism_ok.and. ierr < prism_sent) then
@@ -715,15 +600,10 @@ do jf = 1,num_fields_out
 
 enddo
      call mpp_clock_end(id_oasis_send)
-!dhb
-!      call prism_abort_proto(id_component, 'MOM4 into_cpl','stop 1')
-!
 
-!DHB
   if ( chk_o2i_fields .and. mpp_pe() == mpp_root_pe() ) then
     call ncheck(nf_close(ncid))
   endif
-!dhb
 
 return
 end subroutine into_coupler
@@ -748,7 +628,6 @@ integer, intent(in) :: step
 real :: frac_vis_dir=0.5*0.43, frac_vis_dif=0.5*0.43,             &
         frac_nir_dir=0.5*0.57, frac_nir_dif=0.5*0.57 ! shortwave partitioning
 
-!DHB:
   character*80 :: fname = 'fields_i2o_in_ocn.nc'
   integer :: ncid,currstep,ll,ilout
   data currstep/0/
@@ -757,7 +636,6 @@ real :: frac_vis_dir=0.5*0.43, frac_vis_dif=0.5*0.43,             &
   currstep=currstep+1
 
   if (mpp_pe() == mpp_root_pe()) then
-    write(il_out,*) '(from_coupler) receiving coupling fields at rtime: ', step
     if (chk_i2o_fields) then
       if ( .not. file_exist(trim(fname)) ) then
         call create_ncfile(trim(fname),ncid,imt_global,jmt_global,ll=1,ilout=il_out)
@@ -767,7 +645,6 @@ real :: frac_vis_dir=0.5*0.43, frac_vis_dif=0.5*0.43,             &
       call write_nc_1Dtime(real(step),currstep,'time',ncid)
     endif
   endif
-!dhb
 
      call mpp_clock_begin(id_oasis_recv)
 do jf =  1, num_fields_in
@@ -775,31 +652,16 @@ do jf =  1, num_fields_in
 
   !if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling .and. mpp_pe() < pe_layout(1))) then
   if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling )) then
-#ifdef SUBCPUS
-    call prism_get_proto(id_var_in(jf),step,vwork_2,ierr)
-#else
-    call prism_get_proto(id_var_in(jf),step,vwork,ierr)
-#endif
+  call prism_get_proto(id_var_in(jf),step,vwork,ierr)
 
     if (ierr /= PRISM_Ok.and. ierr < prism_recvd) then
       call prism_abort_proto(id_component, 'MOM4 _get_ ','stop 1')
-!DHB
-    else
-      write(il_out,*)
-      write(il_out,*)'(from_ice) rcvd at time with err: ',fields_in(jf),step,ierr
-!dhb
     endif
 
   endif
 
   if ( .not. parallel_coupling) then
     call mpp_broadcast(vwork, imt_global*jmt_global, mpp_root_pe())
-#ifdef SUBCPUS
-  else
-    call mpi_scatterv(vwork_2,counts,disps,resizedrecvsubarray,vwork(iisc:iiec,jjsc:jjec),1,sendsubarray, &
-              0,col_comm,ierr)
-    call MPI_Barrier(mom4_comm, ierr)
-#endif
   endif
 
 ! Handle conversions from raw field to what mom requires
@@ -868,17 +730,14 @@ do jf =  1, num_fields_in
                           currstep,ilout=il_out)
         endif
       endif
-!
 
      if(jf .ne. 1) call mpp_clock_end(id_oasis_recv1)
 enddo    !jf
      call mpp_clock_end(id_oasis_recv)
 
-!DHB
   if ( chk_i2o_fields .and. mpp_pe() == mpp_root_pe() ) then
     call ncheck(nf_close(ncid))
   endif
-!dhb
 
 end subroutine from_coupler
 
@@ -925,7 +784,6 @@ if ( write_restart ) then
     endif
 
          if (mpp_pe() == mpp_root_pe()) then
-           print *, 'MOM4: (write_coupler_restart) calling at ', step, ' ', fields_out(jf)
            if (parallel_coupling) then
              call write_nc2D(ncid, trim(fld_ice), gtmp, 2, imt_global,jmt_global, &
                         1,ilout=il_out)
