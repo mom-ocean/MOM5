@@ -758,7 +758,7 @@ character(len=8) :: fld_ice
 if ( write_restart ) then
 #ifdef OASIS3_MCT
    if ( mpp_pe() == mpp_root_pe() ) then
-     call create_ncfile('o2i.nc', ncid, imt_global,jmt_global, ll=1, ilout=il_out)
+     call create_ncfile('INPUT/o2i.nc', ncid, imt_global,jmt_global, ll=1, ilout=il_out)
      call write_nc_1Dtime(real(step), 1, 'time', ncid)
    endif
    !update frazil
