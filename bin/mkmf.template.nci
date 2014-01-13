@@ -4,9 +4,15 @@
 ############
 # commands #
 ############
-FC = mpif90
+ifeq ($(VTRACE), yes)
+    FC = mpif90-vt
+    LD = mpif90-vt
+else
+    FC = mpif90
+    LD = mpif90
+endif
+
 CC = mpicc
-LD = mpif90
 
 #########
 # flags #
@@ -20,7 +26,7 @@ MAKEFLAGS += --jobs=4
 INCLUDE   = -I$(NETCDF_ROOT)/include
 
 FPPFLAGS := -fpp -Wp,-w $(INCLUDE)
-FFLAGS := -fno-alias -safe-cray-ptr -fpe0 -ftz -assume byterecl -i4 -r8 -nowarn -check noarg_temp_created -assume buffered_io
+FFLAGS := -fno-alias -safe-cray-ptr -fpe0 -ftz -assume byterecl -i4 -r8 -g -nowarn -check noarg_temp_created -assume buffered_io
 FFLAGS_OPT = -O3 -debug minimal -fp-model precise
 FFLAGS_DEBUG = -g -O0 -debug all  -check -check noarg_temp_created -check nopointer -warn -warn noerrors -fpe0 -traceback -ftrapuv
 FFLAGS_REPRO = -O2 -debug minimal -no-vec -fp-model precise
@@ -30,7 +36,7 @@ CFLAGS := -D__IFC $(INCLUDE)
 CFLAGS_OPT = -O2 -debug minimal -no-vec
 CFLAGS_DEBUG = -O0 -g -ftrapuv -traceback
 
-LDFLAGS := 
+LDFLAGS :=
 LDFLAGS_VERBOSE := -Wl,-V,--verbose,-cref,-M
 
 ifneq ($(REPRO),)
