@@ -68,6 +68,9 @@ program main
 !     function are used.
 !     
 !   </DATA>
+!   <DATA NAME="years "  TYPE="integer"  DEFAULT="0">
+!     The number of months that the current integration will be run for. 
+!   </DATA>
 !   <DATA NAME="months "  TYPE="integer"  DEFAULT="0">
 !     The number of months that the current integration will be run for. 
 !   </DATA>
@@ -179,6 +182,7 @@ program main
   integer :: date_init(6)=0, date(6)
   integer :: date_restart(6)
   integer :: years=0, months=0, days=0, hours=0, minutes=0, seconds=0
+  integer :: yy, mm, dd, hh, mimi, ss
 
   integer :: isc,iec,jsc,jec
   integer :: unit, io_status, ierr
@@ -203,7 +207,7 @@ program main
   integer ::  stdoutunit,stdlogunit
   logical :: external_initialization
 
-  namelist /ocean_solo_nml/ date_init, calendar, months, days, hours, minutes, seconds, dt_cpld, &
+  namelist /ocean_solo_nml/ date_init, calendar, years, months, days, hours, minutes, seconds, dt_cpld, &
                             n_mask, layout_mask, mask_list, restart_interval
 
   call external_coupler_mpi_init(mpi_comm_mom, external_initialization)
@@ -251,16 +255,16 @@ program main
   end select 
 
   ! get ocean_solo restart : this can override settings from namelist
-  if (file_exist('INPUT/ocean_solo.res')) then
-      call mpp_open(unit,'INPUT/ocean_solo.res',form=MPP_ASCII,action=MPP_RDONLY)
+  if (file_exist('RESTART/ocean_solo.res')) then
+      call mpp_open(unit,'RESTART/ocean_solo.res',form=MPP_ASCII,action=MPP_RDONLY)
       read(unit,*) calendar_type 
       read(unit,*) date_init
       read(unit,*) date
       call mpp_close(unit)
   endif
 
-  if (file_exist('INPUT/ocean_solo.intermediate.res')) then
-      call mpp_open(unit,'INPUT/ocean_solo.intermediate.res',form=MPP_ASCII,action=MPP_RDONLY)
+  if (file_exist('RESTART/ocean_solo.intermediate.res')) then
+      call mpp_open(unit,'RESTART/ocean_solo.intermediate.res',form=MPP_ASCII,action=MPP_RDONLY)
       read(unit,*) date_restart
       call mpp_close(unit)
   else
@@ -288,7 +292,7 @@ program main
            date_init(4),date_init(5),date_init(6))
   endif
 
-  if (file_exist('INPUT/ocean_solo.res')) then
+  if (file_exist('RESTART/ocean_solo.res')) then
       Time_start =  set_date(date(1),date(2),date(3),date(4),date(5),date(6))
   else
       Time_start = Time_init
@@ -298,7 +302,6 @@ program main
   Time_end          = increment_date(Time_start, years, months, days, hours, minutes, seconds)
   Run_len           = Time_end - Time_start
 
-
   Time_step_coupled = set_time(dt_cpld, 0)
   num_cpld_calls    = Run_len / Time_step_coupled
   Time = Time_start
@@ -306,7 +309,7 @@ program main
   Time_restart_init = set_date(date_restart(1), date_restart(2), date_restart(3),  &
                                date_restart(4), date_restart(5), date_restart(6) )
   Time_restart_current = Time_start
-  if(ALL(restart_interval ==0)) then
+  if(ALL(restart_interval == 0)) then
      Time_restart = increment_date(Time_end, 1, 0, 0, 0, 0, 0)   ! no intermediate restart
   else
      Time_restart = increment_date(Time_restart_init, restart_interval(1), restart_interval(2), &
@@ -354,8 +357,6 @@ program main
       if( layout_mask(1)*layout_mask(2) .NE. 0 ) call mpp_error(NOTE, &
            'program ocean_solo: when no region is masked out, layout_mask need not be set' )
   end if
-
-
 
   call ocean_model_init(Ocean_sfc, Ocean_state, Time_init, Time)
 
@@ -730,12 +731,3 @@ call mpp_sync()
 #endif
 
 end program main
-  
-        
-
-  
-
-
-
-
-
