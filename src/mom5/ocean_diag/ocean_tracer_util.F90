@@ -256,6 +256,7 @@ subroutine tracer_min_max(Time, Thickness, Tracer)
           endif
           write(unit,'(a,i6)') ' And the number of cells in the column are kmt = ', Grd%kmt(itmax,jtmax)
           if (tmax > Tracer%max_tracer) then
+              flush(unit)
               call mpp_error(FATAL, &
                '==>Error from ocean_tracer_util_mod: The maximum temperature is outside allowable range')
           endif
@@ -282,6 +283,7 @@ subroutine tracer_min_max(Time, Thickness, Tracer)
           endif
           write(unit,'(a,i6)') ' And the number of cells in the column are kmt = ', Grd%kmt(itmax,jtmax)
           if (tmax > Tracer%max_tracer) then
+              flush(unit)
               call mpp_error(FATAL,&
               '==>Error from ocean_tracer_util_mod: The maximum salinity is outside allowable range')
           endif
@@ -308,6 +310,7 @@ subroutine tracer_min_max(Time, Thickness, Tracer)
           endif
           write(unit,'(a,i6)') ' And the number of cells in the column are kmt = ', Grd%kmt(itmax,jtmax)
           if (tmax > Tracer%max_tracer) then
+              flush(unit)
               call mpp_error(FATAL, &
                '==>Error from ocean_tracer_util_mod: The maximum tracer is outside allowable range')
           endif 
@@ -338,6 +341,7 @@ subroutine tracer_min_max(Time, Thickness, Tracer)
           endif
           write(unit,'(a,i6)') ' And the number of cells in the column are kmt = ', Grd%kmt(itmin,jtmin)
           if (tmin < Tracer%min_tracer) then
+              flush(unit)
               call mpp_error(FATAL, &
                '==>Error from ocean_tracer_util_mod (tracer_min_max): minimum temp outside allowable range')
           endif
@@ -364,6 +368,7 @@ subroutine tracer_min_max(Time, Thickness, Tracer)
           endif
           write(unit,'(a,i6)') ' And the number of cells in the column are kmt = ', Grd%kmt(itmin,jtmin)
           if (tmin < Tracer%min_tracer) then
+              flush(unit)
               call mpp_error(FATAL, &
                '==>Error from ocean_tracer_util_mod: The minimum salinity is outside allowable range')
           endif
@@ -390,6 +395,7 @@ subroutine tracer_min_max(Time, Thickness, Tracer)
           endif
           write(unit,'(a,i6)') ' And the number of cells in the column are kmt = ', Grd%kmt(itmin,jtmin)
           if (tmin < Tracer%min_tracer) then
+              flush(unit)
               call mpp_error(FATAL, &
                '==>Error from ocean_tracer_util_mod (tracer_min_max): minimum tracer outside allowable range')
           endif
