@@ -66,6 +66,11 @@ logical :: redsea_gulfbay_sfix = .true.
 logical :: do_sfix_now = .true.
 logical :: chk_i2o_fields = .false.
 logical :: chk_o2i_fields = .false.
+! How often to dump the coupling fields if either of the above options are .true.
+! The unit of time is seconds. By default fields are dumped every timestep.
+integer :: chk_fields_period =  1
+! The time in seconds after which the field dumps should begin.
+integer :: chk_fields_start_time = 0
 real :: wfi_factor = 0.0    !20130314
 real :: wfo_adj = 0.0       !20130412: remove global ocean waterflux imbalance (e.g., x.xxxxE-07 kg/m^2/s)
                             !          this number should be determined by piControl run with no adjustment for
@@ -99,7 +104,9 @@ namelist /auscom_ice_nml/  dt_cpl, &
 !                   lat_low_bgdiff,                      & !20110802
 !                   bg_diff_eq,                          & !20110801
                    chk_i2o_fields,                      &
-                   chk_o2i_fields
+                   chk_o2i_fields,                      &
+                   chk_fields_period,                   &
+                   chk_fields_start_time
 integer :: int_sec
 
 !===========================================================================

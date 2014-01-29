@@ -114,6 +114,9 @@ use time_manager_mod, only: time_type
   use cpl_netcdf_setup_mod
 !dhb
 
+  ! Debugging and runtime checking. 
+  use debug_field_mod
+
 implicit none
 
 public :: mom_prism_init, mom_prism_terminate, coupler_init, from_coupler, into_coupler, &
@@ -495,7 +498,7 @@ subroutine into_coupler(step, Ocean_sfc, Time, before_ocean_update)
 
 use ocean_operators_mod, only : GRAD_BAROTROPIC_P       !GRAD_SURF_sealev
 use auscom_ice_mod, only      : auscom_ice_heatflux_new
-use auscom_ice_mod, only      : chk_o2i_fields
+use auscom_ice_mod, only      : chk_o2i_fields, chk_fields_period, chk_fields_start_time
 
 implicit none
 
@@ -521,11 +524,11 @@ real, dimension(isg:ieg,jsg:jeg) :: gtmp
 if ( before_ocean_update .and. (.not. send_before_ocean_update) ) return
 if ( (.not. before_ocean_update) .and. (.not. send_after_ocean_update) ) return
 
-  currstep=currstep+1
   
   if (mpp_pe() == mpp_root_pe()) then
-    if (chk_o2i_fields) then
-      if ( .not. file_exist(trim(fname)) ) then
+    if (chk_o2i_fields .and. (mod(step, chk_fields_period) == 0) .and. (step >= chk_fields_start_time)) then
+        currstep=currstep+1
+      if (currstep == 1) then
         call create_ncfile(trim(fname),ncid,imt_global,jmt_global,ll=1,ilout=il_out)
       endif
       write(il_out,*) 'opening file at nstep = ', trim(fname), step
@@ -548,20 +551,28 @@ do jf = 1,num_fields_out
   coupling_fields_out: select case( trim(fields_out(jf)))
   case('t_surf')
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%t_surf(iisd:iied,jjsd:jjed)
+    call debug_field_2d('t_surf', mpp_pe(), vtmp)
   case('s_surf')
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%s_surf(iisd:iied,jjsd:jjed)
+    call debug_field_2d('s_surf', mpp_pe(), vtmp)
   case('u_surf')
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%u_surf(iisd:iied,jjsd:jjed)
+    call debug_field_2d('u_surf', mpp_pe(), vtmp)
   case('v_surf')
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%v_surf(iisd:iied,jjsd:jjed)
+    call debug_field_2d('v_surf', mpp_pe(), vtmp)
   case('sea_lev')
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%sea_lev(iisd:iied,jjsd:jjed)
+    call debug_field_2d('sea_lev', mpp_pe(), vtmp)
   case('frazil')
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%frazil(iisd:iied,jjsd:jjed)
+    call debug_field_2d('frazil', mpp_pe(), vtmp)
   case('dssldx') 
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1)
+    call debug_field_2d('dssldx', mpp_pe(), vtmp)
   case('dssldy') 
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2)
+    call debug_field_2d('dssldy', mpp_pe(), vtmp)
   case DEFAULT
   call mpp_error(FATAL,&
       '==>Error from into_coupler: Unknown quantity.')
@@ -577,7 +588,7 @@ do jf = 1,num_fields_out
 
       call prism_put_proto(id_var_out(jf),step,vwork,ierr) 
   
-      if (chk_o2i_fields) then
+      if (chk_o2i_fields .and. (mod(step, chk_fields_period) == 0) .and. (step >= chk_fields_start_time)) then
         if (parallel_coupling) then 
           call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), gtmp)
           if( mpp_pe() == mpp_root_pe() )  &
@@ -601,7 +612,7 @@ do jf = 1,num_fields_out
 enddo
      call mpp_clock_end(id_oasis_send)
 
-  if ( chk_o2i_fields .and. mpp_pe() == mpp_root_pe() ) then
+  if (chk_o2i_fields .and. (mod(step, chk_fields_period) == 0) .and. (step >= chk_fields_start_time) .and. (mpp_pe() == mpp_root_pe())) then
     call ncheck(nf_close(ncid))
   endif
 
@@ -614,7 +625,7 @@ subroutine from_coupler(step,Ocean_sfc,Ice_ocean_boundary, Time)
 ! This is all highly user dependent. 
 
 use constants_mod, only  : hlv    ! 2.500e6 J/kg
-use auscom_ice_mod, only : chk_i2o_fields
+use auscom_ice_mod, only : chk_i2o_fields, chk_fields_period, chk_fields_start_time
 implicit none
 
 type (ocean_public_type) :: Ocean_sfc
@@ -632,12 +643,11 @@ real :: frac_vis_dir=0.5*0.43, frac_vis_dif=0.5*0.43,             &
   integer :: ncid,currstep,ll,ilout
   data currstep/0/
   save currstep
-  
-  currstep=currstep+1
 
   if (mpp_pe() == mpp_root_pe()) then
-    if (chk_i2o_fields) then
-      if ( .not. file_exist(trim(fname)) ) then
+    if (chk_i2o_fields .and. (mod(step, chk_fields_period) == 0) .and. (step >= chk_fields_start_time)) then 
+        currstep=currstep+1
+      if (currstep == 1) then
         call create_ncfile(trim(fname),ncid,imt_global,jmt_global,ll=1,ilout=il_out)
       endif
       write(il_out,*) 'opening file at nstep = ', trim(fname), step
@@ -671,54 +681,74 @@ do jf =  1, num_fields_in
   coupling_fields_in: select case ( trim(fields_in(jf) ))
   case('u_flux')
      Ice_ocean_boundary%u_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('u_flux', mpp_pe(), vwork)
   case('v_flux')
      Ice_ocean_boundary%v_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('v_flux', mpp_pe(), vwork)
   case('lprec')
      Ice_ocean_boundary%lprec(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('lprec', mpp_pe(), vwork)
   case('salt_flx')
      Ice_ocean_boundary%salt_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('salt_flux', mpp_pe(), vwork)
   case('calving') ! 
      Ice_ocean_boundary%calving(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('calving', mpp_pe(), vwork)
   case('sw_vdir')
      Ice_ocean_boundary%sw_flux_vis_dir(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('sw_vdir', mpp_pe(), vwork)
   case('sw_vdif')
      Ice_ocean_boundary%sw_flux_vis_dif(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('sw_vdif', mpp_pe(), vwork)
   case('sw_irdir')
      Ice_ocean_boundary%sw_flux_nir_dir(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('sw_irdir', mpp_pe(), vwork)
   case('sw_irdif')
      Ice_ocean_boundary%sw_flux_nir_dif(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('sw_irdif', mpp_pe(), vwork)
   case('sw_flux')
      Ice_ocean_boundary%sw_flux_vis_dir(iisc:iiec,jjsc:jjec) =  frac_vis_dir*vwork(iisc:iiec,jjsc:jjec)
      Ice_ocean_boundary%sw_flux_vis_dif(iisc:iiec,jjsc:jjec) =  frac_vis_dif*vwork(iisc:iiec,jjsc:jjec)
      Ice_ocean_boundary%sw_flux_nir_dir(iisc:iiec,jjsc:jjec) =  frac_nir_dir*vwork(iisc:iiec,jjsc:jjec)
      Ice_ocean_boundary%sw_flux_nir_dif(iisc:iiec,jjsc:jjec) =  frac_nir_dif*vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('sw_flux', mpp_pe(), vwork)
   case('q_flux')
      Ice_ocean_boundary%q_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)/hlv
+     call debug_field_2d('q_flux', mpp_pe(), vwork)
   case('t_flux')
      Ice_ocean_boundary%t_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('t_flux', mpp_pe(), vwork)
   case('lw_flux')
      Ice_ocean_boundary%lw_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('lw_flux', mpp_pe(), vwork)
   case('runof')
      Ice_ocean_boundary%runoff(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('runof', mpp_pe(), vwork)
   case('p')
      Ice_ocean_boundary%p(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('p', mpp_pe(), vwork)
   case('fprec')
      Ice_ocean_boundary%fprec(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('fprec', mpp_pe(), vwork)
   case('aice')
      Ice_ocean_boundary%aice(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('aice', mpp_pe(), vwork)
   case('mh_flux')
      Ice_ocean_boundary%mh_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('mh_flux', mpp_pe(), vwork)
   case('wfimelt')
      Ice_ocean_boundary%wfimelt(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('wfimelt', mpp_pe(), vwork)
   case('wfiform')
      Ice_ocean_boundary%wfiform(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+     call debug_field_2d('wfiform', mpp_pe(), vwork)
   case DEFAULT
 ! Probable error. Leave as warning for the moment. RASF
    call mpp_error(WARNING,&
       '==>Warning from from_coupler: Unknown quantity.')
   end select coupling_fields_in
 
-      if (chk_i2o_fields ) then
+      if (chk_i2o_fields .and. (mod(step, chk_fields_period) == 0) .and. (step >= chk_fields_start_time)) then
         if (parallel_coupling ) then
           call mpp_global_field(Ocean_sfc%domain, vwork(iisc:iiec,jjsc:jjec), gtmp) 
           if( mpp_pe() == mpp_root_pe() )  &
@@ -735,7 +765,7 @@ do jf =  1, num_fields_in
 enddo    !jf
      call mpp_clock_end(id_oasis_recv)
 
-  if ( chk_i2o_fields .and. mpp_pe() == mpp_root_pe() ) then
+  if (chk_i2o_fields .and. (mod(step, chk_fields_period) == 0) .and. (step >= chk_fields_start_time) .and. (mpp_pe() == mpp_root_pe())) then
     call ncheck(nf_close(ncid))
   endif
 
