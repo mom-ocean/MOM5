@@ -628,7 +628,7 @@ end interface
   integer              ::  i_sw, j_sw, i_nw, j_nw, i_se, j_se, i_ne, j_ne
 
   character(len=128)   :: version = '$ID$'
-  character (len=128)  :: tagname = '$Name: mom5_siena_08jun2012_smg $'
+  character (len=128)  :: tagname = '$Name: tikal $'
   logical              :: module_is_initialized = .FALSE.
   real, allocatable    :: wrk2(:)         ! needed for enhanced diffusion
   real, allocatable    :: wrk3(:)         ! needed for enhanced diffusion

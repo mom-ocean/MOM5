@@ -336,7 +336,7 @@ module idealized_ic_mod
 
   !--- version information 
   character(len=128) :: version = '$Id: idealized_ic.f90,v 14.0 2007/03/15 22:47:01 fms Exp $'
-  character(len=128) :: tagname = '$Name: siena_201207 $' 
+  character(len=128) :: tagname = '$Name: tikal $' 
 
   !--- output data -------------------------------------------------------
   real, dimension(:,:,:), allocatable :: temp, salt, age

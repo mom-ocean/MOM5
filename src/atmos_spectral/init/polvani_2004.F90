@@ -34,7 +34,7 @@ character(len=128), parameter :: version = &
 '$Id: polvani_2004.F90,v 19.0 2012/01/06 20:35:35 fms Exp $'
 
 character(len=128), parameter :: tagname = &
-'$Name: siena_201207 $'
+'$Name: tikal $'
 
 public :: polvani_2004
 

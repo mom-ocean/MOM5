@@ -46,7 +46,7 @@ end interface
 !===============================================================================================
 
 character(len=128), parameter :: version = '$Id: press_and_geopot.F90,v 17.0 2009/07/21 03:00:50 fms Exp $'
-character(len=128), parameter :: tagname = '$Name: siena_201207 $'
+character(len=128), parameter :: tagname = '$Name: tikal $'
 
 !===============================================================================================
  

@@ -103,8 +103,8 @@ private
 !---------------------------------------------------------------------
 !----------- version number for this module --------------------------
 
-character(len=128)  :: version =  '$Id: cloud_spec.F90,v 17.0.8.1.2.1.2.1.2.1.2.1.2.1.2.1 2012/01/05 22:49:33 wfc Exp $'
-character(len=128)  :: tagname =  '$Name: siena_201207 $'
+character(len=128)  :: version =  '$Id: cloud_spec.F90,v 20.0 2013/12/13 23:19:01 fms Exp $'
+character(len=128)  :: tagname =  '$Name: tikal $'
 
 
 !---------------------------------------------------------------------
@@ -155,12 +155,26 @@ logical :: force_use_of_temp_for_seed = .false.
                                         ! random number generator
                                         ! (needed for some 
                                         ! specialized applications)
+logical :: ignore_donner_cells = .false.! when set to .true., the effects 
+                                        ! of donner cell clouds in the
+                                        ! radiation code are ignored
+logical :: do_legacy_seed_generation = .false.
+                                        ! setting this variable to .true.
+                                        ! (not recommended except to
+                                        ! reproduce previous results) will
+                                        ! activate the seed generation
+                                        ! scheme used previously (through
+                                        ! the siena code). this scheme may
+                                        ! exhibit flaws at hi-res or when
+                                        ! time is held fixed in the 
+                                        ! radiation calculation. 
 
 namelist /cloud_spec_nml / cloud_type_form, wtr_cld_reff,   &
                            ice_cld_reff, rain_reff, overlap_type, &
                            doing_data_override, do_fu2007,    &
                            do_rain, do_snow, do_graupel, &
-                           force_use_of_temp_for_seed
+                           do_legacy_seed_generation, &
+                           force_use_of_temp_for_seed, ignore_donner_cells
 
 !----------------------------------------------------------------------
 !----  public data -------
@@ -262,7 +276,8 @@ integer :: id, jd, kmax
 !  </IN>
 ! </SUBROUTINE>
 ! 
-subroutine cloud_spec_init (pref, lonb, latb, axes, Time)
+subroutine cloud_spec_init (pref, lonb, latb, axes, Time,  &
+                            cloud_type_form_out)
 
 !---------------------------------------------------------------------
 !    cloud_spec_init is the constructor for cloud_spec_mod.
@@ -272,6 +287,7 @@ real, dimension(:,:),     intent(in)   ::  pref
 real, dimension(:,:),     intent(in)   ::  lonb, latb
 integer, dimension(4),    intent(in)   ::  axes
 type(time_type),          intent(in)   ::  Time
+character(len=16),        intent(out)  ::  cloud_type_form_out
 
 !-------------------------------------------------------------------
 !    intent(in) variables:
@@ -348,6 +364,11 @@ type(time_type),          intent(in)   ::  Time
       jd = size(latb,2) - 1
       kmax = size(pref,1) - 1
 
+!-----------------------------------------------------------------------
+!    define output field.
+!-----------------------------------------------------------------------
+      cloud_type_form_out = cloud_type_form
+
 !--------------------------------------------------------------------
 !    verify a valid type of cloud overlap. set logical variables
 !    based on the namelist value.
@@ -414,6 +435,10 @@ type(time_type),          intent(in)   ::  Time
             Cldrad_control%do_donner_deep_clouds = .true.
             call donner_deep_clouds_W_init (pref, lonb, latb,   &
                                             axes, Time)
+!RSH 3/6/13: The following call added to allow stochastic clouds to be 
+!            run for this case. Ultimately, the do_stochastic_clouds nml 
+!            variable should be moved to cloud_spec_nml.
+            call strat_clouds_W_init(latb, lonb)
 
 !------------------------------------------------------------------
 !    cloud fractions, heights are provided by the uw_conv shallow
@@ -423,6 +448,10 @@ type(time_type),          intent(in)   ::  Time
             Cldrad_control%do_uw_clouds = .true.
             call uw_clouds_W_init (pref, lonb, latb,   &
                                              axes, Time)
+!RSH 3/6/13: The following call added to allow stochastic clouds to be 
+!            run for this case. Ultimately, the do_stochastic_clouds nml 
+!            variable should be moved to cloud_spec_nml.
+            call strat_clouds_W_init(latb, lonb)
 
 !-------------------------------------------------------------------
 !    cloud fractions, heights are a combination of the donner
@@ -448,6 +477,10 @@ type(time_type),          intent(in)   ::  Time
                                              axes, Time)
            call uw_clouds_W_init (pref, lonb, latb,   &
                                             axes, Time)
+!RSH 3/6/13: The following call added to allow stochastic clouds to be 
+!            run for this case. Ultimately, the do_stochastic_clouds nml 
+!            variable should be moved to cloud_spec_nml.
+            call strat_clouds_W_init(latb, lonb)
 
 !-------------------------------------------------------------------
 !    cloud fractions, heights are provided by the klein large-scale
@@ -643,28 +676,35 @@ type(time_type),          intent(in)   ::  Time
           call cloud_generator_init
 
 !---------------------------------------------------------------------
+!     determine the source of the random number seed generator to be used
+!     for the stochastic cloud generation. the legacy scheme may fail to
+!     provide spacially unique seeds at hi-res (above c48) or if the time
+!     provided the radiation package does not monotonically advance (as in
+!     some specialized sensitivity / assessment studies). 
+!---------------------------------------------------------------------
+          if (do_legacy_seed_generation) then
+!---------------------------------------------------------------------
 !     if it is desired to force the use of the temperature-based
 !     random number seed (as is used when time is not always advancing
 !     as seen by the radiation package, or when model resolution is
 !     less than 1 degree), set the logical control variable in 
 !     Cldrad_control to so indicate. 
 !---------------------------------------------------------------------
-          if ( force_use_of_temp_for_seed) then
-            Cldrad_control%use_temp_for_seed = .true.
-            Cldrad_control%use_temp_for_seed_iz = .true.
-            call error_mesg ('cloud_spec_init', &
+            if ( force_use_of_temp_for_seed) then
+              Cldrad_control%use_temp_for_seed = .true.
+              Cldrad_control%use_temp_for_seed_iz = .true.
+              call error_mesg ('cloud_spec_init', &
                  'Will use temp as basis for stochastic cloud seed; &
                     &force_use_of_temp_for_seed is set true', NOTE)
-          else
-            call error_mesg ('cloud_spec_init', &
-               ' If model resolution is between c48 and c180, it is &
+            else
+              call error_mesg ('cloud_spec_init', &
+               ' If model resolution is above c48, it is &
                &HIGHLY RECOMMENDED that you set cloud_spec_nml variable &
                &force_use_of_temp_for_seed to true to assure &
                &reproducibility across pe count and domain layout', NOTE)
-            call error_mesg ('cloud_spec_init', &
-               'No action is needed at or below c48 resolution and at or &
-               &above c180 resolution.', NOTE)
-          endif
+              call error_mesg ('cloud_spec_init', &
+               'No action is needed at or below c48 resolution.', NOTE)
+            endif
 
 !---------------------------------------------------------------------
 !     if the latitude and longitude of adjacent points on a pe have the 
@@ -675,40 +715,48 @@ type(time_type),          intent(in)   ::  Time
 !     Note that for model resolutions of ~ 1 degree, some pes may use
 !     lat and lon, while others use temperature, and that this may change
 !     as the domain decomposition or npes used for the problem are changed.
-!     It is recommended that for  resolutions between c48 and c180 that 
-!     nml variable force_use_of_temp_for_seed be set to .true.; it may 
-!     remain the default value of .false. for lower resolution runs to 
-!     preserve legacy results, or if reproducibility over npes or layout
-!     is not essential. At c180 and above the loop below will set 
-!     the value to .true. on all pes, so nothing need explicitly be done.
+!     Therefore it is  HIGHLY RECOMMENDED that for  resolutions above c48  
+!     that nml variable force_use_of_temp_for_seed be set to .true.; 
+!     it may remain the default value of .false. for lower resolution runs
+!     or to preserve legacy results, or if reproducibility over npes or 
+!     layout is not essential. 
 !---------------------------------------------------------------------
-          if (.not. Cldrad_control%use_temp_for_seed) then
-  jLoop:    do j=1,jd
-              do i=1,id
-                do jj=j+1,jd+1
-                  do ii=i+1,id+1
-                    if (NINT(lats(ii,jj)) == NINT(lats(i,j))) then
-                      if (NINT(lons(ii,jj)) == NINT(lons(i,j))) then      
-                        Cldrad_control%use_temp_for_seed = .true.
-                        Cldrad_control%use_temp_for_seed_iz = .true.
-                        call error_mesg ('cloud_spec_init', &
-                         'Found grid point within 1 degree of  &
-                         &another',NOTE)
-                        call error_mesg ('cloud_spec_init', &
-                         'if reproducibility across npes and layout is &
-                         &desired and model res is between c48 and c180, &
-                         &you must set cloud_spec_nml variable force_use_&
-                         &of_temp_for_seed to true., and restart the  &
-                         &model.', NOTE)
-                        exit jLoop
+            if (.not. Cldrad_control%use_temp_for_seed) then
+  jLoop:      do j=1,jd
+                do i=1,id
+                  do jj=j+1,jd+1
+                    do ii=i+1,id+1
+                      if (NINT(lats(ii,jj)) == NINT(lats(i,j))) then
+                        if (NINT(lons(ii,jj)) == NINT(lons(i,j))) then    
+                          Cldrad_control%use_temp_for_seed = .true.
+                          Cldrad_control%use_temp_for_seed_iz = .true.
+                          call error_mesg ('cloud_spec_init', &
+                           'Found grid point within 1 degree of  &
+                             &another',NOTE)
+                          call error_mesg ('cloud_spec_init', &
+                            'if reproducibility across npes and layout is &
+                           &desired, you must set cloud_spec_nml variable &
+                           &force_use_of_temp_for_seed to true., and &
+                           &restart the model.', NOTE)
+                          exit jLoop
+                        endif
                       endif
-                    endif
+                    end do
                   end do
                 end do
-              end do
-            end do jLoop
+              end do jLoop
+            endif
+
+!-------------------------------------------------------------------------
+!    set seed generation source to be the temperature field (current 
+!    default).
+!-------------------------------------------------------------------------
+          else
+            Cldrad_control%use_temp_for_seed = .true.
+            Cldrad_control%use_temp_for_seed_iz = .true.
           endif
         endif
+
       else
         call error_mesg ('microphys_rad_mod', &
          ' attempt to use Cldrad_control%do_stochastic_clouds before &
@@ -956,6 +1004,40 @@ integer, dimension(:,:),      intent(inout), optional:: nsum_out
               'must input either r or lsc_liquid_in and  &
               &lsc_ice_in when using predicted cloud microphysics', &
                                                                FATAL)
+        endif
+      endif
+
+      if (Cldrad_control%do_uw_clouds) then
+        if ( present (shallow_cloud_area) .and. &
+             present (shallow_liquid) .and.  &
+             present (shallow_ice)  .and.  &
+             present (shallow_droplet_number) .and. &
+             present (shallow_ice_number) ) then
+        else
+          call error_mesg ('cloud_spec_mod',  &
+           'optional argument(s) required when shallow clouds &
+                                           &are active is missing', FATAL)
+        endif
+      endif
+
+      if (Cldrad_control%do_donner_deep_clouds) then
+        if ( present (cell_cld_frac) .and. &
+             present (cell_liq_amt) .and.  &
+             present (cell_liq_size)  .and.  &
+             present (cell_ice_amt) .and. &
+             present (cell_ice_size) .and.  &
+             present (cell_droplet_number) .and. &
+             present (meso_cld_frac) .and. &
+             present (meso_liq_amt) .and.  &
+             present (meso_liq_size)  .and.  &
+             present (meso_ice_amt) .and. &
+             present (meso_ice_size) .and.  &
+             present (meso_droplet_number) .and. &
+             present (nsum_out) ) then
+        else
+          call error_mesg ('cloud_spec_mod',  &
+           'optional argument(s) required when donner clouds &
+                                           &are active is missing', FATAL)
         endif
       endif
 
@@ -2424,6 +2506,24 @@ type(cld_specification_type), intent(inout)   :: Cld_spec
 !----------------------------------------------------------------------
 !    assign cloud types, band by band
 !----------------------------------------------------------------------
+    IF (ignore_donner_cells) then
+          do n=1,nsubcols    
+            do k=1,size(Lsc_microphys%cldamt,3) ! Levels
+              do j=1,size(Lsc_microphys%cldamt,2) ! Lons
+                do i=1,size(Lsc_microphys%cldamt,1) ! Lats
+                  if (randomNumbers(i,j,k,n) >    &
+                           (1. -  Meso_microphys%cldamt(i, j, k))) then
+ 
+!----------------------------------------------------------------------
+!    it's a meso-scale.
+!----------------------------------------------------------------------
+                    Cld_spec%stoch_cloud_type(i,j,k,n) = 2 
+                  endif
+                end do
+              end do
+            end do
+          end do
+    ELSE
           do n=1,nsubcols    
             do k=1,size(Lsc_microphys%cldamt,3) ! Levels
               do j=1,size(Lsc_microphys%cldamt,2) ! Lons
@@ -2448,6 +2548,7 @@ type(cld_specification_type), intent(inout)   :: Cld_spec
               end do
             end do
           end do
+    ENDIF
         endif
 
 !----------------------------------------------------------------------

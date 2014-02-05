@@ -34,8 +34,8 @@ module generic_ERGOM
 
   use coupler_types_mod,   only: coupler_2d_bc_type
   use field_manager_mod,   only: fm_string_len
-  use fms_mod,             only: open_namelist_file, close_file, check_nml_error  
-  use mpp_mod,             only: mpp_error, NOTE, WARNING, FATAL, stdout, stdlog
+  use fms_mod,             only: write_version_number, open_namelist_file, close_file, check_nml_error  
+  use mpp_mod,             only: mpp_error, NOTE, WARNING, FATAL, stdout, stdlog, input_nml_file
   use mpp_mod,             only: mpp_clock_id, mpp_clock_begin, mpp_clock_end, CLOCK_ROUTINE
   use time_manager_mod,    only: time_type
   use fm_util_mod,         only: fm_util_start_namelist, fm_util_end_namelist  
@@ -51,6 +51,9 @@ module generic_ERGOM
 
 
   implicit none ; private
+
+  character(len=128) :: version = '$Id: generic_ERGOM.F90,v 20.0 2013/12/14 00:18:05 fms Exp $'
+  character(len=128) :: tagname = '$Name: tikal $'
 
   character(len=fm_string_len), parameter :: mod_name       = 'generic_ERGOM'
   character(len=fm_string_len), parameter :: package_name   = 'generic_ergom'
@@ -102,10 +105,10 @@ module generic_ERGOM
           nf         = 0., &   ! nitrification rate [1/s]
           alpha_nit  = 0., &   ! half-saturation constant for nitrification [mol/kg]
           alp_o2     = 0., &   ! slope function for detritus recycling [kg/mol]
-          alp_no3    = 0., &   ! slope function for detritus recycling [kg/mol]
-          alp_h2s    = 0., &   ! slope function for detritus recycling [kg/mol]
-          alp_nh4    = 0., &   ! slope function for detritus recycling [kg/mol]
-          k_h2s_o2   = 0., &   ! reaction constant h2s oxidation with o2 [kg/mol/s]
+	  alp_no3    = 0., &   ! slope function for detritus recycling [kg/mol]
+	  alp_h2s    = 0., &   ! slope function for detritus recycling [kg/mol]
+	  alp_nh4    = 0., &   ! slope function for detritus recycling [kg/mol]
+	  k_h2s_o2   = 0., &   ! reaction constant h2s oxidation with o2 [kg/mol/s]
           k_h2s_no3  = 0., &   ! reaction constant h2s oxidation with no3 [kg/mol/s]
           k_sul_o2   = 0., &   ! reaction constant sulfur oxidation with o2 [kg/mol/s]
           k_sul_no3  = 0., &   ! reaction constant sulfur oxidation with no3 [kg/mol/s]
@@ -116,9 +119,9 @@ module generic_ERGOM
           f_po4,   &           !po4 concentration [mol/kg]
           f_o2 ,   &           !o2 concentration [mol/kg]
           f_h2s,   &           !h2s concentration [mol/kg]
-          f_sul,   &           !sulfur concentration [mol/kg]
-          f_chl,   &           !chlorophyll concentration [µg/kg] 
-          irr_inst,&           !instantaneous light [W/m2]
+          f_sul,   &           !sulfur concentration [mol/kg]	       
+	  f_chl,   &           !chlorophyll concentration [µg/kg] 
+	  irr_inst,&           !instantaneous light [W/m2]
           jno3 ,   &           !time change of no3 concentration [mol/kg/s]
           jnh4 ,   &           !time change of nh4 concentration [mol/kg/s]
           jpo4 ,   &           !time change of po4 concentration [mol/kg/s]
@@ -129,19 +132,19 @@ module generic_ERGOM
           jh2s_no3  , &        !time change of h2s concentration [mol/kg/s] by nitrate
           jsul_o2   , &        !time change of sul concentration [mol/kg/s] by oxygen
           jsul_no3  , &        !time change of sul concentration [mol/kg/s] by nitrate
-          jrec_o2   , &        !nitrogen loss to nh4 by recycling with o2 [mol/kg/s]
-          jrec_no3  , &        !nitrogen loss to nh4 by recycling with no3 [mol/kg/s]
-          jrec_so4  , &        !nitrogen loss to nh4 by recycling with so4 [mol/kg/s]
-          jrec_ana  , &        !nitrogen loss to nh4 by recycling and subseqent anammox [mol/kg/s]
-          jdenit_wc,  &        !denitrification in water column [mol/kg/s]
-          jnitrif              !nitrification in water column [mol/kg/s]
+	  jrec_o2   , &        !nitrogen loss to nh4 by recycling with o2 [mol/kg/s]
+	  jrec_no3  , &        !nitrogen loss to nh4 by recycling with no3 [mol/kg/s]
+	  jrec_so4  , &        !nitrogen loss to nh4 by recycling with so4 [mol/kg/s]
+	  jrec_ana  , &        !nitrogen loss to nh4 by recycling and subseqent anammox [mol/kg/s]
+	  jdenit_wc,  &        !denitrification in water column [mol/kg/s]
+	  jnitrif              !nitrification in water column [mol/kg/s]
      real, dimension(:,:), ALLOCATABLE :: &
           b_nh4,      &
-          b_no3,      &
-          b_o2,       &
-          b_po4,      &
-          b_nitrogen, &
-          b_h2s
+	  b_no3,      &
+	  b_o2,       &
+	  b_po4,      &
+	  b_nitrogen, &
+	  b_h2s
      real, dimension(:,:,:,:), pointer :: &
           p_no3,      &        !no3 concentration [mol/kg]
           p_nh4,      &        !nh4 concentration [mol/kg]
@@ -163,7 +166,7 @@ module generic_ERGOM
           id_cya        = -1, & ! nitrogen in cyanobacteria prognostic tracer
           id_zoo        = -1, & ! nitrogen in zooplankton prognostic tracer
           id_det        = -1, & ! nitrogen in detritus prognostic tracer
-          id_irr_inst   = -1, & ! instantaneous light 
+	  id_irr_inst   = -1, & ! instantaneous light 
           id_jno3       = -1, & ! no3 source layer integral [mol/m2/s]
           id_jnh4       = -1, & ! nh4 source layer integral [mol/m2/s]
           id_jpo4       = -1, & ! po4 source layer integral [mol/m2/s]
@@ -198,101 +201,101 @@ module generic_ERGOM
           f_n         , & ! nitrogen in phytoplankton, the intermediate value after physics [mol/kg]
           ilim        , & ! light limitation factor [dimensionless]
           jprod_no3   , & ! no3 uptake [mol/kg/s]
-          jprod_nh4   , & ! nh4 uptake [mol/kg/s]
+	  jprod_nh4   , & ! nh4 uptake [mol/kg/s]
           jprod_po4   , & ! po4 uptake [mol/kg/s]
           jprod_n2    , & ! n2 fixation [mol/kg/s]
-          jgraz_n     , & ! nitrogen loss by grazing [mol/kg/s]
-          jres_n      , & ! nitrogen loss by respiration [mol/kg/s]
-          jdet_n      , & ! nitrogen loss to detritus [mol/kg/s]
-          move            ! phytoplankton sinking velocity (<0 for sinking) [m/s]
+	  jgraz_n     , & ! nitrogen loss by grazing [mol/kg/s]
+	  jres_n      , & ! nitrogen loss by respiration [mol/kg/s]
+	  jdet_n      , & ! nitrogen loss to detritus [mol/kg/s]
+	  move            ! phytoplankton sinking velocity (<0 for sinking) [m/s]	  
      real, dimension(:,:,:,:), pointer :: &
           p_phyt          !nitrogen in phytoplankton [mol/kg]
      real :: &
           imin     = 0. , & ! minimum light [W/m2]
-          tmin     = 0. , & ! minimum temperature [Celsius]
-          smin     = 0. , & ! minimum phytoplankton salinity [g/kg]
-          smax     = 0. , & ! maximum phytoplankton salinity [g/kg]
+	  tmin     = 0. , & ! minimum temperature [Celsius]
+	  smin     = 0. , & ! minimum phytoplankton salinity [g/kg]
+	  smax     = 0. , & ! maximum phytoplankton salinity [g/kg]
           alpha    = 0. , & ! DIN half-saturation constant [mol/kg]
           talpha   = 0. , & ! Michaeles Menton-like temperature [Celsius]
           rp0      = 0. , & ! maximum uptake rate [1/s]
           p0       = 0. , & ! background concentration for initial growth [mol/kg]
-          pnr      = 0. , & ! P/N ratio
-          cnr      = 0. , & ! C/N ratio
-          lpd      = 0. , & ! phytoplankton loss to detritus [1/s]
-          lpr      = 0. , & ! phytoplankton loss by respiration [1/s]
-          wsink0   = 0.     ! surface phytoplankton sinking velocity [m/s]
+	  pnr      = 0. , & ! P/N ratio
+	  cnr      = 0. , & ! C/N ratio
+	  lpd      = 0. , & ! phytoplankton loss to detritus [1/s]
+	  lpr      = 0. , & ! phytoplankton loss by respiration [1/s]
+	  wsink0   = 0.     ! surface phytoplankton sinking velocity [m/s]
      integer ::            &
           id_jprod_no3  = -1 , & ! Diag id for no3 production layer integral [mol/m2/s]
-          id_jprod_nh4  = -1 , & ! Diag id for nh4 production layer integral [mol/m2/s]
+	  id_jprod_nh4  = -1 , & ! Diag id for nh4 production layer integral [mol/m2/s]
           id_jprod_po4  = -1 , & ! Diag id for po4 production layer integral [mol/m2/s]
           id_jprod_n2   = -1 , & ! Diag id for n2 fixation layer integral [mol/m2/s]
-          id_jgraz_n    = -1 , & ! Diag id for nitrogen grazing layer integral [mol/m2/s]
-          id_jres_n     = -1 , & ! Diag id for nitrogen respiration layer integral [mol/m2/s]
-          id_jdet_n     = -1 , & ! Diag id for nitrogen detritus layer integral [mol/m2/s]
-          id_ilim       = -1 , & ! light limitation
+	  id_jgraz_n    = -1 , & ! Diag id for nitrogen grazing layer integral [mol/m2/s]
+	  id_jres_n     = -1 , & ! Diag id for nitrogen respiration layer integral [mol/m2/s]
+	  id_jdet_n     = -1 , & ! Diag id for nitrogen detritus layer integral [mol/m2/s]
+          id_ilim       = -1 , & ! light limitation	     
           id_nlim       = -1 , & ! DIN limitation
-          id_plim       = -1     ! DIP limitation
-     character(len=3) :: name
+	  id_plim       = -1     ! DIP limitation	   
+     character(len=3) :: name	  
   end type phytoplankton 
 
   type zooplankton
      real, ALLOCATABLE, dimension(:)      :: pref_phy, pref_zoo, pref_det
      real, ALLOCATABLE, dimension(:,:,:)  :: &
           f_n       , & ! nitrogen in zooplankton, the intermediate value after physics [mol/kg]
-          jgraz_n   , & ! nitrogen loss by grazing [mol/kg/s]
+	  jgraz_n   , & ! nitrogen loss by grazing [mol/kg/s]
           jgain_n   , & ! nitrogen gain by grazing [mol/kg/s]
-          jres_n    , & ! nitrogen loss by respiration [mol/kg/s]
-          jdet_n    , & ! nitrogen loss to detritus [mol/kg/s]
-          move          ! zooplankton movement [m/s]
+	  jres_n    , & ! nitrogen loss by respiration [mol/kg/s]
+	  jdet_n    , & ! nitrogen loss to detritus [mol/kg/s]
+	  move      	! zooplankton movement [m/s]
      real, dimension(:,:,:,:), pointer :: &
           p_zoo           !nitrogen in zooplankton [mol/kg]
      real, dimension(:,:,:), pointer   :: &
           p_vmove     , & !vertical movement [m/s]
           p_vdiff         !vertical diffusion [m²/s]
      real :: &
-          pnr            = 0. , &  ! P/N ratio
-          cnr            = 0. , &  ! C/N ratio
-          t_opt          = 0. , &  ! optimal grazing temperature [Celsius]
+	  pnr            = 0. , &  ! P/N ratio
+	  cnr            = 0. , &  ! C/N ratio
+	  t_opt          = 0. , &  ! optimal grazing temperature [Celsius]
           t_max          = 0. , &  ! maximal grazing temperature [Celsius]
           beta           = 0. , &  ! parameter for temperature dependence of grazing [dimensionless]
-          sigma_b        = 0. , &  ! zooplankton loss rate to detritus [1/s]
+	  sigma_b        = 0. , &  ! zooplankton loss rate to detritus [1/s]
           oxy_sub        = 0. , &  ! oxygen level below which reduced respiration starts [mol/kg]
           oxy_min        = 0. , &  ! oxygen level below which no respiration takes place [mol/kg]
           resp_red       = 0. , &  ! reduction factor for respiration under suboxic conditions [dimensionless]
-          nue            = 0. , &  ! zooplankton loss rate to nh4 by respiration [1/s]
+	  nue            = 0. , &  ! zooplankton loss rate to nh4 by respiration [1/s]
           food_to_nh4    = 0. , &  ! fraction of eaten food directly lost to respiration [dimensionless]
           food_to_det    = 0. , &  ! fraction of eaten food directly lost to detritus [dimensionless]
           food_to_nh4_2  = 0. , &  ! fraction of (food that could be eaten at optimal temperature) 
-                                   ! directly lost to respiration [dimensionless]
+	                           ! directly lost to respiration [dimensionless]
           food_to_det_2  = 0. , &  ! fraction of (food that could be eaten at optimal temperature) 
-                                   ! directly lost to detritus [dimensionless]
-          iv             = 0. , &  ! Ivlev constant [kg/mol]
-          zcl1           = 0. , &  ! closure parameter [kg/mol]
-          graz           = 0. , &  ! zooplankton maximum grazing rate [1/s]
+	                           ! directly lost to detritus [dimensionless]
+	  iv             = 0. , &  ! Ivlev constant [kg/mol]
+	  zcl1           = 0. , &  ! closure parameter [kg/mol]
+	  graz           = 0. , &  ! zooplankton maximum grazing rate [1/s]
           z0             = 0. , &  ! background concentration for initial growth [mol/kg]
-          Imax           = 0. , &  ! maximum light intensity [W/m^2]
+	  Imax           = 0. , &  ! maximum light intensity [W/m^2]
           alpha          = 0. , &  ! light inhibition shape factor
           o2min          = 0. , &  ! minimum oxygen concentration where sinking stops [mol/kg]
           h2smax         = 0. , &  ! maximum h2s concentration where sinking stops [mol/kg]
           wtemp          = 0. , &  ! weight number for temperature sensitivity
           wo2            = 0. , &  ! weight number for o2 sensitivity
           wh2s           = 0. , &  ! weight number for h2s sensitivity
-          wsink0         = 0. , &  ! sink velocity (<0 for sinking) [m/s]
-          wrise0         = 0. , &  ! maximum rise velocity (>0 for rising) [m/s]
-          vdiff_max      = 0. , &  ! maximum enhanced diffusion
+	  wsink0         = 0. , &  ! sink velocity (<0 for sinking) [m/s]
+	  wrise0         = 0. , &  ! maximum rise velocity (>0 for rising) [m/s]
+	  vdiff_max      = 0. , &  ! maximum enhanced diffusion
           dark_rise      = 0. , &  ! whether zooplankton rises in the dark independent off a food gradients [dimensionless]
-          wfood          = 0.      ! weight number for food gradiens 
+	  wfood          = 0.      ! weight number for food gradiens 
      logical ::            &
           vertical_migration    = .false., & ! if true this special undergoes vertical migration
           blanchard_temperature = .false.    ! .false.: old ERGOM temperature dependence, 
-                                             ! .true. : Blanchard 1996 formula
+	                                     ! .true. : Blanchard 1996 formula
      integer ::            &
-          graz_pref      = -1  , & ! flag to select grazing preferences
-          id_jgraz_n     = -1  , & ! Diag id for nitrogen grazing (loss) layer integral [mol/m2/s]
+	  graz_pref      = -1  , & ! flag to select grazing preferences
+	  id_jgraz_n     = -1  , & ! Diag id for nitrogen grazing (loss) layer integral [mol/m2/s]
           id_jgain_n     = -1  , & ! Diag id for nitrogen grazing (gain) layer integral [mol/m2/s]
-          id_jres_n      = -1  , & ! Diag id for nitrogen respiration layer integral [mol/m2/s]
-          id_jdet_n      = -1  , & ! Diag id for nitrogen detritus layer integral [mol/m2/s]
-          id_vmove       = -1      ! Diag id for sink velocity 
+	  id_jres_n      = -1  , & ! Diag id for nitrogen respiration layer integral [mol/m2/s]
+	  id_jdet_n      = -1  , & ! Diag id for nitrogen detritus layer integral [mol/m2/s]
+	  id_vmove       = -1      ! Diag id for sink velocity 
      character(len=32) ::  &
           name             = 'none'  
   end type zooplankton
@@ -302,11 +305,11 @@ module generic_ERGOM
      ! It must have the same name.
      real, ALLOCATABLE, dimension(:,:,:)  :: &
           f_n      , &            ! nitrogen in detritus, the intermediate value after physics [mol/kg]
-          jgraz_n  , &            ! nitrogen loss to zooplankton by grazing [mol/kg/s]
-          jmort                   ! nitrogen gain in detritus by mortality [mol/kg/s]
+	  jgraz_n  , &            ! nitrogen loss to zooplankton by grazing [mol/kg/s]
+	  jmort    	          ! nitrogen gain in detritus by mortality [mol/kg/s]
      real :: &
-          dn       = 0. , &       ! recycling rate [1/s]
-          q10_rec  = 0.           ! q10 parameter for recycling of detritus [1/Celsius]
+	  dn       = 0. , &       ! recycling rate [1/s]
+	  q10_rec  = 0.	          ! q10 parameter for recycling of detritus [1/Celsius]
      integer ::        &
                                   ! detritus is suspended matter. The data field is in spm(i) 
           index_spm      = -1 , & ! stores the index index_spm in spm(index_spm)
@@ -321,23 +324,23 @@ module generic_ERGOM
      ! It contains no own data array.
      real, ALLOCATABLE, dimension(:,:)  :: &
           bioerosion  , &          ! local intensity of bioerosion (0.0 to 1.0)
-          jsed_n      , &          ! Nitrogen gain by sedimentation [mol/m2/s]
-          jrec_n      , &          ! Nitrogen loss to nh4 by recycling [mol/m2/s]
-          jdenit_sed  , &          ! Nitrogen loss to n2 by denitrification [mol/m2/s]
-          mode_sed                 ! support of bacterial matts 
+	  jsed_n      , &          ! Nitrogen gain by sedimentation [mol/m2/s]
+	  jrec_n      , &          ! Nitrogen loss to nh4 by recycling [mol/m2/s]
+	  jdenit_sed  , &          ! Nitrogen loss to n2 by denitrification [mol/m2/s]
+	  mode_sed                 ! support of bacterial matts 
      real :: &
-          dn              = 0. , & ! recycling rate [1/s]
+	  dn              = 0. , & ! recycling rate [1/s]
           frac_dn_anoxic  = 0. , & ! fraction of recycling in shallow sediments for anoxic bottom water [dimensionless]
-          thio_bact_min   = 0. , & ! minimum amount of active sediment for thiomargarita [mol/m2]
-          q10_rec         = 0. , & ! q10 parameter for recycling [1/Celsius]
-          den_rate        = 0. , & ! proportion of denitrification at the redoxcline in sediment
-          pnr             = 0. , & ! P/N ratio
-          cnr             = 0. , & ! C/N ratio
-          wsed            = 0. , & ! sedimentation rate [m/s]
+	  thio_bact_min   = 0. , & ! minimum amount of active sediment for thiomargarita [mol/m2]
+	  q10_rec         = 0. , & ! q10 parameter for recycling [1/Celsius]
+	  den_rate        = 0. , & ! proportion of denitrification at the redoxcline in sediment
+	  pnr             = 0. , & ! P/N ratio
+	  cnr             = 0. , & ! C/N ratio
+	  wsed            = 0. , & ! sedimentation rate [m/s]
           po4_lib_rate    = 0. , & ! liberation rate for iron phosphate in the sediment [1/s]
           po4_retention   = 0. , & ! fraction of phosphorous retained in the sediment while recycled [dimensionless]
           po4_ret_plus_BB = 0. , & ! value added to po4_retention north of 60.75N 
-                                   ! (special treatment for the Bothnian Bay to supress cyanobacterial blooms)
+                          	   ! (special treatment for the Bothnian Bay to supress cyanobacterial blooms)
           o2_bioerosion   = 0.     ! oxygen threshold for bioerosion  [mol/kg]
      character(len=32) ::  &
           name_redfield_sed   = 'sed' , &  ! name of the redfield-ratio sediment variable in sed
@@ -355,7 +358,7 @@ module generic_ERGOM
      ! that is able to settle (such as detritus).
      ! You should specify "sediment_to" to allow sedimentation to a sed_type tracer.
      real, ALLOCATABLE, dimension(:,:,:)  :: &
-          move                          ! sinking velocity (<0 for sinking) [m/s]
+	  move                          ! sinking velocity (<0 for sinking) [m/s]
      real, dimension(:,:,:,:), pointer :: &
           p_wat                         ! pointer to 3d variable for concentration in water column [mol/kg]
      real, ALLOCATABLE, dimension(:,:) :: &
@@ -363,7 +366,7 @@ module generic_ERGOM
      real, ALLOCATABLE, dimension(:,:) :: &
           btf                           ! The total bottom flux [mol/m2/s]
      real :: &
-          wsink0          = 0. , &      ! sinking velocity (<0 for sinking) [m/d]
+	  wsink0          = 0. , &      ! sinking velocity (<0 for sinking) [m/d]
           wsed            = 0.          ! sedimentation rate [m/d]
      character(len=32) ::  &
           name          = 'none' , &    ! name of 3d tracer
@@ -406,7 +409,7 @@ module generic_ERGOM
     integer :: &
           NUM_LAYERS        = -1 , & ! Number of vertical layers
           layer_propagation = -1 , & ! Sediment layer propagation settings, 
-                                     ! SLP_DOWNWARD=1, SLP_FULL_BOX=2, SLP_OLD_ERGOM=3
+	                             ! SLP_DOWNWARD=1, SLP_FULL_BOX=2, SLP_OLD_ERGOM=3
           erosion_mode      = -1     ! Sediment erosion mode, INDEPENDENT=1, MAXSTRESS=2, ORGANIC=3
     real, allocatable, dimension(:) :: layer_height  ! (maximum) height of vertical layers [m]. 
                                                      ! <0 means the layer may become infinitely thick.
@@ -469,20 +472,20 @@ module generic_ERGOM
   integer, parameter :: maxphyt=3, maxzoo=4, maxdet=2 
   integer, parameter :: maxspm=2, maxsed=2, max_sediment_layers=2
   real, dimension(maxphyt) :: &
-        imin   , &  ! minimum light [W/m2]
-        tmin   , &    ! minimum phytoplankton growth temperature (for cyanobacteria only) [Celsius]
-        smin   , &    ! minimum phytoplankton salinity (for diatoms only) 
-        smax   , &    ! maximum phytoplankton salinity (for diatoms only) 
-        alpha  , &    ! half-saturation constants of nutrient uptake by phytoplankton [mol/kg]
-        talpha , &    ! Michaeles Menton-like temperature [Celsius]
-        rp0    , &    ! maximum growth rates of phytoplankton [1/d]
-        p0     , &    ! background concentration for initial phytoplankton growth [mol/kg]
-        np     , &    ! number of P atoms in uptake
-        nn     , &    ! number of N atoms in uptake
-        nc     , &    ! number of C atoms in uptake
-        lpd    , &    ! loss rate of phytoplankton to detritus [1/d]
-        lpr    , &    ! loss rate of phytoplankton by respiration [1/d]
-        sinkp         ! phytoplankton sinking velocity [m/d]
+        imin   , &	  ! minimum light [W/m2]
+        tmin   , &	    ! minimum phytoplankton growth temperature (for cyanobacteria only) [Celsius]
+        smin   , &	    ! minimum phytoplankton salinity (for diatoms only) 
+        smax   , &	    ! maximum phytoplankton salinity (for diatoms only) 
+        alpha  , &	    ! half-saturation constants of nutrient uptake by phytoplankton [mol/kg]
+        talpha , &	    ! Michaeles Menton-like temperature [Celsius]
+        rp0    , &	    ! maximum growth rates of phytoplankton [1/d]
+        p0     , &	    ! background concentration for initial phytoplankton growth [mol/kg]
+	np     , &	    ! number of P atoms in uptake
+	nn     , &	    ! number of N atoms in uptake
+	nc     , &	    ! number of C atoms in uptake
+	lpd    , &	    ! loss rate of phytoplankton to detritus [1/d]
+	lpr    , &	    ! loss rate of phytoplankton by respiration [1/d]
+	sinkp		    ! phytoplankton sinking velocity [m/d]
   character(len=32)        :: name_phyt(maxphyt)
                                   
   real, dimension(maxzoo)  :: &
@@ -492,33 +495,33 @@ module generic_ERGOM
         oxy_sub_zoo , &     ! oxygen level below which reduced respiration starts [mol/kg]
         oxy_min_zoo, &      ! oxygen level below which no respiration takes place [mol/kg]
         resp_red_zoo, &     ! reduction factor for respiration under suboxic conditions [dimensionless]
-        sigma_b, &          ! loss rate of zooplankton to detritus [mol/kg/d]
-        nue    , &          ! loss rate of zooplankton to nh4 by respiration [mol/kg/d]
+	sigma_b, &	    ! loss rate of zooplankton to detritus [mol/kg/d]
+	nue    , &	    ! loss rate of zooplankton to nh4 by respiration [mol/kg/d]
         food_to_nh4   , &   ! fraction of eaten food that is directly lost to respiration [dimensionless]
         food_to_det   , &   ! fraction of eaten food that is directly lost to detritus [dimensionless]
         food_to_nh4_2 , &   ! fraction of food eaten potentially at optimal temperature 
-                            ! directly lost to respiration [dimensionless]
+	                    ! directly lost to respiration [dimensionless]
         food_to_det_2 , &   ! fraction of food eaten potentially at optimal temperature 
-                            ! directly lost to detritus [dimensionless]
-        iv     , &    ! Ivlev constant [kg/mol]
-        zcl1   , &    ! closure parameter [kg2/mol2]
-        graz   , &    ! zooplankton grazing rate [1/d]
-        z0     , &    ! background concentration for initial zooplankton growth [mol/kg]
-        Imax   , &    ! zooplankton maximum light intensity [W/m^2]
-        alpha_zoo, &    ! light inhibition shape factor
-        sinkz  , &    ! zooplankton sink velocity (<0 for sinking) [m/d]
-        risez  , &    ! zooplankton rise velocity (>0 for rising) [m/d]
-        vdiff_max  , &     ! zooplankton maximum enhanced diffusion[m^2/s]
-        dark_rise,&    ! whether zooplankton rises independent off a food gradient in the dark [dimensionless]
-        wfood  , &    ! weight for food gradients in zooplankton rise velocity 
-        o2min  , &    ! minimum oxygen concentration where sinking stops [mol/kg]
-        h2smax , &    ! maximum h2s concentration where sinking stops [mol/kg]
-        wtemp  , &    ! weight number for temperature sensitivity
-        wo2    , &    ! weight number for o2 sensitivity
-        wh2s   , &    ! weight number for h2s sensitivity
-        np_zoo , &    ! number of P atoms in the zooplankton, Redfield ratio
-        nn_zoo , &    ! number of N atoms in the zooplankton, Redfield ratio
-        nc_zoo        ! number of C atoms in the zooplankton, Redfield ratio
+	                    ! directly lost to detritus [dimensionless]
+	iv     , &	    ! Ivlev constant [kg/mol]
+	zcl1   , &	    ! closure parameter [kg2/mol2]
+	graz   , &	    ! zooplankton grazing rate [1/d]
+        z0     , &	    ! background concentration for initial zooplankton growth [mol/kg]
+	Imax   , &	    ! zooplankton maximum light intensity [W/m^2]
+        alpha_zoo, &	    ! light inhibition shape factor
+	sinkz  , &	    ! zooplankton sink velocity (<0 for sinking) [m/d]
+	risez  , &	    ! zooplankton rise velocity (>0 for rising) [m/d]
+	vdiff_max  , &      ! zooplankton maximum enhanced diffusion[m^2/s]
+        dark_rise,&	    ! whether zooplankton rises independent off a food gradient in the dark [dimensionless]
+	wfood  , &	    ! weight for food gradients in zooplankton rise velocity 
+        o2min  , &	    ! minimum oxygen concentration where sinking stops [mol/kg]
+        h2smax , &	    ! maximum h2s concentration where sinking stops [mol/kg]
+        wtemp  , &	    ! weight number for temperature sensitivity
+        wo2    , &	    ! weight number for o2 sensitivity
+        wh2s   , &	    ! weight number for h2s sensitivity
+	np_zoo , &	    ! number of P atoms in the zooplankton, Redfield ratio
+        nn_zoo , &	    ! number of N atoms in the zooplankton, Redfield ratio
+        nc_zoo  	    ! number of C atoms in the zooplankton, Redfield ratio
   real, dimension(maxzoo,maxphyt) :: pref_phy    ! food preferences of zooplankton for phytoplankton
   real, dimension(maxzoo,maxzoo)  :: pref_zoo    ! food preferences of zooplankton for zooplankton
   real, dimension(maxzoo,maxdet)  :: pref_det    ! food preferences of zooplankton for detritus
@@ -526,12 +529,12 @@ module generic_ERGOM
   
   character(len=32)         :: name_zoo(maxzoo)
   logical, dimension(maxzoo):: &
-        vertical_migration, & ! enables zooplankton migration
+        vertical_migration, & ! enables zooplankton migration				  
         blanchard_temperature ! .false.: old ERGOM temperature dependence, .true.: Blanchard 1996 formula
 
   real, dimension(maxdet)   :: &
         dn     , &          ! recycling rate
-        q10_rec             ! q10 parameter for recycling [1/Celsius]
+	q10_rec             ! q10 parameter for recycling [1/Celsius]
   character(len=32)         :: &
         name_det(maxdet), &
         name_redfield_sed   = 'sed', &
@@ -549,16 +552,16 @@ module generic_ERGOM
   character(len=32) ::           &
         name_spm(maxspm)    , & ! name of this type of spm (suspended particulate matter)
         sediment_to(maxspm) , & ! name of the sed(:) tracer to which sedimentation takes place
-        longname_spm(maxspm)    ! long name for output
+        longname_spm(maxspm)	! long name for output
 
   character(len=32) ::           &
         name_sed(maxsed)     , & ! name of this type of sedimented matter
         suspend_to(maxsed)   , & ! name of spm(:) tracer to which the resuspension takes place
-        longname_sed(maxsed)     ! long name for output
+        longname_sed(maxsed)	 ! long name for output
                                   
   real, dimension(max_sediment_layers) :: &
         sed_layer_height         ! (maximum) height of vertical layers [m]. 
-                                 ! < 0: the layer may become infinitely thick.
+	                         ! < 0: the layer may become infinitely thick.
   real  :: &
         nf        = .1       , &  ! nitrification rate [1/d]
         q10_nit   = .11      , &  ! q10 parameter for nitrification [1/Celsius]
@@ -568,30 +571,30 @@ module generic_ERGOM
         k_h2s_no3 = 8.e5     , &  ! reaction constant h2s oxidation with no3 [kg/mol/d]
         k_sul_o2  = 2.e4     , &  ! reaction constant sulfur oxidation with o2 [kg/mol/d]
         k_sul_no3 = 2.e4     , &  ! reaction constant sulfur oxidation with no3 [kg/mol/d] 
-        ldn_N     = 5.3      , &  ! stochiometric ratio no3/det for detritus recycling (denitrification) [1]
-        ldn_O     = 6.625    , &  ! stochiometric ratio o2/det for detritus recycling (oxic) [1]
-        ldn_S     = 3.3125   , &  ! stochiometric ratio h2s/det for detritus recycling (sulfate reduction) [1]
-        ldn_A     = 13.25    , &  ! stochiometric ratio no3/det = nh4/det for detritus recycling (anammox) [1]
-        alp_o2    =  5.e5    , &  ! smooth oxygen swithch function for detritus recycling [kg/mol]
-        alp_no3   =  2.2e6   , &  ! smooth oxygen swithch function for detritus recycling [kg/mol]
-        alp_h2s   =  5.e3    , &  ! smooth oxygen swithch function for detritus recycling [kg/mol]
-        alp_nh4   =  2.2e6   , &  ! smooth oxygen swithch function for detritus recycling [kg/mol]
-        k_an0     =  .02     , &  ! maximum anammox rate [1/d]
-        k_DN      =  1.      , &  ! 
-        k_DS      =  1.      , &  !
-        den_rate  =  0.5     , &  ! proportion of denitrification at the sediment redoxcline
-        dn_sed    =  0.003   , &  ! recycling rate of detritus in the sediment [1/d]
+        ldn_N	  = 5.3      , &  ! stochiometric ratio no3/det for detritus recycling (denitrification) [1]
+        ldn_O	  = 6.625    , &  ! stochiometric ratio o2/det for detritus recycling (oxic) [1]
+        ldn_S	  = 3.3125   , &  ! stochiometric ratio h2s/det for detritus recycling (sulfate reduction) [1]
+	ldn_A	  = 13.25    , &  ! stochiometric ratio no3/det = nh4/det for detritus recycling (anammox) [1]
+	alp_o2    =  5.e5    , &  ! smooth oxygen swithch function for detritus recycling [kg/mol]
+	alp_no3   =  2.2e6   , &  ! smooth oxygen swithch function for detritus recycling [kg/mol]
+	alp_h2s   =  5.e3    , &  ! smooth oxygen swithch function for detritus recycling [kg/mol]
+	alp_nh4   =  2.2e6   , &  ! smooth oxygen swithch function for detritus recycling [kg/mol]
+        k_an0	  =  .02     , &  ! maximum anammox rate [1/d]
+	k_DN	  =  1.      , &  ! 
+ 	k_DS	  =  1.      , &  !
+	den_rate  =  0.5     , &  ! proportion of denitrification at the sediment redoxcline		     
+	dn_sed    =  0.003   , &  ! recycling rate of detritus in the sediment [1/d]		     
         frac_dn_anoxic = 0.3 , &  ! fraction of recycling rate in shallow sediments for anoxic bottom water [dimensionless]
         thio_bact_min  = 1.0 , &  ! minimum nitrogen content of active sediment for thiomargarita [mol/m2]
-        q10_rec_sed = 0.0693 , &  ! q10 paramter for recycling of detritus in the sediment
-        np_sed    =   1.     , &  ! number of P atoms in the sediment, Redfield ratio
+	q10_rec_sed = 0.0693 , &  ! q10 paramter for recycling of detritus in the sediment
+	np_sed    =   1.     , &  ! number of P atoms in the sediment, Redfield ratio
         nn_sed    =  16.     , &  ! number of N atoms in the sediment, Redfield ratio
         nc_sed    = 106.     , &  ! number of C atoms in the sediment, Redfield ratio
-        po4_lib_rate     = 0., &  ! fraction of phosphorous retained in the sediment while recycled [1/d]
-        po4_retention    = 0., &  ! fraction of phosphorous retained in the sediment while recycled [dimensionless]
+        po4_lib_rate	 = 0., &  ! fraction of phosphorous retained in the sediment while recycled [1/d]
+        po4_retention	 = 0., &  ! fraction of phosphorous retained in the sediment while recycled [dimensionless]
         po4_ret_plus_BB  = 0., &  ! value added to po4_retention north of 60.75N
-                                  ! (special treatment for the Bothnian Bay to supress cyanobacterial blooms)
-        o2_bioerosion    = 6.5e-5 ! oxygen thresold to enable bioerosion [mol/kg]
+        			  ! (special treatment for the Bothnian Bay to supress cyanobacterial blooms)
+        o2_bioerosion	 = 6.5e-5 ! oxygen thresold to enable bioerosion [mol/kg]
    
   integer :: NUM_PHYTO   = 3 
   integer :: NUM_ZOO     = 1
@@ -653,11 +656,11 @@ module generic_ERGOM
   data (z0     (n),  n=1, maxzoo)  /1.0e-9, 1.0e-9, 1.0e-9, 1.0e-9/
                                                                  ! background concentration for initial growth [mol/kg]
   data (sigma_b(n),  n=1, maxzoo)  /0.03, 0.03, 0.03, 0.03/      ! loss rate of zooplankton to detritus [mol/kg/d]
-  data (t_opt_zoo(n),   n=1, maxzoo)  /15.0, 10.0, 10.0, 10.0/   ! temperature optimum of zooplankton for grazing [Celsius]
-  data (t_max_zoo(n),   n=1, maxzoo)  /25.0, 15.0, 15.0, 15.0/   ! maximal grazing temperature [Celsius]
+  data (t_opt_zoo(n),   n=1, maxzoo)  /15.0, 10.0, 10.0, 10.0/	 ! temperature optimum of zooplankton for grazing [Celsius]
+  data (t_max_zoo(n),   n=1, maxzoo)  /25.0, 15.0, 15.0, 15.0/	 ! maximal grazing temperature [Celsius]
   data (beta_zoo(n),    n=1, maxzoo)  /1.7, 1.7, 1.7, 1.7/       ! parameter for temperature dependence of grazing 
                                                                  ! [dimensionless]
-  data (oxy_sub_zoo(n), n=1, maxzoo) /60.e-6, 60.e-6, 60.e-6, 60.e-6/
+  data (oxy_sub_zoo(n), n=1, maxzoo) /60.e-6, 60.e-6, 60.e-6, 60.e-6/	
                                                                  ! threshold oxygen level for reduced respiration [mol/kg]
   data (oxy_min_zoo(n), n=1, maxzoo)  /5.e-6, 5.e-6, 5.e-6, 5.e-6/ 
                                                                  ! threshold level for no respiration [mol/kg]
@@ -669,10 +672,10 @@ module generic_ERGOM
   data (Imax   (n),  n=1, maxzoo)  /0.1, 0.1, 0.1, 0.1/          ! maximum light 10µE/m^2 / 4.6
   data (o2min  (n),  n=1, maxzoo)  /5.e-6, 5.e-6, 5.e-6, 5.e-6/  ! minimum oxygen concentration where sinking stops [mol/kg]
   data (h2smax (n),  n=1, maxzoo)  /1.e-6, 1.e-6, 1.e-6, 1.e-6/  ! maximum h2s concentration where sinking stops [mol/kg]
-  data (wtemp  (n),  n=1, maxzoo)  /1., 1., 1., 1. /             ! weight number for temperature sensitivity
-  data (wo2    (n),  n=1, maxzoo)  /1., 1., 1., 1. /             ! weight number for o2 sensitivity
-  data (wh2s   (n),  n=1, maxzoo)  /1., 1., 1., 1. /             ! weight number for h2s sensitivity
-  data (np_zoo (n),  n=1, maxzoo)  /1., 1., 1., 1. /             ! number of P atoms in the zooplankton 
+  data (wtemp  (n),  n=1, maxzoo)  /1.,	1., 1., 1. /		 ! weight number for temperature sensitivity
+  data (wo2    (n),  n=1, maxzoo)  /1.,	1., 1., 1. /		 ! weight number for o2 sensitivity
+  data (wh2s   (n),  n=1, maxzoo)  /1.,	1., 1., 1. /		 ! weight number for h2s sensitivity
+  data (np_zoo (n),  n=1, maxzoo)  /1., 1., 1., 1. /		 ! number of P atoms in the zooplankton 
   data (nn_zoo (n),  n=1, maxzoo)  /16., 16., 16., 16. /         ! number of N atoms in the zooplankton 
   data (nc_zoo (n),  n=1, maxzoo)  /106., 106., 106., 106./      ! number of C atoms in the zooplankton 
   data (alpha_zoo(n),  n=1, maxzoo)  /0., 0.012, 0.012, 0.012/     ! light inhibitation parameter
@@ -688,31 +691,31 @@ module generic_ERGOM
         /0.39, 0.29, 0.  ,0.29, &
          0.39, 0.29, 0.  ,0.29, &
          0.02, 0.02, 0.  ,0.02  &
-         /       ! 
+	/       ! 
   data ((pref_zoo(n, m), n=1, maxzoo), m=1, maxzoo)&
         /0. , 0.2, 0.5, 0., &
          0. , 0. , 0.2, 0., &
          0. , 0. , 0.1, 0., &
          0. , 0. ,  0., 0.  &
-         /       ! 
+	/       ! 
   data ((pref_det(n, m), n=1, maxzoo), m=1, maxdet)&
         /0.2, 0.2, 0.2, 0.0, &
          0. , 0.0, 0.0, 0.0  &
-         /       ! 
+	/       ! 
   data (name_zoo(n), n=1, maxzoo)  /'cop','kr1','kr2','sal'/ ! 
   data (graz_pref (n), n=1, maxzoo) /ERGOM_PREFS,GENUS_IVLEV,GENUS_IVLEV,0/ ! flag to select grazing preferences
   
-  data (dn     (n),  n=1, maxdet)  /0.003,  0.003 /       ! recycling rate of detritus [1/d]
-  data (q10_rec(n),  n=1, maxdet)  /0.0693, 0.0693/       ! q10 paramter for recycling of detritus [1/Celsius]
+  data (dn     (n),  n=1, maxdet)  /0.003,  0.003 /	  ! recycling rate of detritus [1/d]
+  data (q10_rec(n),  n=1, maxdet)  /0.0693, 0.0693/	  ! q10 paramter for recycling of detritus [1/Celsius]
   data (name_det(n), n=1, maxdet)  /'det','fast'/         ! 
 
-  data(wsink0_spm (n) , n=1, maxspm) /-3.0, -1.0/         ! sinking velocity (<0 for sinking) [m/d]
-  data(wsed_spm   (n) , n=1, maxspm) / 2.5,  0.5/         ! sedimentation rate [m/d]
-  data(name_spm(n)    , n=1, maxspm) /'det','ipw'/        ! name of spm tracer
-  data(sediment_to(n) , n=1, maxspm) /'none','none'/      ! name of sed tracer to which sedimentation takes place
+  data(wsink0_spm (n) , n=1, maxspm) /-3.0, -1.0/	  ! sinking velocity (<0 for sinking) [m/d]
+  data(wsed_spm   (n) , n=1, maxspm) / 2.5,  0.5/	  ! sedimentation rate [m/d]
+  data(name_spm(n)    , n=1, maxspm) /'det','ipw'/	  ! name of spm tracer
+  data(sediment_to(n) , n=1, maxspm) /'none','none'/	  ! name of sed tracer to which sedimentation takes place
   
-  data(name_sed(n)    , n=1, maxsed) /'sed','ips'/        ! name of sed tracer
-  data(suspend_to(n)  , n=1, maxsed) /'none','none'/      ! name of spm tracer to which resuspension takes place
+  data(name_sed(n)    , n=1, maxsed) /'sed','ips'/	  ! name of sed tracer
+  data(suspend_to(n)  , n=1, maxsed) /'none','none'/	  ! name of spm tracer to which resuspension takes place
   data(longname_sed(n), n=1, maxsed) /'detritus','iron phosphate'/ 
                                                           ! long name for output
   data(erosion_rate_sed(n), n=1, maxsed) /6.0, 6.0/       ! erosion rate [1/d]
@@ -771,7 +774,7 @@ module generic_ERGOM
    food_to_det  , & ! fraction of eaten food that is directly lost to detritus [dimensionless]
    food_to_nh4_2, & ! fraction of food eaten potentially, directly lost to respiration [dimensionless]
    food_to_det_2, & ! fraction of food eaten potentially, directly lost to detritus [dimensionless]
-   iv           , & ! Ivlev paramter for zooplankton grazing [kg/mol]
+   iv	        , & ! Ivlev paramter for zooplankton grazing [kg/mol]
    zcl1         , & ! closure parameter for zooplankton [kg/mol]
    graz         , & ! zooplankton maximum grazing rate [1/d] 
    z0           , & ! background concentration for initial zooplankton growth [mol/kg]
@@ -785,10 +788,10 @@ module generic_ERGOM
    graz_pref    , &  ! flag to select grazing preferences
 ! detritus parameters
    name_det     , & ! name of detritus, must be equal to a suspended particulate matter (spm) variable name
-   dn           , & ! recycling rate [1/d]
+   dn	        , & ! recycling rate [1/d]
    q10_rec      , & ! q10 paramter for recycling of detritus [1/Celsius]
 ! generic_ERGOM_type parameters
-   nf           , & ! nitrification rate [1/d]
+   nf	        , & ! nitrification rate [1/d]
    q10_nit      , & ! q10 parameter for nitrification [1/Celsius]
    alpha_nit    , & ! half-saturation constant for nitrification [mol/kg]
    q10_h2s      , & ! q10 parameter for chemolithotrophs (h2s oxidation) [1/Celsius]
@@ -842,18 +845,29 @@ contains
   subroutine generic_ERGOM_register(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
 
+    character(len=fm_string_len), parameter :: sub_name = 'generic_ERGOM_register'
     character(len=fm_string_len) :: errorstring
     integer :: ioun, io_status, ierr, i, j
     logical :: found
+    integer :: stdoutunit,stdlogunit
+
+    stdoutunit=stdout();stdlogunit=stdlog()
+
+    call write_version_number( version, tagname )
 
     ! provide for namelist over-ride of defaults 
+#ifdef INTERNAL_FILE_NML
+    read (input_nml_file, nml=ergom_nml, iostat=io_status)
+#else
     ioun = open_namelist_file()
     read  (ioun, ergom_nml,iostat=io_status)
-    write (stdout(),'(/)')
-    write (stdout(), ergom_nml)
-    write (stdlog(), ergom_nml)
-    ierr = check_nml_error(io_status,'ergom_nml')
     call close_file (ioun)
+#endif
+    ierr = check_nml_error(io_status,'ergom_nml')
+
+    write (stdoutunit,'(/)')
+    write (stdoutunit, ergom_nml)
+    write (stdlogunit, ergom_nml)
 
     allocate(phyto  (NUM_PHYTO)  )
     allocate(zoo    (NUM_ZOO)    )
@@ -869,23 +883,23 @@ contains
       found = .false.
       sed(i)%index_suspend_to = -1
       do j=1,NUM_SPM
-         if (trim(adjustl(suspend_to(i))) .eq. trim(adjustl(name_spm(j)))) then
-            found = .true.
-            sed(i)%index_suspend_to = j
-         endif
+	if (trim(adjustl(suspend_to(i))) .eq. trim(adjustl(name_spm(j)))) then
+	  found = .true.
+	  sed(i)%index_suspend_to = j
+	endif
       enddo
       if (.not. found) then
-         if ((trim(adjustl(suspend_to(i))) .eq. 'none') .and. (NUM_SPM .eq. NUM_SED)) then
-            sed(i)%index_suspend_to = i
-         else
+	if ((trim(adjustl(suspend_to(i))) .eq. 'none') .and. (NUM_SPM .eq. NUM_SED)) then
+	  sed(i)%index_suspend_to = i
+	else
           write(errorstring, '(a)') &
-               'Error: settled matter tracer '// &
-               trim(adjustl(name_sed(i))) // &
-               ' shall be resuspended to tracer ' // & 
-               trim(adjustl(suspend_to(i))) // &
-               ', but that does not exist as an spm tracer.'
-          call  mpp_error(FATAL, errorstring)
-       endif
+		'Error: settled matter tracer '// &
+		 trim(adjustl(name_sed(i)))	// &
+		 ' shall be resuspended to tracer '	// & 
+		 trim(adjustl(suspend_to(i))) // &
+		 ', but that does not exist as an spm tracer.'
+	  call  mpp_error(FATAL, errorstring)
+	endif
       endif
     enddo
     ! B) Set the values in det
@@ -898,10 +912,10 @@ contains
         endif
       enddo
       if (.not. found) then
-         write(errorstring, '(a)') &
-              'Error: detritus tracer '// &
-              trim(adjustl(name_det(i)))     // &
-              ' does not exist as a suspended particulate matter (spm) tracer.'
+	write(errorstring, '(a)') &
+                   'Error: detritus tracer '// &
+                    trim(adjustl(name_det(i)))     // &
+                   ' does not exist as a suspended particulate matter (spm) tracer.'
         call  mpp_error(FATAL, errorstring)
       endif
     enddo
@@ -913,23 +927,23 @@ contains
       found = .false.
       spm(i)%index_sediment_to = -1
       do j=1,NUM_SED
-         if (trim(adjustl(sediment_to(i))) .eq. trim(adjustl(name_sed(j)))) then
-            found = .true.
-            spm(i)%index_sediment_to = j
-         endif
+	if (trim(adjustl(sediment_to(i))) .eq. trim(adjustl(name_sed(j)))) then
+	  found = .true.
+	  spm(i)%index_sediment_to = j
+	endif
       enddo
       if (.not. found) then
-         if ((trim(adjustl(sediment_to(i))) .eq. 'none') .and. (NUM_SPM .eq. NUM_SED)) then
-            spm(i)%index_sediment_to = i
-         else
+	if ((trim(adjustl(sediment_to(i))) .eq. 'none') .and. (NUM_SPM .eq. NUM_SED)) then
+	  spm(i)%index_sediment_to = i
+	else
           write(errorstring, '(a)') &
                'Error: suspended particulate matter (spm) tracer '// &
-               trim(adjustl(name_spm(i)))     // &
-               ' shall be sedimented to tracer '     // & 
-               trim(adjustl(sediment_to(i))) // &
-               ', but that does not exist as a settled matter (sed) tracer.'
-          call  mpp_error(FATAL, errorstring)
-       endif
+		trim(adjustl(name_spm(i)))     // &
+		' shall be sedimented to tracer '     // & 
+		trim(adjustl(sediment_to(i))) // &
+		', but that does not exist as a settled matter (sed) tracer.'
+	  call  mpp_error(FATAL, errorstring)
+	endif
       endif
     enddo
     ! C) Set the values in biosed
@@ -959,7 +973,7 @@ contains
           'Error: iron phosphate sediment tracer '// &
           trim(adjustl(name_iron_phosphate))     // &
           ' does not exist as a settled matter (sed) tracer, '// &
-          'but po4_retention is not zero.'
+	  'but po4_retention is not zero.'
       call  mpp_error(FATAL, errorstring)
     endif
 
@@ -994,22 +1008,16 @@ contains
   subroutine generic_ERGOM_init(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
 
-    integer :: ioun, io_status, ierr
-    
+    character(len=fm_string_len), parameter :: sub_name = 'generic_ERGOM_init'
+    integer :: stdoutunit,stdlogunit
+
+    stdoutunit=stdout();stdlogunit=stdlog()
+
     id_init   =   mpp_clock_id('(ERGOM init) '           ,grain=CLOCK_ROUTINE)
     id_alloc  =   mpp_clock_id('(ERGOM allocate) '       ,grain=CLOCK_ROUTINE)
     id_source = mpp_clock_id('(ERGOM source terms) '     ,grain=CLOCK_ROUTINE)
     id_susp   =   mpp_clock_id('(ERGOM resuspension) '   ,grain=CLOCK_ROUTINE)
     call mpp_clock_begin(id_init)
-
-    ! provide for namelist over-ride of defaults 
-    ioun = open_namelist_file()
-    read  (ioun, ergom_nml,iostat=io_status)
-    write (stdout(),'(/)')
-    write (stdout(), ergom_nml)
-    write (stdlog(), ergom_nml)
-    ierr = check_nml_error(io_status,'ergom_nml')
-    call close_file (ioun)
 
     !Specify and initialize all parameters used by this package
     call user_add_params
@@ -1018,152 +1026,152 @@ contains
     call user_allocate_arrays 
     
     ! now print a summary of all parameters    
-    write (stdout(),'(/)')
-    write (stdout(),*) 'Summary of the ERGOM model setup'
-    write (stdout(),'(a,I2)') 'Number of phytoplankton types : ', NUM_PHYTO
-    write (stdout(),'(a,I2)') 'Number of zoooplankton types  : ', NUM_ZOO
-    write (stdout(),'(a,I2)') 'Number of detritus types      : ', NUM_DET
-    write (stdout(),'(a,I2)') 'Number of SPM types           : ', NUM_SPM
-    write (stdout(),'(a,I2)') 'Number of settled matter types: ', NUM_SED
+    write (stdoutunit,'(/)')
+    write (stdoutunit,*) 'Summary of the ERGOM model setup'
+    write (stdoutunit,'(a,I2)') 'Number of phytoplankton types : ', NUM_PHYTO
+    write (stdoutunit,'(a,I2)') 'Number of zoooplankton types  : ', NUM_ZOO
+    write (stdoutunit,'(a,I2)') 'Number of detritus types      : ', NUM_DET
+    write (stdoutunit,'(a,I2)') 'Number of SPM types           : ', NUM_SPM
+    write (stdoutunit,'(a,I2)') 'Number of settled matter types: ', NUM_SED
     do n=1, NUM_PHYTO
-       write (stdout(),'(a)')          phyto(n)%name//':'
-       write (stdout(),'(a)')         '  Parameters: '
-       write (stdout(),'((a), e13.6)')'    P/N ratio, pnr                               : ', phyto(n)%pnr
-       write (stdout(),'((a), e13.6)')'    C/N ratio, cnr                               : ', phyto(n)%cnr
-       write (stdout(),'((a), e13.6)')'    seed concentration, p0, [mol/kg]             : ', phyto(n)%p0
-       write (stdout(),'(a)')         '  Parameters for growth: '
-       write (stdout(),'((a), e13.6)')'    minimum light                  imin [W/m2]   : ', phyto(n)%imin  
-       write (stdout(),'((a), e13.6)')'    minimum temperature            tmin [C]      : ', phyto(n)%tmin  
-       write (stdout(),'((a), e13.6)')'    minimum phytoplankton salinity smin [g/kg]   : ', phyto(n)%smin  
-       write (stdout(),'((a), e13.6)')'    maximum phytoplankton salinity smax [g/kg]   : ', phyto(n)%smax  
-       write (stdout(),'((a), e13.6)')'    DIN half-sat constant, alpha [mol/kg]        : ', phyto(n)%alpha 
-       write (stdout(),'((a), e13.6)')'    temperature dep. uptake, talpha  [Celsius]   : ', phyto(n)%talpha 
-       write (stdout(),'((a), e13.6)')'    maximum uptake rate            rp0  [1/s]    : ', phyto(n)%rp0   
-       write (stdout(),'(a)')         '  Parameters for losses: '
-       write (stdout(),'((a), e13.6)')'    loss to detritus, lpd  [1/s]                 : ', phyto(n)%lpd
-       write (stdout(),'((a), e13.6)')'    loss by respiration, lpr [1/s]               : ', phyto(n)%lpr
-       write (stdout(),'((a), e13.6)')'    sinking velocity, wsink0 [m/s]               : ', phyto(n)%wsink0
-       write (stdout(),'(/)')
+       write (stdoutunit,'(a)')          phyto(n)%name//':'
+       write (stdoutunit,'(a)')         '  Parameters: '
+       write (stdoutunit,'((a), e13.6)')'    P/N ratio, pnr			        : ', phyto(n)%pnr
+       write (stdoutunit,'((a), e13.6)')'    C/N ratio, cnr			        : ', phyto(n)%cnr
+       write (stdoutunit,'((a), e13.6)')'    seed concentration, p0, [mol/kg]	        : ', phyto(n)%p0
+       write (stdoutunit,'(a)')         '  Parameters for growth: '
+       write (stdoutunit,'((a), e13.6)')'    minimum light		  imin [W/m2]   : ', phyto(n)%imin  
+       write (stdoutunit,'((a), e13.6)')'    minimum temperature  	  tmin [C]      : ', phyto(n)%tmin  
+       write (stdoutunit,'((a), e13.6)')'    minimum phytoplankton salinity smin [g/kg]   : ', phyto(n)%smin  
+       write (stdoutunit,'((a), e13.6)')'    maximum phytoplankton salinity smax [g/kg]   : ', phyto(n)%smax  
+       write (stdoutunit,'((a), e13.6)')'    DIN half-sat constant, alpha [mol/kg]        : ', phyto(n)%alpha 
+       write (stdoutunit,'((a), e13.6)')'    temperature dep. uptake, talpha  [Celsius]   : ', phyto(n)%talpha 
+       write (stdoutunit,'((a), e13.6)')'    maximum uptake rate  	  rp0  [1/s]    : ', phyto(n)%rp0   
+       write (stdoutunit,'(a)')         '  Parameters for losses: '
+       write (stdoutunit,'((a), e13.6)')'    loss to detritus, lpd  [1/s] 	        : ', phyto(n)%lpd
+       write (stdoutunit,'((a), e13.6)')'    loss by respiration, lpr [1/s]	        : ', phyto(n)%lpr
+       write (stdoutunit,'((a), e13.6)')'    sinking velocity, wsink0 [m/s]	        : ', phyto(n)%wsink0
+       write (stdoutunit,'(/)')
     enddo
     do n=1, NUM_ZOO
-       write (stdout(),'(a)')             zoo(n)%name//':'
-       write (stdout(),'(a,(5f7.4,2x))')'  Grazing preferences phytoplankton            : ', &
+       write (stdoutunit,'(a)')             zoo(n)%name//':'
+       write (stdoutunit,'(a,(5f7.4,2x))')'  Grazing preferences phytoplankton            : ', &
                                          (zoo(n)%pref_phy(m),m=1,NUM_PHYTO)
-       write (stdout(),'(a,(5f7.4,2x))')'  Grazing preferences zooplankton              : ', &
+       write (stdoutunit,'(a,(5f7.4,2x))')'  Grazing preferences zooplankton              : ', &
                                          (zoo(n)%pref_zoo(m),m=1,NUM_ZOO)
-       write (stdout(),'(a,(5f7.4,2x))')'  Grazing preferences detritus                 : ', &
+       write (stdoutunit,'(a,(5f7.4,2x))')'  Grazing preferences detritus                 : ', &
                                          (zoo(n)%pref_det(m),m=1,NUM_DET)
-       write (stdout(),'(a)')           '  Parameters: '
-       write (stdout(),'((a), e13.6)')  '    P/N ratio, pnr                             : ', zoo(n)%pnr
-       write (stdout(),'((a), e13.6)')  '    C/N ratio, cnr                             : ', zoo(n)%cnr
-       write (stdout(),'((a), e13.6)')  '    seed concentration, z0, [mol/kg]           : ', zoo(n)%z0
-       write (stdout(),'(a)')           '  Parameters for grazing: '
-       write (stdout(),'((a), I2)')     '    grazing preference method                  : ', zoo(n)%graz_pref
-       write (stdout(),'((a), e13.6)')  '    Ivlev constant, iv,         [kg/mol]       : ', zoo(n)%iv
-       write (stdout(),'((a), e13.6)')  '    maximum grazing rate, graz, [1/s]          : ', zoo(n)%graz
-       write (stdout(),'((a), e13.6)')  '    maximal grazing temperature, t_max [C]     : ', zoo(n)%t_max
-       write (stdout(),'((a), e13.6)')  '    optimal grazing temperature, t_opt [C]     : ', zoo(n)%t_opt
-       write (stdout(),'((a), e13.6)')  '    parameter for temperature dependence, beta : ', zoo(n)%beta
-       write (stdout(),'((a), e13.6)')  '    fraction lost to respiration, food_to_nh4  : ', zoo(n)%food_to_nh4
-       write (stdout(),'((a), e13.6)')  '    fraction lost to detritus                  : ', zoo(n)%food_to_det
-       write (stdout(),'(a)')           '  Parameters for migration: '
+       write (stdoutunit,'(a)')           '  Parameters: '
+       write (stdoutunit,'((a), e13.6)')  '    P/N ratio, pnr				: ', zoo(n)%pnr
+       write (stdoutunit,'((a), e13.6)')  '    C/N ratio, cnr				: ', zoo(n)%cnr
+       write (stdoutunit,'((a), e13.6)')  '    seed concentration, z0, [mol/kg]		: ', zoo(n)%z0
+       write (stdoutunit,'(a)')           '  Parameters for grazing: '
+       write (stdoutunit,'((a), I2)')     '    grazing preference method                  : ', zoo(n)%graz_pref
+       write (stdoutunit,'((a), e13.6)')  '    Ivlev constant, iv,         [kg/mol]       : ', zoo(n)%iv
+       write (stdoutunit,'((a), e13.6)')  '    maximum grazing rate, graz, [1/s]          : ', zoo(n)%graz
+       write (stdoutunit,'((a), e13.6)')  '    maximal grazing temperature, t_max [C]     : ', zoo(n)%t_max
+       write (stdoutunit,'((a), e13.6)')  '    optimal grazing temperature, t_opt [C]     : ', zoo(n)%t_opt
+       write (stdoutunit,'((a), e13.6)')  '    parameter for temperature dependence, beta : ', zoo(n)%beta
+       write (stdoutunit,'((a), e13.6)')  '    fraction lost to respiration, food_to_nh4  : ', zoo(n)%food_to_nh4
+       write (stdoutunit,'((a), e13.6)')  '    fraction lost to detritus                  : ', zoo(n)%food_to_det
+       write (stdoutunit,'(a)')           '  Parameters for migration: '
        if (zoo(n)%vertical_migration) then
-         write (stdout(),'(a)')         '    migrating '
-         write (stdout(),'((a), e13.6)')'    maximum light intensity, Imax [W/m^2]      : ', zoo(n)%imax
-         write (stdout(),'((a), e13.6)')'    minimum oxygen conc., o2min [mol/kg]       : ', zoo(n)%o2min
-         write (stdout(),'((a), e13.6)')'    maximal temp for migration, t_max [C]      : ', zoo(n)%t_max
-         write (stdout(),'((a), e13.6)')'    maximum rise velocity, wrise0 [m/s]        : ', zoo(n)%wrise0
-         write (stdout(),'((a), e13.6)')'    maximum sink velocity, wsink0 [m/s]        : ', zoo(n)%wsink0
-         write (stdout(),'((a), e13.6)')'    maximum enhanced diff., vdiff_max [m2/s]   : ', zoo(n)%vdiff_max
+         write (stdoutunit,'(a)')         '    migrating '
+         write (stdoutunit,'((a), e13.6)')'    maximum light intensity, Imax [W/m^2]	: ', zoo(n)%imax
+         write (stdoutunit,'((a), e13.6)')'    minimum oxygen conc., o2min [mol/kg]	: ', zoo(n)%o2min
+         write (stdoutunit,'((a), e13.6)')'    maximal temp for migration, t_max [C]	: ', zoo(n)%t_max
+         write (stdoutunit,'((a), e13.6)')'    maximum rise velocity, wrise0 [m/s]	: ', zoo(n)%wrise0
+         write (stdoutunit,'((a), e13.6)')'    maximum sink velocity, wsink0 [m/s]	: ', zoo(n)%wsink0
+         write (stdoutunit,'((a), e13.6)')'    maximum enhanced diff., vdiff_max [m2/s]	: ', zoo(n)%vdiff_max
        else
-         write (stdout(),'(a)')         '    not migrating '
+         write (stdoutunit,'(a)')         '    not migrating '
        endif
-       write (stdout(),'(a)')           '  Closure term: '
-       write (stdout(),'((a), e13.6)')  '    closure parameter, zcl1 [kg/mol]           : ', zoo(n)%zcl1
-       write (stdout(),'((a), e13.6)')  '    loss rate by respiration, nue [1/s]        : ', zoo(n)%nue
-       write (stdout(),'((a), e13.6)')  '    loss rate to detritus, sigma_b [1/s]       : ', zoo(n)%sigma_b
-       write (stdout(),'(a)')           '  Respiration: '
-       write (stdout(),'((a), e13.6)')  '    reduction factor for respiration, resp_red : ', zoo(n)%resp_red
-       write (stdout(),'((a), e13.6)')  '    max oxy. f. reduced resp., oxy_sub [mol/kg]: ', zoo(n)%oxy_sub
-       write (stdout(),'((a), e13.6)')  '    min oxy. f. resp., oxy_min [mol/kg]        : ', zoo(n)%oxy_min
+       write (stdoutunit,'(a)')           '  Closure term: '
+       write (stdoutunit,'((a), e13.6)')  '    closure parameter, zcl1 [kg/mol]           : ', zoo(n)%zcl1
+       write (stdoutunit,'((a), e13.6)')  '    loss rate by respiration, nue [1/s]        : ', zoo(n)%nue
+       write (stdoutunit,'((a), e13.6)')  '    loss rate to detritus, sigma_b [1/s]       : ', zoo(n)%sigma_b
+       write (stdoutunit,'(a)')           '  Respiration: '
+       write (stdoutunit,'((a), e13.6)')  '    reduction factor for respiration, resp_red : ', zoo(n)%resp_red
+       write (stdoutunit,'((a), e13.6)')  '    max oxy. f. reduced resp., oxy_sub [mol/kg]: ', zoo(n)%oxy_sub
+       write (stdoutunit,'((a), e13.6)')  '    min oxy. f. resp., oxy_min [mol/kg]        : ', zoo(n)%oxy_min
 
-       write (stdout(),'(/)')
+       write (stdoutunit,'(/)')
     enddo
     do n=1, NUM_DET
-       write (stdout(),'(a)') det(n)%name//':'
-       write (stdout(),'(/)')
+       write (stdoutunit,'(a)') det(n)%name//':'
+       write (stdoutunit,'(/)')
     enddo
     do n=1, NUM_SPM
-       write (stdout(),'(a)')            trim(spm(n)%name)//':'
-       write (stdout(),'((a), e13.6)')  '  sinking velocity, wsink0 [m/d]               : ', spm(n)%wsink0  
-       write (stdout(),'((a), e13.6)')  '  sedimentation rate, wsed [m/d]               : ', spm(n)%wsed    
-       write (stdout(),'((a), (a))')    '  will sediment to tracer, (sediment_to)       : ', trim(sed(spm(n)%index_sediment_to)%name) 
+       write (stdoutunit,'(a)')            trim(spm(n)%name)//':'
+       write (stdoutunit,'((a), e13.6)')  '  sinking velocity, wsink0 [m/d]               : ', spm(n)%wsink0  
+       write (stdoutunit,'((a), e13.6)')  '  sedimentation rate, wsed [m/d]               : ', spm(n)%wsed    
+       write (stdoutunit,'((a), (a))')    '  will sediment to tracer, (sediment_to)       : ', trim(sed(spm(n)%index_sediment_to)%name) 
     enddo
     do n=1, NUM_SED
-       write (stdout(),'(a)')            trim(sed(n)%name)//':'
-       write (stdout(),'((a), e13.6)')  '  critical shear stress, critical_stress [N/m2]: ', sed(n)%critical_stress  
-       write (stdout(),'((a), (a))')    '  will be resuspended to tracer, (suspend_to)  : ', trim(spm(sed(n)%index_suspend_to)%name) 
+       write (stdoutunit,'(a)')            trim(sed(n)%name)//':'
+       write (stdoutunit,'((a), e13.6)')  '  critical shear stress, critical_stress [N/m2]: ', sed(n)%critical_stress  
+       write (stdoutunit,'((a), (a))')    '  will be resuspended to tracer, (suspend_to)  : ', trim(spm(sed(n)%index_suspend_to)%name) 
     enddo
-    write (stdout(),'(a)')          'Sediment parameters:'
-    write (stdout(),'((a), e13.6)') '  recycling rate, dn [1/s]                                              : ', &
-                                    biosed%dn        
-    write (stdout(),'((a), e13.6)') '  frac. rec.-rate in shallow sediments when anoxic, frac_dn_anoxic      : ', &
+    write (stdoutunit,'(a)')          'Sediment parameters:'
+    write (stdoutunit,'((a), e13.6)') '  recycling rate, dn [1/s]                                              : ', &
+                                    biosed%dn	       
+    write (stdoutunit,'((a), e13.6)') '  frac. rec.-rate in shallow sediments when anoxic, frac_dn_anoxic      : ', &
                                     biosed%frac_dn_anoxic   
-    write (stdout(),'((a), e13.6)') '  minimum amount of active sed for thiomargarita, thio_bact_min [mol/m2]: ', & 
+    write (stdoutunit,'((a), e13.6)') '  minimum amount of active sed for thiomargarita, thio_bact_min [mol/m2]: ', & 
                                     biosed%thio_bact_min    
-    write (stdout(),'((a), e13.6)') '  q10 parameter for recycling, q10_rec [1/C]                            : ', & 
-                                    biosed%q10_rec       
-    write (stdout(),'((a), e13.6)') '  proportion of denit in sediment, den_rate                             : ', & 
+    write (stdoutunit,'((a), e13.6)') '  q10 parameter for recycling, q10_rec [1/C]                            : ', & 
+                                    biosed%q10_rec	       
+    write (stdoutunit,'((a), e13.6)') '  proportion of denit in sediment, den_rate                             : ', & 
                                     biosed%den_rate         
-    write (stdout(),'((a), e13.6)') '  P/N ratio, pnr                                                        : ', &
-                                    biosed%pnr       
-    write (stdout(),'((a), e13.6)') '  C/N ratio, cnr                                                        : ', &
-                                    biosed%cnr       
-    write (stdout(),'((a), e13.6)') '  liberation rate for iron phosphate, po4_lib_rate  [1/s]               : ', & 
+    write (stdoutunit,'((a), e13.6)') '  P/N ratio, pnr                                                        : ', &
+                                    biosed%pnr	       
+    write (stdoutunit,'((a), e13.6)') '  C/N ratio, cnr                                                        : ', &
+                                    biosed%cnr	       
+    write (stdoutunit,'((a), e13.6)') '  liberation rate for iron phosphate, po4_lib_rate  [1/s]               : ', & 
                                     biosed%po4_lib_rate     
-    write (stdout(),'((a), e13.6)') '  fraction of phosphorous retained in the sediment, po4_retention       : ', & 
+    write (stdoutunit,'((a), e13.6)') '  fraction of phosphorous retained in the sediment, po4_retention       : ', & 
                                     biosed%po4_retention    
-    write (stdout(),'((a), e13.6)') '  value added to po4_retention north of 60.75N, po4_ret_plus_BB         : ', & 
+    write (stdoutunit,'((a), e13.6)') '  value added to po4_retention north of 60.75N, po4_ret_plus_BB         : ', & 
                                     biosed%po4_ret_plus_BB  
-    write (stdout(),'(/)')
-    write (stdout(),'(a)')          'Ergom parameters:'
-    write (stdout(),'((a), e13.6)') '  q10 parameter for nitrification, q10_nit [1/C]                        : ', & 
+    write (stdoutunit,'(/)')
+    write (stdoutunit,'(a)')          'Ergom parameters:'
+    write (stdoutunit,'((a), e13.6)') '  q10 parameter for nitrification, q10_nit [1/C]                        : ', & 
                                     ergom%q10_nit        
-    write (stdout(),'((a), e13.6)') '  q10 parameter for chemolithotrophs (so4 reduction), q10_h2s   [1/C]   : ', & 
+    write (stdoutunit,'((a), e13.6)') '  q10 parameter for chemolithotrophs (so4 reduction), q10_h2s   [1/C]   : ', & 
                                     ergom%q10_h2s        
-    write (stdout(),'((a), e13.6)') '  nitrification rate, nf [1/s]                                          : ', & 
+    write (stdoutunit,'((a), e13.6)') '  nitrification rate, nf [1/s]                                          : ', & 
                                     ergom%nf     
-    write (stdout(),'((a), e13.6)') '  half-saturation constant for nitrification, alpha_nit [mol/kg]        : ', & 
+    write (stdoutunit,'((a), e13.6)') '  half-saturation constant for nitrification, alpha_nit [mol/kg]        : ', & 
                                     ergom%alpha_nit 
-    write (stdout(),'((a), e13.6)') '  slope function for detritus recycling, alp_o2   [kg/mol]              : ', & 
+    write (stdoutunit,'((a), e13.6)') '  slope function for detritus recycling, alp_o2   [kg/mol]              : ', & 
                                     ergom%alp_o2 
-    write (stdout(),'((a), e13.6)') '  slope function for detritus recycling, alp_no3  [kg/mol]              : ', & 
+    write (stdoutunit,'((a), e13.6)') '  slope function for detritus recycling, alp_no3  [kg/mol]              : ', & 
                                     ergom%alp_no3        
-    write (stdout(),'((a), e13.6)') '  slope function for detritus recycling, alp_h2s  [kg/mol]              : ', & 
+    write (stdoutunit,'((a), e13.6)') '  slope function for detritus recycling, alp_h2s  [kg/mol]              : ', & 
                                     ergom%alp_h2s        
-    write (stdout(),'((a), e13.6)') '  slope function for detritus recycling, alp_nh4  [kg/mol]              : ', & 
+    write (stdoutunit,'((a), e13.6)') '  slope function for detritus recycling, alp_nh4  [kg/mol]              : ', & 
                                     ergom%alp_nh4        
-    write (stdout(),'((a), e13.6)') '  reaction constant h2s oxidation with o2, k_h2s_o2 [kg/mol/s]          : ', & 
+    write (stdoutunit,'((a), e13.6)') '  reaction constant h2s oxidation with o2, k_h2s_o2 [kg/mol/s]          : ', & 
                                     ergom%k_h2s_o2  
-    write (stdout(),'((a), e13.6)') '  reaction constant h2s oxidation with no3, k_h2s_no3 [kg/mol/s]        : ', & 
+    write (stdoutunit,'((a), e13.6)') '  reaction constant h2s oxidation with no3, k_h2s_no3 [kg/mol/s]        : ', & 
                                     ergom%k_h2s_no3 
-    write (stdout(),'((a), e13.6)') '  reaction constant sulfur oxidation with o2, k_sul_o2 [kg/mol/s]       : ', & 
+    write (stdoutunit,'((a), e13.6)') '  reaction constant sulfur oxidation with o2, k_sul_o2 [kg/mol/s]       : ', & 
                                     ergom%k_sul_o2  
-    write (stdout(),'((a), e13.6)') '  reaction constant sulfur oxidation with no3, k_sul_no3 [kg/mol/s]     : ', & 
+    write (stdoutunit,'((a), e13.6)') '  reaction constant sulfur oxidation with no3, k_sul_no3 [kg/mol/s]     : ', & 
                                     ergom%k_sul_no3 
-    write (stdout(),'((a), e13.6)') '  maximum anammox rate, k_an0 [1/s]                                     : ', & 
-                                    ergom%k_an0 
-    write (stdout(),'(/)')
+    write (stdoutunit,'((a), e13.6)') '  maximum anammox rate, k_an0 [1/s]                                     : ', & 
+                                    ergom%k_an0	 
+    write (stdoutunit,'(/)')
 
 !! Do not delete, men at work
 !!  food_to_nh4_2 ! fraction of food eaten potentially at optimal temperature directly lost to respiration [dimensionless]
 !!  food_to_det_2 ! fraction of food eaten potentially at optimal temperature directly lost to detritus [dimensionless]
-!!  alpha         ! light inhibition shape factor
-!!  h2smax        ! maximum h2s concentration where sinking stops [mol/kg]
-!!  wo2           ! weight number for o2 sensitivity
-!!  wh2s          ! weight number for h2s sensitivity
-!!  dark_rise     ! whether zooplankton rises independent from a food gradient if it is dark [dimensionless]
-!!  wfood         ! weight number for food gradiens 
+!!  alpha	  ! light inhibition shape factor
+!!  h2smax	  ! maximum h2s concentration where sinking stops [mol/kg]
+!!  wo2 	  ! weight number for o2 sensitivity
+!!  wh2s	  ! weight number for h2s sensitivity
+!!  dark_rise	  ! whether zooplankton rises independent from a food gradient if it is dark [dimensionless]
+!!  wfood	  ! weight number for food gradiens 
 !!
 
     call mpp_clock_end(id_init)
@@ -1216,11 +1224,11 @@ contains
     enddo
     allocate(phyto(CYA)%jprod_n2(isd:ied,jsd:jed,nk))      ; phyto(CYA)%jprod_n2   = 0.0
     do n = 1, NUM_ZOO
-      allocate(zoo(n)%f_n (isd:ied, jsd:jed, 1:nk))  ; zoo(n)%f_n      = 0.0
-      allocate(zoo(n)%jgraz_n(isd:ied,jsd:jed,nk))  ; zoo(n)%jgraz_n  = 0.0
-      allocate(zoo(n)%jgain_n(isd:ied,jsd:jed,nk))  ; zoo(n)%jgain_n  = 0.0
-      allocate(zoo(n)%jres_n(isd:ied,jsd:jed,nk))  ; zoo(n)%jres_n   = 0.0
-      allocate(zoo(n)%jdet_n(isd:ied,jsd:jed,nk))  ; zoo(n)%jdet_n   = 0.0
+      allocate(zoo(n)%f_n (isd:ied, jsd:jed, 1:nk))	  ; zoo(n)%f_n      = 0.0
+      allocate(zoo(n)%jgraz_n(isd:ied,jsd:jed,nk))	  ; zoo(n)%jgraz_n  = 0.0
+      allocate(zoo(n)%jgain_n(isd:ied,jsd:jed,nk))	  ; zoo(n)%jgain_n  = 0.0
+      allocate(zoo(n)%jres_n(isd:ied,jsd:jed,nk))	  ; zoo(n)%jres_n   = 0.0
+      allocate(zoo(n)%jdet_n(isd:ied,jsd:jed,nk))	  ; zoo(n)%jdet_n   = 0.0
 !       if(vertical_migration(n)) &
 !       allocate(zoo(n)%move  (isd:ied,jsd:jed,nk))         ; zoo(n)%move         = 0.0
     enddo
@@ -1237,9 +1245,9 @@ contains
       allocate(sed(n)%jres     (isd:ied,jsd:jed)); sed(n)%jres      = 0.0
       allocate(sed(n)%jbiores  (isd:ied,jsd:jed)); sed(n)%jbiores   = 0.0
       do i=1,NUM_SEDIMENT_LAYERS
-         write( mystring, '(i4)' )  i
-         call user_2d_tracer_assign_array(trim(sed(n)%name)//'_'//trim(adjustl(mystring)), &
-              sed(n)%f_sed(:,:,i))
+	write( mystring, '(i4)' )  i
+	call user_2d_tracer_assign_array(trim(sed(n)%name)//'_'//trim(adjustl(mystring)), &
+    					 sed(n)%f_sed(:,:,i))
       enddo
     enddo
     do n = 1, NUM_DET
@@ -1252,7 +1260,8 @@ contains
 
   end subroutine user_allocate_arrays
 
-  subroutine generic_ERGOM_register_diag()
+  subroutine generic_ERGOM_register_diag(diag_list)
+    type(g_diag_type), pointer :: diag_list
     type(vardesc)  :: vardesc_temp
     integer        :: isc,iec,jsc,jec,isd,ied,jsd,jed,nk,ntau, axes(3)
     type(time_type):: init_time 
@@ -1319,38 +1328,38 @@ contains
          init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
     vardesc_temp = vardesc("jno3","NO3 source layer integral",'h','L','s','mol m-2 s-1','f')
     ergom%id_jno3 = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-         init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
     vardesc_temp = vardesc("jdenit_wc","Water column Denitrification layer integral",'h','L','s',&
                            'mol m-2 s-1','f')
     ergom%id_jdenit_wc = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-         init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
     vardesc_temp = vardesc("jo2","O2 source layer integral",'h','L','s','mol m-2 s-1','f')
     ergom%id_jo2 = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-         init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
     vardesc_temp = vardesc("jh2s","H2S source layer integral",'h','L','s','mol m-2 s-1','f')
     ergom%id_jh2s = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-         init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
     vardesc_temp = vardesc("jh2s_o2","H2S with O2 source layer integral",'h','L','s','mol m-2 s-1','f')
     ergom%id_jh2s_o2 = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-         init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
     vardesc_temp = vardesc("jh2s_no3","H2S with NO3 source layer integral",'h','L','s','mol m-2 s-1','f')
     ergom%id_jh2s_no3 = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-         init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
     vardesc_temp = vardesc("jsul_o2","sulfur with O2 source layer integral",'h','L','s','mol m-2 s-1','f')
     ergom%id_jsul_o2 = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-         init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
     vardesc_temp = vardesc("jsul_no3","sulfur with NO3 source layer integral",'h','L','s','mol m-2 s-1','f')
     ergom%id_jsul_no3 = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-         init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
     vardesc_temp = vardesc("jsul","sulfur source layer integral",'h','L','s','mol m-2 s-1','f')
     ergom%id_jsul = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-         init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
     vardesc_temp = vardesc("jpo4","PO4 source layer integral",'h','L','s','mol m-2 s-1','f')
     ergom%id_jpo4 = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
          init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
     vardesc_temp = vardesc("jnitrif","Nitrification source layer integral",'h','L','s','mol m-2 s-1','f')
     ergom%id_jnitrif = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-         init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
     vardesc_temp = vardesc("jrec_o2", "Nitrogen flux to NH4, recycling o2",'h','L','s','mol m-2 s-1','f')
     ergom%id_jrec_o2 = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
        init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
@@ -1405,7 +1414,7 @@ contains
     do n=1, NUM_SED
         vardesc_temp = vardesc(trim(sed(n)%name)//"_jgain_sed", &
                "Gain of "//trim(sed(n)%longname)//" by transformation of other sediment classes", &
-               'h','L','s','mol m-2 s-1','f')
+	               'h','L','s','mol m-2 s-1','f')
         sed(n)%id_jgain_sed = register_diag_field(package_name, vardesc_temp%name, axes(1:2),&
           init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
         vardesc_temp = vardesc(trim(sed(n)%name)//"_jloss_sed", &
@@ -1425,65 +1434,65 @@ contains
       vardesc_temp = vardesc(trim(det(n)%name)//"_jgraz_n", "Nitrogen loss to zooplankton by grazing", &
                        'h','L','s','mol m-2 s-1','f')
       det(n)%id_jgraz_n = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-           init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
       vardesc_temp = vardesc(trim(det(n)%name)//"_jmort","Detritus mort. source layer integral", &
                        'h','L','s','mol m-2 s-1','f')
       det(n)%jmort = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-           init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
-    enddo
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+    enddo	  
     do n=1, NUM_ZOO
       vardesc_temp = vardesc(trim(zoo(n)%name)//"_jgraz_n","Nitrogen loss to zooplankton by grazing", &
                        'h','L','s','mol m-2 s-1','f')
       zoo(n)%id_jgraz_n = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-           init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
       vardesc_temp = vardesc(trim(zoo(n)%name)//"_jgain_n","Grazing nitrogen uptake layer integral", &
                        'h','L','s','mol m-2 s-1','f')
       zoo(n)%id_jgain_n = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-           init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
       vardesc_temp = vardesc(trim(zoo(n)%name)//"_jres_n","Respiration nitrogen loss layer integral", &
                        'h','L','s','mol m-2 s-1','f')
       zoo(n)%id_jres_n = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-           init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
       vardesc_temp = vardesc(trim(zoo(n)%name)//"_jdet_n","Zooplankton nitrogen loss to detritus layer integral", &
                        'h','L','s','mol m-2 s-1','f')
       zoo(n)%id_jdet_n = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-           init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
-    enddo
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+    enddo	  
     do n=1, NUM_PHYTO
       vardesc_temp = vardesc(trim(phyto(n)%name)//"_jgraz_n","Grazing nitrogen uptake layer integral",&
                        'h','L','s','mol m-2 s-1','f')
       phyto(n)%id_jgraz_n = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-           init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
       vardesc_temp = vardesc(trim(phyto(n)%name)//"_jres_n","Respiration nitrogen loss layer integral", &
                        'h','L','s','mol m-2 s-1','f')
       phyto(n)%id_jres_n = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-           init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
       vardesc_temp = vardesc(trim(phyto(n)%name)//"_jdet_n","phytoplankton nitrogen loss to detritus layer integral", &
                        'h','L','s','mol m-2 s-1','f')
       phyto(n)%id_jdet_n = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-           init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
       vardesc_temp = vardesc(trim(phyto(n)%name)//"_jprod_po4","phytoplankton nitrate uptake layer integral", &
                        'h','L','s','mol m-2 s-1','f')
       phyto(n)%id_jprod_po4 = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-           init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
       vardesc_temp = vardesc(trim(phyto(n)%name)//"_ilim","Light limitation",'h','L','s','W m-2','f')
       phyto(n)%id_ilim = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-           init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	 init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
       if (phyto(n)%id_ilim .gt. 0) then 
          allocate(phyto(n)%ilim(isd:ied,jsd:jed,nk))   
-         phyto(n)%ilim   = 0.0
+	 phyto(n)%ilim   = 0.0	
       endif 
       if (n .ne. cya) then
         vardesc_temp = vardesc(trim(phyto(n)%name)//"_jprod_no3","phytoplankton nitrate uptake layer integral", &
-             'h','L','s','mol m-2 s-1','f')
+	               'h','L','s','mol m-2 s-1','f')
         phyto(n)%id_jprod_no3 = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-             init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	   init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
         vardesc_temp = vardesc(trim(phyto(n)%name)//"_jprod_nh4","phytoplankton nitrate uptake layer integral", &
-             'h','L','s','mol m-2 s-1','f')
+	               'h','L','s','mol m-2 s-1','f')
         phyto(n)%id_jprod_nh4 = register_diag_field(package_name, vardesc_temp%name, axes(1:3),&
-             init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	   init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
       endif
-    enddo  
+    enddo	  
     vardesc_temp = vardesc("jrec_n_sed","nitrogen loss by mineralisation",'h','L','s','mol m-2 s-1','f')
     biosed%id_jrec_n = register_diag_field(package_name, vardesc_temp%name, axes(1:2),&
        init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
@@ -1534,8 +1543,11 @@ contains
     integer                      :: n
     real                         :: pref_sum
     character(len=fm_string_len) :: mystring
-    call g_tracer_start_param_list(package_name)
+    integer :: stdoutunit
 
+    stdoutunit=stdout()
+    call g_tracer_start_param_list(package_name)
+    
     !-----------------------------------------------------------------------
     !     Schmidt number coefficients
     !-----------------------------------------------------------------------
@@ -1643,17 +1655,17 @@ contains
       call g_tracer_add_param(trim(name_zoo(n))//'vdiff_max',zoo(n)%vdiff_max, vdiff_max(n)) 
       call g_tracer_add_param(trim(name_zoo(n))//'dark_rise',zoo(n)%dark_rise,dark_rise(n))  
       call g_tracer_add_param(trim(name_zoo(n))//'wfood' ,zoo(n)%wfood,  wfood(n))           
-      call g_tracer_add_param(trim(name_zoo(n))//'o2min' ,zoo(n)%o2min,  o2min(n))
-      call g_tracer_add_param(trim(name_zoo(n))//'h2smax',zoo(n)%h2smax, h2smax(n))  
-      call g_tracer_add_param(trim(name_zoo(n))//'wtemp', zoo(n)%wtemp,  wtemp(n))     
-      call g_tracer_add_param(trim(name_zoo(n))//'wo2' ,  zoo(n)%wo2,    wo2(n))     
-      call g_tracer_add_param(trim(name_zoo(n))//'wh2s' , zoo(n)%wh2s,   wh2s(n))     
+      call g_tracer_add_param(trim(name_zoo(n))//'o2min' ,zoo(n)%o2min,  o2min(n))	
+      call g_tracer_add_param(trim(name_zoo(n))//'h2smax',zoo(n)%h2smax, h2smax(n))  	 
+      call g_tracer_add_param(trim(name_zoo(n))//'wtemp', zoo(n)%wtemp,  wtemp(n))	     
+      call g_tracer_add_param(trim(name_zoo(n))//'wo2' ,  zoo(n)%wo2,    wo2(n))	     
+      call g_tracer_add_param(trim(name_zoo(n))//'wh2s' , zoo(n)%wh2s,   wh2s(n))	     
       call g_tracer_add_param(trim(name_zoo(n))//'name'  ,zoo(n)%name, trim(name_zoo(n)))    
       call g_tracer_add_param(trim(name_zoo(n))//'pnr',   zoo(n)%pnr, np_zoo(n)/nn_zoo(n))
       call g_tracer_add_param(trim(name_zoo(n))//'cnr',   zoo(n)%cnr, nc_zoo(n)/nn_zoo(n))
-      allocate(zoo(n)%pref_phy(NUM_PHYTO)) ; zoo(n)%pref_phy = 0.0  
-      allocate(zoo(n)%pref_zoo(NUM_ZOO))   ; zoo(n)%pref_zoo = 0.0  
-      allocate(zoo(n)%pref_det(NUM_DET))   ; zoo(n)%pref_det = 0.0  
+      allocate(zoo(n)%pref_phy(NUM_PHYTO)) ; zoo(n)%pref_phy = 0.0	  
+      allocate(zoo(n)%pref_zoo(NUM_ZOO))   ; zoo(n)%pref_zoo = 0.0	  
+      allocate(zoo(n)%pref_det(NUM_DET))   ; zoo(n)%pref_det = 0.0	  
 !
 !     The sum of all food weights should be 1      
       pref_sum = 0.
@@ -1676,7 +1688,7 @@ contains
          pref_zoo(n,m) = pref_zoo(n,m)/(pref_sum+epsln)
       enddo
       if (pref_sum .le. epsln) then 
-         write (stdout(),'(a)') 'WARNING, all preferences of '//trim(zoo(n)%name)//' are zero.'
+         write (stdoutunit,'(a)') 'WARNING, all preferences of '//trim(zoo(n)%name)//' are zero.'
       endif
       do m=1, NUM_PHYTO
          call g_tracer_add_param(trim(zoo(n)%name)//'pref'//trim(phyto(m)%name), zoo(n)%pref_phy(m), pref_phy(n,m))
@@ -1694,7 +1706,7 @@ contains
     if (NUM_DET .eq. 1) FAST = SLOW
     do n=1, NUM_DET
     ! Detritus parameters for recycling and sinking
-      call g_tracer_add_param(trim(name_det(n))//'dn',     det(n)%dn,      dn   (n)/sperd)  
+      call g_tracer_add_param(trim(name_det(n))//'dn',	   det(n)%dn,      dn   (n)/sperd)  
       call g_tracer_add_param(trim(name_det(n))//'q10_rec',det(n)%q10_rec, q10_rec(n)) 
       call g_tracer_add_param(trim(name_det(n))//'name'  , det(n)%name,    trim(name_det(n)))    
     enddo
@@ -1725,12 +1737,12 @@ contains
         call g_tracer_add_param(trim(name_sed(n))//'name_2d',     sed(n)%name,        name_sed(n))      
         call g_tracer_add_param(trim(name_sed(n))//'suspend_to',  sed(n)%suspend_to,  suspend_to(n))   
         call g_tracer_add_param(trim(name_sed(n))//'erosion_rate',sed(n)%erosion_rate,& 
-             erosion_rate_sed(n)/sperd) 
+	                             erosion_rate_sed(n)/sperd) 
         call g_tracer_add_param(trim(name_sed(n))//'bioerosion_rate',sed(n)%bioerosion_rate, &
-             bioerosion_rate_sed(n)/sperd) 
+	                             bioerosion_rate_sed(n)/sperd) 
         call g_tracer_add_param(trim(name_sed(n))//'molar_volume',sed(n)%molar_volume,molar_volume_sed(n)) 
         call g_tracer_add_param(trim(name_sed(n))//'critical_stress',sed(n)%critical_stress, &
-             critical_stress_sed(n))
+	                             critical_stress_sed(n))
       call g_tracer_add_param(trim(longname_sed(n))//'longname',   sed(n)%longname,    longname_sed(n))       
     enddo
 
@@ -1743,7 +1755,7 @@ contains
     enddo
     call g_tracer_add_param('sed_layer_propagation', sed_defs%layer_propagation, sed_layer_propagation) 
     call g_tracer_add_param('sed_erosion_mode', sed_defs%erosion_mode     , sed_erosion_mode     ) 
-    call g_tracer_add_param('NUM_SEDIMENT_LAYERS'  , sed_defs%NUM_LAYERS       , NUM_SEDIMENT_LAYERS   ) 
+    call g_tracer_add_param('NUM_SEDIMENT_LAYERS'  , sed_defs%NUM_LAYERS       , NUM_SEDIMENT_LAYERS	   ) 
 
     call g_tracer_add_param('q10_nit',  ergom%q10_nit,   q10_nit)      
     call g_tracer_add_param('nf',       ergom%nf,        nf/sperd)     
@@ -1767,7 +1779,7 @@ contains
 
     
 
-    call g_tracer_end_param_list()
+    call g_tracer_end_param_list(package_name)
     
     !=====================================================================
     !Block Ends: g_tracer_add_param
@@ -1784,6 +1796,7 @@ contains
   subroutine user_add_tracers(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
 
+    character(len=fm_string_len), parameter :: sub_name = 'user_add_tracers'
     integer                                 :: i, n
     character(len=fm_string_len)            :: mystring
 
@@ -1791,7 +1804,7 @@ contains
     call g_tracer_add_param('ice_restart_file'   , ergom%ice_restart_file   , 'ice_ergom.res.nc')
     call g_tracer_add_param('ocean_restart_file' , ergom%ocean_restart_file , 'ocean_ergom.res.nc' )
     call g_tracer_add_param('IC_file'            , ergom%IC_file       , '')
-    call g_tracer_end_param_list()
+    call g_tracer_end_param_list(package_name)
 
     ! Set Restart files
     call g_tracer_set_files(ice_restart_file=ergom%ice_restart_file, ocean_restart_file=ergom%ocean_restart_file )
@@ -1816,7 +1829,7 @@ contains
            name       = trim(name_spm(n)),             &
            longname   = trim(longname_spm(n))//' concentration in water', &
            units      = 'mol/kg',          &
-           prog       = .true. ,           &
+	   prog       = .true. ,           &
            flux_bottom= .true.            )
     enddo
     do n=1, NUM_SED
@@ -1868,12 +1881,12 @@ contains
 
     do n=1, NUM_ZOO
        call g_tracer_add(tracer_list,package_name,&
-         name       = trim(name_zoo(n)),  &
-         longname   = trim(name_zoo(n))//' Nitrogen',  &
+         name       = trim(name_zoo(n)),	  &
+         longname   = trim(name_zoo(n))//' Nitrogen',	  &
          units      = 'mol/kg',                   &
          prog       = .true.  ,                   &
-         move_vertical = vertical_migration(n),   &
-         diff_vertical = vertical_migration(n))
+	 move_vertical = vertical_migration(n),   &
+	 diff_vertical = vertical_migration(n))
     enddo
 
 !!    call g_tracer_add(tracer_list,package_name,&
@@ -1910,7 +1923,7 @@ contains
          flux_drydep= .true.,            &
          flux_param = (/ 14.0067e-03 /), &
          flux_bottom= .true.             )
-
+	 
     call g_tracer_add(tracer_list,package_name,&
          name       = 'h2s',             &
          longname   = 'Sulfide',         &
@@ -1933,7 +1946,7 @@ contains
          flux_gas_param = (/ 9.36e-07, 9.7561e-06 /),                  &
          flux_gas_restart_file  = 'ocean_ergom_airsea_flux.res.nc',    &
          flux_bottom= .true.             )
-
+	 
     call g_tracer_add(tracer_list,package_name,&
          name       = 'sul',             &
          longname   = 'Sulfur',          &
@@ -1952,6 +1965,7 @@ contains
   !   initialize the list of 2d tracers with a length of zero
   !
   subroutine user_init_2d_tracer_list
+    character(len=fm_string_len), parameter :: sub_name = 'user_init_2d_tracer_list'
     allocate(tracers_2d(0))
   end subroutine user_init_2d_tracer_list
   !
@@ -1964,7 +1978,8 @@ contains
     type(g_tracer_type), pointer :: tracer_list
     character(len=*), intent(in) :: name, longname, units
 
-    integer                      :: m, n
+    character(len=fm_string_len), parameter :: sub_name = 'user_add_2d_tracer'
+    integer                      :: m, n, dummy
     character(len=fm_string_len) :: temp_string
     type(tracer_2d), ALLOCATABLE, dimension(:) :: temp_tracers_2d
     
@@ -2014,7 +2029,7 @@ contains
       vardesc_temp = vardesc(                                                                   &
       tracers_2d(m)%name, tracers_2d(m)%longname,'h','L','s',tracers_2d(m)%units,'f')
       tracers_2d(m)%diag_field = register_diag_field(package_name, vardesc_temp%name, axes(1:2),&
-           init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
+	      init_time, vardesc_temp%longname,vardesc_temp%units, missing_value = missing_value1)
     end do
   end subroutine user_register_2d_tracers
 
@@ -2057,7 +2072,7 @@ contains
       if (tracers_2d(n)%field_assigned) then
         if (trim(adjustl(tracers_2d(n)%name_of_3d_tracer)) .ne. trim(adjustl(loaded_3d_tracer))) then
           call g_tracer_get_values(     &
-               tracer_list,tracers_2d(n)%name_of_3d_tracer,'field',a3d,isd,jsd,ntau=1,positive=.true.)
+	  tracer_list,tracers_2d(n)%name_of_3d_tracer,'field',a3d,isd,jsd,ntau=1,positive=.true.)
           loaded_3d_tracer=tracers_2d(n)%name_of_3d_tracer
         end if
         tracers_2d(n)%p_field = a3d(:,:,tracers_2d(n)%layer_in_3d_tracer)
@@ -2127,6 +2142,7 @@ contains
   ! </SUBROUTINE>
   subroutine generic_ERGOM_update_from_coupler(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
+    character(len=fm_string_len), parameter :: sub_name = 'generic_ERGOM_update_from_coupler'
     !
     !Nothing specific to be done for CFC's
     !
@@ -2155,7 +2171,7 @@ contains
     integer, intent(in)                                     :: NUM_SPM,        &
                                                                NUM_SED,        &
                                                                isc, iec, jsc, jec, &
-                                                               isd, ied, jsd, jed, tau
+							       isd, ied, jsd, jed, tau
     type(spm_type), intent(inout), dimension(:)             :: spm
     type(sed_type), intent(inout), dimension(:)             :: sed
     integer, dimension(isd:,jsd:)                           :: grid_kmt
@@ -2191,8 +2207,8 @@ contains
              temp1 = spm(n)%p_wat(i,j,k,tau) * spm(n)%wsed * ergom%rho_0             ! settling rate [mol m-2 s-1]
              spm(n)%btf(i,j) = spm(n)%btf(i,j) + temp1
              sed(n_sed)%f_sed(i,j,1)   = &
-                  sed(n_sed)%f_sed(i,j,1) + temp1  * dt      ! add suspended matter to sediment
-             if (spm(n)%id_jsed .gt. 0) spm(n)%jsed(i,j) = temp1      ! output of sedimentation
+          		sed(n_sed)%f_sed(i,j,1) + temp1  * dt		      ! add suspended matter to sediment
+             if (spm(n)%id_jsed .gt. 0) spm(n)%jsed(i,j) = temp1	      ! output of sedimentation
           enddo; enddo !i,j
        endif
     enddo !n
@@ -2209,12 +2225,12 @@ contains
                 if (current_wave_stress(i,j) .gt. sed(n)%critical_stress) then
 ! constant erosion independent off stress. The more organic matter is in the
 ! sediment the more will be suspended. Inorganic matter is not considered here.
-                   temp1 = sed(n)%f_sed(i,j,1) * sed(n)%erosion_rate   ! erosion rate [mol m-2 s-1]
-                   if (sed(n)%id_jres .gt. 0) sed(n)%jres(i,j) = temp1   ! output of resuspension
-                   sed(n)%f_sed(i,j,1) = sed(n)%f_sed(i,j,1) - temp1  * dt ! remove sediment [mol m-2]
+        	   temp1 = sed(n)%f_sed(i,j,1) * sed(n)%erosion_rate	   ! erosion rate [mol m-2 s-1]
+        	   if (sed(n)%id_jres .gt. 0) sed(n)%jres(i,j) = temp1	   ! output of resuspension
+        	   sed(n)%f_sed(i,j,1) = sed(n)%f_sed(i,j,1) - temp1  * dt ! remove sediment [mol m-2]
                    spm(n_sed)%btf(i,j) = spm(n_sed)%btf(i,j) - temp1
                 else
-                   if (sed(n)%id_jres .gt. 0) sed(n)%jres(i,j) = 0.
+        	   if (sed(n)%id_jres .gt. 0) sed(n)%jres(i,j) = 0.
                 endif
              enddo; enddo !i,j
           endif
@@ -2227,16 +2243,16 @@ contains
             do j = jsc, jec; do i = isc, iec
               k=grid_kmt(i,j)
               if (k == 0) cycle
-              diff_stress = current_wave_stress(i,j) - sed(n)%critical_stress
+	      diff_stress = current_wave_stress(i,j) - sed(n)%critical_stress
               if (diff_stress .gt. 0.0) then
-                 temp1 = diff_stress * sed(n)%erosion_rate       ! erosion rate [mol m-2 s-1]
-                 if (sed(n)%id_jres .gt. 0) sed(n)%jres(i,j) = temp1   ! output of resuspension
-                 sed(n)%f_sed(i,j,1) = sed(n)%f_sed(i,j,1) - temp1  * dt   ! remove sediment [mol m-2]
+        	 temp1 = diff_stress * sed(n)%erosion_rate	           ! erosion rate [mol m-2 s-1]
+        	 if (sed(n)%id_jres .gt. 0) sed(n)%jres(i,j) = temp1	   ! output of resuspension
+        	 sed(n)%f_sed(i,j,1) = sed(n)%f_sed(i,j,1) - temp1  * dt   ! remove sediment [mol m-2]
                  spm(n_sed)%btf(i,j) = spm(n_sed)%btf(i,j) - temp1
-!         spm(n_sed)%p_wat(i,j,k,tau)   = &
-!           spm(n_sed)%p_wat(i,j,k,tau) + temp1  * dt   ! add concentration to spm
+!        	 spm(n_sed)%p_wat(i,j,k,tau)   = &
+!        		   spm(n_sed)%p_wat(i,j,k,tau) + temp1  * dt	   ! add concentration to spm
                else
-                  if (sed(n)%id_jres .gt. 0) sed(n)%jres(i,j) = 0.
+        	  if (sed(n)%id_jres .gt. 0) sed(n)%jres(i,j) = 0.
                endif
             enddo; enddo !i,j
          endif
@@ -2255,8 +2271,8 @@ contains
              k=grid_kmt(i,j)
              if (k == 0) cycle
              temp1 = sed(n)%f_sed(i,j,1) * sed(n)%bioerosion_rate * bioerosion(i,j) ! bioerosion [mol m-2 s-1]
-             if (sed(n)%id_jbiores .gt. 0) sed(n)%jbiores(i,j) = temp1      ! output of bioerosion
-             sed(n)%f_sed(i,j,1) = sed(n)%f_sed(i,j,1) - temp1  * dt    ! remove sediment [mol m-2]
+             if (sed(n)%id_jbiores .gt. 0) sed(n)%jbiores(i,j) = temp1  	    ! output of bioerosion
+             sed(n)%f_sed(i,j,1) = sed(n)%f_sed(i,j,1) - temp1  * dt		    ! remove sediment [mol m-2]
              spm(n_sed)%btf(i,j) = spm(n_sed)%btf(i,j) - temp1
           enddo; enddo !i,j
        endif
@@ -2302,9 +2318,9 @@ contains
          if (l .lt. sed_defs%NUM_LAYERS) then
             do n=1, NUM_SED
                do j = jsc, jec; do i = isc, iec
-                  k=grid_kmt(i,j)
-                  if (k == 0) cycle
-                  sed(n)%f_sed(i,j,l+1) = sed(n)%f_sed(i,j,l+1) + sed(n)%f_sed(i,j,l)*work1(i,j)
+         	  k=grid_kmt(i,j)
+         	  if (k == 0) cycle
+         	  sed(n)%f_sed(i,j,l+1) = sed(n)%f_sed(i,j,l+1) + sed(n)%f_sed(i,j,l)*work1(i,j)
                enddo; enddo !i,j
             enddo !n
          endif
@@ -2348,9 +2364,9 @@ contains
          if (l .lt. sed_defs%NUM_LAYERS) then
             do n=1,1 !NUM_SED
                do j = jsc, jec; do i = isc, iec
-                  k=grid_kmt(i,j)
-                  if (k == 0) cycle
-                  sed(n)%f_sed(i,j,l+1) = sed(n)%f_sed(i,j,l+1) + sed(n)%f_sed(i,j,l)*work1(i,j)
+         	  k=grid_kmt(i,j)
+         	  if (k == 0) cycle
+         	  sed(n)%f_sed(i,j,l+1) = sed(n)%f_sed(i,j,l+1) + sed(n)%f_sed(i,j,l)*work1(i,j)
                enddo; enddo !i,j
             enddo !n
          endif
@@ -2449,6 +2465,7 @@ contains
     real, dimension(:,ilb:,jlb:,:), intent(in) :: opacity_band
     real, dimension(ilb:,jlb:),     intent(in) :: current_wave_stress
 
+    character(len=fm_string_len), parameter :: sub_name = 'generic_ERGOM_update_from_source'
     integer :: isc,iec, jsc,jec,isd,ied,jsd,jed,nk,ntau, i, j, k , kblt, n, m
     real, dimension(:,:,:) ,pointer :: grid_tmask
     integer, dimension(:,:),pointer :: mask_coast,grid_kmt
@@ -2600,7 +2617,7 @@ contains
         phyto(n)%jprod_no3(i,j,k) = jtemp * ergom%f_no3(i,j,k)
         phyto(n)%jprod_nh4(i,j,k) = jtemp * ergom%f_nh4(i,j,k)
         phyto(n)%jprod_po4(i,j,k) = (phyto(n)%jprod_no3(i,j,k) &
-             +phyto(n)%jprod_nh4(i,j,k))*phyto(n)%pnr
+	                            +phyto(n)%jprod_nh4(i,j,k))*phyto(n)%pnr
       endif
     enddo; enddo ; enddo; enddo   !} i,j,k,n
 
@@ -2686,7 +2703,7 @@ contains
         ! wrk4 is used to reduce grazing when sinking fast
         ! The movement and diffusion are carried out in the generic triagonal solver IOWtridiag in generic_tracer_utils
         ! Otherwise use
-        ! call generic_ERGOM_vmove(zoo(n)%p_vmove, dzt, zoo(n)%p_zoo(:,:,:,tau), dt, isd, ied, jsd, jed)
+	! call generic_ERGOM_vmove(zoo(n)%p_vmove, dzt, zoo(n)%p_zoo(:,:,:,tau), dt, isd, ied, jsd, jed)
       endif
 
       ! temporarily store temperature dependence factor for zooplankton grazing in zoo%jdet_n
@@ -2716,34 +2733,34 @@ contains
       tominq = zoo(n)%oxy_min**2
       tosubq = zoo(n)%oxy_sub**2
       do k = 1, nk ; do j = jsc, jec ; do i = isc, iec  
-         food_pref  = wrk2(i,j,k)
-         food       = wrk3(i,j,k)
-         temp3 = zoo(n)%iv*food
-         teo2q = ergom%f_o2(i,j,k)**2
-         ! no feeding if anoxic
-         temp2 = teo2q / (tominq + teo2q) 
-         ! Ivlev^2-grazing model, grazing only at oxic conditions               
-         gg    = wrk4(i,j,k) * zoo(n)%graz*(1. - exp(-temp3*temp3)) * temp2     
+ 	food_pref  = wrk2(i,j,k)
+	food       = wrk3(i,j,k)
+        temp3 = zoo(n)%iv*food
+	teo2q = ergom%f_o2(i,j,k)**2
+	! no feeding if anoxic
+        temp2 = teo2q / (tominq + teo2q) 
+	! Ivlev^2-grazing model, grazing only at oxic conditions               
+        gg    = wrk4(i,j,k) * zoo(n)%graz*(1. - exp(-temp3*temp3)) * temp2     
         
-         ! temperature-, oxygen- and food-dependent total grazing rate [1/s]
-         ! (multiply by temporarily stored temperature dependence in zoo(n)%jdet_n)
-         graz_z = gg * zoo(n)%jdet_n(i,j,k)  
+	! temperature-, oxygen- and food-dependent total grazing rate [1/s]
+        ! (multiply by temporarily stored temperature dependence in zoo(n)%jdet_n)
+        graz_z = gg * zoo(n)%jdet_n(i,j,k)  
         
-         ! mortality enhancement factor (10x if anoxic)
-         ! mortality of zooplankton (loss to detritus), 10x higher at anoxic than oxic conditions
-         ! loss to detritus by feeding, 10x higher at anoxic than oxic conditions
-         temp1 = 1.0 + 9.0 * tominq / (tominq + teo2q)                                            
-         lzd1  =  zoo(n)%sigma_b * temp1                                                          
-         lzd2  = (zoo(n)%food_to_det_2*gg + zoo(n)%food_to_det*graz_z) * temp1                    
-         lzd   = lzd1 + lzd2
+	! mortality enhancement factor (10x if anoxic)
+        ! mortality of zooplankton (loss to detritus), 10x higher at anoxic than oxic conditions
+        ! loss to detritus by feeding, 10x higher at anoxic than oxic conditions
+        temp1 = 1.0 + 9.0 * tominq / (tominq + teo2q)                                            
+        lzd1  =  zoo(n)%sigma_b * temp1                                                          
+        lzd2  = (zoo(n)%food_to_det_2*gg + zoo(n)%food_to_det*graz_z) * temp1                    
+        lzd   = lzd1 + lzd2
 
-         !respiration reduction factor (reduced if suboxic, none if anoxic)
-         temp2 = zoo(n)%resp_red * temp2 + (1.0-zoo(n)%resp_red) * teo2q / (tosubq + teo2q)       
-         ! respiration of zooplankton        
-         lzn   = (zoo(n)%nue     + zoo(n)%food_to_nh4_2*gg  + zoo(n)%food_to_nh4*graz_z) * temp2  
+        !respiration reduction factor (reduced if suboxic, none if anoxic)
+        temp2 = zoo(n)%resp_red * temp2 + (1.0-zoo(n)%resp_red) * teo2q / (tosubq + teo2q)       
+        ! respiration of zooplankton        
+        lzn   = (zoo(n)%nue     + zoo(n)%food_to_nh4_2*gg  + zoo(n)%food_to_nh4*graz_z) * temp2  
 
-         ! grazing is divided by total food to distribute it to different food types        
-         graz_z = graz_z*(zoo(n)%f_n(i,j,k)+zoo(n)%z0)/(food + epsln)                             
+        ! grazing is divided by total food to distribute it to different food types        
+        graz_z = graz_z*(zoo(n)%f_n(i,j,k)+zoo(n)%z0)/(food + epsln)                             
         
         zoo(n)%jgain_n(i,j,k)= graz_z * food_pref
         do m=1,NUM_PHYTO
@@ -2786,31 +2803,31 @@ contains
     do k = 1, nk ; do j = jsc, jec ; do i = isc, iec  !{
        ergom%jno3(i,j,k) =  ergom%jnitrif(i,j,k)             &  ! nitrification releases no3
                            - phyto(DIA)%jprod_no3(i,j,k)     &  ! no3-uptake by diatoms and flagellates
-                           - phyto(FLA)%jprod_no3(i,j,k)     
+			   - phyto(FLA)%jprod_no3(i,j,k)     
        ergom%jnh4(i,j,k) = - ergom%jnitrif(i,j,k)            &  ! nitrification consumes nh4
                            - phyto(DIA)%jprod_nh4(i,j,k)     &  ! nh4-uptake by diatoms and flagellates
-                           - phyto(FLA)%jprod_nh4(i,j,k)     &
-                           + phyto(DIA)%jres_n(i,j,k)        &  ! nh4-release by all phytoplankton and zooplankton
-                           + phyto(FLA)%jres_n(i,j,k)        &
-                           + phyto(CYA)%jres_n(i,j,k) 
-       ! O2-release by no3 assimilation (photosynthesis) of diatoms and flagellates       
+			   - phyto(FLA)%jprod_nh4(i,j,k)     &
+			   + phyto(DIA)%jres_n(i,j,k)        &  ! nh4-release by all phytoplankton and zooplankton
+			   + phyto(FLA)%jres_n(i,j,k)        &
+			   + phyto(CYA)%jres_n(i,j,k) 
+			     ! O2-release by no3 assimilation (photosynthesis) of diatoms and flagellates       
        ergom%jo2(i,j,k)  =   8.625*(phyto(DIA)%jprod_no3(i,j,k) + phyto(FLA)%jprod_no3(i,j,k)) &        
-            ! O2-release by nh4 assimilation (photosynthesis) of diatoms and flagellates
-            + 6.625*(phyto(DIA)%jprod_nh4(i,j,k) + phyto(FLA)%jprod_nh4(i,j,k)  &        
-            ! O2-release by n2-fixation and subsequent nh4 assimilation (photosynthesis)of cyanobacteria
-            + phyto(CYA)%jprod_n2(i,j,k))                                &        
-            ! O2-consumption by respiration of all phytoplankton and zooplankton
-            - 6.625*(phyto(DIA)%jres_n(i,j,k) + phyto(FLA)%jres_n(i,j,k)        &        
-            + phyto(CYA)%jres_n(i,j,k))                                  &
-            ! nitrification consumes 2 mol o2              
-            - 2.   * ergom%jnitrif(i,j,k)                                               
+                             ! O2-release by nh4 assimilation (photosynthesis) of diatoms and flagellates
+			   + 6.625*(phyto(DIA)%jprod_nh4(i,j,k) + phyto(FLA)%jprod_nh4(i,j,k)  &        
+                             ! O2-release by n2-fixation and subsequent nh4 assimilation (photosynthesis)of cyanobacteria
+			          + phyto(CYA)%jprod_n2(i,j,k))                                &        
+                             ! O2-consumption by respiration of all phytoplankton and zooplankton
+	                   - 6.625*(phyto(DIA)%jres_n(i,j,k) + phyto(FLA)%jres_n(i,j,k)        &        
+			          + phyto(CYA)%jres_n(i,j,k))                                  &
+			     ! nitrification consumes 2 mol o2              
+		           - 2.   * ergom%jnitrif(i,j,k)                                               
     enddo; enddo ; enddo  !} i,j,k
 
     ergom%jpo4 = 0.
     do n = 1, NUM_PHYTO;do k = 1, nk ; do j = jsc, jec ; do i = isc, iec  !{
        ergom%jpo4(i,j,k) = ergom%jpo4(i,j,k)                               &             
-            - phyto(n)%jprod_po4(i,j,k)                     &
-            + phyto(n)%jres_n(i,j,k) * phyto(n)%pnr
+			   - phyto(n)%jprod_po4(i,j,k)                     &
+			   + phyto(n)%jres_n(i,j,k) * phyto(n)%pnr
     enddo; enddo; enddo ; enddo  !} i,j,k,n
 
     do n = 1, NUM_ZOO;do k = 1, nk ; do j = jsc, jec ; do i = isc, iec  !{
@@ -2831,22 +2848,22 @@ contains
        phyto(DIA)%p_phyt(i,j,k,tau) = phyto(DIA)%p_phyt(i,j,k,tau) + (phyto(DIA)%jprod_no3(i,j,k)  &
                               + phyto(DIA)%jprod_nh4(i,j,k)                            &
                               - phyto(DIA)%jres_n(i,j,k) - phyto(DIA)%jdet_n(i,j,k)    &
-                              - phyto(DIA)%jgraz_n(i,j,k)) * dt * grid_tmask(i,j,k)
+			      - phyto(DIA)%jgraz_n(i,j,k)) * dt * grid_tmask(i,j,k)
        phyto(FLA)%p_phyt(i,j,k,tau) = phyto(FLA)%p_phyt(i,j,k,tau) + (phyto(FLA)%jprod_no3(i,j,k)  &
                               + phyto(FLA)%jprod_nh4(i,j,k)                            &
-                              - phyto(FLA)%jres_n(i,j,k) - phyto(FLA)%jdet_n(i,j,k)    & 
-                              - phyto(FLA)%jgraz_n(i,j,k)) * dt * grid_tmask(i,j,k)
+			      - phyto(FLA)%jres_n(i,j,k) - phyto(FLA)%jdet_n(i,j,k)    & 
+			      - phyto(FLA)%jgraz_n(i,j,k)) * dt * grid_tmask(i,j,k)
        phyto(CYA)%p_phyt(i,j,k,tau) = phyto(CYA)%p_phyt(i,j,k,tau) + (phyto(CYA)%jprod_n2(i,j,k)   &
                               - phyto(CYA)%jres_n(i,j,k) - phyto(CYA)%jdet_n(i,j,k)    &  
-                              - phyto(CYA)%jgraz_n(i,j,k)) * dt * grid_tmask(i,j,k)
+			      - phyto(CYA)%jgraz_n(i,j,k)) * dt * grid_tmask(i,j,k)
        ergom%p_nitrogen(i,j,k,tau) = ergom%p_nitrogen(i,j,k,tau)                       &
                               - 0.5*phyto(CYA)%jprod_n2(i,j,k) * dt * grid_tmask(i,j,k)
     enddo; enddo ; enddo  !} i,j,k
     do n = 1, NUM_DET
        do k = 1, nk ; do j = jsc, jec ; do i = isc, iec  !{
        spm(det(n)%index_spm)%p_wat(i,j,k,tau) = spm(det(n)%index_spm)%p_wat(i,j,k,tau) + (&
-            det(n)%jmort(i,j,k) - det(n)%jgraz_n(i,j,k)          &  
-            ) * dt * grid_tmask(i,j,k)
+       			         det(n)%jmort(i,j,k) - det(n)%jgraz_n(i,j,k)          &  
+                                ) * dt * grid_tmask(i,j,k)
        enddo; enddo ; enddo  !} n,i,j,k
     enddo
 
@@ -2886,13 +2903,13 @@ contains
       ! the following may be improved by MM shaped functions                                                                 
       no3_h2s  = q10 * no3_avail * ergom%k_h2s_no3 *temp2 * h2s_avail   ! mainly reacts at anoxic conditions
       no3_sul  = q10 * no3_avail * ergom%k_sul_no3 *temp2 * sul_avail   ! mainly reacts at anoxic conditions
-      o2_h2s   = q10 * o2_avail  * ergom%k_h2s_o2         * h2s_avail   ! mainly reacts at oxic conditions
-      o2_sul   = q10 * o2_avail  * ergom%k_sul_o2         * sul_avail   ! mainly reacts at oxic conditions
+      o2_h2s   = q10 * o2_avail  * ergom%k_h2s_o2	  * h2s_avail   ! mainly reacts at oxic conditions
+      o2_sul   = q10 * o2_avail  * ergom%k_sul_o2	  * sul_avail   ! mainly reacts at oxic conditions
 
       ! make scheme positive, clip with available concentrations
       ! and rescale the reaction rates
       ! check availability of the reaction partners       
-      dh2s    = dt * (o2_h2s + no3_h2s) 
+      dh2s    = dt * (o2_h2s + no3_h2s)	 
       ! scaling with sca                               
       sca     = min(dh2s, h2s_avail)/(dh2s + epsln)                     
       o2_h2s  = o2_h2s  * sca
@@ -2908,7 +2925,7 @@ contains
       no3_h2s = no3_h2s * sca
       no3_sul = no3_sul * sca
 
-      dsul    = dt * (o2_sul + no3_sul)
+      dsul    = dt * (o2_sul + no3_sul)		
       sca     = min(dsul, sul_avail+dt*(o2_h2s+o2_h2s))/(dsul + epsln)
       o2_sul  = o2_sul  * sca
       no3_sul = no3_sul * sca
@@ -2961,34 +2978,34 @@ contains
     do k = 1, nk ; do j = jsc, jec ; do i = isc, iec  
       ! temperature dependenc of anammox
       ! i.e. only between 7 and 30degC (Dalsgaard & Thamdrup 2002 in ApplEnvMicrobiol) 
-      k_an = ergom%k_an0 * det(SLOW)%f_n(i,j,k)          &    ! only det(SLOW)
-           / (1. + exp((temp(i,j,k) - 30.)*0.5)) &    
-           / (1. + exp((7.  - temp(i,j,k))*0.5))      
+      k_an = ergom%k_an0 * det(SLOW)%f_n(i,j,k) 	 &    ! only det(SLOW)
+        	   / (1. + exp((temp(i,j,k) - 30.)*0.5)) &    
+    		   / (1. + exp((7.  - temp(i,j,k))*0.5))      
 
-      det_recyc = wrk2(i,j,k)      ! first guess for the recycling rate
-      o2_avail  = max(ergom%p_o2 (i,j,k,tau), 0.0)      ! available amount of electron donors
+      det_recyc = wrk2(i,j,k)				      ! first guess for the recycling rate
+      o2_avail  = max(ergom%p_o2 (i,j,k,tau), 0.0)	      ! available amount of electron donors
       no3_avail = max(ergom%p_no3(i,j,k,tau), 0.0) 
       h2s_avail = max(ergom%p_h2s(i,j,k,tau), 0.0) 
-      nh4_avail = max(ergom%p_nh4(i,j,k,tau), 0.0)      ! nh4 for anammox
+      nh4_avail = max(ergom%p_nh4(i,j,k,tau), 0.0)	      ! nh4 for anammox
       
       ! functions tend to 1 for high concentrations and have a linear slope at X=0
       r_o2  = 2./(1.+exp(-2.*ergom%alp_o2  * o2_avail)) -1.   ! "soft switch"
       r_no3 = 2./(1.+exp(-2.*ergom%alp_no3 * no3_avail))-1.   
       r_h2s = 2./(1.+exp(-2.*ergom%alp_h2s * h2s_avail))-1.
       r_nh4 = 2./(1.+exp(-2.*ergom%alp_nh4 * nh4_avail))-1.
-    
+    									
       ! subdivide the recycling into the four possible electron donors
       ! oxygenrecycling = o (if oxygen is present)
       ! denitrification = (NOT o) AND n AND NOT (a AND (NOT h))
       ! sulfatreduction = (NOT o) AND (NOT n)
-      ! anammox = (NOT o) AND n AND a AND (NOT h)
-      rec_o2  = det_recyc*r_o2
-      rec_no3 = k_DN * det_recyc*(1-r_o2)*r_no3*(1-r_nh4*(1-r_h2s))
-      rec_so4 = k_DS * det_recyc*(1-r_o2)*(1-r_no3)
-      rec_ana = k_an * (1-r_o2)*r_no3*r_nh4*(1-r_h2s)
+      ! anammox = (NOT o) AND n AND a AND (NOT h)									
+      rec_o2  = det_recyc*r_o2  					
+      rec_no3 = k_DN * det_recyc*(1-r_o2)*r_no3*(1-r_nh4*(1-r_h2s))	
+      rec_so4 = k_DS * det_recyc*(1-r_o2)*(1-r_no3)			
+      rec_ana = k_an * (1-r_o2)*r_no3*r_nh4*(1-r_h2s)			
 
       ! anammox is regarded as additional "bonus" recycling
-      det_recyc = rec_o2+rec_no3+rec_so4+rec_ana
+      det_recyc = rec_o2+rec_no3+rec_so4+rec_ana			
 
       if(ergom%id_jrec_o2 .gt. 0) ergom%jrec_o2(i,j,k)  = rec_o2
       if(ergom%id_jrec_no3.gt. 0) ergom%jrec_no3(i,j,k) = rec_no3
@@ -2997,7 +3014,7 @@ contains
       ergom%jdenit_wc(i,j,k) = ldn_N * rec_no3
 
       ergom%jno3(i,j,k)    = ergom%jno3(i,j,k) - ldn_A * rec_ana - ldn_N * rec_no3
-      ergom%jnh4(i,j,k)    = ergom%jnh4(i,j,k) - ldn_A * rec_ana + det_recyc
+      ergom%jnh4(i,j,k)    = ergom%jnh4(i,j,k) - ldn_A * rec_ana + det_recyc	   
       ergom%jo2(i,j,k)     = ergom%jo2(i,j,k)  - ldn_O * rec_o2 
       ergom%jh2s(i,j,k)    = ergom%jh2s(i,j,k) + ldn_S * rec_so4 
       ergom%jpo4(i,j,k)    = ergom%jpo4(i,j,k) + det_recyc * phyto(DIA)%pnr   
@@ -3008,7 +3025,7 @@ contains
       ergom%p_h2s(i,j,k,tau) = ergom%p_h2s(i,j,k,tau) + dt * grid_tmask(i,j,k) * ldn_S * rec_so4
       ergom%p_po4(i,j,k,tau) = ergom%p_po4(i,j,k,tau) + dt * grid_tmask(i,j,k) * det_recyc * phyto(DIA)%pnr
       ergom%p_nitrogen(i,j,k,tau) = ergom%p_nitrogen(i,j,k,tau) &
-           + dt * grid_tmask(i,j,k) * 0.5 * (2.*ldn_A * rec_ana + ldn_N * rec_no3)
+    				             + dt * grid_tmask(i,j,k) * 0.5 * (2.*ldn_A * rec_ana + ldn_N * rec_no3)
       wrk2(i,j,k) = - dt * grid_tmask(i,j,k) * det_recyc
     enddo; enddo ; enddo  !} i,j,k
     do n=1, NUM_DET; do k = 1, nk ; do j = jsc, jec ; do i = isc, iec 
@@ -3036,31 +3053,31 @@ contains
             
       if (active_sed > biosed%thio_bact_min ) then   
          
-         ! the layer may support sulfur bacteria, this is anoxic sediment
-         det_recyc = biosed%frac_dn_anoxic*det_recyc                       
+	 ! the layer may support sulfur bacteria, this is anoxic sediment
+	 det_recyc = biosed%frac_dn_anoxic*det_recyc                       
          
-         if (biosed%id_mode_sed .gt. 0) biosed%mode_sed  = 1.
-         dsed      =  dt*det_recyc
+	 if (biosed%id_mode_sed .gt. 0) biosed%mode_sed  = 1.
+	 dsed      =  dt*det_recyc
          dh2s_dt   = 0.5*ldn_O*det_recyc                                
          o2_avail  = max(ergom%p_o2(i,j,k,tau), 0.0)
          do2_dt    = min(o2_avail*rhodztdt_r, 2.*dh2s_dt)
-
-         ! oxidation of h2s with o2 
+	 
+	 ! oxidation of h2s with o2 
          ergom%b_o2(i,j) = do2_dt                                       
          dh2s_dt   = dh2s_dt - 0.5 * do2_dt
          
-         ! oxidation of the remaining h2s with no3         
+	 ! oxidation of the remaining h2s with no3         
          no3_avail = max(ergom%p_no3(i,j,k,tau), 0.0)                   
          dno3_dt   = min(no3_avail*rhodztdt_r, dh2s_dt)
          dh2s_dt   = dh2s_dt - dno3_dt
-
-         ! sulfur bacteria release nh4, i.e. no denitrification
-         ! release the remaining h2s into the water
-         ergom%b_no3(i,j) = dno3_dt
-         ergom%b_nh4(i,j) = - dno3_dt - det_recyc                       
+	 
+	 ! sulfur bacteria release nh4, i.e. no denitrification
+	 ! release the remaining h2s into the water
+	 ergom%b_no3(i,j) = dno3_dt
+	 ergom%b_nh4(i,j) = - dno3_dt - det_recyc                       
          ergom%b_h2s(i,j) = - dh2s_dt                                   
          
-         ! po4 recycling
+	 ! po4 recycling
          ergom%b_po4(i,j) = - det_recyc*biosed%pnr                         
 
       else  ! sediment too thin for the growth of sulfur bacteria
@@ -3068,11 +3085,11 @@ contains
          if (biosed%id_mode_sed .gt. 0) biosed%mode_sed  = 0.
          ! now unit back to mol/kg                                                                                                
          pot_o2 = ergom%p_o2(i,j,k,tau) - 2. * ergom%p_h2s(i,j,k,tau)
-         if (pot_o2 < 0.) det_recyc = biosed%frac_dn_anoxic*det_recyc
-         dsed      =  dt*det_recyc
+	 if (pot_o2 < 0.) det_recyc = biosed%frac_dn_anoxic*det_recyc
+	 dsed      =  dt*det_recyc
                                                                 
          ! use o2 for re-mineralisation
-         o2_avail  = max(ergom%p_o2(i,j,k,tau), 0.0)                    
+	 o2_avail  = max(ergom%p_o2(i,j,k,tau), 0.0)                    
          do2_dt    = min(o2_avail*rhodztdt_r, det_recyc*ldn_O)
          ergom%b_o2(i,j) = do2_dt
          det_left  =  det_recyc - do2_dt / ldn_O
@@ -3080,37 +3097,37 @@ contains
          ! use no3 for re-mineralisation if o2-availability is too low
          no3_avail = max(ergom%p_no3(i,j,k,tau), 0.0)                   
          dno3_dt   = min(no3_avail*rhodztdt_r, det_left*ldn_N)
-         ergom%b_no3(i,j)      = dno3_dt
+	 ergom%b_no3(i,j)      = dno3_dt
          ergom%b_nitrogen(i,j) = -0.5 * dno3_dt
          det_left = det_left - dno3_dt / ldn_N
 
          ! use so4 for re-mineralisation of the remaining part if o2 and no3-availability is too low
-         dh2s_dt   = 0.5*ldn_O*det_left                                 
+	 dh2s_dt   = 0.5*ldn_O*det_left                                 
          
          ergom%b_h2s(i,j) = - dh2s_dt    ! release of the remaining part into the water
 
          ! if the bottom water is oxic, denitrification happens in the sediment
          ! in this case less nh4 is released.
-         ! oxygen used for nitrification in the sediment is 2.* biosed%den_rate * det_recyc
+         ! oxygen used for nitrification in the sediment is 2.* biosed%den_rate * det_recyc	 
          temp2 =  dt * (2.*biosed%den_rate * det_recyc + do2_dt)                                   
          if (pot_o2 > temp2) then   !oxic sediment --> denitrification                                                            
 
-            ergom%b_o2(i,j) = ergom%b_o2(i,j) + 2.* biosed%den_rate * det_recyc                     
-            dsed = dsed + det_recyc*biosed%den_rate/ldn_N*dt
-            ergom%b_nh4(i,j) = - det_recyc *(1.+ biosed%den_rate*(1./ldn_N - 1.))
-            ergom%b_nitrogen(i,j) = ergom%b_nitrogen(i,j) - det_recyc * 0.5* biosed%den_rate
+	   ergom%b_o2(i,j) = ergom%b_o2(i,j) + 2.* biosed%den_rate * det_recyc                     
+	   dsed = dsed + det_recyc*biosed%den_rate/ldn_N*dt
+	   ergom%b_nh4(i,j) = - det_recyc *(1.+ biosed%den_rate*(1./ldn_N - 1.))
+           ergom%b_nitrogen(i,j) = ergom%b_nitrogen(i,j) - det_recyc * 0.5* biosed%den_rate
            
-            ! po4 recycling
-            ergom%b_po4(i,j) = - det_recyc*biosed%pnr*(1. + biosed%den_rate/ldn_N)                     
-            if (biosed%id_jdenit_sed .gt. 0) biosed%jdenit_sed(i,j)  = det_recyc*biosed%den_rate
-
-         else                        !unoxic sediment --> no denitrification  
-
-            ergom%b_nh4(i,j) = - det_recyc 
+	   ! po4 recycling
+           ergom%b_po4(i,j) = - det_recyc*biosed%pnr*(1. + biosed%den_rate/ldn_N)                     
+           if (biosed%id_jdenit_sed .gt. 0) biosed%jdenit_sed(i,j)  = det_recyc*biosed%den_rate
+	 
+	 else                        !unoxic sediment --> no denitrification  
+	 
+	   ergom%b_nh4(i,j) = - det_recyc 
            
-            ! po4 recycling
-            ergom%b_po4(i,j) = - det_recyc*biosed%pnr                                               
-         endif
+	   ! po4 recycling
+           ergom%b_po4(i,j) = - det_recyc*biosed%pnr                                               
+	 endif 
       endif      
       if (biosed%id_jrec_n .gt. 0) biosed%jrec_n(i,j) = dsed/dt
       sed(biosed%index_sed)%f_sed(i,j,1)   = sed(biosed%index_sed)%f_sed(i,j,1) - dsed
@@ -3130,18 +3147,18 @@ contains
           ! retention of phosphate
           ! rate at which phosphorous is retained in the sediment [mol m-2 s-1], remember b_po4 is negative
           ! phosphate flux into the water column (b_po4, negative) is reduced
-          temp2 = -ergom%b_po4(i,j) * temp1 * wrk1(i,j,k)    
+	  temp2 = -ergom%b_po4(i,j) * temp1 * wrk1(i,j,k)    
           ergom%b_po4(i,j) = ergom%b_po4(i,j)+temp2          
           sed(biosed%index_ips)%f_sed(i,j,1) = sed(biosed%index_ips)%f_sed(i,j,1) + temp2*dt
           if (sed(biosed%index_ips)%id_jgain_sed .gt. 0) &
-               sed(biosed%index_ips)%jgain_sed(i,j) = temp2
+	                                         sed(biosed%index_ips)%jgain_sed(i,j) = temp2
           ! liberation of phosphate under anoxic conditions
           ! rate at which phosphorous is liberated from sediment [mol m-2 s-1]
-          temp2 = sed(biosed%index_ips)%f_sed(i,j,1) * (1.0-wrk1(i,j,k)) * biosed%po4_lib_rate 
+	  temp2 = sed(biosed%index_ips)%f_sed(i,j,1) * (1.0-wrk1(i,j,k)) * biosed%po4_lib_rate 
           ergom%b_po4(i,j) = ergom%b_po4(i,j) - temp2
           sed(biosed%index_ips)%f_sed(i,j,1) = sed(biosed%index_ips)%f_sed(i,j,1) - temp2 * dt
           if (sed(biosed%index_ips)%id_jloss_sed .gt. 0) & 
-               sed(biosed%index_ips)%jloss_sed(i,j) = temp2
+	                                         sed(biosed%index_ips)%jloss_sed(i,j) = temp2
         enddo !} i
       enddo !} j
     endif
@@ -3259,22 +3276,22 @@ contains
          used = send_data(ergom%id_jsul_no3,     ergom%jsul_no3*rho_dzt,     &
          model_time, rmask = grid_tmask(:,:,:),& 
          is_in=isc, js_in=jsc, ks_in=1,ie_in=iec, je_in=jec, ke_in=nk)
-    if (ergom%id_jrec_o2 .gt. 0)   &
-         used = send_data(ergom%id_jrec_o2, ergom%jrec_o2*rho_dzt,      &
-         model_time, rmask = grid_tmask(:,:,:),& 
-         is_in=isc, js_in=jsc, ks_in=1,ie_in=iec, je_in=jec, ke_in=nk)
-    if (ergom%id_jrec_no3 .gt. 0)    &
-         used = send_data(ergom%id_jrec_no3, ergom%jrec_no3*rho_dzt,     &
-         model_time, rmask = grid_tmask(:,:,:),& 
-         is_in=isc, js_in=jsc, ks_in=1,ie_in=iec, je_in=jec, ke_in=nk)
-    if (ergom%id_jrec_so4 .gt. 0)    &
-         used = send_data(ergom%id_jrec_so4, ergom%jrec_so4*rho_dzt,     &
-         model_time, rmask = grid_tmask(:,:,:),& 
-         is_in=isc, js_in=jsc, ks_in=1,ie_in=iec, je_in=jec, ke_in=nk)
-    if (ergom%id_jrec_ana .gt. 0)    &
-         used = send_data(ergom%id_jrec_ana, ergom%jrec_ana*rho_dzt,     &
-         model_time, rmask = grid_tmask(:,:,:),& 
-         is_in=isc, js_in=jsc, ks_in=1,ie_in=iec, je_in=jec, ke_in=nk)
+    if (ergom%id_jrec_o2 .gt. 0)	   &
+    	 used = send_data(ergom%id_jrec_o2,	 ergom%jrec_o2*rho_dzt,      &
+    	 model_time, rmask = grid_tmask(:,:,:),& 
+    	 is_in=isc, js_in=jsc, ks_in=1,ie_in=iec, je_in=jec, ke_in=nk)
+    if (ergom%id_jrec_no3 .gt. 0)	    &
+    	 used = send_data(ergom%id_jrec_no3,	 ergom%jrec_no3*rho_dzt,     &
+    	 model_time, rmask = grid_tmask(:,:,:),& 
+    	 is_in=isc, js_in=jsc, ks_in=1,ie_in=iec, je_in=jec, ke_in=nk)
+    if (ergom%id_jrec_so4 .gt. 0)	    &
+    	 used = send_data(ergom%id_jrec_so4,	 ergom%jrec_so4*rho_dzt,     &
+    	 model_time, rmask = grid_tmask(:,:,:),& 
+    	 is_in=isc, js_in=jsc, ks_in=1,ie_in=iec, je_in=jec, ke_in=nk)
+    if (ergom%id_jrec_ana .gt. 0)	    &
+    	 used = send_data(ergom%id_jrec_ana,	 ergom%jrec_ana*rho_dzt,     &
+    	 model_time, rmask = grid_tmask(:,:,:),& 
+    	 is_in=isc, js_in=jsc, ks_in=1,ie_in=iec, je_in=jec, ke_in=nk)
     !
     do n=1, NUM_DET
       if (det(n)%id_jgraz_n .gt. 0)           &
@@ -3431,6 +3448,8 @@ contains
     real, dimension(:,:), ALLOCATABLE :: nitrogen_alpha, nitrogen_csurf, nitrogen_sc_no
     real, dimension(:,:), ALLOCATABLE :: o2_alpha,       o2_csurf      , o2_sc_no
 
+    character(len=fm_string_len), parameter :: sub_name = 'generic_ERGOM_set_boundary_values'
+
 
     !nnz: Can we treat these as source and move block to user_update_from_source?
     !
@@ -3522,7 +3541,7 @@ contains
 
        o2_saturation = (1000.0/22391.6) * grid_tmask(i,j,1) *  & !convert from ml/l to mol m-3
             exp( ergom%t0_o2 + ergom%t1_o2*ts + ergom%t2_o2*ts2 + &
-            ergom%t3_o2*ts3 + ergom%t4_o2*ts4 + ergom%t5_o2*ts5 + &
+	         ergom%t3_o2*ts3 + ergom%t4_o2*ts4 + ergom%t5_o2*ts5 + &
             (ergom%b0_o2 + ergom%b1_o2*ts + ergom%b2_o2*ts2 + ergom%b3_o2*ts3 + ergom%c0_o2*sal)*sal)
 
        !---------------------------------------------------------------------
@@ -3651,6 +3670,8 @@ contains
     real                               :: velocity, wpos, wneg
     integer                            :: k, i, j, kp1
     integer                            :: isc,iec,jsc,jec,isd,ied,jsd,jed,nk,ntau
+    character(len=fm_string_len), parameter :: sub_name = 'generic_ERGOM_vmove'
+    
     call g_tracer_get_common(isc,iec,jsc,jec,isd,ied,jsd,jed,nk,ntau,&
          grid_tmask=tmask, grid_kmt=kmt)
 
@@ -3688,6 +3709,7 @@ contains
   ! </SUBROUTINE>
 
   subroutine generic_ERGOM_end
+    character(len=fm_string_len), parameter :: sub_name = 'generic_ERGOM_end'
     call user_deallocate_arrays
   end subroutine generic_ERGOM_end
   
@@ -3730,11 +3752,11 @@ contains
        deallocate(phyto(n)%jprod_nh4)
        deallocate(phyto(n)%jprod_no3)
        deallocate(phyto(n)%jprod_po4)
-       deallocate(phyto(n)%jres_n)
-       deallocate(phyto(n)%jdet_n)
+       deallocate(phyto(n)%jres_n)	 
+       deallocate(phyto(n)%jdet_n)	 
     enddo
     n = DIA
-    deallocate(phyto(n)%move)
+    deallocate(phyto(n)%move)	 
     n = CYA
     deallocate(phyto(n)%move) 
     deallocate(phyto(n)%f_n)
@@ -3745,12 +3767,12 @@ contains
     deallocate(phyto(n)%jdet_n)       
     deallocate(phyto(n)%jprod_n2)
     do n = 1, NUM_ZOO
-       deallocate(zoo(n)%f_n)
-       deallocate(zoo(n)%jgraz_n)
-       deallocate(zoo(n)%jgain_n)
-       deallocate(zoo(n)%jres_n)
-       deallocate(zoo(n)%jdet_n)
-!       deallocate(zoo(n)%move)
+       deallocate(zoo(n)%f_n)	
+       deallocate(zoo(n)%jgraz_n)	
+       deallocate(zoo(n)%jgain_n)	
+       deallocate(zoo(n)%jres_n)	
+       deallocate(zoo(n)%jdet_n)	
+!       deallocate(zoo(n)%move)	
     enddo
     do n = 1, NUM_DET
        deallocate(det(n)%f_n)

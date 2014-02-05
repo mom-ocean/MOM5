@@ -20,14 +20,16 @@
 #ifndef COMMON_H
 #define COMMON_H 1
 
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <stddef.h>
 #include <memory.h>
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
 #include <errno.h>
+#include <netcdf.h>
+#include <math.h>
 
 #ifndef errno
 extern int errno;
@@ -44,5 +46,7 @@ extern int errno;
 #define EXIT_FAILED         3
 
 #define DEBUG 0
+
+#define MPPNCSCATTER_VERSION "0.3.2"
 
 #endif /* !COMMON_H */

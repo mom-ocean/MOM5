@@ -10,7 +10,7 @@ MODULE CONV_PLUMES_MOD
 !----------- ****** VERSION NUMBER ******* ---------------------------
 
   character(len=128) :: version = '$Id: conv_plumes.F90,v 15.0 2007/08/14 03:56:03 fms Exp $'
-  character(len=128) :: tagname = '$Name: siena_201207 $'
+  character(len=128) :: tagname = '$Name: tikal $'
 
 !---------------------------------------------------------------------
 !-------  interfaces --------

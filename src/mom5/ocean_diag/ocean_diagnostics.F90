@@ -1,6 +1,6 @@
 module ocean_diagnostics_mod
 !  
-!<CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
+!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies
 !</CONTACT>
 !
 !<OVERVIEW>
@@ -48,9 +48,9 @@ integer :: id_velocity_diag
 logical :: module_is_initialized = .FALSE.
 
 character(len=128) :: version=&
-     '$Id: ocean_diagnostics.F90,v 1.1.2.6 2012/06/03 00:41:57 Stephen.Griffies Exp $'
+     '$Id: ocean_diagnostics.F90,v 20.0 2013/12/14 00:12:51 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 public :: ocean_diag_init, ocean_diagnostics
 

@@ -10,8 +10,8 @@ public :: qscomp
 
 ! ==== module constants ======================================================
 character(len=*), private, parameter :: &
-   version = '$Id: sphum.F90,v 15.0 2007/08/14 18:48:28 fms Exp $', &
-   tagname = '$Name: siena_201207 $' ,&
+   version = '$Id: sphum.F90,v 20.0 2013/12/13 23:30:34 fms Exp $', &
+   tagname = '$Name: tikal $' ,&
    module_name = 'vegn'
 real, parameter :: d622 = rdgas/rvgas
 real, parameter :: d378 = 1.0-d622
@@ -30,7 +30,7 @@ subroutine qscomp(T, p, qsat, DqsatDT )
   if(120.0<T.and.T<373.0) then
      continue
   else
-     write(*,'(a,g4.2)')'temperature out of range',T
+     write(*,'(a,g23.16)')'temperature out of range',T
   endif
   ! calculate saturated specific humidity
   call escomp(T,esat)

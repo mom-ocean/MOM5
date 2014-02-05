@@ -647,7 +647,7 @@ end interface
   integer              ::  i_sw, j_sw, i_nw, j_nw, i_se, j_se, i_ne, j_ne
 
   character(len=128)   :: version = '$ID$'
-  character (len=128)  :: tagname = '$Name: mom5_siena_08jun2012_smg $'
+  character (len=128)  :: tagname = '$Name: tikal $'
   logical              :: module_is_initialized = .FALSE.
   integer              :: nt  = 0                         ! number of tracers
   real, allocatable    :: wrk(:,:,:)      ! needed for output of phase speed and other quantities

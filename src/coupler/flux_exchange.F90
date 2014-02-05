@@ -16,11 +16,10 @@ module flux_exchange_mod
 !           675 Mass Ave, Cambridge, MA 02139, USA.                   
 ! or see:   http://www.gnu.org/licenses/gpl.html                      
 !-----------------------------------------------------------------------
-! <CONTACT EMAIL="Bruce.Wyman@noaa.gov"> Bruce Wyman </CONTACT>
-! <CONTACT EMAIL="V.Balaji@noaa.gov"> V. Balaji </CONTACT>
-! <CONTACT EMAIL="Sergey.Malyshev@noaa.gov"> Sergey Malyshev </CONTACT>
+! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Bruce Wyman </CONTACT>
+! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> V. Balaji </CONTACT>
+! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Sergey Malyshev </CONTACT>
 
-! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
 ! <OVERVIEW>
 !   The flux_exchange module provides interfaces to couple the following component 
@@ -262,8 +261,8 @@ private
      flux_ocean_from_ice_stocks
 
 !-----------------------------------------------------------------------
-  character(len=128) :: version = '$Id$'
-  character(len=128) :: tag = '$Name$'
+  character(len=128) :: version = '$Id: flux_exchange.F90,v 20.0 2013/12/13 23:27:41 fms Exp $'
+  character(len=128) :: tag = '$Name: tikal $'
 !-----------------------------------------------------------------------
 !---- exchange grid maps -----
 
@@ -1019,24 +1018,24 @@ subroutine flux_exchange_init ( Time, Atm, Land, Ice, Ocean, Ocean_state,&
 !AMIP ocean needs no input fields
 !choice of fields will eventually be done at runtime
 !via field_manager
-    allocate( ice_ocean_boundary%u_flux   (is:ie,js:je) )
-    allocate( ice_ocean_boundary%v_flux   (is:ie,js:je) )
-    allocate( ice_ocean_boundary%t_flux   (is:ie,js:je) )
-    allocate( ice_ocean_boundary%q_flux   (is:ie,js:je) )
-    allocate( ice_ocean_boundary%salt_flux(is:ie,js:je) )
-    allocate( ice_ocean_boundary%lw_flux  (is:ie,js:je) )
-    allocate( ice_ocean_boundary%sw_flux_vis_dir  (is:ie,js:je) )
-    allocate( ice_ocean_boundary%sw_flux_vis_dif  (is:ie,js:je) )
-    allocate( ice_ocean_boundary%sw_flux_nir_dir  (is:ie,js:je) )
-    allocate( ice_ocean_boundary%sw_flux_nir_dif  (is:ie,js:je) )
-    allocate( ice_ocean_boundary%lprec    (is:ie,js:je) )
-    allocate( ice_ocean_boundary%fprec    (is:ie,js:je) )
-    allocate( ice_ocean_boundary%runoff   (is:ie,js:je) )
-    allocate( ice_ocean_boundary%calving  (is:ie,js:je) )
-    allocate( ice_ocean_boundary%runoff_hflx   (is:ie,js:je) )
-    allocate( ice_ocean_boundary%calving_hflx  (is:ie,js:je) )
-    allocate( ice_ocean_boundary%p        (is:ie,js:je) )
-    allocate( ice_ocean_boundary%mi       (is:ie,js:je) )
+    allocate( ice_ocean_boundary%u_flux   (is:ie,js:je) ) ; ice_ocean_boundary%u_flux = 0.0
+    allocate( ice_ocean_boundary%v_flux   (is:ie,js:je) ) ; ice_ocean_boundary%v_flux = 0.0
+    allocate( ice_ocean_boundary%t_flux   (is:ie,js:je) ) ; ice_ocean_boundary%t_flux = 0.0
+    allocate( ice_ocean_boundary%q_flux   (is:ie,js:je) ) ; ice_ocean_boundary%q_flux = 0.0
+    allocate( ice_ocean_boundary%salt_flux(is:ie,js:je) ) ; ice_ocean_boundary%salt_flux = 0.0
+    allocate( ice_ocean_boundary%lw_flux  (is:ie,js:je) ) ; ice_ocean_boundary%lw_flux = 0.0
+    allocate( ice_ocean_boundary%sw_flux_vis_dir  (is:ie,js:je) ) ; ice_ocean_boundary%sw_flux_vis_dir = 0.0
+    allocate( ice_ocean_boundary%sw_flux_vis_dif  (is:ie,js:je) ) ; ice_ocean_boundary%sw_flux_vis_dif = 0.0
+    allocate( ice_ocean_boundary%sw_flux_nir_dir  (is:ie,js:je) ) ; ice_ocean_boundary%sw_flux_nir_dir = 0.0
+    allocate( ice_ocean_boundary%sw_flux_nir_dif  (is:ie,js:je) ) ; ice_ocean_boundary%sw_flux_nir_dif = 0.0
+    allocate( ice_ocean_boundary%lprec    (is:ie,js:je) ) ; ice_ocean_boundary%lprec = 0.0
+    allocate( ice_ocean_boundary%fprec    (is:ie,js:je) ) ; ice_ocean_boundary%fprec = 0.0
+    allocate( ice_ocean_boundary%runoff   (is:ie,js:je) ) ; ice_ocean_boundary%runoff = 0.0
+    allocate( ice_ocean_boundary%calving  (is:ie,js:je) ) ; ice_ocean_boundary%calving = 0.0
+    allocate( ice_ocean_boundary%runoff_hflx   (is:ie,js:je) ) ; ice_ocean_boundary%runoff_hflx = 0.0
+    allocate( ice_ocean_boundary%calving_hflx  (is:ie,js:je) ) ; ice_ocean_boundary%calving_hflx = 0.0
+    allocate( ice_ocean_boundary%p        (is:ie,js:je) ) ; ice_ocean_boundary%p = 0.0
+    allocate( ice_ocean_boundary%mi       (is:ie,js:je) ) ; ice_ocean_boundary%mi = 0.0
 
 !
 ! allocate fields for extra tracers

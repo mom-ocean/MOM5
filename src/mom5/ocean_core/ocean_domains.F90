@@ -60,8 +60,8 @@ private
 integer, dimension(2) :: domain_layout=(/1,1/)
 integer, dimension(2) :: io_domain_layout=(/0,0/)
 
-character(len=128) :: version='$Id: ocean_domains.F90,v 1.1.2.2 2012/05/17 13:41:40 smg Exp $'
-character(len=128) :: tagname='$Name: mom5_siena_08jun2012_smg $'
+character(len=128) :: version='$Id: ocean_domains.F90,v 20.0 2013/12/14 00:10:42 fms Exp $'
+character(len=128) :: tagname='$Name: tikal $'
 
 character(len=32) :: name_default = 'mom_domain'
 
@@ -129,13 +129,11 @@ subroutine set_ocean_domain (Domain, Grid, xhalo, yhalo, name, layout, io_layout
   character(len=*),        intent(in), optional :: name
 
   real              :: ph, pc
-  integer           :: nhp, ncp, ncp_max, ncp_min, ncpx, ncpy, lay_out(2)
+  integer           :: n, nhp, ncp, ncp_max, ncp_min, ncpx, ncpy, lay_out(2), xsiz, ysiz
   integer           :: mpp_stack_size=-1 
   character(len=32) :: name_
-#ifdef MOM_STATIC_ARRAYS
-  integer           :: xsiz, ysiz
-  character(len=4)  :: char_xsiz, char_ysiz
-#endif
+  character(len=4)  :: char_lay1, char_lay2, char_npes, char_xsiz, char_ysiz
+
 
   if (PRESENT(layout)) domain_layout = layout
   if (PRESENT(io_layout)) io_domain_layout = io_layout

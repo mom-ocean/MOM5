@@ -283,7 +283,7 @@ real :: U00, rthresh, var_limit, sea_salt_scale, om_to_oc,  N_land, &
  
    logical :: do_netcdf_restart, u00_profile, use_kk_auto, &
               use_online_aerosol,  use_sub_seasalt, eros_choice, &
-              super_choice, tracer_advec, do_old_snowmelt, do_pdf_clouds, &
+              super_choice, tracer_advec, do_old_snowmelt, retain_cm3_bug, do_pdf_clouds, &
               do_liq_num, do_dust_berg, pdf_org, do_ice_nucl_wpdf, debugo
  
    integer :: num_strat_pts,  betaP, nsublevels, kmap, kord, &
@@ -305,8 +305,8 @@ real :: U00, rthresh, var_limit, sea_salt_scale, om_to_oc,  N_land, &
   !       DECLARE VERSION NUMBER OF SCHEME
   !
 
-  Character(len=128) :: Version = '$Id: strat_cloud_legacy.F90,v 19.0 2012/01/06 20:27:21 fms Exp $'
-  Character(len=128) :: Tagname = '$Name: siena_201207 $'
+  Character(len=128) :: Version = '$Id: strat_cloud_legacy.F90,v 20.0 2013/12/13 23:22:13 fms Exp $'
+  Character(len=128) :: Tagname = '$Name: tikal $'
    logical            :: module_is_initialized = .false.
   integer, dimension(1) :: restart_versions = (/ 1 /)
   integer               :: vers
@@ -967,7 +967,7 @@ subroutine strat_cloud_legacy( Nml,  &
                                                         concen_dust_sub
         real, dimension(size(T,1),size(T,2))   :: Vfall,iwc,lamda_f
         real, dimension(size(T,1),size(T,2))   :: U_clr
-        real, dimension(size(T,1),size(T,2))   :: tmp1,tmp2,tmp3,tmp5,drop1,crystal
+        real, dimension(size(T,1),size(T,2))   :: tmp1,tmp2,tmp3,tmp5, delta_cf,drop1,crystal
         real, dimension(size(T,1),size(T,2))   :: sum_freeze, sum_rime, &
                                                   sum_berg
         real, dimension(size(T,1),size(T,2))   :: qtbar,deltaQ
@@ -1021,6 +1021,7 @@ subroutine strat_cloud_legacy( Nml,  &
     vfact = Nml%vfact 
     cfact = Nml%cfact 
     do_old_snowmelt = Nml%do_old_snowmelt 
+    retain_cm3_bug  = Nml%retain_cm3_bug  
     do_pdf_clouds = Nml%do_pdf_clouds 
     betaP = Nml%betaP 
     iwc_crit = Nml%iwc_crit 
@@ -1270,7 +1271,7 @@ subroutine strat_cloud_legacy( Nml,  &
 !a        N3D = qn*airdens*1.e-6
           diag_4d(:,:,:,diag_pt%droplets) = qn(:,:,:)*airdens(:,:,:)*1.e-6
 !         if (diag_id%debug1_3d > 0) debug1 = min(qa,1.)
-          if (diag_id%debug1_3d > 0) diag_4d(:,:,:,diag_pt%debug1_3d) = min(qa,1.)
+          if (diag_id%cf_liq_init   > 0) diag_4d(:,:,:,diag_pt%cf_liq_init  ) = min(qa,1.)
           do j=1,kdim
            do k=1,jdim
             do i=1,idim
@@ -1280,9 +1281,11 @@ subroutine strat_cloud_legacy( Nml,  &
 !             if (max(diag_id%qldt_fill,diag_id%ql_fill_col) > 0) qldt_fill(i,k,j) = -ql(i,k,j) * inv_dtcloud
               if (max(diag_id%qldt_fill,diag_id%ql_fill_col) > 0) diag_4d(i,k,j,diag_pt%qldt_fill) = -ql(i,k,j) * inv_dtcloud
 !             if (max(diag_id%qndt_fill,diag_id%qn_fill_col) > 0) qndt_fill(i,k,j) = -qn(i,k,j) * inv_dtcloud
-              if (max(diag_id%qndt_fill,diag_id%qn_fill_col) > 0) diag_4d(i,k,j,diag_pt%qndt_fill) = -qn(i,k,j) * inv_dtcloud
+              if (max(diag_id%qndt_fill,diag_id%qn_fill_col, &
+                           diag_id%qldt_fill,diag_id%ql_fill_col) > 0)  &
+               diag_4d(i,k,j,diag_pt%qndt_fill) = -qn(i,k,j) * inv_dtcloud
 !             if (diag_id%debug1_3d > 0) debug1(i,k,j) = 0.
-              if (diag_id%debug1_3d > 0) diag_4d(i,k,j,diag_pt%debug1_3d) = 0.
+              if (diag_id%cf_liq_init   > 0) diag_4d(i,k,j,diag_pt%cf_liq_init  ) = 0.
              endif
             enddo
            enddo
@@ -1311,7 +1314,7 @@ subroutine strat_cloud_legacy( Nml,  &
 !a        N3D = qn*airdens*1.e-6
           diag_4d(:,:,:,diag_pt%droplets) = qn(:,:,:)*airdens(:,:,:)*1.e-6
 !         if (diag_id%debug1_3d   > 0) debug1 = min(qa,1.)
-          if (diag_id%debug1_3d   > 0) diag_4d(:,:,:,diag_pt%debug1_3d) = min(qa,1.)
+          if (diag_id%cf_liq_init     > 0) diag_4d(:,:,:,diag_pt%cf_liq_init  ) = min(qa,1.)
           do j=1,kdim
            do k=1,jdim
             do i=1,idim
@@ -1322,11 +1325,12 @@ subroutine strat_cloud_legacy( Nml,  &
               if (max(diag_id%qldt_fill,diag_id%ql_fill_col) > 0) diag_4d(i,k,j,diag_pt%qldt_fill) = -ql(i,k,j) * inv_dtcloud
 ! Should this just be diag_id%qndt_fill  + diag_id%qn_fill_col ?
 !ORIGINAL:    if (diag_id%qldt_fill  > 0) &
-              if (max(diag_id%qldt_fill,diag_id%qndt_fill,diag_id%qndt_fill) > 0) &
+              if (max(diag_id%qndt_fill,diag_id%qn_fill_col, &
+                           diag_id%qldt_fill,diag_id%ql_fill_col) > 0)  &
 !                           qndt_fill(i,k,j) = -qn(i,k,j) * inv_dtcloud
                             diag_4d(i,k,j,diag_pt%qndt_fill) = -qn(i,k,j) * inv_dtcloud
 !             if (diag_id%debug1_3d    > 0) debug1(i,k,j) = 0.
-              if (diag_id%debug1_3d    > 0) diag_4d(i,k,j,diag_pt%debug1_3d) = 0.
+              if (diag_id%cf_liq_init      > 0) diag_4d(i,k,j,diag_pt%cf_liq_init  ) = 0.
              endif
             enddo
            enddo
@@ -1773,7 +1777,7 @@ subroutine strat_cloud_legacy( Nml,  &
         if (max(diag_id%qadt_lsform,diag_id%qa_lsform_col) > 0) diag_4d(i,k,j,diag_pt%qadt_lsform) =  C_dts * (1.-qcbars) * inv_dtcloud 
 !       if (max(diag_id%qadt_eros,diag_id%qa_eros_col)  > 0) qadt_eros  (i,k,j) =  D_dts *     qcbars  * inv_dtcloud
         if (max(diag_id%qadt_eros,diag_id%qa_eros_col)  > 0) diag_4d(i,k,j,diag_pt%qadt_eros) =  D_dts *     qcbars  * inv_dtcloud
-        tmp5(i,k) = C_dts * (1.-qcbars)
+        delta_cf(i,k) = C_dts * (1.-qcbars)
 
 !       The next step is to calculate the change in condensate
 !       due to non-convective condensation, dcond_ls. Note that this is
@@ -1970,9 +1974,9 @@ subroutine strat_cloud_legacy( Nml,  &
 !       if (max(diag_id%qadt_lsdiss,diag_id%qa_lsdiss_col) > 0) qadt_lsdiss(:,:,j) =  max(qa(:,:,j)-qag,0.) * inv_dtcloud
         if (max(diag_id%qadt_lsdiss,diag_id%qa_lsdiss_col) > 0) diag_4d(:,:,j,diag_pt%qadt_lsdiss) =  max(qa(:,:,j)-qag,0.) * inv_dtcloud
 
-        !define da_ls and tmp5 needed when do_liq_num = .true. (cjg)
+        !define da_ls and delta_cf needed when do_liq_num = .true. (cjg)
         da_ls = max(qag-qa(:,:,j),0.)
-        tmp5 = max(qag-qa(:,:,j),0.)
+        delta_cf = max(qag-qa(:,:,j),0.)
 
         !compute large-scale condensation / evaporation
         dcond_ls = qcg - (ql_upd + qi_upd)
@@ -2081,22 +2085,21 @@ subroutine strat_cloud_legacy( Nml,  &
 !rab take care of it when writing diags....
 !rab                debug2(i,k,j) = wp2**0.5
 !               if (diag_id%debug2_3d > 0) debug2(i,k,j) = wp2
-                if (diag_id%debug2_3d > 0) diag_4d(i,k,j,diag_pt%debug2_3d) = wp2
-!               if (diag_id%debug3_3d > 0) debug3(i,k,j) = 1.
-                if (diag_id%debug3_3d > 0) diag_4d(i,k,j,diag_pt%debug3_3d) = 1.
+                if (diag_id%subgrid_w_variance > 0 .and. up_strat > 0.0) diag_4d(i,k,j,diag_pt%subgrid_w_variance) = wp2
                 call aer_ccn_act_wpdf (T(i,k,j), pfull(i,k,j), &
                                        up_strat, wp2,    &
                                        totalmass1(i,k,j,:), drop1(i,k))
 !               if (diag_id%debug3_3d > 0) debug3(i,k,j) = drop1(i,k)
-                if (diag_id%debug3_3d > 0) diag_4d(i,k,j,diag_pt%debug3_3d) = drop1(i,k)
+                if (diag_id%potential_droplets > 0 .and. up_strat > 0.0) diag_4d(i,k,j,diag_pt%potential_droplets) = drop1(i,k)
 !               if (diag_id%debug2_3d > 0) debug2(i,k,j) = 1.
-                if (diag_id%debug2_3d > 0) diag_4d(i,k,j,diag_pt%debug2_3d) = 1.
 !<--cjg: end of modification
-                qn_mean(i,k) = qn_upd(i,k) + max(tmp5(i,k),0.)*  &
+                qn_mean(i,k) = qn_upd(i,k) + max(delta_cf(i,k),0.)*  &
                                drop1(i,k)*1.e6/airdens(i,k,j)
               else
                 drop1(i,k) = 0.                
                 qn_mean(i,k) = qn_upd(i,k)
+                if (diag_id%subgrid_w_variance > 0) diag_4d(i,k,j,diag_pt%subgrid_w_variance) =  0.0
+                if (diag_id%potential_droplets > 0) diag_4d(i,k,j,diag_pt%potential_droplets) = 0.0        
               endif
             end do
           end do        
@@ -2631,9 +2634,9 @@ subroutine strat_cloud_legacy( Nml,  &
 !       if (max(diag_id%qldt_auto,diag_id%ql_auto_col) > 0) qldt_auto(:,:,j) = tmp1        
         if (max(diag_id%qldt_auto,diag_id%ql_auto_col) > 0) diag_4d(:,:,j,diag_pt%qldt_auto) = tmp1        
 
-        if ( diag_id%autocv > 0 ) then
+        if ( diag_id%aauto > 0 ) then
 !            where ( rad_liq .gt. rthresh ) areaautocv(:,:,j) = qa_mean       
-             where ( rad_liq .gt. rthresh ) diag_4d(:,:,j,diag_pt%autocv) = qa_mean       
+             where ( rad_liq .gt. rthresh ) diag_4d(:,:,j,diag_pt%aauto) = qa_mean       
         end if
         
 
@@ -2691,7 +2694,7 @@ subroutine strat_cloud_legacy( Nml,  &
                                 Si0=1+0.0125*(tfreeze-T(i,k,j))
                                 call Jhete_dep(T(i,k,j),Si0,concen_dust_sub(i,k,j),crystal(i,k))
 !                               if (diag_id%debug4_3d > 0) debug4(i,k,j) = 1.                                      
-                                if (diag_id%debug4_3d > 0) diag_4d(i,k,j,diag_pt%debug4_3d) = 1.                                      
+                                if (diag_id%dust_berg_flag > 0) diag_4d(i,k,j,diag_pt%dust_berg_flag) = 1.                                      
                 endif
                 end do
           end do
@@ -2924,7 +2927,16 @@ subroutine strat_cloud_legacy( Nml,  &
 
         !initialize tmp2 to hold (-Dterm)/D
 !rab        tmp2 = -Dterm/max(D_dt,Dmin)
+
+   if (Nml%retain_cm3_bug) then
         tmp2(i,k) = D_dts*qcbars/max(D_dts,Dmin)
+   else
+        if ( D_dts.gt.Dmin ) then
+        tmp2(i,k) = D_dts*qcbars/max(D_dts,Dmin)
+        else
+        tmp2(i,k) = 0.
+        endif
+   endif
         
         !do phase changes from large-scale processes and boundary
         !layer condensation/evaporation
@@ -3012,7 +3024,7 @@ subroutine strat_cloud_legacy( Nml,  &
           do k=1,jdim
             do i=1,idim
 !Calculate C_dt
-              C_dts=max(tmp5(i,k),0.)*drop1(i,k)*1.e6/airdens(i,k,j)
+              C_dts=max(delta_cf(i,k),0.)*drop1(i,k)*1.e6/airdens(i,k,j)
               D_dts =  num_mass_ratio1*D1_dt(i,k) + (num_mass_ratio2*D2_dt(i,k) + D_eros(i,k))
               qc0s = qn_upd(i,k)
               if (D_dts > Dmin) then
@@ -3285,7 +3297,15 @@ subroutine strat_cloud_legacy( Nml,  &
 
         !initialize tmp2 to hold (-Dterm)/D
 !rab        tmp2 = -Dterm/max(D_dt,Dmin)
+   if (Nml%retain_cm3_bug) then
         tmp2s = D_dts*qcbars/max(D_dts,Dmin)
+   else
+        if ( D_dts.gt.Dmin ) then
+        tmp2s = D_dts*qcbars/max(D_dts,Dmin)
+        else
+        tmp2s = 0.
+        endif
+   endif
         
         !do phase changes from large-scale processes 
         ST(i,k,j) = ST(i,k,j) +  hls*max(dcond_ls_ice(i,k),0.)/cp_air -    &
@@ -3533,7 +3553,7 @@ subroutine strat_cloud_legacy( Nml,  &
         endif
          
 !       if (max(diag_id%snow_subl,diag_id%snow_subl_col) > 0) snow_subl(i,k,j) = tmp2s/deltpg(i,k)
-        if (max(diag_id%snow_subl,diag_id%snow_subl_col) > 0) diag_4d(i,k,j,diag_pt%snow_subl) = tmp2s/deltpg(i,k)
+        if (max(diag_id%qdt_snow_sublim,diag_id%q_snow_sublim_col) > 0) diag_4d(i,k,j,diag_pt%qdt_snow_sublim) = tmp2s/deltpg(i,k)
        enddo 
       enddo 
 
@@ -4000,14 +4020,16 @@ subroutine strat_cloud_legacy( Nml,  &
           endwhere
         endif
 
+        if ( diag_id%droplets_wtd > 0 ) then
 !a   diag_4d(:,:,:, diag_pt%droplets_wtd) = N3D*ql
      diag_4d(:,:,:, diag_pt%droplets_wtd) =   &
                            diag_4d(:,:,:,diag_pt%droplets)*ql(:,:,:)
+        endif
 
-        if ( diag_id%debug2_3d > 0 ) then
+        if ( diag_id%subgrid_w_variance > 0 ) then
 !         debug2=debug2**0.5
 !         diag_4d(:,:,:,diag_pt%debug2_3d) = debug2
-          diag_4d(:,:,:,diag_pt%debug2_3d) = diag_4d(:,:,:,diag_pt%debug2_3d)**0.5
+          diag_4d(:,:,:,diag_pt%subgrid_w_variance) = diag_4d(:,:,:,diag_pt%subgrid_w_variance)**0.5
         endif
 
       
@@ -4069,10 +4091,18 @@ subroutine strat_cloud_legacy( Nml,  &
                     if (ql(i,j,k) > qmin .and. &
                         qa(i,j,k) > qmin .and. &
                         qn(i,j,k) > qmin ) then      
+                      if (qa(i,j,k) > 0.05) then
                        N3D_col(i,j) = N3D_col(i,j) + qn(i,j,k)*  &
 !                                     airdens(i,j,k)*deltpg(i,j)*  &
-                                      airdens(i,j,k)*deltpg_3d(i,j,k)*  &
-                                      1.e-6/min(qa(i,j,k),1.)
+!RSH 12/22/11 fix as per email from yim 11/3/11:
+!                                     airdens(i,j,k)*deltpg_3d(i,j,k)*  &
+!                                     1.e-6/min(qa(i,j,k),1.)
+!RSH 12/22/11
+!NOTE still differs from new strat_cloud code in that is appplied to 
+! input fields rather than output fields
+                                                     deltpg_3d(i,j,k)*  &
+                                      1.e-4/min(qa(i,j,k),1.)
+                       endif
                     endif
                   end do
                 end do

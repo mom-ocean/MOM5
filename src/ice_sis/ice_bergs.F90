@@ -6,14 +6,16 @@ use fms_mod, only: field_exist, get_global_att_value
 use fms_mod, only: stdlog, stderr, error_mesg, FATAL, WARNING
 use fms_mod, only: write_version_number, read_data, write_data, file_exist
 use mosaic_mod, only: get_mosaic_ntiles, get_mosaic_ncontacts
-use mpp_mod, only: mpp_pe, mpp_root_pe, mpp_sum, mpp_min, mpp_max, NULL_PE
-use mpp_mod, only: mpp_send, mpp_recv, mpp_sync_self, mpp_chksum
+use mpp_mod, only: mpp_npes, mpp_pe, mpp_root_pe, mpp_sum, mpp_min, mpp_max, NULL_PE
+use mpp_mod, only: mpp_send, mpp_recv, mpp_sync_self, mpp_chksum, input_nml_file
 use mpp_mod, only: mpp_clock_begin, mpp_clock_end, mpp_clock_id
 use mpp_mod, only: CLOCK_COMPONENT, CLOCK_SUBCOMPONENT, CLOCK_LOOP
 use mpp_mod, only: COMM_TAG_1, COMM_TAG_2, COMM_TAG_3, COMM_TAG_4
 use mpp_mod, only: COMM_TAG_5, COMM_TAG_6, COMM_TAG_7, COMM_TAG_8
 use mpp_mod, only: COMM_TAG_9, COMM_TAG_10
+use mpp_mod, only: mpp_gather
 use fms_mod, only: clock_flag_default
+use fms_io_mod, only: get_instance_filename
 use mpp_domains_mod, only: domain2D, mpp_update_domains, mpp_define_domains
 use mpp_parameter_mod, only: SCALAR_PAIR, CGRID_NE, BGRID_NE, CORNER, AGRID
 use mpp_domains_mod, only: mpp_get_compute_domain, mpp_get_data_domain
@@ -161,8 +163,9 @@ type, public :: icebergs ; private
 end type icebergs
 
 ! Global constants
-character(len=*), parameter :: version = '$Id: ice_bergs.F90,v 19.0.2.2.2.2 2012/05/24 18:54:50 Zhi.Liang Exp $'
-character(len=*), parameter :: tagname = '$Name: siena_201207 $'
+character(len=*), parameter :: version = '$Id: ice_bergs.F90,v 20.0 2013/12/13 23:28:21 fms Exp $'
+character(len=*), parameter :: tagname = '$Name: tikal $'
+
 integer, parameter :: nclasses=10 ! Number of ice bergs classes
 integer, parameter :: file_format_major_version=0
 integer, parameter :: file_format_minor_version=1
@@ -192,6 +195,7 @@ logical :: generate_test_icebergs=.false. ! Create icebergs in absence of a rest
 logical :: use_roundoff_fix=.true. ! Use a "fix" for the round-off discrepancy between is_point_in_cell() and pos_within_cell()
 logical :: old_bug_rotated_weights=.false. ! Skip the rotation of off-center weights for rotated halo updates
 logical :: make_calving_reproduce=.false. ! Make the calving.res.nc file reproduce across pe count changes.
+character(len=10) :: restart_input_dir = 'INPUT/'
 
 logical :: folded_north_on_pe = .false.
 
@@ -2538,6 +2542,7 @@ logical :: add_weight_to_ocean=.true. ! Add weight of icebergs + bits to ocean
 logical :: passive_mode=.false. ! Add weight of icebergs + bits to ocean
 logical :: time_average_weight=.false. ! Time average the weight on the ocean
 logical :: fix_restart_dates=.true. ! After a restart, check that bergs were created before the current model date
+logical :: reproduce_siena=.false. !To reproduce siena answers which change across PE layout change set to .true.
 real :: speed_limit=0. ! CFL speed limit for a berg
 real, dimension(nclasses) :: initial_mass=(/8.8e7, 4.1e8, 3.3e9, 1.8e10, 3.8e10, 7.5e10, 1.2e11, 2.2e11, 3.9e11, 7.4e11/) ! Mass thresholds between iceberg classes (kg)
 real, dimension(nclasses) :: distribution=(/0.24, 0.12, 0.15, 0.18, 0.12, 0.07, 0.03, 0.03, 0.03, 0.02/) ! Fraction of calving to apply to this class (non-dim)
@@ -2548,7 +2553,7 @@ namelist /icebergs_nml/ verbose, budget, halo, traj_sample_hrs, initial_mass, &
          rho_bergs, LoW_ratio, debug, really_debug, use_operator_splitting, bergy_bit_erosion_fraction, &
          parallel_reprod, use_slow_find, sicn_shift, add_weight_to_ocean, passive_mode, ignore_ij_restart, &
          time_average_weight, generate_test_icebergs, speed_limit, fix_restart_dates, use_roundoff_fix, &
-         old_bug_rotated_weights, make_calving_reproduce
+         old_bug_rotated_weights, make_calving_reproduce, restart_input_dir, reproduce_siena
 ! Local variables
 integer :: ierr, iunit, i, j, id_class, axes3d(3), is,ie,js,je
 type(icebergs_gridded), pointer :: grd
@@ -2562,16 +2567,29 @@ integer :: stdlogunit, stderrunit
 
 ! Read namelist parameters
  !write(stderrunit,*) 'diamonds: reading namelist'
+#ifdef INTERNAL_FILE_NML
+  read (input_nml_file, nml=icebergs_nml, iostat=ierr)
+#else
   iunit = open_namelist_file()
   read  (iunit, icebergs_nml,iostat=ierr)
-  ierr = check_nml_error(ierr, 'icebergs_nml')
-  call close_file(iunit)
+  call close_file (iunit)
+#endif
+  ierr = check_nml_error(ierr,'icebergs_nml')
 
   if (really_debug) debug=.true. ! One implies the other...
 
 ! Log version and parameters
   call write_version_number(version, tagname)
   write (stdlogunit, icebergs_nml)
+
+  if( reproduce_siena ) then
+     if( mpp_pe() == mpp_root_pe() ) then
+        call error_mesg("ice_bergs: You have overridden the default value of reproduce_siena " // &
+                        "and set it to .true. in icebergs_nml. This is a temporary workaround to " // &
+                        "allow for consistency in continuing experiments.",  "Please use the default " //&
+                        "value (.false.) as this option will be removed in a future release. ", WARNING)
+     endif
+  endif
 
 ! Allocate overall structure
  !write(stderrunit,*) 'diamonds: allocating bergs'
@@ -2713,6 +2731,7 @@ integer :: stdlogunit, stderrunit
   enddo; enddo
 
   ! Sanitize lon for the tile (need continuous longitudes within one tile)
+  if(reproduce_siena) then
   j=grd%jsc; do i=grd%isc+1,grd%ied
     minl=grd%lon(i-1,j)-180.
     grd%lon(i,j)=modulo(grd%lon(i,j)-minl,360.)+minl
@@ -2729,7 +2748,28 @@ integer :: stdlogunit, stderrunit
       minl=grd%lon(i,j+1)-180.
       grd%lon(i,j)=modulo(grd%lon(i,j)-minl,360.)+minl
   enddo; enddo
-
+  else  !The fix to reproduce across PE layout change, from AJA
+  j=grd%jsc; do i=grd%isc+1,grd%ied
+    minl=grd%lon(i-1,j)-180.
+    if (abs(grd%lon(i,j)-(modulo(grd%lon(i,j)-minl,360.)+minl))>180.) &
+       grd%lon(i,j)=modulo(grd%lon(i,j)-minl,360.)+minl
+  enddo
+  j=grd%jsc; do i=grd%isc-1,grd%isd,-1
+    minl=grd%lon(i+1,j)-180.
+    if (abs(grd%lon(i,j)-(modulo(grd%lon(i,j)-minl,360.)+minl))>180.) &
+       grd%lon(i,j)=modulo(grd%lon(i,j)-minl,360.)+minl
+  enddo
+  do j=grd%jsc+1,grd%jed; do i=grd%isd,grd%ied
+      minl=grd%lon(i,j-1)-180.
+      if (abs(grd%lon(i,j)-(modulo(grd%lon(i,j)-minl,360.)+minl))>180.) &
+         grd%lon(i,j)=modulo(grd%lon(i,j)-minl,360.)+minl
+  enddo; enddo
+  do j=grd%jsc-1,grd%jsd,-1; do i=grd%isd,grd%ied
+      minl=grd%lon(i,j+1)-180.
+      if (abs(grd%lon(i,j)-(modulo(grd%lon(i,j)-minl,360.)+minl))>180.) &
+         grd%lon(i,j)=modulo(grd%lon(i,j)-minl,360.)+minl
+  enddo; enddo
+  endif
   ! lonc, latc used for searches
   do j=grd%jsd+1,grd%jed; do i=grd%isd+1,grd%ied
     grd%lonc(i,j)=0.25*( (grd%lon(i,j)+grd%lon(i-1,j-1)) &
@@ -2865,6 +2905,8 @@ integer :: stdlogunit, stderrunit
   if (debug) then
     call grd_chksum2(grd, grd%lon, 'init lon')
     call grd_chksum2(grd, grd%lat, 'init lat')
+    call grd_chksum2(grd, grd%lonc, 'init lonc')
+    call grd_chksum2(grd, grd%latc, 'init latc')
     call grd_chksum2(grd, grd%area, 'init area')
     call grd_chksum2(grd, grd%msk, 'init msk')
     call grd_chksum2(grd, grd%cos, 'init cos')
@@ -2883,14 +2925,15 @@ subroutine read_restart_bergs(bergs,Time)
 type(icebergs), pointer :: bergs
 type(time_type), intent(in) :: Time
 ! Local variables
+integer, dimension(:), allocatable :: found_restart_int
 integer :: k, ierr, ncid, dimid, nbergs_in_file
 integer :: lonid, latid, uvelid, vvelid, ineid, jneid
 integer :: massid, thicknessid, widthid, lengthid
 integer :: start_lonid, start_latid, start_yearid, start_dayid, start_massid
 integer :: scaling_id, mass_of_bits_id, heat_density_id
-logical :: lres, found_restart, multiPErestart=.false.
+logical :: lres, found_restart, multiPErestart
 real :: lon0, lon1, lat0, lat1
-character(len=30) :: filename
+character(len=33) :: filename, filename_base
 type(icebergs_gridded), pointer :: grd
 type(iceberg) :: localberg ! NOT a pointer but an actual local variable
 integer :: stderrunit
@@ -2903,26 +2946,32 @@ integer :: stderrunit
 
   ! Find a restart file
   multiPErestart=.false.
-  do
-    filename='INPUT/icebergs.res.nc'; inquire(file=filename,exist=found_restart)
-    if (found_restart) exit
-    write(filename(1:27),'("INPUT/icebergs.res.nc.",I4.4)') mpp_pe()
-    inquire(file=filename,exist=found_restart)
-    if (found_restart) multiPErestart=.true.
-    if (found_restart) exit
-    write(filename(1:21),'("icebergs.res.nc.",I4.4)') mpp_pe()
-    inquire(file=filename,exist=found_restart)
-    if (found_restart) multiPErestart=.true.
-    if (found_restart) exit
-    filename='icebergs.res.nc'; inquire(file=filename,exist=found_restart)
-    if (found_restart) exit
-    if (verbose.and.mpp_pe()==mpp_root_pe()) write(*,'(a)') 'diamonds, read_restart_bergs: no restart file found'
-!   return ! leave s/r if no restart found
-    multiPErestart=.true. ! This is to force sanity checking in a mulit-PE mode if no file was found on this PE
-    exit
-  enddo 
 
-  if (found_restart) then ! only do the following if a file was found
+  ! Zero out nbergs_in_file
+  nbergs_in_file = 0
+
+  filename_base=trim(restart_input_dir)//'icebergs.res.nc'
+
+  found_restart = find_restart_file(filename_base, filename, multiPErestart)
+
+  ! Check if no restart found on any pe
+  allocate(found_restart_int(mpp_npes()))
+  if (found_restart .eqv. .true.) then
+     k=1
+  else
+     k=0
+  endif
+  call mpp_gather((/k/),found_restart_int)
+  if (sum(found_restart_int)==0.and.mpp_pe()==mpp_root_pe())&
+       & write(*,'(a)') 'diamonds, read_restart_bergs: no restart file found'
+  deallocate(found_restart_int)
+
+  if (.not.found_restart) then
+
+  multiPErestart=.true. ! This is to force sanity checking in a mulit-PE mode if no file was found on this PE
+
+  elseif (found_restart) then ! if (.not.found_restart)
+  ! only do the following if a file was found
   
   if (verbose.and.mpp_pe()==mpp_root_pe()) write(*,'(2a)') 'diamonds, read_restart_bergs: found restart file = ',filename
 
@@ -3021,7 +3070,7 @@ integer :: stderrunit
 
   else ! if no restart file was read on this PE
     nbergs_in_file=0
-  endif ! if (found_restart)
+  endif ! if (.not.found_restart)
   
   ! Sanity check
   k=count_bergs(bergs)
@@ -3113,7 +3162,7 @@ use random_numbers_mod, only: initializeRandomNumberStream, getRandomNumbers, ra
 type(icebergs), pointer :: bergs
 ! Local variables
 integer :: k,i,j
-character(len=30) :: filename
+character(len=37) :: filename, actual_filename
 type(icebergs_gridded), pointer :: grd
 real, allocatable, dimension(:,:) :: randnum
 type(randomNumberStream) :: rns
@@ -3122,7 +3171,7 @@ type(randomNumberStream) :: rns
   grd=>bergs%grd
 
   ! Read stored ice
-  filename='INPUT/calving.res.nc'
+  filename=trim(restart_input_dir)//'calving.res.nc'
   if (file_exist(filename)) then
     if (verbose.and.mpp_pe().eq.mpp_root_pe()) write(*,'(2a)') &
      'diamonds, read_restart_calving: reading ',filename
@@ -4585,7 +4634,7 @@ integer :: lonid, latid, uvelid, vvelid, ineid, jneid
 integer :: massid, thicknessid, lengthid, widthid
 integer :: start_lonid, start_latid, start_yearid, start_dayid, start_massid
 integer :: scaling_id, mass_of_bits_id, heat_density_id
-character(len=28) :: filename
+character(len=35) :: filename
 type(iceberg), pointer :: this
 integer :: stderrunit
  
@@ -4595,7 +4644,8 @@ integer :: stderrunit
   ! Only create a restart file for this PE if we have anything to say
   if (associated(bergs%first)) then
 
-    write(filename(1:28),'("RESTART/icebergs.res.nc.",I4.4)') mpp_pe()
+    call get_instance_filename("RESTART/icebergs.res.nc", filename)
+    write(filename,'(A,".",I4.4)') trim(filename), mpp_pe()
     if (verbose) write(*,'(2a)') 'diamonds, write_restart: creating ',filename
 
     iret = nf_create(filename, NF_CLOBBER, ncid)
@@ -4736,14 +4786,21 @@ integer :: lonid, latid, yearid, dayid, uvelid, vvelid
 integer :: uoid, void, uiid, viid, uaid, vaid, sshxid, sshyid, sstid
 integer :: cnid, hiid
 integer :: mid, did, wid, lid, mbid, hdid
-character(len=30) :: filename
+character(len=37) :: filename
+character(len=7) :: pe_name
 type(xyt), pointer :: this, next
 integer :: stderrunit
 
   ! Get the stderr unit number
   stderrunit=stderr()
-
-  write(filename(1:30),'("iceberg_trajectories.nc.",I4.4)') mpp_pe()
+  
+  call get_instance_filename("iceberg_trajectories.nc", filename)
+  if (mpp_npes()>10000) then
+     write(pe_name,'(a,i6.6)' )'.', mpp_pe()    
+  else
+     write(pe_name,'(a,i4.4)' )'.', mpp_pe()    
+  endif
+  filename=trim(filename)//trim(pe_name)
   if (debug) write(stderrunit,*) 'diamonds, write_trajectory: creating ',filename
 
   iret = nf_create(filename, NF_CLOBBER, ncid)
@@ -5372,5 +5429,41 @@ integer :: i
 end function berg_chksum
 
 ! ##############################################################################
+
+logical function find_restart_file(filename, actual_file, multiPErestart)
+  character(len=*), intent(in) :: filename
+  character(len=*), intent(out) :: actual_file
+  logical, intent(out) :: multiPErestart
+
+  character(len=6) :: pe_name
+
+  find_restart_file = .false.
+
+  ! If running as ensemble, add the ensemble id string to the filename
+  call get_instance_filename(filename, actual_file)
+    
+  ! Prefer combined restart files.
+  inquire(file=actual_file,exist=find_restart_file)
+  if (find_restart_file) return
+    
+  ! Uncombined restart
+  if (mpp_npes()>10000) then
+     write(pe_name,'(a,i6.6)' )'.', mpp_pe()    
+  else
+     write(pe_name,'(a,i4.4)' )'.', mpp_pe()    
+  endif
+  actual_file=trim(actual_file)//trim(pe_name)
+  inquire(file=actual_file,exist=find_restart_file)
+  if (find_restart_file) then
+     multiPErestart=.true.
+     return
+  endif
+
+  ! No file found, Reset all return parameters
+  find_restart_file=.false.
+  actual_file = ''
+  multiPErestart=.false.
+
+end function find_restart_file
 
 end module

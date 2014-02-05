@@ -4,7 +4,7 @@
 #   Returns list of files under CVS control, relative to current 
 #   directory, which can be updated or checked out with the tag tagname.
 #Modified to also list files not currently checked out (arl, 4/2002)
-#Version: $Id: list_files_with_tag,v 10.0 2003/10/27 22:46:40 fms Exp $
+#Version: $Id: list_files_with_tag,v 1.1.2.1 2013/12/18 17:47:54 Niki.Zadeh Exp $
 
 #test that a tagname was given as an argument
 if( "$#ARGV" ne "0" ) {

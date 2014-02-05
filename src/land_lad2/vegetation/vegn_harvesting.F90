@@ -37,8 +37,8 @@ public :: vegn_cut_forest
 
 ! ==== module constants =====================================================
 character(len=*), parameter   :: &
-     version = '$Id: vegn_harvesting.F90,v 19.0 2012/01/06 20:44:36 fms Exp $', &
-     tagname = '$Name: siena_201207 $', &
+     version = '$Id: vegn_harvesting.F90,v 20.0 2013/12/13 23:31:12 fms Exp $', &
+     tagname = '$Name: tikal $', &
      module_name = 'vegn_harvesting_mod'
 real, parameter :: ONETHIRD = 1.0/3.0
 
@@ -50,12 +50,14 @@ real :: grazing_intensity      = 0.25    ! fraction of biomass removed each time
 real :: grazing_residue        = 0.1     ! fraction of the grazed biomass transferred into soil pools
 real :: frac_wood_wasted_harv  = 0.25    ! fraction of wood wasted while harvesting
 real :: frac_wood_wasted_clear = 0.25    ! fraction of wood wasted while clearing land for pastures or crops
+logical :: waste_below_ground_wood = .TRUE. ! If true, all the wood below ground (1-agf_bs fraction of bwood 
+        ! and bsw) is wasted. Old behavior assumed this to be FALSE.
 real :: frac_wood_fast         = ONETHIRD ! fraction of wood consumed fast
 real :: frac_wood_med          = ONETHIRD ! fraction of wood consumed with medium speed
 real :: frac_wood_slow         = ONETHIRD ! fraction of wood consumed slowly
 real :: crop_seed_density      = 0.1     ! biomass of seeds left after crop harvesting, kg/m2
 namelist/harvesting_nml/ do_harvesting, grazing_intensity, grazing_residue, &
-     frac_wood_wasted_harv, frac_wood_wasted_clear, &
+     frac_wood_wasted_harv, frac_wood_wasted_clear, waste_below_ground_wood, &
      frac_wood_fast, frac_wood_med, frac_wood_slow, &
      crop_seed_density
 
@@ -237,6 +239,11 @@ subroutine vegn_cut_forest(vegn, new_landuse)
      frac_wood_wasted = frac_wood_wasted_harv
   else
      frac_wood_wasted = frac_wood_wasted_clear
+  endif
+  ! take into accont that all wood below ground is wasted; also the fraction
+  ! of waste calculated above is lost from the above-ground part of the wood
+  if (waste_below_ground_wood) then
+     frac_wood_wasted = (1-agf_bs) + agf_bs*frac_wood_wasted
   endif
 
   ! update biomass pools for each cohort according to harvested fraction

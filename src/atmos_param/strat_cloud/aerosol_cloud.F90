@@ -5,7 +5,7 @@ use fms_mod,                   only :  error_mesg, FATAL, mpp_pe,   &
                                        check_nml_error, close_file,  &
                                        write_version_number, file_exist, &
                                        stdlog
-use constants_mod,             ONLY :  grav, cp_air, rdgas, rvgas
+use constants_mod,             ONLY :  grav, cp_air, rdgas, rvgas, tfreeze
 use rad_utilities_mod,         ONLY :  aerosol_type
 use mpp_mod,                   only :  mpp_clock_id, mpp_clock_begin,  &
                                        mpp_clock_end, CLOCK_LOOP,  &
@@ -37,8 +37,8 @@ private  aerosol_effects
 !--------------------------------------------------------------------------
 !---version number---------------------------------------------------------
 
-Character(len=128) :: Version = '$Id: aerosol_cloud.F90,v 19.0 2012/01/06 20:26:09 fms Exp $'
-Character(len=128) :: Tagname = '$Name: siena_201207 $'
+Character(len=128) :: Version = '$Id: aerosol_cloud.F90,v 20.0 2013/12/13 23:21:48 fms Exp $'
+Character(len=128) :: Tagname = '$Name: tikal $'
 
 !--------------------------------------------------------------------------
 !---namelist---------------------------------------------------------------
@@ -85,6 +85,7 @@ integer            :: aero_init, aero_effects, aero_dust, aero_loop1, &
                       aero_loop2, aero_loop3
 
 logical            :: module_is_initialized = .false.
+real               :: missing_value = -1.e30
 
 
 CONTAINS
@@ -138,7 +139,9 @@ type(strat_constants_type), intent(in) :: Constants
 !-------------------------------------------------------------------------
 !    define offset into aerosol activation tables.
 !-------------------------------------------------------------------------
-      IF (.NOT. Constants%do_mg_microphys .AND. reproduce_rk) THEN
+      IF (.NOT. (Constants%do_mg_microphys .OR.   & 
+                                   Constants%do_mg_ncar_microphys)  & 
+                                       .AND. reproduce_rk) THEN
         wpdf_offs =0
       ELSE 
         wpdf_offs = 1
@@ -290,6 +293,7 @@ INTEGER,                    INTENT(IN )    :: otun
             do i = 1,idim
               if ( (Nml%do_pdf_clouds) .or.  &
                    (Constants%do_mg_microphys)  .or.  &
+                   (Constants%do_mg_ncar_microphys)  .or.  &
                    (up_strat(i,j,k) >= 0.0) )  then
                 thickness(i,j,k) = Atmos_state%deltpg(i,j,k)/  &
                                                 Atmos_state%airdens(i,j,k)
@@ -298,10 +302,8 @@ INTEGER,                    INTENT(IN )    :: otun
                                  Atmos_state%diff_t(i,j,min(k+1,KDIM)))/&
                                                      thickness(i,j,k) )**2
                 wp2(i,j,k) = MAX (wp2t(i,j,k), Nml%var_limit**2)
-                if(diag_id%debug2_3d > 0)   &
-                         diag_4d(i,j,k,diag_pt%debug2_3d) = wp2(i,j,k)**0.5
-                if(diag_id%debug3_3d > 0)   &
-                                     diag_4d(i,j,k,diag_pt%debug3_3d) = 1.
+                if(diag_id%subgrid_w_variance > 0)   &
+                 diag_4d(i,j,k,diag_pt%subgrid_w_variance) = wp2(i,j,k)**0.5
                
                 call aer_ccn_act_wpdf_m   &
                       (Atmos_state%T_in(i,j,k), Atmos_state%pfull(i,j,k), &
@@ -329,7 +331,7 @@ INTEGER,                    INTENT(IN )    :: otun
 !------------------------------------------------------------------------
 !    ice nuclei activation may only occur at temps below -5 C.
 !------------------------------------------------------------------------
-                if (Atmos_state%T_in(i,j,k) .LT. 268.15) then
+                if (Atmos_state%T_in(i,j,k) .LT. tfreeze - 5.) then
 
 !-----------------------------------------------------------------------
 !    place a lower limit on the velocity pdf variance, if desired.
@@ -371,6 +373,10 @@ INTEGER,                    INTENT(IN )    :: otun
                       qvt(i,j,k) =  Atmos_state%qv_in(i,j,k)
                     ENDIF
                   END IF
+
+                  if (qvt(i,j,k) .LE. 0.0) then
+                     qvt(i,j,k) =  MAX(Atmos_state%qv_in(i,j,k), Nml%qmin)
+                  endif
                   u_i(i,j,k) =  qvt(i,j,k)/qvsi(i,j,k)
                   u_l(i,j,k) =  qvt(i,j,k)/qvsl(i,j,k)
 
@@ -383,10 +389,12 @@ INTEGER,                    INTENT(IN )    :: otun
                                                 u_i(i,j,k) .gt. 200. ) then
                     write(otun,*) " +++++++++++++++++++++++ "
                     write(otun,*) " i,j,k ,u_i ", i,j,k,u_i(i,j,k)
-                    write(otun,*) " qs, qvsi , qv ",   &
+                    write(otun,*) " qs, qvsi , qvt, qv ",   &
                                     Atmos_state%qs(i,j,k), qvsi(i,j,k), &
-                                                    Atmos_state%qv_in(i,j,k)
-                    write(otun,*) " cf ", cf(i,j,k)
+                                     qvt(i,j,k),    Atmos_state%qv_in(i,j,k)
+                    write(otun,*) " cf, ahuco,qa_upd,qrat ", cf(i,j,k), &
+                                    Atmos_state%ahuco(i,j,k),   &
+                                    qa_upd(i,j,k), Atmos_state%qrat(i,j,k)
                     write(otun,*) " qv(i,k) - cf * qs(i,k), (1-cf) " , &
                                     Atmos_state%qv_in(i,j,k) -  &
                                         cf(i,j,k)*Atmos_state%qs(i,j,k), &
@@ -411,6 +419,9 @@ INTEGER,                    INTENT(IN )    :: otun
                   ni_sulf(i,j,k) = 0.
                   ni_dust(i,j,k) = 0.
                   ni_bc  (i,j,k) = 0.
+                  cf(i,j,k) = missing_value
+                  u_i(i,j,k) =  missing_value            
+                  u_l(i,j,k) =  missing_value
                 endif
 
 !-------------------------------------------------------------------------
@@ -450,20 +461,19 @@ INTEGER,                    INTENT(IN )    :: otun
 !-------------------------------------------------------------------------
 !    define various desired diagnostics.
 !-------------------------------------------------------------------------
-          if(diag_id%debug3_3d > 0)   &
-                      diag_4d(:,:,:,diag_pt%debug3_3d) = Particles%drop1
 
           if ( diag_id%imass7 > 0 )    &   
                         diag_4d(:,:,:,diag_pt%imass7) = imass1(:,:,:,7)
 
-          if(diag_id%debug4_3d > 0)   &
-                   diag_4d(:,:,:,diag_pt%debug4_3d) =  Particles%crystal1
+          if(diag_id%potential_crystals > 0)   &
+                   diag_4d(:,:,:,diag_pt%potential_crystals) =  &
+                                                       Particles%crystal1
 
           if ( diag_id%rhcrit > 0 )     &  
-                     diag_4d(:,:,:,diag_pt%rhcrit) = ATmos_state%rh_crit
+                    diag_4d(:,:,:,diag_pt%rhcrit) = 100.*Atmos_state%rh_crit
 
           if ( diag_id%rhcrit_min > 0 )     &  
-              diag_4d(:,:,:,diag_pt%rhcrit_min) = Atmos_state%rh_crit_min
+            diag_4d(:,:,:,diag_pt%rhcrit_min) = 100.*Atmos_state%rh_crit_min
 
           if ( diag_id%ndust1 > 0 )     &  
                diag_4d(:,:,:,diag_pt%ndust1) = Nfact_du1 *  imass1(:,:,:,8)
@@ -497,6 +507,11 @@ INTEGER,                    INTENT(IN )    :: otun
           if ( diag_id%rhlin > 0 ) diag_4d(:,:,:,diag_pt%rhlin) = u_l
 
         END IF ! do_ice_nucl_wpdf
+
+        if(diag_id%potential_droplets > 0)   &
+                      diag_4d(:,:,:,diag_pt%potential_droplets) =   &
+                                                        Particles%drop1
+
         call mpp_clock_end (aero_loop3)
       end if  ! (do_liq_num)
 
@@ -797,16 +812,19 @@ INTEGER,                                   INTENT (in)   :: otun
                                                        totalmass1(i,j,k,3)
                 end if
                 if (diag_id%sulfate > 0) then
-                  diag_4d(i,j,k, diag_pt%sulfate) = 0.7273*totalmass1(i,j,k,1)/  &
+                  diag_4d(i,j,k, diag_pt%sulfate) =   &
+                                             0.7273*totalmass1(i,j,k,1)/  &
                                                     pthickness(i,j,k)*1.0e9
                 endif
          
                 if (diag_id%seasalt_sub > 0) then
-                  diag_4d(i,j,k,diag_pt%seasalt_sub) = concen_ss_sub(i,j,k)/  &
+                  diag_4d(i,j,k,diag_pt%seasalt_sub) =    &
+                                                  concen_ss_sub(i,j,k)/  &
                                                     pthickness(i,j,k)*1.0e9
                 endif 
                 if (diag_id%seasalt_sup > 0) then
-                  diag_4d(i,j,k, diag_pt%seasalt_sup) = concen_ss_sup(i,j,k)/  &
+                  diag_4d(i,j,k, diag_pt%seasalt_sup) =    &
+                                                 concen_ss_sup(i,j,k)/  &
                                                     pthickness(i,j,k)*1.0e9
                 endif 
               end do
@@ -898,6 +916,8 @@ INTEGER,                                   INTENT (in)   :: otun
           do k=1,kdim
             do j=1,jdim
               do i=1,idim
+!RSH the 1.0e12 factor here is to counter the  1.0e-12 factor applied 
+! above to totalmass1. The 1.0e9 factor (kg -> ug) is already in totalmass1.
                 diag_4d(i,j,k,diag_pt%om) = totalmass1(i,j,k,2)*1.0e12
               end do
             end do

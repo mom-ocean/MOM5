@@ -42,7 +42,7 @@ private
 !----------- version number for this module --------------------------
 
 character(len=128)  :: version =  '$Id: isccp_clouds.F90,v 19.0 2012/01/06 20:16:57 fms Exp $'
-character(len=128)  :: tagname =  '$Name: siena_201207 $'
+character(len=128)  :: tagname =  '$Name: tikal $'
 
 
 !---------------------------------------------------------------------
@@ -862,14 +862,14 @@ real,  dimension(:,:),    intent(out)     :: inhomogeneity_parameter, &
                                            qv(:, j, :),    at(:, j, :), dem_wv)
           
           ! Call Icarus...
-          call isccp_clouds_icarus(dtau, pFull(:, j, :),                  &
+          call icarus(dtau, pFull(:, j, :),                  & 
                       dem, dem_wv,  at(:, j, :),  skt(:, j), &
                        (/ (emsfclw, j = 1, nPoints) /),      &
                       boxtau = boxtau, boxptop = boxptop)
         else 
           ! We're asking for the real cloud tops. 
           !   We don't correct very optically thin clouds either. 
-          call isccp_clouds_icarus(dtau, pFull(:, j, :),                  &
+          call icarus(dtau, pFull(:, j, :),                  & 
                       boxtau = boxtau, boxptop = boxptop)
         end if 
         
@@ -1140,14 +1140,14 @@ real,  dimension(:,:),    intent(out)    :: inhomogeneity_parameter, &
                                            qv(:, j, :),    at(:, j, :), dem_wv)
           
           ! Call Icarus...
-          call isccp_clouds_icarus(dtau, pFull(:, j, :),                  &
+          call icarus(dtau, pFull(:, j, :),                  & 
                       dem, dem_wv,  at(:, j, :),  skt(:, j), &
                        (/ (emsfclw, j = 1, nPoints) /),       &
                       boxtau = boxtau, boxptop = boxptop)
         else 
           ! We're asking for the real cloud tops. 
           !   We don't correct very optically thin clouds either. 
-          call isccp_clouds_icarus(dtau, pFull(:, j, :),                 &
+          call icarus(dtau, pFull(:, j, :),                 & 
                       boxtau = boxtau, boxptop = boxptop)
         end if 
         
@@ -1725,7 +1725,7 @@ end function ran0
       
   end subroutine scops
 ! -------------------------------------------------------------------
-  subroutine isccp_clouds_icarus(dtau, pfull,                              & ! Required
+  subroutine icarus(dtau, pfull,                              & ! Required 
                     dem, dem_wv, at, skt, emsfc_lw, iTrop,    & ! Optional
                     boxtau, boxptop)
     !
@@ -1987,7 +1987,7 @@ end function ran0
     boxptop(:, :) = ptop(:, :) / 100. 
     boxtau(:, :)  = tau(:, :)
     
-  end subroutine isccp_clouds_icarus
+  end subroutine icarus
   ! -------------------------------------------------------------------
   ! ------------------------------------------------------ 
   function computeIsccpJointHistograms(tau, ptop, sunlit) result(isccpJointHistogram)

@@ -1,14 +1,14 @@
 module ocean_velocity_mod
 #define COMP isc:iec,jsc:jec
 !
-! <CONTACT EMAIL="Stephen.Griffies@noaa.gov">
+! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
 ! S.M. Griffies 
 ! </CONTACT>
 !
-!<CONTACT EMAIL="Tony.Rosati@noaa.gov"> A. Rosati
+!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> A. Rosati
 !</CONTACT>
 !
-! <REVIEWER EMAIL="Matthew.Harrison@noaa.gov">
+! <REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov">
 ! M.J. Harrison 
 ! </REVIEWER>
 !
@@ -229,9 +229,9 @@ type(restart_file_type), save :: Cor_restart
 integer :: unit=6
 
 character(len=128) :: &
-     version='$Id: ocean_velocity.F90,v 1.1.2.16 2012/06/04 00:11:43 Stephen.Griffies Exp $'
+     version='$Id: ocean_velocity.F90,v 20.0 2013/12/14 00:12:41 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 logical :: have_obc = .false.
 
@@ -394,6 +394,10 @@ subroutine ocean_velocity_init (Grid, Domain, Time, Time_steps, Ocean_options, &
   allocate (Velocity%smf_cgrid(isd:ied,jsd:jed,2))
   allocate (Velocity%bmf(isd:ied,jsd:jed,2))
   allocate (Velocity%gamma(isd:ied,jsd:jed))
+  allocate (Velocity%langmuirfactor(isd:ied,jsd:jed))
+  allocate (Velocity%ustoke(isd:ied,jsd:jed))
+  allocate (Velocity%vstoke(isd:ied,jsd:jed))
+  allocate (Velocity%wavlen(isd:ied,jsd:jed))
   allocate (Velocity%cdbot_array(isd:ied,jsd:jed))
   allocate (Velocity%rossby_radius(isd:ied,jsd:jed))
   allocate (Velocity%stokes_depth(isd:ied,jsd:jed))
@@ -415,6 +419,10 @@ subroutine ocean_velocity_init (Grid, Domain, Time, Time_steps, Ocean_options, &
   Velocity%smf_cgrid           = 0.0
   Velocity%bmf                 = 0.0
   Velocity%gamma               = 0.0
+  Velocity%langmuirfactor      = 1.0
+  Velocity%ustoke              = 0.0
+  Velocity%vstoke              = 0.0
+  Velocity%wavlen              = 1.0 
   Velocity%cdbot_array         = 0.0
   Velocity%rossby_radius       = 1.e5
   Velocity%stokes_depth        = 0.0
@@ -1825,7 +1833,7 @@ end subroutine ocean_velocity_chksum
 !
 ! Use rho_dzu weighting to account for nonBoussinesq.  
 !
-! Author: Stephen.Griffies@noaa.gov
+! Author: Stephen.Griffies
 !
 ! </DESCRIPTION>
 !

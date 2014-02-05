@@ -31,8 +31,8 @@ private nc_cond_nopdf_nosuper, nc_cond_nopdf_super, nc_cond_pdf, &
 !-----------------------------------------------------------------------
 !---version number------------------------------------------------------
 
-Character(len=128) :: Version = '$Id: nc_cond.F90,v 19.0 2012/01/06 20:26:15 fms Exp $'
-Character(len=128) :: Tagname = '$Name: siena_201207 $'
+Character(len=128) :: Version = '$Id: nc_cond.F90,v 20.0 2013/12/13 23:22:01 fms Exp $'
+Character(len=128) :: Tagname = '$Name: tikal $'
 
 !-----------------------------------------------------------------------
 !---namelist------------------------------------------------------------
@@ -62,7 +62,6 @@ namelist / nc_cond_nml /  add_ahuco, use_qabar, rk_repartition_first, &
                           do_aero_eros, ae_lb, ae_ub, ae_N_lb, ae_N_ub
  
 !------------------------------------------------------------------------
-
 logical     :: module_is_initialized = .false.
 
 
@@ -472,8 +471,8 @@ INTEGER,                         INTENT(IN)    :: otun
 !-----------------------------------------------------------------------
 !    save a diagnostic if desired.
 !-----------------------------------------------------------------------
-      if ( diag_id%tmp5_3d > 0 ) then
-        diag_4d(:,:,:,diag_pt%tmp5_3d) = Cloud_processes%tmp5
+      if ( diag_id%delta_cf > 0 ) then
+        diag_4d(:,:,:,diag_pt%delta_cf) = Cloud_processes%delta_cf
       end if
 
 !-----------------------------------------------------------------------
@@ -841,7 +840,7 @@ INTEGER,                         INTENT(IN )   :: otun
         do j=1,jdim
           do i=1,idim
             A_dt(i,j,k) = Cloud_processes%da_ls(i,j,k)/   &
-                            max((1.-Cloud_state%qa_upd(i,j,k)), Nml%qmin)
+                              max((1.-Cloud_state%qa_upd(i,j,k)), Nml%qmin)
             B_dt(i,j,k) = Cloud_processes%D_eros(i,j,k)
   
 !------------------------------------------------------------------------
@@ -865,6 +864,47 @@ INTEGER,                         INTENT(IN )   :: otun
         END DO    
       END DO    
 
+      do k=1,kdim
+        do j=1,jdim
+          do i=1,idim
+!------------------------------------------------------------------------
+!    save some diagnostics.
+!------------------------------------------------------------------------
+!           if ( (A_dt(i,j,k) .gt. Nml%Dmin) .or.   &
+            if ( (A_dt(i,j,k) .gt. Nml%Dmin) .and.   &
+                 (B_dt(i,j,k) .gt. Nml%Dmin) )  then
+      if (diag_id%qadt_lsform + diag_id%qa_lsform_col > 0) then
+      diag_4d(i,j,k,diag_pt%qadt_lsform) =  A_dt(i,j,k)*(1.-qabar(i,j,k))     *  &                                            
+                                                 Constants%inv_dtcloud
+      end if
+      if ( diag_id%qadt_eros + diag_id%qa_eros_col > 0 ) then
+        diag_4d(i,j,k,diag_pt%qadt_eros)  = ((qa1(i,j,k) - qa0(i,j,k))*  &
+                                          Constants%inv_dtcloud )- &
+                            diag_4d(i,j,k,diag_pt%qadt_lsform)                                           
+                               
+      end if
+
+          else if (A_dt(i,j,k) .gt. Nml%Dmin) then
+             if (diag_id%qadt_lsform + diag_id%qa_lsform_col > 0) then
+ 
+        diag_4d(i,j,k,diag_pt%qadt_lsform) = (qa1(i,j,k) - qa0(i,j,k))*  &
+                                                Constants%inv_dtcloud
+              end if 
+          else if (B_dt(i,j,k) .gt. Nml%Dmin)  then
+              if ( diag_id%qadt_eros + diag_id%qa_eros_col > 0 ) then
+            diag_4d(i,j,k,diag_pt%qadt_eros)  = (qa1(i,j,k) - qa0(i,j,k))*&
+                                                Constants%inv_dtcloud
+              end if 
+          endif
+
+          END DO    
+        END DO    
+      END DO    
+      if (diag_id%qadt_ahuco + diag_id%qa_ahuco_col > 0) then
+        diag_4d(:,:,:,diag_pt%qadt_ahuco) =   &
+                                      qa1(:,:,:)
+      end if
+
 !------------------------------------------------------------------------
 !    limit cloud area to be no more than that which is not being
 !    taken by convective clouds
@@ -873,32 +913,24 @@ INTEGER,                         INTENT(IN )   :: otun
         qa1 = MIN(qa1, 1.0 -Atmos_state%ahuco)
       endif
                  
-!------------------------------------------------------------------------
-!    set total tendency term and update cloud fraction    
-!------------------------------------------------------------------------
-      SA = (SA + qa1) - qa0
-      Cloud_state%qa_upd = qa1
-        
-!------------------------------------------------------------------------
-!    save some diagnostics.
-!------------------------------------------------------------------------
-      if (diag_id%qadt_lsform > 0) then
-        diag_4d(:,:,:,diag_pt%qadt_lsform) =  A_dt*(1.-qabar)*  &
-                                                Constants%inv_dtcloud
-      end if
-      if ( diag_id%qadt_eros > 0 ) then
-        diag_4d(:,:,:,diag_pt%qadt_eros)  =  B_dt*qabar*   &
-                                                Constants%inv_dtcloud
+      if (diag_id%qadt_ahuco + diag_id%qa_ahuco_col > 0) then
+        diag_4d(:,:,:,diag_pt%qadt_ahuco) =    &
+                  (qa1(:,:,:) - diag_4d(:,:,:,diag_pt%qadt_ahuco))* & 
+                                             Constants%inv_dtcloud 
       end if
 
 !------------------------------------------------------------------------
-!    save term needed when predicted droplets is active.
+!    set total tendency term and update cloud fraction    
 !------------------------------------------------------------------------
-!     IF (use_qabar) THEN
-!       Cloud_processes%tmp5 = A_dt*(1.-qabar)
-!     ELSE
-!       Cloud_processes%tmp5 = A_dt*(1.-CLoud_state%qa_upd)
-!     END IF
+
+
+      SA = (SA + qa1) - qa0
+
+
+
+
+      Cloud_state%qa_upd = qa1
+        
 
 !------------------------------------------------------------------------
 !       The next step is to calculate the change in condensate
@@ -916,10 +948,10 @@ INTEGER,                         INTENT(IN )   :: otun
 !------------------------------------------------------------------------
       IF (use_qabar) THEN
         Cloud_processes%dcond_ls = -1.*qabar*dqs_ls
-        Cloud_processes%tmp5 = A_dt*(1.-qabar)
+        Cloud_processes%delta_cf = A_dt*(1.-qabar)
       ELSE
         Cloud_processes%dcond_ls = -1.*Cloud_state%qa_upd*dqs_ls   
-        Cloud_processes%tmp5 = A_dt*(1.-Cloud_state%qa_upd)
+        Cloud_processes%delta_cf = A_dt*(1.-Cloud_state%qa_upd)
       END IF      
 
 !-----------------------------------------------------------------------
@@ -1021,7 +1053,7 @@ INTEGER,                            INTENT(IN )   :: otun
       do k=1,kdim
         do j=1,jdim
           do i=1,idim
-            if (Atmos_state%T_in(i,j,k) .GE. 233.15 ) then 
+            if (Atmos_state%T_in(i,j,k) .GE. tfreeze  - 40. ) then 
               drhcqsdT(i,j,k) =  hlv*Atmos_state%qsl(i,j,k)/  &
                                         (rvgas*Atmos_state%T_in(i,j,k)**2)
               beta(i,j,k) = drhcqsdT(i,j,k) * hlv /cp_air
@@ -1032,7 +1064,7 @@ INTEGER,                            INTENT(IN )   :: otun
                                     Particles%hom(i,j,k)*  &
                                    Atmos_state%qsi(i,j,k)*  &
                                      ( 2.*0.0073*(Atmos_state%T_in(i,j,k) -&
-                                                         273.15 ) + 1.466)
+                                                   tfreeze      ) + 1.466)
               beta(i,j,k) = drhcqsdT(i,j,k) * hls/ cp_air
             endif 
           end do
@@ -1233,8 +1265,7 @@ INTEGER,                            INTENT(IN )   :: otun
             if ( (A_dt(i,j,k) .gt. Nml%Dmin) .or.   &
                                       (B_dt(i,j,k) .gt. Nml%Dmin) ) then 
               qa0(i,j,k)   = Cloud_state%qa_upd(i,j,k)
-! note the ahuco
-              qaeq(i,j,k)  = (1. - Atmos_state%ahuco(i,j,k))*    &
+              qaeq(i,j,k)  =                                     &
                                  A_dt(i,j,k)/(A_dt(i,j,k) + B_dt(i,j,k))
               qa1(i,j,k)  = qaeq(i,j,k) - (qaeq(i,j,k) - qa0(i,j,k))* &
                                      exp(-1.*(A_dt(i,j,k) + B_dt(i,j,k)) )
@@ -1253,29 +1284,61 @@ INTEGER,                            INTENT(IN )   :: otun
 !-------------------------------------------------------------------------
 !    output some diagnostics.
 !-------------------------------------------------------------------------
-      if ( diag_id%qadt_lsform > 0 ) then
-        diag_4d(:,:,:,diag_pt%qadt_lsform) =  A_dt*(1. - qabar)*  &
+      do k=1,kdim
+        do j=1,jdim
+          do i=1,idim
+            if ( (A_dt(i,j,k) .gt. Nml%Dmin) .and.   &
+                 (B_dt(i,j,k) .gt. Nml%Dmin) )  then
+      if (diag_id%qadt_lsform + diag_id%qa_lsform_col > 0) then
+        diag_4d(i,j,k,diag_pt%qadt_lsform) =  A_dt(i,j,k)*(1. - qabar(i,j,k))*  &
                                                      Constants%inv_dtcloud
       end if
-      if ( diag_id%qadt_eros > 0 ) then
-        diag_4d(:,:,:,diag_pt%qadt_eros)  =  B_dt*qabar*  &
-                                                     Constants%inv_dtcloud
+      if ( diag_id%qadt_eros + diag_id%qa_eros_col > 0 ) then
+        diag_4d(i,j,k,diag_pt%qadt_eros)  = ((qa1(i,j,k) - qa0(i,j,k))*  &
+                                          Constants%inv_dtcloud )- &
+                            diag_4d(i,j,k,diag_pt%qadt_lsform)                                           
       end if
+
+          else if (A_dt(i,j,k) .gt. Nml%Dmin) then
+             if (diag_id%qadt_lsform + diag_id%qa_lsform_col > 0) then
+ 
+        diag_4d(i,j,k,diag_pt%qadt_lsform) = (qa1(i,j,k) - qa0(i,j,k))*  &
+                                                Constants%inv_dtcloud
+              end if 
+          else if (B_dt(i,j,k) .gt. Nml%Dmin)  then
+              if ( diag_id%qadt_eros + diag_id%qa_eros_col > 0 ) then
+            diag_4d(i,j,k,diag_pt%qadt_eros)  = (qa1(i,j,k) - qa0(i,j,k))*&
+                                                Constants%inv_dtcloud
+              end if 
+                  endif
+        end do
+        end do
+        end do
 
 !-------------------------------------------------------------------------
 !    limit cloud area to be no more than that which is not being
 !    taken by convective clouds.
 !-------------------------------------------------------------------------
+      if ( diag_id%qadt_ahuco + diag_id%qa_ahuco_col > 0 ) then
+        diag_4d(:,:,:,diag_pt%qadt_ahuco)  = qa1
+      end if
+
       if (Constants%limit_conv_cloud_frac) then
         qa1 = MIN(qa1, 1.0 - Atmos_state%ahuco)
       endif
+
+      if ( diag_id%qadt_ahuco + diag_id%qa_ahuco_col > 0 ) then
+        diag_4d(:,:,:,diag_pt%qadt_ahuco)  =   &
+                  (qa1(:,:,:) - diag_4d(:,:,:,diag_pt%qadt_ahuco))* & 
+                                             Constants%inv_dtcloud 
+      end if
                  
 !-------------------------------------------------------------------------
 !    set total tendency term and update cloud fraction.    
 !-------------------------------------------------------------------------
       SA = (SA + qa1) - qa0
       Cloud_state%qa_upd = qa1
-      Cloud_processes%tmp5 = MAX(qa1 - qa0 , 0.)
+      Cloud_processes%delta_cf = MAX(qa1 - qa0 , 0.)
 
 !-------------------------------------------------------------------------
 !       The next step is to calculate the change in condensate
@@ -1643,17 +1706,17 @@ INTEGER,                           INTENT(IN )   :: otun
         Cloud_state%qa_upd     = qa1
 
 
-        if ( diag_id%qadt_lsform > 0 ) then
+      if (diag_id%qadt_lsform + diag_id%qa_lsform_col > 0) then
           diag_4d(:,:,:,diag_pt%qadt_lsform ) =  max(qa1 - qa0, 0.)*  &
                                                      Constants%inv_dtcloud 
         end if
-        if ( diag_id%qadt_lsdiss > 0 ) then
+        if ( diag_id%qadt_lsdiss + diag_id%qa_lsdiss_col > 0 ) then
           diag_4d(:,:,:,diag_pt%qadt_lsdiss ) =  max(qa0 - qa1, 0.)* &
                                                       Constants%inv_dtcloud
          end if
         !define da_ls and tmp5 needed when do_liq_num = .true. (cjg)
         Cloud_processes%da_ls = max(qa1-qa0,0.)
-        Cloud_processes%tmp5 = max(qa1-qa0,0.)
+        Cloud_processes%delta_cf = max(qa1-qa0,0.)
 
         !compute large-scale condensation / evaporation
         Cloud_processes%dcond_ls = qcg -    &

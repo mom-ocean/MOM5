@@ -1,5 +1,5 @@
 !VERSION NUMBER:
-!   $Id: donner_lite_k.F90,v 19.0 2012/01/06 20:07:26 fms Exp $
+!   $Id: donner_lite_k.F90,v 20.0 2013/12/13 23:17:21 fms Exp $
 
 !######################################################################
 !######################################################################
@@ -979,6 +979,7 @@ integer,                           intent(out)   :: error
         endif
  
         pmelt_lsm = 2.0e05
+      if( temp_c(1) >  Param%KELVIN ) then
         do k=1,nlev_lsm-1
          if ((temp_c(k) >= Param%KELVIN) .and.    &
             (temp_c(k+1) <= Param%KELVIN)) then
@@ -986,6 +987,7 @@ integer,                           intent(out)   :: error
            exit
         endif
       end do
+    endif
  
      if (debug_ijt) then
          write (diag_unit, '(a, 2f19.10)')    &
@@ -3755,12 +3757,12 @@ integer,                         intent(out) :: error
         do_donner_tracer = .false.
       endif
 !miz
-!!$      do i=1,nlev_hires
-!!$        if (p_hires(i) < pt_ens) then
-!!$          ncc = i
-!!$          exit
-!!$        endif
-!!$      end do
+         do k=1,nlev_hires
+           if (p_hires(k) < pt_ens) then
+             ncc = k
+             exit
+           endif
+         end do
 !!$      do i=1,nlev_hires
 !!$        if (p_hires(i) < pztm) then
 !!$          ncztm = i + 1

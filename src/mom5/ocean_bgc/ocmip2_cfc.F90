@@ -145,8 +145,8 @@ real, allocatable, dimension(:,:)               :: sc_no_term
 integer                                         :: indsal
 integer                                         :: indtemp
 
-character(len=128) :: version = '$Id: ocmip2_cfc.F90,v 1.1.2.1 2012/05/15 15:55:20 smg Exp $'
-character(len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
+character(len=128) :: version = '$Id: ocmip2_cfc.F90,v 20.0 2013/12/14 00:09:42 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 contains
 

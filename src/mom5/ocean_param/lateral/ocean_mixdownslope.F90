@@ -191,9 +191,9 @@ integer, dimension(:), allocatable :: id_mixdownslope
 
 
 character(len=128) :: version=&
-       '=>Using: ocean_mixdownslope.f90 ($Id: ocean_mixdownslope.F90,v 1.1.2.2 2012/05/17 13:41:45 smg Exp $)'
+       '=>Using: ocean_mixdownslope.f90 ($Id: ocean_mixdownslope.F90,v 20.0 2013/12/14 00:14:28 fms Exp $)'
 character (len=128) :: tagname=&
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 ! number of prognostic tracers
 integer :: num_prog_tracers=0
@@ -894,8 +894,16 @@ subroutine mixdownslope (Time, Thickness, T_prog, Dens, index_temp, index_salt)
         enddo
      enddo
 
-     if(id_mixdownslope(nt) > 0) then 
-        call diagnose_3d(Time, Grd, id_mixdownslope(nt), T_prog(nt)%conversion*tend_mix(:,:,:))
+     if(id_mixdownslope(nt) > 0) then
+         wrk1(:,:,:) = 0.0
+         do k=1,nk
+            do j=jsc,jec   
+               do i=isc,iec
+                  wrk1(i,j,k) = tend_mix(i,j,k)*mixdownslope_mask(i,j)
+               enddo
+            enddo
+         enddo
+         call diagnose_3d(Time, Grd, id_mixdownslope(nt), wrk1(:,:,:))
      endif
 
      if(nt==index_temp) then 

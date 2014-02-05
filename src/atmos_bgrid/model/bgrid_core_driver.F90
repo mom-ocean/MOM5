@@ -50,7 +50,7 @@ public  bgrid_dynam_type, bgrid_core_driver_init, &
 
 !-----------------------------------------------------------------------
 character(len=128) :: version =  '$Id: bgrid_core_driver.F90,v 19.0 2012/01/06 19:53:59 fms Exp $'
-character(len=128) :: tag =  '$Name: siena_201207 $'
+character(len=128) :: tag =  '$Name: tikal $'
 !-----------------------------------------------------------------------
 !
 !             NAMELIST INPUT: bgrid_core_driver_nml

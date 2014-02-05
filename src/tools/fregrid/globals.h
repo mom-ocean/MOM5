@@ -35,6 +35,8 @@
 #define READ            256
 #define WRITE           512
 #define CHECK_CONSERVE  1024
+#define LEGACY_CLIP     2048
+#define GREAT_CIRCLE    4096
 
 typedef struct {
   char   name[STRING];   /* variable name */

@@ -181,8 +181,8 @@ implicit none
 private
 
 
-character(len=128) :: version = '$Id: field_manager.F90,v 19.0 2012/01/06 21:57:10 fms Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: field_manager.F90,v 20.0 2013/12/14 00:19:26 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 logical            :: module_is_initialized  = .false.
 
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -347,7 +347,7 @@ type, public :: method_type
   character(len=fm_string_len) :: method_type
   character(len=fm_string_len) :: method_name
   character(len=fm_string_len) :: method_control
-end type method_type
+end type
 ! </TYPE> NAME="method_type"
 
 ! <TYPE NAME="method_type_short">
@@ -367,7 +367,7 @@ type, public :: method_type_short
   ! </DATA> 
   character(len=fm_string_len) :: method_type
   character(len=fm_string_len) :: method_name
-end type method_type_short
+end type
 ! </TYPE> NAME="method_type_short"
 
 ! <TYPE NAME="method_type_very_short">
@@ -382,7 +382,7 @@ type, public :: method_type_very_short
   !   see method_type :: method_type above.
   ! </DATA>
   character(len=fm_string_len) :: method_type
-end type method_type_very_short
+end type
 ! </TYPE> NAME="method_type_very_short"
 
 
@@ -462,12 +462,12 @@ integer,           parameter :: MAX_FIELD_METHODS = MAXFIELDMETHODS_
 !        Private type definitions
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-type, private :: field_type
+type, private :: field_mgr_type !{
   character(len=fm_field_name_len)                    :: field_type
-  character(len=fm_string_len)                        :: field_name
+  character(len=fm_string_len)                    :: field_name
   integer                                             :: model, num_methods
   type(method_type)                                   :: methods(MAX_FIELD_METHODS)
-end type field_type
+end type field_mgr_type !}
 
 type, private :: field_names_type !{
   character(len=fm_field_name_len)                    :: fld_type
@@ -502,7 +502,7 @@ end type field_def  !}
 !        Private types
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-type(field_type), private :: fields(MAX_FIELDS)
+type(field_mgr_type), private :: fields(MAX_FIELDS)
 
 
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -3930,7 +3930,7 @@ character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_na
 character (len=fm_field_name_len)  :: name
 character (len=fm_field_name_len),                          &
         dimension(:), allocatable  :: names
-character (len=fm_type_name_len)   :: field_type_s
+character (len=fm_type_name_len)   :: field_type
 integer                            :: count
 integer                            :: error
 integer                            :: index
@@ -4019,7 +4019,7 @@ if (dim .eq. 1) then  !{
     return
   endif  !}
   count = 0
-  do while (fm_loop_over_list(lists(1), name, field_type_s, index))  !{
+  do while (fm_loop_over_list(lists(1), name, field_type, index))  !{
     count = count + 1
     return_p%names(count) = name
   enddo  !}
@@ -4040,7 +4040,7 @@ endif  !}
 !        occur in all of the other lists. If so, then save the name
 !
 count = 0
-do while (fm_loop_over_list(lists(shortest), name, field_type_s, index))  !{
+do while (fm_loop_over_list(lists(shortest), name, field_type, index))  !{
   found = .true.
   do n = 1, dim  !{
     if (n .ne. shortest) then   !{
@@ -4093,10 +4093,10 @@ end function fm_intersection  !}
 !    of the next field. Return false at the end of the loop.
 ! </DESCRIPTION>
 !   <TEMPLATE>
-!     success = fm_loop_over_list(list, name, field_type_s, index)
+!     success = fm_loop_over_list(list, name, field_type, index)
 !   </TEMPLATE>
 !
-function  fm_loop_over_list(list, name, field_type_s, index)        &
+function  fm_loop_over_list(list, name, field_type, index)        &
           result (success)  !{
 !   <OUT NAME="success" TYPE="logical">
 !     A flag to indicate whether the function operated with (FALSE) or 
@@ -4108,7 +4108,7 @@ function  fm_loop_over_list(list, name, field_type_s, index)        &
 !   <OUT NAME="name" TYPE="character(len=*)">
 !     The name of a field from list.
 !   </OUT>
-!   <OUT NAME="field_type_s" TYPE="character(len=fm_type_name_len)">
+!   <OUT NAME="field_type" TYPE="character(len=fm_type_name_len)">
 !     The type of a list entry.
 !   </OUT>
 !   <OUT NAME="index" TYPE="integer">
@@ -4123,7 +4123,7 @@ logical                                      :: success
 !
 character(len=*),                intent(in)  :: list
 character(len=*),                intent(out) :: name
-character(len=fm_type_name_len), intent(out) :: field_type_s
+character(len=fm_type_name_len), intent(out) :: field_type
 integer,                         intent(out) :: index
 
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -4209,12 +4209,12 @@ function  set_list_stuff()                                                &
 !
   if (associated(loop_list_p)) then  !{
     name = loop_list_p%name
-    field_type_s = field_type_name(loop_list_p%field_type)
+    field_type = field_type_name(loop_list_p%field_type)
     index = loop_list_p%index
     success = .true.
   else  !}{
     name = ' '
-    field_type_s = ' '
+    field_type = ' '
     index = 0
     success = .false.
     loop_list = ' '
@@ -6617,7 +6617,7 @@ implicit none
 
 
 integer :: i, j, nfields, num_methods, model
-character(len=fm_string_len) :: field_name, str, name_field_type, path
+character(len=fm_string_len) :: field_type, field_name, str, name_field_type, path
 character(len=512) :: method_name, method_control
 real :: param
 integer :: flag, index

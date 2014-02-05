@@ -21,7 +21,6 @@ implicit none
 private
 
 ! ==== public interfaces =====================================================
-public :: snow_prog_type
 public :: snow_tile_type
 
 public :: new_snow_tile, delete_snow_tile
@@ -51,8 +50,8 @@ end interface
 ! ==== module constants ======================================================
 character(len=*), parameter :: &
      module_name = 'snow_tile_mod' ,&
-     version     = '$Id: snow_tile.F90,v 19.0 2012/01/06 20:42:44 fms Exp $' ,&
-     tagname     = '$Name: siena_201207 $'
+     version     = '$Id: snow_tile.F90,v 20.0 2013/12/13 23:30:46 fms Exp $' ,&
+     tagname     = '$Name: tikal $'
 integer, parameter :: max_lev = 10
 real   , parameter :: t_range = 10.0 ! degK
 
@@ -71,16 +70,12 @@ real            :: g1_geo = -0.166314
 real            :: g2_geo =  0.041840
 
 ! ==== types =================================================================
-type :: snow_prog_type
-  real wl
-  real ws
-  real T
-end type snow_prog_type
-
 
 type :: snow_tile_type
    integer :: tag ! kind of the tile
-   type(snow_prog_type), pointer :: prog(:)
+   real, pointer :: wl(:)
+   real, pointer :: ws(:)
+   real, pointer :: T(:)
    real,                 pointer :: e(:), f(:)
 end type snow_tile_type
 
@@ -185,7 +180,9 @@ function snow_tile_ctor(tag) result(ptr)
   allocate(ptr)
   ptr%tag = 0 ; if(present(tag)) ptr%tag = tag
   ! allocate storage for tile data
-  allocate(ptr%prog(num_l))
+  allocate(ptr%ws(num_l))
+  allocate(ptr%wl(num_l))
+  allocate(ptr%T(num_l))
   allocate(ptr%e(num_l))
   allocate(ptr%f(num_l))
 
@@ -200,11 +197,15 @@ function snow_tile_copy_ctor(snow) result(ptr)
   ! copy all non-pointer members
   ptr = snow
   ! allocate storage for tile data
-  allocate(ptr%prog(num_l))
+  allocate(ptr%ws(num_l))
+  allocate(ptr%wl(num_l))
+  allocate(ptr%T(num_l))
   allocate(ptr%e(num_l))
   allocate(ptr%f(num_l))
   ! copy all pointer members
-  ptr%prog(:) = snow%prog(:)
+  ptr%ws(:) = snow%ws(:)
+  ptr%wl(:) = snow%wl(:)
+  ptr%T(:) = snow%T(:)
   ptr%e(:) = snow%e(:)
   ptr%f(:) = snow%f(:)
 end function snow_tile_copy_ctor
@@ -213,7 +214,9 @@ end function snow_tile_copy_ctor
 subroutine delete_snow_tile(snow)
   type(snow_tile_type), pointer :: snow
 
-  deallocate(snow%prog)
+  deallocate(snow%ws)
+  deallocate(snow%wl)
+  deallocate(snow%T)
   deallocate(snow%e)
   deallocate(snow%f)
   deallocate(snow)
@@ -243,15 +246,15 @@ subroutine merge_snow_tiles(snow1, w1, snow2, w2)
   x2 = 1-x1
   
   do i = 1, num_l
-    HEAT1 = (mc_fict*dz(i)+clw*snow1%prog(i)%wl+csw*snow1%prog(i)%ws)*(snow1%prog(i)%T-tfreeze)
-    HEAT2 = (mc_fict*dz(i)+clw*snow2%prog(i)%wl+csw*snow2%prog(i)%ws)*(snow2%prog(i)%T-tfreeze)
-    snow2%prog(i)%wl = snow1%prog(i)%wl*x1 + snow2%prog(i)%wl*x2
-    snow2%prog(i)%ws = snow1%prog(i)%ws*x1 + snow2%prog(i)%ws*x2
-    if (snow2%prog(i)%wl/=0.or.snow2%prog(i)%ws/=0) then
-       snow2%prog(i)%T  = (HEAT1*x1+HEAT2*x2)/&
-            (mc_fict*dz(i)+clw*snow2%prog(i)%wl+csw*snow2%prog(i)%ws)+tfreeze
+    HEAT1 = (mc_fict*dz(i)+clw*snow1%wl(i)+csw*snow1%ws(i))*(snow1%T(i)-tfreeze)
+    HEAT2 = (mc_fict*dz(i)+clw*snow2%wl(i)+csw*snow2%ws(i))*(snow2%T(i)-tfreeze)
+    snow2%wl(i) = snow1%wl(i)*x1 + snow2%wl(i)*x2
+    snow2%ws(i) = snow1%ws(i)*x1 + snow2%ws(i)*x2
+    if (snow2%wl(i)/=0.or.snow2%ws(i)/=0) then
+       snow2%T(i)  = (HEAT1*x1+HEAT2*x2)/&
+            (mc_fict*dz(i)+clw*snow2%wl(i)+csw*snow2%ws(i))+tfreeze
     else
-       snow2%prog(i)%T  = snow1%prog(i)%T*x1 + snow2%prog(i)%T*x2
+       snow2%T(i)  = snow1%T(i)*x1 + snow2%T(i)*x2
     endif
   enddo
 end subroutine
@@ -378,9 +381,9 @@ subroutine snow_tile_stock_pe (snow, twd_liq, twd_sol  )
   
   twd_liq = 0.
   twd_sol = 0.
-  do n=1, size(snow%prog)
-    twd_liq = twd_liq + snow%prog(n)%wl
-    twd_sol = twd_sol + snow%prog(n)%ws
+  do n=1, size(snow%wl)
+    twd_liq = twd_liq + snow%wl(n)
+    twd_sol = twd_sol + snow%ws(n)
     enddo
 
 end subroutine snow_tile_stock_pe
@@ -394,9 +397,9 @@ function snow_tile_heat (snow) result(heat) ; real heat
 
   heat = 0
   do i = 1,num_l
-     heat = heat - snow%prog(i)%ws*hlf &
-        + (mc_fict*dz(i) + clw*snow%prog(i)%wl + csw*snow%prog(i)%ws)  &
-                                      * (snow%prog(i)%T-tfreeze) 
+     heat = heat - snow%ws(i)*hlf &
+        + (mc_fict*dz(i) + clw*snow%wl(i) + csw*snow%ws(i))  &
+                                      * (snow%T(i)-tfreeze) 
   enddo
 end function
 

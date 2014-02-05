@@ -1,3 +1,15 @@
+#include "cosp_defs.H"
+#ifdef COSP_GFDL
+
+!---------------------------------------------------------------------
+!------------ FMS version number and tagname for this file -----------
+
+! $Id: cosp_rttov_simulator.F90,v 20.0 2013/12/13 23:15:49 fms Exp $
+! $Name: tikal $
+! cosp_version = 1.3.2
+
+#endif
+
 ! (c) British Crown Copyright 2008, the Met Office.
 ! All rights reserved.
 ! 
@@ -29,10 +41,16 @@
 !
 
 
+!#include "cosp_defs.h"
+#ifndef COSP_GFDL
 #include "cosp_defs.h"
+#endif
 MODULE MOD_COSP_RTTOV_SIMULATOR
   USE MOD_COSP_CONSTANTS
   USE MOD_COSP_TYPES
+#ifdef RTTOV
+  USE MOD_COSP_RTTOV
+#endif
   IMPLICIT NONE
 
 CONTAINS
@@ -58,19 +76,19 @@ SUBROUTINE COSP_RTTOV_SIMULATOR(gbx,y)
   integer, parameter :: MaxLim  =  100
   
   ! Local variables 
-  integer :: i,Nlevels,Npoints
+  integer :: Npoints
   real :: sh(gbx%Npoints, gbx%Nlevels)
   real :: pp(gbx%Npoints, gbx%Nlevels)
   real :: tt(gbx%Npoints, gbx%Nlevels)
   real :: o3(gbx%Npoints, gbx%Nlevels)
-  integer :: ichan(gbx%Nchan)
 
   real :: co2,ch4,n2o,co
   real :: tt_surf(gbx%Npoints) ! 1.5 m T
   real :: sh_surf(gbx%Npoints) ! 1.5 m q 
-  integer :: nprof,nloop,rmod,il
+  integer :: nloop,rmod,il
   integer :: istart,istop
-  
+  integer :: nprof,nlevels
+    
   Nlevels = gbx%Nlevels
   Npoints = gbx%Npoints
   ! Reverting Levels from TOA to surface
@@ -92,18 +110,6 @@ SUBROUTINE COSP_RTTOV_SIMULATOR(gbx,y)
   ch4  =  ( Mdry / Mch4 ) * gbx%ch4 * 1e6  
   n2o  =  ( Mdry / Mn2o ) * gbx%n2o * 1e6
   co   =  ( Mdry / Mco  ) * gbx%co  * 1e6
-!   print *, 'COSP_RTTOV_SIMULATOR: B' 
-!   print *, shape(gbx%ichan)
-!   print *, shape(gbx%surfem)
-!   print *, shape(pp)
-!   print *, shape(tt)
-!   print *, shape(sh)
-!   print *, shape(o3)
-!   print *, shape(gbx%sfc_height)
-!   print *, shape(gbx%u_wind)
-!   print *, shape(gbx%v_wind)
-!   print *, shape(gbx%land)
-!   print *, shape(y%tbs)
   
   !! RTTOV can handle only about 100 profiles at a time (FIXME: Check this with Roger) 
   !! So we are putting a loop of 100 
@@ -132,7 +138,7 @@ SUBROUTINE COSP_RTTOV_SIMULATOR(gbx,y)
           gbx%ichan,                    &
           gbx%surfem,                   &
           nprof,                        &
-          gbx%Nlevels,                  &
+          Nlevels,                      &
           gbx%Plat,                     &
           gbx%Sat,                      &
           gbx%Inst,                     &

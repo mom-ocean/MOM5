@@ -1,10 +1,10 @@
 module ocean_coriolis_mod
 #define COMP isc:iec,jsc:jec
 !
-!<CONTACT EMAIL="Tony.Rosati@noaa.gov"> A. Rosati
+!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> A. Rosati
 !</CONTACT>
 !
-!<CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
+!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies
 !</CONTACT>
 !
 !<OVERVIEW>
@@ -98,9 +98,9 @@ public coriolis_force_cgrid
 type(ocean_grid_type), pointer :: Grd =>NULL()
 
 character(len=128) :: version = &
-     '$Id: ocean_coriolis.F90,v 1.1.2.5 2012/06/01 17:55:58 Stephen.Griffies Exp $'
+     '$Id: ocean_coriolis.F90,v 20.0 2013/12/14 00:10:38 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 ! for Bgrid or Cgrid
 integer :: horz_grid

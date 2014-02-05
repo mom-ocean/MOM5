@@ -34,11 +34,11 @@ module river_physics_mod
   use fms_mod,         only : stdlog, write_version_number
   use fms_mod,         only : close_file, check_nml_error, file_exist
   use diag_manager_mod,only : register_diag_field, send_data
-  use river_type_mod,  only : river_type, Leo_Mad_trios
+  use river_type_mod,  only : river_type, Leo_Mad_trios, NO_RIVER_FLAG
   use lake_mod,        only : large_dyn_small_stat
   use lake_tile_mod,   only : num_l
   use constants_mod,   only : tfreeze, hlf, DENS_H2O
-  use land_debug_mod,  only : set_current_point, is_watch_point
+  use land_debug_mod,  only : set_current_point, is_watch_cell
 
   implicit none
   private
@@ -46,13 +46,13 @@ module river_physics_mod
   real    :: missing = -1.e8
 
 !--- version information ---------------------------------------------
-  character(len=128) :: version = '$Id: river_physics.F90,v 19.0.4.2 2012/05/14 19:11:07 Zhi.Liang Exp $'
-  character(len=128) :: tagname = '$Name: siena_201207 $'
+  character(len=128) :: version = '$Id: river_physics.F90,v 20.0 2013/12/13 23:29:43 fms Exp $'
+  character(len=128) :: tagname = '$Name: tikal $'
 
 
 ! ---- public interfaces -----------------------------------------------------
 
-  public :: river_physics_init, river_physics_step
+  public :: river_physics_init, river_physics_step, river_impedes_lake, river_impedes_large_lake
 
 !----------------------------------------------------------------------
   real               :: clw = 4218.
@@ -72,12 +72,20 @@ module river_physics_mod
       ! behavior, where the discharge points with zero land fraction were
       ! missed, resulting in water non-conservation
   real :: ice_frac_factor = 0.
+  logical :: prohibit_cold_ice_outflow = .TRUE. ! default retrieves old behavior,
+      ! to activate bugfix, set it to FALSE
+  logical :: lockstep = .false. ! set to true to recognize that lake level falls
+      ! in lockstep with river when integrating river storage
+  logical :: river_impedes_lake = .false.
+  logical :: river_impedes_large_lake = .true.
 
   namelist /river_physics_nml/ algor, lake_outflow_frac_ceiling, &
                                lake_sfc_w_min, storage_threshold_for_melt, &
                                storage_threshold_for_diag, &
                                ice_frac_from_sfc, ice_frac_factor, &
-                               use_lake_area_bug, zero_frac_bug
+                               use_lake_area_bug, zero_frac_bug, &
+                               prohibit_cold_ice_outflow, lockstep, &
+                               river_impedes_lake, river_impedes_large_lake
 
   integer, parameter, dimension(8) :: di=(/1,1,0,-1,-1,-1,0,1/)
   integer, parameter, dimension(8) :: dj=(/0,-1,-1,-1,0,1,1,1/)
@@ -158,6 +166,7 @@ contains
 !--- set up the halo update 
     call setup_halo_update(River, domain)
 
+    River%i_tocell = NO_RIVER_FLAG; River%j_tocell = NO_RIVER_FLAG
     do j = jsc, jec
        do i = isc, iec
           if(River%tocell(i,j) > 0) then
@@ -202,7 +211,7 @@ contains
                              lake_T
 ! ---- local vars ----------------------------------------------------------
     integer   :: i, j, to_i, to_j, i_species, lev
-    real      :: Q0, dQ_dV, avail, out_frac, qmelt
+    real      :: Q0, dQ_dV, dh_dQ, avail, out_frac, qmelt
     real      :: liq_to_flow, ice_to_flow, liq_this_lev, ice_this_lev
     real      :: lake_area, h, ql, qs, qh, qt, h0, t_scale
     real      :: influx
@@ -245,11 +254,21 @@ contains
               else
                 ! non-terminal all-land cell (possible lake), or terminal coastal cell (possible lake)
                 if (lake_area.gt.0.) then
+                     if (is_watch_cell()) then
+                          write(*,*) 'lake_wl(1):', lake_wl(i,j,1)
+                          write(*,*) 'lake_ws(1):', lake_ws(i,j,1)
+                          write(*,*) 'lake_T (1):', lake_T (i,j,1)
+                     endif
                      h = (clw*lake_wl(i,j,1)+csw*lake_ws(i,j,1))*(lake_T(i,j,1)-tfreeze)
                      lake_wl(i,j,1) = lake_wl(i,j,1) + (influx-influx_c(1))/lake_area
                      lake_ws(i,j,1) = lake_ws(i,j,1) +         influx_c(1) /lake_area
                      lake_T (i,j,1) = tfreeze + &
                         (h+influx_c(2)/lake_area)/(clw*lake_wl(i,j,1)+csw*lake_ws(i,j,1))
+                     if (is_watch_cell()) then
+                          write(*,*) 'lake_wl(1):', lake_wl(i,j,1)
+                          write(*,*) 'lake_ws(1):', lake_ws(i,j,1)
+                          write(*,*) 'lake_T (1):', lake_T (i,j,1)
+                     endif
                      ! LAKE_SFC_C(I,J,:) = LAKE_SFC_C(I,J,:) + INFLUX_C / LAKE_AREA
                      h0 = lake_sfc_bot(i,j) + (lake_wl(i,j,1)+lake_ws(i,j,1))/DENS_H2O &
                                            -lake_depth_sill(i,j)
@@ -258,14 +277,18 @@ contains
                      ! now reduce it to amount that discharges this time step
                      if (qt.gt.0.) then
                          IF (large_dyn_small_stat) THEN
+                             if (is_watch_cell()) write(*,*) 'qt[1]/A', qt/lake_area
                              if (lake_width_sill(i,j) .gt. 0.) then
                                  t_scale = lake_whole_area(i,j)/(0.9*lake_width_sill(i,j)*sqrt(h0))
                                  qt = qt * (1. - (1.+River%dt_slow/t_scale)**(-2) )
                                  if (.not.use_lake_area_bug) qt = qt * lake_whole_area(i,j)/lake_area
                                endif
+                             if (is_watch_cell()) write(*,*) 'qt[2]/A', qt/lake_area
                              qt = min(qt, lake_outflow_frac_ceiling * lake_area &
                                           * max(0.,(lake_wl(i,j,1)+lake_ws(i,j,1))))
+                             if (is_watch_cell()) write(*,*) 'qt[3]/A', qt/lake_area
                              qt = min(qt, (lake_wl(i,j,1)+lake_ws(i,j,1)-lake_sfc_w_min)*lake_area )
+                             if (is_watch_cell()) write(*,*) 'qt[4]/A', qt/lake_area
                            ELSE
                              t_scale = lake_whole_area(i,j)/(0.9*lake_width_sill(i,j)*sqrt(h0))
                              qt = qt * (1. - (1.+River%dt_slow/t_scale)**(-2) )
@@ -291,13 +314,13 @@ contains
                          liq_to_flow = ql
                          ice_to_flow = qs
                          qh = 0.
-                         if (is_watch_point()) &
+                         if (is_watch_cell()) &
                               write(*,*) 'ql/A,qs/A,A',ql/lake_area,qs/lake_area,lake_area
                          do lev = 1, num_lake_lev
-                           if (is_watch_point()) &
-                                write(*,*) 'wl(1),ws(1),wl(l),ws(l):',&
-                                           lake_wl(i,j,1),lake_ws(i,j,1),&
-                                           lake_wl(i,j,lev),lake_ws(i,j,lev)
+                           if (is_watch_cell() .and. lev.le.10) &
+                                write(*,'(a,i3,99(x,a,g23.16))')'l=',lev,&
+                                    'wl(1)=',lake_wl(i,j,1),'ws(1)=',lake_ws(i,j,1), &
+                                    'wl(l)=',lake_wl(i,j,lev),'ws(l)=',lake_ws(i,j,lev)
                            liq_this_lev = max(0.,min(liq_to_flow, lake_area*lake_wl(i,j,lev)))
                            ice_this_lev = max(0.,min(ice_to_flow, lake_area*lake_ws(i,j,lev)))
                            lake_wl(i,j,lev) = lake_wl(i,j,lev) - liq_this_lev/lake_area
@@ -315,17 +338,22 @@ contains
                              lake_T (i,j,lev) = tfreeze + &
                                 (h +(liq_this_lev/lake_area)*csw*(lake_T(i,j,1)-tfreeze))  &
                                             /(clw*lake_wl(i,j,lev)+csw*lake_ws(i,j,lev))
-                             endif
-                             if (is_watch_point()) &
-                                  write(*,*) 'wl(1),ws(1),wl(l),ws(l):',&
-                                             lake_wl(i,j,1),lake_ws(i,j,1),&
-                                             lake_wl(i,j,lev),lake_ws(i,j,lev)
+                           endif
+                           if (is_watch_cell() .and. lev.le.10) &
+                                write(*,'(a,i3,99(x,a,g23.16))')'l=',lev,&
+                                    'wl(1)=',lake_wl(i,j,1),'ws(1)=',lake_ws(i,j,1), &
+                                    'wl(l)=',lake_wl(i,j,lev),'ws(l)=',lake_ws(i,j,lev)
                            if (liq_to_flow.eq.0..and.ice_to_flow.eq.0.) exit
                            enddo
                          River%lake_outflow  (i,j)   = qt
                          River%lake_outflow_c(i,j,1) = qs
                          River%lake_outflow_c(i,j,2) = qh
                        endif
+                     if (is_watch_cell()) then
+                          write(*,*) 'lake_wl(1):', lake_wl(i,j,1)
+                          write(*,*) 'lake_ws(1):', lake_ws(i,j,1)
+                          write(*,*) 'lake_T (1):', lake_T (i,j,1)
+                     endif
                    else
                      River%lake_outflow  (i,j  ) = influx
                      River%lake_outflow_c(i,j,1) = influx_c(1)
@@ -347,9 +375,20 @@ contains
                             Q0=River%o_coef(i,j)*River%storage(i,j)**River%o_exp
                             dQ_dV=River%o_exp*Q0/River%storage(i,j)
                           endif
-                        River%storage(i,j) = River%storage(i,j) + River%dt_slow *   &
+                        if (.not.river_impedes_lake.or..not.lockstep) then
+                            River%storage(i,j) = River%storage(i,j) + River%dt_slow *   &
                              (River%lake_outflow(i,j)/(DENS_H2O*River%dt_slow)-Q0) &
                              /(1.+River%dt_slow*dQ_dV)
+                        else
+                            if (River%storage(i,j) .le. 0.) then
+                                dh_dQ = 0.
+                            else
+                                dh_dQ = River%d_coef(i,j)*River%d_exp*Q0**(River%d_exp-1)
+                            endif
+                            River%storage(i,j) = River%storage(i,j) + River%dt_slow *   &
+                             (River%lake_outflow(i,j)/(DENS_H2O*River%dt_slow)-Q0) &
+                             /(1.+dQ_dV*(River%dt_slow+lake_whole_area(i,j)*dh_dQ))
+                        endif
                       else if (algor.eq.'nonlin') then   ! assume all inflow at start of step 
                         if (avail .gt. 0.) then
                             River%storage(i,j) = (avail**(1.-River%o_exp) &
@@ -380,7 +419,16 @@ contains
                 if (avail .gt. 0.) out_frac = River%outflow(i,j)/avail
                 River%outflow_c(i,j,:) = out_frac * (River%storage_c(i,j,:) &
                                          +River%lake_outflow_c(i,j,:)/DENS_H2O)
-                River%outflow_c(i,j,:) = max(River%outflow_c(i,j,:), 0.)
+                ! 2011/05/13 PCM: fix ice outflow temperature bug
+                if (prohibit_cold_ice_outflow) then
+                  River%outflow_c(i,j,:) = max(River%outflow_c(i,j,:), 0.)
+                else
+                  River%outflow_c(i,j,1) = max(River%outflow_c(i,j,1), 0.)
+                  if(River%num_phys+1 <= River%num_species) then
+                     River%outflow_c(i,j,River%num_phys+1:River%num_species) = &
+                       max(River%outflow_c(i,j,River%num_phys+1:River%num_species), 0.)
+                  endif
+                endif
                 River%outflow_c(i,j,1) = min(River%outflow_c(i,j,1), River%outflow(i,j))
                 River%storage_c(i,j,:) = River%storage_c(i,j,:)       &
                       + River%lake_outflow_c(i,j,:)/DENS_H2O       &

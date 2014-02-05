@@ -24,10 +24,10 @@ void setup_conserve_interp(int ntiles_in, const Grid_config *grid_in, int ntiles
 {
   int    n, m, i, ii, jj, nx_in, ny_in, nx_out, ny_out, tile;
   size_t nxgrid, nxgrid2, nxgrid_prev;
-  int    *i_in, *j_in, *i_out, *j_out;
-  int   *tmp_t_in, *tmp_i_in, *tmp_j_in, *tmp_i_out, *tmp_j_out;
+  int    *i_in=NULL, *j_in=NULL, *i_out=NULL, *j_out=NULL;
+  int   *tmp_t_in=NULL, *tmp_i_in=NULL, *tmp_j_in=NULL, *tmp_i_out=NULL, *tmp_j_out=NULL;
   double *tmp_di_in, *tmp_dj_in;
-  double *xgrid_area, *tmp_area, *xgrid_clon, *xgrid_clat;
+  double *xgrid_area=NULL, *tmp_area=NULL, *xgrid_clon=NULL, *xgrid_clat=NULL;
   
   double garea;
   typedef struct{
@@ -110,10 +110,8 @@ void setup_conserve_interp(int ntiles_in, const Grid_config *grid_in, int ntiles
     i_out      = (int    *)malloc(MAXXGRID   * sizeof(int   ));
     j_out      = (int    *)malloc(MAXXGRID   * sizeof(int   ));
     xgrid_area = (double *)malloc(MAXXGRID   * sizeof(double));
-    if(opcode & CONSERVE_ORDER2) {
-      xgrid_clon = (double *)malloc(MAXXGRID   * sizeof(double));
-      xgrid_clat = (double *)malloc(MAXXGRID   * sizeof(double));
-    }    
+    xgrid_clon = (double *)malloc(MAXXGRID   * sizeof(double));
+    xgrid_clat = (double *)malloc(MAXXGRID   * sizeof(double));;
     cell_in    = (CellStruct *)malloc(ntiles_in * sizeof(CellStruct));
     for(m=0; m<ntiles_in; m++) {
       nx_in = grid_in[m].nx;
@@ -135,72 +133,82 @@ void setup_conserve_interp(int ntiles_in, const Grid_config *grid_in, int ntiles
 	double *mask;
 	double y_min, y_max, yy;
 	int jstart, jend, ny_now, j;
-	
+
         nx_in = grid_in[m].nx;
 	ny_in = grid_in[m].ny;
 
 	mask = (double *)malloc(nx_in*ny_in*sizeof(double));
 	for(i=0; i<nx_in*ny_in; i++) mask[i] = 1.0; 
 
-        y_min = minval_double((nx_out+1)*(ny_out+1), grid_out[n].latc);
-        y_max = maxval_double((nx_out+1)*(ny_out+1), grid_out[n].latc);
-	jstart = ny_in; jend = -1;
-	for(j=0; j<=ny_in; j++) for(i=0; i<=nx_in; i++) {
-	  yy = grid_in[m].latc[j*(nx_in+1)+i];
-	  if( yy > y_min && yy < y_max) {
-	    if(j > jend  ) jend   = j;
-	    if(j < jstart) jstart = j;
-	  }
-	}
-	jstart = max(0, jstart-1);
-	jend   = min(ny_in-1, jend+1);	
-	ny_now = jend-jstart+1;
-	
-	if(opcode & CONSERVE_ORDER1) {
-	  nxgrid = create_xgrid_2dx2d_order1(&nx_in, &ny_now, &nx_out, &ny_out, grid_in[m].lonc+jstart*(nx_in+1),
-					     grid_in[m].latc+jstart*(nx_in+1),  grid_out[n].lonc,  grid_out[n].latc,
-					     mask, i_in, j_in, i_out, j_out, xgrid_area);
-      	  for(i=0; i<nxgrid; i++) j_in[i] += jstart;
-	}
-	else if(opcode & CONSERVE_ORDER2) {
-	  int g_nxgrid;
-	  int    *g_i_in, *g_j_in;
-	  double *g_area, *g_clon, *g_clat;
-	  
-	  nxgrid = create_xgrid_2dx2d_order2(&nx_in, &ny_now, &nx_out, &ny_out, grid_in[m].lonc+jstart*(nx_in+1),
-					     grid_in[m].latc+jstart*(nx_in+1),  grid_out[n].lonc,  grid_out[n].latc,
+	if(opcode & GREAT_CIRCLE) {
+	  nxgrid = create_xgrid_great_circle(&nx_in, &ny_in, &nx_out, &ny_out, grid_in[m].lonc,
+					     grid_in[m].latc,  grid_out[n].lonc,  grid_out[n].latc,
 					     mask, i_in, j_in, i_out, j_out, xgrid_area, xgrid_clon, xgrid_clat);
-          for(i=0; i<nxgrid; i++) j_in[i] += jstart;
-	  
-	  /* For the purpose of bitiwise reproducing, the following operation is needed. */
-      	  g_nxgrid = nxgrid;
-	  mpp_sum_int(1, &g_nxgrid);
-	  if(g_nxgrid > 0) {
-	    g_i_in = (int    *)malloc(g_nxgrid*sizeof(int   ));
-	    g_j_in = (int    *)malloc(g_nxgrid*sizeof(int   ));			   
-	    g_area = (double *)malloc(g_nxgrid*sizeof(double));
-	    g_clon = (double *)malloc(g_nxgrid*sizeof(double));
-	    g_clat = (double *)malloc(g_nxgrid*sizeof(double));
-	    mpp_gather_field_int   (nxgrid, i_in,       g_i_in);
-	    mpp_gather_field_int   (nxgrid, j_in,       g_j_in);
-	    mpp_gather_field_double(nxgrid, xgrid_area, g_area);
-	    mpp_gather_field_double(nxgrid, xgrid_clon, g_clon);
-	    mpp_gather_field_double(nxgrid, xgrid_clat, g_clat);
-	    for(i=0; i<g_nxgrid; i++) {
-	      ii = g_j_in[i]*nx_in+g_i_in[i];
-	      cell_in[m].area[ii] += g_area[i];
-	      cell_in[m].clon[ii] += g_clon[i];
-	      cell_in[m].clat[ii] += g_clat[i];
-	    }
-	    free(g_i_in);
-	    free(g_j_in);
-	    free(g_area);
-	    free(g_clon);
-	    free(g_clat);
 	  }
+	else {
+	  y_min = minval_double((nx_out+1)*(ny_out+1), grid_out[n].latc);
+	  y_max = maxval_double((nx_out+1)*(ny_out+1), grid_out[n].latc);
+	  jstart = ny_in; jend = -1;
+	  for(j=0; j<=ny_in; j++) for(i=0; i<=nx_in; i++) {
+	    yy = grid_in[m].latc[j*(nx_in+1)+i];
+           if( yy > y_min ) {
+               if(j < jstart ) jstart = j;
+            }
+            if( yy < y_max ) {
+               if(j > jend ) jend = j;
+            }
+
+	  }
+	  jstart = max(0, jstart-1);
+	  jend   = min(ny_in-1, jend+1);	
+	  ny_now = jend-jstart+1;
+	
+	  if(opcode & CONSERVE_ORDER1) {
+	    nxgrid = create_xgrid_2dx2d_order1(&nx_in, &ny_now, &nx_out, &ny_out, grid_in[m].lonc+jstart*(nx_in+1),
+					       grid_in[m].latc+jstart*(nx_in+1),  grid_out[n].lonc,  grid_out[n].latc,
+					       mask, i_in, j_in, i_out, j_out, xgrid_area);
+	    for(i=0; i<nxgrid; i++) j_in[i] += jstart;
+	  }
+	  else if(opcode & CONSERVE_ORDER2) {
+	    int g_nxgrid;
+	    int    *g_i_in, *g_j_in;
+	    double *g_area, *g_clon, *g_clat;
+	  
+	    nxgrid = create_xgrid_2dx2d_order2(&nx_in, &ny_now, &nx_out, &ny_out, grid_in[m].lonc+jstart*(nx_in+1),
+					       grid_in[m].latc+jstart*(nx_in+1),  grid_out[n].lonc,  grid_out[n].latc,
+					       mask, i_in, j_in, i_out, j_out, xgrid_area, xgrid_clon, xgrid_clat);
+	    for(i=0; i<nxgrid; i++) j_in[i] += jstart;
+	  
+	    /* For the purpose of bitiwise reproducing, the following operation is needed. */
+	    g_nxgrid = nxgrid;
+	    mpp_sum_int(1, &g_nxgrid);
+	    if(g_nxgrid > 0) {
+	      g_i_in = (int    *)malloc(g_nxgrid*sizeof(int   ));
+	      g_j_in = (int    *)malloc(g_nxgrid*sizeof(int   ));			   
+	      g_area = (double *)malloc(g_nxgrid*sizeof(double));
+	      g_clon = (double *)malloc(g_nxgrid*sizeof(double));
+	      g_clat = (double *)malloc(g_nxgrid*sizeof(double));
+	      mpp_gather_field_int   (nxgrid, i_in,       g_i_in);
+	      mpp_gather_field_int   (nxgrid, j_in,       g_j_in);
+	      mpp_gather_field_double(nxgrid, xgrid_area, g_area);
+	      mpp_gather_field_double(nxgrid, xgrid_clon, g_clon);
+	      mpp_gather_field_double(nxgrid, xgrid_clat, g_clat);
+	      for(i=0; i<g_nxgrid; i++) {
+		ii = g_j_in[i]*nx_in+g_i_in[i];
+		cell_in[m].area[ii] += g_area[i];
+		cell_in[m].clon[ii] += g_clon[i];
+		cell_in[m].clat[ii] += g_clat[i];
+	      }
+	      free(g_i_in);
+	      free(g_j_in);
+	      free(g_area);
+	      free(g_clon);
+	      free(g_clat);
+	    }
+	  }
+	  else
+	    mpp_error("conserve_interp: interp_method should be CONSERVE_ORDER1 or CONSERVE_ORDER2");
 	}
-	else
-	  mpp_error("conserve_interp: interp_method should be CONSERVE_ORDER1 or CONSERVE_ORDER2");
 
       	free(mask);
 	if(nxgrid > 0) {
@@ -413,6 +421,58 @@ void setup_conserve_interp(int ntiles_in, const Grid_config *grid_in, int ntiles
     }
     if(mpp_pe() == mpp_root_pe())printf("NOTE: done calculating index and weight for conservative interpolation\n");
   }
+
+  /* check the input area match exchange grid area */
+  if(opcode & CHECK_CONSERVE) {
+    int nx1, ny1, max_i, max_j, i, j;
+    double max_ratio, ratio_change;
+    double *area1, *area2;
+    
+    /* sum over exchange grid to get the area of grid_in */
+    nx1  = grid_out[0].nxc;
+    ny1  = grid_out[0].nyc;
+
+    area1 = (double *)malloc(nx1*ny1*sizeof(double));
+    area2 = (double *)malloc(nx1*ny1*sizeof(double));
+
+    for(n=0; n<ntiles_out; n++) {
+      for(i=0; i<nx1*ny1; i++) area1[i] = 0;
+      for(i=0; i<nx1*ny1; i++) area2[i] = 0;
+      if(opcode & GREAT_CIRCLE) {
+	get_grid_great_circle_area(&nx1, &ny1, grid_out[n].lonc, grid_out[n].latc, area1);
+      }
+      else
+	get_grid_area(&nx1, &ny1, grid_out[n].lonc, grid_out[n].latc, area1);
+      for(i=0; i<interp[n].nxgrid; i++) {
+	ii = interp[n].j_out[i]*nx1 + interp[n].i_out[i];
+	area2[ii] +=  interp[n].area[i];
+      }
+      max_ratio = 0;
+      max_i = 0;
+      max_j = 0;
+      /* comparing area1 and area2 */
+      for(j=0; j<ny1; j++) for(i=0; i<nx1; i++) {
+	ii = j*nx1+i;
+	ratio_change = fabs(area1[ii]-area2[ii])/area1[ii];
+	if(ratio_change > max_ratio) {
+	  max_ratio = ratio_change;
+	  max_i = i;
+	  max_j = j;
+	}
+	if( ratio_change > 1.e-4 ) {
+	  printf("(i,j)=(%d,%d), change = %g, area1=%g, area2=%g\n", i, j, ratio_change, area1[ii],area2[ii]);
+	}
+      }
+      ii = max_j*nx1+max_i;
+      printf("The maximum ratio change at (%d,%d) = %g, area1=%g, area2=%g\n", max_i, max_j, max_ratio, area1[ii],area2[ii]);
+      
+    }
+    
+    free(area1);
+    free(area2);
+    
+  }
+      
   /* get target grid area if needed */
   if( opcode & TARGET ) {
     for(n=0; n<ntiles_out; n++) {
@@ -427,10 +487,8 @@ void setup_conserve_interp(int ntiles_in, const Grid_config *grid_in, int ntiles
   free(i_out);
   free(j_out);
   free(xgrid_area);
-  if(opcode & CONSERVE_ORDER2) {
-    free(xgrid_clon);
-    free(xgrid_clat);
-  }
+  if(xgrid_clon) free(xgrid_clon);
+  if(xgrid_clat) free(xgrid_clat);
   
 }; /* setup_conserve_interp */
 
@@ -586,23 +644,36 @@ void do_scalar_conserve_interp(Interp_config *interp, int varid, int ntiles_in, 
     gsum_in = 0;
     gsum_out = 0;
     for(n=0; n<ntiles_in; n++) {
+
       nx1  = grid_in[n].nx;
       ny1  = grid_in[n].ny;
       area = (double *)malloc(nx1*ny1*sizeof(double));
-      get_grid_area(&nx1, &ny1, grid_in[n].lonc, grid_in[n].latc, area);
-      
+
+      if(opcode & GREAT_CIRCLE) { 
+         get_grid_great_circle_area(&nx1, &ny1, grid_in[n].lonc, grid_in[n].latc, area);
+      }
+      else {
+	get_grid_area(&nx1, &ny1, grid_in[n].lonc, grid_in[n].latc, area);
+      }
       for(j=0; j<ny1; j++) for(i=0; i<nx1; i++) {
 	dd = field_in[n].data[(j+halo)*(nx1+2*halo)+i+halo];
 	if(dd != missing) gsum_in += dd*area[j*nx1+i];
       }
       free(area);
+      
     }
     for(n=0; n<ntiles_out; n++) {
       nx2  = grid_out[n].nxc;
       ny2  = grid_out[n].nyc;
       area = (double *)malloc(nx2*ny2*sizeof(double));
-      get_grid_area(&nx2, &ny2, grid_out[n].lonc, grid_out[n].latc, area);
-      
+
+      if(opcode & GREAT_CIRCLE) {       
+	get_grid_great_circle_area(&nx2, &ny2, grid_out[n].lonc, grid_out[n].latc, area);
+      }
+      else {
+	get_grid_area(&nx2, &ny2, grid_out[n].lonc, grid_out[n].latc, area);
+      }
+            
       for(j=0; j<ny2; j++) for(i=0; i<nx2; i++) {
 	dd = field_out[n].data[j*nx2+i];
 	if(dd != missing) gsum_out += dd*area[j*nx2+i];

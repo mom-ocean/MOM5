@@ -215,7 +215,6 @@ integer :: id_sin2theta            =-1
 integer :: id_cos2theta            =-1
 integer :: id_neptune_bih_u        =-1
 integer :: id_neptune_bih_v        =-1
-integer :: id_neptune_psi          =-1
 integer :: id_ncar_rescale         =-1
 integer :: id_along                =-1
 integer :: id_across               =-1
@@ -339,9 +338,9 @@ type(ocean_grid_type), pointer   :: Grd => NULL()
 type(ocean_domain_type), pointer :: Dom => NULL()
 
 character(len=256) :: version=&
-     '=>Using: ocean_bihcgrid_friction.F90 ($Id: ocean_bihcgrid_friction.F90,v 1.1.2.7.20.1 2013/04/03 13:25:24 smg Exp $)'
+     '=>Using: ocean_bihcgrid_friction.F90 ($Id: ocean_bihcgrid_friction.F90,v 20.0 2013/12/14 00:14:12 fms Exp $)'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_201303_smg $'
+     '$Name: tikal $'
 
 logical :: use_this_module       = .false.
 logical :: debug_this_module     = .false.

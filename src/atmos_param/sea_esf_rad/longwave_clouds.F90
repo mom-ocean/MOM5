@@ -46,7 +46,7 @@ private
 !----------- version number for this module -------------------
 
 character(len=128)  :: version =  '$Id: longwave_clouds.F90,v 19.0 2012/01/06 20:17:31 fms Exp $'
-character(len=128)  :: tagname =  '$Name: siena_201207 $'
+character(len=128)  :: tagname =  '$Name: tikal $'
 
 
 !---------------------------------------------------------------------

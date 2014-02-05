@@ -30,7 +30,7 @@ end interface
 logical :: module_is_initialized = .false.
 
 character(len=128), parameter :: version = '$Id: implicit.F90,v 13.0 2006/03/28 21:17:54 fms Exp $'
-character(len=128), parameter :: tagname = '$Name: siena_201207 $'
+character(len=128), parameter :: tagname = '$Name: tikal $'
 
 real,    allocatable, dimension(:)   :: ref_temperature_implicit
 real,    allocatable, dimension(:)   :: ref_ln_p_half, ref_ln_p_full, del_ln_p_half, del_ln_p_full

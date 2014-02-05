@@ -50,8 +50,8 @@ public :: land_state_type
 ! ---- module constants ------------------------------------------------------
 character(len=*), parameter :: &
      module_name = 'land_data_mod', &
-     version     = '$Id: land_data.F90,v 19.0.6.1 2012/05/15 19:59:57 z1l Exp $', &
-     tagname     = '$Name: siena_201207 $'
+     version     = '$Id: land_data.F90,v 20.0 2013/12/13 23:29:24 fms Exp $', &
+     tagname     = '$Name: tikal $'
 
 ! init_value is used to fill most of the allocated boundary condition arrays.
 ! It is supposed to be double-precision signaling NaN, to trigger a trap when
@@ -168,7 +168,7 @@ type :: land_state_type
    integer, allocatable :: io_pelist(:) ! list of processors in our io_domain
    ! if io_domain was not defined, then there is just one element in this
    ! array, and it's equal to current PE
-   integer :: io_id        ! suffix in the distributed files.
+   integer :: io_id     ! suffix in the distributed files.
    logical :: append_io_id ! if FALSE, io_id is not appended to the file names
                            ! (for the case io_layout = 1,1)
 end type land_state_type
@@ -556,37 +556,14 @@ function max_n_tiles() result(n)
 
 end function 
 
-!#######################################################################
-! <SUBROUTINE NAME="atm_lnd_bnd_type_chksum">
-!
-! <OVERVIEW>
-!  Print checksums of the various fields in the atmos_land_boundary_type.
-! </OVERVIEW>
 
-! <DESCRIPTION>
-!  Routine to print checksums of the various fields in the atmos_land_boundary_type.
-! </DESCRIPTION>
-
-! <TEMPLATE>
-!   call atm_lnd_bnd_type_chksum(id, timestep, albt)
-! </TEMPLATE>
-
-! <IN NAME="albt" TYPE="type(atmos_land_boundary_type)">
-!   Derived-type variable that contains fields in the atmos_land_boundary_type.
-! </INOUT>
-!
-! <IN NAME="id" TYPE="character">
-!   Label to differentiate where this routine in being called from.
-! </IN>
-!
-! <IN NAME="timestep" TYPE="integer">
-!   An integer to indicate which timestep this routine is being called for.
-! </IN>
-!
+! ===========================================================================
+!  Prints checksums of the various fields in the atmos_land_boundary_type.
 subroutine atm_lnd_bnd_type_chksum(id, timestep, albt)
-
-    character(len=*), intent(in) :: id
-    integer         , intent(in) :: timestep
+    character(len=*), intent(in) :: id  ! Label to differentiate where this 
+                      ! routine is being called from.
+    integer         , intent(in) :: timestep ! An integer to indicate which 
+                      ! timestep this routine is being called for.
     type(atmos_land_boundary_type), intent(in) :: albt
     integer ::   n, outunit
     
@@ -627,42 +604,14 @@ subroutine atm_lnd_bnd_type_chksum(id, timestep, albt)
 
 end subroutine atm_lnd_bnd_type_chksum
 
-! </SUBROUTINE>
 
-!#######################################################################
-! <SUBROUTINE NAME="land_data_type_chksum">
-!
-! <OVERVIEW>
-!  Print checksums of the various fields in the land_data_type.
-! </OVERVIEW>
-
-! <DESCRIPTION>
-!  Routine to print checksums of the various fields in the land_data_type.
-! </DESCRIPTION>
-
-! <TEMPLATE>
-!   call land_data_type_chksum(id, timestep, land)
-! </TEMPLATE>
-
-! <IN NAME="land" TYPE="type(land_data_type)">
-!   Derived-type variable that contains fields in the land_data_type.
-! </INOUT>
-!
-! <IN NAME="id" TYPE="character">
-!   Label to differentiate where this routine in being called from.
-! </IN>
-!
-! <IN NAME="timestep" TYPE="integer">
-!   An integer to indicate which timestep this routine is being called for.
-! </IN>
-!
-
+! ===========================================================================
+!  Prints checksums of the various fields in the land_data_type.
 subroutine land_data_type_chksum(id, timestep, land)
-  use fms_mod,                 only: stdout
-  use mpp_mod,                 only: mpp_chksum
-
-    character(len=*), intent(in) :: id
-    integer         , intent(in) :: timestep
+    character(len=*), intent(in) :: id ! Label to differentiate where this 
+        ! routine in being called from.
+    integer         , intent(in) :: timestep ! An integer to indicate which
+        ! timestep this routine is being called for.
     type(land_data_type), intent(in) :: land
     integer ::   n, outunit
     
@@ -691,8 +640,5 @@ subroutine land_data_type_chksum(id, timestep, land)
 
 100 FORMAT("CHECKSUM::",A32," = ",Z20)
 end subroutine land_data_type_chksum
-
-! </SUBROUTINE>
-
 
 end module land_data_mod

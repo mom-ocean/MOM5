@@ -415,9 +415,9 @@ type(ocean_grid_type), pointer   :: Grd => NULL()
 type(ocean_domain_type), pointer :: Dom => NULL()
 
 character(len=256) :: version=&
-     '=>Using: ocean_bihgen_friction.F90 ($Id: ocean_bihgen_friction.F90,v 1.1.2.5.14.1 2013/04/03 13:25:25 smg Exp $)'
+     '=>Using: ocean_bihgen_friction.F90 ($Id: ocean_bihgen_friction.F90,v 20.0 2013/12/14 00:14:16 fms Exp $)'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_201303_smg $'
+     '$Name: tikal $'
 
 logical :: use_this_module       = .false.
 logical :: debug_this_module     = .false.

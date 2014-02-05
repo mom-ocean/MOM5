@@ -190,8 +190,8 @@ logical :: verbose_flag=.false.
 type(ocean_domain_type), pointer :: Dom => NULL()
 type(ocean_grid_type),   pointer :: Grd => NULL()
 
-character(len=128)  :: version='$Id: ocean_shortwave_jerlov.F90,v 1.1.2.2 2012/05/17 13:41:49 smg Exp $'
-character (len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
+character(len=128)  :: version='$Id: ocean_shortwave_jerlov.F90,v 20.0 2013/12/14 00:16:20 fms Exp $'
+character (len=128) :: tagname = '$Name: tikal $'
 character(len=48), parameter          :: mod_name = 'ocean_shortwave_jerlov_mod'
 
 real         :: rpart, rscl1, rscl2, rscl_ir

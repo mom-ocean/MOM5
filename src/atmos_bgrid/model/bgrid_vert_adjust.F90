@@ -24,7 +24,7 @@ public :: vert_adjust, vert_adjust_init
 !-----------------------------------------------------------------------
 
 character(len=128) :: version='$Id: bgrid_vert_adjust.F90,v 11.0 2004/09/28 19:07:04 fms Exp $'
-character(len=128) :: tagname='$Name: siena_201207 $'
+character(len=128) :: tagname='$Name: tikal $'
 
 integer :: id_clock
 logical :: initialized = .false.

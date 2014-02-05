@@ -65,7 +65,7 @@ logical :: module_is_initialized =.FALSE.
 ! module constants
 character(len=*), parameter :: mod_name = "Numerics_mod"
 character(len=128) :: version = '$Id: numerics.F90,v 15.0 2007/08/14 04:00:08 fms Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 contains
 

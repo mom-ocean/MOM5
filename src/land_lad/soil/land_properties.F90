@@ -530,7 +530,7 @@ namelist /land_properties_nml/ do_all_mcm,         veg_to_use,         &
 logical :: module_is_initialized =.FALSE.
 
 character(len=128) :: version = '$Id: land_properties.F90,v 19.0 2012/01/06 20:39:32 fms Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 !---- other module variables and named constants
 

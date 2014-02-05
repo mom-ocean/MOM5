@@ -44,7 +44,7 @@ use       mpp_domains_mod, only: mpp_global_sum, BITWISE_EXACT_SUM
 !------------------------------------------------------------------
 ! private module data
  character(len=128) :: version = '$Id: bgrid_conserve_energy.F90,v 19.0 2012/01/06 19:53:25 fms Exp $'
- character(len=128) :: tag = '$Name: siena_201207 $'
+ character(len=128) :: tag = '$Name: tikal $'
 
 ! saves the total correction for the entire run
  real :: total_correction

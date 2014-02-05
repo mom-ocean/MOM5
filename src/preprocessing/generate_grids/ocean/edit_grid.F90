@@ -85,7 +85,7 @@ program edit_grid
 
   !--- version information variables -----------------------------------
   character(len=128) :: version = '$Id: edit_grid.F90,v 19.0 2012/01/06 22:07:48 fms Exp $'
-  character(len=128) :: tagname = '$Name: siena_201207 $'
+  character(len=128) :: tagname = '$Name: tikal $'
   !---------------------------------------------------------------------
   logical :: tripolar_grid        =.false. ! indicate the grid is tripolar grid or not.
   logical :: cyclic_x             =.false. ! true indicate cyclic in x-direction

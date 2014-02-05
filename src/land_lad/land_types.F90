@@ -305,8 +305,8 @@ end type land_data_type
 ! </TYPE>
 
 logical :: module_is_initialized =.FALSE.
-character(len=128) :: version = '$Id: land_types.F90,v 19.0.4.1.2.1 2012/05/14 13:12:52 Zhi.Liang Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: land_types.F90,v 20.0 2013/12/13 23:28:40 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 
 contains ! -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

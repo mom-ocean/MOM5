@@ -1,3 +1,4 @@
+
 module topography_mod
 
 ! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
@@ -113,8 +114,8 @@ end interface
 
 !-----------------------------------------------------------------------
 
- character(len=128) :: version = '$Id: topography.F90,v 19.0 2012/01/06 22:06:16 fms Exp $'
- character(len=128) :: tagname = '$Name: siena_201207 $'
+ character(len=128) :: version = '$Id: topography.F90,v 20.0 2013/12/14 00:28:20 fms Exp $'
+ character(len=128) :: tagname = '$Name: tikal $'
 
  logical :: module_is_initialized = .FALSE.
 
@@ -898,6 +899,7 @@ subroutine read_namelist
 
 #ifdef INTERNAL_FILE_NML
       read (input_nml_file, topography_nml, iostat=io)
+      ierr = check_nml_error(io,'topography_nml')
 #else
    if ( file_exist('input.nml')) then
       unit = open_namelist_file ( )

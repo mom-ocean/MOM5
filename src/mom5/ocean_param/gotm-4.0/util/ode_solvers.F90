@@ -1070,7 +1070,7 @@
    first=.false.
 
    do ci=1,nlev
-      call findp_bisection(numc, cc(:,ci), derivative(:,ci), dt, 1.e-9, pi)
+      call findp_bisection(numc, cc(:,ci), derivative(:,ci), dt, 1.d-9, pi)
       cc(:,ci) = cc(:,ci) + dt*derivative(:,ci)*pi
    end do
 
@@ -1152,7 +1152,7 @@
    first=.false.
 
    do ci=1,nlev
-      call findp_bisection(numc, cc(:,ci), rhs(:,ci), dt, 1.e-9, pi)
+      call findp_bisection(numc, cc(:,ci), rhs(:,ci), dt, 1.d-9, pi)
       cc_med(:,ci) = cc(:,ci) + dt*rhs(:,ci)*pi
    end do
 
@@ -1166,7 +1166,7 @@
          if (rhs(i,ci) .lt. 0.) rhs(:,ci) = rhs(:,ci) * cc(i,ci)/cc_med(i,ci)
       end do
 
-      call findp_bisection(numc, cc(:,ci), rhs(:,ci), dt, 1.e-9, pi)
+      call findp_bisection(numc, cc(:,ci), rhs(:,ci), dt, 1.d-9, pi)
 
       cc(:,ci) = cc(:,ci) + dt*rhs(:,ci)*pi
    end do ! ci (z-levels)

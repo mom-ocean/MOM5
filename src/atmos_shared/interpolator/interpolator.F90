@@ -100,8 +100,8 @@ interface interp_weighted_scalar
    module procedure interp_weighted_scalar_2D
 end interface interp_weighted_scalar
 character(len=128) :: version = &
-'$Id: interpolator.F90,v 19.0.8.2 2012/06/11 19:26:57 Seth.Underwood Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+'$Id: interpolator.F90,v 20.0 2013/12/13 23:23:41 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 logical            :: module_is_initialized = .false.
 logical            :: clim_diag_initialized = .false.
 
@@ -1241,22 +1241,27 @@ type(time_type) :: t_prev, t_next
 type(time_type), dimension(2) :: month
 integer :: indexm, indexp, yearm, yearp
 integer :: i, n
-
+character(len=256) :: err_msg
 
     if (clim_type%climatological_year) then
-!++lwh
+       !++lwh
        if (size(clim_type%time_slice) > 1) then
-          call time_interp(Time, clim_type%time_slice, clim_type%tweight, taum, taup, modtime=YEAR )
+          call time_interp(Time, clim_type%time_slice, clim_type%tweight, taum, taup, modtime=YEAR, err_msg=err_msg )
+          if(err_msg /= '') then
+             call mpp_error(FATAL,'interpolator_timeslice 1: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+          endif
        else
           taum = 1
           taup = 1
           clim_type%tweight = 0.
        end if
-!--lwh
+       !--lwh
     else
-       call time_interp(Time, clim_type%time_slice, clim_type%tweight, taum, taup )
+       call time_interp(Time, clim_type%time_slice, clim_type%tweight, taum, taup, err_msg=err_msg )
+       if(err_msg /= '') then
+          call mpp_error(FATAL,'interpolator_timeslice 2: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+       endif
     endif
-
 
     if(clim_type%TIME_FLAG .eq. BILINEAR ) then
       ! Check if delta-time is greater than delta of first two climatology time-slices.
@@ -1313,18 +1318,28 @@ integer :: i, n
                         climyear, climmonth, climday, climhour, climminute, climsecond)
           month(2) = set_date(yearp, indexp, climday, climhour, climminute, climsecond)
         
-        call time_interp(Time, month, clim_type%tweight3, taum, taup ) ! tweight3 is the time weight between the months.
+        call time_interp(Time, month, clim_type%tweight3, taum, taup, err_msg=err_msg ) ! tweight3 is the time weight between the months.
+        if(err_msg /= '') then
+          call mpp_error(FATAL,'interpolator_timeslice 3: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+        endif
 
         month(1) = clim_type%time_slice(indexm+(climatology-1)*12)
         month(2) = clim_type%time_slice(indexm+climatology*12)
         call get_date(month(1), climyear, climmonth, climday, climhour, climminute, climsecond)
         t_prev = set_date(yearm, climmonth, climday, climhour, climminute, climsecond)
-        call time_interp(t_prev, month, clim_type%tweight1, taum, taup ) !tweight1 is the time weight between the climatology years.
+        call time_interp(t_prev, month, clim_type%tweight1, taum, taup, err_msg=err_msg ) !tweight1 is the time weight between the climatology years.
+        if(err_msg /= '') then
+           call mpp_error(FATAL,'interpolator_timeslice 4: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+        endif
+
         month(1) = clim_type%time_slice(indexp+(climatology-1)*12)
         month(2) = clim_type%time_slice(indexp+climatology*12)
         call get_date(month(1), climyear, climmonth, climday, climhour, climminute, climsecond)
         t_next = set_date(yearp, climmonth, climday, climhour, climminute, climsecond)
-        call time_interp(t_next, month, clim_type%tweight2, taum, taup ) !tweight1 is the time weight between the climatology years.
+        call time_interp(t_next, month, clim_type%tweight2, taum, taup, err_msg=err_msg ) !tweight1 is the time weight between the climatology years.
+        if(err_msg /= '') then
+           call mpp_error(FATAL,'interpolator_timeslice 5: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+        endif
 
         if (indexm == clim_type%indexm(1) .and.  &
             indexp == clim_type%indexp(1) .and. &
@@ -1501,7 +1516,7 @@ type(time_type) :: t_prev, t_next
 type(time_type), dimension(2) :: month
 integer :: indexm, indexp, yearm, yearp
 integer :: i, j, k, n
-
+character(len=256) :: err_msg
 
 if (.not. module_is_initialized .or. .not. associated(clim_type%lon)) &
    call mpp_error(FATAL, "interpolator_4D : You must call interpolator_init before calling interpolator")
@@ -1559,7 +1574,10 @@ if ( .not. clim_type%separate_time_vary_calc) then
     if (clim_type%climatological_year) then
 !++lwh
        if (size(clim_type%time_slice) > 1) then
-          call time_interp(Time, clim_type%time_slice, clim_type%tweight, taum, taup, modtime=YEAR )
+          call time_interp(Time, clim_type%time_slice, clim_type%tweight, taum, taup, modtime=YEAR, err_msg=err_msg )
+          if(err_msg /= '') then
+             call mpp_error(FATAL,'interpolator_4D 1: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+          endif
        else
           taum = 1
           taup = 1
@@ -1567,9 +1585,11 @@ if ( .not. clim_type%separate_time_vary_calc) then
        end if
 !--lwh
     else
-       call time_interp(Time, clim_type%time_slice, clim_type%tweight, taum, taup )
+       call time_interp(Time, clim_type%time_slice, clim_type%tweight, taum, taup, err_msg=err_msg )
+       if(err_msg /= '') then
+          call mpp_error(FATAL,'interpolator_4D 2: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+       endif
     endif
-
 
     if(clim_type%TIME_FLAG .eq. BILINEAR ) then
       ! Check if delta-time is greater than delta of first two climatology time-slices.
@@ -1626,18 +1646,27 @@ if ( .not. clim_type%separate_time_vary_calc) then
                         climyear, climmonth, climday, climhour, climminute, climsecond)
           month(2) = set_date(yearp, indexp, climday, climhour, climminute, climsecond)
         
-        call time_interp(Time, month, clim_type%tweight3, taum, taup ) ! tweight3 is the time weight between the months.
+        call time_interp(Time, month, clim_type%tweight3, taum, taup, err_msg=err_msg ) ! tweight3 is the time weight between the months.
+        if(err_msg /= '') then
+           call mpp_error(FATAL,'interpolator_4D 3: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+        endif    
 
         month(1) = clim_type%time_slice(indexm+(climatology-1)*12)
         month(2) = clim_type%time_slice(indexm+climatology*12)
         call get_date(month(1), climyear, climmonth, climday, climhour, climminute, climsecond)
         t_prev = set_date(yearm, climmonth, climday, climhour, climminute, climsecond)
-        call time_interp(t_prev, month, clim_type%tweight1, taum, taup ) !tweight1 is the time weight between the climatology years.
+        call time_interp(t_prev, month, clim_type%tweight1, taum, taup, err_msg=err_msg ) !tweight1 is the time weight between the climatology years.
+        if(err_msg /= '') then
+           call mpp_error(FATAL,'interpolator_4D 4: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+        endif    
         month(1) = clim_type%time_slice(indexp+(climatology-1)*12)
         month(2) = clim_type%time_slice(indexp+climatology*12)
         call get_date(month(1), climyear, climmonth, climday, climhour, climminute, climsecond)
         t_next = set_date(yearp, climmonth, climday, climhour, climminute, climsecond)
-        call time_interp(t_next, month, clim_type%tweight2, taum, taup ) !tweight1 is the time weight between the climatology years.
+        call time_interp(t_next, month, clim_type%tweight2, taum, taup, err_msg=err_msg ) !tweight1 is the time weight between the climatology years.
+        if(err_msg /= '') then
+           call mpp_error(FATAL,'interpolator_4D 5: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+        endif    
 
         if (indexm == clim_type%indexm(1) .and.  &
             indexp == clim_type%indexp(1) .and. &
@@ -1920,6 +1949,7 @@ type(time_type) :: t_prev, t_next
 type(time_type), dimension(2) :: month
 integer :: indexm, indexp, yearm, yearp
 integer :: i, j, k, n
+character(len=256) :: err_msg
 
 
 
@@ -1957,7 +1987,10 @@ if ( .not. clim_type%separate_time_vary_calc) then
     if (clim_type%climatological_year) then
 !++lwh
        if (size(clim_type%time_slice) > 1) then
-          call time_interp(Time, clim_type%time_slice, clim_type%tweight, taum, taup, modtime=YEAR )
+          call time_interp(Time, clim_type%time_slice, clim_type%tweight, taum, taup, modtime=YEAR, err_msg=err_msg )
+          if(err_msg /= '') then
+             call mpp_error(FATAL,'interpolator_3D 1: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+          endif
        else
           taum = 1
           taup = 1
@@ -1965,7 +1998,10 @@ if ( .not. clim_type%separate_time_vary_calc) then
        end if
 !--lwh
     else
-       call time_interp(Time, clim_type%time_slice, clim_type%tweight, taum, taup )
+       call time_interp(Time, clim_type%time_slice, clim_type%tweight, taum, taup, err_msg=err_msg )
+       if(err_msg /= '') then
+          call mpp_error(FATAL,'interpolator_3D 2: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+       endif
     endif
 
 !   if(clim_type%TIME_FLAG .ne. LINEAR ) then
@@ -2029,20 +2065,28 @@ if ( .not. clim_type%separate_time_vary_calc) then
                       climyear, climmonth, climday, climhour, climminute, climsecond)
         month(2) = set_date(yearp, indexp, climday, climhour, climminute, climsecond)
         
-        call time_interp(Time, month, clim_type%tweight3, taum, taup ) ! tweight3 is the time weight between the months.
+        call time_interp(Time, month, clim_type%tweight3, taum, taup, err_msg=err_msg ) ! tweight3 is the time weight between the months.
+        if(err_msg /= '') then
+           call mpp_error(FATAL,'interpolator_3D 3: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+        endif    
 
         month(1) = clim_type%time_slice(indexm+(climatology-1)*12)
         month(2) = clim_type%time_slice(indexm+climatology*12)
         call get_date(month(1), climyear, climmonth, climday, climhour, climminute, climsecond)
         t_prev = set_date(yearm, climmonth, climday, climhour, climminute, climsecond)
-        call time_interp(t_prev, month, clim_type%tweight1, taum, taup ) !tweight1 is the time weight between the climatology years.
+        call time_interp(t_prev, month, clim_type%tweight1, taum, taup, err_msg=err_msg ) !tweight1 is the time weight between the climatology years.
+        if(err_msg /= '') then
+           call mpp_error(FATAL,'interpolator_3D 4: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+        endif    
 
         month(1) = clim_type%time_slice(indexp+(climatology-1)*12)
         month(2) = clim_type%time_slice(indexp+climatology*12)
         call get_date(month(1), climyear, climmonth, climday, climhour, climminute, climsecond)
         t_next = set_date(yearp, climmonth, climday, climhour, climminute, climsecond)
-        call time_interp(t_next, month, clim_type%tweight2, taum, taup ) !tweight1 is the time weight between the climatology years.
-
+        call time_interp(t_next, month, clim_type%tweight2, taum, taup, err_msg=err_msg ) !tweight1 is the time weight between the climatology years.
+        if(err_msg /= '') then
+           call mpp_error(FATAL,'interpolator_3D 5: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+        endif    
 
 
         if (indexm == clim_type%indexm(i) .and.  &
@@ -2293,6 +2337,7 @@ type(time_type) :: t_prev, t_next
 type(time_type), dimension(2) :: month
 integer :: indexm, indexp, yearm, yearp
 integer :: j, i, n
+character(len=256) :: err_msg
 
 if (.not. module_is_initialized .or. .not. associated(clim_type%lon)) &
    call mpp_error(FATAL, "interpolator_2D : You must call interpolator_init before calling interpolator")
@@ -2330,7 +2375,10 @@ if ( .not. clim_type%separate_time_vary_calc) then
     if (clim_type%climatological_year) then
 !++lwh
        if (size(clim_type%time_slice) > 1) then
-          call time_interp(Time, clim_type%time_slice, clim_type%tweight, taum, taup, modtime=YEAR )
+          call time_interp(Time, clim_type%time_slice, clim_type%tweight, taum, taup, modtime=YEAR, err_msg=err_msg )
+          if(err_msg /= '') then
+             call mpp_error(FATAL,'interpolator_2D 1: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+          endif
        else
           taum = 1
           taup = 1
@@ -2338,7 +2386,10 @@ if ( .not. clim_type%separate_time_vary_calc) then
        end if
 !--lwh
     else
-       call time_interp(Time, clim_type%time_slice, clim_type%tweight, taum, taup )
+       call time_interp(Time, clim_type%time_slice, clim_type%tweight, taum, taup, err_msg=err_msg )
+       if(err_msg /= '') then
+          call mpp_error(FATAL,'interpolator_2D 2: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+       endif
     endif
 
 ! If the climatology file has seasonal, a split time-line or has all the data 
@@ -2428,20 +2479,28 @@ if ( .not. clim_type%separate_time_vary_calc) then
                       climyear, climmonth, climday, climhour, climminute, climsecond)
         month(2) = set_date(yearp, indexp, climday, climhour, climminute, climsecond)
         
-        call time_interp(Time, month, clim_type%tweight3, taum, taup ) ! tweight3 is the time weight between the months.
+        call time_interp(Time, month, clim_type%tweight3, taum, taup, err_msg=err_msg ) ! tweight3 is the time weight between the months.
+        if(err_msg /= '') then
+           call mpp_error(FATAL,'interpolator_2D 3: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+        endif    
 
         month(1) = clim_type%time_slice(indexm+(climatology-1)*12)
         month(2) = clim_type%time_slice(indexm+climatology*12)
         call get_date(month(1), climyear, climmonth, climday, climhour, climminute, climsecond)
         t_prev = set_date(yearm, climmonth, climday, climhour, climminute, climsecond)
-        call time_interp(t_prev, month, clim_type%tweight1, taum, taup ) !tweight1 is the time weight between the climatology years.
+        call time_interp(t_prev, month, clim_type%tweight1, taum, taup, err_msg=err_msg ) !tweight1 is the time weight between the climatology years.
+        if(err_msg /= '') then
+           call mpp_error(FATAL,'interpolator_2D 4: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+        endif    
 
         month(1) = clim_type%time_slice(indexp+(climatology-1)*12)
         month(2) = clim_type%time_slice(indexp+climatology*12)
         call get_date(month(1), climyear, climmonth, climday, climhour, climminute, climsecond)
         t_next = set_date(yearp, climmonth, climday, climhour, climminute, climsecond)
-        call time_interp(t_next, month, clim_type%tweight2, taum, taup ) !tweight1 is the time weight between the climatology years.
-
+        call time_interp(t_next, month, clim_type%tweight2, taum, taup, err_msg=err_msg ) !tweight1 is the time weight between the climatology years.
+        if(err_msg /= '') then
+           call mpp_error(FATAL,'interpolator_2D 5: '//trim(err_msg)//' file='//trim(clim_type%file_name), FATAL)
+        endif    
 
 
         if (indexm == clim_type%indexm(i) .and.  &

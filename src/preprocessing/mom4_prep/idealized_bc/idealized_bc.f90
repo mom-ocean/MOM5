@@ -114,7 +114,7 @@ module idealized_bc_mod
 
   !--- version information 
   character(len=128) :: version = '$Id: idealized_bc.f90,v 17.0 2009/07/21 03:22:49 fms Exp $'
-  character(len=128) :: tagname = '$Name: siena_201207 $' 
+  character(len=128) :: tagname = '$Name: tikal $' 
 
   !--- other module variables
   real, dimension(:,:),    allocatable :: xu, yu, xt, yt, h1t, area_t

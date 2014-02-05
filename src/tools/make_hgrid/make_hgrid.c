@@ -22,15 +22,15 @@
 
 const int MAXBOUNDS = 100;
 const int STRINGLEN = 255;
-const int REGULAR_LONLAT_GRID   = 1;
-const int TRIPOLAR_GRID         = 2;
-const int FROM_FILE             = 3;
-const int SIMPLE_CARTESIAN_GRID = 4;
-const int SPECTRAL_GRID         = 5;
-const int CONFORMAL_CUBIC_GRID  = 6;
-const int GNOMONIC_ED           = 7;
-const int F_PLANE_GRID          = 8;
-const int BETA_PLANE_GRID       = 9;
+#define REGULAR_LONLAT_GRID    1
+#define TRIPOLAR_GRID          2
+#define FROM_FILE              3
+#define SIMPLE_CARTESIAN_GRID  4
+#define SPECTRAL_GRID          5
+#define CONFORMAL_CUBIC_GRID   6
+#define GNOMONIC_ED            7
+#define F_PLANE_GRID           8
+#define BETA_PLANE_GRID        9
 int my_grid_type = 0;
 
 char *usage[] = {
@@ -52,6 +52,7 @@ char *usage[] = {
   "                  --do_schmidt --stretch_fac # --target_lon # --target_lat #     ",
   "                  --nest_grid --parent_tile # --refine_ratio # --halo #          ",
   "                  --istart_nest # --iend_nest # --jstart_nest # --jend_nest #    ",
+  "                  --great_circle_algorithm                                       ",
   "                                                                                 ",
   "   This program can generate different types of horizontal grid. The             ",
   "   output data is on supergrid ( model grid size x refinement(=2) ).  For        ",
@@ -211,6 +212,9 @@ char *usage[] = {
   "   --halo #                   halo size to used in the atmosphere cubic sphere   ",
   "                              model. It only needs to be specified when          ",
   "                              --nest_grid is set.                                ",
+  "                                                                                 ",
+  "   --great_circle_algorithm   When specified, great_circle_algorithm will be     ",
+  "                              used to compute grid cell area.                    ",
   "                                                                                 ",  
   "   --verbose                  Will print out running time message when this      ",
   "                              option is set. Otherwise the run will be silent    ",
@@ -318,7 +322,7 @@ char *usage[] = {
   NULL };
 
 char grid_version[] = "0.2";
-char tagname[] = "$Name: siena_201205_z1l $";
+char tagname[] = "$Name: tikal $";
 
 int main(int argc, char* argv[])
 {
@@ -350,6 +354,7 @@ int main(int argc, char* argv[])
   int    present_stretch_factor = 0;
   int    present_target_lon = 0;
   int    present_target_lat = 0;
+  int    use_great_circle_algorithm = 0;
   unsigned int verbose = 0;
   double simple_dx=0, simple_dy=0;
   int nx, ny, nxp, nyp, ntiles=1, ntiles_global=1;
@@ -405,7 +410,7 @@ int main(int argc, char* argv[])
     {"jend_nest",       required_argument, NULL, 'G'},
     {"halo",            required_argument, NULL, 'H'},
     {"shift_fac",       required_argument, NULL, 'I'},
-    
+    {"great_circle_algorithm", no_argument, NULL, 'J'},    
     {"help",            no_argument,       NULL, 'h'},
     {"verbose",         no_argument,       NULL, 'v'},
     {0, 0, 0, 0},
@@ -525,6 +530,9 @@ int main(int argc, char* argv[])
       break;
     case 'I':
       shift_fac = atof(optarg);
+      break;
+    case 'J':
+      use_great_circle_algorithm = 1;
       break;
     case 'v':
       verbose = 1;
@@ -665,8 +673,15 @@ int main(int argc, char* argv[])
           nlon[n] = mpp_get_dimlen(fid, "i")*2;
 	  nlat[n] = mpp_get_dimlen(fid, "j")*2;
 	}
+	else if(mpp_dim_exist(fid, "x") ) {
+	  if( mpp_dim_exist(fid, "y") == 0)
+	    mpp_error("make_hgrid: y should be a dimension when x is a dimension");
+          nlon[n] = mpp_get_dimlen(fid, "x")*2;
+	  nlat[n] = mpp_get_dimlen(fid, "y")*2;
+	}
+	
 	else {
-	  mpp_error("make_hgrid: none of grid_xt, rlon, lon, and i is a dimension in input file");
+	  mpp_error("make_hgrid: none of grid_xt, rlon, lon, x, and i is a dimension in input file");
 	}	
 	mpp_close(fid);
       }
@@ -713,14 +728,18 @@ int main(int argc, char* argv[])
     }
 
     if(nest_grid) {
-      if(parent_tile == 0) mpp_error("make_hgrid: --parent_tile must be set when --nest_grid is set");
       if(refine_ratio == 0) mpp_error("make_hgrid: --refine_ratio must be set when --nest_grid is set");
-      if(istart_nest == 0) mpp_error("make_hgrid: --istart_nest must be set when --nest_grid is set");
-      if(iend_nest == 0) mpp_error("make_hgrid: --iend_nest must be set when --nest_grid is set");
-      if(jstart_nest == 0) mpp_error("make_hgrid: --jstart_nest must be set when --nest_grid is set");
-      if(jend_nest == 0) mpp_error("make_hgrid: --jend_nest must be set when --nest_grid is set");
-      if(halo == 0 ) mpp_error("make_hgrid: --halo must be set when --nest_grid is set");
-      ntiles++;   /* one more tile for the nest region */
+      if(parent_tile == 0 && mpp_pe()==mpp_root_pe()) {
+	 printf("NOTE from make_hgrid: parent_tile is 0, the output grid will have resolution refine_ration*nlon");
+      }
+      else {
+	if(istart_nest == 0) mpp_error("make_hgrid: --istart_nest must be set when --nest_grid is set");
+	if(iend_nest == 0) mpp_error("make_hgrid: --iend_nest must be set when --nest_grid is set");
+	if(jstart_nest == 0) mpp_error("make_hgrid: --jstart_nest must be set when --nest_grid is set");
+	if(jend_nest == 0) mpp_error("make_hgrid: --jend_nest must be set when --nest_grid is set");
+	if(halo == 0 ) mpp_error("make_hgrid: --halo must be set when --nest_grid is set");
+	ntiles++;   /* one more tile for the nest region */
+      }
     }
     if(nxbnds2 != 1 ) mpp_error("make_hgrid: grid type is 'gnomonic_cubic_grid', number entry entered "
 				"through --nlon should be 1");
@@ -746,11 +765,15 @@ int main(int argc, char* argv[])
   }
   else {
     if( my_grid_type == GNOMONIC_ED || my_grid_type == CONFORMAL_CUBIC_GRID ) {
-      for(n=0; n<ntiles_global; n++) {
+      for(n=0; n<ntiles_global; n++) {	
 	nxl[n] = nlon[0];
 	nyl[n] = nxl[n];
+	if(nest_grid && parent_tile == 0) {
+	  nxl[n] *= refine_ratio;
+	  nyl[n] *= refine_ratio;
+	}
       }
-      if(nest_grid) {
+      if(ntiles > ntiles_global) {
         nxl[ntiles_global] = (iend_nest-istart_nest+1)*refine_ratio;
         nyl[ntiles_global] = (jend_nest-jstart_nest+1)*refine_ratio;
       }
@@ -801,46 +824,40 @@ int main(int argc, char* argv[])
   jsc = 0;
   jec = ny-1;
 
-  switch (my_grid_type) {
-  case REGULAR_LONLAT_GRID:
+  if(my_grid_type==REGULAR_LONLAT_GRID)
     create_regular_lonlat_grid(&nxbnds, &nybnds, xbnds, ybnds, nlon, nlat, dx_bnds, dy_bnds,
-			       use_legacy, &isc, &iec, &jsc, &jec, x, y, dx, dy, area, angle_dx, center);
-    break;
-  case TRIPOLAR_GRID:
+			       use_legacy, &isc, &iec, &jsc, &jec, x, y, dx, dy, area,
+			       angle_dx, center, use_great_circle_algorithm);
+  else if(my_grid_type==TRIPOLAR_GRID)
     create_tripolar_grid(&nxbnds, &nybnds, xbnds, ybnds, nlon, nlat, dx_bnds, dy_bnds,
-			    use_legacy, &lat_join, &isc, &iec, &jsc, &jec, x, y, dx, dy, area, angle_dx, center, verbose);
-    break;
-  case FROM_FILE:
+			 use_legacy, &lat_join, &isc, &iec, &jsc, &jec, x, y, dx, dy,
+			 area, angle_dx, center, verbose, use_great_circle_algorithm);
+  else if(my_grid_type==FROM_FILE) {
     for(n=0; n<ntiles; n++) {
       int n1, n2, n3, n4;
       n1 = n * nxp * nyp;
       n2 = n * nx  * nyp;
       n3 = n * nxp * ny;
       n4 = n * nx  * ny;
-      create_grid_from_file(my_grid_file[n], &nx, &ny, x+n1, y+n1, dx+n2, dy+n3, area+n4, angle_dx+n1);
+      create_grid_from_file(my_grid_file[n], &nx, &ny, x+n1, y+n1, dx+n2, dy+n3, area+n4, angle_dx+n1, use_great_circle_algorithm);
     }
-    break;
-  case SIMPLE_CARTESIAN_GRID:
+  }
+  else if(my_grid_type==SIMPLE_CARTESIAN_GRID)
     create_simple_cartesian_grid(xbnds, ybnds, &nx, &ny, &simple_dx, &simple_dy, &isc, &iec, &jsc, &jec,
 				 x, y, dx, dy, area, angle_dx );
-    break;
-  case SPECTRAL_GRID:
-    create_spectral_grid(&nx, &ny, &isc, &iec, &jsc, &jec, x, y, dx, dy, area, angle_dx );
-    break;
-  case CONFORMAL_CUBIC_GRID:
+  else if(my_grid_type==SPECTRAL_GRID)
+    create_spectral_grid(&nx, &ny, &isc, &iec, &jsc, &jec, x, y, dx, dy, area, angle_dx, use_great_circle_algorithm );
+  else if(my_grid_type==CONFORMAL_CUBIC_GRID)
     create_conformal_cubic_grid(&nx, &nratio, method, orientation, x, y, dx, dy, area, angle_dx, angle_dy );
-    break;
-  case GNOMONIC_ED:
+  else if(my_grid_type==GNOMONIC_ED)
     create_gnomonic_cubic_grid(grid_type, nxl, nyl, x, y, dx, dy, area, angle_dx, angle_dy,
 			       shift_fac, do_schmidt, stretch_factor, target_lon, target_lat,
 			       nest_grid, parent_tile, refine_ratio,
 			       istart_nest, iend_nest, jstart_nest, jend_nest, halo );
-    break;
-  case F_PLANE_GRID: case BETA_PLANE_GRID:
+  else if((my_grid_type==F_PLANE_GRID) || (my_grid_type==BETA_PLANE_GRID))
     create_f_plane_grid(&nxbnds, &nybnds, xbnds, ybnds, nlon, nlat, dx_bnds, dy_bnds,
 			use_legacy, f_plane_latitude, &isc, &iec, &jsc, &jec, x, y, dx, dy, area, angle_dx, center);
-    break;
-  }
+ 
   /* write out data */
   {
     int fid, id_tile, id_x, id_y, id_dx, id_dy, id_area, id_angle_dx, id_angle_dy, id_arcx;
@@ -884,6 +901,7 @@ int main(int argc, char* argv[])
 	id_tile = mpp_def_var(fid, "tile", MPP_CHAR, 1, dimlist, 6, "standard_name", "grid_tile_spec",
 			      "geometry", geometry, "north_pole", north_pole_tile, "projection", projection,
 			      "discretization", discretization, "conformal", conformal );
+      
       dims[0] = dimlist[4]; dims[1] = dimlist[3];
       id_x = mpp_def_var(fid, "x", MPP_DOUBLE, 2, dims, 2, "standard_name", "geographic_longitude",
 			 "units", "degree_east");
@@ -911,6 +929,8 @@ int main(int argc, char* argv[])
 			      "north_pole", north_pole_arcx );
       mpp_def_global_att(fid, "grid_version", grid_version);
       mpp_def_global_att(fid, "code_version", tagname);
+      if(use_great_circle_algorithm) mpp_def_global_att(fid, "great_circle_algorithm", "TRUE");
+      if(n>=ntiles_global) mpp_def_global_att(fid, "nest_grid", "TRUE");
       mpp_def_global_att(fid, "history", history);
       
       mpp_end_def(fid);

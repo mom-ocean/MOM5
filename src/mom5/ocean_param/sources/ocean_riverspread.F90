@@ -129,9 +129,9 @@ integer                              :: unit=6         ! processor zero writes t
 logical, dimension(:), allocatable   :: error_spread   ! for checking that all spread points are OK.  
 
 character(len=256) :: version=&
-       '$Id: ocean_riverspread.F90,v 1.1.2.2 2012/06/01 20:47:08 Stephen.Griffies Exp $)'
+       '$Id: ocean_riverspread.F90,v 20.0 2013/12/14 00:16:12 fms Exp $)'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 integer :: isd, ied, jsd, jed, isc, iec, jsc, jec, nk
 real    :: dtime 

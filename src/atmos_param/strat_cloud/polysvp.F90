@@ -29,8 +29,8 @@ private compute_qs_x2
 
 !-------------------------------------------------------------------------
 !----version number-------------------------------------------------------
-Character(len=128) :: Version = '$Id: polysvp.F90,v 19.0 2012/01/06 20:26:46 fms Exp $'
-Character(len=128) :: Tagname = '$Name: siena_201207 $'
+Character(len=128) :: Version = '$Id: polysvp.F90,v 20.0 2013/12/13 23:22:03 fms Exp $'
+Character(len=128) :: Tagname = '$Name: tikal $'
 
 
 !---------------------------------------------------------------------
@@ -438,7 +438,12 @@ REAL, dimension(idim,jdim,kdim), INTENT(INOUT ) :: qs, dqsdT, gamma,  &
             ELSE
               qs(i,j,k) = qs_i(i,j,k)
             END IF
-            IF (ttmp(i,j,k) .GE. 233.15) THEN
+!REV#1
+!888
+!           IF (ttmp(i,j,k) .GE. 233.15) THEN
+!           IF (ttmp(i,j,k) .GE. 233.16) THEN
+            IF (ttmp(i,j,k) .GE. tfreeze - 40.) THEN
+!END REV#1
               dqsdT(i,j,k) = hlv*qs_l(i,j,k)/(rvgas*ttmp(i,j,k)**2)
               gamma(i,j,k) = dqsdT(i,j,k)*hlv/cp_air
             ELSE
@@ -513,7 +518,12 @@ REAL,    INTENT(INOUT ) :: qs,  dqsdT, gamma,  qs_l, qs_i
       ELSE
         qs =  qs_i
       END IF
-      IF (ttmp .GE. 233.15  .and.  ifrac .LT. 0.9 ) THEN
+!REV#2
+!888
+!     IF (ttmp .GE. 233.15  .and.  ifrac .LT. 0.9 ) THEN
+!     IF (ttmp .GE. 233.16  .and.  ifrac .LT. 0.9 ) THEN
+      IF (ttmp .GE. tfreeze - 40.  .and.  ifrac .LT. 0.9 ) THEN
+!END REV#2
         dqsdT =  hlv*qs_l/(rvgas*ttmp**2)
         gamma = dqsdT * hlv /cp_air
       ELSE

@@ -91,8 +91,8 @@ type(ocean_grid_type),   pointer :: Grd => NULL()
 public ocean_sponges_tracer_init
 public sponge_tracer_source
 
-character(len=126)  :: version = '$Id: ocean_sponges_tracer.F90,v 1.1.2.3 2012/06/01 20:47:08 Stephen.Griffies Exp $'
-character (len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
+character(len=126)  :: version = '$Id: ocean_sponges_tracer.F90,v 20.0 2013/12/14 00:16:24 fms Exp $'
+character (len=128) :: tagname = '$Name: tikal $'
 
 ! for diagnostics 
 logical :: used

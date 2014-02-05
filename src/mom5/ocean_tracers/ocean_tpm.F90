@@ -284,8 +284,8 @@ character(len=48), parameter                    :: mod_name = 'ocean_tpm_mod'
 !       Private variables
 !
 
-character(len=128) :: version = '$Id: ocean_tpm.F90,v 1.1.2.1 2012/05/15 16:48:04 smg Exp $'
-character(len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
+character(len=128) :: version = '$Id: ocean_tpm.F90,v 20.0 2013/12/14 00:17:16 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 integer :: imonth
 integer :: iyear

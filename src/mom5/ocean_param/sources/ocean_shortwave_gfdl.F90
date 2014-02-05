@@ -214,8 +214,8 @@ real, dimension(6) :: Z2_coef
 type(ocean_domain_type), pointer :: Dom => NULL()
 type(ocean_grid_type),   pointer :: Grd => NULL()
 
-character(len=128)  :: version='$Id: ocean_shortwave_gfdl.F90,v 1.1.2.3 2012/06/01 20:47:08 Stephen.Griffies Exp $'
-character (len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
+character(len=128)  :: version='$Id: ocean_shortwave_gfdl.F90,v 20.0 2013/12/14 00:16:18 fms Exp $'
+character (len=128) :: tagname = '$Name: tikal $'
 character(len=48), parameter          :: mod_name = 'ocean_shortwave_gfdl_mod'
 
 public ocean_shortwave_gfdl_init

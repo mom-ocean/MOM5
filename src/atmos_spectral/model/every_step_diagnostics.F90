@@ -24,7 +24,7 @@ public :: every_step_diagnostics_init, every_step_diagnostics, every_step_diagno
 !===============================================================================================
 
 character(len=128), parameter :: version = '$Id: every_step_diagnostics.F90,v 13.0 2006/03/28 21:17:44 fms Exp $'
-character(len=128), parameter :: tagname = '$Name: siena_201207 $'
+character(len=128), parameter :: tagname = '$Name: tikal $'
 
 integer :: id_ps, id_u, id_v, id_t, num_levels, num_tracers
 integer, allocatable, dimension(:) :: id_tr

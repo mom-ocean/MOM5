@@ -1,10 +1,10 @@
 module ocean_vert_mix_mod
 #define COMP isc:iec,jsc:jec
 !
-!<CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
+!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies
 !</CONTACT>
 !
-!<REVIEWER EMAIL="Tony.Rosati@noaa.gov"> A. Rosati
+!<REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov"> A. Rosati
 !</REVIEWER>
 !
 !<OVERVIEW>
@@ -661,9 +661,9 @@ integer :: isd, ied, jsd, jed, isc, iec, jsc, jec, nk
 real, dimension(:,:,:), allocatable :: flux_z
 
 character(len=128) :: version = &
-     '$Id: ocean_vert_mix.F90,v 1.1.2.19 2012/06/08 20:33:57 Stephen.Griffies Exp $'
+     '$Id: ocean_vert_mix.F90,v 20.0 2013/12/14 00:16:48 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 logical :: module_is_initialized   = .false.
 logical :: debug_this_module       = .false. 
@@ -2784,7 +2784,7 @@ end subroutine watermass_diag_init
 !
 subroutine vert_mix_coeff(Time, Thickness, Velocity, T_prog,   &
                           T_diag, Dens, swflx, sw_frac_zt, pme,&
-                          river, visc_cbu, visc_cbt, diff_cbt, hblt_depth)
+                          river, visc_cbu, visc_cbt, diff_cbt, hblt_depth, do_wave)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_thickness_type),     intent(in)    :: Thickness
@@ -2800,9 +2800,12 @@ subroutine vert_mix_coeff(Time, Thickness, Velocity, T_prog,   &
   real, dimension(isd:,jsd:,:),   intent(inout) :: visc_cbt
   real, dimension(isd:,jsd:,:,:), intent(inout) :: diff_cbt
   real, dimension(isd:,jsd:),     intent(inout) :: hblt_depth
+  logical, intent(in) :: do_wave
 
-  integer :: i,j,k,kp1,tau
-  real    :: tmp
+  integer :: i,j,k,kp1,n,tau
+  real    :: tmp, rescale 
+  real    :: dnu_dtheta_dz, dnu_dsalinity_dz, dtheta_dz, dsalinity_dz  
+  real    :: global_mean 
 
   tau = Time%tau 
 
@@ -2826,7 +2829,7 @@ subroutine vert_mix_coeff(Time, Thickness, Velocity, T_prog,   &
   elseif(MIX_SCHEME == VERTMIX_KPP_MOM4P0) then 
     call mpp_clock_begin(id_clock_vert_kpp_mom4p0)
     call vert_mix_kpp_mom4p0(aidif, Time, Thickness, Velocity, T_prog, T_diag, Dens, &
-                      swflx, sw_frac_zt, pme, river, visc_cbu, diff_cbt, hblt_depth)
+                      swflx, sw_frac_zt, pme, river, visc_cbu, diff_cbt, hblt_depth, do_wave)
     ! since this scheme is frozen, we do not compute visc_cbt. 
     ! for vertical reynolds diagnostics, we set  
     visc_cbt = visc_cbu
@@ -2835,7 +2838,7 @@ subroutine vert_mix_coeff(Time, Thickness, Velocity, T_prog,   &
   elseif(MIX_SCHEME == VERTMIX_KPP_MOM4P1) then 
     call mpp_clock_begin(id_clock_vert_kpp_mom4p1)
     call vert_mix_kpp_mom4p1(aidif, Time, Thickness, Velocity, T_prog, T_diag, Dens, &
-                      swflx, sw_frac_zt, pme, river, visc_cbu, diff_cbt, hblt_depth)
+                      swflx, sw_frac_zt, pme, river, visc_cbu, diff_cbt, hblt_depth, do_wave)
     ! since this scheme is frozen, we do not compute visc_cbt. 
     ! for vertical reynolds diagnostics, we set  
     visc_cbt = visc_cbu
@@ -2843,8 +2846,8 @@ subroutine vert_mix_coeff(Time, Thickness, Velocity, T_prog,   &
 
   elseif(MIX_SCHEME == VERTMIX_KPP_TEST) then 
     call mpp_clock_begin(id_clock_vert_kpp_test)
-    call vert_mix_kpp_test(Time, Thickness, Velocity, T_prog, T_diag, Dens, &
-                           swflx, sw_frac_zt, pme, river, visc_cbu, visc_cbt, diff_cbt, hblt_depth)
+    call vert_mix_kpp_test(aidif, Time, Thickness, Velocity, T_prog, T_diag, Dens, &
+                           swflx, sw_frac_zt, pme, river, visc_cbu, visc_cbt, diff_cbt, hblt_depth, do_wave)
     call mpp_clock_end(id_clock_vert_kpp_test)
 
   elseif(MIX_SCHEME == VERTMIX_PP) then 

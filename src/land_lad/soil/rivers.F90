@@ -178,7 +178,7 @@ end type rivers_type
 character(len=*), parameter :: mod_name = 'rivers'
 character(len=*), parameter :: file_name = __FILE__
 character(len=128), parameter :: version  = '$Id: rivers.F90,v 19.0 2012/01/06 20:39:34 fms Exp $'
-character(len=128), parameter :: tagname      = '$Name: siena_201207 $'
+character(len=128), parameter :: tagname      = '$Name: tikal $'
 
 
 ! <NAMELIST NAME="rivers_nml">

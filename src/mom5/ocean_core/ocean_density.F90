@@ -529,6 +529,7 @@ integer :: id_smax_dianeutral       =-1
 
 !for restart
 integer                       :: id_restart_rho = 0
+integer                       :: id_restart_rho_s = 0
 type(restart_file_type), save :: Den_restart
 
 #include <ocean_memory.h>
@@ -537,9 +538,9 @@ type(ocean_domain_type), pointer :: Dom =>NULL()
 type(ocean_grid_type),   pointer :: Grd =>NULL()
 
 character(len=128) :: version=&
-       '$Id: ocean_density.F90,v 1.1.2.2 2012/05/17 13:41:40 smg Exp $'
+       '$Id: ocean_density.F90,v 20.0 2013/12/14 00:10:40 fms Exp $'
 character (len=128) :: tagname = &
-       '$Name: mom5_siena_08jun2012_smg $'
+       '$Name: tikal $'
 
 public ocean_density_init
 public ocean_density_end
@@ -1045,6 +1046,8 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
    filename = 'ocean_density.res.nc'    
    id_restart_rho = register_restart_field(Den_restart, filename, 'rho', Dens%rho(:,:,:,taup1), &
                    domain=Dom%domain2d )
+   id_restart_rho_s = register_restart_field(Den_restart, filename, 'rho_salinity', Dens%rho_salinity(:,:,:,taup1), &
+                   domain=Dom%domain2d )
    id_restart(1)  = register_restart_field(Den_restart, filename, 'pressure_at_depth', Dens%pressure_at_depth(:,:,:), &
                    domain=Dom%domain2d )
    id_restart(2)  = register_restart_field(Den_restart, filename, 'denominator_r', denominator_r(:,:,:), &
@@ -1056,17 +1059,17 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
    id_restart(5)  = register_restart_field(Den_restart, filename, 'drhodz_zt', Dens%drhodz_zt(:,:,:), &
                    domain=Dom%domain2d )
 
-   write (stdoutunit,'(/a)') '  Initialising salinity for use in density calculation'
-   call update_ocean_density_salinity(T_prog,taum1,Dens)
-   call update_ocean_density_salinity(T_prog,tau,Dens)
-   call update_ocean_density_salinity(T_prog,taup1,Dens)
-
    ! pointers to relevant salinity and temperature to enhance readability    
    salinity    => Dens%rho_salinity(:,:,:,tau)
    temperature => T_prog(index_temp)%field(:,:,:,tau)
 
    filename = 'INPUT/ocean_density.res.nc'
    if (.NOT.file_exist(trim(filename)) )then
+
+      write (stdoutunit,'(/a)') '  Initialising salinity for use in density calculation'
+      call update_ocean_density_salinity(T_prog,taum1,Dens)
+      call update_ocean_density_salinity(T_prog,tau,Dens)
+      call update_ocean_density_salinity(T_prog,taup1,Dens)
 
       Dens%rho(:,:,:,taum1) = density(salinity, temperature, Dens%pressure_at_depth(:,:,:))
       Dens%rho(:,:,:,tau)   = Dens%rho(:,:,:,taum1)
@@ -1101,6 +1104,25 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
        else 
            write(stdoutunit,'(a)') '==>Note: ocean_density_mod: did not read density derivatives from restart.' 
        endif 
+
+       ! determine whether to read rho_salinity at the initial time step of
+       ! integration.  Early versions of MOM4p1 did not contain the rho_salinity
+       ! in the restart file.  This allows older restart files to be used with
+       ! newer releases of MOM.
+       if(field_exist(filename, 'rho_salinity')) then
+          write (stdoutunit,'(/a)') '  Initializing salinity for use in density calculation from restart'
+          call restore_state( Den_restart, id_restart_rho_s )
+          Dens%rho_salinity(:,:,:,taum1) = Dens%rho_salinity(:,:,:,taup1)
+          Dens%rho_salinity(:,:,:,tau) = Dens%rho_salinity(:,:,:,taup1)
+          call mpp_update_domains(Dens%rho_salinity(:,:,:,taum1),Dom%domain2d)
+          call mpp_update_domains(Dens%rho_salinity(:,:,:,tau),  Dom%domain2d)
+          call mpp_update_domains(Dens%rho_salinity(:,:,:,taup1),Dom%domain2d)
+       else
+          write (stdoutunit,'(/a)') '  Initialising salinity for use in density calculation'
+          call update_ocean_density_salinity(T_prog,taum1,Dens)
+          call update_ocean_density_salinity(T_prog,tau,Dens)
+          call update_ocean_density_salinity(T_prog,taup1,Dens)
+       endif
 
    endif
 
@@ -1538,59 +1560,59 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
     stdoutunit=stdout()
 
     ! for the TESO10 EOS 
-    mbfj_rho   = 1.017775176234136e+3
-    mbfj_alpha = 2.435473441547041e-4
-    mbfj_beta  = 7.284367916939847e-4
+    mbfj_rho   = 1.017775176234136d+3
+    mbfj_alpha = 2.435473441547041d-4
+    mbfj_beta  = 7.284367916939847d-4
     mb_neutralrho=1033.093610463980
 
-    v01 =  9.998420897506056e+2
+    v01 =  9.998420897506056d+2
     v02 =  2.839940833161907
-    v03 = -3.147759265588511e-2
-    v04 =  1.181805545074306e-3
+    v03 = -3.147759265588511d-2
+    v04 =  1.181805545074306d-3
     v05 = -6.698001071123802
-    v06 = -2.986498947203215e-2
-    v07 =  2.327859407479162e-4
-    v08 = -3.988822378968490e-2
-    v09 =  5.095422573880500e-4
-    v10 = -1.426984671633621e-5
-    v11 =  1.645039373682922e-7
-    v12 = -2.233269627352527e-2
-    v13 = -3.436090079851880e-4
-    v14 =  3.726050720345733e-6
-    v15 = -1.806789763745328e-4
-    v16 =  6.876837219536232e-7
-    v17 = -3.087032500374211e-7
-    v18 = -1.988366587925593e-8
-    v19 = -1.061519070296458e-11
-    v20 =  1.550932729220080e-10
+    v06 = -2.986498947203215d-2
+    v07 =  2.327859407479162d-4
+    v08 = -3.988822378968490d-2
+    v09 =  5.095422573880500d-4
+    v10 = -1.426984671633621d-5
+    v11 =  1.645039373682922d-7
+    v12 = -2.233269627352527d-2
+    v13 = -3.436090079851880d-4
+    v14 =  3.726050720345733d-6
+    v15 = -1.806789763745328d-4
+    v16 =  6.876837219536232d-7
+    v17 = -3.087032500374211d-7
+    v18 = -1.988366587925593d-8
+    v19 = -1.061519070296458d-11
+    v20 =  1.550932729220080d-10
     v21 =  1.0
-    v22 =  2.775927747785646e-3
-    v23 = -2.349607444135925e-5
-    v24 =  1.119513357486743e-6
-    v25 =  6.743689325042773e-10
-    v26 = -7.521448093615448e-3
-    v27 = -2.764306979894411e-5
-    v28 =  1.262937315098546e-7
-    v29 =  9.527875081696435e-10
-    v30 = -1.811147201949891e-11
-    v31 = -3.303308871386421e-5
-    v32 =  3.801564588876298e-7
-    v33 = -7.672876869259043e-9
-    v34 = -4.634182341116144e-11
-    v35 =  2.681097235569143e-12
-    v36 =  5.419326551148740e-6
-    v37 = -2.742185394906099e-5
-    v38 = -3.212746477974189e-7
-    v39 =  3.191413910561627e-9
-    v40 = -1.931012931541776e-12
-    v41 = -1.105097577149576e-7
-    v42 =  6.211426728363857e-10
-    v43 = -1.119011592875110e-10
-    v44 = -1.941660213148725e-11
-    v45 = -1.864826425365600e-14
-    v46 =  1.119522344879478e-14
-    v47 = -1.200507748551599e-15
-    v48 =  6.057902487546866e-17
+    v22 =  2.775927747785646d-3
+    v23 = -2.349607444135925d-5
+    v24 =  1.119513357486743d-6
+    v25 =  6.743689325042773d-10
+    v26 = -7.521448093615448d-3
+    v27 = -2.764306979894411d-5
+    v28 =  1.262937315098546d-7
+    v29 =  9.527875081696435d-10
+    v30 = -1.811147201949891d-11
+    v31 = -3.303308871386421d-5
+    v32 =  3.801564588876298d-7
+    v33 = -7.672876869259043d-9
+    v34 = -4.634182341116144d-11
+    v35 =  2.681097235569143d-12
+    v36 =  5.419326551148740d-6
+    v37 = -2.742185394906099d-5
+    v38 = -3.212746477974189d-7
+    v39 =  3.191413910561627d-9
+    v40 = -1.931012931541776d-12
+    v41 = -1.105097577149576d-7
+    v42 =  6.211426728363857d-10
+    v43 = -1.119011592875110d-10
+    v44 = -1.941660213148725d-11
+    v45 = -1.864826425365600d-14
+    v46 =  1.119522344879478d-14
+    v47 = -1.200507748551599d-15
+    v48 =  6.057902487546866d-17
 
     ! Save some multiples
     two_v03 = 2.0*v03
@@ -1676,116 +1698,116 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
     ! 25 coefficients in the preTEOS10 equation of state 
     if(temp_variable==CONSERVATIVE_TEMP) then
 
-        jmfwg_rho   = 1017.842890411975
-        jmfwg_alpha = 2.436057013634649e-4
-        jmfwg_beta  = 7.314818108935248e-4
+        jmfwg_rho   = 1017.842890411975d0
+        jmfwg_alpha = 2.436057013634649d-4
+        jmfwg_beta  = 7.314818108935248d-4
 
-        a0  =  9.9983912878771446e+02
-        a1  =  7.0687133522652896
-        a2  = -2.2746841916232965e-02
-        a3  =  5.6569114861400121e-04
-        a4  =  2.3849975952593345
-        a5  =  3.1761924314867009e-04
-        a6  =  1.7459053010547962e-03
-        a7  =  1.2192536310173776e-02
-        a8  =  2.4643435731663949e-07
-        a9  =  4.0525405332794888e-06
-        a10 = -2.3890831309113187e-08
-        a11 = -5.9016182471196891e-12
+        a0  =  9.9983912878771446d+02
+        a1  =  7.0687133522652896d+00
+        a2  = -2.2746841916232965d-02
+        a3  =  5.6569114861400121d-04
+        a4  =  2.3849975952593345d+00
+        a5  =  3.1761924314867009d-04
+        a6  =  1.7459053010547962d-03
+        a7  =  1.2192536310173776d-02
+        a8  =  2.4643435731663949d-07
+        a9  =  4.0525405332794888d-06
+        a10 = -2.3890831309113187d-08
+        a11 = -5.9016182471196891d-12
 
-        b0  =  1.0000000000000000
-        b1  =  7.0051665739672298e-03
-        b2  = -1.5040804107377016e-05 
-        b3  =  5.3943915288426715e-07
-        b4  =  3.3811600427083414e-10
-        b5  =  1.5599507046153769e-03
-        b6  = -1.8137352466500517e-06
-        b7  = -3.3580158763335367e-10
-        b8  =  5.7149997597561099e-06
-        b9  =  7.8025873978107375e-10
-        b10 =  7.1038052872522844e-06
-        b11 = -2.1692301739460094e-17
-        b12 = -8.2564080016458560e-18
+        b0  =  1.0000000000000000d+00 
+        b1  =  7.0051665739672298d-03
+        b2  = -1.5040804107377016d-05 
+        b3  =  5.3943915288426715d-07
+        b4  =  3.3811600427083414d-10
+        b5  =  1.5599507046153769d-03
+        b6  = -1.8137352466500517d-06
+        b7  = -3.3580158763335367d-10
+        b8  =  5.7149997597561099d-06
+        b9  =  7.8025873978107375d-10
+        b10 =  7.1038052872522844d-06
+        b11 = -2.1692301739460094d-17
+        b12 = -8.2564080016458560d-18
 
         ! Coefficients for neutral density based on McDougall/Jackett (2005).
         ! To be replaced by Klocker/McDougall approach in near future. 
-        rho_neutralrho=1024.43863927763
+        rho_neutralrho=1024.43863927763d0
         
-        a0n =  1.0022048243661291e+003
-        a1n =  2.0634684367767725e-001
-        a2n =  8.0483030880783291e-002
-        a3n = -3.6670094757260206e-004
-        a4n = -1.4602011474139313e-003
-        a5n = -2.5860953752447594e-003
-        a6n = -3.0498135030851449e-007
+        a0n =  1.0022048243661291d+003
+        a1n =  2.0634684367767725d-001
+        a2n =  8.0483030880783291d-002
+        a3n = -3.6670094757260206d-004
+        a4n = -1.4602011474139313d-003
+        a5n = -2.5860953752447594d-003
+        a6n = -3.0498135030851449d-007
 
-        b0n =  1.0000000000000000
-        b1n =  4.4946117492521496e-005
-        b2n =  7.9275128750339643e-005
-        b3n = -1.2358702241599250e-007
-        b4n = -4.1775515358142458e-009
-        b5n = -4.3024523119324234e-004
-        b6n =  6.3377762448794933e-006
-        b7n = -7.2640466666916413e-010
-        b8n = -5.1075068249838284e-005
-        b9n = -5.8104725917890170e-009
+        b0n =  1.0000000000000000d+000 
+        b1n =  4.4946117492521496d-005
+        b2n =  7.9275128750339643d-005
+        b3n = -1.2358702241599250d-007
+        b4n = -4.1775515358142458d-009
+        b5n = -4.3024523119324234d-004
+        b6n =  6.3377762448794933d-006
+        b7n = -7.2640466666916413d-010
+        b8n = -5.1075068249838284d-005
+        b9n = -5.8104725917890170d-009
 
 
     elseif(temp_variable==POTENTIAL_TEMP) then 
     
-        jmfwg_rho   =  1017.728868019642
-        jmfwg_alpha = 2.525481286927133e-4
-        jmfwg_beta  = 7.379638527217575e-4
+        jmfwg_rho   =  1017.728868019642d0
+        jmfwg_alpha = 2.525481286927133d-4
+        jmfwg_beta  = 7.379638527217575d-4
 
-        a0  =  9.9984085444849347e+02
-        a1  =  7.3471625860981584
-        a2  = -5.3211231792841769e-02
-        a3  =  3.6492439109814549e-04
-        a4  =  2.5880571023991390
-        a5  = -6.7168282786692355e-03
-        a6  =  1.9203202055760151e-03
-        a7  =  1.1798263740430364e-02
-        a8  =  9.8920219266399117e-08
-        a9  =  4.6996642771754730e-06
-        a10 = -2.5862187075154352e-08
-        a11 = -3.2921414007960662e-12
+        a0  =  9.9984085444849347d+02
+        a1  =  7.3471625860981584d+00
+        a2  = -5.3211231792841769d-02
+        a3  =  3.6492439109814549d-04
+        a4  =  2.5880571023991390d+00
+        a5  = -6.7168282786692355d-03
+        a6  =  1.9203202055760151d-03
+        a7  =  1.1798263740430364d-02
+        a8  =  9.8920219266399117d-08
+        a9  =  4.6996642771754730d-06
+        a10 = -2.5862187075154352d-08
+        a11 = -3.2921414007960662d-12
 
-        b0  =  1.0000000000000000
-        b1  =  7.2815210113327091e-03
-        b2  = -4.4787265461983921e-05 
-        b3  =  3.3851002965802430e-07
-        b4  =  1.3651202389758572e-10
-        b5  =  1.7632126669040377e-03
-        b6  = -8.8066583251206474e-06
-        b7  = -1.8832689434804897e-10
-        b8  =  5.7463776745432097e-06
-        b9  =  1.4716275472242334e-09
-        b10 =  6.7103246285651894e-06
-        b11 = -2.4461698007024582e-17
-        b12 = -9.1534417604289062e-18
+        b0  =  1.0000000000000000d+00 
+        b1  =  7.2815210113327091d-03
+        b2  = -4.4787265461983921d-05 
+        b3  =  3.3851002965802430d-07
+        b4  =  1.3651202389758572d-10
+        b5  =  1.7632126669040377d-03
+        b6  = -8.8066583251206474d-06
+        b7  = -1.8832689434804897d-10
+        b8  =  5.7463776745432097d-06
+        b9  =  1.4716275472242334d-09
+        b10 =  6.7103246285651894d-06
+        b11 = -2.4461698007024582d-17
+        b12 = -9.1534417604289062d-18
 
         ! Coefficients for neutral density based on McDougall/Jackett (2005).
         ! To be replaced by Klocker/McDougall approach in near future. 
-        rho_neutralrho=1024.59416751197
+        rho_neutralrho=1024.59416751197d0
 
-        a0n =  1.0023063688892480e+003
-        a1n =  2.2280832068441331e-001
-        a2n =  8.1157118782170051e-002
-        a3n = -4.3159255086706703e-004
-        a4n = -1.0304537539692924e-004
-        a5n = -3.1710675488863952e-003
-        a6n = -1.7052298331414675e-007
+        a0n =  1.0023063688892480d+003
+        a1n =  2.2280832068441331d-001
+        a2n =  8.1157118782170051d-002
+        a3n = -4.3159255086706703d-004
+        a4n = -1.0304537539692924d-004
+        a5n = -3.1710675488863952d-003
+        a6n = -1.7052298331414675d-007
 
-        b0n =  1.0000000000000000
-        b1n =  4.3907692647825900e-005
-        b2n =  7.8717799560577725e-005
-        b3n = -1.6212552470310961e-007
-        b4n = -2.3850178558212048e-009
-        b5n = -5.1268124398160734e-004
-        b6n =  6.0399864718597388e-006
-        b7n = -2.2744455733317707e-009
-        b8n = -3.6138532339703262e-005
-        b9n = -1.3409379420216683e-009
+        b0n =  1.0000000000000000d+000 
+        b1n =  4.3907692647825900d-005
+        b2n =  7.8717799560577725d-005
+        b3n = -1.6212552470310961d-007
+        b4n = -2.3850178558212048d-009
+        b5n = -5.1268124398160734d-004
+        b6n =  6.0399864718597388d-006
+        b7n = -2.2744455733317707d-009
+        b8n = -3.6138532339703262d-005
+        b9n = -1.3409379420216683d-009
        
     endif 
 
@@ -4399,6 +4421,7 @@ subroutine ocean_density_restart(Time, Dens, time_stamp)
   taup1  = Time%taup1
 
   call reset_field_pointer(Den_restart, id_restart_rho, Dens%rho(:,:,:,taup1) )
+  call reset_field_pointer(Den_restart, id_restart_rho_s, Dens%rho_salinity(:,:,:,taup1) )
 
   call save_restart(Den_restart, time_stamp)
 

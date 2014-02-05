@@ -191,9 +191,9 @@ logical :: module_is_initialized = .FALSE.
 integer :: tendency=0
 
 character(len=128) :: version=&
-     '$Id: ocean_tracer_diag.F90,v 1.1.2.3 2012/06/01 20:47:08 Stephen.Griffies Exp $'
+     '$Id: ocean_tracer_diag.F90,v 20.0 2013/12/14 00:12:55 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 ! for tracer conservation: need to know num_prog_tracers to allocate
 real, dimension(:,:,:), allocatable :: tracer_source
@@ -1656,7 +1656,7 @@ end subroutine compute_subduction
 ! Work with taup1 values, since Thickness type is filled with taup1
 ! thickness fields.   
 !
-! Stephen.Griffies@noaa.gov
+! Stephen.Griffies
 ! July 2013
 ! </DESCRIPTION>
 !

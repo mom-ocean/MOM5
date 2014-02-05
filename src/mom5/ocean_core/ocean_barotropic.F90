@@ -1,19 +1,19 @@
 module ocean_barotropic_mod
 #define COMP isc:iec,jsc:jec
 !
-! <CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
+! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies
 ! </CONTACT>
 !
 ! <CONTACT EMAIL="martin.schmidt@io-warnemuende.de"> Martin Schmidt (OBC)
 ! </CONTACT>
 !
-! <CONTACT EMAIL="Zhi.Liang@noaa.gov"> Zhi Liang (OBC and halos)
+! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Zhi Liang (OBC and halos)
 ! </CONTACT>
 !
-! <CONTACT EMAIL="Harper.Simmons@noaa.gov"> Harper Simmons (tides)
+! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Harper Simmons (tides)
 ! </CONTACT>
 !
-! <REVIEWER EMAIL="Matthew.Harrison@noaa.gov"> M.J. Harrison
+! <REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov"> M.J. Harrison
 ! </REVIEWER>
 !
 !<OVERVIEW>
@@ -664,9 +664,9 @@ type(domain1d),save :: Domy
 
 
 character(len=128) :: &
-     version='$Id: ocean_barotropic.F90,v 1.1.2.10 2012/06/08 00:45:19 Stephen.Griffies Exp $'
+     version='$Id: ocean_barotropic.F90,v 20.0 2013/12/14 00:10:34 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 #include <ocean_memory.h>
 
@@ -5642,7 +5642,7 @@ end subroutine barotropic_chksum
 !  will be equal, and they will be equal to the rigid lid barotropic
 !  streamfunction in the Boussinesq case.  
 !
-!  Original algorithm: Stephen.Griffies@noaa.gov
+!  Original algorithm: Stephen.Griffies
 !
 !  13MAR2007: Change units to 10^9 kg/s, which is a "mass Sv"
 !  This is the natural unit of transport for a mass-based 

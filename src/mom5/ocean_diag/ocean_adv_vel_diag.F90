@@ -1,6 +1,6 @@
 module ocean_adv_vel_diag_mod
 !  
-!<CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
+!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies
 !</CONTACT>
 !
 !<OVERVIEW>
@@ -123,9 +123,9 @@ integer :: horz_grid
 logical :: module_is_initialized = .FALSE.
 
 character(len=128) :: version=&
-     '$Id: ocean_adv_vel_diag.F90,v 1.1.2.4 2012/06/03 00:41:57 Stephen.Griffies Exp $'
+     '$Id: ocean_adv_vel_diag.F90,v 20.0 2013/12/14 00:12:49 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 public ocean_adv_vel_diag_init
 public ocean_adv_vel_diagnostics 
@@ -968,18 +968,18 @@ end subroutine transport_on_s
 !
 ! code history:
 !
-! 2002: Stephen.Griffies@noaa.gov
-! Zhi.Liang@noaa.gov
-! Alexander.Pletzer@noaa.gov
+! 2002: Stephen.Griffies
+! Zhi.Liang
+! Alexander.Pletzer
 !
 ! 2007: updated algorithm with weighting as done in the paper
 ! Lee, Nurser, Coward, and de Cuevas, 2007:
 ! "Eddy advective and diffusive transports of heat and salt 
 ! in the Southern Ocean" JPO, vol 37, pages 1376-1393
 !
-! 2010: updated by Rusty.Benson@noaa.gov for optimization.
+! 2010: updated by Rusty.Benson for optimization.
 !
-! 2010: Corrected weighting by Stephen.Griffies@noaa.gov
+! 2010: Corrected weighting by Stephen.Griffies
 !
 ! 2010: Removed the weighting in favor of a strait rebinning
 !       approach.  The weighting approach was 
@@ -1078,17 +1078,17 @@ end subroutine transport_on_nrho
 !
 ! Code history 
 !
-! 2002: Stephen.Griffies@noaa.gov
-! Zhi.Liang@noaa.gov
-! Alexander.Pletzer@noaa.gov
+! 2002: Stephen.Griffies
+! Zhi.Liang
+! Alexander.Pletzer
 !
 ! 2007: updated algorithm with weighting as done in the paper
 ! Lee, Nurser, Coward, and de Cuevas, 2007:
 ! "Eddy advective and diffusive transports of heat and salt 
 ! in the Southern Ocean" JPO, vol 37, pages 1376-1393
 !
-! 2010: updated by Rusty.Benson@noaa.gov for optimization.
-!       corrected weigthing by Stephen.Griffies@noaa.gov
+! 2010: updated by Rusty.Benson for optimization.
+!       corrected weigthing by Stephen.Griffies
 !
 ! 2010: Removed the weighting in favor of a strait rebinning
 !       approach.  The weighting approach was 
@@ -1188,17 +1188,17 @@ end subroutine transport_on_rho
 !
 ! Code history 
 !
-! 2002: Stephen.Griffies@noaa.gov
-! Zhi.Liang@noaa.gov
-! Alexander.Pletzer@noaa.gov
+! 2002: Stephen.Griffies
+! Zhi.Liang
+! Alexander.Pletzer
 !
 ! 2007: updated algorithm with weighting as done in the paper
 ! Lee, Nurser, Coward, and de Cuevas, 2007:
 ! "Eddy advective and diffusive transports of heat and salt 
 ! in the Southern Ocean" JPO, vol 37, pages 1376-1393
 !
-! 2010: updated by Rusty.Benson@noaa.gov for optimization.
-!       corrected weigthing by Stephen.Griffies@noaa.gov
+! 2010: updated by Rusty.Benson for optimization.
+!       corrected weigthing by Stephen.Griffies
 !
 ! 2010: Removed the weighting in favor of a strait rebinning
 !       approach.  The weighting approach was 

@@ -1,7 +1,7 @@
 module ocean_advection_velocity_mod
 #define COMP isc:iec,jsc:jec
 !  
-!<CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
+!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies
 !</CONTACT>
 !
 !<OVERVIEW>
@@ -226,9 +226,9 @@ private read_advection
 private inflow_nboundary_init
 
 character(len=128) :: version=&
-     '$Id: ocean_advection_velocity.F90,v 1.1.2.8.16.2 2013/04/03 19:00:31 smg Exp $'
+     '$Id: ocean_advection_velocity.F90,v 20.0 2013/12/14 00:10:32 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_201303_smg $'
+     '$Name: tikal $'
 
 logical :: have_obc              = .false.
 logical :: module_is_initialized = .FALSE.
