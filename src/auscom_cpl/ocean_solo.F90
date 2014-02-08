@@ -151,7 +151,7 @@ program main
   use ocean_model_mod,          only: ocean_model_restart, ocean_public_type, ocean_state_type
   use ocean_types_mod,          only: ice_ocean_boundary_type
 
-  use fpe_err_handler
+  !use fpe_err_handler
 
 #ifdef AusCOM
   use auscom_ice_parameters_mod, only: redsea_gulfbay_sfix, do_sfix_now, sfix_hours, int_sec
@@ -213,7 +213,7 @@ program main
                             n_mask, layout_mask, mask_list, restart_interval
 
     ! Initialise floating point exception error handler.
-    call fpe_err_handler_init()
+    !call fpe_err_handler_init()
 
   call external_coupler_mpi_init(mpi_comm_mom, external_initialization)
 
