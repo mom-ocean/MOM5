@@ -16,7 +16,7 @@ character(len=128), parameter :: version = &
 '$Id: spectral_initialize_fields.F90,v 17.0 2009/07/21 03:00:42 fms Exp $'
 
 character(len=128), parameter :: tagname = &
-'$Name: siena_201207 $'
+'$Name: tikal $'
 
 contains
 

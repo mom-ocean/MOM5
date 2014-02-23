@@ -84,13 +84,23 @@ module fms_io_mod
 ! <DATA NAME="debug_mask_list" TYPE="logical">
 !    set debug_mask_list (default is false) to true to print out mask_list reading from mask_table.
 ! </DATA>
+! <DATA NAME="checksum_required" TYPE="logical">
+!    Set checksum_required (default is true) to true to compare checksums stored in the attribute of a
+!    field against the checksum after reading in the data. This check mitigates the possibility of data
+!    that gets corrupted on write or read from being used in a n ongoing fashion. The checksum is across
+!    all the  processors, so there will be only one checksum even if there are multiple-tiles in the 
+!    grid. For the decomposed file case, the filename appearing in the message will contain tile1
+!    because the message is printed out from the root pe and on root pe the tile id is tile1.
+!
+!    Set checksum_required to false if you do not want to compare checksums.
+! </DATA>
 
 !</NAMELIST>
 
 use mpp_io_mod,      only: mpp_open, mpp_close, mpp_io_init, mpp_io_exit, mpp_read, mpp_write
 use mpp_io_mod,      only: mpp_write_meta, mpp_get_info, mpp_get_atts, mpp_get_fields
 use mpp_io_mod,      only: mpp_get_axes, mpp_get_axis_data, mpp_get_att_char, mpp_get_att_name
-use mpp_io_mod,      only: mpp_get_att_real_scalar
+use mpp_io_mod,      only: mpp_get_att_real_scalar, mpp_attribute_exist
 use mpp_io_mod,      only: fieldtype, axistype, atttype, default_field, default_axis, default_att
 use mpp_io_mod,      only: MPP_NETCDF, MPP_ASCII, MPP_MULTI, MPP_SINGLE, MPP_OVERWR, MPP_RDONLY
 use mpp_io_mod,      only: MPP_IEEE32, MPP_NATIVE, MPP_DELETE, MPP_APPEND, MPP_SEQUENTIAL, MPP_DIRECT
@@ -102,7 +112,7 @@ use mpp_domains_mod, only: mpp_get_ntile_count, mpp_get_current_ntile, mpp_get_t
 use mpp_domains_mod, only: mpp_get_io_domain
 use mpp_mod,         only: mpp_error, FATAL, NOTE, WARNING, mpp_pe, mpp_root_pe, mpp_npes, stdlog, stdout
 use mpp_mod,         only: mpp_broadcast, ALL_PES, mpp_chksum, mpp_get_current_pelist, mpp_npes, lowercase
-use mpp_mod,         only: input_nml_file
+use mpp_mod,         only: input_nml_file, mpp_get_current_pelist_name, uppercase
 
 use platform_mod, only: r8_kind
 
@@ -275,6 +285,14 @@ interface query_initialized
    module procedure query_initialized_id
    module procedure query_initialized_name
    module procedure query_initialized_r2d
+   module procedure query_initialized_r3d
+end interface
+
+interface set_initialized
+   module procedure set_initialized_id
+   module procedure set_initialized_name
+   module procedure set_initialized_r2d
+   module procedure set_initialized_r3d
 end interface
 
 interface get_global_att_value
@@ -297,8 +315,8 @@ logical :: module_is_initialized = .FALSE.
 character(len=32) :: pelist_name
 character(len=7)  :: pe_name
 character(len=128):: error_msg  
+logical           :: great_circle_algorithm=.FALSE.
 
-  
 !------ private data, pointer to current 2d domain ------
 ! entrained from fms_mod.  This will be deprecated in the future.
 type(domain2D), pointer, private :: Current_domain =>NULL()
@@ -320,12 +338,13 @@ public  :: get_mosaic_tile_grid, get_mosaic_tile_file
 public  :: get_global_att_value, get_var_att_value
 public  :: file_exist, field_exist
 public  :: register_restart_field, save_restart, restore_state
-public  :: restart_file_type, query_initialized
+public  :: restart_file_type, query_initialized, set_initialized
 public  :: reset_field_name, reset_field_pointer
 private :: lookup_field_r, lookup_axis, unique_axes
 
 public  :: set_filename_appendix, get_instance_filename
 public  :: parse_mask_table
+public  :: get_great_circle_algorithm
 character(len=32), save :: filename_appendix = ''
 
 !--- public interface ---
@@ -350,16 +369,17 @@ logical           :: time_stamp_restart  = .true.
 logical           :: print_chksum        = .false.
 logical           :: show_open_namelist_file_warning = .false.
 logical           :: debug_mask_list     = .false. 
+logical           :: checksum_required   = .true. 
   namelist /fms_io_nml/ fms_netcdf_override, fms_netcdf_restart, &
        threading_read, threading_write, &
        fileset_write, format, read_all_pe, iospec_ieee32,max_files_w,max_files_r, &
        read_data_bug, time_stamp_restart, print_chksum, show_open_namelist_file_warning, &
-       debug_mask_list
+       debug_mask_list, checksum_required 
 
 integer            :: pack_size  ! = 1 for double = 2 for float
 
-character(len=128) :: version = '$Id: fms_io.F90,v 19.0.6.1.4.1 2012/05/15 18:36:14 z1l Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: fms_io.F90,v 20.0 2013/12/14 00:20:08 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 contains
 
@@ -406,12 +426,18 @@ subroutine fms_io_init()
   integer, allocatable, dimension(:) :: pelist
   real(DOUBLE_KIND)                  :: doubledata = 0
   real                               :: realarray(4)
+  character(len=256)                 :: grd_file, filename
+  logical                            :: is_mosaic_grid
+  character(len=4096)                :: attvalue
 
   if (module_is_initialized) return
   call mpp_io_init()
 
 #ifdef INTERNAL_FILE_NML
-      read (input_nml_file, fms_io_nml, iostat=io_status)
+  read (input_nml_file, fms_io_nml, iostat=io_status)
+  if (io_status > 0) then
+     call mpp_error(FATAL,'=>fms_io_init: Error reading input.nml')
+  endif
 #else
   call mpp_open(unit, 'input.nml',form=MPP_ASCII,action=MPP_RDONLY)
   read(unit,fms_io_nml,iostat=io_status)
@@ -484,8 +510,43 @@ subroutine fms_io_init()
   enddo
   !---- initialize module domain2d pointer ----
   nullify (Current_domain)
+
+  !This is set here instead of at the end of the routine to prevent the read_data call below from stopping the model
   module_is_initialized = .TRUE.
   
+  !--- read INPUT/grid_spec.nc to decide the value of great_circle_algorithm
+  !--- great_circle_algorithm could be true only for mosaic grid.
+  great_circle_algorithm = .false.
+  grd_file = "INPUT/grid_spec.nc"
+
+  is_mosaic_grid = .FALSE.
+  if (file_exist(grd_file)) then
+     if(field_exist(grd_file, 'atm_mosaic_file')) then  ! coupled grid
+        is_mosaic_grid = .TRUE.
+     else if(field_exist(grd_file, "gridfiles")) then
+        call read_data(grd_file, "gridfiles", filename, level=1)
+        grd_file = 'INPUT/'//trim(filename)
+        is_mosaic_grid = .TRUE.
+     endif
+  endif
+
+  if(is_mosaic_grid) then
+     if( get_global_att_value(grd_file, "great_circle_algorithm", attvalue) ) then
+        if(trim(attvalue) == "TRUE") then
+           great_circle_algorithm = .true.
+        else if(trim(attvalue) == "FALSE") then
+           great_circle_algorithm = .false.
+        else
+           call mpp_error(FATAL, "fms_io(fms_io_init: value of global attribute great_circle_algorithm in file"// &
+             trim(grd_file)//" should be TRUE of FALSE")
+        endif
+     endif
+  endif
+
+  if(great_circle_algorithm .AND. (mpp_pe() == mpp_root_pe()) ) then
+     call mpp_error(NOTE,"fms_io_mod: great_circle algorithm will be used in the model run")
+  endif  
+
 end subroutine fms_io_init
 
 ! </SUBROUTINE>
@@ -1054,6 +1115,7 @@ function register_restart_field_r2d(fileObj, filename, fieldname, data, domain, 
   integer,          optional, intent(in)         :: position, tile_count
   logical,          optional, intent(in)         :: mandatory
   character(len=*), optional, intent(in)         :: longname, units
+
   integer                                        :: index_field
   integer                                        :: register_restart_field_r2d
 
@@ -1506,6 +1568,7 @@ subroutine save_restart(fileObj, time_stamp, directory )
   !  (in)      time_stamp - character format of the time of this restart file.
   character(len=256) :: dir
   character(len=256) :: restartpath          ! The restart file path (dir/file).
+  character(len=258) :: restartpath_var      ! The restart file path for the current variable
   character(len=80)  :: restartname          ! The restart file name (no dir).
   character(len=8)   :: suffix               ! A suffix (like _2) that is appended to the name of files after the first.
   integer            :: var_sz, size_in_file ! The size in bytes of each variable and of the variables already in a file.
@@ -1528,11 +1591,17 @@ subroutine save_restart(fileObj, time_stamp, directory )
   real                                :: tlev  
   character(len=10)                   :: axisname  
   integer                             :: meta_size
+  type(domain2d)                      :: domain
 
   real, allocatable, dimension(:,:,:) :: r3d
   real, allocatable, dimension(:,:)   :: r2d, global_r2d
   real, allocatable, dimension(:)     :: r1d  
   real                                :: r0d
+  integer(LONG_KIND), allocatable, dimension(:)    :: check_val
+  character(len=256)                  :: checksum_char
+integer :: isc, iec, jsc, jec
+integer :: isg, ieg, jsg, jeg
+integer :: ishift, jshift, iadd, jadd
 
   if (.not.associated(fileObj%var)) call mpp_error(FATAL, "fms_io(save_restart): " // &
       "restart_file_type data must be initialized by calling register_restart_field before using it")
@@ -1584,6 +1653,7 @@ subroutine save_restart(fileObj, time_stamp, directory )
   do while (next_var <= fileObj%nvar )
      start_var = next_var
      size_in_file = meta_size
+     restartpath_var = restartpath
      do j=start_var,fileObj%nvar
         cur_var => fileObj%var(j)
         var_sz = 8*cur_var%csiz(1)*cur_var%csiz(2)*cur_var%csiz(3)
@@ -1608,16 +1678,16 @@ subroutine save_restart(fileObj, time_stamp, directory )
         !--- remove .nc from restartpath and attach suffix.
         siz = len_trim(restartpath)
         if(restartpath(siz-2:siz) == ".nc") then
-           restartpath = restartpath(1:siz-3)//trim(suffix)
+           restartpath_var = restartpath(1:siz-3)//trim(suffix)
         else      
-           restartpath = trim(restartpath) // trim(suffix)
+           restartpath_var = trim(restartpath) // trim(suffix)
         end if
      end if
      if( domain_present ) then
-        call mpp_open(unit,trim(restartpath),action=MPP_OVERWR,form=form,threading=thread_w,&
+        call mpp_open(unit,trim(restartpath_var),action=MPP_OVERWR,form=form,threading=thread_w,&
              fileset=fset_w, is_root_pe=fileObj%is_root_pe, domain=array_domain(fileObj%var(ind_dom)%domain_idx) )
      else  ! global data
-        call mpp_open(unit,trim(restartpath),action=MPP_OVERWR,form=form,threading=MPP_SINGLE,&
+        call mpp_open(unit,trim(restartpath_var),action=MPP_OVERWR,form=form,threading=MPP_SINGLE,&
              fileset=MPP_SINGLE, is_root_pe=fileObj%is_root_pe)
      end if
 
@@ -1730,8 +1800,58 @@ subroutine save_restart(fileObj, time_stamp, directory )
               var_axes(4) = t_axes
            end if
         end if
+        
+        if ( cur_var%domain_idx > 0) then
+          call mpp_get_compute_domain(array_domain(cur_var%domain_idx), isc, iec, jsc, jec)
+          call mpp_get_global_domain(array_domain(cur_var%domain_idx), isg, ieg, jsg, jeg)
+          call mpp_get_domain_shift(array_domain(cur_var%domain_idx), ishift, jshift, cur_var%position)
+        else if (ASSOCIATED(Current_domain)) then
+          call mpp_get_compute_domain(Current_domain, isc, iec, jsc, jec)
+          call mpp_get_global_domain(Current_domain, isg, ieg, jsg, jeg)
+          call mpp_get_domain_shift(Current_domain, ishift, jshift, cur_var%position)
+       else
+          iec = cur_var%ie
+          isc = cur_var%is
+          ieg = cur_var%ie
+          jec = cur_var%je
+          jsc = cur_var%js
+          jeg = cur_var%je
+          ishift = 0
+          jshift = 0
+        endif
+!        call return_domain(domain)
+        iadd = iec-isc ! Size of the i-dimension on this processor (-1 as it is an increment)
+        jadd = jec-jsc ! Size of the j-dimension on this processor
+        if(iec == ieg) iadd = iadd + ishift
+        if(jec == jeg) jadd = jadd + jshift
+
+
+        allocate(check_val(max(1,cur_var%siz(4))))
+        do k = 1, cur_var%siz(4)
+           if ( Associated(fileObj%p0dr(k,j)%p) ) then
+              check_val(k) = mpp_chksum(fileObj%p0dr(k,j)%p, (/mpp_pe()/) )
+           else if ( Associated(fileObj%p1dr(k,j)%p) ) then
+              check_val(k) = mpp_chksum(fileObj%p1dr(k,j)%p, (/mpp_pe()/) )
+           else if ( Associated(fileObj%p2dr(k,j)%p) ) then
+              check_val(k) = mpp_chksum(fileObj%p2dr(k,j)%p(cur_var%is:cur_var%is+iadd, cur_var%js:cur_var%js+jadd) )
+           else if ( Associated(fileObj%p3dr(k,j)%p) ) then
+              check_val(k) = mpp_chksum(fileObj%p3dr(k,j)%p(cur_var%is:cur_var%is+iadd, cur_var%js:cur_var%js+jadd, :) )
+           else if ( Associated(fileObj%p0di(k,j)%p) ) then
+              check_val(k) = fileObj%p0di(k,j)%p
+           else if ( Associated(fileObj%p1di(k,j)%p) ) then
+              check_val(k) = mpp_chksum(fileObj%p1di(k,j)%p, (/mpp_pe()/) )
+           else if ( Associated(fileObj%p2di(k,j)%p) ) then
+              check_val(k) = mpp_chksum(fileObj%p2di(k,j)%p(cur_var%is:cur_var%is+iadd, cur_var%js:cur_var%js+jadd) )
+           else if ( Associated(fileObj%p3di(k,j)%p) ) then
+              check_val(k) = mpp_chksum(fileObj%p3di(k,j)%p(cur_var%is:cur_var%is+iadd, cur_var%js:cur_var%js+jadd, :))
+           else
+              call mpp_error(FATAL, "fms_io(save_restart): There is no pointer associated with the data of  field "// &
+                   trim(cur_var%name)//" of file "//trim(fileObj%name) )
+           end if
+        enddo
         call mpp_write_meta(unit,cur_var%field, var_axes(1:num_var_axes), cur_var%name, &
-                 cur_var%units,cur_var%longname,pack=pack_size)
+                 cur_var%units,cur_var%longname,pack=pack_size,checksum=check_val)
+        deallocate(check_val)
      enddo
 
      ! write values for ndim of spatial axes
@@ -1831,6 +1951,9 @@ subroutine write_chksum(fileObj, action)
   integer,                 intent(in)    :: action
   integer(LONG_KIND)                     :: data_chksum
   integer                                :: j, k, outunit
+  integer                                :: isc, iec, jsc, jec
+  integer                                :: isg, ieg, jsg, jeg
+  integer                                :: ishift, jshift, iadd, jadd
   type(var_type), pointer, save          :: cur_var=>NULL()
   character(len=32)                      :: routine_name
 
@@ -1844,6 +1967,30 @@ subroutine write_chksum(fileObj, action)
 
   do j=1,fileObj%nvar
      cur_var => fileObj%var(j)
+
+     if ( cur_var%domain_idx > 0) then
+        call mpp_get_compute_domain(array_domain(cur_var%domain_idx), isc, iec, jsc, jec)
+        call mpp_get_global_domain(array_domain(cur_var%domain_idx), isg, ieg, jsg, jeg)
+        call mpp_get_domain_shift(array_domain(cur_var%domain_idx), ishift, jshift, cur_var%position)
+     else if (ASSOCIATED(Current_domain)) then
+        call mpp_get_compute_domain(Current_domain, isc, iec, jsc, jec)
+        call mpp_get_global_domain(Current_domain, isg, ieg, jsg, jeg)
+        call mpp_get_domain_shift(Current_domain, ishift, jshift, cur_var%position)
+     else
+        iec = cur_var%ie
+        isc = cur_var%is
+        ieg = cur_var%ie
+        jec = cur_var%je
+        jsc = cur_var%js
+        jeg = cur_var%je
+        ishift = 0
+        jshift = 0
+     endif
+     iadd = iec-isc ! Size of the i-dimension on this processor (-1 as it is an increment)
+     jadd = jec-jsc ! Size of the j-dimension on this processor
+     if(iec == ieg) iadd = iadd + ishift
+     if(jec == jeg) jadd = jadd + jshift
+
      if(action == MPP_OVERWR .OR. (action == MPP_RDONLY .AND. cur_var%initialized) ) then 
         do k = 1, cur_var%siz(4)
            if ( Associated(fileObj%p0dr(k,j)%p) ) then
@@ -1851,23 +1998,23 @@ subroutine write_chksum(fileObj, action)
            else if ( Associated(fileObj%p1dr(k,j)%p) ) then
               data_chksum = mpp_chksum(fileObj%p1dr(k,j)%p, (/mpp_pe()/) )
            else if ( Associated(fileObj%p2dr(k,j)%p) ) then
-              data_chksum = mpp_chksum(fileObj%p2dr(k,j)%p(cur_var%is:cur_var%ie,cur_var%js:cur_var%je) )
+              data_chksum = mpp_chksum(fileObj%p2dr(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd) )
            else if ( Associated(fileObj%p3dr(k,j)%p) ) then
-              data_chksum = mpp_chksum(fileObj%p3dr(k,j)%p(cur_var%is:cur_var%ie,cur_var%js:cur_var%je, :) )
+              data_chksum = mpp_chksum(fileObj%p3dr(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd, :) )
            else if ( Associated(fileObj%p0di(k,j)%p) ) then
               data_chksum = fileObj%p0di(k,j)%p
            else if ( Associated(fileObj%p1di(k,j)%p) ) then
               data_chksum = mpp_chksum(fileObj%p1di(k,j)%p, (/mpp_pe()/) )
            else if ( Associated(fileObj%p2di(k,j)%p) ) then
-              data_chksum = mpp_chksum(fileObj%p2di(k,j)%p(cur_var%is:cur_var%ie,cur_var%js:cur_var%je) )
+              data_chksum = mpp_chksum(fileObj%p2di(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd) )
            else if ( Associated(fileObj%p3di(k,j)%p) ) then
-              data_chksum = mpp_chksum(fileObj%p3di(k,j)%p(cur_var%is:cur_var%ie,cur_var%js:cur_var%je, :))
+              data_chksum = mpp_chksum(fileObj%p3di(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd, :))
            else
               call mpp_error(FATAL, "fms_io(write_chksum): There is no pointer associated with the data of  field "// &
                    trim(cur_var%name)//" of file "//trim(fileObj%name) )
            end if
            outunit = stdout()
-           write(outunit,'(a, I1, a, I16)')'fms_io('//trim(routine_name)//'): At time level = ', k, ', chksum for "'// &
+           write(outunit,'(a, I1, a, Z16)')'fms_io('//trim(routine_name)//'): At time level = ', k, ', chksum for "'// &
                 trim(cur_var%name)// '" of "'// trim(fileObj%name)// '" = ', data_chksum    
 
         enddo
@@ -1898,6 +2045,7 @@ subroutine restore_state_all(fileObj, directory)
                                     ! additional restart files.
   character(len=80)  :: varname     ! A variable's name.
   character(len=256) :: filename
+  character(len=256) :: mesg        ! Message to be constructed for checksum error.
   integer            :: num_restart ! The number of restart files that have already
                                     ! been opened.
   integer            :: nfile       ! The number of files (restart files and others
@@ -1914,7 +2062,12 @@ subroutine restore_state_all(fileObj, directory)
   real, allocatable, dimension(:)     :: r1d  
   real                                :: r0d
   type(domain2d), pointer, save       :: io_domain=>NULL()
-  integer                             :: isc, iec, jsc, jec
+  integer                             :: isc, iec, jsc, jec, check_exist
+  integer                             :: isg, ieg, jsg, jeg
+  integer                             :: ishift, jshift, iadd, jadd
+  integer(LONG_KIND), dimension(3)    :: checksum_file
+  integer(LONG_KIND)                  :: checksum_data
+  logical                             :: is_there_a_checksum
 
   if (.not.associated(fileObj%var)) call mpp_error(FATAL, "fms_io(restore_state_all): " // &
       "restart_file_type data must be initialized by calling register_restart_field before using it")
@@ -1947,12 +2100,12 @@ subroutine restore_state_all(fileObj, directory)
      io_domain => mpp_get_io_domain(array_domain(domain_idx))
      if(associated(io_domain)) then
         tile_id = mpp_get_tile_id(io_domain)
-        if(mpp_npes() > 10000) then
-           write(filename, '(a,i6.6)' ) trim(restartpath)//'.', tile_id(1)
-        else
-           write(filename, '(a,i4.4)' ) trim(restartpath)//'.', tile_id(1)
-        endif
+        write(filename, '(a,i4.4)' ) trim(restartpath)//'.', tile_id(1)
         inquire (file=trim(filename), exist = fexist)
+        if( .NOT. fexist ) then
+           write(filename, '(a,i6.6)' ) trim(restartpath)//'.', tile_id(1)
+           inquire (file=trim(filename), exist = fexist)
+        endif
      endif
      io_domain => NULL()
   endif
@@ -2011,46 +2164,91 @@ subroutine restore_state_all(fileObj, directory)
 
      do j=1,fileObj%nvar
         cur_var => fileObj%var(j)
+        domain_present = cur_var%domain_present
+        domain_idx = cur_var%domain_idx
+
+        if ( cur_var%domain_idx > 0) then
+          call mpp_get_compute_domain(array_domain(cur_var%domain_idx), isc, iec, jsc, jec)
+          call mpp_get_global_domain(array_domain(cur_var%domain_idx), isg, ieg, jsg, jeg)
+          call mpp_get_domain_shift(array_domain(cur_var%domain_idx), ishift, jshift, cur_var%position)
+        else if (ASSOCIATED(Current_domain)) then
+          call mpp_get_compute_domain(Current_domain, isc, iec, jsc, jec)
+          call mpp_get_global_domain(Current_domain, isg, ieg, jsg, jeg)
+          call mpp_get_domain_shift(Current_domain, ishift, jshift, cur_var%position)
+       else
+          iec = cur_var%ie
+          isc = cur_var%is
+          ieg = cur_var%ie
+          jec = cur_var%je
+          jsc = cur_var%js
+          jeg = cur_var%je
+          ishift = 0
+          jshift = 0
+        endif
+        iadd = iec-isc ! Size of the i-dimension on this processor (-1 as it is an increment)
+        jadd = jec-jsc ! Size of the j-dimension on this processor
+        if(iec == ieg) iadd = iadd + ishift
+        if(jec == jeg) jadd = jadd + jshift
+
         isc = cur_var%is
         iec = cur_var%ie
         jsc = cur_var%js
         jec = cur_var%je
-        domain_present = cur_var%domain_present
-        domain_idx = cur_var%domain_idx
         do l=1, nvar
            call mpp_get_atts(fields(l),name=varname)
            if (lowercase(trim(varname)) == lowercase(trim(cur_var%name))) then
               cur_var%initialized = .true.
+              check_exist = mpp_attribute_exist(fields(l),"checksum")
+              checksum_file = 0
+              is_there_a_checksum = .false.
+              if ( check_exist > 0 ) then
+                call mpp_get_atts(fields(l),checksum=checksum_file)
+                is_there_a_checksum = .true.
+              endif
+              if (.NOT. checksum_required ) is_there_a_checksum = .false. ! Do not need to do data checksumming.
+
               do k = 1, cur_var%siz(4)
                  tlev = k
                  if(domain_present) then 
                     if( Associated(fileObj%p0dr(k,j)%p) ) then
                        call mpp_read(unit(n), fields(l), fileObj%p0dr(k,j)%p, tlev)
+                       if ( is_there_a_checksum ) checksum_data = mpp_chksum(fileObj%p0dr(k,j)%p, (/mpp_pe()/) )
                     else if( Associated(fileObj%p1dr(k,j)%p) ) then
-                       call mpp_read(unit(n), fields(l), fileObj%p1dr(k,j)%p, tlev)       
+                       call mpp_read(unit(n), fields(l), fileObj%p1dr(k,j)%p, tlev)
+                       if ( is_there_a_checksum ) checksum_data = mpp_chksum(fileObj%p1dr(k,j)%p, (/mpp_pe()/) )
                     else if( Associated(fileObj%p2dr(k,j)%p) ) then
                        call mpp_read(unit(n), fields(l), array_domain(domain_idx), fileObj%p2dr(k,j)%p, tlev)
+                       if ( is_there_a_checksum ) &
+                         checksum_data = mpp_chksum(fileObj%p2dr(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd) )
                     else if( Associated(fileObj%p3dr(k,j)%p) ) then
                        call mpp_read(unit(n), fields(l), array_domain(domain_idx), fileObj%p3dr(k,j)%p, tlev)
+                       if ( is_there_a_checksum ) &
+                         checksum_data = mpp_chksum(fileObj%p3dr(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd, :) )
                     else if( Associated(fileObj%p0di(k,j)%p) ) then
                        call mpp_read(unit(n), fields(l), r0d, tlev)
                        fileObj%p0di(k,j)%p = r0d
+                       if ( is_there_a_checksum ) checksum_data = fileObj%p0di(k,j)%p
                     else if( Associated(fileObj%p1di(k,j)%p) ) then
                        allocate(r1d(cur_var%siz(1)))
                        call mpp_read(unit(n), fields(l), r1d, tlev)
                        fileObj%p1di(k,j)%p = r1d
+                       if ( is_there_a_checksum ) checksum_data = mpp_chksum(fileObj%p1di(k,j)%p, (/mpp_pe()/) )
                        deallocate(r1d)
                     else if( Associated(fileObj%p2di(k,j)%p) ) then
                        allocate(r2d(cur_var%siz(1), cur_var%siz(2)) )
                        r2d = 0
                        call mpp_read(unit(n), fields(l), array_domain(domain_idx), r2d, tlev)
                        fileObj%p2di(k,j)%p(isc:iec,jsc:jec) = r2d(isc:iec,jsc:jec)
+                       if ( is_there_a_checksum ) &
+                         checksum_data = mpp_chksum(fileObj%p2di(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd) )
                        deallocate(r2d)
                     else if( Associated(fileObj%p3di(k,j)%p) ) then
                        allocate(r3d(cur_var%siz(1), cur_var%siz(2), cur_var%siz(3)) )
                        r3d = 0
                        call mpp_read(unit(n), fields(l), array_domain(domain_idx), r3d, tlev)
                        fileObj%p3di(k,j)%p(isc:iec,jsc:jec,:) = r3d(isc:iec,jsc:jec,:) 
+                       if ( is_there_a_checksum ) &
+                         checksum_data = mpp_chksum(fileObj%p3di(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd, :))
                        deallocate(r3d)
                     else
                        call mpp_error(FATAL, "fms_io(restore_state_all): domain is present for the field "//trim(varname)// &
@@ -2059,37 +2257,54 @@ subroutine restore_state_all(fileObj, directory)
                  else
                     if( Associated(fileObj%p0dr(k,j)%p) ) then
                        call mpp_read(unit(n), fields(l), fileObj%p0dr(k,j)%p, tlev)
+                       if ( is_there_a_checksum ) checksum_data = mpp_chksum(fileObj%p0dr(k,j)%p, (/mpp_pe()/) )
                     else if( Associated(fileObj%p1dr(k,j)%p) ) then
                        call mpp_read(unit(n), fields(l), fileObj%p1dr(k,j)%p, tlev)
+                       if ( is_there_a_checksum ) checksum_data = mpp_chksum(fileObj%p1dr(k,j)%p, (/mpp_pe()/) )
                     else if( Associated(fileObj%p2dr(k,j)%p) ) then
                        call mpp_read(unit(n), fields(l), fileObj%p2dr(k,j)%p, tlev)
+                       if ( is_there_a_checksum ) &
+                         checksum_data = mpp_chksum(fileObj%p2dr(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd) )
                     else if( Associated(fileObj%p3dr(k,j)%p) ) then
-                       call mpp_read(unit(n), fields(l), fileObj%p3dr(k,j)%p, tlev) 
+                       call mpp_read(unit(n), fields(l), fileObj%p3dr(k,j)%p, tlev)
+                       if ( is_there_a_checksum ) &
+                         checksum_data = mpp_chksum(fileObj%p3dr(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd, :) )
                     else if( Associated(fileObj%p0di(k,j)%p) ) then
                        call mpp_read(unit(n), fields(l), r0d, tlev)
                        fileObj%p0di(k,j)%p = r0d
+                       if ( is_there_a_checksum ) checksum_data = fileObj%p0di(k,j)%p
                     else if( Associated(fileObj%p1di(k,j)%p) ) then
                        allocate(r1d(cur_var%siz(1)) )
                        call mpp_read(unit(n), fields(l), r1d, tlev)                
                        fileObj%p1di(k,j)%p = r1d
+                       if ( is_there_a_checksum ) checksum_data = mpp_chksum(fileObj%p1di(k,j)%p, (/mpp_pe()/) )
                        deallocate(r1d)
                     else if( Associated(fileObj%p2di(k,j)%p) ) then
                        allocate(r2d(cur_var%siz(1), cur_var%siz(2)) )
                        r2d = 0
                        call mpp_read(unit(n), fields(l), r2d, tlev)                
                        fileObj%p2di(k,j)%p = r2d
+                       if ( is_there_a_checksum ) &
+                         checksum_data = mpp_chksum(fileObj%p2di(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd) )
                        deallocate(r2d)
                     else if( Associated(fileObj%p3di(k,j)%p) ) then
                        allocate(r3d(cur_var%siz(1), cur_var%siz(2), cur_var%siz(3)) )
                        r3d = 0
                        call mpp_read(unit(n), fields(l), r3d, tlev)                
                        fileObj%p3di(k,j)%p = r3d
+                       if ( is_there_a_checksum ) &
+                         checksum_data = mpp_chksum(fileObj%p3di(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd, :))
                        deallocate(r3d)
                     else
                        call mpp_error(FATAL, "fms_io(restore_state_all): There is no pointer "//&
                             "associated with the data of  field "// trim(varname)//" of file "//trim(fileObj%name) )
                     end if
                  end if
+                 if ( ( is_there_a_checksum ) .and. (checksum_file(k) /= checksum_data) ) then
+                   write (mesg,'(a,Z16,a,Z16,a)') "Checksum of input field "// uppercase(trim(varname))//" ", checksum_data,&
+                                " does not match value ", checksum_file(k), " stored in "//uppercase(trim(fileObj%name)//"." )
+                   call mpp_error(FATAL, "fms_io(restore_state_all): "//trim(mesg) )
+                 endif
               end do
               exit ! Start search for next restart variable.
            endif
@@ -2142,6 +2357,7 @@ subroutine restore_state_one_field(fileObj, id_field, directory)
                                     ! additional restart files.
   character(len=80)  :: varname     ! A variable's name.
   character(len=256) :: filename
+  character(len=256) :: mesg        ! Message to be constructed for checksum error.
   integer            :: num_restart ! The number of restart files that have already
                                     ! been opened.
   integer            :: nfile       ! The number of files (restart files and others
@@ -2158,8 +2374,12 @@ subroutine restore_state_one_field(fileObj, id_field, directory)
   real, allocatable, dimension(:)     :: r1d  
   real                                :: r0d
   type(domain2d), pointer, save       :: io_domain=>NULL()
-  integer                             :: isc, iec, jsc, jec
-
+  integer                             :: isc, iec, jsc, jec, check_exist
+  integer                             :: isg, ieg, jsg, jeg
+  integer                             :: ishift, jshift, iadd, jadd
+  integer(LONG_KIND), dimension(3)    :: checksum_file ! There should be no more than 3 timelevels in a restart file.
+  integer(LONG_KIND)                  :: checksum_data
+  logical                             :: is_there_a_checksum
   if (.not.associated(fileObj%var)) call mpp_error(FATAL, "fms_io(restore_state_one_field): " // &
       "restart_file_type data must be initialized by calling register_restart_field before using it")
 
@@ -2169,6 +2389,29 @@ subroutine restore_state_one_field(fileObj, id_field, directory)
   cur_var => fileObj%var(id_field)
   domain_present = cur_var%domain_present
   domain_idx = cur_var%domain_idx
+
+  if ( cur_var%domain_idx > 0) then
+     call mpp_get_compute_domain(array_domain(cur_var%domain_idx), isc, iec, jsc, jec)
+     call mpp_get_global_domain(array_domain(cur_var%domain_idx), isg, ieg, jsg, jeg)
+     call mpp_get_domain_shift(array_domain(cur_var%domain_idx), ishift, jshift, cur_var%position)
+  else if (ASSOCIATED(Current_domain)) then
+     call mpp_get_compute_domain(Current_domain, isc, iec, jsc, jec)
+     call mpp_get_global_domain(Current_domain, isg, ieg, jsg, jeg)
+     call mpp_get_domain_shift(Current_domain, ishift, jshift, cur_var%position)
+  else
+     iec = cur_var%ie
+     isc = cur_var%is
+     ieg = cur_var%ie
+     jec = cur_var%je
+     jsc = cur_var%js
+     jeg = cur_var%je
+     ishift = 0
+     jshift = 0
+  endif
+  iadd = iec-isc ! Size of the i-dimension on this processor (-1 as it is an increment)
+  jadd = jec-jsc ! Size of the j-dimension on this processor
+  if(iec == ieg) iadd = iadd + ishift
+  if(jec == jeg) jadd = jadd + jshift
 
   num_restart = 0
   nfile = 0
@@ -2184,12 +2427,12 @@ subroutine restore_state_one_field(fileObj, id_field, directory)
      io_domain => mpp_get_io_domain(array_domain(domain_idx))
      if(associated(io_domain)) then
         tile_id = mpp_get_tile_id(io_domain)
-        if(mpp_npes()>10000) then
-           write(filename, '(a,i6.6)' ) trim(restartpath)//'.', tile_id(1)
-        else
-           write(filename, '(a,i4.4)' ) trim(restartpath)//'.', tile_id(1)
-        endif
+        write(filename, '(a,i4.4)' ) trim(restartpath)//'.', tile_id(1)
         inquire (file=trim(filename), exist = fexist)
+        if( .NOT. fexist ) then
+           write(filename, '(a,i6.6)' ) trim(restartpath)//'.', tile_id(1)
+           inquire (file=trim(filename), exist = fexist)
+        endif
      endif
      io_domain=>NULL()
   endif
@@ -2251,6 +2494,14 @@ subroutine restore_state_one_field(fileObj, id_field, directory)
         call mpp_get_atts(fields(l),name=varname)
         if (lowercase(trim(varname)) == lowercase(trim(cur_var%name))) then
            cur_var%initialized = .true.
+           check_exist = mpp_attribute_exist(fields(l),"checksum")
+           checksum_file = 0
+           is_there_a_checksum = .false.
+           if ( check_exist > 0 ) then
+             call mpp_get_atts(fields(l),checksum=checksum_file)
+             is_there_a_checksum = .true.
+           endif
+           if (.NOT. checksum_required ) is_there_a_checksum = .false. ! Do not need to do data checksumming.
            isc = cur_var%is
            iec = cur_var%ie
            jsc = cur_var%js
@@ -2260,31 +2511,43 @@ subroutine restore_state_one_field(fileObj, id_field, directory)
               if(domain_present) then        
                  if( Associated(fileObj%p0dr(k,j)%p) ) then
                     call mpp_read(unit(n), fields(l), fileObj%p0dr(k,j)%p, tlev)
+                    if ( is_there_a_checksum ) checksum_data = mpp_chksum(fileObj%p0dr(k,j)%p, (/mpp_pe()/) )
                  else if( Associated(fileObj%p1dr(k,j)%p) ) then
                     call mpp_read(unit(n), fields(l), fileObj%p1dr(k,j)%p, tlev)       
+                    if ( is_there_a_checksum ) checksum_data = mpp_chksum(fileObj%p1dr(k,j)%p, (/mpp_pe()/) )
                  else if( Associated(fileObj%p2dr(k,j)%p) ) then
                     call mpp_read(unit(n), fields(l), array_domain(domain_idx), fileObj%p2dr(k,j)%p, tlev)
+                    if ( is_there_a_checksum ) checksum_data =&
+                         & mpp_chksum(fileObj%p2dr(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd) )
                  else if( Associated(fileObj%p3dr(k,j)%p) ) then
                     call mpp_read(unit(n), fields(l), array_domain(domain_idx), fileObj%p3dr(k,j)%p, tlev)
+                    if ( is_there_a_checksum ) checksum_data =&
+                         & mpp_chksum(fileObj%p3dr(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd, :) )
                  else if( Associated(fileObj%p0di(k,j)%p) ) then
                     call mpp_read(unit(n), fields(l), r0d, tlev)
                     fileObj%p0di(k,j)%p = r0d
+                    if ( is_there_a_checksum ) checksum_data = fileObj%p0di(k,j)%p
                  else if( Associated(fileObj%p1di(k,j)%p) ) then
                     allocate(r1d(cur_var%siz(1)))
                     call mpp_read(unit(n), fields(l), r1d, tlev)
                     fileObj%p1di(k,j)%p = r1d
+                    if ( is_there_a_checksum ) checksum_data = mpp_chksum(fileObj%p1di(k,j)%p, (/mpp_pe()/) )
                     deallocate(r1d)
                  else if( Associated(fileObj%p2di(k,j)%p) ) then
                     allocate(r2d(cur_var%siz(1), cur_var%siz(2)) )
                     r2d = 0
                     call mpp_read(unit(n), fields(l), array_domain(domain_idx), r2d, tlev)
                     fileObj%p2di(k,j)%p(isc:iec,jsc:jec) = r2d(isc:iec,jsc:jec) 
+                    if ( is_there_a_checksum ) checksum_data =&
+                         & mpp_chksum(fileObj%p2di(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd) )
                     deallocate(r2d)
                  else if( Associated(fileObj%p3di(k,j)%p) ) then
                     allocate(r3d(cur_var%siz(1), cur_var%siz(2), cur_var%siz(3)) )
                     r3d = 0
                     call mpp_read(unit(n), fields(l), array_domain(domain_idx), r3d, tlev)
                     fileObj%p3di(k,j)%p(isc:iec,jsc:jec,:) = r3d(isc:iec,jsc:jec,:) 
+                    if ( is_there_a_checksum ) checksum_data =&
+                         & mpp_chksum(fileObj%p3di(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd, :))
                     deallocate(r3d)
                  else
                     call mpp_error(FATAL, "fms_io(restore_state_one_field): domain is present for the field "//trim(varname)// &
@@ -2293,38 +2556,55 @@ subroutine restore_state_one_field(fileObj, id_field, directory)
               else
                  if( Associated(fileObj%p0dr(k,j)%p) ) then
                     call mpp_read(unit(n), fields(l), fileObj%p0dr(k,j)%p, tlev)
+                    if ( is_there_a_checksum ) checksum_data = mpp_chksum(fileObj%p0dr(k,j)%p, (/mpp_pe()/) )
                  else if( Associated(fileObj%p1dr(k,j)%p) ) then
                     call mpp_read(unit(n), fields(l), fileObj%p1dr(k,j)%p, tlev)
+                    if ( is_there_a_checksum ) checksum_data = mpp_chksum(fileObj%p1dr(k,j)%p, (/mpp_pe()/) )
                  else if( Associated(fileObj%p2dr(k,j)%p) ) then
                     call mpp_read(unit(n), fields(l), fileObj%p2dr(k,j)%p, tlev)
+                    if ( is_there_a_checksum ) checksum_data =&
+                         & mpp_chksum(fileObj%p2dr(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd) )
                  else if( Associated(fileObj%p3dr(k,j)%p) ) then
-                    call mpp_read(unit(n), fields(l), fileObj%p3dr(k,j)%p, tlev) 
+                    call mpp_read(unit(n), fields(l), fileObj%p3dr(k,j)%p, tlev)
+                    if ( is_there_a_checksum ) checksum_data =&
+                         & mpp_chksum(fileObj%p3dr(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd, :) )
                  else if( Associated(fileObj%p0di(k,j)%p) ) then
                     call mpp_read(unit(n), fields(l), r0d, tlev)
                     fileObj%p0di(k,j)%p = r0d
+                    if ( is_there_a_checksum ) checksum_data = fileObj%p0di(k,j)%p
                  else if( Associated(fileObj%p1di(k,j)%p) ) then
                     allocate(r1d(cur_var%siz(1)) )
                     call mpp_read(unit(n), fields(l), r1d, tlev)                
                     fileObj%p1di(k,j)%p = r1d
+                    if ( is_there_a_checksum ) checksum_data = fileObj%p0di(k,j)%p
                     deallocate(r1d)
                  else if( Associated(fileObj%p2di(k,j)%p) ) then
                     allocate(r2d(cur_var%siz(1), cur_var%siz(2)) )
                     r2d = 0
                     call mpp_read(unit(n), fields(l), r2d, tlev)                
                     fileObj%p2di(k,j)%p = r2d
+                    if ( is_there_a_checksum ) checksum_data =&
+                         & mpp_chksum(fileObj%p2di(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd) )
                     deallocate(r2d)
                  else if( Associated(fileObj%p3di(k,j)%p) ) then
                     allocate(r3d(cur_var%siz(1), cur_var%siz(2), cur_var%siz(3)) )
                     r3d = 0
                     call mpp_read(unit(n), fields(l), r3d, tlev)                
                     fileObj%p3di(k,j)%p = r3d
+                    if ( is_there_a_checksum ) checksum_data =&
+                         & mpp_chksum(fileObj%p3di(k,j)%p(cur_var%is:cur_var%is+iadd,cur_var%js:cur_var%js+jadd, :))
                     deallocate(r3d)
                  else
                     call mpp_error(FATAL, "fms_io(restore_state_one_field): There is no pointer "// &
                          "associated with the data of  field "//trim(varname)//" of file "//trim(fileObj%name) )
                  end if
               end if
-           end do
+              if ( (is_there_a_checksum ) .and. (checksum_file(k) /= checksum_data) )  then
+                write (mesg,'(a,Z16,a,Z16,a)') "Checksum of input field "// uppercase(trim(varname)), checksum_data,&
+                             " does not match value ", checksum_file(k), "stored in "//uppercase(trim(fileObj%name)//"." )
+                call mpp_error(FATAL, "fms_io(restore_state_one_field): "//trim(mesg) )
+              endif
+          end do
            exit ! Start search for next restart variable.
         endif
      enddo
@@ -2770,14 +3050,15 @@ subroutine field_size(filename, fieldname, siz, field_found, domain, no_domain )
   endif
 
   if(.not.found .AND. .not. is_no_domain) then
-     found_file =  get_file_name(filename, actual_file, read_dist, io_domain_exist, no_domain=.true.)
-     !--- when is_no_domain is true and file is not found, send out error message.
-     if(.NOT. found_file) call mpp_error(FATAL, 'fms_io_mod(field_size): file ' //trim(filename)// &
-          '(with the consideration of tile number) and corresponding distributed file are not found')  
-     call get_file_unit(actual_file, unit, nfile, read_dist, io_domain_exist, domain=domain)
-     call get_size(unit,fieldname,siz,found)
+    found_file =  get_file_name(filename, actual_file, read_dist, io_domain_exist, no_domain=.true.)
+    if(found_file) then
+      call get_file_unit(actual_file, unit, nfile, read_dist, io_domain_exist, domain=domain)
+      call get_size(unit,fieldname,siz,found)
+    endif
   endif
 
+! If field_found is present we assume that it is being checked on exit.
+! If not present and the field was not found, exit with a FATAL error.
   if( PRESENT(field_found) )then
      field_found = found
   else if (.not. found )then
@@ -2876,50 +3157,53 @@ end subroutine get_size
 !   </OUT>
 !=====================================================================================
 subroutine read_data_i3d_new(filename,fieldname,data,domain,timelevel, &
-                             no_domain,position, tile_count)
+                             no_domain,position, tile_count, is_compressed)
   character(len=*),           intent(in)   :: filename, fieldname
   integer, dimension(:,:,:), intent(inout) :: data ! 3 dimensional data    
   type(domain2d), intent(in),   optional   :: domain
   integer, intent(in),          optional   :: timelevel
-  logical, intent(in),          optional   :: no_domain 
+  logical, intent(in),          optional   :: no_domain
   integer, intent(in) ,         optional   :: position, tile_count
+  logical, intent(in),          optional   :: is_compressed
 
   real, dimension(size(data,1),size(data,2),size(data,3)) :: r_data
   r_data = 0
   call read_data_3d_new(filename,fieldname,r_data,domain,timelevel, &
-                        no_domain, .false., position, tile_count)
+                        no_domain, .false., position, tile_count, is_compressed)
   data = CEILING(r_data)
 end subroutine read_data_i3d_new
 
 subroutine read_data_i2d_new(filename,fieldname,data,domain,timelevel, &
-                             no_domain,position, tile_count)
+                             no_domain,position, tile_count, is_compressed)
   character(len=*),         intent(in)   :: filename, fieldname
   integer, dimension(:,:), intent(inout) :: data ! 2 dimensional data    
   type(domain2d), intent(in), optional   :: domain
   integer, intent(in),        optional   :: timelevel
   logical, intent(in),        optional   :: no_domain
   integer, intent(in) ,       optional   :: position, tile_count
+  logical, intent(in),        optional   :: is_compressed
   real, dimension(size(data,1),size(data,2)) :: r_data
 
   r_data = 0
   call read_data_2d_new(filename,fieldname,r_data,domain,timelevel, &
-                        no_domain, position, tile_count)
+                        no_domain, position, tile_count, is_compressed)
   data = CEILING(r_data)
 end subroutine read_data_i2d_new
 !.....................................................................
 subroutine read_data_i1d_new(filename,fieldname,data,domain,timelevel, &
-                             no_domain, tile_count)
+                             no_domain, tile_count, is_compressed)
   character(len=*), intent(in)           :: filename, fieldname
   integer, dimension(:), intent(inout)   :: data ! 1 dimensional data    
   type(domain2d), intent(in), optional   :: domain
   integer, intent(in) , optional         :: timelevel
-  logical, intent(in), optional          :: no_domain 
+  logical, intent(in), optional          :: no_domain
   integer, intent(in), optional          :: tile_count
+  logical, intent(in), optional          :: is_compressed
 
   real, dimension(size(data,1))        :: r_data
 
   call read_data_1d_new(filename,fieldname,r_data,domain,timelevel, &
-                        no_domain, tile_count)
+                        no_domain, tile_count, is_compressed)
   data = CEILING(r_data)
 end subroutine read_data_i1d_new
 !.....................................................................
@@ -2939,7 +3223,7 @@ subroutine read_data_iscalar_new(filename,fieldname,data,domain,timelevel, &
 end subroutine read_data_iscalar_new
 !=====================================================================================
 subroutine read_data_3d_new(filename,fieldname,data,domain,timelevel, &
-      no_domain, scalar_or_1d, position, tile_count, is_2d)
+      no_domain, scalar_or_1d, position, tile_count, is_compressed)
   character(len=*),                  intent(in) :: filename, fieldname
   real, dimension(:,:,:),         intent(inout) :: data ! 3 dimensional data    
   type(domain2d), target, optional,  intent(in) :: domain
@@ -2947,7 +3231,7 @@ subroutine read_data_3d_new(filename,fieldname,data,domain,timelevel, &
   logical,                optional,  intent(in) :: no_domain 
   logical,                optional,  intent(in) :: scalar_or_1d
   integer,                optional,  intent(in) :: position, tile_count
-  logical,                optional,  intent(in) :: is_2d
+  logical,                optional,  intent(in) :: is_compressed
 
   character(len=256)            :: fname
   integer                       :: unit, siz_in(4)
@@ -2960,6 +3244,7 @@ subroutine read_data_3d_new(filename,fieldname,data,domain,timelevel, &
   integer                       :: ishift, jshift
   logical                       :: is_scalar_or_1d = .false.
   logical                       :: is_no_domain = .false.
+  logical                       :: compressed 
   logical                       :: read_dist, io_domain_exist, found_file
   type(domain2d), pointer, save :: d_ptr =>NULL()
   type(domain2d), pointer, save :: io_domain =>NULL()
@@ -2989,6 +3274,9 @@ subroutine read_data_3d_new(filename,fieldname,data,domain,timelevel, &
   is_scalar_or_1d = .false.
   if(present(scalar_or_1d)) is_scalar_or_1d = scalar_or_1d
 
+  compressed = .false.
+  if(present(is_compressed)) compressed = is_compressed
+
   if(.not. PRESENT(domain) .and. .not. ASSOCIATED(Current_domain) ) is_no_domain = .true.
 
   found_file = get_file_name(filename, fname, read_dist, io_domain_exist, is_no_domain, domain,  tile_count)
@@ -2997,7 +3285,7 @@ subroutine read_data_3d_new(filename,fieldname,data,domain,timelevel, &
   call get_file_unit(fname, unit, file_index, read_dist, io_domain_exist, domain=domain)
 
   siz_in(3) = size(data,3)
-  if(is_no_domain .or. .NOT. associated(d_ptr) .or. is_scalar_or_1d) then
+  if(is_no_domain .or. .NOT. associated(d_ptr) .or. is_scalar_or_1d .or. compressed) then
      gxsize = size(data,1)
      gysize = size(data,2)
   else if(read_dist) then
@@ -3050,7 +3338,7 @@ subroutine read_data_3d_new(filename,fieldname,data,domain,timelevel, &
      endif
 
      
-     if(is_no_domain .OR. is_scalar_or_1d) then
+     if(is_no_domain .OR. is_scalar_or_1d .or. compressed) then
         if (files_read(file_index)%var(index_field)%is_dimvar) then
            call mpp_get_axis_data(files_read(file_index)%var(index_field)%axis,data(:,1,1))
         else
@@ -3069,13 +3357,14 @@ end subroutine read_data_3d_new
 
 !=====================================================================================
 subroutine read_data_2d_region(filename,fieldname,data,start,nread,domain, &
-                                 no_domain, tile_count)
+                                 no_domain, tile_count, is_compressed)
   character(len=*),                  intent(in) :: filename, fieldname
   real, dimension(:,:),           intent(inout) :: data ! 3 dimensional data    
   integer, dimension(:),             intent(in) :: start, nread
   type(domain2d), target,  optional, intent(in) :: domain
-  logical,                 optional, intent(in) :: no_domain 
+  logical,                 optional, intent(in) :: no_domain
   integer,                 optional, intent(in) :: tile_count
+  logical,                 optional, intent(in) :: is_compressed
   character(len=256)            :: fname
   integer                       :: unit, siz_in(4)
   integer                       :: file_index  ! index of the opened file in array files
@@ -3161,32 +3450,39 @@ end subroutine read_data_text
 !.............................................................. 
 ! </SUBROUTINE>
 subroutine read_data_2d_new(filename,fieldname,data,domain,timelevel,&
-      no_domain,position,tile_count)
+      no_domain,position,tile_count, is_compressed)
   character(len=*), intent(in)                 :: filename, fieldname
   real, dimension(:,:), intent(inout)          :: data     !2 dimensional data 
   real, dimension(size(data,1),size(data,2),1) :: data_3d
   type(domain2d), intent(in), optional         :: domain
   integer, intent(in) , optional               :: timelevel
-  logical, intent(in), optional                ::  no_domain
+  logical, intent(in), optional                :: no_domain
   integer, intent(in) , optional               :: position, tile_count
+  logical, intent(in), optional                :: is_compressed
+
   integer                                      :: isc,iec,jsc,jec,isd,ied,jsd,jed
-  integer :: isg,ieg,jsg,jeg
+  integer                                      :: isg,ieg,jsg,jeg
   integer                                      :: xsize_c,ysize_c,xsize_d,ysize_d
   integer                                      :: xsize_g,ysize_g, ishift, jshift
+  logical                                      :: compressed
 
 !#ifdef use_CRI_pointers
 !  pointer( p, data_3d )
 !  p = LOC(data)
 !#endif
-  call read_data_3d_new(filename,fieldname,data_3d,domain,timelevel,&
-        no_domain,.false., position,tile_count)
 
+  compressed= .false.
+  if (PRESENT(is_compressed)) compressed=is_compressed
+
+  call read_data_3d_new(filename,fieldname,data_3d,domain,timelevel,&
+        no_domain,.false., position,tile_count,is_compressed=compressed)
+  
   if(PRESENT(domain)) then
      call mpp_get_global_domain( domain,isg,ieg,jsg,jeg,xsize=xsize_g,ysize=ysize_g, tile_count=tile_count, position=position)
      call mpp_get_compute_domain( domain,isc,iec,jsc,jec,xsize=xsize_c,ysize=ysize_c, tile_count=tile_count, position=position)
      call mpp_get_data_domain( domain,isd,ied,jsd,jed,xsize=xsize_d,ysize=ysize_d, tile_count=tile_count, position=position)
      call mpp_get_domain_shift  (domain, ishift, jshift, position)
-     if((size(data,1)==xsize_c) .and. (size(data,2)==ysize_c)) then !on_comp_domain
+     if(((size(data,1)==xsize_c) .and. (size(data,2)==ysize_c)) .or. compressed) then !on_comp_domain
         data(:,:) = data_3d(:,:,1)
      else if((size(data,1)==xsize_d) .and. (size(data,2)==ysize_d)) then !on_data_domain
         data(isc-isd+1:iec-isd+1,jsc-jsd+1:jec-jsd+1) = data_3d(isc-isd+1:iec-isd+1,jsc-jsd+1:jec-jsd+1,1)
@@ -3203,21 +3499,22 @@ subroutine read_data_2d_new(filename,fieldname,data,domain,timelevel,&
 end subroutine read_data_2d_new
 !.....................................................................
 subroutine read_data_1d_new(filename,fieldname,data,domain,timelevel,&
-      no_domain, tile_count)
+      no_domain, tile_count, is_compressed)
   character(len=*), intent(in)           :: filename, fieldname
   real, dimension(:), intent(inout)      :: data     !1 dimensional data 
   real, dimension(size(data,1),1,1)      :: data_3d
   type(domain2d), intent(in), optional   :: domain
   integer, intent(in) , optional         :: timelevel
-  logical, intent(in), optional          ::  no_domain
+  logical, intent(in), optional          :: no_domain
   integer, intent(in), optional          :: tile_count
+  logical, intent(in), optional          :: is_compressed
 #ifdef use_CRI_pointers
   pointer( p, data_3d )
   p = LOC(data)
 #endif
 
   call read_data_3d_new(filename,fieldname,data_3d,domain,timelevel,&
-        no_domain=no_domain, scalar_or_1d=.true., tile_count=tile_count)
+        no_domain=no_domain, scalar_or_1d=.true., tile_count=tile_count, is_compressed=is_compressed)
 
 end subroutine read_data_1d_new
 !.....................................................................
@@ -3231,7 +3528,7 @@ subroutine read_data_scalar_new(filename,fieldname,data,domain,timelevel,&
   real, dimension(1,1,1)                 :: data_3d
   type(domain2d), intent(in), optional   :: domain
   integer, intent(in) , optional         :: timelevel
-  logical, intent(in), optional          ::  no_domain
+  logical, intent(in), optional          :: no_domain
   integer, intent(in), optional          :: tile_count
 
   if(present(no_domain)) then
@@ -3994,16 +4291,14 @@ function query_initialized_name(fileObj, name)
   enddo
 ! Assume that you are going to initialize it now, so set flag to initialized if
 ! queried again.
-  if (m<=fileObj%nvar) then
-     fileObj%var(m)%initialized = .true.
-  else if(mpp_pe() == mpp_root_pe()) then
+  if ((m>fileObj%nvar) .and. (mpp_pe() == mpp_root_pe())) then
     call mpp_error(NOTE,"fms_io(query_initialized_name): Unknown restart variable "//name// &
                         " queried for initialization.")
   end if
 
 end function query_initialized_name
 
-
+!#########################################################################
 !   This function returns 1 if the field pointed to by f_ptr has
 ! initialized from a restart file, and 0 otherwise.  If f_ptr is
 ! NULL, it tests whether the entire restart file has been success-
@@ -4033,10 +4328,7 @@ function query_initialized_r2d(fileObj, f_ptr, name)
   enddo
   ! Assume that you are going to initialize it now, so set flag to initialized if
   ! queried again.
-  if (m<=fileObj%nvar) then
-     fileObj%var(m)%initialized = .true.
-  else
-     query_initialized_r2d = query_initialized_name(fileObj, name)
+  if (m>fileObj%nvar) then
      if (mpp_pe() == mpp_root_pe() ) call mpp_error(NOTE, "fms_io(query_initialized_r2d): Unable to find "// &
           trim(name)//" queried by pointer, "//"probably because of the suspect comparison of pointers by ASSOCIATED.")
      query_initialized_r2d = query_initialized_name(fileObj, name)
@@ -4047,6 +4339,205 @@ function query_initialized_r2d(fileObj, f_ptr, name)
   return
 
 end function query_initialized_r2d
+
+!#########################################################################
+!   This function returns 1 if the field pointed to by f_ptr has
+! initialized from a restart file, and 0 otherwise.  If f_ptr is
+! NULL, it tests whether the entire restart file has been success-
+! fully read.
+!
+! Arguments: f_ptr - A pointer to the field that is being queried.
+!  (in)      name - The name of the field that is being queried.
+!  (in)      CS - The control structure returned by a previous call to
+!                 restart_init.
+function query_initialized_r3d(fileObj, f_ptr, name)
+  type(restart_file_type),     intent(inout) :: fileObj 
+  real, dimension(:,:,:), target, intent(in) :: f_ptr
+  character(len=*),               intent(in) :: name
+
+  logical :: query_initialized_r3d
+  integer :: m
+
+  if (.not.associated(fileObj%var)) call mpp_error(FATAL, "fms_io(query_initialized_r3d): " // &
+      "restart_file_type data must be initialized by calling register_restart_field before using it")
+
+  query_initialized_r3d = .false.
+  do m=1, fileObj%nvar
+     if (ASSOCIATED(fileObj%p3dr(1,m)%p,f_ptr)) then
+        if (fileObj%var(m)%initialized) query_initialized_r3d = .true.
+        exit
+     endif
+  enddo
+  ! Assume that you are going to initialize it now, so set flag to initialized if
+  ! queried again.
+  if (m>fileObj%nvar) then
+     if (mpp_pe() == mpp_root_pe() ) call mpp_error(NOTE, "fms_io(query_initialized_r3d): Unable to find "// &
+          trim(name)//" queried by pointer, "//"probably because of the suspect comparison of pointers by ASSOCIATED.")
+     query_initialized_r3d = query_initialized_name(fileObj, name)
+     if (mpp_pe() == mpp_root_pe() .AND. query_initialized_r3d) call mpp_error(NOTE, &
+          "fms_io(query_initialized_r3d): "//trim(name)// " initialization confirmed by name.")
+  endif
+
+  return
+
+end function query_initialized_r3d
+
+
+!#########################################################################
+!   This function sets that a variable has been initialized for future queries. 
+!
+! Arguments: name - A pointer to the field whose initialization status is being set.
+!  (in)  fileObj - The control structure returned by a previous call to
+!                  register_restart_field
+subroutine set_initialized_id(fileObj, id, is_set)
+  type(restart_file_type), intent(inout) :: fileObj
+  integer         ,           intent(in) :: id
+  logical,          optional, intent(in) :: is_set
+
+  logical :: set_val
+  integer :: m
+
+  set_val = .true.
+  if (present(is_set)) set_val = is_set
+
+  if (.not.associated(fileObj%var)) call mpp_error(FATAL, "fms_io(set_initialized_id): " // &
+      "restart_file_type data must be initialized by calling set_restart_field before using it")
+
+  if(id < 1 .OR. id > fileObj%nvar) call mpp_error(FATAL, "fms_io(set_initialized_id): " // &
+      "argument id must be between 1 and nvar in the restart_file_type object")
+
+  fileObj%var(id)%initialized = set_val
+
+
+end subroutine set_initialized_id
+
+!#########################################################################
+!   This function sets that a variable has been initialized for future queries. 
+!
+! Arguments: name - A pointer to the field whose initialization status is being set.
+!  (in)  fileObj - The control structure returned by a previous call to
+!                  register_restart_field
+subroutine set_initialized_name(fileObj, name, is_set)
+  type(restart_file_type), intent(inout) :: fileObj
+  character(len=*),           intent(in) :: name
+  logical,          optional, intent(in) :: is_set
+
+  logical :: set_val
+  integer :: m
+
+  set_val = .true.
+  if (present(is_set)) set_val = is_set
+
+  if (.not.associated(fileObj%var)) call mpp_error(FATAL, "fms_io(set_initialized_name): " // &
+      "restart_file_type data must be initialized by calling set_restart_field before using it")
+
+  do m=1,fileObj%nvar
+    if (trim(name) == fileObj%var(m)%name) then
+      fileObj%var(m)%initialized = set_val
+      exit
+    endif
+  enddo
+
+  if (m>fileObj%nvar) then
+    call mpp_error(NOTE,"fms_io(set_initialized_name): Unknown restart variable "//name// &
+                        " attempted to set initialization.")
+  end if
+
+end subroutine set_initialized_name
+
+!#########################################################################
+!   This function sets that a variable has been initialized for future queries. 
+!
+! Arguments: name - A pointer to the field whose initialization status is being set.
+!  (in)  fileObj - The control structure returned by a previous call to
+!                  register_restart_field
+subroutine set_initialized_r2d(fileObj, f_ptr, name, is_set)
+  type(restart_file_type),   intent(inout) :: fileObj
+  real, dimension(:,:), target, intent(in) :: f_ptr
+  character(len=*),             intent(in) :: name
+  logical,          optional,   intent(in) :: is_set
+  logical :: set_val
+  integer :: m
+
+  set_val = .true.
+  if (present(is_set)) set_val = is_set
+
+  if (.not.associated(fileObj%var)) call mpp_error(FATAL, "fms_io(set_initialized_r2d): " // &
+      "restart_file_type data must be initialized by calling set_restart_field before using it")
+
+  do m=1, fileObj%nvar
+     if (ASSOCIATED(fileObj%p2dr(1,m)%p,f_ptr)) then
+        fileObj%var(m)%initialized = set_val
+        return
+     endif
+  enddo
+
+  if (m>fileObj%nvar .AND. mpp_pe() == mpp_root_pe() ) then
+    call mpp_error(NOTE,"fms_io(set_initialized_r2d): Unable to find "// &
+          trim(name)//" queried by pointer, "//"probably because of the suspect comparison of pointers by ASSOCIATED"// &
+                        " when attempting to set initialization.")
+  end if
+
+  do m=1,fileObj%nvar
+    if (trim(name) == fileObj%var(m)%name) then
+      fileObj%var(m)%initialized = set_val
+      return
+    endif
+  enddo
+
+  if (m>fileObj%nvar .AND. mpp_pe() == mpp_root_pe() ) then
+    call mpp_error(NOTE,"fms_io(set_initialized_r2d): Unknown restart variable "//name// &
+                        " attempted to set initialization.")
+  end if
+
+end subroutine set_initialized_r2d
+
+!#########################################################################
+!   This function sets that a variable has been initialized for future queries. 
+!
+! Arguments: name - A pointer to the field whose initialization status is being set.
+!  (in)  fileObj - The control structure returned by a previous call to
+!                  register_restart_field
+subroutine set_initialized_r3d(fileObj, f_ptr, name, is_set)
+  type(restart_file_type),     intent(inout) :: fileObj
+  real, dimension(:,:,:), target, intent(in) :: f_ptr
+  character(len=*),               intent(in) :: name
+  logical,          optional,     intent(in) :: is_set
+  logical :: set_val
+  integer :: m
+
+  set_val = .true.
+  if (present(is_set)) set_val = is_set
+
+  if (.not.associated(fileObj%var)) call mpp_error(FATAL, "fms_io(set_initialized_r3d): " // &
+      "restart_file_type data must be initialized by calling set_restart_field before using it")
+
+  do m=1, fileObj%nvar
+     if (ASSOCIATED(fileObj%p3dr(1,m)%p,f_ptr)) then
+        fileObj%var(m)%initialized = set_val
+        return
+     endif
+  enddo
+
+  if (m>fileObj%nvar .AND. mpp_pe() == mpp_root_pe() ) then
+    call mpp_error(NOTE,"fms_io(set_initialized_r3d): Unable to find "// &
+          trim(name)//" queried by pointer, "//"probably because of the suspect comparison of pointers by ASSOCIATED"//&
+                        " when attempting to set initialization.")
+  end if
+
+  do m=1,fileObj%nvar
+    if (trim(name) == fileObj%var(m)%name) then
+      fileObj%var(m)%initialized = set_val
+      return
+    endif
+  enddo
+
+  if (m>fileObj%nvar .AND. mpp_pe() == mpp_root_pe() ) then
+    call mpp_error(NOTE,"fms_io(set_initialized_r3d): Unknown restart variable "//name// &
+                        " attempted to set initialization.")
+  end if
+
+end subroutine set_initialized_r3d
 
 
 !#######################################################################
@@ -4082,6 +4573,9 @@ end function query_initialized_r2d
 function open_namelist_file (file) result (unit)
   character(len=*), intent(in), optional :: file
   integer :: unit
+! local variables necessary for nesting code and alternate input.nmls
+  character(len=32) :: pelist_name
+  character(len=128) :: filename
 
 #ifdef INTERNAL_FILE_NML
   if(show_open_namelist_file_warning) call mpp_error(WARNING, "fms_io_mod: open_namelist_file should not be called when INTERNAL_FILE_NML is defined")
@@ -4092,7 +4586,14 @@ function open_namelist_file (file) result (unit)
      call mpp_open ( unit, file, form=MPP_ASCII, action=MPP_RDONLY, &
           access=MPP_SEQUENTIAL, threading=MPP_SINGLE )
   else
-     call mpp_open ( unit, 'input.nml', form=MPP_ASCII, action=MPP_RDONLY, &
+!  the following code is necessary for using alternate namelist files (nests, stretched grids, etc)
+     pelist_name = mpp_get_current_pelist_name()
+     if ( file_exist('input_'//trim(pelist_name)//'.nml') ) then
+        filename='input_'//trim(pelist_name)//'.nml'
+     else
+        filename='input.nml'
+     endif
+     call mpp_open ( unit, trim(filename), form=MPP_ASCII, action=MPP_RDONLY, &
           access=MPP_SEQUENTIAL, threading=MPP_SINGLE )
   endif
 end function open_namelist_file
@@ -4711,7 +5212,7 @@ end subroutine get_axis_cart
   end subroutine get_var_att_value_text
 
   !#############################################################################
-  ! return false if the attribute is not find in the file.
+  ! return false if the attribute is not found in the file.
   function get_global_att_value_text(file, att, attvalue)
     character(len=*), intent(in)    :: file
     character(len=*), intent(in)    :: att
@@ -4739,7 +5240,7 @@ end subroutine get_axis_cart
   end function get_global_att_value_text
 
   !#############################################################################
-  ! return false if the attribute is not find in the file.
+  ! return false if the attribute is not found in the file.
   function get_global_att_value_real(file, att, attvalue)
     character(len=*), intent(in)    :: file
     character(len=*), intent(in)    :: att
@@ -4818,12 +5319,12 @@ end subroutine get_axis_cart
        io_domain => mpp_get_io_domain(d_ptr)
        if(associated(io_domain)) then
           tile_id = mpp_get_tile_id(io_domain)       
-          if(mpp_npes()>10000) then
-             write(fname, '(a,i6.6)' ) trim(actual_file)//'.', tile_id(1)
-          else
-             write(fname, '(a,i4.4)' ) trim(actual_file)//'.', tile_id(1)
-          endif
+          write(fname, '(a,i4.4)' ) trim(actual_file)//'.', tile_id(1)
           inquire (file=trim(fname), exist=fexist)
+          if(.not. fexist) then
+             write(fname, '(a,i6.6)' ) trim(actual_file)//'.', tile_id(1)
+             inquire (file=trim(fname), exist=fexist)
+          endif
           if(fexist) io_domain_exist = .true.
        endif   
        io_domain=>NULL()
@@ -4846,9 +5347,33 @@ end subroutine get_axis_cart
     endif    
 
     !Perhaps the file has an ensemble instance appendix
-    call get_instance_filename(actual_file, actual_file)
-    inquire (file=trim(actual_file)//trim(pe_name), exist=fexist)  
-    if(.not. fexist) inquire (file=trim(actual_file)//'.nc'//trim(pe_name), exist=fexist)     
+    call get_instance_filename(orig_file, actual_file)
+    if(index(orig_file, '.nc', back=.true.) == 0) then
+       inquire (file=trim(actual_file), exist=fexist)
+       if(fexist) then
+          get_file_name = .true.
+          return
+       endif
+    endif 
+
+    call get_mosaic_tile_file(actual_file, actual_file, is_no_domain, domain, tile_count)
+    !--- check if the file is group redistribution.
+    if(ASSOCIATED(d_ptr)) then
+       io_domain => mpp_get_io_domain(d_ptr)
+       if(associated(io_domain)) then
+          tile_id = mpp_get_tile_id(io_domain)       
+          if(mpp_npes()>10000) then
+             write(fname, '(a,i6.6)' ) trim(actual_file)//'.', tile_id(1)
+          else
+             write(fname, '(a,i4.4)' ) trim(actual_file)//'.', tile_id(1)
+          endif
+          inquire (file=trim(fname), exist=fexist)
+          if(fexist) io_domain_exist = .true.
+       endif   
+       io_domain=>NULL()
+    endif 
+
+    if(.not. fexist) inquire (file=trim(actual_file)//trim(pe_name), exist=fexist)  
     if(fexist) then
        read_dist = .true. 
        d_ptr => NULL()
@@ -4856,7 +5381,6 @@ end subroutine get_axis_cart
        return
     endif    
     inquire (file=trim(actual_file), exist=fexist)
-          if(.not. fexist) inquire (file=trim(actual_file)//'.nc', exist=fexist)
     
     if(fexist) then
        d_ptr => NULL()
@@ -4993,8 +5517,8 @@ end subroutine get_axis_cart
        do i=1,ndim
           call mpp_get_atts(axes(i), name=name, len = siz_in(1)) 
           if (lowercase(trim(name)) == lowercase(trim(fieldname))) then
-             if(.not. is_no_domain) call mpp_error(FATAL, &
-                  'fms_io(get_field_id): the field is a dimension variable, no_domain should be true.')
+!             if(.not. is_no_domain) call mpp_error(FATAL, &
+!                  'fms_io(get_field_id): the field is a dimension variable, no_domain should be true.')
              files_read(index_file)%var(index_field)%is_dimvar = .true.
              files_read(index_file)%var(index_field)%name      = fieldname
              files_read(index_file)%var(index_field)%axis      = axes(i)
@@ -5249,6 +5773,17 @@ subroutine parse_mask_table(mask_table, maskmap, modelname)
   deallocate(mask_list)
 
 end subroutine parse_mask_table
+
+function get_great_circle_algorithm()
+   logical :: get_great_circle_algorithm
+
+   if(.NOT. module_is_initialized) call mpp_error(FATAL, &
+        "fms_io(use_great_circle_algorithm): fms_io_init is not called yet")
+
+   get_great_circle_algorithm = great_circle_algorithm
+
+end function get_great_circle_algorithm
+
 
 end module fms_io_mod
 

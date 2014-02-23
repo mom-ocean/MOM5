@@ -15,6 +15,7 @@ char *usage[] = {
   "            [--halo #] [--sea_level #] [--show_valid_only] [--have_obc]                 ",
   "            [--direction d(1)..,d(nobc)] [--is is(1)...,is(nobc)]                       ",
   "            [--ie ie(1)...,ie(nobc)], [--js js(1)...,js(nobc)], [--je je(1)...,je(nobc)]",
+  "            [--layout layout(1),layout(2)]                                              ",
   "                                                                                        ",
   " check_mask is used to configure the processors which contains all land points to be    ",
   " masked out. This program is supposed to run on single processor. This tool will print  ",
@@ -47,6 +48,10 @@ char *usage[] = {
   " --min_pe #               Specify the smallest processor count to be checked            ",
   "                                                                                        ",
   " --max_pe #               Specify the largest processor count to be checked             ",
+  "                                                                                        ",
+  " --layout #,#             specify the layout to be checked. When layout is specified,   ",
+  "                          --min_pe and --max_pe will be ignored.                        ",
+  "                                                                                        ",
   "                                                                                        ",
   " --halo #                 Specify the halo size in the ocean model. When there is no    ",
   "                          ocean points on a processor (including halo data), the        ",
@@ -126,7 +131,7 @@ int get_text_entry(char *line, char *value[]);
 void get_grid_size( const char *grid_file, int grid_version, int *nx, int *ny );
 void get_ocean_mask(const char *grid_file, int grid_version, double *mask, double sea_level, int nx, int ny );
 void check_mask(int nx, int ny, const double *wet_in, int cyclic_x, int cyclic_y,
-		int is_tripolar, int halo, int min_pe, int max_pe, int show_valid_only, int nobc,
+		int is_tripolar, int halo, int min_pe, int max_pe, int layout[], int show_valid_only, int nobc,
 		char *direction[], int *is, int *ie, int *js, int *je  );
 
 #define MAX_OBC 4
@@ -147,7 +152,9 @@ int main (int argc, char *argv[])
   int ie[] = {-999, -999, -999, -999};
   int js[] = {-999, -999, -999, -999};
   int je[] = {-999, -999, -999, -999};
+  int layout[] = {0,0};
 
+  int num_layout_entry;
   int grid_version = 0;
   int cyclic_x=0;
   int cyclic_y=0;
@@ -173,6 +180,7 @@ int main (int argc, char *argv[])
     {"ie",              required_argument, NULL, 'l'},
     {"js",              required_argument, NULL, 'm'},
     {"je",              required_argument, NULL, 'n'},
+    {"layout",          required_argument, NULL, 'o'},
     {NULL, 0, NULL, 0}
   };
 
@@ -235,6 +243,11 @@ int main (int argc, char *argv[])
     case 'n':
       strcpy(entry, optarg);
       nobc5 = get_int_entry(entry, je);
+      break;
+    case 'o':
+      strcpy(entry, optarg);
+      num_layout_entry = get_int_entry(entry, layout);
+      if(num_layout_entry != 2) mpp_error("check_mask: layout should be specified by --layout #,#");
       break;      
     case '?':
       errflg++;
@@ -268,6 +281,14 @@ int main (int argc, char *argv[])
   /* print out the input arguments */
   {
     int n;
+    
+    if(layout[0]*layout[1] > 0) {
+      min_pe = layout[0]*layout[1];
+      max_pe = min_pe;
+      printf("\n ===>NOTE from check_mask: when layout is specified, min_pe and max_pe is set to layout(1)*layout(2)=%d\n",
+	     layout[0]*layout[1]);
+    }
+    
     printf("\n ===>NOTE from check_mask: Below is the list of command line arguments.\n\n");
     printf("grid_file = %s\n", grid_file);
     if( topog_file )
@@ -276,6 +297,7 @@ int main (int argc, char *argv[])
       printf("topog_file is not specified");
     printf("min_pe = %d\n", min_pe);
     printf("max_pe = %d\n", max_pe);
+    printf("layout = %d, %d\n", layout[0], layout[1]);
     printf("halo = %d\n", halo);
     printf("sea_level = %g\n", sea_level);
     if( show_valid_only )
@@ -286,7 +308,7 @@ int main (int argc, char *argv[])
     printf("nobc = %d\n", nobc);
     for(n=0; n<nobc; n++) {
       printf("obc #%d, direction=%s, is=%d, ie=%d, js=%d, je=%d\n", n+1, direction[n], is[n], ie[n], js[n], je[n]);
-    }
+    }  
     
     printf("\n ===>NOTE from check_mask: End of command line arguments.\n");
   }
@@ -322,7 +344,7 @@ int main (int argc, char *argv[])
     get_ocean_mask( topog_file, grid_version, mask, sea_level, nx, ny );
 
   /* check mask */
-  check_mask(nx, ny, mask, cyclic_x, cyclic_y, is_tripolar, halo, min_pe, max_pe, show_valid_only, nobc, direction, is, ie, js, je );
+  check_mask(nx, ny, mask, cyclic_x, cyclic_y, is_tripolar, halo, min_pe, max_pe, layout, show_valid_only, nobc, direction, is, ie, js, je );
   free(mask);
   
   printf("\n***** Congratulation! You have successfully run check_mask\n");
@@ -348,7 +370,7 @@ int get_text_entry(char *line, char *value[])
 
   
 void check_mask(int nx, int ny, const double *wet_in, int cyclic_x, int cyclic_y,
-		int is_tripolar, int halo, int min_pe, int max_pe, int show_valid_only, int nobc,
+		int is_tripolar, int halo, int min_pe, int max_pe, int layout_in[], int show_valid_only, int nobc,
 		char *direction[], int *is, int *ie, int *js, int *je  )
 {
   int nxd, nyd;
@@ -435,8 +457,15 @@ void check_mask(int nx, int ny, const double *wet_in, int cyclic_x, int cyclic_y
   jbegin = (int *)malloc(max_pe*sizeof(int));
   jend   = (int *)malloc(max_pe*sizeof(int));
   if(nobc>0) obc_error=(int *)malloc(max_pe*sizeof(int));
+
   for(np=min_pe; np<=max_pe; np++) {
-    mpp_define_layout(nx, ny, np, layout);
+    if( layout_in[0]*layout_in[1] == np) {
+      layout[0] = layout_in[0];
+      layout[1] = layout_in[1];
+    }
+    else {
+      mpp_define_layout(nx, ny, np, layout);
+    }
     if( layout[0] > nx || layout[1] > ny ) continue;
     mpp_compute_extent(nx,layout[0],ibegin,iend);
     mpp_compute_extent(ny,layout[1],jbegin,jend);
@@ -535,6 +564,7 @@ void check_mask(int nx, int ny, const double *wet_in, int cyclic_x, int cyclic_y
 	if(nerror>0) continue;
       }
       printf("\n_______________________________________________________________________\n");
+      printf("\nNOTE from check_mask: The following is for using model source code with version older than siena_201207,\n");
       printf("Possible setting to mask out all-land points region, for use in coupler_nml");
       printf("Total number of domains = %d\n", np);
       printf("Number of tasks (excluded all-land region) to be used is %d\n", np - nmask);
@@ -582,6 +612,11 @@ void check_mask(int nx, int ny, const double *wet_in, int cyclic_x, int cyclic_y
 	for(n=0; n<nmask; n++) {
 	  fprintf(fp, "%d,%d\n", mask_list[2*n], mask_list[2*n+1]);
 	}
+        printf("\n_______________________________________________________________________\n");
+        printf("\nNOTE from check_mask: The following is for using model source code with version siena_201207 or newer,\n");
+	printf("                      specify ocean_model_nml/ice_model_nml/atmos_model_nml/land_model/nml \n");
+	printf("                      variable mask_table with the mask_table created here.\n");
+	printf("                      Also specify the layout variable in each namelist using corresponding layout\n"); 
 	fclose(fp);
       }
     }

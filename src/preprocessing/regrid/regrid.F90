@@ -171,8 +171,8 @@ program regrid
   end type regrid_type
 
   !--- version information ---------------------------------------------
-  character(len=128) :: version = '$Id: regrid.F90,v 16.0.4.1 2012/01/24 15:26:18 Zhi.Liang Exp $'
-  character(len=128) :: tagname = '$Name: siena_201205_z1l $'
+  character(len=128) :: version = '$Id: regrid.F90,v 20.0 2013/12/14 00:31:05 fms Exp $'
+  character(len=128) :: tagname = '$Name: tikal $'
 
   !--- other variables
   integer                             :: ntime_src                     ! number of time levels of src data

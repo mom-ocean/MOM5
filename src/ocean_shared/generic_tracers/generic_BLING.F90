@@ -114,7 +114,7 @@ module generic_BLING
   use coupler_types_mod, only: coupler_2d_bc_type
   use field_manager_mod, only: fm_string_len, fm_path_name_len
   use mpp_mod,           only: input_nml_file, mpp_error, stdlog, NOTE, WARNING, FATAL, stdout, mpp_chksum
-  use fms_mod,           only: open_namelist_file, check_nml_error, close_file
+  use fms_mod,           only: write_version_number, open_namelist_file, check_nml_error, close_file
   use fms_mod,           only: field_exist, file_exist
   use time_manager_mod,  only: time_type
   use fm_util_mod,       only: fm_util_start_namelist, fm_util_end_namelist  
@@ -131,6 +131,9 @@ module generic_BLING
   use FMS_ocmip2_co2calc_mod, only : FMS_ocmip2_co2calc, CO2_dope_vector
 
   implicit none ; private
+
+  character(len=128) :: version = '$Id: generic_BLING.F90,v 20.0 2013/12/14 00:18:02 fms Exp $'
+  character(len=128) :: tagname = '$Name: tikal $'
 
   character(len=fm_string_len), parameter :: mod_name       = 'generic_BLING'
   character(len=fm_string_len), parameter :: package_name   = 'generic_bling'
@@ -526,6 +529,8 @@ integer                                                 :: stdoutunit,stdlogunit
 character(len=fm_string_len), parameter :: sub_name = 'generic_bling_register'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
+character(len=256), parameter   :: warn_header =                                &
+     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 character(len=256), parameter   :: note_header =                                &
      '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '): '
 
@@ -542,12 +547,13 @@ ierr = check_nml_error(io_status,'generic_bling_nml')
 #else
 ioun = open_namelist_file()
 read  (ioun, generic_bling_nml,iostat=io_status)
-write (stdoutunit,'(/)')
-write (stdoutunit, generic_bling_nml)  
-write (stdlogunit, generic_bling_nml)
 ierr = check_nml_error(io_status,'generic_bling_nml')
 call close_file (ioun)
 #endif
+
+write (stdoutunit,'(/)')
+write (stdoutunit, generic_bling_nml)
+write (stdlogunit, generic_bling_nml)
 
   if ((do_14c) .and. (do_carbon)) then
     write (stdoutunit,*) trim(note_header), 'Simulating radiocarbon'
@@ -599,6 +605,8 @@ call close_file (ioun)
   ! </SUBROUTINE>
   subroutine generic_BLING_init(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
+
+    call write_version_number( version, tagname )
 
     !Specify and initialize all parameters used by this package
     call user_add_params
@@ -1228,7 +1236,7 @@ call close_file (ioun)
     !
     call g_tracer_add_param('tracer_debug',  bling%tracer_debug, .false.)
     !
-    call g_tracer_end_param_list()
+    call g_tracer_end_param_list(package_name)
     !===========
     !Block Ends: g_tracer_add_param
     !===========
@@ -1242,6 +1250,7 @@ call close_file (ioun)
   !
   subroutine user_add_tracers(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
+    character(len=fm_string_len), parameter :: sub_name = 'user_add_tracers'
 
     !Add here only the parameters that are required at the time of registeration 
     !(to make flux exchanging Ocean tracers known for all PE's) 
@@ -1252,7 +1261,7 @@ call close_file (ioun)
     call g_tracer_add_param('ocean_restart_file' , bling%ocean_restart_file, 'ocean_bling.res.nc')
     call g_tracer_add_param('IC_file'       , bling%IC_file       , '')
 
-    call g_tracer_end_param_list()
+    call g_tracer_end_param_list(package_name)
 
     ! Set Restart files
     call g_tracer_set_files(ice_restart_file    = bling%ice_restart_file,&
@@ -1551,6 +1560,7 @@ call close_file (ioun)
   subroutine generic_BLING_update_from_coupler(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
 
+    character(len=fm_string_len), parameter :: sub_name = 'generic_BLING_update_from_coupler'
 
   end subroutine generic_BLING_update_from_coupler
 !#######################################################################
@@ -1652,6 +1662,7 @@ call close_file (ioun)
     real, dimension(:,ilb:,jlb:,:), intent(in) :: opacity_band
 
 
+    character(len=fm_string_len), parameter :: sub_name = 'generic_BLING_update_from_source'
     integer :: isc,iec, jsc,jec,isd,ied,jsd,jed,nk,ntau, i, j, k , kblt,n
     real, dimension(:,:,:) ,pointer :: grid_tmask
     integer, dimension(:,:),pointer :: mask_coast,grid_kmt
@@ -3028,6 +3039,7 @@ call close_file (ioun)
     real, dimension(:,:,:,:), pointer :: o2_field
     real, dimension(:,:), ALLOCATABLE :: co2_alpha,co2_csurf,o2_alpha,o2_csurf
     real, dimension(:,:), ALLOCATABLE :: co2_sat_alpha,co2_sat_csurf,c14o2_alpha,c14o2_csurf
+    character(len=fm_string_len), parameter :: sub_name = 'generic_BLING_set_boundary_values'
 
     !Get the necessary properties
     call g_tracer_get_common(isc,iec,jsc,jec,isd,ied,jsd,jed,nk,ntau,grid_tmask=grid_tmask) 
@@ -3097,16 +3109,15 @@ call close_file (ioun)
             grid_tmask(i,j,1)
        sc_no_term = sqrt(660.0 / (sc_o2 + epsln)) 
      
-       o2_alpha(i,j) = o2_saturation       * sc_no_term
+       o2_alpha(i,j) = o2_saturation       * sc_no_term * bling%Rho_0
        o2_csurf(i,j) = o2_field(i,j,1,tau) * sc_no_term * bling%Rho_0 !nnz: MOM has rho(i,j,1,tau)
 
+    enddo; enddo
     !
     !Set %csurf and %alpha for these tracers. This will mark them for sending fluxes to coupler
     !
     call g_tracer_set_values(tracer_list,'o2_b', 'alpha',o2_alpha, isd,jsd)
     call g_tracer_set_values(tracer_list,'o2_b', 'csurf',o2_csurf, isd,jsd)
-
-    enddo; enddo
 
     if (do_carbon) then                                !<<CARBON CYCLE
     
@@ -3228,6 +3239,7 @@ call close_file (ioun)
 
 
   subroutine generic_BLING_end
+    character(len=fm_string_len), parameter :: sub_name = 'generic_BLING_end'
     call user_deallocate_arrays
   end subroutine generic_BLING_end
 

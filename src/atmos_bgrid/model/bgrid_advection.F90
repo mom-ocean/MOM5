@@ -134,7 +134,7 @@ namelist /bgrid_advection_nml/ horiz_advec_scheme_wind,   vert_advec_scheme_wind
  logical :: do_clock_init = .true. 
 
  character(len=128) :: version='$Id: bgrid_advection.F90,v 19.0 2012/01/06 19:52:53 fms Exp $'
- character(len=128) :: tagname='$Name: siena_201207 $'
+ character(len=128) :: tagname='$Name: tikal $'
 
 !-----------------------------------------------------------------------
 

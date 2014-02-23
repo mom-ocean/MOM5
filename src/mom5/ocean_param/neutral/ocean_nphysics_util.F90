@@ -858,9 +858,9 @@ logical :: debug_this_module = .false.
 !*************************************
 
 character(len=128) :: version=&
-     '$Id: ocean_nphysics_util.F90,v 1.1.2.2 2012/05/17 13:41:47 smg Exp $'
+     '$Id: ocean_nphysics_util.F90,v 20.0 2013/12/14 00:14:52 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 character(len=*), parameter :: FILENAME=&
      __FILE__

@@ -183,9 +183,9 @@ type(ocean_domain_type), pointer :: Dom =>NULL()
 type(ocean_grid_type), pointer   :: Grd =>NULL()
 
 character(len=128) :: version=&
-       '$Id: ocean_passive.F90,v 1.1.2.3 2012/05/22 13:28:07 smg Exp $'
+       '$Id: ocean_passive.F90,v 20.0 2013/12/14 00:17:02 fms Exp $'
 character (len=128) :: tagname = &
-       '$Name: mom5_siena_08jun2012_smg $'
+       '$Name: tikal $'
 
 public ocean_passive_init
 public passive_tracer_init

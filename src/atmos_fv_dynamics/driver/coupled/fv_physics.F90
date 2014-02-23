@@ -10,7 +10,6 @@ module fv_physics_mod
 !        interface for FV dynamics with atmospheric physics
 !
 !-----------------------------------------------------------------------
-use diag_manager_mod,      only: diag_send_complete
 use      time_manager_mod, only: time_type, get_time, operator(-)
 use               fms_mod, only: error_mesg, FATAL, write_version_number, &
                                  clock_flag_default, NOTE, WARNING
@@ -64,8 +63,8 @@ public   fv_physics_down, fv_physics_up,  &
 public   surf_diff_type
 
 !-----------------------------------------------------------------------
-character(len=128) :: version = '$Id: fv_physics.F90,v 19.0 2012/01/06 20:00:12 fms Exp $'
-character(len=128) :: tag = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: fv_physics.F90,v 20.0 2013/12/13 23:08:17 fms Exp $'
+character(len=128) :: tag = '$Name: tikal $'
 !-----------------------------------------------------------------------
 
    real zvir, rrg, ginv
@@ -154,6 +153,8 @@ contains
     call physics_driver_init(Time, &
          rlonb2d(beglon:endlon+1,beglat:endlat+1), &
          rlatb2d(beglon:endlon+1,beglat:endlat+1), &
+         rlonb2d(beglon:endlon+1,beglat:endlat+1), & !dummy argument needed for interface change
+         rlatb2d(beglon:endlon+1,beglat:endlat+1), & !dummy argument needed for interface change
          axes, pref, q(beglon:endlon,beglat:endlat,:,1:ncnst), &
          Surf_diff, p_edge(beglon:endlon,:,:) )
 !    call physics_driver_init(Time, rlonb, rlatb(beglat:endlat+1), &
@@ -496,7 +497,6 @@ endif
     integer :: is_w, ie_w, js_w, je_w, phys_loop
     integer :: sec, day, npz
     real    :: dt
-    type(time_type) :: Time_step
 
 #include "fv_point.inc"
 
@@ -508,10 +508,10 @@ endif
     call get_time (Time_next-Time_prev, sec, day)
     dt = real(sec+day*86400)
  
-    call physics_driver_up_time_vary (Time, dt)
+    call physics_driver_up_time_vary (Time, Time_next, dt)
 
     call compute_p_z( beglon, beglat, nx_dom, ny_dom )
-    call physics_driver_moist_init (nx_dom, ny_dom,  npz, nt_prog) 
+    call physics_driver_moist_init (nx_dom, ny_dom,  npz, nt_prog, ncnst) 
 !$OMP parallel  do default(shared) private(phys_loop, isw, iew, jsw, jew)
     do phys_loop = 1, size(physics_window_y)!num_phys_windows
        jsw = physics_window_y(phys_loop)
@@ -532,12 +532,12 @@ endif
                    v_phys   (isw:iew,jsw:jew,:)           , &
                    t_phys   (isw:iew,jsw:jew,:)           , &
                    q_phys   (isw:iew,jsw:jew,:,1)         , &
-                   q_phys   (isw:iew,jsw:jew,:,1:nt_prog) , &
+                   q_phys   (isw:iew,jsw:jew,:,:)         , & ! cjg: pass all tracers
                    u_phys   (isw:iew,jsw:jew,:)           , &
                    v_phys   (isw:iew,jsw:jew,:)           , &
                    t_phys   (isw:iew,jsw:jew,:)           , &
                    q_phys   (isw:iew,jsw:jew,:,1)         , &
-                   q_phys   (isw:iew,jsw:jew,:,1:nt_prog) , &
+                   q_phys   (isw:iew,jsw:jew,:,:)         , & ! cjg: pass all tracers
                    frac_land(isw:iew,jsw:jew)             , &
                    u_star   (isw:iew,jsw:jew)             , &
                    b_star   (isw:iew,jsw:jew)             , &
@@ -564,12 +564,12 @@ endif
                    va       (isw:iew,jsw:jew,:)           , &
                    pt       (isw:iew,jsw:jew,:)           , &
                    q        (isw:iew,jsw:jew,:,1)         , &
-                   q        (isw:iew,jsw:jew,:,1:nt_prog) , &
+                   q        (isw:iew,jsw:jew,:,:)         , & ! cjg: pass all tracers
                    ua       (isw:iew,jsw:jew,:)           , &
                    va       (isw:iew,jsw:jew,:)           , &
                    pt       (isw:iew,jsw:jew,:)           , &
                    q        (isw:iew,jsw:jew,:,1)         , &
-                   q        (isw:iew,jsw:jew,:,1:nt_prog) , &
+                   q        (isw:iew,jsw:jew,:,:)         , & ! cjg: pass all tracers
                    frac_land(isw:iew,jsw:jew)             , &
                    u_star   (isw:iew,jsw:jew)             , &
                    b_star   (isw:iew,jsw:jew)             , &
@@ -587,12 +587,6 @@ endif
 
     enddo
     call physics_driver_moist_end
-
-    if(numthreads>1) Then
-       Time_step = Time_next - Time
-       call diag_send_complete(Time_step)
-    endif
-
 
     call physics_driver_up_endts(1, 1) !Note that these arguments are not used yet.
 

@@ -16,7 +16,8 @@
    some private routines used in this file
 *********************************************************************************/
 void set_regular_lonlat_grid( int nxp, int nyp, int isc, int iec, int jsc, int jec, double *xb, double *yb,
-			      double *x, double *y, double *dx, double *dy, double *area, double *angle );
+			      double *x, double *y, double *dx, double *dy, double *area, double *angle,
+			      int use_great_circle_algorithm);
 void set_f_plane_grid( int nxp, int nyp, int isc, int iec, int jsc, int jec, double *xb, double *yb, double f_plane_latitude, 
 		       double *x, double *y, double *dx, double *dy, double *area, double *angle);
 double cartesian_dist(double x1, double y1, double x2, double y2, double f_plane_latitude);
@@ -26,7 +27,7 @@ double cartesian_box_area(double x1, double y1, double x2, double y2, double f_p
    void create_regular_lonlat_grid( int *nxbnds, int *nybnds, double *xbnds, double *ybnds,
                                     int *nlon, int *nlat, int *isc, int *iec,
                                     int *jsc, int *jec, double *x, double *y, double *dx,
-                                    double *dy, double *area, double *angle_dx )
+                                    double *dy, double *area, double *angle_dx, int use_great_circle_algorithm )
    calculate grid location, length, area and rotation angle.
    The routine takes the following arguments
 
@@ -39,7 +40,8 @@ void create_regular_lonlat_grid( int *nxbnds, int *nybnds, double *xbnds, double
 		         	 int *nlon, int *nlat, double *dlon, double *dlat,
 				 int use_legacy, int *isc, int *iec,
 				 int *jsc, int *jec, double *x, double *y, double *dx,
-				 double *dy, double *area, double *angle_dx, const char *center )
+				 double *dy, double *area, double *angle_dx, const char *center,
+				 int use_great_circle_algorithm)
 {
   int nx, ny, nxp, nyp, nxb, nyb;
   double *xb=NULL, *yb=NULL;
@@ -75,7 +77,7 @@ void create_regular_lonlat_grid( int *nxbnds, int *nybnds, double *xbnds, double
     printf("%s\n" ,"      See documentation for generating periodic axes when  center = 'c_cell'");
   }   
      
-  set_regular_lonlat_grid( nxp, nyp, *isc, *iec, *jsc, *jec, xb, yb, x, y, dx, dy, area, angle_dx);
+  set_regular_lonlat_grid( nxp, nyp, *isc, *iec, *jsc, *jec, xb, yb, x, y, dx, dy, area, angle_dx, use_great_circle_algorithm);
   free(xb);
   free(yb);
     
@@ -161,7 +163,7 @@ void create_simple_cartesian_grid( double *xbnds, double *ybnds, int *nlon, int 
 *******************************************************************************/
 void create_spectral_grid( int *nlon, int *nlat, int *isc, int *iec,
 			   int *jsc, int *jec, double *x, double *y, double *dx,
-			   double *dy, double *area, double *angle_dx )
+			   double *dy, double *area, double *angle_dx, int use_great_circle_algorithm )
 {
   const int itermax = 10;
   const double epsln = 1e-15;
@@ -241,7 +243,7 @@ void create_spectral_grid( int *nlon, int *nlat, int *isc, int *iec,
   for(j=0;j<=nj;j++) yb[j*2]   = latb[j];
   for(j=0;j<nj; j++) yb[j*2+1] = lat[j];
 
-  set_regular_lonlat_grid( nxp, nyp, *isc, *iec, *jsc, *jec, xb, yb, x, y, dx, dy, area, angle_dx );
+  set_regular_lonlat_grid( nxp, nyp, *isc, *iec, *jsc, *jec, xb, yb, x, y, dx, dy, area, angle_dx, use_great_circle_algorithm );
   free(xb);
   free(yb);
   free(lon);
@@ -263,9 +265,11 @@ void create_spectral_grid( int *nlon, int *nlat, int *isc, int *iec,
    x and y are on global domain, the other fields are on compute domain 
 *******************************************************************************/
 void set_regular_lonlat_grid( int nxp, int nyp, int isc, int iec, int jsc, int jec, double *xb, double *yb,
-			      double *x, double *y, double *dx, double *dy, double *area, double *angle )
+			      double *x, double *y, double *dx, double *dy, double *area, double *angle,
+			      int use_great_circle_algorithm)
 {
   int n, i, j;
+  double lon[4], lat[4];
   
   n = 0;
   for(j=0; j<nyp; j++) {
@@ -291,13 +295,33 @@ void set_regular_lonlat_grid( int nxp, int nyp, int isc, int iec, int jsc, int j
   }
 
   /* cell area */
-  n = 0;
-  for(j=jsc; j<=jec; j++) {
-    for(i=isc; i<=iec; i++ ) {
-      area[n++] = box_area(x[j*nxp+i]*D2R, y[j*nxp+i]*D2R, x[(j+1)*nxp+i+1]*D2R, y[(j+1)*nxp+i+1]*D2R );
+  if(use_great_circle_algorithm) {
+    double *x_rad=NULL, *y_rad=NULL;
+    int nx, ny;
+
+    nx = nxp-1;
+    ny = nyp-1;
+    
+    /* since make_hgrid is limited to be run on 1 processor, we could assume nx = iec-isc+1 and ny=jec-jsc+1 */
+    x_rad  = (double *)malloc(nxp*nyp*sizeof(double));
+    y_rad  = (double *)malloc(nxp*nyp*sizeof(double));
+    for(i=0; i<nxp*nyp; i++){
+      x_rad[i] = x[i]*D2R;
+      y_rad[i] = y[i]*D2R;
+    }
+    get_grid_great_circle_area(&nx, &ny, x_rad, y_rad, area);
+    free(x_rad);
+    free(y_rad);
+  }
+  else {
+    n = 0;
+    for(j=jsc; j<=jec; j++) {
+      for(i=isc; i<=iec; i++ ) {
+	area[n++] = box_area(x[j*nxp+i]*D2R, y[j*nxp+i]*D2R, x[(j+1)*nxp+i+1]*D2R, y[(j+1)*nxp+i+1]*D2R );
+      }
     }
   }
-
+  
   /* rotation angle */
   n = 0;
   for(j=jsc; j<=jec+1; j++) {
@@ -318,7 +342,8 @@ void create_tripolar_grid( int *nxbnds, int *nybnds, double *xbnds, double *ybnd
 			   int *nlon, int *nlat, double *dlon, double *dlat,
 			   int use_legacy, double *lat_join_in, int *isc, int *iec,
 			   int *jsc, int *jec, double *x, double *y, double *dx, double *dy,
-			   double *area, double *angle_dx, const char *center, unsigned int verbose)
+			   double *area, double *angle_dx, const char *center, unsigned int verbose,
+			   int use_great_circle_algorithm)
 {
   int nxb, nyb, i, j, nx, ny, nxp, nyp, j_join, n, ip1, ii, n_count;
   double lat_join, lon_start, lon_end, lon_bpeq, lon_bpnp, lon_bpsp;
@@ -411,21 +436,44 @@ void create_tripolar_grid( int *nxbnds, int *nybnds, double *xbnds, double *ybnd
 
  /*calculte cell area */
   n = 0;
-  for(j=*jsc;j<=*jec;j++){
-    for(i=*isc;i<=*iec;i++){
-      if(j < j_join) 
-	area[n++] = box_area(x[j*nxp+i]*D2R, y[j*nxp+i]*D2R, x[(j+1)*nxp+i+1]*D2R, y[(j+1)*nxp+i+1]*D2R);
-      else {
-	x_poly[0] = x[j*nxp+i]*D2R;       y_poly[0] = y[j*nxp+i]*D2R;
-	x_poly[1] = x[j*nxp+i+1]*D2R;     y_poly[1] = y[j*nxp+i+1]*D2R;
-	x_poly[2] = x[(j+1)*nxp+i+1]*D2R; y_poly[2] = y[(j+1)*nxp+i+1]*D2R;
-	x_poly[3] = x[(j+1)*nxp+i]*D2R;   y_poly[3] = y[(j+1)*nxp+i]*D2R;
-        n_count = fix_lon(x_poly, y_poly, 4, M_PI);
-	area[n++] = poly_area(x_poly, y_poly, n_count);
-      }
+  if(use_great_circle_algorithm) {
+    double *cart_x=NULL, *cart_y=NULL, *cart_z=NULL;
+    double *x_rad=NULL, *y_rad=NULL;
+    
+    /* since make_hgrid is limited to be run on 1 processor, we could assume nx = iec-isc+1 and ny=jec-jsc+1 */
+    cart_x = (double *)malloc(nxp*nyp*sizeof(double));
+    cart_y = (double *)malloc(nxp*nyp*sizeof(double));
+    cart_z = (double *)malloc(nxp*nyp*sizeof(double));
+    x_rad  = (double *)malloc(nxp*nyp*sizeof(double));
+    y_rad  = (double *)malloc(nxp*nyp*sizeof(double));
+    for(i=0; i<nxp*nyp; i++){
+      x_rad[i] = x[i]*D2R;
+      y_rad[i] = y[i]*D2R;
     }
-  }  
-  
+    latlon2xyz(nxp*nyp, x_rad, y_rad, cart_x, cart_y, cart_z);
+    get_grid_great_circle_area(&nx, &ny, cart_x, cart_y, cart_z, area);
+    free(x_rad);
+    free(y_rad);
+    free(cart_x);
+    free(cart_y);
+    free(cart_z);
+  }
+  else { 
+    for(j=*jsc;j<=*jec;j++){
+      for(i=*isc;i<=*iec;i++){
+	if(j < j_join) 
+	  area[n++] = box_area(x[j*nxp+i]*D2R, y[j*nxp+i]*D2R, x[(j+1)*nxp+i+1]*D2R, y[(j+1)*nxp+i+1]*D2R);
+	else {
+	  x_poly[0] = x[j*nxp+i]*D2R;       y_poly[0] = y[j*nxp+i]*D2R;
+	  x_poly[1] = x[j*nxp+i+1]*D2R;     y_poly[1] = y[j*nxp+i+1]*D2R;
+	  x_poly[2] = x[(j+1)*nxp+i+1]*D2R; y_poly[2] = y[(j+1)*nxp+i+1]*D2R;
+	  x_poly[3] = x[(j+1)*nxp+i]*D2R;   y_poly[3] = y[(j+1)*nxp+i]*D2R;
+	  n_count = fix_lon(x_poly, y_poly, 4, M_PI);
+	  area[n++] = poly_area(x_poly, y_poly, n_count);
+	}
+      }
+    }  
+  }
   /*calculte rotation angle at cell vertex */
   n = 0;
   for(j=*jsc;j<=(*jec)+1;j++){

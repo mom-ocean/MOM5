@@ -6,7 +6,7 @@ use mpp_mod,          only : mpp_pe, mpp_max, mpp_send, mpp_recv, mpp_sync, &
 use nf_utils_mod,     only : nfu_inq_dim, nfu_get_var, nfu_put_var, &
      nfu_get_rec, nfu_put_rec, nfu_def_dim, nfu_def_var, nfu_put_att, &
      nfu_inq_var
-use land_io_mod,      only : print_netcdf_error
+use land_io_mod,      only : print_netcdf_error, input_buf_size
 use land_tile_mod,    only : land_tile_type, land_tile_list_type, &
      land_tile_enum_type, first_elmt, tail_elmt, next_elmt, get_elmt_indices, &
      current_tile, operator(/=)
@@ -32,14 +32,12 @@ public :: write_cohort_data_i0d_fptr
 ! ==== module constants ======================================================
 character(len=*), parameter :: &
      module_name = 'cohort_io_mod', &
-     version     = '$Id: vegn_cohort_io.F90,v 19.0.4.2 2012/05/14 19:18:34 Zhi.Liang Exp $', &
-     tagname     = '$Name: siena_201207 $'
+     version     = '$Id: vegn_cohort_io.F90,v 20.0 2013/12/13 23:31:02 fms Exp $', &
+     tagname     = '$Name: tikal $'
 ! name of the "compressed" dimension (and dimension variable) in the output 
 ! netcdf files -- that is, the dimensions written out using compression by 
 ! gathering, as described in CF conventions.
 character(len=*),   parameter :: cohort_index_name   = 'cohort_index'
-integer, parameter :: INPUT_BUF_SIZE = 1024 ! max size of the input buffer for
-                                     ! cohort input
 
 ! ==== NetCDF declarations ===================================================
 include 'netcdf.inc'
@@ -97,7 +95,7 @@ subroutine read_create_cohorts(ncid)
   ! read the cohort index
   __NF_ASRT__(nfu_inq_dim(ncid,cohort_index_name,len=ncohorts))
   __NF_ASRT__(nfu_inq_var(ncid,cohort_index_name,id=idxid))
-  bufsize = min(INPUT_BUF_SIZE,ncohorts)
+  bufsize = min(input_buf_size,ncohorts)
   allocate(idx(bufsize))
   
   do nn = 1, ncohorts, bufsize
@@ -226,7 +224,7 @@ subroutine create_cohort_dimension(ncid)
      enddo
      ! create cohort dimension in the output file
      iret = nf_redef(ncid)
-     __NF_ASRT__(nfu_def_dim(ncid,'cohort',max_cohorts))
+     __NF_ASRT__(nfu_def_dim(ncid,'cohort',(/(i,i=1,max_cohorts)/),'cohort number within tile'))
      ! create cohort index
      __NF_ASRT__(nfu_def_dim(ncid,cohort_index_name,idx2,'compressed vegetation cohort index'))
      __NF_ASRT__(nfu_put_att(ncid,cohort_index_name,'compress','cohort tile lat lon'))

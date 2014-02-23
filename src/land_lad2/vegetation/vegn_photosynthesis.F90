@@ -22,8 +22,8 @@ public :: vegn_photosynthesis
 
 ! ==== module constants ======================================================
 character(len=*), private, parameter :: &
-   version = '$Id: vegn_photosynthesis.F90,v 17.0 2009/07/21 03:03:26 fms Exp $', &
-   tagname = '$Name: siena_201207 $', &
+   version = '$Id: vegn_photosynthesis.F90,v 20.0 2013/12/13 23:31:14 fms Exp $', &
+   tagname = '$Name: tikal $', &
    module_name = 'vegn_photosynthesis'
 ! values for internal vegetation photosynthesis option selector
 integer, parameter :: VEGN_PHOT_SIMPLE  = 1 ! zero photosynthesis
@@ -62,8 +62,8 @@ end subroutine vegn_photosynthesis_init
 ! compute stomatal conductance, photosynthesis and respiration
 subroutine vegn_photosynthesis ( vegn, &
      PAR_dn, PAR_net, cana_q, cana_co2, p_surf, drag_q, &
-     soil_beta, soil_water_supply,&
-     stomatal_cond, psyn, resp )
+     soil_beta, soil_water_supply, &
+     evap_demand, stomatal_cond, psyn, resp )
   type(vegn_tile_type), intent(in) :: vegn
   real, intent(in)  :: PAR_dn   ! downward PAR at the top of the canopy, W/m2 
   real, intent(in)  :: PAR_net  ! net PAR absorbed by the canopy, W/m2
@@ -74,6 +74,7 @@ subroutine vegn_photosynthesis ( vegn, &
   real, intent(in)  :: soil_beta
   real, intent(in)  :: soil_water_supply ! max supply of water to roots per unit
                                 ! active root biomass per second, kg/(m2 s)
+  real, intent(out) :: evap_demand ! evaporative water demand, kg/(m2 s)
   real, intent(out) :: stomatal_cond ! stomatal conductance, m/s(?)
   real, intent(out) :: psyn     ! net photosynthesis, mol C/(m2 s)
   real, intent(out) :: resp     ! leaf respiration, mol C/(m2 s)
@@ -85,7 +86,8 @@ subroutine vegn_photosynthesis ( vegn, &
   ! ---- local vars
   type(vegn_cohort_type), pointer :: cohort
   integer :: sp ! shorthand for vegetation species
-  real    :: water_supply ! water supply per m2 of leaves
+  real    :: water_supply ! water supply, mol H2O per m2 of leaves per second
+  real    :: Ed ! evaporative demand, mol H2O per m2 of leaves per second
   real    :: fw, fs ! wet and snow-covered fraction of leaves
 
   ! get the pointer to the first (and, currently, the only) cohort
@@ -100,6 +102,7 @@ subroutine vegn_photosynthesis ( vegn, &
      cohort%An_cl  = 0
      psyn = 0
      resp = 0
+     evap_demand   = 0
 
   case(VEGN_PHOT_LEUNING)
      if(cohort%lai > 0) then
@@ -110,8 +113,8 @@ subroutine vegn_photosynthesis ( vegn, &
       
         call get_vegn_wet_frac (cohort, fw=fw, fs=fs)
         call gs_Leuning(PAR_dn, PAR_net, cohort%prog%Tv, cana_q, cohort%lai, &
-             cohort%leaf_age, p_surf, water_supply, sp, cana_co2, &
-             cohort%extinct, fs+fw, stomatal_cond, psyn, resp, cohort%pt)
+             cohort%leaf_age, p_surf, water_supply, sp, cohort%pt, cana_co2, &
+             cohort%extinct, fs+fw, stomatal_cond, psyn, resp, Ed)
         ! store the calculated photosythesis and fotorespiration for future use
         ! in carbon_int
         cohort%An_op  = psyn * seconds_per_year
@@ -121,6 +124,9 @@ subroutine vegn_photosynthesis ( vegn, &
         stomatal_cond = stomatal_cond*cohort%lai
         psyn          = psyn         *cohort%lai
         resp          = resp         *cohort%lai
+        ! convert evaporative demand from mol H2O/(m2_of_leaf s) to
+        ! kg/(m2_of_land s)
+        evap_demand   = Ed*mol_h2o   *cohort%lai
      else
         ! no leaves means no photosynthesis and no stomatal conductance either
         cohort%An_op  = 0
@@ -128,6 +134,7 @@ subroutine vegn_photosynthesis ( vegn, &
         stomatal_cond = 0
         psyn          = 0
         resp          = 0
+        evap_demand   = 0
      endif
 
   case default
@@ -140,9 +147,9 @@ end subroutine vegn_photosynthesis
 
 ! ============================================================================
 subroutine gs_Leuning(rad_top, rad_net, tl, ea, lai, leaf_age, &
-                   p_surf, ws, pft, ca, &
+                   p_surf, ws, pft, pt, ca, &
                    kappa, leaf_wet,  &
-                   gs, apot, acl, pt)
+                   gs, apot, acl, Ed)
   real,    intent(in)    :: rad_top ! PAR dn on top of the canopy, w/m2
   real,    intent(in)    :: rad_net ! PAR net on top of the canopy, w/m2
   real,    intent(in)    :: tl   ! leaf temperature, degK
@@ -150,8 +157,9 @@ subroutine gs_Leuning(rad_top, rad_net, tl, ea, lai, leaf_age, &
   real,    intent(in)    :: lai  ! leaf area index
   real,    intent(in)    :: leaf_age ! age of leaf since budburst (deciduos), days
   real,    intent(in)    :: p_surf ! surface pressure, Pa
-  real,    intent(in)    :: ws   ! water supply, mol H20/(m2 of leaf s)
+  real,    intent(in)    :: ws   ! water supply, mol H2O/(m2 of leaf s)
   integer, intent(in)    :: pft  ! species
+  integer, intent(in)    :: pt   ! physiology type (C3 or C4)
   real,    intent(in)    :: ca   ! concentartion of CO2 in the canopy air space, mol CO2/mol dry air
   real,    intent(in)    :: kappa! canopy extinction coefficient (move inside f(pft))
   real,    intent(in)    :: leaf_wet ! fraction of leaf that's wet or snow-covered
@@ -160,7 +168,7 @@ subroutine gs_Leuning(rad_top, rad_net, tl, ea, lai, leaf_age, &
   real,    intent(out)   :: gs   ! stomatal conductance, m/s
   real,    intent(out)   :: apot ! net photosynthesis, mol C/(m2 s)
   real,    intent(out)   :: acl  ! leaf respiration, mol C/(m2 s)
-  integer, intent(in)    :: pt   ! physiology type (C3 or C4)
+  real,    intent(out)   :: Ed   ! evaporative demand, mol H2O/(m2 s)
 
   ! ---- local vars     
   ! photosynthesis
@@ -198,7 +206,7 @@ subroutine gs_Leuning(rad_top, rad_net, tl, ea, lai, leaf_age, &
   real :: w_scale;
   real, parameter :: p_sea = 1.0e5 ! sea level pressure, Pa
   ! soil water stress
-  real :: Ed,an_w,gs_w;
+  real :: an_w,gs_w;
 
   if (is_watch_point()) then
      write(*,*) '####### gs_leuning input #######'

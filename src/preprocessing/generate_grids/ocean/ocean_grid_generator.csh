@@ -21,7 +21,7 @@
 #######################################################################
 
   set echo
-  set platform     = "gfdl_ws_64.intel"                                    # A unique identifier for your platform
+  set platform     = "ncrc.intel"                                    # A unique identifier for your platform
   set npes         = 1                                      # number of processors
 #
 # input data file and destination grid

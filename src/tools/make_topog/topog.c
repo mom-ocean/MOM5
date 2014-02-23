@@ -339,7 +339,7 @@ void create_realistic_topog(int nx_dst, int ny_dst, const double *x_dst, const d
 			    int deepen_shallow, int full_cell, int flat_bottom, int adjust_topo,
 			    int fill_isolated_cells, int dont_change_landmask, int kmt_min, double min_thickness,
 			    int open_very_this_cell, double fraction_full_cell, double *depth,
-			    int *num_levels, domain2D domain, int debug )
+			    int *num_levels, domain2D domain, int debug, int use_great_circle_algorithm )
 {
   char xname[128], yname[128];
   int nx_src, ny_src, nxp_src, nyp_src, i, j, count, n;
@@ -479,9 +479,12 @@ void create_realistic_topog(int nx_dst, int ny_dst, const double *x_dst, const d
     }
   }
   
-  
-  conserve_interp(nx_src, ny_now, nx_dst, ny_dst, x_src, y_src,
-		  x_out, y_out, mask_src, depth_src, depth );
+  if(use_great_circle_algorithm)  
+    conserve_interp_great_circle(nx_src, ny_now, nx_dst, ny_dst, x_src, y_src,
+		    x_out, y_out, mask_src, depth_src, depth );
+  else
+    conserve_interp(nx_src, ny_now, nx_dst, ny_dst, x_src, y_src,
+		    x_out, y_out, mask_src, depth_src, depth );
   
   if (filter_topog) filter_topo(nx_dst, ny_dst, num_filter_pass, smooth_topo_allow_deepening, depth, domain);
   if(debug) show_deepest(nk, zw, depth, domain);

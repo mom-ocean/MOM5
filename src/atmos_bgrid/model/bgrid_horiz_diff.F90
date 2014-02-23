@@ -116,7 +116,7 @@ namelist /bgrid_horiz_diff_nml/ damp_scheme_temp, damp_scheme_wind,      &
  integer  :: nlev ! number of model levels
 
  character(len=128) :: version='$Id: bgrid_horiz_diff.F90,v 19.0 2012/01/06 19:54:01 fms Exp $'
- character(len=128) :: tagname='$Name: siena_201207 $'
+ character(len=128) :: tagname='$Name: tikal $'
  logical :: do_log = .true.
 
 !  timing data

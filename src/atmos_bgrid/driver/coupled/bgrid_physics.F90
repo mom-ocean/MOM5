@@ -46,8 +46,8 @@ public   bgrid_physics_down, bgrid_physics_up,  &
 public   surf_diff_type
 
 !-----------------------------------------------------------------------
-character(len=128) :: version = '$Id: bgrid_physics.F90,v 19.0 2012/01/06 19:52:48 fms Exp $'
-character(len=128) :: tag = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: bgrid_physics.F90,v 19.0.2.1 2013/12/18 23:34:26 Niki.Zadeh Exp $'
+character(len=128) :: tag = '$Name:  $'
 !-----------------------------------------------------------------------
 
 real, allocatable, dimension(:,:,:) :: u_dt, v_dt
@@ -407,7 +407,7 @@ subroutine bgrid_physics_up (window, dt_phys,            &
 type (horiz_grid_type),intent(inout) :: Hgrid
 type  (vert_grid_type),intent(in)    :: Vgrid
 type(bgrid_dynam_type),intent(in)    :: Dynam
-type   (prog_var_type),intent(in)    :: Var
+type   (prog_var_type),intent(inout)    :: Var
 type   (prog_var_type),intent(inout) :: Var_dt
 
 real, intent(in), dimension(Hgrid%ilb:Hgrid%iub, &
@@ -421,7 +421,7 @@ type(surf_diff_type), intent(inout) :: Surf_diff
   real,    intent(in), dimension(Hgrid%Tmp%is:,Hgrid%Tmp%js:) :: u_star, b_star, q_star
 
 !-----------------------------------------------------------------------
-  integer :: j, k, n, is, ie, js, je, i1, i2, j1, j2, sphum, ntp, npz
+  integer :: j, k, n, is, ie, js, je, i1, i2, j1, j2, sphum, ntp, npz,nt
   integer :: ix, jx, idim, jdim
   integer :: sec, day
   real    :: dt
@@ -443,7 +443,7 @@ type(surf_diff_type), intent(inout) :: Surf_diff
     call get_time (Time_next-Time_prev, sec, day)
     dt = real(sec+day*86400)
  
-    call physics_driver_up_time_vary (Time, dt)
+    call physics_driver_up_time_vary (Time, Time_next, dt)
  
 
 !-----------------------------------------------------------------------
@@ -472,8 +472,8 @@ type(surf_diff_type), intent(inout) :: Surf_diff
     ntp = Var_dt%ntrace
     js = Hgrid%Tmp%js
     npz = size(p_full,3)
-
-    call physics_driver_moist_init (window(1), window(2),  npz, ntp) 
+    nt = Var%ntrace
+    call physics_driver_moist_init (window(1), window(2),  npz, ntp, nt) 
     do while ( js <= Hgrid%Tmp%je )
 
        je = min ( js+jdim-1, Hgrid%Tmp%je )
@@ -531,12 +531,12 @@ type(surf_diff_type), intent(inout) :: Surf_diff
                               vh       (is:ie,js:je,:)            ,&
                               Var%t(is:ie,js:je,:)                ,&
                               Var%r(is:ie,js:je,:,sphum)          ,&
-                              Var%r(is:ie,js:je,:,1:ntp)          ,&
+                              Var%r(is:ie,js:je,:,:)          ,&
                               uh       (is:ie,js:je,:)            ,&
                               vh       (is:ie,js:je,:)            ,&
                               Var%t (is:ie,js:je,:)               ,&
                               Var%r (is:ie,js:je,:,sphum)         ,&
-                              Var%r (is:ie,js:je,:,1:ntp)         ,&
+                              Var%r (is:ie,js:je,:,:)         ,&
                               frac_land(is:ie,js:je)              ,&
                               u_star(is:ie,js:je)                 ,&
                               b_star(is:ie,js:je)                 ,&
@@ -545,7 +545,7 @@ type(surf_diff_type), intent(inout) :: Surf_diff
                               v_dt     (is:ie,js:je,:)            ,&
                               Var_dt%t (is:ie,js:je,:)            ,&
                               Var_dt%r (is:ie,js:je,:,sphum)      ,&
-                              Var_dt%r (is:ie,js:je,:,1:ntp)      ,&
+                              Var_dt%r (is:ie,js:je,:,:)      ,&
                               Surf_diff                           ,&
                               lprec    (is:ie,js:je)              ,&
                               fprec    (is:ie,js:je)              ,&
@@ -704,11 +704,11 @@ type (surf_diff_type), intent(inout) :: Surf_diff
 !---------- initialize physics -------
 
     if (Dynam%Masks%sigma) then
-        call physics_driver_init (Time, lonb2d, latb2d, axes, pref,  &
+        call physics_driver_init (Time, lonb2d, latb2d, lonb2d, latb2d, axes, pref,  &
                                   Var%r(is:ie,js:je,:,1:nt),     &
                                   Surf_diff, phalf               )
     else
-        call physics_driver_init (Time, lonb2d, latb2d, axes, pref,   &
+        call physics_driver_init (Time, lonb2d, latb2d, lonb2d, latb2d, axes, pref,   &
                                   Var%r(is:ie,js:je,:,1:nt),      &
                                   Surf_diff, phalf,               &
                         mask=Dynam%Masks%Tmp%mask(is:ie,js:je,:), &

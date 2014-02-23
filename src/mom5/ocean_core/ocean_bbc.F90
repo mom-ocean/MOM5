@@ -171,9 +171,9 @@ type(ocean_grid_type), pointer   :: Grd =>NULL()
 type(ocean_domain_type), pointer :: Dom =>NULL()
 
 character(len=128) :: version=&
-     '$Id: ocean_bbc.F90,v 1.1.2.7 2012/06/04 00:11:43 Stephen.Griffies Exp $'
+     '$Id: ocean_bbc.F90,v 20.0 2013/12/14 00:10:36 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 public  :: ocean_bbc_init
 public  :: get_ocean_bbc

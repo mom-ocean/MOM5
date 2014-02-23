@@ -227,7 +227,7 @@ use  fms_mod,             only:  file_exist, fms_init,       &
 use  constants_mod,       only:  RDGAS, GRAV, TFREEZE, DENS_H2O, &
                                  constants_init, pi
 use  gamma_mg_mod,        ONLY : gamma_mg,  gamma_mg_init,  gamma_mg_end
-use mg_const_mod,         ONLY : mg_const_init, rhow, qcvar, di_mg, ci_mg
+use mg_const_mod,         ONLY : mg_const_init, rhow, di_mg, ci_mg
 use  diag_manager_mod,    only:  diag_manager_init,    &
                                  register_diag_field, send_data
 use  time_manager_mod,    only:  time_type, time_manager_init
@@ -254,8 +254,8 @@ private
 !---------------------------------------------------------------------
 !------------ version number for this module -------------------------
         
-character(len=128) :: version = '$Id: cloud_rad.F90,v 19.0 2012/01/06 20:02:15 fms Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: cloud_rad.F90,v 20.0 2013/12/13 23:09:10 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 
 !---------------------------------------------------------------------- 
@@ -461,6 +461,8 @@ real, parameter :: k_ocean = 1.077  ! ratio of effective radius to
 !       that both strat_cloud and cloud_rad have the exact same values
 !       for these parameters.
  
+real            :: qcvar
+
 !----------------------------------------------------------------------
 !    diagnostics variables.        
 !----------------------------------------------------------------------
@@ -560,7 +562,8 @@ logical   :: do_ice_num          = .false. ! use prog ice crystal number?
 ! </SUBROUTINE>
 !
 subroutine cloud_rad_init (axes, Time, qmin_in, N_land_in, N_ocean_in, &
-                           prog_droplet_in, prog_ice_num_in, overlap_out)
+                           prog_droplet_in, prog_ice_num_in,  qcvar_in, &
+                           overlap_out)
                                
 !--------------------------------------------------------------------
 !    cloud_rad_init is the constructor for cloud_rad_mod.
@@ -628,6 +631,7 @@ REAL,     INTENT (IN),  OPTIONAL          :: qmin_in,N_land_in,&
                                              N_ocean_in
 LOGICAL,  INTENT (IN), OPTIONAL           :: prog_droplet_in
 LOGICAL,  INTENT (IN), OPTIONAL           :: prog_ice_num_in
+REAL   ,  INTENT (IN), OPTIONAL           :: qcvar_in
 INTEGER,  INTENT (OUT), OPTIONAL          :: overlap_out
 
 !  Internal variables
@@ -718,6 +722,9 @@ INTEGER                                  :: unit,io,ierr, logunit
         end if
         if (present(prog_ice_num_in)) then
               do_ice_num = prog_ice_num_in
+        end if
+        if (present(qcvar_in)) then
+              qcvar = qcvar_in
         end if
  
         call mg_const_init

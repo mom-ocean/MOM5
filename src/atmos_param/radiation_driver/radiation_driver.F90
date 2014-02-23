@@ -226,8 +226,8 @@ private
 !----------------------------------------------------------------------
 !------------ version number for this module --------------------------
 
-character(len=128) :: version = '$Id: radiation_driver.F90,v 18.0.2.1.2.2.2.1.2.1.6.1.2.1.4.1.2.1 2012/04/04 15:06:36 z1l Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: radiation_driver.F90,v 20.0 2013/12/13 23:18:44 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 
 !---------------------------------------------------------------------
@@ -1095,6 +1095,7 @@ real, dimension(:,:), allocatable :: olr_intgl, swabs_intgl
 ! </SUBROUTINE>
 !
 subroutine radiation_driver_init (lonb, latb, pref, axes, Time, &
+                                  donner_meso_is_largescale, &
                                   aerosol_names, aerosol_family_names,&
                                   do_cosp, ncol)
 
@@ -1107,6 +1108,7 @@ real, dimension(:,:),            intent(in)  :: lonb, latb
 real, dimension(:,:),            intent(in)  :: pref
 integer, dimension(4),           intent(in)  :: axes
 type(time_type),                 intent(in)  :: Time
+logical,                         intent(in)  :: donner_meso_is_largescale
 character(len=*), dimension(:), intent(in)   :: aerosol_names
 character(len=*), dimension(:), intent(in)   :: aerosol_family_names
 logical,                         intent(in)  :: do_cosp
@@ -2021,7 +2023,8 @@ integer,                         intent(out) :: ncol
 !---------------------------------------------------------------------
         call sea_esf_rad_init        (lonb, latb, pref(ks:ke+1,:))
         call cloudrad_package_init   (pref(ks:ke+1,:), lonb, latb,  &
-                                      axes, Time)
+                                      axes, Time,   &
+                                      donner_meso_is_largescale)
         call aerosolrad_package_init (kmax, aerosol_names, lonb, latb)
         call rad_output_file_init    (axes, Time, aerosol_names, &
                                       aerosol_family_names)

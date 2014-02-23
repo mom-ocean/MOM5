@@ -52,8 +52,8 @@ public :: glac_step_2
 ! ==== module constants ======================================================
 character(len=*), parameter :: &
        module_name = 'glacier',&
-       version     = '$Id: glacier.F90,v 19.0 2012/01/06 20:40:49 fms Exp $',&
-       tagname     = '$Name: siena_201207 $'
+       version     = '$Id: glacier.F90,v 20.0 2013/12/13 23:29:35 fms Exp $',&
+       tagname     = '$Name: tikal $'
  
 ! ==== module variables ======================================================
 
@@ -364,7 +364,8 @@ subroutine glac_step_1 ( glac, &
 
      bbb = 1.0 - aaa(num_l)
      denom = bbb
-     dt_e = aaa(num_l)*(glac%prog(num_l)%T - glac%prog(num_l-1)%T)
+     dt_e = aaa(num_l)*(glac%prog(num_l)%T - glac%prog(num_l-1)%T) &
+               + glac%geothermal_heat_flux * delta_time / heat_capacity(num_l)
      glac%e(num_l-1) = -aaa(num_l)/denom
      glac%f(num_l-1) = dt_e/denom
      do l = num_l-1, 2, -1
@@ -466,7 +467,7 @@ end subroutine glac_step_1
      write(*,*) 'subs_M_imp   ', subs_M_imp
      write(*,*) 'theta_s ', glac%pars%w_sat
      do l = 1, num_l
-        write(*,'(i2.2,99(a,g))')l,&
+        write(*,'(i2.2,99(a,g23.16))')l,&
              ' T =', glac%prog(l)%T,&
              ' Th=', (glac%prog(l)%ws+glac%prog(l)%wl)/(dens_h2o*dz(l)),&
              ' wl=', glac%prog(l)%wl,&
@@ -502,7 +503,7 @@ end subroutine glac_step_1
      write(*,*) 'fevap=',glac_fevap
      write(*,*) 'subs_M_imp=',subs_M_imp
      do l = 1, num_l
-        write(*,'(i2.2,x,a,g)') l, 'T', glac%prog(l)%T
+        write(*,'(i2.2,x,a,g23.16)') l, 'T', glac%prog(l)%T
      enddo
   endif
 
@@ -527,7 +528,7 @@ ELSE   ! ****************************************************************
   if(is_watch_point()) then
      write(*,*) ' ***** glac_step_2 checkpoint 3 ***** '
      do l = 1, num_l
-        write(*,'(i2.2,99(a,g))') l,&
+        write(*,'(i2.2,99(a,g23.16))') l,&
              ' T =', glac%prog(l)%T,&
              ' wl=', glac%prog(l)%wl,&
              ' ws=', glac%prog(l)%ws
@@ -546,7 +547,7 @@ ELSE   ! ****************************************************************
      if(is_watch_point()) then
         write(*,*) ' ***** glac_step_2 checkpoint 3.1 ***** '
         do l = 1, num_l
-           write(*,'(i2.2,99(x,a,g))') l, 'vlc', vlc(l),&
+           write(*,'(i2.2,99(x,a,g23.16))') l, 'vlc', vlc(l),&
                 'K  ', hyd_cond(l)
         enddo
      
@@ -584,11 +585,11 @@ ELSE   ! ****************************************************************
     if(is_watch_point()) then
        write(*,*) ' ***** glac_step_2 checkpoint 3.1 ***** '
        do l = 1, num_l
-          write(*,'(i2.2,x,a,99g)') l, 'DThDP,hyd_cond,psi,DKDP', &
+          write(*,'(i2.2,x,a,99g23.16)') l, 'DThDP,hyd_cond,psi,DKDP', &
                DThDP(l), hyd_cond(l), psi(l), DKDP(l)
        enddo
        do l = 1, num_l-1
-          write(*,'(i2.2,x,a,99g)') l, 'K,DKDPm,DKDPp,grad,del_z', &
+          write(*,'(i2.2,x,a,99g23.16)') l, 'K,DKDPm,DKDPp,grad,del_z', &
                K(l), DKDPm(l), DKDPp(l), grad(l)
       enddo
     endif
@@ -602,7 +603,7 @@ ELSE   ! ****************************************************************
     fff(l-1) =  ddd/bbb
     
     if(is_watch_point()) then
-       write(*,'(a,i,99g)') 'l,a,b, ,d', l,aaa, bbb,ddd       
+       write(*,'(a,i4,99g23.16)') 'l,a,b, ,d', l,aaa, bbb,ddd       
     endif
 
 
@@ -617,7 +618,7 @@ ELSE   ! ****************************************************************
       eee(l-1) =                    -aaa/(bbb+ccc*eee(l))
       fff(l-1) =  (ddd-ccc*fff(l))/(bbb+ccc*eee(l))
       if(is_watch_point()) then
-         write(*,'(a,i,99g)') 'l,a,b,c,d', l,aaa, bbb,ccc,ddd
+         write(*,'(a,i4,99g23.16)') 'l,a,b,c,d', l,aaa, bbb,ccc,ddd
       endif
     enddo
 
@@ -639,12 +640,12 @@ ELSE   ! ****************************************************************
     lrunf_ie         = lprec_eff - flow(l)/delta_time
 
     if(is_watch_point()) then
-       write(*,'(a,i,99g)') 'l,  b,c,d', l, bbb,ccc,ddd
+       write(*,'(a,i4,99g23.16)') 'l,  b,c,d', l, bbb,ccc,ddd
 
        write(*,*) ' ***** glac_step_2 checkpoint 3.2 ***** '
        write(*,*) 'ie,sn,bf:', lrunf_ie,lrunf_sn,lrunf_bf
        do l = 1, num_l-1
-          write(*,'(a,i,99g)') 'l,eee(l),fff(l)', l,eee(l), fff(l)
+          write(*,'(a,i4,99g23.16)') 'l,eee(l),fff(l)', l,eee(l), fff(l)
        enddo
        write(*,*) 'DThDP(1)', DThDP(1)
        write(*,*) 'ddd(1)', ddd
@@ -677,7 +678,7 @@ ELSE   ! ****************************************************************
      write(*,*) 'psi_sat',glac%pars%psi_sat_ref
      write(*,*) 'Dpsi_max',Dpsi_max
      do l = 1, num_l
-        write(*,'(i2.2,99(a,g))')l,&
+        write(*,'(i2.2,99(a,g23.16))')l,&
              ' Th=', (glac%prog(l)%ws+glac%prog(l)%wl)/(dens_h2o*dz(l)),&
              ' wl=', glac%prog(l)%wl,&
              ' ws=', glac%prog(l)%ws,&
@@ -753,7 +754,7 @@ ELSE   ! ****************************************************************
      write(*,*) 'hcap', hcap
      write(*,*) 'cap_flow', cap_flow
      do l = 1, num_l
-        write(*,'(i2.2,99(a,g))')l, ' T', glac%prog(l)%T, ' flow ',flow(l)
+        write(*,'(i2.2,99(a,g23.16))')l, ' T', glac%prog(l)%T, ' flow ',flow(l)
      enddo
      write(*,*) 'delta_time,tau_gw,c0,c1,c2,x', delta_time,tau_gw,c0,&
           c1,c2,x
@@ -781,7 +782,7 @@ ELSE   ! ****************************************************************
      write(*,*) 'hcap', hcap
      write(*,*) 'cap_flow', cap_flow
      do l = 1, num_l
-        write(*,'(i2.2,99(a,g))')l, ' T', glac%prog(l)%T
+        write(*,'(i2.2,99(a,g23.16))')l, ' T', glac%prog(l)%T
      enddo
   endif
     do l = 1, num_l
@@ -798,7 +799,7 @@ ELSE   ! ****************************************************************
       endif
 
       if(is_watch_point()) then
-         write(*,'(a,i,99g)') 'l,T,wl(1),ws(1),melt:', l,glac%prog(l)%T, glac%prog(l)%wl, &
+         write(*,'(a,i4,99g23.16)') 'l,T,wl(1),ws(1),melt:', l,glac%prog(l)%T, glac%prog(l)%wl, &
               glac%prog(l)%ws, melt
       endif
 
@@ -808,7 +809,7 @@ ELSE   ! ****************************************************************
          + (hcap*(glac%prog(l)%T-tfreeze) - hlf*melt) &
                               / ( hcap + (clw-csw)*melt )
       if(is_watch_point()) then
-         write(*,'(a,i,99g)') 'l,T,wl(1),ws(1):', l,glac%prog(l)%T, glac%prog(l)%wl, &
+         write(*,'(a,i4,99g23.16)') 'l,T,wl(1),ws(1):', l,glac%prog(l)%T, glac%prog(l)%wl, &
               glac%prog(l)%ws
       endif
 
@@ -819,7 +820,7 @@ ELSE   ! ****************************************************************
      write(*,*) 'i,j,k,melt:',&
           glac_melt*delta_time
      do l = 1, num_l
-        write(*,'(i2.2,99(a,g))')l, &
+        write(*,'(i2.2,99(a,g23.16))')l, &
              ' T =', glac%prog(l)%T, &
              ' Th=', (glac%prog(l)%ws+glac%prog(l)%wl)/(dens_h2o*dz(l)),&
              ' wl=', glac%prog(l)%wl,&
@@ -917,45 +918,65 @@ end function glac_tile_exists
 subroutine glac_temp_ptr(tile, ptr)
    type(land_tile_type), pointer :: tile
    real                , pointer :: ptr(:)
+   integer :: n
    ptr=>NULL()
    if(associated(tile)) then
-      if(associated(tile%glac)) ptr=>tile%glac%prog%T
+      if(associated(tile%glac)) then
+        n = size(tile%glac%prog)
+        ptr(1:n) => tile%glac%prog(1:n)%T
+      endif
    endif
 end subroutine glac_temp_ptr
 
 subroutine glac_wl_ptr(tile, ptr)
    type(land_tile_type), pointer :: tile
    real                , pointer :: ptr(:)
+   integer :: n
    ptr=>NULL()
    if(associated(tile)) then
-      if(associated(tile%glac)) ptr=>tile%glac%prog%wl
+      if(associated(tile%glac)) then
+        n = size(tile%glac%prog)
+        ptr(1:n) => tile%glac%prog(1:n)%wl
+      endif
    endif
 end subroutine glac_wl_ptr
 
 subroutine glac_ws_ptr(tile, ptr)
    type(land_tile_type), pointer :: tile
    real                , pointer :: ptr(:)
+   integer :: n
    ptr=>NULL()
    if(associated(tile)) then
-      if(associated(tile%glac)) ptr=>tile%glac%prog%ws
+      if(associated(tile%glac)) then
+        n = size(tile%glac%prog)
+        ptr(1:n) => tile%glac%prog(1:n)%ws
+      endif
    endif
 end subroutine glac_ws_ptr
 
 subroutine glac_gw_ptr(tile, ptr)
    type(land_tile_type), pointer :: tile
    real                , pointer :: ptr(:)
+   integer :: n
    ptr=>NULL()
    if(associated(tile)) then
-      if(associated(tile%glac)) ptr=>tile%glac%prog%groundwater
+      if(associated(tile%glac)) then
+        n = size(tile%glac%prog)
+        ptr(1:n) => tile%glac%prog(1:n)%groundwater
+      endif
    endif
 end subroutine glac_gw_ptr
 
 subroutine glac_gwT_ptr(tile, ptr)
    type(land_tile_type), pointer :: tile
    real                , pointer :: ptr(:)
+   integer :: n
    ptr=>NULL()
    if(associated(tile)) then
-      if(associated(tile%glac)) ptr=>tile%glac%prog%groundwater_T
+      if(associated(tile%glac)) then
+        n = size(tile%glac%prog)
+        ptr(1:n) => tile%glac%prog(1:n)%groundwater_T
+      endif
    endif
 end subroutine glac_gwT_ptr
 

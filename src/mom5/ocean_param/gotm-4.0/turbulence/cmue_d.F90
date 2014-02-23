@@ -48,14 +48,17 @@
    integer, intent(in)       :: nlev
 
 ! !DEFINED PARAMETERS:
-   REALTYPE, parameter       :: anLimitFact = 0.5
-   REALTYPE, parameter       :: small       = 1.0e-10
+   REALTYPE, parameter       :: anLimitFact = 0.5D0
+   REALTYPE, parameter       :: small       = 1.0D-10
 
 !
 ! !REVISION HISTORY:
 !  Original author(s): Lars Umlauf
 !
 !  $Log: cmue_d.F90,v $
+!  Revision 20.0  2013/12/14 00:13:31  fms
+!  Merged revision 1.1.2.1 onto trunk
+!
 !  Revision 1.1.2.1  2012/05/15 16:00:53  smg
 !  initial cvs ci for these modules to mom5.
 !  AUTHOR:Griffies

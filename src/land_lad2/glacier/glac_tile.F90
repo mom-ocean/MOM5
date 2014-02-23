@@ -52,8 +52,8 @@ end interface
 
 ! ==== module constants ======================================================
 character(len=*), parameter   :: &
-     version     = '$Id: glac_tile.F90,v 19.0 2012/01/06 20:40:47 fms Exp $', &
-     tagname     = '$Name: siena_201207 $', &
+     version     = '$Id: glac_tile.F90,v 20.0 2013/12/13 23:29:33 fms Exp $', &
+     tagname     = '$Name: tikal $', &
      module_name = 'glac_tile_mod'
 
 integer, parameter :: max_lev          = 30 ! max number of levels in glacier
@@ -111,6 +111,7 @@ type :: glac_tile_type
    real,                 pointer :: w_wilt(:)
    real :: Eg_part_ref
    real :: z0_scalar
+   real :: geothermal_heat_flux
 
    real, pointer :: heat_capacity_dry(:)
    real, pointer :: e(:), f(:)
@@ -160,6 +161,7 @@ integer :: glac_index_constant   = 1         ! index of global constant glacier,
 real    :: gw_res_time           = 60.*86400 ! mean groundwater residence time,
                                              ! used when use_single_geo
 real    :: rsa_exp_global        = 1.5
+real    :: geothermal_heat_flux_constant = 0.0  ! true continental average is ~0.065 W/m2
 real, dimension(n_dim_glac_types) :: &
      dat_w_sat             =(/ 1.000   /),&
      dat_awc_lm2           =(/ 1.000   /),&
@@ -197,7 +199,7 @@ namelist /glac_data_nml/ &
      use_lm2_awc,   use_lad1_glac, &
      use_single_glac,      use_mcm_albedo,            &
      use_single_geo,        glac_index_constant,         &
-     gw_res_time,           rsa_exp_global,      &
+     gw_res_time,      rsa_exp_global,  geothermal_heat_flux_constant, &
      dat_w_sat,             dat_awc_lm2,     &
      dat_k_sat_ref,         &
      dat_psi_sat_ref,               dat_chb,          &
@@ -367,6 +369,7 @@ subroutine glacier_data_init_0d(glac)
        *(2*pi/(3*glac%pars%chb**2*(1+3/glac%pars%chb)*(1+4/glac%pars%chb)))/2
 
   glac%z0_scalar = glac%pars%z0_momentum * exp(-k_over_B)
+  glac%geothermal_heat_flux = geothermal_heat_flux_constant
   
 end subroutine glacier_data_init_0d
 

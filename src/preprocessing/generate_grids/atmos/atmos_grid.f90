@@ -142,7 +142,7 @@ module atmos_grid_mod
 
   !---------version information-------------------------------------------
   character(len=128) :: version = '$Id: atmos_grid.f90,v 10.0 2003/10/24 22:01:43 fms Exp $'
-  character(len=128) :: tagname = '$Name: siena_201207 $' 
+  character(len=128) :: tagname = '$Name: tikal $' 
   !---------public interface----------------------------------------------
   public :: generate_atmos_grid, atmos_grid_init, atmos_grid_end, atmos_grid_type
   public :: write_atmos_grid_meta, write_atmos_grid_data

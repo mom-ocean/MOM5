@@ -30,7 +30,7 @@ private
 public :: bisect    ! finds a position of point in array of bounds
 public :: lin_int   ! linear interpolation
 public :: ludcmp, lubksb ! LU decomposition and back substitution
-public :: tridiag   ! tridiagonal system solver
+public :: tridiag   ! tri-diagonal system solver
 public :: nearest   ! nearest point search
 
 public :: horiz_remap_type
@@ -59,8 +59,8 @@ logical :: module_is_initialized =.FALSE.
 ! module constants
 character(len=*), parameter :: &
      mod_name = 'land_numerics_mod', &
-     version  = '$Id: land_numerics.F90,v 19.0.4.2 2012/05/14 19:13:46 Zhi.Liang Exp $', &
-     tagname  = '$Name: siena_201207 $', &
+     version  = '$Id: land_numerics.F90,v 20.0 2013/12/13 23:29:53 fms Exp $', &
+     tagname  = '$Name: tikal $', &
      thisfile = __FILE__
 ! ==== public type ===========================================================
 ! this data structure describes the horizontal remapping: that is, the operation 
@@ -124,8 +124,8 @@ function bisect(xx, x1, periodic)
   ! bring the point inside bounds of the period
   if (present(periodic)) then
      if (periodic) then
-        __ASSERT__(xx(n)-xx(1)/=0,"periodic bisect: period equal to zero")
-        x = modulo(x-min(xx(1),xx(n)),abs(xx(n)-xx(1)))+min(xx(1),xx(n))
+	__ASSERT__(xx(n)-xx(1)/=0,"periodic bisect: period equal to zero")
+	x = modulo(x-min(xx(1),xx(n)),abs(xx(n)-xx(1)))+min(xx(1),xx(n))
      endif
   endif
 
@@ -153,8 +153,8 @@ end function bisect
 !     Linearly interpolates 1-D data.
 subroutine lin_int0(data, xx, x, res)
   real, intent(in) :: data(:)    ! data to interpolate
-  real, intent(in) :: xx(:)      ! coord. corresponding to data
-  real, intent(in) :: x          ! coord to interpolate to
+  real, intent(in) :: xx(:)      ! coordinates of the data points
+  real, intent(in) :: x          ! coordinates to interpolate to
   real, intent(inout) :: res     ! result of interpolation
 
   ! ---- local vars ----------------------------------------------------------
@@ -180,8 +180,8 @@ end subroutine lin_int0
 subroutine lin_int1(data, xx, x, res)
 
   real, intent(in) :: data(:,:)    ! data to interpolate
-  real, intent(in) :: xx(:)        ! coord. corresponding to data
-  real, intent(in) :: x            ! coord to interpolate to
+  real, intent(in) :: xx(:)        ! coordinates of the data points
+  real, intent(in) :: x            ! coordinates to interpolate to
   real, intent(inout) :: res(:)    ! result of interpolation
 
   ! ---- local vars ----------------------------------------------------------
@@ -232,8 +232,8 @@ end subroutine lin_int2
 !     Linearly interpolates 1-D data.
 subroutine lin_int1m(data, xx, x, res, mask)
   real, intent(in) :: data(:,:)    ! data to interpolate
-  real, intent(in) :: xx(:)        ! coord. corresponding to data
-  real, intent(in) :: x            ! coord to interpolate to
+  real, intent(in) :: xx(:)        ! coordinates of the data points
+  real, intent(in) :: x            ! coordinates to interpolate to
   real, intent(inout) :: res(:)    ! result of interpolation
   logical, intent(in) :: mask(:)   ! valid data mask
 
@@ -285,8 +285,8 @@ end subroutine lin_int2m
 
 
 ! ==============================================================================
-! given a matrix a(n,n) replaces it by LU decomposition of a rowwise permutation
-! of itself indx(n) is an output that records the permuatation. This routine is
+! given a matrix a(n,n) replaces it by LU decomposition of a row-wise permutation
+! of itself indx(n) is an output that records the permutation. This routine is
 ! used in combination with lubksb to solve linear equations or invert a matrix
 ! example:
 !    call ludcmp(a,indx)
@@ -294,7 +294,7 @@ end subroutine lin_int2m
 !    call lubksb(a,indx,b2)
 subroutine ludcmp(a,indx,status)
   real,    intent(inout) :: a(:,:) ! matrix that gets replaced by its LU decomposition
-  integer, intent(out)   :: indx(:) ! index of row permutations effecte by partial pivoting
+  integer, intent(out)   :: indx(:) ! index of row permutations affected by partial pivoting
   integer, intent(out), optional :: status
 
   integer, parameter :: TINY = 1.0e-20
@@ -371,7 +371,7 @@ end subroutine ludcmp
 
 
 ! ==============================================================================
-! given a LU decomposition of matrix a(n,n), permuation vector indx, and right-
+! given a LU decomposition of matrix a(n,n), permutation vector indx, and right-
 ! hand side b, solves the set of linear equations A*X = B 
 subroutine lubksb(a,indx,b)
   real,    intent(in)    :: a(:,:)  ! LU-decomposed matrix
@@ -407,7 +407,7 @@ end subroutine lubksb
 
 
 ! ============================================================================
-! given values of the triadiagonal matrix coefficients, computes a solution
+! given values of the tri-diagonal matrix coefficients, computes a solution
 subroutine tridiag(a,b,c,r,u)
   real, intent(in)  :: a(:),b(:),c(:),r(:)
   real, intent(out) :: u(:)
@@ -513,7 +513,7 @@ end subroutine nearest2D
 
 ! ============================================================================
 ! private functions that calculates the distance between two points given their 
-! coordiantes
+! coordinates
 function distance(lon1, lat1, lon2, lat2) ; real distance
   ! calculates distance between points on unit square
   real, intent(in) :: lon1,lat1,lon2,lat2
@@ -532,7 +532,7 @@ end function distance
 
 
 ! ============================================================================
-! dealloacate memory associated with the 
+! deallocate memory associated with the horiz_remap_type data structure
 subroutine horiz_remap_del(map)
    type(horiz_remap_type), intent(inout) :: map
 #define __DEALLOC__(x)\
@@ -618,7 +618,7 @@ subroutine horiz_remap_new(invalid, valid, lon, lat, domain, pes, map)
     call my_error(mod_name,'shape of input array "'//'lat'//'" must be the same as shape of compute domain',FATAL)
   endif
   
-  ! get the number of mising points for this PE
+  ! get the number of missing points for this PE
   map%n = count(invalid)
 
   ! get the number of PEs that communicate
@@ -654,7 +654,7 @@ subroutine horiz_remap_new(invalid, valid, lon, lat, domain, pes, map)
   ! allocate buffers for missing point indices and processors
   allocate(map%dst_i(map%n), map%dst_j(map%n))
   allocate(map%src_i(map%n), map%src_j(map%n), map%src_p(map%n))
-  ! and fill the coordianates of missing points for this PE
+  ! and fill the coordinates of missing points for this PE
   k = 1
   do j=1,size(invalid,2)
   do i=1,size(invalid,1)
@@ -843,7 +843,7 @@ subroutine horiz_remap(map,domain,d)
      endif
   enddo
 
-  ! exchage information with other processors
+  ! exchange information with other processors
   do k = 1, map%mapSize
      if (map%srcPE(k)==mpp_pe()) then
         ! get the size of the data from the other PE
@@ -907,8 +907,8 @@ subroutine my_error(mod_name, message, mode, file, line)
   ! ---- local vars ----------------------------------------------------------
   character(len=512) :: mesg
   if(present(file)) then ! assume that file and line are either both present or not
-    write(mesg,'("File ",a," Line ",i4.4," :: ",a)')&
-         file, line, trim(message)
+     write(mesg,'("File ",a," Line ",i4.4," :: ",a)')&
+       file, line, trim(message)
   else
     mesg = trim(message)
   endif

@@ -9,18 +9,19 @@
 ! This module provides the main interfaces between Ocean models and 
 ! generic tracers.
 ! </OVERVIEW>
-! <DESCRIPTION>
+!<DESCRIPTION>
 ! Generic Tracers are designed to be used by both GFDL Ocean models, GOLD and MOM.
 ! This module provides the main interfaces for using generic tracers.
 ! Generic Tracers are contained in separate modules according to their
-! chemical/physical similarity (currently generic_TOPAZ and generic_CFC)
+! chemical/physical similarity (currently generic_TOPAZ, generic_COBALT, 
+! generic_ERGOM and generic_CFC)
 ! This module acts as a router for these various tracer modules and 
 ! routes the subroutine calls to the appropriate tracer module.
 ! It also maintains a (linked) list of all generic tracers created in 
 ! the experiment. This list acts as the "state" of generic tracers and
 ! contains all the information for all such tracers. This module provides
 ! a subroutine to query its state at any time. 
-! </DESCRIPTION>
+!</DESCRIPTION>
 ! <REFERENCE>
 ! http://cobweb.gfdl.noaa.gov/~nnz/MITeam_GUTS_022708.pdf 
 ! </REFERENCE>
@@ -42,6 +43,7 @@ module generic_tracer
   use g_tracer_utils, only : g_tracer_get_common, g_tracer_set_common, g_tracer_is_prog
   use g_tracer_utils, only : g_tracer_coupler_set,g_tracer_coupler_get, g_tracer_register_diag
   use g_tracer_utils, only : g_tracer_vertdiff_M, g_tracer_vertdiff_G, g_tracer_get_next     
+  use g_tracer_utils, only : g_tracer_diag
 
   use generic_CFC,    only : generic_CFC_register
   use generic_CFC,    only : generic_CFC_init, generic_CFC_update_from_source,generic_CFC_update_from_coupler
@@ -62,6 +64,17 @@ module generic_tracer
   use generic_BLING,  only : generic_BLING_update_from_bottom,generic_BLING_update_from_coupler
   use generic_BLING,  only : generic_BLING_set_boundary_values, generic_BLING_end, do_generic_BLING
 
+  use generic_miniBLING_mod,  only : generic_miniBLING_register
+  use generic_miniBLING_mod,  only : generic_miniBLING_init, generic_miniBLING_update_from_source,generic_miniBLING_register_diag
+  use generic_miniBLING_mod,  only : generic_miniBLING_update_from_bottom,generic_miniBLING_update_from_coupler
+  use generic_miniBLING_mod,  only : generic_miniBLING_set_boundary_values, generic_miniBLING_end, do_generic_miniBLING
+  use generic_miniBLING_mod,  only : generic_miniBLING_diag
+
+  use generic_COBALT,  only : generic_COBALT_register
+  use generic_COBALT,  only : generic_COBALT_init, generic_COBALT_update_from_source,generic_COBALT_register_diag
+  use generic_COBALT,  only : generic_COBALT_update_from_bottom,generic_COBALT_update_from_coupler
+  use generic_COBALT,  only : generic_COBALT_set_boundary_values, generic_COBALT_end, do_generic_COBALT
+
   implicit none ; private
 
   character(len=fm_string_len), parameter :: mod_name       = 'generic_tracer'
@@ -71,6 +84,7 @@ module generic_tracer
   public generic_tracer_init
   public generic_tracer_register_diag
   public generic_tracer_source
+  public generic_tracer_diag
   public generic_tracer_update_from_bottom
   public generic_tracer_coupler_get
   public generic_tracer_coupler_set
@@ -93,30 +107,34 @@ module generic_tracer
 
   logical, save :: do_generic_tracer = .false.
 
-  namelist /generic_tracer_nml/ do_generic_tracer, do_generic_CFC, do_generic_TOPAZ, do_generic_ERGOM, do_generic_BLING
+  !JGJ 2013/05/31  merged COBALT into siena_201303
+  namelist /generic_tracer_nml/ do_generic_tracer, do_generic_CFC, do_generic_TOPAZ,    &
+       do_generic_ERGOM, do_generic_BLING, do_generic_miniBLING, do_generic_COBALT
 
 contains
+
 
   subroutine generic_tracer_register
 
     integer :: ioun, io_status, ierr
     integer :: stdoutunit,stdlogunit
+    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_register'
+
     stdoutunit=stdout();stdlogunit=stdlog()
     ! provide for namelist over-ride of defaults 
-
 #ifdef INTERNAL_FILE_NML
-    read (input_nml_file, nml=generic_tracer_nml, iostat=io_status)
-    ierr = check_nml_error(io_status,'generic_tracer_nml')
+read (input_nml_file, nml=generic_tracer_nml, iostat=io_status)
+ierr = check_nml_error(io_status,'generic_tracer_nml')
 #else
     ioun = open_namelist_file()
     read  (ioun, generic_tracer_nml,iostat=io_status)
-    write (stdoutunit,'(/)')
-    write (stdoutunit, generic_tracer_nml)
-    write (stdlogunit, generic_tracer_nml)
     ierr = check_nml_error(io_status,'generic_tracer_nml')
     call close_file (ioun)
 #endif
 
+    write (stdoutunit,'(/)')
+    write (stdoutunit, generic_tracer_nml)
+    write (stdlogunit, generic_tracer_nml)
 
     if(do_generic_CFC) &
          call generic_CFC_register(tracer_list)
@@ -129,6 +147,12 @@ contains
 
     if(do_generic_BLING) &
          call generic_BLING_register(tracer_list)
+
+    if(do_generic_miniBLING) &
+         call generic_miniBLING_register(tracer_list)
+
+    if(do_generic_COBALT) &
+         call generic_COBALT_register(tracer_list)
 
   end subroutine generic_tracer_register
 
@@ -167,23 +191,13 @@ contains
     integer, dimension(:,:)      , intent(in) :: grid_kmt
     type(g_tracer_type), pointer    :: g_tracer,g_tracer_next
 
-    integer :: ioun, io_status, ierr
-    integer :: stdoutunit,stdlogunit
-
-    stdoutunit=stdout();stdlogunit=stdlog()
-    ! provide for namelist over-ride of defaults 
-    ioun = open_namelist_file()
-    read  (ioun, generic_tracer_nml,iostat=io_status)
-    write (stdoutunit,'(/)')
-    write (stdoutunit, generic_tracer_nml)
-    write (stdlogunit, generic_tracer_nml)
-    ierr = check_nml_error(io_status,'generic_tracer_nml')
-    call close_file (ioun)
+    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_init'
 
     call g_tracer_set_common(isc,iec,jsc,jec,isd,ied,jsd,jed,nk,ntau,axes,grid_tmask,grid_kmt,init_time) 
 
     !Allocate and initialize all registered generic tracers
-    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING) then
+    !JGJ 2013/05/31  merged COBALT into siena_201303
+    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING .or. do_generic_miniBLING .or. do_generic_COBALT) then
        g_tracer => tracer_list        
        !Go through the list of tracers 
        do  
@@ -210,14 +224,22 @@ contains
     if(do_generic_BLING) &
          call generic_BLING_init(tracer_list)
 
+    if(do_generic_miniBLING) &
+         call generic_miniBLING_init(tracer_list)
+
+    if(do_generic_COBALT) &
+         call generic_COBALT_init(tracer_list)
+
   end subroutine generic_tracer_init
 
   subroutine generic_tracer_register_diag
+    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_register_diag'
     type(g_tracer_type), pointer    :: g_tracer,g_tracer_next
     
     !Diagnostics register for the fields common to All generic tracers
+    !JGJ 2013/05/31  merged COBALT into siena_201303
 
-    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING) then
+    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING .or. do_generic_miniBLING .or. do_generic_COBALT) then
 
        g_tracer => tracer_list        
        !Go through the list of tracers 
@@ -236,10 +258,14 @@ contains
     
     if(do_generic_TOPAZ)  call generic_TOPAZ_register_diag(diag_list)    
 
-    if(do_generic_ERGOM)  call generic_ERGOM_register_diag()
+    if(do_generic_ERGOM)  call generic_ERGOM_register_diag(diag_list)    
 
     if(do_generic_BLING)  call generic_BLING_register_diag()    
     
+    if(do_generic_miniBLING)  call generic_miniBLING_register_diag()    
+
+    if(do_generic_COBALT)  call generic_COBALT_register_diag(diag_list)
+
   end subroutine generic_tracer_register_diag
 
   ! <SUBROUTINE NAME="generic_tracer_coupler_get">
@@ -260,6 +286,7 @@ contains
   subroutine generic_tracer_coupler_get(IOB_struc)
     type(coupler_2d_bc_type), intent(in)    :: IOB_struc
 
+    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_coupler_get'
     !All generic tracers
     !Update tracer boundary values (%stf and %triver) from coupler fluxes foreach tracer in the prog_tracer_list
     call g_tracer_coupler_get(tracer_list,IOB_struc)
@@ -271,7 +298,58 @@ contains
 
     if(do_generic_BLING)  call generic_BLING_update_from_coupler(tracer_list)
 
+    if(do_generic_miniBLING)  call generic_miniBLING_update_from_coupler(tracer_list)
+
+    if(do_generic_COBALT)  call generic_COBALT_update_from_coupler(tracer_list)
+
   end subroutine generic_tracer_coupler_get
+
+
+  ! <SUBROUTINE NAME="generic_tracer_diag">
+  !  <OVERVIEW>
+  !   Do things which must be done after all transports and sources have been calculated
+  !  </OVERVIEW>
+  !  <DESCRIPTION>
+  !   Calls the corresponding generic_X_diag routine for each package X.
+  !  </DESCRIPTION>
+  !  <TEMPLATE>
+  !   call  generic_tracer_diag(tau,model_time)
+  !  </TEMPLATE>
+  !  <IN NAME="ilb,jlb" TYPE="integer">
+  !   Lower bounds of x and y extents of input arrays on data domain
+  !  </IN>
+  !  <IN NAME="tau" TYPE="integer">
+  !   Time step index of %field
+  !  </IN>
+  !  <IN NAME="model_time" TYPE="time_type">
+  !   Model time
+  !  </IN>
+  !  <IN NAME="dzt" TYPE="real, dimension(ilb:,jlb:,:)">
+  !   Ocean layer thickness (meters)
+  !  </IN>
+  ! </SUBROUTINE>
+
+  subroutine generic_tracer_diag(ilb, jlb, tau, taup1, dtts, model_time, dzt, rho_dzt_tau, rho_dzt_taup1)
+    integer,                        intent(in) :: ilb
+    integer,                        intent(in) :: jlb
+    integer,                        intent(in) :: tau
+    integer,                        intent(in) :: taup1
+    real,                           intent(in) :: dtts
+    type(time_type),                intent(in) :: model_time
+    real, dimension(ilb:,jlb:,:),   intent(in) :: dzt
+    real, dimension(ilb:,jlb:,:),   intent(in) :: rho_dzt_tau
+    real, dimension(ilb:,jlb:,:),   intent(in) :: rho_dzt_taup1
+
+    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_update_from_diag'
+
+    if(do_generic_miniBLING)  call generic_miniBLING_diag(tracer_list, ilb, jlb, taup1, model_time, dzt, rho_dzt_taup1)
+
+    call g_tracer_diag(tracer_list, ilb, jlb, rho_dzt_tau, rho_dzt_taup1, model_time, tau, taup1, dtts)
+
+    return
+
+  end subroutine generic_tracer_diag
+
 
   ! <SUBROUTINE NAME="generic_tracer_source">
   !  <OVERVIEW>
@@ -319,7 +397,7 @@ contains
 
   subroutine generic_tracer_source(Temp,Salt,rho_dzt,dzt,hblt_depth,ilb,jlb,tau,dtts,&
        grid_dat,model_time,nbands,max_wavelength_band,sw_pen_band,opacity_band,      &
-       current_wave_stress)
+       grid_ht, current_wave_stress)
     real, dimension(ilb:,jlb:,:),   intent(in) :: Temp,Salt,rho_dzt,dzt
     real, dimension(ilb:,jlb:),     intent(in) :: hblt_depth
     integer,                        intent(in) :: ilb,jlb,tau
@@ -330,8 +408,11 @@ contains
     real, dimension(:),             intent(in) :: max_wavelength_band
     real, dimension(:,ilb:,jlb:),   intent(in) :: sw_pen_band
     real, dimension(:,ilb:,jlb:,:), intent(in) :: opacity_band
+    real, dimension(ilb:,jlb:),optional, intent(in) :: grid_ht
     real, dimension(ilb:,jlb:),optional ,    intent(in) :: current_wave_stress
 
+
+    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_update_from_source'
 
     !    if(do_generic_CFC)    call generic_CFC_update_from_source(tracer_list) !Nothing to do for CFC
 
@@ -344,6 +425,14 @@ contains
          nbands,max_wavelength_band,sw_pen_band,opacity_band,current_wave_stress)
 
     if(do_generic_BLING)  call generic_BLING_update_from_source(tracer_list,Temp,Salt,rho_dzt,dzt,&
+         hblt_depth,ilb,jlb,tau,dtts,grid_dat,model_time,&
+         nbands,max_wavelength_band,sw_pen_band,opacity_band)
+
+    if(do_generic_miniBLING)  call generic_miniBLING_update_from_source(tracer_list,Temp,Salt,rho_dzt,dzt,&
+         hblt_depth,ilb,jlb,tau,dtts,grid_dat,model_time,&
+         nbands,max_wavelength_band,sw_pen_band,opacity_band, grid_ht)
+
+    if(do_generic_COBALT)  call generic_COBALT_update_from_source(tracer_list,Temp,Salt,rho_dzt,dzt,&
          hblt_depth,ilb,jlb,tau,dtts,grid_dat,model_time,&
          nbands,max_wavelength_band,sw_pen_band,opacity_band)
 
@@ -374,6 +463,8 @@ contains
     integer, intent(in) ::tau
     type(time_type),                intent(in) :: model_time
 
+    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_update_from_bottom'
+
     !    if(do_generic_CFC)    call generic_CFC_update_from_bottom(tracer_list)!Nothing to do for CFC 
 
     if(do_generic_TOPAZ)  call generic_TOPAZ_update_from_bottom(tracer_list,dt, tau, model_time)
@@ -381,6 +472,10 @@ contains
     if(do_generic_ERGOM)  call generic_ERGOM_update_from_bottom(tracer_list,dt, tau, model_time)
    
     if(do_generic_BLING)  call generic_BLING_update_from_bottom(tracer_list,dt, tau)
+
+    if(do_generic_miniBLING)  call generic_miniBLING_update_from_bottom(tracer_list,dt, tau)
+
+    if(do_generic_COBALT)  call generic_COBALT_update_from_bottom(tracer_list,dt, tau, model_time)
 
     return
 
@@ -410,7 +505,8 @@ contains
     type(g_tracer_type), pointer    :: g_tracer,g_tracer_next
 
     !nnz: Should I loop here or inside the sub g_tracer_vertdiff ?    
-    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING) then
+    !JGJ 2013/05/31  merged COBALT into siena_201303
+    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING .or. do_generic_miniBLING .or. do_generic_COBALT) then
 
        g_tracer => tracer_list        
        !Go through the list of tracers 
@@ -449,7 +545,8 @@ contains
     type(g_tracer_type), pointer    :: g_tracer,g_tracer_next
 
     !nnz: Should I loop here or inside the sub g_tracer_vertdiff ?    
-    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING) then
+    !JGJ 2013/05/31  merged COBALT into siena_201303
+    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING .or. do_generic_miniBLING .or. do_generic_COBALT) then
 
        g_tracer => tracer_list        
        !Go through the list of tracers 
@@ -502,6 +599,8 @@ contains
     real, dimension(ilb:,jlb:),  intent(in) :: ST,SS
     real, dimension(ilb:,jlb:,:,:), intent(in)              :: rho
 
+    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_coupler_set'
+
     !Set coupler fluxes from tracer boundary values (%stf and %triver)for each tracer in the prog_tracer_list
     !User must identify these tracers (not all tracers in module need to set coupler)
     !User must provide the calculations for these boundary values.
@@ -518,10 +617,19 @@ contains
     if(do_generic_BLING) &
          call generic_BLING_set_boundary_values(tracer_list,ST,SS,rho,ilb,jlb,tau)
     !
+    if(do_generic_miniBLING) &
+         call generic_miniBLING_set_boundary_values(tracer_list,ST,SS,rho,ilb,jlb,tau)
+
+    if(do_generic_COBALT) &
+         call generic_COBALT_set_boundary_values(tracer_list,ST,SS,rho,ilb,jlb,tau)
+
+    !
     !Set coupler fluxes from tracer boundary values (%alpha and %csurf)
     !for each tracer in the tracer_list that has been marked by the user routine above
+    !JGJ 2013/05/31  merged COBALT into siena_201303
     !
-    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING) call g_tracer_coupler_set(tracer_list,IOB_struc)
+    if(do_generic_CFC .or. do_generic_TOPAZ .or. do_generic_ERGOM .or. do_generic_BLING .or. do_generic_miniBLING .or. do_generic_COBALT) &
+       call g_tracer_coupler_set(tracer_list,IOB_struc)
 
   end subroutine generic_tracer_coupler_set
 
@@ -554,10 +662,14 @@ contains
   !  </TEMPLATE>
   ! </SUBROUTINE>
   subroutine generic_tracer_end
+    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_end'
     if(do_generic_CFC) call generic_CFC_end
     if(do_generic_TOPAZ)  call generic_TOPAZ_end
     if(do_generic_ERGOM)  call generic_ERGOM_end
     if(do_generic_BLING)  call generic_BLING_end
+    if(do_generic_miniBLING)  call generic_miniBLING_end
+    if(do_generic_COBALT)  call generic_COBALT_end
+
   end subroutine generic_tracer_end
 
   ! <SUBROUTINE NAME="generic_tracer_get_list">

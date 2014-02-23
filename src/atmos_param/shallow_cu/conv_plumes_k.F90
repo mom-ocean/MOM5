@@ -12,8 +12,8 @@ MODULE CONV_PLUMES_k_MOD
 !---------------------------------------------------------------------
 !----------- ****** VERSION NUMBER ******* ---------------------------
 
-  character(len=128) :: version = '$Id: conv_plumes_k.F90,v 19.0 2012/01/06 20:25:58 fms Exp $'
-  character(len=128) :: tagname = '$Name: siena_201207 $'
+  character(len=128) :: version = '$Id: conv_plumes_k.F90,v 20.0 2013/12/13 23:21:34 fms Exp $'
+  character(len=128) :: tagname = '$Name: tikal $'
 
 !---------------------------------------------------------------------
 !-------  interfaces --------
@@ -41,7 +41,7 @@ MODULE CONV_PLUMES_k_MOD
      real :: rle, rpen, rmaxfrac, wmin, rbuoy, rdrag, frac_drs, bigc
      real :: auto_th0, auto_rate, tcrit, cldhgt_max, atopevap, rad_crit,  &
              wtwmin_ratio, deltaqc0, emfrac_max, wrel_min,                        &
-             Nl_land, Nl_ocean, r_thresh, qi_thresh, peff, rh0, cfrac,hcevap, weffect,t00
+             Nl_land, Nl_ocean, r_thresh, qi_thresh, peff_l, peff_i, peff, rh0, cfrac,hcevap, weffect,t00
      logical :: do_ice, do_ppen, do_forcedlifting, do_pevap, do_pdfpcp, isdeep, use_online_aerosol
      logical :: do_auto_aero, do_pmadjt, do_emmax, do_pnqv, do_weffect, do_qctflx_zero,do_detran_zero
      character(len=32), dimension(:), _ALLOCATABLE  :: tracername _NULL
@@ -184,7 +184,7 @@ contains
     cp%ufrc  =0.;    cp%thvbot=0.;    cp%thvtop=0.;    cp%hlu   =0.;
     cp%fdrsat=0.;    cp%z     =0.;    cp%zs    =0.;    cp%hl    =0.;
     cp%clu   =0.;    cp%ciu   =0.;    cp%buo   =0.;    cp%t     =0.;
-    cp%crate =0.;    cp%prate =0.;    cp%peff  =0.;
+    cp%crate =0.;    cp%prate =0.;    cp%peff  =0.;    !cp%maxcldfrac = 1.;
 !++++yim
     cp%pptn  =0.;    cp%tr    =0.;    cp%tru   =0.;    cp%tru_dwet = 0.
   end subroutine cp_clear_k
@@ -511,23 +511,37 @@ contains
                          cp%fer(k), cp%fdr(k), cp%fdrsat(k), rho0j, &
                          rkm, Uw_p, cp%umf(km1), cp%dp(k), sd%delt)      
        else if (cpn%mixing_assumption.eq.1) then
-          temp         = sqrt(cp%ufrc(km1)) !scaleh for fixed length scale
+          temp         = sqrt(cp%ufrc(km1)) !scaleh for fixed length scale for donner_plumes
           rho0j        = sd%rho(k)
           cp%rei(k)    = rkm/temp/Uw_p%grav/rho0j
           cp%fer(k)    = cp%rei(k)
           cp%fdr(k)    = 0.
           cp%fdrsat(k) = 0.
        else if (cpn%mixing_assumption.eq.2) then
-          gamma=0.0065
-          scaleh1 = cpn%t00/gamma*(1.-(cp%p(k)/100000.)**(Uw_p%rdgas*gamma/Uw_p%grav))
-          scaleh1 = max (1000., scaleh1-sd%zs(0))
+          scaleh1 = max(1000., cp%z(k))
+          call mixing_k (cpn, cp%z(k), cp%p(k), hl_env_k, cp%thc(k), &
+                         qct_env_k, cp%hlu(km1), cp%thcu(km1),  &
+                         cp%qctu(km1), cp%wu(km1), scaleh1, cp%rei(k), &
+                         cp%fer(k), cp%fdr(k), cp%fdrsat(k), rho0j, &
+                         rkm, Uw_p, cp%umf(km1), cp%dp(k), sd%delt)      
+       else if (cpn%mixing_assumption.eq.3) then
+          scaleh1 = cpn%t00*Uw_p%rdgas/Uw_p%grav*log(cp%p(1)/cp%p(k))
+          scaleh1 = max (1000., scaleh1)
+          call mixing_k (cpn, cp%z(k), cp%p(k), hl_env_k, cp%thc(k), &
+                         qct_env_k, cp%hlu(km1), cp%thcu(km1),      &
+                         cp%qctu(km1), cp%wu(km1), scaleh1, cp%rei(k), &
+                         cp%fer(k), cp%fdr(k), cp%fdrsat(k), rho0j, &
+                         rkm, Uw_p, cp%umf(km1), cp%dp(k), sd%delt)
+       else if (cpn%mixing_assumption.eq.4) then
+          scaleh1 = 2000.
           call mixing_k (cpn, cp%z(k), cp%p(k), hl_env_k, cp%thc(k), &
                          qct_env_k, cp%hlu(km1), cp%thcu(km1),  &
                          cp%qctu(km1), cp%wu(km1), scaleh1, cp%rei(k), &
                          cp%fer(k), cp%fdr(k), cp%fdrsat(k), rho0j, &
                          rkm, Uw_p, cp%umf(km1), cp%dp(k), sd%delt)
        else
-          scaleh1 = max (1000., cp%z(k)-sd%zs(0))
+          scaleh1 = cpn%t00*Uw_p%rdgas/Uw_p%grav*log(cp%p(1)/cp%p(k))
+          scaleh1 = max (1000., scaleh1)
           call mixing_k (cpn, cp%z(k), cp%p(k), hl_env_k, cp%thc(k), &
                          qct_env_k, cp%hlu(km1), cp%thcu(km1),      &
                          cp%qctu(km1), cp%wu(km1), scaleh1, cp%rei(k), &
@@ -585,6 +599,18 @@ contains
                                 hlu_new, qctu_new, qlu_new, qiu_new, &
                                 clu_new, ciu_new, temp, cpn%do_ice, &
                                 delta_qn, Uw_p, kbelowlet)        
+       else if (cpn%mp_choice.eq.4) then
+          call precip4_k (cp%zs(k), cp%ps(k), cp%hlu(k), &
+                                cp%qctu(k), cp%qnu(k), cpn, qrj, qsj, &
+                                hlu_new, qctu_new, qlu_new, qiu_new, &
+                                clu_new, ciu_new, temp, cpn%do_ice, &
+                                delta_qn, Uw_p, kbelowlet)        
+       else if (cpn%mp_choice.eq.5) then
+          call precip5_k (cp%zs(k), cp%ps(k), cp%hlu(k), &
+                                cp%qctu(k), cp%qnu(k), cpn, qrj, qsj, &
+                                hlu_new, qctu_new, qlu_new, qiu_new, &
+                                clu_new, ciu_new, temp, cpn%do_ice, &
+                                delta_qn, Uw_p, kbelowlet, sd%dp(k))        
        end if
 
        cp%qctu(k)=qctu_new
@@ -596,7 +622,7 @@ contains
        cp%peff(k)=(qrj+qsj)/max(qlu_new+qiu_new+qrj+qsj,1.e-28);
 
        cp%thvu(k)=temp/exn_k(cp%ps(k),Uw_p)*(1.+Uw_p%zvir*(cp%qctu(k)-cp%qlu(k)-cp%qiu(k))-cp%qlu(k)-cp%qiu(k))
-       cp%buo (k)=cp%thvu(k)-cp%thvtop(k)
+       cp%buo (k)=(cp%thvu(k)-cp%thvtop(k))!/cp%thvtop(k)*Uw_p%grav
        cp%t   (k)=temp
        nu = max(min((268. - temp)/20.,1.0),0.0)
        leff = (1-nu)*Uw_p%HLv + nu*Uw_p%HLs
@@ -722,6 +748,10 @@ contains
     !convective scale height
     cp % cush=sd%z(ltop) - sd%zs(0)
 
+    if (cpn%mixing_assumption.eq.2) then
+    	 cp % cush = cpn%t00*Uw_p%rdgas/Uw_p%grav*log(cp%p(1)/cp%p(k))
+    endif	 
+
     if (cpn%do_ppen) then !Calculate penetrative entrainment
        call penetrative_mixing_k(cpn, sd, Uw_p, cp) 
     else
@@ -836,6 +866,127 @@ contains
   end subroutine precipitation_k
 
 
+  subroutine precip5_k (zs, ps, hlu, qctu, qnu, cpn, qrj, qsj, &
+                              hlu_new, qctu_new, qlu_new, qiu_new, &
+                              clu_new, ciu_new, temp, doice, delta_qn, &
+                              Uw_p, kbelowlet, delp)       
+    type(cpnlist),  intent(in)    :: cpn
+    type(uw_params),  intent(inout)    :: Uw_p
+    real,           intent(in)    :: zs, ps, hlu, qctu, delp
+    real,           intent(inout)    :: qnu, delta_qn
+    real,           intent(inout) :: qrj, qsj, hlu_new, qctu_new,  &
+                                     qlu_new, qiu_new, clu_new,  &
+                                     ciu_new, temp
+    logical,        intent(in)    :: doice, kbelowlet
+
+    real    :: thj, qvj, qlj, qij, qse, thvj, nu, exnj,  &
+               auto_th, leff, pcp, qctmp, deltaqc, auto_th2, peff
+
+    !Precip at the flux level
+    call findt_k (zs,ps,hlu,qctu,thj,qvj,qlj,qij,qse,thvj,doice, &
+                  Uw_p)  
+    exnj=exn_k(ps,Uw_p)
+    temp=thj*exnj-273.15
+    if (temp.ge.0.0) then
+       peff=cpn%peff_l*delp
+    else
+       peff=cpn%peff_i*delp
+    end if
+    peff=max(1.0-peff,0.0)
+
+    if (.not.kbelowlet) peff=0.0
+
+    temp=temp+273.15
+
+    qctmp   = qlj+qij;
+    pcp = max(qctmp*peff,0.)
+    qctmp = 1./max(qctmp,1.e-28)
+    qrj = pcp*qlj*qctmp
+    qsj = pcp*qij*qctmp
+    nu  = max(min((268. - temp)/20.,1.0),0.0)
+ 
+    if (qlj.le.0) then
+       delta_qn = -qnu
+       qnu = 0
+    else
+       delta_qn = qnu * qrj * qctmp
+       qnu      = qnu - delta_qn
+    end if
+
+    leff     = (1-nu)*Uw_p%HLv + nu*Uw_p%HLs
+    qctu_new = qctu - (qrj + qsj)
+    hlu_new  = hlu  + (qrj + qsj)*leff
+    qlu_new  = qlj - qrj
+    qiu_new  = qij - qsj
+    clu_new  = qlu_new
+    ciu_new  = qiu_new
+
+    return
+    
+  end subroutine precip5_k
+
+
+  subroutine precip4_k (zs, ps, hlu, qctu, qnu, cpn, qrj, qsj, &
+                              hlu_new, qctu_new, qlu_new, qiu_new, &
+                              clu_new, ciu_new, temp, doice, delta_qn, &
+                              Uw_p, kbelowlet)       
+    type(cpnlist),  intent(in)    :: cpn
+    type(uw_params),  intent(inout)    :: Uw_p
+    real,           intent(in)    :: zs, ps, hlu, qctu
+    real,           intent(inout)    :: qnu, delta_qn
+    real,           intent(inout) :: qrj, qsj, hlu_new, qctu_new,  &
+                                     qlu_new, qiu_new, clu_new,  &
+                                     ciu_new, temp
+    logical,        intent(in)    :: doice, kbelowlet
+
+    real    :: thj, qvj, qlj, qij, qse, thvj, nu, exnj,  &
+               auto_th, leff, pcp, qctmp, deltaqc, auto_th2, peff
+
+    !Precip at the flux level
+    call findt_k (zs,ps,hlu,qctu,thj,qvj,qlj,qij,qse,thvj,doice, &
+                  Uw_p)  
+    exnj=exn_k(ps,Uw_p)
+    temp=thj*exnj-273.15
+    if (temp.ge.0.0) then
+       peff=cpn%peff_l
+    else
+!      peff=(1.0-cpn%peff)*min(temp/cpn%tcrit,1.0)
+       peff=cpn%peff_i
+    end if
+!    peff=max(1.0-peff,0.0)
+
+    if (.not.kbelowlet) peff=0.0
+
+    temp=temp+273.15
+
+    qctmp   = qlj+qij;
+    pcp = max(qctmp*peff,0.)
+    qctmp = 1./max(qctmp,1.e-28)
+    qrj = pcp*qlj*qctmp
+    qsj = pcp*qij*qctmp
+    nu  = max(min((268. - temp)/20.,1.0),0.0)
+ 
+    if (qlj.le.0) then
+       delta_qn = -qnu
+       qnu = 0
+    else
+       delta_qn = qnu * qrj * qctmp
+       qnu      = qnu - delta_qn
+    end if
+
+    leff     = (1-nu)*Uw_p%HLv + nu*Uw_p%HLs
+    qctu_new = qctu - (qrj + qsj)
+    hlu_new  = hlu  + (qrj + qsj)*leff
+    qlu_new  = qlj - qrj
+    qiu_new  = qij - qsj
+    clu_new  = qlu_new
+    ciu_new  = qiu_new
+
+    return
+    
+  end subroutine precip4_k
+
+
   subroutine precip3_k (zs, ps, hlu, qctu, qnu, cpn, qrj, qsj, &
                               hlu_new, qctu_new, qlu_new, qiu_new, &
                               clu_new, ciu_new, temp, doice, delta_qn, &
@@ -850,7 +1001,7 @@ contains
     logical,        intent(in)    :: doice, kbelowlet
 
     real    :: thj, qvj, qlj, qij, qse, thvj, nu, exnj,  &
-               auto_th, leff, pcp, qctmp, deltaqc
+               auto_th, leff, pcp, qctmp, deltaqc, peff
 
     !Precip at the flux level
     call findt_k (zs,ps,hlu,qctu,thj,qvj,qlj,qij,qse,thvj,doice, &
@@ -881,7 +1032,13 @@ contains
     else
        pcp = max(qctmp-auto_th,0.)
     end if
-    pcp = qctmp*cpn%peff
+
+    if (temp.ge.0.0) then
+       peff=cpn%peff_l
+    else
+       peff=cpn%peff_i
+    end if
+    pcp = qctmp*peff
 
     qctmp = 1./max(qctmp,1.e-28)
     qrj = pcp*qlj*qctmp
@@ -1574,7 +1731,7 @@ contains
     mass   = sd%dp/Uw_p%grav
     dpcu   = 0.0
     dpevap = 0.0
-    do k = cp%ltop, 2, -1
+    do k = cp%ltop, 1, -1
        dpcu = dpcu + pptp(k)
        prec = MAX(dpcu - dpevap, 0.0 )
 
@@ -1591,6 +1748,7 @@ contains
           def=(hcevap*sd%qs(k) - sd%qv(k))/(1.+(HL*hcevap*dqs/Uw_p%Cp_Air ))
           def=evef*def
           def=MIN( def, prec/mass(k) )
+          def=MAX( def, 0.0)
        else
           def=0.0
        end if

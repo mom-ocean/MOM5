@@ -80,8 +80,8 @@ real :: coef_emis =-999.
 namelist /dust_nml/  dust_source_filename, dust_source_name, uthresh, coef_emis
 
 !---- version number -----
-character(len=128) :: version = '$Id: atmos_dust.F90,v 19.0 2012/01/06 20:30:48 fms Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: atmos_dust.F90,v 20.0 2013/12/13 23:23:54 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 !-----------------------------------------------------------------------
 
 contains
@@ -95,7 +95,7 @@ contains
  subroutine atmos_dust_sourcesink (i_DU,ra,rb,dustref,dustden, &
        lon, lat, frac_land, pwt, &
        zhalf, pfull, w10m, t, rh, &
-       dust, dust_dt, dust_emis, dust_setl, Time, is,ie,js,je,kbot)
+       dust, dust_dt, dust_emis, dust_setl, Time, Time_next, is,ie,js,je,kbot)
 
 !-----------------------------------------------------------------------
    integer, intent(in)                 :: i_DU
@@ -110,7 +110,7 @@ contains
    real, intent(in),  dimension(:,:,:) :: pwt, dust
    real, intent(in),  dimension(:,:,:) :: zhalf, pfull, t, rh
    real, intent(out), dimension(:,:,:) :: dust_dt
-   type(time_type), intent(in) :: Time     
+   type(time_type), intent(in) :: Time, Time_next     
    integer, intent(in),  dimension(:,:), optional :: kbot
 integer, intent(in)                    :: is, ie, js, je
 !-----------------------------------------------------------------------
@@ -156,7 +156,7 @@ integer  i, j, k, id, jd, kd, kb
                        trim(dust_source_name(1)), is, js)
 ! Send the dust source data to the diag_manager for output.
      if (id_dust_source > 0 ) &
-          used = send_data ( id_dust_source, source , Time )
+          used = send_data ( id_dust_source, source , Time_next )
 
       where ( frac_land.gt.0.1 .and. w10m .gt. u_ts_2d )
           dust_emis = CH * frac_s(i_DU)*source * frac_land &
@@ -166,7 +166,7 @@ integer  i, j, k, id, jd, kd, kb
 
 ! Send the emission data to the diag_manager for output.
       if (id_dust_emis(i_DU) > 0 ) then
-        used = send_data ( id_dust_emis(i_DU), dust_emis, Time, &
+        used = send_data ( id_dust_emis(i_DU), dust_emis, Time_next, &
               is_in=is,js_in=js )
       endif
 
@@ -211,7 +211,7 @@ integer  i, j, k, id, jd, kd, kb
 
 ! Send the settling data to the diag_manager for output.
       if (id_dust_setl(i_DU) > 0 ) then
-        used = send_data ( id_dust_setl(i_DU), dust_setl, Time, &
+        used = send_data ( id_dust_setl(i_DU), dust_setl, Time_next, &
               is_in=is,js_in=js )
       endif
 

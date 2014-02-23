@@ -60,8 +60,8 @@ public   vert_turb_driver_restart
 !-----------------------------------------------------------------------
 !--------------------- version number ----------------------------------
 
-character(len=128) :: version = '$Id: vert_turb_driver.F90,v 19.0 2012/01/06 20:27:33 fms Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: vert_turb_driver.F90,v 20.0 2013/12/13 23:22:34 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 logical            :: module_is_initialized = .false.
 
 !-----------------------------------------------------------------------
@@ -95,12 +95,27 @@ logical            :: module_is_initialized = .false.
                                                 !   => 'beljaars'
  real              :: constant_gust = 1.0
  real              :: gust_factor   = 1.0
+
+!-->h1g, 2012-07-16
+ integer :: do_clubb
+ integer :: nwp2
+ real    :: wp2_min = 4.e-4
+ real    :: diff_min = 1.e-3    ! minimum value of a diffusion 
+                                ! coefficient beneath which the
+                                ! coefficient is reset to zero
+ 
+ integer :: id_clubb_on
+ integer :: id_stable_on                     ! ( diff_m_stab > diff_m  or diff_t_stab > diff_t)
+ 
+ integer :: id_stable_effective              !     ( diff_m_stab > diff_m  or diff_t_stab > diff_t) 
+                                             ! and ( diff_m_stab > diff_min  or diff_t_stab > diff_min)
+!<--h1g, 2012-07-16 
  
  namelist /vert_turb_driver_nml/ do_shallow_conv, do_mellor_yamada, &
                                  gust_scheme, constant_gust, use_tau, &
                                  do_molecular_diffusion, do_stable_bl, &
                                  do_diffusivity, do_edt, do_entrain, &
-                                 gust_factor, do_simple
+                                 gust_factor, do_simple, wp2_min
 
 !-------------------- diagnostics fields -------------------------------
 
@@ -162,6 +177,13 @@ real   , dimension(size(t,1),size(t,2),size(t,3))   :: qlin, qiin, qain
 real    :: dt_tke
 integer :: ie, je, nlev, sec, day, nt
 logical :: used
+!-->h1g, 2012-08-07
+real   , dimension(size(diff_t,1),size(diff_t,2), &
+                                  size(diff_t,3))   :: clubb_on,   &
+                                                       stable_on,  &
+                                                       stable_effective
+!<--h1g, 2012-08-07 
+
 !-----------------------------------------------------------------------
 !----------------------- vertical turbulence ---------------------------
 !-----------------------------------------------------------------------
@@ -329,6 +351,11 @@ else if (do_edt) then
 !-----------------------------------------------------------------------
 ! --- stable boundary layer parameterization
 
+! --> h1g, 2012-08-08, pre-set stable_on is 0
+   stable_on = 0.0
+   stable_effective = 0.0
+! <-- h1g, 2012-08-08
+
    if( do_stable_bl ) then
 
         if (do_entrain) then
@@ -353,9 +380,26 @@ CALL STABLE_BL_TURB( is, js, Time_next, tt, qq, qlin, qiin, uu,&
                      vv, z_half, z_full, u_star, b_star, lat,  &
      diff_m_stab, diff_t_stab,kbot=kbot)
      
+! --->h1g, 2012-07-16
+     if(  do_clubb > 0 ) then
+        clubb_on = 1.0
+        where ( r(:,:,:, nwp2) <= wp2_min )
+            where( diff_m_stab > diff_m .or. diff_t_stab > diff_t )
+               stable_on = 1.0
+               where( diff_m_stab >= diff_min .or. diff_t_stab >= diff_min )
+                   stable_effective = 1.0
+               endwhere
+            endwhere
             diff_m = diff_m +  MAX( diff_m_stab - diff_m, 0.0 )
             diff_t = diff_t +  MAX( diff_t_stab - diff_t, 0.0 )
-    
+            clubb_on = 0.0
+         endwhere
+     else
+        diff_m = diff_m +  MAX( diff_m_stab - diff_m, 0.0 )
+        diff_t = diff_t +  MAX( diff_t_stab - diff_t, 0.0 )
+     endif
+! <---h1g, 2012-07-16
+
 end if
         
     endif
@@ -493,6 +537,15 @@ end if
        diag3(:,:,1:nlev) = diff_m_stab(:,:,1:nlev)
      used = send_data ( id_diff_m_stab, diag3, Time_next, is, js, 1, mask=lmask )
     endif
+
+     if ( id_stable_on > 0 ) then
+        used = send_data ( id_stable_on, stable_on, Time_next, is, js, 1, mask=lmask )
+     endif
+
+     if ( id_stable_effective > 0 ) then
+        used = send_data ( id_stable_effective, stable_effective, Time_next, is, js, 1, mask=lmask )
+     endif
+
  endif
 
 !------- diffusion coefficients for entrainment module -------
@@ -534,7 +587,13 @@ end if
       used = send_data ( id_vwnd, vv, Time_next, is, js, 1, rmask=mask)
    endif
   
- 
+! --->h1g, 2012-08-07, dump whether stable-scheme is on, clubb_on
+   if( do_clubb > 0) then
+     if ( id_clubb_on > 0 ) then
+        used = send_data ( id_clubb_on, clubb_on, Time_next, is, js, 1, mask=lmask )
+     endif
+   endif
+! <---h1g, 2012-08-07
    
 !-----------------------------------------------------------------------
 
@@ -543,13 +602,17 @@ end subroutine vert_turb_driver
 !#######################################################################
 
 subroutine vert_turb_driver_init (lonb, latb, id, jd, kd, axes, Time, &
-                                  doing_edt, doing_entrain)
+                                  doing_edt, doing_entrain, do_clubb_in)
 
 !-----------------------------------------------------------------------
    real, dimension(:,:), intent(in) :: lonb, latb
    integer,         intent(in) :: id, jd, kd, axes(4)
    type(time_type), intent(in) :: Time
    logical,         intent(out) :: doing_edt, doing_entrain
+
+!-->h1g
+ integer, optional,    intent(in)    :: do_clubb_in
+!<--h1g
 !-----------------------------------------------------------------------
    integer, dimension(3) :: full = (/1,2,3/), half = (/1,2,4/)
    integer :: ierr, unit, io, logunit
@@ -599,7 +662,19 @@ subroutine vert_turb_driver_init (lonb, latb, id, jd, kd, axes, Time, &
            'molecular diffusion with EDT', FATAL)
 
 !-----------------------------------------------------------------------
-        
+! -->h1g, 2012-07-16
+    if (present(do_clubb_in)) then
+         do_clubb = do_clubb_in
+    else
+         do_clubb = 0
+    endif
+    
+    if( do_entrain .and. do_clubb>0 ) &
+         call error_mesg ( 'vert_turb_driver_mod', 'cannot activate '//&
+           'both do_entrain and CLUBB', FATAL)
+    nwp2 = get_tracer_index ( MODEL_ATMOS, 'wp2' )
+!<--h1g, 2012-07-16
+
        if (strat_cloud_on) then
 ! get tracer indices for stratiform cloud variables
           nql = get_tracer_index ( MODEL_ATMOS, 'liq_wat' )
@@ -708,6 +783,17 @@ if (do_stable_bl) then
     register_diag_field ( mod_name, 'diff_m_stab', axes(half), Time,       &
                        'vert diff coeff for momentum',  'm2/s',            &
                        missing_value=missing_value               )
+
+  id_stable_on = &
+    register_diag_field ( mod_name, 'stable_on', axes(half), Time,       &
+   'frequency of stable is on (diff_m_stab > diff_m  or diff_t_stab > diff_t)',  ' ', &
+                        missing_value=missing_value               )
+
+  id_stable_effective = &
+    register_diag_field ( mod_name, 'stable_effective', axes(half), Time,       &
+   'frequency of stable is effective (diff_m_stab > diff_m or diff_t_stab > diff_t and diff_m_stab > diff_min or diff_t_stab > diff_min)',  ' ', &
+                        missing_value=missing_value               )
+
  endif
 
 
@@ -723,6 +809,15 @@ if (do_entrain) then
                         missing_value=missing_value               )
 
  endif
+
+! --->h1g, 2012-08-07, register id_clubb_on
+if( do_clubb > 0 ) then
+   id_clubb_on = &
+    register_diag_field ( mod_name, 'clubb_on', axes(half), Time,       &
+                       'frequency of clubb is on',  ' ',                &
+                        missing_value=missing_value               )
+endif
+! <---h1g, 2012-08-07
 
 
 !-----------------------------------------------------------------------

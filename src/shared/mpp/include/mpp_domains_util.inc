@@ -1,6 +1,6 @@
 
 ! -*-f90-*-
-! $Id: mpp_domains_util.inc,v 19.0.4.1 2012/05/11 14:54:02 Zhi.Liang Exp $
+! $Id: mpp_domains_util.inc,v 20.0 2013/12/14 00:24:48 fms Exp $
 
   ! <SUBROUTINE NAME="mpp_domains_set_stack_size">
   !  <OVERVIEW>
@@ -1110,6 +1110,73 @@ end subroutine mpp_get_domain_shift
 
   end function mpp_get_tile_npes
 
+  !########################################################################
+  ! get the processors list used on current tile.
+  subroutine mpp_get_tile_pelist(domain, pelist)
+    type(domain2d), intent(in)  :: domain
+    integer,      intent(inout) :: pelist(:)
+    integer                     :: npes_on_tile
+    integer                     :: i, tile, pos
+
+    npes_on_tile = mpp_get_tile_npes(domain)
+    if(size(pelist(:)) .NE. npes_on_tile) call mpp_error(FATAL, &
+           "mpp_domains_util.inc(mpp_get_tile_pelist): size(pelist) does not equal npes on current tile")
+    tile = domain%tile_id(1)
+    pos = 0
+    do i = 0, size(domain%list(:))-1
+       if(tile == domain%list(i)%tile_id(1)) then
+          pos = pos+1
+          pelist(pos) = domain%list(i)%pe
+       endif
+    enddo
+
+    return
+
+  end subroutine mpp_get_tile_pelist
+
+!#####################################################################
+subroutine mpp_get_tile_compute_domains( domain, xbegin, xend, ybegin, yend, position )
+ type(domain2D),         intent(in) :: domain
+ integer, intent(out), dimension(:) :: xbegin, xend, ybegin, yend
+ integer, intent(in ), optional     :: position
+
+ integer :: i, ishift, jshift
+ integer :: npes_on_tile, pos, tile
+
+ call mpp_get_domain_shift( domain, ishift, jshift, position )
+
+
+ if( .NOT.module_is_initialized ) &
+      call mpp_error( FATAL, 'mpp_get_compute_domains2D: must first call mpp_domains_init.' )
+
+ npes_on_tile = mpp_get_tile_npes(domain)
+ if(size(xbegin(:)) .NE. npes_on_tile) call mpp_error(FATAL, &
+       "mpp_domains_util.inc(mpp_get_compute_domains2D): size(xbegin) does not equal npes on current tile")
+ if(size(xend(:)) .NE. npes_on_tile) call mpp_error(FATAL, &
+       "mpp_domains_util.inc(mpp_get_compute_domains2D): size(xend) does not equal npes on current tile")
+ if(size(ybegin(:)) .NE. npes_on_tile) call mpp_error(FATAL, &
+       "mpp_domains_util.inc(mpp_get_compute_domains2D): size(ybegin) does not equal npes on current tile")
+ if(size(yend(:)) .NE. npes_on_tile) call mpp_error(FATAL, &
+       "mpp_domains_util.inc(mpp_get_compute_domains2D): size(yend) does not equal npes on current tile")
+
+ tile = domain%tile_id(1)
+ pos = 0
+ do i = 0, size(domain%list(:))-1
+    if(tile == domain%list(i)%tile_id(1)) then
+       pos = pos+1
+       xbegin(pos) = domain%list(i)%x(1)%compute%begin
+       xend  (pos) = domain%list(i)%x(1)%compute%end + ishift
+       ybegin(pos) = domain%list(i)%y(1)%compute%begin
+       yend  (pos) = domain%list(i)%y(1)%compute%end + jshift
+    endif
+ enddo
+
+ return
+
+end subroutine mpp_get_tile_compute_domains
+
+
+
   !#############################################################################
   function mpp_get_num_overlap(domain, action, p, position)
     type(domain2d),    intent(in) :: domain
@@ -1383,6 +1450,139 @@ end subroutine mpp_get_domain_shift
     endif
 
   end function get_rank_recv
+
+  function get_vector_recv(domain, update_x, update_y, ind_x, ind_y, start_pos, pelist)
+    type(domain2D),    intent(in) :: domain
+    type(overlapSpec), intent(in) :: update_x, update_y
+    integer,          intent(out) :: ind_x(:), ind_y(:)
+    integer,          intent(out) :: start_pos(:)
+    integer,          intent(out) :: pelist(:)
+    integer                       :: nlist, nrecv_x, nrecv_y, ntot, n
+    integer                       :: ix, iy, rank_x, rank_y, cur_pos
+    integer                       :: get_vector_recv
+
+    nlist = size(domain%list(:))
+    nrecv_x = update_x%nrecv
+    nrecv_y = update_y%nrecv
+ 
+    ntot = nrecv_x + nrecv_y
+
+    n  = 1
+    ix = 1
+    iy = 1
+    ind_x = -1
+    ind_y = -1
+    get_vector_recv = 0
+    cur_pos = 0
+    do while (n<=ntot)
+       if(ix <= nrecv_x ) then
+          rank_x = update_x%recv(ix)%pe-domain%pe
+          if(rank_x .LE. 0) rank_x = rank_x + nlist
+       else
+          rank_x = -1
+       endif
+       if(iy <= nrecv_y ) then
+          rank_y = update_y%recv(iy)%pe-domain%pe
+          if(rank_y .LE. 0) rank_y = rank_y + nlist
+       else
+          rank_y = -1
+       endif
+       get_vector_recv = get_vector_recv + 1
+       start_pos(get_vector_recv) = cur_pos
+       if( rank_x == rank_y ) then
+          n = n+2
+          ind_x (get_vector_recv) = ix
+          ind_y (get_vector_recv) = iy
+          cur_pos = cur_pos + update_x%recv(ix)%totsize + update_y%recv(iy)%totsize
+          pelist(get_vector_recv) = update_x%recv(ix)%pe
+          ix = ix + 1
+          iy = iy + 1
+       else if ( rank_x > rank_y ) then
+          n = n+1
+          ind_x (get_vector_recv) = ix
+          ind_y (get_vector_recv) = -1
+          cur_pos = cur_pos + update_x%recv(ix)%totsize
+          pelist(get_vector_recv) = update_x%recv(ix)%pe
+          ix = ix + 1
+       else if ( rank_y > rank_x ) then
+          n = n+1
+          ind_x (get_vector_recv) = -1
+          ind_y (get_vector_recv) = iy
+          cur_pos = cur_pos + update_y%recv(iy)%totsize
+          pelist(get_vector_recv) = update_y%recv(iy)%pe
+          iy = iy+1
+       endif
+    end do
+
+
+  end function get_vector_recv
+
+  function get_vector_send(domain, update_x, update_y, ind_x, ind_y, start_pos, pelist)
+    type(domain2D),    intent(in) :: domain
+    type(overlapSpec), intent(in) :: update_x, update_y
+    integer,          intent(out) :: ind_x(:), ind_y(:)
+    integer,          intent(out) :: start_pos(:)
+    integer,          intent(out) :: pelist(:)
+    integer                       :: nlist, nsend_x, nsend_y, ntot, n
+    integer                       :: ix, iy, rank_x, rank_y, cur_pos
+    integer                       :: get_vector_send
+
+    nlist = size(domain%list(:))
+    nsend_x = update_x%nsend
+    nsend_y = update_y%nsend
+ 
+    ntot = nsend_x + nsend_y
+    n  = 1
+    ix = 1
+    iy = 1
+    ind_x = -1
+    ind_y = -1
+    get_vector_send = 0
+    cur_pos = 0
+    do while (n<=ntot)
+       if(ix <= nsend_x ) then
+          rank_x = update_x%send(ix)%pe-domain%pe
+          if(rank_x .LT. 0) rank_x = rank_x + nlist
+       else
+          rank_x = nlist+1
+       endif
+       if(iy <= nsend_y ) then
+          rank_y = update_y%send(iy)%pe-domain%pe
+          if(rank_y .LT. 0) rank_y = rank_y + nlist
+       else
+          rank_y = nlist+1
+       endif
+       get_vector_send = get_vector_send + 1
+       start_pos(get_vector_send) = cur_pos
+
+       if( rank_x == rank_y ) then
+          n = n+2
+          ind_x  (get_vector_send) = ix
+          ind_y  (get_vector_send) = iy
+          cur_pos = cur_pos + update_x%send(ix)%totsize + update_y%send(iy)%totsize
+          pelist (get_vector_send) = update_x%send(ix)%pe
+          ix = ix + 1
+          iy = iy + 1
+       else if ( rank_x < rank_y ) then
+          n = n+1
+          ind_x  (get_vector_send) = ix
+          ind_y  (get_vector_send) = -1
+          cur_pos = cur_pos + update_x%send(ix)%totsize
+          pelist (get_vector_send) = update_x%send(ix)%pe
+          ix = ix + 1
+       else if ( rank_y < rank_x ) then
+          n = n+1
+          ind_x  (get_vector_send) = -1
+          ind_y  (get_vector_send) = iy
+          cur_pos = cur_pos + update_y%send(iy)%totsize
+          pelist (get_vector_send) = update_y%send(iy)%pe
+          iy = iy+1
+       endif
+    end do
+
+
+  end function get_vector_send
+
 
   !############################################################################  
   function get_rank_unpack(domain, overlap_x, overlap_y, rank_x, rank_y, ind_x, ind_y)

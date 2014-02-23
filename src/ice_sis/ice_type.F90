@@ -5,9 +5,9 @@
 module ice_type_mod
 
   use mpp_mod,          only: mpp_pe, mpp_root_pe, mpp_sum, mpp_clock_id, CLOCK_COMPONENT, &
-                              CLOCK_LOOP, CLOCK_ROUTINE, stdout
-  use mpp_domains_mod,  only: domain2D, mpp_update_domains
-  use fms_mod,          only: file_exist, open_namelist_file, check_nml_error, &
+                              CLOCK_LOOP, CLOCK_ROUTINE, stdout,input_nml_file
+  use mpp_domains_mod,  only: domain2D, mpp_update_domains, CORNER, BGRID_NE
+  use fms_mod,          only: file_exist, open_namelist_file, check_nml_error, write_version_number,&
                               read_data, close_file, field_exist, &
                               stderr, stdlog, error_mesg, FATAL, WARNING, NOTE, clock_flag_default
   use fms_io_mod,       only: save_restart, restore_state, query_initialized, &
@@ -23,6 +23,7 @@ module ice_type_mod
   use ice_grid_mod,     only: geo_lon, geo_lat, cell_area, sin_rot, cos_rot, wett, xb1d, yb1d
   use ice_grid_mod,     only: geo_lonv_ib, geo_latv_ib
   use ice_grid_mod,     only: x_cyclic, tripolar_grid, dtn, dte, wetv
+  use ice_grid_mod,     only: reproduce_siena_201303
   use ice_thm_mod,      only: ice_thm_param, DI, DS, e_to_melt
   use ice_dyn_mod,      only: ice_dyn_param
   use constants_mod,    only: LI => hlf ! latent heat of fusion - 334e3 J/(kg-ice)
@@ -59,6 +60,9 @@ public  :: id_alb_vis_dir, id_alb_vis_dif,id_alb_nir_dir, id_alb_nir_dif
 
 public  :: iceClock,iceClock1,iceClock2,iceClock3,iceClock4,iceClock5,iceClock6,iceClock7,iceClock8,iceClock9
 public  :: iceClocka,iceClockb,iceClockc
+
+  character(len=128) :: version = '$Id: ice_type.F90,v 20.0 2013/12/13 23:28:32 fms Exp $'
+  character(len=128) :: tagname = '$Name: tikal $'
 
   !---- id for diagnositics -------------------
   integer :: id_xb, id_xt, id_yb, id_yt, id_ct, id_xv, id_yv
@@ -152,7 +156,7 @@ public  :: iceClocka,iceClockb,iceClockc
                            t_range_melt, cm2_bugs, ks, h_lo_lim, verbose,        &
                            do_icebergs, add_diurnal_sw, io_layout, channel_viscosity,&
                            smag_ocn, ssh_gravity, chan_cfl_limit, do_sun_angle_for_alb, &
-                           mask_table
+                           mask_table, reproduce_siena_201303
 
   logical :: do_init = .false.
   real    :: hlim(8) = (/ 0.0, 0.1, 0.3, 0.7, 1.1, 1.5, 2.0, 2.5 /) ! thickness limits 1...num_part-1
@@ -194,6 +198,8 @@ public  :: iceClocka,iceClockb,iceClockc
      real,    pointer, dimension(:,:)   :: v_ocn               =>NULL()
      real,    pointer, dimension(:,:,:) :: flux_u_top          =>NULL()
      real,    pointer, dimension(:,:,:) :: flux_v_top          =>NULL()
+     real,    pointer, dimension(:,:,:) :: flux_u_top_bgrid    =>NULL()
+     real,    pointer, dimension(:,:,:) :: flux_v_top_bgrid    =>NULL()
      real,    pointer, dimension(:,:,:) :: flux_t_top          =>NULL()
      real,    pointer, dimension(:,:,:) :: flux_q_top          =>NULL()
      real,    pointer, dimension(:,:,:) :: flux_lw_top         =>NULL()
@@ -355,11 +361,19 @@ public  :: iceClocka,iceClockb,iceClockc
     !
     ! read namelist and write to logfile
     !
+#ifdef INTERNAL_FILE_NML
+    read (input_nml_file, nml=ice_model_nml, iostat=io)
+#else
     unit = open_namelist_file()
     read  (unit, ice_model_nml,iostat=io)
+    call close_file (unit)
+#endif
+    ierr = check_nml_error(io,'ice_model_nml')
+    write (stdoutunit,'(/)')
+    write (stdoutunit, ice_model_nml)
     write (stdlogunit, ice_model_nml)
-    ierr = check_nml_error(io, 'ice_model_nml')
-    call close_file(unit)
+
+    call write_version_number( version, tagname )
 
     if (spec_ice) then
        slab_ice = .true.
@@ -426,6 +440,9 @@ public  :: iceClocka,iceClockb,iceClockc
          Ice % lprec_top          (isc:iec, jsc:jec, km) ,       &
          Ice % fprec_top          (isc:iec, jsc:jec, km)   )
 
+    allocate ( Ice % flux_u_top_bgrid   (isc:iec, jsc:jec, km) , &
+         Ice % flux_v_top_bgrid         (isc:iec, jsc:jec, km)   )
+
     allocate ( Ice % flux_u    (isc:iec, jsc:jec ) ,       &
          Ice % flux_v          (isc:iec, jsc:jec ) ,       &
          Ice % flux_t          (isc:iec, jsc:jec ) ,       &
@@ -467,6 +484,8 @@ public  :: iceClocka,iceClockb,iceClockc
     Ice % swdn            =0.
     Ice % flux_u_top      =0. 
     Ice % flux_v_top      =0.
+    Ice % flux_u_top_bgrid=0. 
+    Ice % flux_v_top_bgrid=0.
     Ice % sea_lev         =0.
     Ice % part_size       =0.
     Ice % u_ocn           =0.
@@ -482,6 +501,24 @@ public  :: iceClocka,iceClockb,iceClockc
     Ice % t_ice2          =0.
     Ice % area            = cell_area * 4*PI*RADIUS*RADIUS
     Ice % mi              =0.
+    Ice % u_surf          =0.
+    Ice % v_surf          =0.
+    Ice % s_surf          =0.
+    Ice % flux_t_top      =0.
+    Ice % flux_q_top      =0.
+    Ice % flux_lw_top     =0.
+    Ice % flux_sw_vis_dir_top =0.
+    Ice % flux_sw_vis_dif_top =0.
+    Ice % flux_sw_nir_dir_top =0.
+    Ice % flux_sw_nir_dif_top =0.
+    Ice % flux_lh_top     =0.
+    Ice % lprec_top       =0.
+    Ice % fprec_top       =0.
+    Ice % flux_salt       =0.
+    Ice % pen             =0.
+    Ice % trn             =0.
+    Ice % bheat           =0.
+
 
     do j = jsc, jec
        do i = isc, iec
@@ -497,7 +534,11 @@ public  :: iceClocka,iceClockb,iceClockc
           end if
        enddo
     enddo
-    call mpp_update_domains(Ice%vmask, domain=domain )
+    if(reproduce_siena_201303) then
+       call mpp_update_domains(Ice%vmask, domain=domain )
+    else
+       call mpp_update_domains(Ice%vmask, domain=domain, position=CORNER )
+    endif
 
     Ice % Time           = Time
     Ice % Time_Init      = Time_Init
@@ -594,8 +635,12 @@ public  :: iceClocka,iceClockb,iceClockc
        call mpp_update_domains(Ice%h_ice (:,:,2:km), Domain )
        call mpp_update_domains(Ice%t_ice1(:,:,2:km), Domain )
        call mpp_update_domains(Ice%t_ice2(:,:,2:km), Domain )
-       call mpp_update_domains(Ice%u_ice, Domain )
-       call mpp_update_domains(Ice%v_ice, Domain )
+       if(reproduce_siena_201303) then
+          call mpp_update_domains(Ice%u_ice, Domain )
+          call mpp_update_domains(Ice%v_ice, Domain )
+       else
+          call mpp_update_domains(Ice%u_ice, Ice%v_ice, Domain, gridtype=BGRID_NE )
+       endif
        call mpp_update_domains(Ice%sig11, Domain )
        call mpp_update_domains(Ice%sig22, Domain )
        call mpp_update_domains(Ice%sig12, Domain )
@@ -718,6 +763,7 @@ public  :: iceClocka,iceClockb,iceClockc
     deallocate(Ice % part_size, Ice % part_size_uv, Ice % u_surf, Ice % v_surf )
     deallocate(Ice % u_ocn, Ice % v_ocn ,  Ice % rough_mom, Ice % rough_heat )
     deallocate(Ice % rough_moist, Ice % albedo, Ice % flux_u_top, Ice % flux_v_top )
+    deallocate(Ice % flux_u_top_bgrid, Ice % flux_v_top_bgrid )
     deallocate(Ice % flux_t_top, Ice % flux_q_top, Ice % flux_lw_top )
     deallocate(Ice % flux_lh_top, Ice % lprec_top, Ice % fprec_top, Ice % flux_u )
     deallocate(Ice % flux_v, Ice % flux_t, Ice % flux_q, Ice % flux_lw )
@@ -746,7 +792,8 @@ public  :: iceClocka,iceClockb,iceClockc
   ! <DESCRIPTION>
   !  Write out restart files registered through register_restart_file
   ! </DESCRIPTION>
-  subroutine ice_model_restart(time_stamp)
+  subroutine ice_model_restart(Ice, time_stamp)
+    type (ice_data_type),     intent(inout), optional :: Ice
     character(len=*),         intent(in), optional :: time_stamp
 
     call save_restart(Ice_restart, time_stamp)
@@ -983,70 +1030,70 @@ subroutine ice_data_type_chksum(id, timestep, data_type)
     outunit = stdout()
 100 FORMAT("   CHECKSUM::",A32," = ",Z20)
     write(outunit,*) "BEGIN CHECKSUM(ice_data_type):: ", id, timestep
-    write(outunit,100) 'ice_data_type%part_size          ',mpp_chksum(data_type%part_size          )
-    write(outunit,100) 'ice_data_type%part_size_uv       ',mpp_chksum(data_type%part_size_uv       )
-    write(outunit,100) 'ice_data_type%albedo             ',mpp_chksum(data_type%albedo             )
-    write(outunit,100) 'ice_data_type%albedo_vis_dir     ',mpp_chksum(data_type%albedo_vis_dir     )
-    write(outunit,100) 'ice_data_type%albedo_nir_dir     ',mpp_chksum(data_type%albedo_nir_dir     )
-    write(outunit,100) 'ice_data_type%albedo_vis_dif     ',mpp_chksum(data_type%albedo_vis_dif     )
-    write(outunit,100) 'ice_data_type%albedo_nir_dif     ',mpp_chksum(data_type%albedo_nir_dif     )
-    write(outunit,100) 'ice_data_type%rough_mom          ',mpp_chksum(data_type%rough_mom          )
-    write(outunit,100) 'ice_data_type%rough_heat         ',mpp_chksum(data_type%rough_heat         )
-    write(outunit,100) 'ice_data_type%rough_moist        ',mpp_chksum(data_type%rough_moist        )
-    write(outunit,100) 'ice_data_type%t_surf             ',mpp_chksum(data_type%t_surf             )
-    write(outunit,100) 'ice_data_type%u_surf             ',mpp_chksum(data_type%u_surf             )
-    write(outunit,100) 'ice_data_type%v_surf             ',mpp_chksum(data_type%v_surf             )
-    write(outunit,100) 'ice_data_type%sea_lev            ',mpp_chksum(data_type%sea_lev            )
-    write(outunit,100) 'ice_data_type%s_surf             ',mpp_chksum(data_type%s_surf             )
-    write(outunit,100) 'ice_data_type%u_ocn              ',mpp_chksum(data_type%u_ocn              )
-    write(outunit,100) 'ice_data_type%v_ocn              ',mpp_chksum(data_type%v_ocn              )
-    write(outunit,100) 'ice_data_type%flux_u_top         ',mpp_chksum(data_type%flux_u_top         )
-    write(outunit,100) 'ice_data_type%flux_v_top         ',mpp_chksum(data_type%flux_v_top         )
-    write(outunit,100) 'ice_data_type%flux_t_top         ',mpp_chksum(data_type%flux_t_top         )
-    write(outunit,100) 'ice_data_type%flux_q_top         ',mpp_chksum(data_type%flux_q_top         )
-    write(outunit,100) 'ice_data_type%flux_lw_top        ',mpp_chksum(data_type%flux_lw_top        )
-    write(outunit,100) 'ice_data_type%flux_sw_vis_dir_top',mpp_chksum(data_type%flux_sw_vis_dir_top)
-    write(outunit,100) 'ice_data_type%flux_sw_vis_dif_top',mpp_chksum(data_type%flux_sw_vis_dif_top)
-    write(outunit,100) 'ice_data_type%flux_sw_nir_dir_top',mpp_chksum(data_type%flux_sw_nir_dir_top)
-    write(outunit,100) 'ice_data_type%flux_sw_nir_dif_top',mpp_chksum(data_type%flux_sw_nir_dif_top)
-    write(outunit,100) 'ice_data_type%flux_lh_top        ',mpp_chksum(data_type%flux_lh_top        )
-    write(outunit,100) 'ice_data_type%lprec_top          ',mpp_chksum(data_type%lprec_top          )
-    write(outunit,100) 'ice_data_type%fprec_top          ',mpp_chksum(data_type%fprec_top          )
-    write(outunit,100) 'ice_data_type%flux_u             ',mpp_chksum(data_type%flux_u             )
-    write(outunit,100) 'ice_data_type%flux_v             ',mpp_chksum(data_type%flux_v             )
-    write(outunit,100) 'ice_data_type%flux_t             ',mpp_chksum(data_type%flux_t             )
-    write(outunit,100) 'ice_data_type%flux_q             ',mpp_chksum(data_type%flux_q             )
-    write(outunit,100) 'ice_data_type%flux_lw            ',mpp_chksum(data_type%flux_lw            )
-    write(outunit,100) 'ice_data_type%flux_sw_vis_dir    ',mpp_chksum(data_type%flux_sw_vis_dir    )
-    write(outunit,100) 'ice_data_type%flux_sw_vis_dif    ',mpp_chksum(data_type%flux_sw_vis_dif    )
-    write(outunit,100) 'ice_data_type%flux_sw_nir_dir    ',mpp_chksum(data_type%flux_sw_nir_dir    )
-    write(outunit,100) 'ice_data_type%flux_sw_nir_dif    ',mpp_chksum(data_type%flux_sw_nir_dif    )
-    write(outunit,100) 'ice_data_type%flux_lh            ',mpp_chksum(data_type%flux_lh            )
-    write(outunit,100) 'ice_data_type%lprec              ',mpp_chksum(data_type%lprec              )
-    write(outunit,100) 'ice_data_type%fprec              ',mpp_chksum(data_type%fprec              )
-    write(outunit,100) 'ice_data_type%p_surf             ',mpp_chksum(data_type%p_surf             )
-    write(outunit,100) 'ice_data_type%runoff             ',mpp_chksum(data_type%runoff             )
-    write(outunit,100) 'ice_data_type%calving            ',mpp_chksum(data_type%calving            )
-    write(outunit,100) 'ice_data_type%flux_salt          ',mpp_chksum(data_type%flux_salt          )
-    write(outunit,100) 'ice_data_type%lwdn               ',mpp_chksum(data_type%lwdn               )
-    write(outunit,100) 'ice_data_type%swdn               ',mpp_chksum(data_type%swdn               )
-    write(outunit,100) 'ice_data_type%pen                ',mpp_chksum(data_type%pen                )
-    write(outunit,100) 'ice_data_type%trn                ',mpp_chksum(data_type%trn                )
-    write(outunit,100) 'ice_data_type%tmelt              ',mpp_chksum(data_type%tmelt              )
-    write(outunit,100) 'ice_data_type%bmelt              ',mpp_chksum(data_type%bmelt              )
-    write(outunit,100) 'ice_data_type%h_snow             ',mpp_chksum(data_type%h_snow             )
-    write(outunit,100) 'ice_data_type%h_ice              ',mpp_chksum(data_type%h_ice              )
-    write(outunit,100) 'ice_data_type%t_ice1             ',mpp_chksum(data_type%t_ice1             )
-    write(outunit,100) 'ice_data_type%t_ice2             ',mpp_chksum(data_type%t_ice2             )
-    write(outunit,100) 'ice_data_type%u_ice              ',mpp_chksum(data_type%u_ice              )
-    write(outunit,100) 'ice_data_type%v_ice              ',mpp_chksum(data_type%v_ice              )
-    write(outunit,100) 'ice_data_type%sig11              ',mpp_chksum(data_type%sig11              )
-    write(outunit,100) 'ice_data_type%sig22              ',mpp_chksum(data_type%sig22              )
-    write(outunit,100) 'ice_data_type%sig12              ',mpp_chksum(data_type%sig12)
-    write(outunit,100) 'ice_data_type%frazil             ',mpp_chksum(data_type%frazil)
-    write(outunit,100) 'ice_data_type%bheat              ',mpp_chksum(data_type%bheat)
-    write(outunit,100) 'ice_data_type%qflx_lim_ice       ',mpp_chksum(data_type%qflx_lim_ice)
-    write(outunit,100) 'ice_data_type%qflx_res_ice       ',mpp_chksum(data_type%qflx_res_ice)
+    write(outunit,100) 'ice_data_type%part_size          ',mpp_chksum(data_type%part_size(isc:iec,jsc:jec,:)          )
+    write(outunit,100) 'ice_data_type%part_size_uv       ',mpp_chksum(data_type%part_size_uv(isc:iec,jsc:jec,:)       )
+    write(outunit,100) 'ice_data_type%albedo             ',mpp_chksum(data_type%albedo(isc:iec,jsc:jec,:)             )
+    write(outunit,100) 'ice_data_type%albedo_vis_dir     ',mpp_chksum(data_type%albedo_vis_dir(isc:iec,jsc:jec,:)     )
+    write(outunit,100) 'ice_data_type%albedo_nir_dir     ',mpp_chksum(data_type%albedo_nir_dir(isc:iec,jsc:jec,:)     )
+    write(outunit,100) 'ice_data_type%albedo_vis_dif     ',mpp_chksum(data_type%albedo_vis_dif(isc:iec,jsc:jec,:)     )
+    write(outunit,100) 'ice_data_type%albedo_nir_dif     ',mpp_chksum(data_type%albedo_nir_dif(isc:iec,jsc:jec,:)     )
+    write(outunit,100) 'ice_data_type%rough_mom          ',mpp_chksum(data_type%rough_mom(isc:iec,jsc:jec,:)          )
+    write(outunit,100) 'ice_data_type%rough_heat         ',mpp_chksum(data_type%rough_heat(isc:iec,jsc:jec,:)         )
+    write(outunit,100) 'ice_data_type%rough_moist        ',mpp_chksum(data_type%rough_moist(isc:iec,jsc:jec,:)        )
+    write(outunit,100) 'ice_data_type%flux_u             ',mpp_chksum(data_type%flux_u(isc:iec,jsc:jec)               )
+    write(outunit,100) 'ice_data_type%flux_v             ',mpp_chksum(data_type%flux_v(isc:iec,jsc:jec)               )
+    write(outunit,100) 'ice_data_type%flux_t             ',mpp_chksum(data_type%flux_t(isc:iec,jsc:jec)               )
+    write(outunit,100) 'ice_data_type%flux_q             ',mpp_chksum(data_type%flux_q(isc:iec,jsc:jec)               )
+    write(outunit,100) 'ice_data_type%flux_lw            ',mpp_chksum(data_type%flux_lw(isc:iec,jsc:jec)              )
+    write(outunit,100) 'ice_data_type%flux_sw_vis_dir    ',mpp_chksum(data_type%flux_sw_vis_dir(isc:iec,jsc:jec)      )
+    write(outunit,100) 'ice_data_type%flux_sw_vis_dif    ',mpp_chksum(data_type%flux_sw_vis_dif(isc:iec,jsc:jec)      )
+    write(outunit,100) 'ice_data_type%flux_sw_nir_dir    ',mpp_chksum(data_type%flux_sw_nir_dir(isc:iec,jsc:jec)      )
+    write(outunit,100) 'ice_data_type%flux_sw_nir_dif    ',mpp_chksum(data_type%flux_sw_nir_dif(isc:iec,jsc:jec)      )
+    write(outunit,100) 'ice_data_type%lprec              ',mpp_chksum(data_type%lprec(isc:iec,jsc:jec)                )
+    write(outunit,100) 'ice_data_type%fprec              ',mpp_chksum(data_type%fprec(isc:iec,jsc:jec)                )
+    write(outunit,100) 'ice_data_type%p_surf             ',mpp_chksum(data_type%p_surf(isc:iec,jsc:jec)               )
+    write(outunit,100) 'ice_data_type%runoff             ',mpp_chksum(data_type%runoff(isc:iec,jsc:jec)               )
+    write(outunit,100) 'ice_data_type%calving            ',mpp_chksum(data_type%calving(isc:iec,jsc:jec)              )
+    write(outunit,100) 'ice_data_type%flux_salt          ',mpp_chksum(data_type%flux_salt(isc:iec,jsc:jec)            )
+    write(outunit,100) 'ice_data_type%h_snow             ',mpp_chksum(data_type%h_snow(isc:iec,jsc:jec,:))
+    write(outunit,100) 'ice_data_type%h_ice              ',mpp_chksum(data_type%h_ice(isc:iec,jsc:jec,:) )
+    write(outunit,100) 'ice_data_type%t_ice1             ',mpp_chksum(data_type%t_ice1(isc:iec,jsc:jec,:))
+    write(outunit,100) 'ice_data_type%t_ice2             ',mpp_chksum(data_type%t_ice2(isc:iec,jsc:jec,:))
+    write(outunit,100) 'ice_data_type%u_ice              ',mpp_chksum(data_type%u_ice(isc:iec,jsc:jec))
+    write(outunit,100) 'ice_data_type%v_ice              ',mpp_chksum(data_type%v_ice(isc:iec,jsc:jec))
+    write(outunit,100) 'ice_data_type%sig11              ',mpp_chksum(data_type%sig11(isc:iec,jsc:jec))
+    write(outunit,100) 'ice_data_type%sig22              ',mpp_chksum(data_type%sig22(isc:iec,jsc:jec))
+    write(outunit,100) 'ice_data_type%sig12              ',mpp_chksum(data_type%sig12(isc:iec,jsc:jec))
+    write(outunit,100) 'ice_data_type%frazil             ',mpp_chksum(data_type%frazil(isc:iec,jsc:jec))
+    write(outunit,100) 'ice_data_type%qflx_lim_ice       ',mpp_chksum(data_type%qflx_lim_ice(isc:iec,jsc:jec))
+    write(outunit,100) 'ice_data_type%qflx_res_ice       ',mpp_chksum(data_type%qflx_res_ice(isc:iec,jsc:jec))
+    write(outunit,*) '   ======The following are not restart variables======'
+    write(outunit,100) 'ice_data_type%u_surf             ',mpp_chksum(data_type%u_surf(isc:iec,jsc:jec,:)             )
+    write(outunit,100) 'ice_data_type%v_surf             ',mpp_chksum(data_type%v_surf(isc:iec,jsc:jec,:)             )
+    write(outunit,100) 'ice_data_type%sea_lev            ',mpp_chksum(data_type%sea_lev(isc:iec,jsc:jec)              )
+    write(outunit,100) 'ice_data_type%s_surf             ',mpp_chksum(data_type%s_surf(isc:iec,jsc:jec)               )
+    write(outunit,100) 'ice_data_type%u_ocn              ',mpp_chksum(data_type%u_ocn(isc:iec,jsc:jec)                )
+    write(outunit,100) 'ice_data_type%v_ocn              ',mpp_chksum(data_type%v_ocn(isc:iec,jsc:jec)                )
+    write(outunit,100) 'ice_data_type%flux_u_top         ',mpp_chksum(data_type%flux_u_top(isc:iec,jsc:jec,:)         )
+    write(outunit,100) 'ice_data_type%flux_v_top         ',mpp_chksum(data_type%flux_v_top(isc:iec,jsc:jec,:)         )
+    write(outunit,100) 'ice_data_type%flux_t_top         ',mpp_chksum(data_type%flux_t_top(isc:iec,jsc:jec,:)         )
+    write(outunit,100) 'ice_data_type%flux_q_top         ',mpp_chksum(data_type%flux_q_top(isc:iec,jsc:jec,:)         )
+    write(outunit,100) 'ice_data_type%flux_lw_top        ',mpp_chksum(data_type%flux_lw_top(isc:iec,jsc:jec,:)        )
+    write(outunit,100) 'ice_data_type%flux_sw_vis_dir_top',mpp_chksum(data_type%flux_sw_vis_dir_top(isc:iec,jsc:jec,:))
+    write(outunit,100) 'ice_data_type%flux_sw_vis_dif_top',mpp_chksum(data_type%flux_sw_vis_dif_top(isc:iec,jsc:jec,:))
+    write(outunit,100) 'ice_data_type%flux_sw_nir_dir_top',mpp_chksum(data_type%flux_sw_nir_dir_top(isc:iec,jsc:jec,:))
+    write(outunit,100) 'ice_data_type%flux_sw_nir_dif_top',mpp_chksum(data_type%flux_sw_nir_dif_top(isc:iec,jsc:jec,:))
+    write(outunit,100) 'ice_data_type%flux_lh_top        ',mpp_chksum(data_type%flux_lh_top(isc:iec,jsc:jec,:)        )
+    write(outunit,100) 'ice_data_type%lprec_top          ',mpp_chksum(data_type%lprec_top(isc:iec,jsc:jec,:)          )
+    write(outunit,100) 'ice_data_type%fprec_top          ',mpp_chksum(data_type%fprec_top(isc:iec,jsc:jec,:)          )
+    write(outunit,100) 'ice_data_type%flux_lh            ',mpp_chksum(data_type%flux_lh(isc:iec,jsc:jec)              )
+    write(outunit,100) 'ice_data_type%lwdn               ',mpp_chksum(data_type%lwdn(isc:iec,jsc:jec)                 )
+    write(outunit,100) 'ice_data_type%swdn               ',mpp_chksum(data_type%swdn(isc:iec,jsc:jec)                 )
+    write(outunit,100) 'ice_data_type%pen                ',mpp_chksum(data_type%pen(isc:iec,jsc:jec,:)                )
+    write(outunit,100) 'ice_data_type%trn                ',mpp_chksum(data_type%trn(isc:iec,jsc:jec,:)                )
+    write(outunit,100) 'ice_data_type%tmelt              ',mpp_chksum(data_type%tmelt(isc:iec,jsc:jec,:)              )
+    write(outunit,100) 'ice_data_type%bmelt              ',mpp_chksum(data_type%bmelt(isc:iec,jsc:jec,:)              )
+    write(outunit,100) 'ice_data_type%bheat              ',mpp_chksum(data_type%bheat(isc:iec,jsc:jec))
 
     do n = 1, data_type%ocean_fields%num_bcs  !{
        do m = 1, data_type%ocean_fields%bc(n)%num_fields  !{

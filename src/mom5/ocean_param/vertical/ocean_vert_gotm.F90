@@ -252,9 +252,9 @@ integer  :: id_restart_visc
 type(restart_file_type), save :: Got_restart
 
 character(len=256) :: version=&
-     '$Id: ocean_vert_gotm.F90,v 1.1.2.6 2012/06/03 00:41:57 Stephen.Griffies Exp $'
+     '$Id: ocean_vert_gotm.F90,v 20.0 2013/12/14 00:16:40 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 logical :: module_is_initialized = .FALSE.
 integer :: advection_gotm_method = 1  ! internally set: 1=upwind, 2=sweby 

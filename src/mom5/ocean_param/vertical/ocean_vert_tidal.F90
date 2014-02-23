@@ -409,7 +409,7 @@ type(ocean_domain_type), pointer :: Dom => NULL()
 type(ocean_grid_type),   pointer :: Grd => NULL()
 
 character(len=128)  :: version='$$'
-character (len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
+character (len=128) :: tagname = '$Name: tikal $'
 
 public vert_mix_tidal 
 public ocean_vert_tidal_init

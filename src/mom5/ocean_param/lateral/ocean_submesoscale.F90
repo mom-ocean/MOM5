@@ -352,7 +352,7 @@ type(ocean_grid_type),   pointer :: Grd => NULL()
 type(ocean_domain_type), save    :: Dom_flux_sub
 
 character(len=128)  :: version='$$'
-character (len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
+character (len=128) :: tagname = '$Name: tikal $'
 
 
 #ifdef MOM_STATIC_ARRAYS

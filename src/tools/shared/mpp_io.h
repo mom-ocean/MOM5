@@ -16,8 +16,9 @@ will be written out from root pe.
 #define MPP_INT NC_INT
 #define MPP_DOUBLE NC_DOUBLE
 #define MPP_CHAR NC_CHAR
-#define MPP_
 #define HEADER_BUFFER_VALUE (16384)
+#define MPP_FILL_INT NC_FILL_INT
+#define MPP_FILL_DOUBLE NC_FILL_DOUBLE
 
 int mpp_open(const char *file, int action);
 void mpp_close(int ncid);
@@ -38,7 +39,7 @@ void mpp_get_var_dimname(int fid, int vid, int ind, char *name);
 char mpp_get_dim_cart(int fid, const char *name);
 void mpp_get_var_bndname(int fid, int vid, char *bndname);
 int mpp_var_att_exist(int fid, int vid, const char *att);
-
+int mpp_global_att_exist(int fid, const char *att);
 int mpp_def_dim(int fid, const char* name, int size);
 int mpp_def_var(int fid, const char* name, nc_type type, int ndim, const int *dims, int natts, ...);
 void mpp_def_global_att(int fid, const char *name, const char *val);
@@ -54,4 +55,5 @@ int mpp_file_exist(const char *file);
 int mpp_field_exist(const char *file, const char *field);
 int mpp_var_exist(int fid, const char *field);
 int mpp_dim_exist(int fid, const char *dimname);
+int get_great_circle_algorithm(int fid);
 #endif

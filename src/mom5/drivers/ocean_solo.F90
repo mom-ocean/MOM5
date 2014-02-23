@@ -1,3 +1,4 @@
+#ifndef USE_ESMF_LIB
 program main
 !  
 !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Matt Harrison
@@ -682,12 +683,9 @@ end subroutine ocean_solo_restart
 #endif
 
 end program main
-  
-        
 
-  
+#else
 
+#include "ocean_solo_nuopc.inc"
 
-
-
-
+#endif

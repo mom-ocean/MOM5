@@ -14,8 +14,8 @@ public mg_const_init
 !------------------------------------------------------------------------
 !       DECLARE VERSION NUMBER
 !------------------------------------------------------------------------
-Character(len=128) :: Version = '$Id: mg_const.F90,v 19.0 2012/01/06 20:26:12 fms Exp $'
-Character(len=128) :: Tagname = '$Name: siena_201207 $'
+Character(len=128) :: Version = '$Id: mg_const.F90,v 20.0 2013/12/13 23:21:55 fms Exp $'
+Character(len=128) :: Tagname = '$Name: tikal $'
  
 !-------------------------------------------------------------------------
 !---module variables------------------------------------------------------
@@ -42,9 +42,6 @@ REAL(kind=mg_pr), PUBLIC, PARAMETER :: ci_mg = ci
 
 
 
-! 1 / relative variance of sub-grid cloud water distribution
-! see morrison and gettelman, 2007, J. Climate for details
-REAL(kind=mg_pr), PUBLIC, PARAMETER ::  qcvar = 1._mg_pr
 
 
 logical   :: module_is_initialized = .false.

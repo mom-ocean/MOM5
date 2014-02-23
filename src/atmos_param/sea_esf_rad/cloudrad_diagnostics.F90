@@ -65,8 +65,8 @@ private
 !---------------------------------------------------------------------
 !----------- version number for this module --------------------------
 
-character(len=128)  :: version =  '$Id: cloudrad_diagnostics.F90,v 19.0 2012/01/06 20:14:11 fms Exp $'
-character(len=128)  :: tagname =  '$Name: siena_201207 $'
+character(len=128)  :: version =  '$Id: cloudrad_diagnostics.F90,v 20.0 2013/12/13 23:19:04 fms Exp $'
+character(len=128)  :: tagname =  '$Name: tikal $'
 
 
 !---------------------------------------------------------------------
@@ -154,6 +154,13 @@ real             :: min_cld_drop_rad, max_cld_drop_rad, &
                     min_cld_ice_size, max_cld_ice_size, &
                     mn_drp_diam, mx_drp_diam
 
+!-----------------------------------------------------------------------
+!    if true, then donner meso clouds are treated as largescale in the 
+!    optical depth diagnostic; if false, then they are included with
+!    convective clouds
+!-----------------------------------------------------------------------
+logical          :: donner_meso_is_largescale
+
 !----------------------------------------------------------------------
 !    number of stochastic subcolumns 
 !----------------------------------------------------------------------
@@ -207,7 +214,10 @@ integer :: id_em_cld_lw, id_em_cld_10u, &
            id_ext_cld_uv,   id_sct_cld_uv,  id_asymm_cld_uv, &
            id_ext_cld_vis,  id_sct_cld_vis, id_asymm_cld_vis, &
            id_ext_cld_nir,  id_sct_cld_nir, id_asymm_cld_nir, &
-           id_alb_uv_cld, id_alb_nir_cld, id_abs_uv_cld, id_abs_nir_cld
+           id_alb_uv_cld, id_alb_nir_cld, id_abs_uv_cld, id_abs_nir_cld, &
+           id_strat_opdepth, id_meso_opdepth, id_cell_opdepth,   &
+           id_shallow_opdepth, id_largescale_opdepth, id_convect_opdepth,&
+           id_total_opdepth
    
 ! strat cloud microphysical properties diagnostics
 integer::  id_strat_area_liq, id_strat_conc_drop, id_strat_size_drop,&
@@ -311,6 +321,7 @@ integer, dimension(:), allocatable ::    &
            id_droplet_number_cols_only_lsc, id_lwp_cols_only_lsc, &
            id_iwp_cols_only_lsc
 
+logical :: output_opdepth_diagnostics = .false.
 logical :: module_is_initialized = .false.    ! module  initialized ?
 
 
@@ -354,7 +365,8 @@ logical :: module_is_initialized = .false.    ! module  initialized ?
 subroutine cloudrad_diagnostics_init (min_cld_drop_rad_in,  &
                                       max_cld_drop_rad_in, &
                                       min_cld_ice_size_in, &
-                                      max_cld_ice_size_in, axes, Time)
+                                      max_cld_ice_size_in, axes, Time, &
+                                      donner_meso_is_largescale_in)
 
 !---------------------------------------------------------------------
 !    cloudrad_diagnostics_init is the constructor for 
@@ -367,6 +379,7 @@ real,                    intent(in)    ::   min_cld_drop_rad_in, &
                                             max_cld_ice_size_in
 integer, dimension(4),   intent(in)    ::   axes
 type(time_type),         intent(in)    ::   Time
+logical,                 intent(in)    ::   donner_meso_is_largescale_in
 
 !---------------------------------------------------------------------
 !   intent(in) variables:
@@ -442,6 +455,8 @@ type(time_type),         intent(in)    ::   Time
       if (mpp_pe() == mpp_root_pe() )    &
                        write (logunit, nml=cloudrad_diagnostics_nml)
  
+      donner_meso_is_largescale = donner_meso_is_largescale_in
+
 !---------------------------------------------------------------------
 !    define module variables to retain the smallest and largest 
 !    allowable droplet and ice particle sizes which can be processed
@@ -630,6 +645,10 @@ type(time_type),         intent(in)    ::   Time
         call error_mesg ('cloudrad_diagnostics_mod',  &
          'Cldrad_control%do_lw_micro not yet defined', FATAL)
       endif
+
+      if (id_largescale_opdepth + id_convect_opdepth + id_strat_opdepth + &
+          id_meso_opdepth + id_cell_opdepth + id_shallow_opdepth + &
+          id_total_opdepth > 0) output_opdepth_diagnostics = .true.
 
 !--------------------------------------------------------------------
 !    mark the module initialized.
@@ -1155,12 +1174,19 @@ real, dimension(:,:,:),         intent(in),  &
 
       real, dimension(size(Atmos_input%rh2o,1),                       &
                       size(Atmos_input%rh2o,2),                       &
-                      size(Atmos_input%rh2o,3))   ::  Tau, LwEm
+                      size(Atmos_input%rh2o,3))   ::  Tau, LwEm,  &
+                                                     tau_c, tau_s, &
+                                          tau_strat, tau_meso, tau_cell, &
+                                          tau_uw, tau_tot
 
       logical    :: used
       integer    :: ix, jx, kx
       integer    :: i, j, k, n
       integer    :: nn
+      integer    :: ctr_s, ctr_c, ctr_strat, ctr_meso, ctr_cell, ctr_uw, &
+                    ctr_tot
+      real       :: sum_s1, sum_c1, sum_strat, sum_meso, sum_cell, sum_uw, &
+                    sum_tot
 
 
       
@@ -1495,10 +1521,124 @@ if (Time_diag > Time) then
 !    when running strat_clouds.
 !---------------------------------------------------------------------
 
-      if (do_isccp) then
+      if (do_isccp .or. output_opdepth_diagnostics) then  
         call obtain_cloud_tau_and_em (is, js, Model_microphys, &
-                                    Atmos_input, &
-                                    Tau_stoch, Lwem_stoch)
+                                    Atmos_input, Tau_stoch, Lwem_stoch)
+        if (output_opdepth_diagnostics) then
+!---------------------------------------------------------------------
+!   the values of tau and lwem are available for each stochastic column.
+!   here grid box mean values are obtained for the convective and
+!   large-scale components. 
+!---------------------------------------------------------------------
+          do k=1, size(Tau_stoch,3)
+            do j=1, size(Tau_stoch,2)
+              do i=1, size(Tau_stoch,1)
+                ctr_s = 0
+                ctr_c = 0
+                ctr_strat = 0
+                ctr_meso = 0
+                ctr_cell = 0
+                ctr_uw = 0
+                ctr_tot = 0
+                sum_s1 = 0.
+                sum_c1 = 0.
+                sum_strat = 0.
+                sum_meso = 0.
+                sum_cell = 0.
+                sum_uw = 0.
+                sum_tot = 0.
+                do n=1, size(Tau_stoch,4)
+                  if (Model_microphys%stoch_cloud_type(i,j,k,n) == 1.) then
+                    ctr_s = ctr_s + 1
+                    sum_s1 = sum_s1 +  tau_stoch(i,j,k,n)
+                    ctr_strat = ctr_strat + 1
+                    sum_strat = sum_strat + tau_stoch(i,j,k,n)
+                    ctr_tot = ctr_tot + 1
+                    sum_tot = sum_tot + tau_stoch(i,j,k,n)
+                  else if   &
+                    (Model_microphys%stoch_cloud_type(i,j,k,n) == 2. ) then
+                    ctr_meso = ctr_meso + 1
+                    sum_meso = sum_meso + tau_stoch(i,j,k,n)
+                    if (donner_meso_is_largescale) then
+                      ctr_s = ctr_s + 1
+                      sum_s1 = sum_s1 +  tau_stoch(i,j,k,n)
+                    else
+                      ctr_c = ctr_c + 1
+                      sum_c1 = sum_c1 +  tau_stoch(i,j,k,n)
+                    endif
+                    ctr_tot = ctr_tot + 1
+                    sum_tot = sum_tot + tau_stoch(i,j,k,n)
+                  else if    &
+                    (Model_microphys%stoch_cloud_type(i,j,k,n) == 3. ) then
+                    ctr_cell = ctr_cell + 1
+                    sum_cell = sum_cell + tau_stoch(i,j,k,n)
+                    ctr_c = ctr_c + 1
+                    sum_c1 = sum_c1 +  tau_stoch(i,j,k,n)
+                    ctr_tot = ctr_tot + 1
+                    sum_tot = sum_tot + tau_stoch(i,j,k,n)
+                  else if    &
+                    (Model_microphys%stoch_cloud_type(i,j,k,n) == 4. ) then
+                    ctr_uw = ctr_uw + 1
+                    sum_uw = sum_uw + tau_stoch(i,j,k,n)
+                    ctr_c = ctr_c + 1
+                    sum_c1 = sum_c1 +  tau_stoch(i,j,k,n)
+                    ctr_tot = ctr_tot + 1
+                    sum_tot = sum_tot + tau_stoch(i,j,k,n)
+                  endif
+                end do
+                if (ctr_s > 0) then
+                  tau_s(i,j,k) = sum_s1/ctr_s
+                else
+                  tau_s(i,j,k) = 0.             
+                endif
+                if (ctr_c > 0) then
+                  tau_c(i,j,k) = sum_c1/ctr_c
+                else
+                  tau_c(i,j,k) = 0.             
+                endif
+                if (ctr_strat > 0) then
+                  tau_strat(i,j,k) = sum_strat/ctr_strat
+                else
+                  tau_strat(i,j,k) = 0.             
+                endif
+                if (ctr_meso > 0) then
+                  tau_meso(i,j,k) = sum_meso/ctr_meso
+                else
+                  tau_meso(i,j,k) = 0.             
+                endif
+                if (ctr_cell > 0) then
+                  tau_cell(i,j,k) = sum_cell/ctr_cell
+                else
+                  tau_cell(i,j,k) = 0.             
+                endif
+                if (ctr_uw > 0) then
+                  tau_uw(i,j,k) = sum_uw/ctr_uw
+                else
+                  tau_uw(i,j,k) = 0.             
+                endif
+                if (ctr_tot > 0) then
+                  tau_tot(i,j,k) = sum_tot/ctr_tot
+                else
+                  tau_tot(i,j,k) = 0.             
+                endif
+              end do
+            end do
+          end do
+          used = send_data (id_largescale_opdepth, tau_s(:,:,:), &
+                            Time_diag, is, js, 1, rmask=mask)
+          used = send_data (id_convect_opdepth, tau_c(:,:,:), &
+                            Time_diag, is, js, 1, rmask=mask)
+          used = send_data (id_strat_opdepth, tau_strat(:,:,:), &
+                            Time_diag, is, js, 1, rmask=mask)
+          used = send_data (id_meso_opdepth, tau_meso(:,:,:), &
+                            Time_diag, is, js, 1, rmask=mask)
+          used = send_data (id_cell_opdepth, tau_cell(:,:,:), &
+                            Time_diag, is, js, 1, rmask=mask)
+          used = send_data (id_shallow_opdepth, tau_uw(:,:,:), &
+                            Time_diag, is, js, 1, rmask=mask)
+          used = send_data (id_total_opdepth, tau_tot(:,:,:), &
+                            Time_diag, is, js, 1, rmask=mask)
+        endif
       endif  ! (do_isccp )
 
 !--------------------------------------------------------------------
@@ -1664,9 +1804,10 @@ if (Time_diag > Time) then
 !    wise it is 0.0. define high cloud percentage by summing over all 
 !    bands.
 !---------------------------------------------------------------------
-        if (id_high_cld_amt > 0)  then            
+        if (id_high_cld_amt > 0)  then
+          nn=size(tmplmask4,3)
           do n=1,ncol
-            tmplmask4(:,:,:,n) = (Atmos_input%pflux(:,:,:) <= high_btm)
+            tmplmask4(:,:,:,n) = (Atmos_input%pflux(:,:,1:nn) <= high_btm)
           end do
 
           cloud2n(:,:,:) =    &
@@ -1687,10 +1828,11 @@ if (Time_diag > Time) then
 !    bands.
 !---------------------------------------------------------------------
         if (id_mid_cld_amt > 0) then    
+          nn=size(tmplmask4,3)
           do n=1,ncol
             tmplmask4(:,:,:,n) =     &
-                       (Atmos_input%pflux(:,:,:) <= mid_btm .and. &
-                             Atmos_input%pflux(:,:,:) > high_btm) 
+                       (Atmos_input%pflux(:,:,1:nn) <= mid_btm .and. &
+                             Atmos_input%pflux(:,:,1:nn) > high_btm) 
           end do
                                                 
           cloud2n(:,:,:) =    &
@@ -1711,8 +1853,9 @@ if (Time_diag > Time) then
 !    bands.
 !---------------------------------------------------------------------
         if (id_low_cld_amt > 0)  then            
+          nn=size(tmplmask4,3)
           do n=1,ncol
-            tmplmask4(:,:,:,n) = (Atmos_input%pflux(:,:,: ) > mid_btm)
+            tmplmask4(:,:,:,n) = (Atmos_input%pflux(:,:,1:nn) > mid_btm)
           end do
 
           cloud2n(:,:,:) =    &
@@ -1733,8 +1876,9 @@ if (Time_diag > Time) then
 !    summing over all bands.
 !---------------------------------------------------------------------
         if (id_lam_cld_amt > 0)  then            
+          nn=size(tmplmask4,3)
           do n=1,ncol
-            tmplmask4(:,:,:,n) = (Atmos_input%pflux(:,:,: ) > high_btm)
+            tmplmask4(:,:,:,n) = (Atmos_input%pflux(:,:,1:nn) > high_btm)
           end do
 
           cloud2n(:,:,:) =    &
@@ -4022,6 +4166,25 @@ integer        , intent(in) :: axes(4)
                           '1.4um cloud asymmetry parameter',   &
                           'percent', missing_value=missing_value)
 
+        id_largescale_opdepth = register_diag_field   &
+                         (mod_name, 'largescale_opdepth', axes(1:3), &
+                          Time, '.55um cloud optical depth avgd over &
+                          &subcolumns with ls cloud', &
+                          'none', missing_value=missing_value)
+ 
+        id_convect_opdepth = register_diag_field   &
+                         (mod_name, 'convect_opdepth', axes(1:3), &
+                          Time, '.55um cloud optical depth avgd over &
+                          &subcolumns with convective clouds', &
+                          'none', missing_value=missing_value)
+ 
+        id_total_opdepth = register_diag_field   &
+                         (mod_name, 'total_opdepth', axes(1:3), &
+                          Time, '.55um cloud optical depth avgd over &
+                          &all subcolumns with cloud', &
+                          'none', missing_value=missing_value)
+ 
+
 !---------------------------------------------------------------------
 !    register the microphysically-based cloud radiative property
 !    diagnostics resulting from the large-scale clouds only.
@@ -4035,6 +4198,12 @@ integer        , intent(in) :: axes(4)
                          (mod_name, 'lsc_cld_ext_vis', axes(1:3), &
                           Time, '.55um lsc cloud ext coeff',   &
                           'km-1', missing_value=missing_value)
+ 
+        id_strat_opdepth = register_diag_field   &
+                         (mod_name, 'strat_opdepth', axes(1:3), &
+                          Time, '.55um cloud optical depth avgd over &
+                          &subcolumns with strat clouds',   &
+                          'none', missing_value=missing_value)
  
         id_lsc_cld_ext_nir = register_diag_field    &
                          (mod_name, 'lsc_cld_ext_nir', axes(1:3),  &
@@ -4113,6 +4282,12 @@ integer        , intent(in) :: axes(4)
                           Time, '.55um cell cloud ext coeff',  &
                           'km-1', missing_value=missing_value)
 
+          id_cell_opdepth = register_diag_field   &
+                         (mod_name, 'cell_opdepth', axes(1:3),  &
+                          Time, '.55um cloud optical depth avgd over &
+                          &subcolumns with cell clouds',  &
+                          'none', missing_value=missing_value)
+
           id_cell_cld_ext_nir = register_diag_field   &
                          (mod_name, 'cell_cld_ext_nir', axes(1:3),  &
                           Time, '1.4um cell cloud ext coeff',  &
@@ -4176,6 +4351,12 @@ integer        , intent(in) :: axes(4)
                          (mod_name, 'meso_cld_ext_vis', axes(1:3), &
                           Time, '.55um meso cloud ext coeff',  &
                           'km-1', missing_value=missing_value)
+
+          id_meso_opdepth = register_diag_field   &
+                         (mod_name, 'meso_opdepth', axes(1:3), &
+                          Time, '.55um cloud optical depth avgd over &
+                          &subcolumns with meso clouds',  &
+                          'none', missing_value=missing_value)
 
           id_meso_cld_ext_nir = register_diag_field   &
                          (mod_name, 'meso_cld_ext_nir', axes(1:3), &
@@ -4250,6 +4431,13 @@ integer        , intent(in) :: axes(4)
                           axes(1:3), Time,   &
                           '.55um uw shallow cloud ext coeff',&
                           'km-1', missing_value=missing_value)
+
+          id_shallow_opdepth = register_diag_field   &
+                         (mod_name, 'uw_shallow_opdepth',&
+                          axes(1:3), Time,   &
+                          '.55um cloud optical depth avgd over &
+                          &subcolumns with uw shallow clouds',&
+                          'none', missing_value=missing_value)
 
           id_shallow_cld_ext_nir = register_diag_field   &
                          (mod_name, 'uw_shallow_cld_ext_nir',&

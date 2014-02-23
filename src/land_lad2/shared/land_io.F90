@@ -2,7 +2,14 @@ module land_io_mod
 
 use constants_mod,     only : PI
 use fms_mod,           only : file_exist, error_mesg, FATAL, stdlog, mpp_pe, &
-     mpp_root_pe, write_version_number, string
+     mpp_root_pe, write_version_number, string, check_nml_error, close_file
+
+#ifdef INTERNAL_FILE_NML
+use mpp_mod, only: input_nml_file
+#else
+use fms_mod, only: open_namelist_file
+#endif
+
 
 use horiz_interp_mod,  only : horiz_interp_type, &
      horiz_interp_new, horiz_interp_del, &
@@ -18,8 +25,11 @@ private
 ! ==== public interface ======================================================
 public :: init_cover_field
 public :: read_field
+public :: read_land_io_namelist
 
 public :: print_netcdf_error
+
+public :: input_buf_size
 ! ==== end of public interface ===============================================
 
 interface read_field
@@ -34,10 +44,56 @@ include 'netcdf.inc'
 ! ==== module constants ======================================================
 character(len=*), parameter :: &
      module_name = 'land_io_mod', &
-     version     = '$Id: land_io.F90,v 19.0 2012/01/06 20:41:31 fms Exp $', &
-     tagname     = '$Name: siena_201207 $'
+     version     = '$Id: land_io.F90,v 20.0 2013/12/13 23:29:51 fms Exp $', &
+     tagname     = '$Name: tikal $'
+
+logical :: module_is_initialized = .false.
+
+character(len=64)  :: interp_method = "conservative"
+integer :: input_buf_size = 65536 ! input buffer size for tile and cohort reading
+namelist /land_io_nml/ interp_method, input_buf_size
 
 contains ! -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+subroutine read_land_io_namelist()
+  integer :: io, ierr, unit
+
+
+  module_is_initialized = .TRUE.
+
+  ! [1] print out version number
+  call write_version_number (version, tagname)
+
+#ifdef INTERNAL_FILE_NML
+     read (input_nml_file, nml=land_io_nml, iostat=io)
+     ierr = check_nml_error(io, 'land_io_nml')
+#else
+  if (file_exist('input.nml')) then
+     unit = open_namelist_file ( )
+     ierr = 1;  
+     do while (ierr /= 0)
+        read (unit, nml=land_io_nml, iostat=io, end=10)
+        ierr = check_nml_error (io, 'land_io_nml')
+     enddo
+10   continue
+     call close_file (unit)
+  endif
+#endif   
+  if (mpp_pe() == mpp_root_pe()) then
+     unit = stdlog()
+     write (unit, nml=land_io_nml)
+     call close_file (unit)
+  endif
+
+  if(trim(interp_method) .NE. "conservative" .AND. trim(interp_method) .NE. "conserve_great_circle") then
+     call error_mesg ( module_name,'interp_method should be "conservative" or "conserve_great_circle"', FATAL)
+  endif
+  
+  if (input_buf_size <= 0) then
+     call error_mesg ( module_name,'input_buf_size must be larger than zero', FATAL)
+  endif
+
+end subroutine read_land_io_namelist
 
 
 ! ============================================================================
@@ -58,6 +114,9 @@ subroutine init_cover_field( &
   integer :: cover_id
   real    :: maxfrac, total
 
+  if( .not. module_is_initialized ) &
+       call error_mesg(module_name,'land_io_init is not called', FATAL)
+ 
   frac = 0
   
   if (cover_to_use == 'multi-tile') then
@@ -180,7 +239,7 @@ subroutine do_read_cover_field(ncid,varid,lonb,latb,input_cover_types,frac)
   __NF_ASRT__( nfu_get_valid_range(ncid,varid,v) )
 
   call horiz_interp_new(interp, in_lonb,in_latb(in_j_start:in_j_start+in_j_count), &
-       lonb,latb, interp_method='conservative')
+       lonb,latb, interp_method=trim(interp_method))
   frac=0
   do k = 1,size(input_cover_types(:))
      x=0
@@ -258,7 +317,7 @@ subroutine do_read_fraction_field(ncid,varid,lonb,latb,input_cover_types,frac)
      where(nfu_is_valid(in_frac(:,:,cover),v)) in_mask = 1.0
      call horiz_interp_new(interp, &
           in_lonb,in_latb(in_j_start:in_j_start+in_j_count), lonb,latb,&
-          interp_method='conservative',mask_in=in_mask)
+          interp_method=trim(interp_method), mask_in=in_mask)
      call horiz_interp(interp,in_frac(:,:,cover),frac(:,:,k))
      call horiz_interp_del(interp)
   enddo

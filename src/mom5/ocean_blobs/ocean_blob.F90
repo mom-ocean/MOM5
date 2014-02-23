@@ -208,7 +208,7 @@ type(restart_file_type), save :: gridded_restart
 
 ! CVS stuff
 character(len=128)  :: version = '$$'
-character (len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
+character (len=128) :: tagname = '$Name: tikal $'
 
 ! initialisation
 logical :: module_is_initialized=.false.

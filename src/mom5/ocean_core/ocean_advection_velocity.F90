@@ -226,12 +226,13 @@ private read_advection
 private inflow_nboundary_init
 
 character(len=128) :: version=&
-     '$Id: ocean_advection_velocity.F90,v 1.1.2.8.16.2 2013/04/03 19:00:31 smg Exp $'
+     '$Id: ocean_advection_velocity.F90,v 20.0.4.1 2014/01/22 17:19:10 smg Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_201303_smg $'
+     '$Name: mom5_tikal_22jan2014_smg $'
 
-logical :: have_obc              = .false.
-logical :: module_is_initialized = .FALSE.
+logical :: have_obc                     = .false.
+logical :: module_is_initialized        = .FALSE.
+logical :: prescribe_advection_velocity = .false.
 
 real    :: max_advection_velocity       = -1.0 
 logical :: debug_this_module            = .false.
@@ -365,6 +366,7 @@ subroutine ocean_advection_velocity_init(Grid, Domain, Time, Time_steps, Thickne
 
   if(read_advection_velocity .or. read_advection_transport) then 
     call read_advection(Time, Thickness, Adv_vel)
+    prescribe_advection_velocity = .true.
   endif
   
   if(constant_advection_velocity) then 
@@ -372,6 +374,7 @@ subroutine ocean_advection_velocity_init(Grid, Domain, Time, Time_steps, Thickne
     '==>Note: Using ocean_advection_velocity_mod with constant_advection_velocity=.true.'  
     write(stdoutunit,'(a)') &
     '         Will hold the advection velocity components constant in time. '
+    prescribe_advection_velocity = .true.
   endif 
 
   if(use_blobs .and. horz_grid == MOM_CGRID) then 
@@ -592,7 +595,7 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
   ! Remap these to get the corresponding advection velocity components 
   ! (uhrho_eu,vhrho_nu) to advect B-grid horizontal momentum.
 
-  if(.not. constant_advection_velocity .and. horz_grid == MOM_BGRID) then 
+  if(.not. prescribe_advection_velocity .and. horz_grid == MOM_BGRID) then 
 
       do k=1,nk
          Adv_vel%uhrho_et(:,:,k) = &
@@ -639,11 +642,11 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
 
       endif
 
-  endif  ! endif for .not. constant_advection_velocity and MOM_BGRID 
+  endif  ! endif for .not. prescribe_advection_velocity and MOM_BGRID 
 
 
   ! smg: June 2012: C-grid yet to be updated for blobs. 
-  if(.not. constant_advection_velocity .and. horz_grid == MOM_CGRID) then 
+  if(.not. prescribe_advection_velocity .and. horz_grid == MOM_CGRID) then 
 
       do k=1,nk
          do j=jsd,jed
@@ -666,7 +669,7 @@ subroutine ocean_advection_velocity (Velocity, Time, Thickness, Dens, pme, river
                                  *Grd%tmask(:,:,k)
      enddo
 
-  endif  ! endif for .not. constant_advection_velocity and MOM_CGRID 
+  endif  ! endif for .not. prescribe_advection_velocity and MOM_CGRID 
 
 
   if (have_obc) then
@@ -932,7 +935,7 @@ subroutine read_advection(Time, Thickness, Adv_vel)
   type(ocean_thickness_type), intent(in)    :: Thickness
   type(ocean_adv_vel_type),   intent(inout) :: Adv_vel
 
-  integer            :: k
+  integer            :: i,j,k
   character(len=128) :: filename
 
   allocate (ue(isd:ied,jsd:jed,nk))
@@ -945,10 +948,19 @@ subroutine read_advection(Time, Thickness, Adv_vel)
   filename = 'INPUT/ocean_advect_velocity.nc'
   if (file_exist(trim(filename))) then 
       call read_data(filename,'ue',ue,Dom%domain2d,timelevel=1)
-      call mpp_update_domains(ue(:,:,:), Dom%domain2d)
       call read_data(filename,'vn',vn,Dom%domain2d,timelevel=1)
-      call mpp_update_domains(vn(:,:,:), Dom%domain2d)
       call read_data(filename,'wb',wb,Dom%domain2d,timelevel=1)
+      do k=1,nk
+        do j=jsd,jed
+           do i=isd,ied
+              ue(i,j,k) = ue(i,j,k)*Grd%tmask(i,j,k)
+              vn(i,j,k) = vn(i,j,k)*Grd%tmask(i,j,k)
+              wb(i,j,k) = wb(i,j,k)*Grd%tmask(i,j,k)
+           enddo
+        enddo
+      enddo
+      call mpp_update_domains(ue(:,:,:), Dom%domain2d)
+      call mpp_update_domains(vn(:,:,:), Dom%domain2d)
       call mpp_update_domains(wb(:,:,:), Dom%domain2d)
   else 
       call mpp_error(FATAL,&

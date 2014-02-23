@@ -1,0 +1,18 @@
+# template for the Gnu Fortran (gfortran) compiler version (GCC) 4.4.0 20090514 when using libMPI
+# this template was tested with FRE on the workstation nnz on 10/06/2010
+# typical use with mkmf
+# mkmf -t template.ifc -c"-Duse_libMPI -Duse_netCDF" path_names /usr/local/include
+#
+#We need to locate the netcdf.mod that was compiled with gfort and pass it BEFORE any other location that might have a netcdf.mod
+NETCDF_MOD_FILE_LOCATION = /home/nnz/local/include/gfort
+MPICH_LOCATION = /net2/nnz/opt/mpich2-1.3_gfort44
+#MPICH_LOCATION = /usr/local/mpich
+#
+FFLAGS_BASE =  -fcray-pointer  -g  -fdefault-real-8 -O2 -Waliasing -ffree-line-length-none -fno-range-check
+FFLAGS = $(FFLAGS_BASE)
+CPPFLAGS =  -I/usr/include -I$(MPICH_LOCATION)/include -I$(NETCDF_MOD_FILE_LOCATION) -I/usr/local/netcdf4/include 
+FC = gfortran44 
+LD = gfortran44  $(MAIN_PROGRAM)
+LDFLAGS = -L/usr/local/netcdf4/lib -lnetcdf -L/usr/local/hdf5/lib -lhdf5_hl -lhdf5 -lz -L$(MPICH_LOCATION)/lib  -lmpich -lpthread -lmpl 
+CFLAGS = -D__IFC
+

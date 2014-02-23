@@ -72,7 +72,7 @@ program compare_grid
 
   !--- version information variables -----------------------------------
   character(len=128) :: version = '$Id: compare_grid.f90,v 11.0 2004/09/28 20:07:16 fms Exp $'
-  character(len=128) :: tagname = '$Name: siena_201207 $'
+  character(len=128) :: tagname = '$Name: tikal $'
 
   !--- compare_grid_type
   type compare_grid_type

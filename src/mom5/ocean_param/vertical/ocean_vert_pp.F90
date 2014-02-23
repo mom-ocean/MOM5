@@ -97,10 +97,10 @@ integer :: num_prog_tracers=-1
 integer :: horz_grid
 
 character(len=128) :: version = &
-     '$Id: ocean_vert_pp.F90,v 1.1.2.4 2012/06/03 00:41:57 Stephen.Griffies Exp $'
+     '$Id: ocean_vert_pp.F90,v 20.0 2013/12/14 00:16:50 fms Exp $'
 
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 ! for diagnostics 
 integer :: id_diff_cbt_pp= -1

@@ -160,9 +160,9 @@ type(ocean_domain_type), pointer :: Dom =>NULL()
 integer :: isd, ied, jsd, jed, isc, iec, jsc, jec, nk
 
 character(len=128) :: version=&
-  '$Id: ocean_convect.F90,v 1.1.2.1 2012/05/15 16:06:17 smg Exp $'
+  '$Id: ocean_convect.F90,v 20.0 2013/12/14 00:16:32 fms Exp $'
 character (len=128) :: tagname = &
-  '$Name: mom5_siena_08jun2012_smg $'
+  '$Name: tikal $'
 
 logical :: module_is_initialized=.FALSE.
 logical :: use_this_module      =.false.

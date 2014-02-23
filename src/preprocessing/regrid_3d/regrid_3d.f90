@@ -18,9 +18,9 @@ program regrid_3d
   ! or see:   http://www.gnu.org/licenses/gpl.html                      
   !-----------------------------------------------------------------------
   !
-  ! <CONTACT EMAIL= "Bonnie.Samuels@noaa.gov">Bonnie Samuels </CONTACT>
-  ! <CONTACT EMAIL="Zhi.Liang@noaa.gov">Zhi Liang</CONTACT>
-  ! <REVIEWER EMAIL="Matthew.Harrison@noaa.gov">M.J. Harrison</REVIEWER>
+  ! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">Bonnie Samuels </CONTACT>
+  ! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">Zhi Liang</CONTACT>
+  ! <REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov">M.J. Harrison</REVIEWER>
   !
   !<DESCRIPTION>
   ! regrid 3-d lat-lon gridded data to logically rectangular grid
@@ -148,7 +148,7 @@ program regrid_3d
   type(axistype)     :: depth_axis, time_axis, axes_dst(2)
   type(fieldtype)    :: field_lon_dst, field_lat_dst
   type(fieldtype)    :: dest_field(max_fields)
-  integer            :: dest_unit, dst_grid_unit
+  integer            :: dest_unit, dst_grid_unit         
   logical            :: time_axis_exists = .false.
   real, parameter    :: tol = 1.e-10   ! tolerance for detecting missing values
   real, parameter    :: max_val=1.e20
@@ -165,8 +165,8 @@ program regrid_3d
   real, dimension(:,:),          allocatable :: lon_dst, lat_dst
   real, dimension(:,:,:),        allocatable :: mask_dst
   !--- version information variables
-  character(len=128) :: version='CVS $Id: regrid_3d.f90,v 18.0.2.1.2.2 2013/09/26 18:21:14 Zhi.Liang Exp $'
-  character(len=128) :: tagname='Tag $Name:  $'
+  character(len=128) :: version='CVS $Id: regrid_3d.f90,v 20.0 2013/12/14 00:31:13 fms Exp $'
+  character(len=128) :: tagname='Tag $Name: tikal $'
 
   ! --- Begin of the program
 

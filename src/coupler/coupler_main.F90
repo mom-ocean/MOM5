@@ -228,8 +228,8 @@ program coupler_main
 
 !-----------------------------------------------------------------------
 
-  character(len=128) :: version = '$Id: coupler_main.F90,v 19.0.4.2.4.1.4.1 2012/05/15 17:57:31 z1l Exp $'
-  character(len=128) :: tag = '$Name: siena_201207 $'
+  character(len=128) :: version = '$Id: coupler_main.F90,v 20.0 2013/12/13 23:27:07 fms Exp $'
+  character(len=128) :: tag = '$Name: tikal $'
 
 !-----------------------------------------------------------------------
 !---- model defined-types ----
@@ -392,6 +392,9 @@ program coupler_main
              newClock8, newClock9, newClock10, newClock11, newClock12, newClock13, newClock14, newClocka, &
              newClockb, newClockc, newClockd, newClocke, newClockf, newClockg, newClockh
 
+  integer :: id_atmos_model_init, id_land_model_init, id_ice_model_init
+  integer :: id_ocean_model_init, id_flux_exchange_init
+
   character(len=80) :: text
   character(len=48), parameter                    :: mod_name = 'coupler_main_mod'
  
@@ -417,8 +420,6 @@ character(len=256), parameter   :: note_header =                                
   call mpp_init()
 !these clocks are on the global pelist
   initClock = mpp_clock_id( 'Initialization' )
-  mainClock = mpp_clock_id( 'Main loop' )
-  termClock = mpp_clock_id( 'Termination' )
   call mpp_clock_begin(initClock)
   
   call fms_init
@@ -720,7 +721,7 @@ newClock14 = mpp_clock_id( 'final flux_check_stocks' )
         if( Atm%pe )then        
            call atmos_model_restart(Atm, timestamp)
            call land_model_restart(timestamp)
-           call ice_model_restart(timestamp)
+           call ice_model_restart(Ice, timestamp)
         endif
         if( Ocean%is_ocean_pe) then
            call ocean_model_restart(Ocean_state, timestamp)
@@ -953,8 +954,8 @@ contains
         if( atmos_npes+ocean_npes.NE.npes ) &
              call mpp_error( FATAL, 'coupler_init: atmos_npes+ocean_npes must equal npes for concurrent coupling.' )
     else                        !serial timestepping
-        if( atmos_npes.EQ.0 )atmos_npes = npes
-        if( ocean_npes.EQ.0 )ocean_npes = npes
+        if( (atmos_npes.EQ.0) .and. (do_atmos .or. do_land .or. do_ice) ) atmos_npes = npes
+        if( (ocean_npes.EQ.0) .and. (do_ocean) ) ocean_npes = npes
         if( max(atmos_npes,ocean_npes).EQ.npes )then !overlapping pelists
             ! do nothing
         else                    !disjoint pelists
@@ -967,7 +968,6 @@ contains
     if( ice_npes  == 0 ) ice_npes  = atmos_npes    
     if(land_npes > atmos_npes) call mpp_error(FATAL, 'coupler_init: land_npes > atmos_npes')
     if(ice_npes  > atmos_npes) call mpp_error(FATAL, 'coupler_init: ice_npes > atmos_npes')
-
 
     allocate( Atm%pelist  (atmos_npes) )
     allocate( Ocean%pelist(ocean_npes) )
@@ -1008,16 +1008,45 @@ contains
 !           call set_cpu_affinity( base_cpu + omp_get_thread_num() )
 !   !$OMP END PARALLEL
        end if
+
+   !--- initialization clock
+    if( Atm%pe )then
+       call mpp_set_current_pelist(Atm%pelist)
+       id_atmos_model_init = mpp_clock_id( '  Init: atmos_model_init ' )
+    endif
+    if( Land%pe )then
+       call mpp_set_current_pelist(Land%pelist)
+       id_land_model_init  = mpp_clock_id( '  Init: land_model_init ' )
+    endif
+    if( Ice%pe )then
+       call mpp_set_current_pelist(Ice%pelist)
+       id_ice_model_init   = mpp_clock_id( '  Init: ice_model_init ' )
+    endif
+    if( Ocean%is_ocean_pe )then
+       call mpp_set_current_pelist(Ocean%pelist)
+       id_ocean_model_init = mpp_clock_id( '  Init: ocean_model_init ' )
+    endif
+    call mpp_set_current_pelist(ensemble_pelist(ensemble_id,:))
+    id_flux_exchange_init = mpp_clock_id( '  Init: flux_exchange_init' )
+
     call mpp_set_current_pelist()
+    mainClock = mpp_clock_id( 'Main loop' )
+    termClock = mpp_clock_id( 'Termination' )
     
     !Write out messages on root PEs
     if(mpp_pe().EQ.mpp_root_pe() )then
        write( text,'(a,2i6,a,i2.2)' )'Atmos PE range: ', Atm%pelist(1)  , Atm%pelist(atmos_npes)  ,&
             ' ens_', ensemble_id
        call mpp_error( NOTE, 'coupler_init: '//trim(text) )
-       write( text,'(a,2i6,a,i2.2)' )'Ocean PE range: ', Ocean%pelist(1), Ocean%pelist(ocean_npes), &
-            ' ens_', ensemble_id
-       call mpp_error( NOTE, 'coupler_init: '//trim(text) )
+       if (ocean_npes .gt. 0) then   ! only if ocean is active (cjg)
+         write( text,'(a,2i6,a,i2.2)' )'Ocean PE range: ', Ocean%pelist(1), Ocean%pelist(ocean_npes), &
+              ' ens_', ensemble_id
+         call mpp_error( NOTE, 'coupler_init: '//trim(text) )
+       else
+         write( text,'(a,i2.2)' )'Ocean PE range is not set (do_ocean=.false. and concurrent=.false.) for ens_', &
+               ensemble_id
+         call mpp_error( NOTE, 'coupler_init: '//trim(text) )
+       end if
        write( text,'(a,2i6,a,i2.2)' )'Land PE range: ', Land%pelist(1)  , Land%pelist(land_npes)  ,&
             ' ens_', ensemble_id
        call mpp_error( NOTE, 'coupler_init: '//trim(text) )
@@ -1233,7 +1262,10 @@ contains
           write(errunit,*) 'Starting to initialize atmospheric model at '&
                            //trim(walldate)//' '//trim(walltime)
         endif
+
+        call mpp_clock_begin(id_atmos_model_init)
         call atmos_model_init( Atm, Time_init, Time, Time_step_atmos )
+        call mpp_clock_end(id_atmos_model_init)
         if( mpp_pe().EQ.mpp_root_pe() ) then
           call DATE_AND_TIME(walldate, walltime, wallzone, wallvalues)
           write(errunit,*) 'Finished initializing atmospheric model at '&
@@ -1250,8 +1282,10 @@ contains
           write(errunit,*) 'Starting to initialize land model at '&
                            //trim(walldate)//' '//trim(walltime)
         endif
+        call mpp_clock_begin(id_land_model_init)
         call land_model_init( Atmos_land_boundary, Land, Time_init, Time, &
              Time_step_atmos, Time_step_cpld )
+        call mpp_clock_end(id_land_model_init)
         if( mpp_pe().EQ.mpp_root_pe() ) then
           call DATE_AND_TIME(walldate, walltime, wallzone, wallvalues)
           write(errunit,*) 'Finished initializing land model at '&
@@ -1268,7 +1302,9 @@ contains
           write(errunit,*) 'Starting to initialize ice model at '&
                            //trim(walldate)//' '//trim(walltime)
         endif
+        call mpp_clock_begin(id_ice_model_init)
         call ice_model_init( Ice, Time_init, Time, Time_step_atmos, Time_step_cpld )
+        call mpp_clock_end(id_ice_model_init)
         if( mpp_pe().EQ.mpp_root_pe() ) then
           call DATE_AND_TIME(walldate, walltime, wallzone, wallvalues)
           write(errunit,*) 'Finished initializing ice model at '&
@@ -1285,7 +1321,9 @@ contains
           write(errunit,*) 'Starting to initialize ocean model at '&
                            //trim(walldate)//' '//trim(walltime)
         endif
+        call mpp_clock_begin(id_ocean_model_init)
         call ocean_model_init( Ocean, Ocean_state, Time_init, Time )
+        call mpp_clock_end(id_ocean_model_init)
         if( mpp_pe().EQ.mpp_root_pe() ) then
           call DATE_AND_TIME(walldate, walltime, wallzone, wallvalues)
           write(errunit,*) 'Finished initializing ocean model at '&
@@ -1320,10 +1358,14 @@ contains
       write(errunit,*) 'Starting to initialize flux_exchange at '&
                        //trim(walldate)//' '//trim(walltime)
     endif
+    call mpp_clock_begin(id_flux_exchange_init)
     call flux_exchange_init ( Time, Atm, Land, Ice, Ocean, Ocean_state,&
          atmos_ice_boundary, land_ice_atmos_boundary, &
          land_ice_boundary, ice_ocean_boundary, ocean_ice_boundary, &
          dt_atmos=dt_atmos, dt_cpld=dt_cpld)
+    call mpp_set_current_pelist(ensemble_pelist(ensemble_id,:))
+    call mpp_clock_end(id_flux_exchange_init)
+    call mpp_set_current_pelist()
     if( mpp_pe().EQ.mpp_root_pe() ) then
       call DATE_AND_TIME(walldate, walltime, wallzone, wallvalues)
       write(errunit,*) 'Finsihed initializing flux_exchange at '&

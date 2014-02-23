@@ -39,7 +39,7 @@ module cloud_generator_mod
 !----------- version number for this module --------------------------
 
 character(len=128)  :: version =  '$Id: cloud_generator.F90,v 19.0 2012/01/06 20:02:09 fms Exp $'
-character(len=128)  :: tagname =  '$Name: siena_201207 $'
+character(len=128)  :: tagname =  '$Name: tikal $'
 
 !---------------------------------------------------------------------
 !-------  interfaces --------

@@ -14,7 +14,7 @@
 char *usage[] = {
   "",
   "  river_regrid --mosaic mosaic_grid --river_src river_src_file [--output output_file] ",
-  "              [--land_thresh land_thresh]                                             ",
+  "              [--land_thresh land_thresh] [--min_frac min_frac] [--read_land_mask]    ",
   "                                                                                      ",
   "river_regrid will remap river network data from global regular lat-lon grid onto any  ",
   "other grid (includes regular lat-lon grid and cubic grid ), which is specified        ",
@@ -41,10 +41,20 @@ char *usage[] = {
   "                            value is river_output. For one tile mosaic, the actual    ",
   "                            result will be $output_file.nc. For multiple tile mosaic, ",
   "                            the result will be $output.tile#.nc.                      ",
-  "--land_thresh land_thresh   Any grid cell with land fraction greater than land_thresh ",
-  "                            will be land points, otherwise is a ocean cell. Default   ",
-  "                            value is 0                                                ",
-  "                                                                                      ",  
+  "                                                                                      ",
+  "--land_thresh land_thresh   Any grid cell with land fraction greater than             ",
+  "                            1-land_thresh will have land fraction = 1.                ",
+  "                            Default value is 0                                        ",
+  "                                                                                      ",
+  "                                                                                      ",
+  "--min_frac min_frac         Any grid cell with land fraction less than min_frac will  ",
+  "                            have land fraction = 0.                                   ",
+  "                                                                                      ",
+  "--read_land_mask            Read the land fraction from file land_mask.tile#.nc if    ",
+  "                            it is specified. If not, read the exchange grid and       ",
+  "                            compute the land fraction. It is recommanded to set this  ",
+  "                            option when atmosphere grid is a nested grid.             ",
+  "                                                                                      ",
   NULL
 };
 
@@ -64,7 +74,7 @@ const char   basin_name[]      = "basin";
 const char   cellarea_name[]   = "cellarea";
 const char   celllength_name[] = "celllength";
 const char   landfrac_name[]   = "land_frac";
-const char   tagname[]         = "$Name: siena_201205_z1l $";
+const char   tagname[]         = "$Name: tikal $";
 const char   version[]         = "0.1";
 const int    ncells = 3;
 char   xaxis_name[128];
@@ -77,6 +87,7 @@ int    sizeof_int  = 0;
 int    sizeof_double = 0;
 double suba_cutoff = 1.e12;  
 double land_thresh = 0;
+double min_frac = 0;
 
 typedef struct {
   int nx;
@@ -110,7 +121,7 @@ typedef struct {
 void qsort_index(double array[], int start, int end, int rank[]);
 void get_source_data(const char *src_file, river_type *river_data);
 void get_mosaic_grid(const char *coupler_mosaic, const char *land_mosaic,
-		     int ntiles, river_type *river_data, unsigned int *opcode);
+		     int ntiles, river_type *river_data, unsigned int *opcode, int read_land_mask, int *great_circle_algorithm);
 void init_river_data(int ntiles, river_type *river_out, const river_type * const river_in);
 void calc_max_subA(const river_type *river_in, river_type *river_out,
 		   int ntiles, unsigned int opcode);
@@ -123,7 +134,7 @@ void sort_basin(int ntiles, river_type* river_data);
 
 void check_river_data( );
 void write_river_data(const char *river_src_file, const char *output_file,
-		      river_type* river_out, const char *history, int ntiles);
+		      river_type* river_out, const char *history, int ntiles, int great_circle_algorithm);
 double distance(double lon1, double lat1, double lon2, double lat2);
 
 int main(int argc, char* argv[])
@@ -138,6 +149,8 @@ int main(int argc, char* argv[])
   char         land_mosaic[256];
   char         land_mosaic_file[256];  
   char         history[1024];
+  int          read_land_mask = 0;
+  int          great_circle_algorithm = 0;
   
   river_type river_in;
   river_type *river_out; /* may be more than one tile */
@@ -149,6 +162,8 @@ int main(int argc, char* argv[])
     {"river_src_file",    required_argument, NULL, 'b'},
     {"output",            required_argument, NULL, 'c'},
     {"land_thresh",       required_argument, NULL, 'd'},
+    {"min_frac",          required_argument, NULL, 'e'},
+    {"read_land_mask",    no_argument,       NULL, 'f'},
     {0, 0, 0, 0},
   };      
 
@@ -172,7 +187,13 @@ int main(int argc, char* argv[])
     case 'd':
       land_thresh = atof(optarg);
       break;
-case '?':
+    case 'e':
+      min_frac = atof(optarg);
+      break;      
+    case 'f':
+      read_land_mask = 1;
+      break;
+    case '?':
       errflg++;
       break;
     }
@@ -224,7 +245,7 @@ case '?':
   }
   river_out = (river_type *)malloc(ntiles*sizeof(river_type));
   
-  get_mosaic_grid(mosaic_file, land_mosaic, ntiles, river_out, &opcode);
+  get_mosaic_grid(mosaic_file, land_mosaic, ntiles, river_out, &opcode, read_land_mask, &great_circle_algorithm);
 
   init_river_data(ntiles, river_out, &river_in);
   
@@ -238,7 +259,7 @@ case '?':
   
   check_river_data(ntiles, river_out);
   
-  write_river_data(river_src_file, output_file, river_out, history, ntiles);
+  write_river_data(river_src_file, output_file, river_out, history, ntiles, great_circle_algorithm);
   
   printf("Successfully running river_regrid and the following output file are generated.\n");
   for(n=0; n<ntiles; n++) printf("****%s\n", river_out[n].filename);
@@ -329,7 +350,8 @@ void get_source_data(const char *src_file, river_type *river_data)
    void get_mosaic_grid(char *file)
    where file is the coupler mosaic file.
    --------------------------------------------------------------------*/
-void get_mosaic_grid(const char *coupler_mosaic, const char *land_mosaic, int ntiles, river_type *river_data, unsigned int *opcode)
+void get_mosaic_grid(const char *coupler_mosaic, const char *land_mosaic, int ntiles, 
+                     river_type *river_data, unsigned int *opcode, int read_land_mask, int *great_circle_algorithm)
 {
   int    n_xgrid_files, nx, ny, nxp, nyp, ni, nj, nip, njp;
   int    n, m, i, j, ii, jj, nxp2, nyp2;
@@ -342,25 +364,36 @@ void get_mosaic_grid(const char *coupler_mosaic, const char *land_mosaic, int nt
   char *pfile;
   int  m_fid, m_vid, g_fid, g_vid;
 
+
+  
   /* coupler_mosaic, land_mosaic, and exchange grid file should be located in the same directory */
   get_file_path(coupler_mosaic, dir);
   
   m_fid = mpp_open(coupler_mosaic, MPP_READ);
+
+  /* first find out if great_circle_algorithm is used or not, normally it could find from
+   reading attribute of field aXl_file
+  */
+  *great_circle_algorithm = get_great_circle_algorithm(m_fid);
+  
   m_vid = mpp_get_varid(m_fid, "lnd_mosaic");
   mpp_get_var_value(m_fid, m_vid, land_mosaic_name);
-  
-  /* get the exchange grid file name */
-  n_xgrid_files = mpp_get_dimlen(m_fid, "nfile_aXl");
-  xgrid_file = (char **)malloc(n_xgrid_files*sizeof(char *));
 
-  m_vid = mpp_get_varid(m_fid, "aXl_file");
-  for(n=0; n<n_xgrid_files; n++) {
-    xgrid_file[n] = (char *)malloc(STRING*sizeof(char));
-    start[0] = n;
-    start[1] = 0;
-    nread[0] = 1;
-    nread[1] = STRING;    
-    mpp_get_var_value_block(m_fid, m_vid, start, nread, xgrid_file[n]);
+  if( !read_land_mask) {
+    /* get the exchange grid file name */
+    n_xgrid_files = mpp_get_dimlen(m_fid, "nfile_aXl");
+    xgrid_file = (char **)malloc(n_xgrid_files*sizeof(char *));
+
+    m_vid = mpp_get_varid(m_fid, "aXl_file");
+  
+    for(n=0; n<n_xgrid_files; n++) {
+      xgrid_file[n] = (char *)malloc(STRING*sizeof(char));
+      start[0] = n;
+      start[1] = 0;
+      nread[0] = 1;
+      nread[1] = STRING;    
+      mpp_get_var_value_block(m_fid, m_vid, start, nread, xgrid_file[n]);
+    }
   }
   mpp_close(m_fid);
   m_fid = mpp_open(land_mosaic, MPP_READ);
@@ -427,44 +460,72 @@ void get_mosaic_grid(const char *coupler_mosaic, const char *land_mosaic, int nt
       river_data[n].xb_r[m] = river_data[n].xb[m] * D2R;
       river_data[n].yb_r[m] = river_data[n].yb[m] * D2R;
     }
-    get_grid_area(&nx, &ny, river_data[n].xb_r, river_data[n].yb_r, river_data[n].area);
 
+    if( *great_circle_algorithm == 0 ) {
+      get_grid_area(&nx, &ny, river_data[n].xb_r, river_data[n].yb_r, river_data[n].area);
+    }
+    else {
+      get_grid_great_circle_area(&nx, &ny, river_data[n].xb_r, river_data[n].yb_r, river_data[n].area);
+    }
+	      
     /* calculate the land fraction */
-    sprintf(tilename, "X%s_tile%d", land_mosaic_name, n+1);
-    for(m=0; m<n_xgrid_files; m++) {
-      if(strstr(xgrid_file[m],tilename) || ntiles == 1) {
-	int    nxgrid, l;
-	int    *i1, *j1, *i2, *j2;
-	double *xgrid_area;
-	char filewithpath[512];
+    if(!read_land_mask) {
+      sprintf(tilename, "X%s_tile%d", land_mosaic_name, n+1);
+      for(m=0; m<n_xgrid_files; m++) {
+	if(strstr(xgrid_file[m],tilename) || ntiles == 1) {
+	  int    nxgrid, l;
+	  int    *i1, *j1, *i2, *j2;
+	  double *xgrid_area;
+	  char filewithpath[512];
 	
-	sprintf(filewithpath, "%s/%s", dir, xgrid_file[m]);
-	g_fid = mpp_open(filewithpath, MPP_READ);
-	nxgrid = mpp_get_dimlen(g_fid, "ncells");
-	mpp_close(g_fid);
-	i1         = (int    *)malloc(nxgrid*sizeof(int));
-	j1         = (int    *)malloc(nxgrid*sizeof(int));	  
-	i2         = (int    *)malloc(nxgrid*sizeof(int));
-	j2         = (int    *)malloc(nxgrid*sizeof(int));
-	xgrid_area = (double *)malloc(nxgrid*sizeof(double));
-	read_mosaic_xgrid_order1(filewithpath, i1, j1, i2, j2, xgrid_area);
-	for(l=0; l<nxgrid; l++) area[j2[l]*nx+i2[l]] += xgrid_area[l];
-	free(i1);
-	free(j1);
-	free(i2);
-	free(j2);
+	  sprintf(filewithpath, "%s/%s", dir, xgrid_file[m]);
+	  g_fid = mpp_open(filewithpath, MPP_READ);
+	  nxgrid = mpp_get_dimlen(g_fid, "ncells");
+	  mpp_close(g_fid);
+	  i1         = (int    *)malloc(nxgrid*sizeof(int));
+	  j1         = (int    *)malloc(nxgrid*sizeof(int));	  
+	  i2         = (int    *)malloc(nxgrid*sizeof(int));
+	  j2         = (int    *)malloc(nxgrid*sizeof(int));
+	  xgrid_area = (double *)malloc(nxgrid*sizeof(double));
+	  read_mosaic_xgrid_order1(filewithpath, i1, j1, i2, j2, xgrid_area);
+	  for(l=0; l<nxgrid; l++) area[j2[l]*nx+i2[l]] += xgrid_area[l];
+	  free(i1);
+	  free(j1);
+	  free(i2);
+	  free(j2);
+	}
+      }
+
+      for(m=0; m<nx*ny; m++) area[m] *= 4*M_PI*RADIUS*RADIUS;
+      for(m=0; m<nx*ny; m++) {
+	river_data[n].landfrac[m] = area[m]/river_data[n].area[m];
       }
     }
+    else { /* read from land_mask.tile#.nc */
+      char land_mask_file[512];
+      int nx2, ny2;
+      
+      sprintf(land_mask_file, "%s/land_mask_tile%d.nc", dir, n+1);
+      g_fid = mpp_open(land_mask_file, MPP_READ);
+      nx2 = mpp_get_dimlen(g_fid, "nx");
+      ny2 = mpp_get_dimlen(g_fid, "ny");
+      if( nx != nx2 ) mpp_error("river_regrid: mismatch of nx between land_mask file and horizontal grid file");
+      if( ny != ny2 ) mpp_error("river_regrid: mismatch of ny between land_mask file and horizontal grid file");
+      g_vid = mpp_get_varid(g_fid, "mask");
+      mpp_get_var_value(g_fid, g_vid, river_data[n].landfrac);
+      mpp_close(g_fid);
+    }
 
-    for(m=0; m<nx*ny; m++) area[m] *= 4*M_PI*RADIUS*RADIUS;
     for(m=0; m<nx*ny; m++) {
-      river_data[n].landfrac[m] = area[m]/river_data[n].area[m];
       /* consider truncation error */
-      if(fabs(river_data[n].landfrac[m]-1) <= land_thresh) river_data[n].landfrac[m] = 1;
-      if(fabs(river_data[n].landfrac[m])   <= land_thresh) river_data[n].landfrac[m] = 0;
+      if(river_data[n].landfrac[m] > 1 + 1.e-3) mpp_error("river_regrid: land_frac > 1 + 1.e-3" ); 
+      if(river_data[n].landfrac[m] > 1 - land_thresh) river_data[n].landfrac[m] = 1;
+      if(fabs(river_data[n].landfrac[m])   < min_frac) river_data[n].landfrac[m] = 0;
       if(river_data[n].landfrac[m] > 1 || river_data[n].landfrac[m] < 0)
 	mpp_error("river_regrid: land_frac should be between 0 or 1");
-    }
+    }    
+
+      
     free(area);
   } /* n = 0, ntiles */
 
@@ -1136,16 +1197,16 @@ void check_river_data(int ntiles, river_type *river_data )
       if( river_data[n].landfrac[jm1*nx+im1] == 0) {
 	if(tocell!= tocell_missing || travel != travel_missing ||
 	   basin != basin_missing || subA != subA_missing) {
-	  printf("At ocean points (i=%d,j=%d), subA = %f, tocell = %d, travel = %d, basin = %d.\n ",
-		 i, j, subA, tocell, travel, basin);
+	  printf("At ocean points (i=%d,j=%d,t=%d), subA = %f, tocell = %d, travel = %d, basin = %d.\n ",
+		 i, j, n+1, subA, tocell, travel, basin);
 	  mpp_error("river_regrid, subA, tocell, travel, or basin is not missing value for some ocean points");
 	}
       }
       else {
 	if(tocell == tocell_missing || travel == travel_missing ||
 	   basin == basin_missing || subA == subA_missing) {
-	  printf("At river points (i=%d,j=%d), subA = %f, tocell = %d, travel = %d, basin = %d.\n ",
-		 i, j, subA, tocell, travel, basin);
+	  printf("At river points (i=%d,j=%d,t=%d), subA = %f, tocell = %d, travel = %d, basin = %d.\n ",
+		 i, j, n+1, subA, tocell, travel, basin);
 	  mpp_error("river_regrid, subA, tocell, travel, or basin is missing value for some river points");
 	}
       }
@@ -1158,12 +1219,12 @@ void check_river_data(int ntiles, river_type *river_data )
             if(ioff == 1 && joff == 1) continue;
 	    if(river_data[n].tocell[jj*nxp2+ii] == tocell_missing) {
 	      ncoast_full_land++;
-	      printf("At point (%d,%d), tocell = 0 and landfrac = 1 is a coast point\n", i, j);
+	      printf("At point (i=%d,j=%d,t=%d), tocell = 0 and landfrac = 1 is a coast point\n", i, j, n+1);
 	      goto done_check;
 	    }
 	  }
 	}
-	 printf("At point (%d,%d), tocell = 0 and landfrac = 1 is a sink point\n", i, j);
+	 printf("At point (i=%d,j=%d,t=%d), tocell = 0 and landfrac = 1 is a sink point\n", i, j, n+1);
         nsink++;
       done_check: continue;	
       }
@@ -1295,7 +1356,8 @@ void sort_basin(int ntiles, river_type* river_data)
   void write_river_data()
   write out river network output data which is on land grid.
   ----------------------------------------------------------------------------*/
-void write_river_data(const char *river_src_file, const char *output_file, river_type* river_data, const char *history, int ntiles)
+void write_river_data(const char *river_src_file, const char *output_file, river_type* river_data,
+		      const char *history, int ntiles, int great_circle_algorithm)
 {
   double *subA, *yt, *xt;
   int    *tocell, *travel, *basin;
@@ -1328,6 +1390,7 @@ void write_river_data(const char *river_src_file, const char *output_file, river
     fid = mpp_open(river_data[n].filename, MPP_WRITE);
     mpp_def_global_att(fid, "version", version);  
     mpp_def_global_att(fid, "code_version", tagname);
+    if(great_circle_algorithm) mpp_def_global_att(fid, "great_circle_algorithm", "TRUE");
     mpp_def_global_att(fid, "history", history);
     dimid[1] = mpp_def_dim(fid, gridx_name, nx);
     dimid[0] = mpp_def_dim(fid, gridy_name, ny);

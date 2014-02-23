@@ -445,9 +445,9 @@ type(ocean_grid_type), pointer   :: Grd => NULL()
 type(ocean_domain_type), pointer :: Dom => NULL()
 
 character(len=256) :: version=&
-     '=>Using: ocean_lapgen_friction.F90 ($Id: ocean_lapgen_friction.F90,v 1.1.2.4.14.1 2013/04/03 13:25:25 smg Exp $)'
+     '=>Using: ocean_lapgen_friction.F90 ($Id: ocean_lapgen_friction.F90,v 20.0 2013/12/14 00:14:26 fms Exp $)'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_201303_smg $'
+     '$Name: tikal $'
 
 logical :: use_this_module       = .false.
 logical :: debug_this_module     = .false.
@@ -1093,8 +1093,8 @@ subroutine lapgen_friction(Time, Thickness, Adv_vel, Velocity, &
              usqrd = (Velocity%u(i,j,k,1,taum1)-neptune_velocity(i,j,1))**2
              vsqrd = (Velocity%u(i,j,k,2,taum1)-neptune_velocity(i,j,2))**2
              umagr = 1.0/(epsln + usqrd + vsqrd)
-             sin2theta(i,j) = 2.0*(Velocity%u(i,j,k,1,taum1) - neptune_velocity(i,j,1))* &
-                                  (Velocity%u(i,j,k,2,taum1) - neptune_velocity(i,j,2))*umagr
+             sin2theta(i,j) = 2.0*(Velocity%u(i,j,k,1,taum1)-neptune_velocity(i,j,1)) &
+                                 *(Velocity%u(i,j,k,2,taum1)-neptune_velocity(i,j,2))*umagr
              cos2theta(i,j) = (usqrd-vsqrd)*umagr
            endif  
 
@@ -1370,7 +1370,7 @@ subroutine lapgen_friction(Time, Thickness, Adv_vel, Velocity, &
                 enddo
              enddo
           enddo
-          call diagnose_3d_u(TIme, Grd, id_horz_lap_diss, wrk2(:,:,:))
+          call diagnose_3d_u(Time, Grd, id_horz_lap_diss, wrk2(:,:,:))
       endif 
 
       call diagnose_2d_u(Time, Grd, id_viscosity_scaling, viscosity_scaling(:,:))

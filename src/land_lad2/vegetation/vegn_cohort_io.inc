@@ -1,5 +1,5 @@
 ! -*-f90-*-
-! $Id: vegn_cohort_io.inc,v 19.0.4.2 2012/05/14 19:18:34 Zhi.Liang Exp $
+! $Id: vegn_cohort_io.inc,v 20.0 2013/12/13 23:31:04 fms Exp $
 
 ! some sanity checks
 #ifndef F90_TYPE
@@ -63,7 +63,7 @@ subroutine READ_0D_FPTR(ncid,name,fptr,rec)
   __NF_ASRT__(nfu_inq_var(ncid,cohort_index_name,id=idxid))
 
   ! allocate data
-  bufsize=min(INPUT_BUF_SIZE,ncohorts)
+  bufsize=min(input_buf_size,ncohorts)
   allocate(data(bufsize),idx(bufsize))
 
   do n = 1, ncohorts, bufsize

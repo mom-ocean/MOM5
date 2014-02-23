@@ -16,7 +16,7 @@ private
       PUBLIC  SWRAD, SHORTWAVE_INIT, SHORTWAVE_END
 
       character(len=128) :: version = '$Id: shortwave.F90,v 10.0 2003/10/24 22:00:32 fms Exp $'
-      character(len=128) :: tagname = '$Name: siena_201207 $'
+      character(len=128) :: tagname = '$Name: tikal $'
       logical            :: module_is_initialized = .false.
 
       integer :: IMAX

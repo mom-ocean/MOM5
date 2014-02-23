@@ -12,8 +12,8 @@ public gamma_mg, gamma_mg_init, gamma_mg_end
 
 !-----------------------------------------------------------------------
 !-------version number-------------------------------------------------
-Character(len=128) :: Version = '$Id: gamma_mg.F90,v 19.0 2012/01/06 20:26:11 fms Exp $'
-Character(len=128) :: Tagname = '$Name: siena_201207 $'
+Character(len=128) :: Version = '$Id: gamma_mg.F90,v 20.0 2013/12/13 23:21:53 fms Exp $'
+Character(len=128) :: Tagname = '$Name: tikal $'
 
 
 logical            :: module_is_initialized = .false.

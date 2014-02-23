@@ -307,7 +307,7 @@ end type soil_type
 ! some names, for information only
 character(len=*),    parameter :: module_name = 'soil'
 character(len=128),  parameter :: version     = '$Id: soil.F90,v 16.0 2008/07/30 22:30:32 fms Exp $'
-character(len=128),  parameter :: tagname         = '$Name: siena_201207 $'
+character(len=128),  parameter :: tagname         = '$Name: tikal $'
 
 ! ---- module constants ------------------------------------------------------
 integer, parameter :: max_lev = 50

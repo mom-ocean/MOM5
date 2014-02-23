@@ -14,6 +14,9 @@
    global variables
 ***********************************************************/
 int pe, npes, root_pe;
+#define MAX_BUFFER_SIZE 10000000
+double rBuffer[MAX_BUFFER_SIZE];
+double sBuffer[MAX_BUFFER_SIZE];
 
 /************************************************************
          void mpp_domain_init()
@@ -24,7 +27,8 @@ void mpp_domain_init( )
 {
   pe      = mpp_pe();
   npes    = mpp_npes();
-  root_pe = mpp_root_pe();
+  root_pe = mpp_root_pe();  
+
 }; /* mpp_domain_init */
 
 /*********************************************************** 
@@ -490,6 +494,85 @@ void mpp_global_field_double(domain2D domain, int sizex, int sizey, const double
 }; /* mpp_global_field_double */
 
 /*************************************************************
+    mpp_global_field_int(domain2D domain, int sizex, int sizey, const int *ldata, int *gdata)
+    get the global data on root pe.
+    ldata is on compute domain and gdata is on global domain
+************************************************************/
+void mpp_global_field_int(domain2D domain, int sizex, int sizey, const int* ldata, int* gdata)
+{
+  int *send_buffer=NULL, *recv_buffer=NULL;
+  int i, j, n, ni, nj, ii, jj, l, p, recv_size;
+  int ishift, jshift, nxc, nyc, nxd, nyd, nxg;
+  int is, ie, js, je, isd, jsd;
+  
+  mpp_get_shift( domain, sizex, sizey, &ishift, &jshift);
+  is = domain.isc;
+  ie = domain.iec + ishift;
+  js = domain.jsc;
+  je = domain.jec + jshift;
+  
+  nxc = ie-is+1;
+  nyc = je-js+1;
+  isd = domain.isd;
+  jsd = domain.jsd;
+  nxd = domain.nxd + ishift;
+  nyd = domain.nyd + jshift;
+  nxg = domain.nxg + ishift;
+  
+  /* all other pe except root pe will send data to root pe */
+  if( pe != root_pe) {
+    if( sizex == nxc && sizey == nyc ){ /* data is on compute domain */
+      mpp_send_int(ldata, sizex*sizey, root_pe);
+    }
+    else if( sizex == nxd && sizey == nyd  ){ /* data is on data domain */
+      send_buffer = (int *)malloc(nxc*nyc*sizeof(int));
+      n = 0;
+      for(j=js;j<=je;j++) {
+	for(i=is;i<=ie;i++) send_buffer[n++] = ldata[(j-jsd)*nxd+(i-isd)];
+      }
+      mpp_send_int(send_buffer, nxc*nyc, root_pe);
+    }
+    else
+      mpp_error("mpp_domain: data should be on compute/data domain");
+  }
+
+  /* receive from other pe on root pe   */
+  if( pe == root_pe ) {
+    for(p=0;p<npes;p++) {
+      if( p == root_pe) {
+	if( sizex == nxc && sizey == nyc  ){ /* data is on compute domain */
+	  n = 0;
+	  for(j=js;j<=je;j++) {
+	    for(i=is;i<=ie;i++) gdata[j*nxg+i] = ldata[n++];
+	  }
+	}
+	else {
+	  for(j=js;j<=je;j++) {
+	    for(i=is;i<=ie;i++) gdata[j*nxg+i] = ldata[(j-jsd)*nxd+(i-isd)];
+	  }
+	}
+      }
+      else {
+	recv_size = (domain.ieclist[p]-domain.isclist[p]+1+ishift)*(domain.jeclist[p]-domain.jsclist[p]+1+jshift);
+	recv_buffer = ( int *) malloc(recv_size*sizeof(int));
+	mpp_recv_int(recv_buffer, recv_size, p );
+	n = 0;
+	for(j=domain.jsclist[p]; j<=domain.jeclist[p]+jshift; j++){
+	  for(i=domain.isclist[p]; i<=domain.ieclist[p]+ishift; i++){
+	    gdata[j*nxg+i] = recv_buffer[n++];
+	  }
+	}
+	free(recv_buffer);
+      }
+    }
+  }
+
+  mpp_sync_self();
+  
+  if(send_buffer != NULL) free(send_buffer);
+}; /* mpp_global_field_int */
+
+/*************************************************************
     mpp_global_field_double_3D(domain2D domain, int sizex, int sizey, int sizez,
                                const double *ldata, double *gdata)
     get the global data on root pe.
@@ -502,7 +585,8 @@ void mpp_global_field_double_3D(domain2D domain, int sizex, int sizey, int sizez
   int i, j, k, n, ni, nj, ii, jj, l, p, recv_size;
   int ishift, jshift, nxc, nyc, nxd, nyd, nxg, nyg;
   int is, ie, js, je, isd, jsd;
-  
+  int send_size;  
+
   mpp_get_shift( domain, sizex, sizey, &ishift, &jshift);
   is = domain.isc;
   ie = domain.iec + ishift;
@@ -519,22 +603,27 @@ void mpp_global_field_double_3D(domain2D domain, int sizex, int sizey, int sizez
   nyg = domain.nyg + ishift;
 
   /* all other pe except root pe will send data to root pe */
+  send_size = nxc*nyc*sizez;
   if( pe != root_pe) {
     if( sizex == nxc && sizey == nyc ){ /* data is on compute domain */
       mpp_send_double(ldata, sizex*sizey*sizez, root_pe);
     }
     else if( sizex == nxd && sizey == nyd  ){ /* data is on data domain */
-      send_buffer = (double *)malloc(nxc*nyc*sizez*sizeof(double));
+      if( send_size > MAX_BUFFER_SIZE) {
+         send_buffer = (double *)malloc(send_size*sizeof(double));
+      }
+      else {
+         send_buffer = sBuffer;
+      }
       n = 0;
       for(k=0; k<sizez; k++) for(j=js;j<=je;j++) {
 	for(i=is;i<=ie;i++) send_buffer[n++] = ldata[k*nxd*nyd+(j-jsd)*nxd+(i-isd)];
       }
-      mpp_send_double(send_buffer, nxc*nyc*sizez, root_pe);
+      mpp_send_double(send_buffer, send_size, root_pe);
     }
     else
       mpp_error("mpp_domain: data should be on compute/data domain");
   }
-
   /* receive from other pe on root pe   */
   if( pe == root_pe ) {
     for(p=0;p<npes;p++) {
@@ -554,7 +643,12 @@ void mpp_global_field_double_3D(domain2D domain, int sizex, int sizey, int sizez
       else {
 	recv_size = (domain.ieclist[p]-domain.isclist[p]+1+ishift)
 	  *(domain.jeclist[p]-domain.jsclist[p]+1+jshift)*sizez;
-	recv_buffer = ( double *) malloc(recv_size*sizeof(double));
+        if(recv_size>MAX_BUFFER_SIZE){
+	   recv_buffer = ( double *) malloc(recv_size*sizeof(double));
+        }
+        else {
+           recv_buffer = rBuffer;
+        }
 	mpp_recv_double(recv_buffer, recv_size, p );
 	n = 0;
 	for(k=0;k<sizez;k++) {
@@ -564,14 +658,24 @@ void mpp_global_field_double_3D(domain2D domain, int sizex, int sizey, int sizez
 	    }
 	  }
 	}
-	free(recv_buffer);
+        if(recv_size>MAX_BUFFER_SIZE)
+	   free(recv_buffer);
+        else
+           recv_buffer=NULL;
       }
     }
   }
-
   mpp_sync_self();
-  
-  if(send_buffer != NULL) free(send_buffer);
+/*z1l: mpp_sync is needed when running on multiple processor job. Otherwisde the memory
+usage will increase. For example, remap_land will fail when running on 270 processors */
+  mpp_sync();
+
+  if(send_buffer != NULL) {
+     if(send_size>MAX_BUFFER_SIZE)
+        free(send_buffer);
+     else
+        send_buffer = NULL;
+  }
 }; /* mpp_global_field_double */
 
 /*******************************************************************************
@@ -653,7 +757,7 @@ void mpp_gather_field_int_root(int lsize, int *ldata, int *gdata)
   mpp_sync_self();
 
   if( pe != root_pe) {
-      if(lsize>0) mpp_send_int(ldata, lsize, p);
+      if(lsize>0) mpp_send_int(ldata, lsize, root_pe);
   }  
   else {
     int cur_size;
@@ -683,6 +787,65 @@ void mpp_gather_field_int_root(int lsize, int *ldata, int *gdata)
   free(rsize);
   
 }; /* mpp_gather_field_int_root */
+
+
+/*******************************************************************************
+  void mpp_gather_field_double_root(int lsize, double *ldata, double *gdata)
+  gather double data onto root processor
+*******************************************************************************/
+void mpp_gather_field_double_root(int lsize, double *ldata, double *gdata)
+{
+  int n, p, i;
+  double *rbuffer=NULL;
+  int *rsize=NULL;
+
+  rsize = (int *)malloc(npes*sizeof(int));
+  
+  /* all other pe except root pe will send data to root pe */
+  if( pe != root_pe) {
+      mpp_send_int(&lsize, 1, root_pe);
+  }
+
+  else {
+    for(p = 0; p<npes; p++) {
+       if(root_pe != p) mpp_recv_int(rsize+p, 1, p);
+    }
+  }
+
+  mpp_sync_self();
+
+  if( pe != root_pe) {
+      if(lsize>0) mpp_send_double(ldata, lsize, root_pe);
+  }  
+  else {
+    int cur_size;
+    n = 0;
+    cur_size = 0;
+    /* receive from other pe and fill the gdata */
+    for(p = 0; p<npes; p++) {
+      if(root_pe != p) { /* recv from other pe. */
+	if(rsize[p]>0) {
+	  if( rsize[p] > cur_size ) {
+	    if( rbuffer ) free(rbuffer);
+	    rbuffer = ( double *) malloc(rsize[p]*sizeof(double));
+	    cur_size = rsize[p];
+	  }
+	  mpp_recv_double(rbuffer, rsize[p], p );
+	  for(i=0; i<rsize[p]; i++) gdata[n++] = rbuffer[i];
+	}
+      }
+      else {
+	for(i=0; i<lsize; i++) gdata[n++] = ldata[i];
+      }
+    }
+    if(rbuffer) free(rbuffer);
+  }
+
+  mpp_sync_self();
+  free(rsize);
+  
+}; /* mpp_gather_field_double_root */
+
 
 /*******************************************************************************
   void mpp_gather_field_double(int lsize, double *ldata, double *gdata)

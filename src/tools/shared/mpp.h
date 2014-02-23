@@ -21,6 +21,9 @@ void mpp_recv_int(int* data, int size, int from_pe); /* recv data */
 void mpp_error(char *str);
 void mpp_sum_int(int count, int *data);
 void mpp_sum_double(int count, double *data);
+void mpp_min_double(int count, double *data);
+void mpp_max_double(int count, double *data);
+void print_mem_usage(const char* text);
 void mpp_sync_self();
 void mpp_sync();
 #endif

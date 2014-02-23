@@ -138,7 +138,7 @@ program regrid
 
   !--- version information ---------------------------------------------
   character(len=128) :: version = '$Id: regrid.F90,v 14.0 2007/03/15 22:45:28 fms Exp $'
-  character(len=128) :: tagname = '$Name: siena_201207 $'
+  character(len=128) :: tagname = '$Name: tikal $'
 
   !--- variables about source data or on source grid
   integer                             :: ncid_src                     ! ncid corresponding to source file.

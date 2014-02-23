@@ -17,8 +17,8 @@ PUBLIC diag_id_type, diag_pt_type, strat_nml_type,  &
 !----------------------------------------------------------------------
 !----version number----------------------------------------------------
 
-Character(len=128) :: Version = '$Id: strat_cloud_utilities.F90,v 19.0 2012/01/06 20:27:23 fms Exp $'
-Character(len=128) :: Tagname = '$Name: siena_201207 $'
+Character(len=128) :: Version = '$Id: strat_cloud_utilities.F90,v 20.0 2013/12/13 23:22:15 fms Exp $'
+Character(len=128) :: Tagname = '$Name: tikal $'
 
 logical  :: module_is_initialized = .false.
 
@@ -27,62 +27,123 @@ logical  :: module_is_initialized = .false.
 
 TYPE diag_id_type
 
-  integer                                                     &
-      qldt_cond, ql_cond_col, qldt_evap, ql_evap_col,         &
-      qldt_eros, ql_eros_col, qldt_berg, ql_berg_col,         &
-      qldt_freez, ql_freez_col, qldt_rime, ql_rime_col,       &
-      qldt_accr, ql_accr_col, qldt_auto, ql_auto_col,         &
-      qldt_fill, ql_fill_col, qldt_destr, ql_destr_col,       &
-      liq_adj, liq_adj_col, ice_adj, ice_adj_col,             &
-      snow_melt, snow_melt_col, snow_subl, snow_subl_col,     &
-      qidt_dep, qi_dep_col, qidt_eros, qi_eros_col,           &
-      qidt_fall, qi_fall_col, qidt_fill, qi_fill_col,         &
-      qidt_subl, qi_subl_col,  qidt_melt, qi_melt_col,        &
-      qidt_destr, qi_destr_col, qidt_qvdep,  qi_qvdep_col,    &
-      qadt_lsform, qa_lsform_col,                             &
-      qadt_lsdiss, qa_lsdiss_col,  qadt_eros, qa_eros_col,    &
-      qadt_rhred, qa_rhred_col, qadt_destr, qa_destr_col,     &
-      qadt_fill, qa_fill_col,  qadt_super, qa_super_col,      &
-      qndt_evap, qn_evap_col, qndt_fill, qn_fill_col,         &
-      qndt_destr, qn_destr_col, qndt_super, qn_super_col,     &
-      qldt_freez2, ql_freez2_col, qldt_sedi, ql_sedi_col,     &
-      qldt_accrs, ql_accrs_col, qldt_bergs, ql_bergs_col,     &
-      qidt_auto, qi_auto_col, qidt_accr, qi_accr_col,         &
-      qidt_accrs,  qi_accrs_col, qndt_cond , qn_cond_col,     &
-      rain_evap, rain_evap_col, debug1_3d, debug2_3d,         &
-      debug3_3d, debug4_3d, debug5_3d, tmp5_3d,               &
-      qndt_freez, qndt_sacws, qndt_sacws_o,                   &
-      qndt_eros, qndt_pra, qndt_auto,                         &
-      qndt_berg,                                              &
-      qn_freez_col, qn_sacws_col, qn_sacws_o_col,             &
-      qn_eros_col, qn_pra_col, qn_auto_col,                   &
-      qndt_nucclim, qndt_sedi, qndt_melt, qndt_ihom,          &
-      qndt_size_adj, qndt_fill2,                              &  
-      qn_nucclim_col, qn_sedi_col, qn_melt_col, qn_ihom_col,  &
-      qn_size_adj_col, qn_fill2_col,                          &
-      qn_berg_col,                                            &
-      rhcrit, rhcrit_min, ni_dust, ni_sulf, ni_bc,            &
-      rhiin, rhlin, cfin, imass7,                             &
-      ndust1, ndust2, ndust3, ndust4, ndust5,                 &
-      qnidt_fill, qnidt_nnuccd, qnidt_nsubi,                  &
-      qnidt_nerosi, qnidt_nprci, qnidt_nprai,                 &
-      qnidt_nucclim1, qnidt_nucclim2, qnidt_sedi,             &
-      qnidt_melt, qnidt_size_adj, qnidt_fill2,                &
-      qnidt_super, qnidt_ihom, qnidt_destr,                   &
-      qnidt_cleanup 
+!  cloud area variables
 
-  integer :: nice, nice_col, gb_nice_col, qrout, qsout
-  integer :: rain3d, snow3d
-  integer :: droplets_s, droplets_col_s, droplets_col250,     &
-             gb_droplets_col, sulfate, seasalt_sub, seasalt_sup, om
-  integer :: aliq, aice, aall, autocv, vfall 
-  integer :: rain_clr, rain_cld, a_rain_clr, a_rain_cld
-  integer :: snow_clr, snow_cld, a_snow_clr, a_snow_cld
-  integer :: a_precip_cld, a_precip_clr
-  integer :: areaall, arealiq, dcond, areaice, &
-             rvolume, areaautocv, vfalldiag
-  integer :: droplets, droplets_wtd, ql_wt, droplets_col, &
-             lsf_strat, lcf_strat, mfls_strat
+  integer :: aall, aliq, aice, cf_liq_init, cf_ice_init, aauto
+  integer :: SA3d, qadt_lsform, qadt_lsdiss, qadt_rhred, qadt_eros,  &
+             qadt_fill, qadt_super, qadt_destr, qadt_limits, qadt_ahuco, &
+             SA_imb
+  integer :: SA2d, qa_lsform_col, qa_lsdiss_col, qa_rhred_col,  &
+             qa_eros_col, qa_fill_col, qa_super_col, qa_destr_col,     &
+             qa_limits_col, qa_ahuco_col, SA_imb_col
+
+!  cloud liquid variables
+
+  integer :: SL3d, qldt_cond, qldt_evap, qldt_eros, qldt_berg, qldt_freez,&
+             liq_adj, qldt_rime, qldt_accr, qldt_auto, qldt_fill,  &
+             qldt_destr, qldt_freez2, qldt_sedi, qldt_accrs, qldt_bergs, &
+             qldt_HM_splinter, SL_imb
+  integer :: SL2d, ql_cond_col, ql_evap_col, ql_eros_col, ql_berg_col,   &
+             ql_freez_col, liq_adj_col, ql_rime_col, ql_accr_col,  &
+             ql_auto_col, ql_fill_col, ql_destr_col, ql_freez2_col,  &
+             ql_sedi_col, ql_accrs_col, ql_bergs_col, ql_HM_splinter_col, &
+             SL_imb_col
+
+!  cloud ice variables
+
+  integer :: SI3d, qidt_dep, qidt_subl, qidt_fall, qidt_eros, qidt_melt, &
+             qidt_melt2, qidt_fill, qidt_destr, qidt_qvdep, qidt_auto,  &
+             qidt_accr, qidt_accrs, ice_adj,  SI_imb
+  integer :: SI2d, qi_dep_col, qi_subl_col, qi_fall_col, qi_eros_col,  &    
+             qi_melt_col, qi_melt2_col, qi_fill_col, qi_destr_col,  &
+             qi_qvdep_col, qi_auto_col, qi_accr_col, qi_accrs_col,  &
+             ice_adj_col, SI_imb_col  
+
+!  cloud droplet variables
+
+  integer :: droplets_col250, gb_droplets_col, potential_droplets, &
+             droplets, droplets_wtd, ql_wt, droplets_col, rvolume
+  integer :: SN3d, qndt_cond , qndt_evap, qndt_fill, qndt_berg, &
+             qndt_destr, qndt_super, qndt_freez, qndt_sacws, qndt_sacws_o, &
+             qndt_eros, qndt_pra, qndt_auto, qndt_nucclim, qndt_sedi, &
+             qndt_melt, qndt_ihom, qndt_size_adj, qndt_fill2,   &
+             qndt_contact_frz, qndt_cleanup, qndt_cleanup2, SN_imb
+  integer :: SN2d, qn_cond_col, qn_evap_col, qn_fill_col, qn_berg_col,  &
+             qn_destr_col, qn_super_col, qn_freez_col, qn_sacws_col,  &
+             qn_sacws_o_col, qn_eros_col, qn_pra_col, qn_auto_col,    &
+             qn_nucclim_col, qn_sedi_col, qn_melt_col, qn_ihom_col,  &
+             qn_size_adj_col, qn_fill2_col, qn_contact_frz_col,  &
+             qn_cleanup_col, qn_cleanup2_col, SN_imb_col
+
+!  cloud ice particle variables
+
+  integer :: nice, nice_col, gb_nice_col, potential_crystals
+  integer :: SNi3d, qnidt_fill, qnidt_nnuccd, qnidt_nsubi,  &
+             qnidt_nerosi, qnidt_nprci, qnidt_nprai,                 &
+             qnidt_nucclim1, qnidt_nucclim2, qnidt_sedi,             &
+             qnidt_melt, qnidt_size_adj, qnidt_fill2,                &
+             qnidt_super, qnidt_ihom, qnidt_destr,                   &
+             qnidt_cleanup, qnidt_cleanup2, qnidt_nsacwi, SNi_imb  
+  integer :: SNi2d, qni_fill_col, qni_nnuccd_col, qni_nsubi_col, &
+             qni_nerosi_col, qni_nprci_col, qni_nprai_col, &
+             qni_nucclim1_col, qni_nucclim2_col, qni_sedi_col, &
+             qni_melt_col, qni_size_adj_col, qni_fill2_col, &
+             qni_super_col, qni_ihom_col, qni_destr_col, &
+             qni_cleanup_col, qni_cleanup2_col,                    &
+             qni_nsacwi_col, SNi_imb_col
+
+!  aerosol diagnostics
+
+  integer :: delta_cf, sulfate, seasalt_sub, seasalt_sup, om,   &
+             rhcrit, rhcrit_min, rhiin, rhlin, cfin, imass7,     &
+             ni_dust, ni_sulf, ni_bc, ndust1, ndust2, ndust3,  &
+             ndust4, ndust5, dust_berg_flag, subgrid_w_variance
+ 
+!  rain diagnostics
+
+  integer :: rain3d, qrout, rain_clr, rain_cld, a_rain_clr, a_rain_cld, &
+             rain_evap, rain_freeze, srfrain_accrs, srfrain_freez,  &
+             srfrain_evap, rain_evap_col, rain_freeze_col,  &
+             srfrain_accrs_col, srfrain_freez_col, srfrain_evap_col, &
+             rain_mass_conv, rain_imb, rain_imb_col, cld_liq_imb,  &
+             cld_liq_imb_col, neg_rain, qrout_col
+
+!  snow diagnostics
+
+  integer :: snow3d, qsout, snow_clr, snow_cld, a_snow_clr, a_snow_cld, &
+             snow_melt, snow_melt_col, snow_mass_conv, sedi_ice, snow_imb, &
+             snow_imb_col, cld_ice_imb, cld_ice_imb_col, neg_snow, qsout_col
+             
+
+!  total precip diagnostics
+
+  integer :: a_precip_cld, a_precip_clr, sedi_sfc
+
+!  temperature diagnostics
+
+  integer ::  ST3d, ST_imb 
+  integer ::  ST2d, ST_imb_col
+
+!  vapor diagnostics
+
+  integer :: SQ3d, qdt_liquid_init, qdt_ice_init, qdt_rain_evap,   &
+             qdt_cond, qdt_deposition, qdt_eros_l, qdt_eros_i,        &
+             qdt_qv_on_qi, qdt_sedi_ice2vapor, qdt_sedi_liquid2vapor,  &
+             qdt_super_sat_rm, qdt_destr, qdt_cleanup_liquid,  &
+             qdt_cleanup_ice, qdt_snow_sublim, qdt_snow2vapor, SQ_imb  
+  integer :: SQ2d, q_liquid_init_col, q_ice_init_col, q_rain_evap_col, &
+             q_cond_col, q_deposition_col, q_eros_l_col, q_eros_i_col, &
+             q_qv_on_qi_col, q_sedi_ice2vapor_col, q_sedi_liquid2vapor_col,&
+             q_super_sat_rm_col, q_destr_col, q_cleanup_liquid_col, &
+             q_cleanup_ice_col, q_snow_sublim_col, q_snow2vapor_col,  &
+             SQ_imb_col
+
+!   miscellaneous diagnostics
+
+  integer :: f_snow_berg, f_snow_berg_col, &
+             lsf_strat, lcf_strat, mfls_strat, &
+             dcond, vfall
+
 
 END TYPE diag_id_type
 
@@ -91,43 +152,86 @@ END TYPE diag_id_type
 
 TYPE diag_pt_type
 
-  integer ::                                                  &
-             qldt_cond, qldt_evap, qldt_berg, qldt_freez,     &
-             qldt_rime, qldt_accr, qldt_auto, qldt_fill,      &
-             qldt_destr, qldt_eros, liq_adj, rain_evap,       &
-             qidt_dep, qidt_subl, qidt_fill, qidt_melt,       &
-             qidt_fall, qidt_destr, qidt_qvdep, qidt_eros,    &
-             ice_adj, snow_subl, snow_melt, qadt_lsform,      &
-             qadt_eros, qadt_rhred, qadt_destr, qadt_fill,    &
-             qadt_lsdiss, qadt_super, qndt_cond, qndt_evap,   &
-             qndt_fill, qndt_destr, qndt_super,               &
-             debug1_3d,  debug2_3d,  debug3_3d,  debug4_3d,   &
-             debug5_3d, tmp5_3d, qldt_freez2, qldt_sedi,      &
-             qldt_accrs, qldt_bergs, qidt_auto, qidt_accr,    &
-             qidt_accrs, qndt_freez, qndt_sacws,              &
-             qndt_sacws_o, qndt_eros, qndt_pra, qndt_auto,    &
-             qndt_nucclim, qndt_sedi, qndt_melt, qndt_ihom,   &
-             qndt_size_adj, qndt_fill2, rhcrit, rhcrit_min,   &
-             ni_dust, ni_sulf, ni_bc, rhiin, rhlin, cfin,     &
-             imass7, ndust1, ndust2, ndust3, ndust4, ndust5,  &
-             qnidt_fill, qnidt_nnuccd, qnidt_nsubi,           &
-             qnidt_nerosi, qnidt_nprci, qnidt_nprai,          &
-             qnidt_nucclim1, qnidt_nucclim2, qnidt_sedi,      &
-             qnidt_melt, qnidt_size_adj, qnidt_fill2,         &
-             qnidt_super, qnidt_ihom, qnidt_destr,            &
-             qnidt_cleanup, qndt_berg
-  integer :: areaall, arealiq, dcond, areaice,                &
-             rvolume, areaautocv, vfalldiag
-  integer :: droplets, droplets_wtd, ql_wt, droplets_col,     &
-             lsf_strat, lcf_strat, mfls_strat
-  integer :: droplets_s, droplets_col_s, droplets_col250,     &
-             gb_droplets_col
-  integer :: nice, qrout, qsout, nice_col, gb_nice_col,       &
-             rain3d, snow3d, sulfate, seasalt_sub,            &
-             seasalt_sup, om, aall, aliq, aice, autocv,       &
-             vfall, rain_clr, rain_cld, a_rain_clr,           &
-             a_rain_cld, a_precip_clr, a_precip_cld,          &
-             snow_clr, snow_cld, a_snow_cld, a_snow_clr
+!  cloud area variables
+
+  integer :: aall, aliq, aice, cf_liq_init, cf_ice_init, aauto
+  integer :: SA3d, qadt_lsform, qadt_lsdiss, qadt_rhred, qadt_eros,  &
+             qadt_fill, qadt_super, qadt_destr, qadt_limits, qadt_ahuco, &
+             SA_imb
+
+!  cloud liquid variables
+
+  integer :: SL3d, qldt_cond, qldt_evap, qldt_eros, qldt_berg, qldt_freez,&
+             liq_adj, qldt_rime, qldt_accr, qldt_auto, qldt_fill,  &
+             qldt_destr, qldt_freez2, qldt_sedi, qldt_accrs, qldt_bergs, &
+             qldt_HM_splinter, SL_imb
+
+!  cloud ice variables
+
+  integer :: SI3d, qidt_dep, qidt_subl, qidt_fall, qidt_eros, qidt_melt, &
+             qidt_melt2, qidt_fill, qidt_destr, qidt_qvdep, qidt_auto,  &
+             qidt_accr, qidt_accrs, ice_adj,  SI_imb
+
+!  cloud droplet variables
+
+  integer :: droplets_col250, gb_droplets_col, potential_droplets, &
+             droplets, droplets_wtd, ql_wt, droplets_col, rvolume
+  integer :: SN3d, qndt_cond , qndt_evap, qndt_fill, qndt_berg, &
+             qndt_destr, qndt_super, qndt_freez, qndt_sacws, qndt_sacws_o, &
+             qndt_eros, qndt_pra, qndt_auto, qndt_nucclim, qndt_sedi, &
+             qndt_melt, qndt_ihom, qndt_size_adj, qndt_fill2,   &
+             qndt_contact_frz, qndt_cleanup, qndt_cleanup2, SN_imb
+
+!  cloud ice particle variables
+
+  integer :: nice, nice_col, gb_nice_col, potential_crystals
+  integer :: SNi3d, qnidt_fill, qnidt_nnuccd, qnidt_nsubi,  &
+             qnidt_nerosi, qnidt_nprci, qnidt_nprai,                 &
+             qnidt_nucclim1, qnidt_nucclim2, qnidt_sedi,             &
+             qnidt_melt, qnidt_size_adj, qnidt_fill2,                &
+             qnidt_super, qnidt_ihom, qnidt_destr,                   &
+             qnidt_cleanup, qnidt_cleanup2, qnidt_nsacwi, SNi_imb  
+
+!  aerosol diagnostics
+
+  integer :: delta_cf, sulfate, seasalt_sub, seasalt_sup, om,   &
+             rhcrit, rhcrit_min, rhiin, rhlin, cfin, imass7,     &
+             ni_dust, ni_sulf, ni_bc, ndust1, ndust2, ndust3,  &
+             ndust4, ndust5, dust_berg_flag, subgrid_w_variance
+ 
+!  rain diagnostics
+
+  integer :: rain3d, qrout, rain_clr, rain_cld, a_rain_clr, a_rain_cld, &
+             rain_evap, rain_freeze, srfrain_accrs, srfrain_freez,  &
+             srfrain_evap, rain_mass_conv, rain_imb, cld_liq_imb, neg_rain
+
+!  snow diagnostics
+
+  integer :: snow3d, qsout, snow_clr, snow_cld, a_snow_clr, a_snow_cld, &
+             snow_melt, snow_mass_conv, sedi_ice, snow_imb, cld_ice_imb, &
+             neg_snow
+
+!  total precip diagnostics
+
+  integer :: a_precip_cld, a_precip_clr, sedi_sfc
+
+!  temperature diagnostics
+
+  integer ::  ST3d, ST_imb 
+
+!  vapor diagnostics
+
+  integer :: SQ3d, qdt_liquid_init, qdt_ice_init, qdt_rain_evap,   &
+             qdt_cond, qdt_deposition, qdt_eros_l, qdt_eros_i,        &
+             qdt_qv_on_qi, qdt_sedi_ice2vapor, qdt_sedi_liquid2vapor,  &
+             qdt_super_sat_rm, qdt_destr, qdt_cleanup_liquid,  &
+             qdt_cleanup_ice, qdt_snow_sublim, qdt_snow2vapor, SQ_imb  
+
+!   miscellaneous diagnostics
+
+  integer :: f_snow_berg, &
+             lsf_strat, lcf_strat, mfls_strat, &
+             dcond, vfall
 
 END TYPE diag_pt_type
 
@@ -146,18 +250,21 @@ type strat_nml_type
              diff_thresh, qmin, Dmin, efact, vfact, cfact,    &
              iwc_crit,  vfall_const2, vfall_exp2,             &
              qthalfwidth, N_min, num_mass_ratio1,             &
-             num_mass_ratio2
+             num_mass_ratio2, qcvar
 
   logical :: do_netcdf_restart, u00_profile, use_kk_auto,     &
              use_online_aerosol, use_sub_seasalt,             &
              eros_choice, super_choice, tracer_advec,         &
-             do_old_snowmelt, do_pdf_clouds, do_liq_num,      &
-             do_dust_berg, pdf_org, do_ice_nucl_wpdf, debugo
+             do_old_snowmelt, retain_cm3_bug, do_pdf_clouds, do_liq_num,      &
+             do_dust_berg, pdf_org, do_ice_nucl_wpdf, debugo, &
+             mass_cons, do_hallet_mossop, activate_all_ice_always
 
   integer :: num_strat_pts, betaP, nsublevels, kmap, kord,    &
              super_ice_opt, isamp, jsamp, ksamp
 
-  character(len=64)                :: microphys_scheme
+  character(len=64)                :: microphys_scheme, &
+                                      macrophys_scheme, &
+                                      aerosol_activation_scheme
 
   integer, dimension(:,:), pointer :: strat_pts=>NULL()
 
@@ -328,7 +435,7 @@ type cloud_processes_type
                                         dcond_ls       =>NULL(), &
                                         dcond_ls_ice   =>NULL(), &
                                         dcond_ls_tot   =>NULL(), &
-                                        tmp5           =>NULL(), &
+                                        delta_cf       =>NULL(), &
                                         f_snow_berg    =>NULL()
 
 end type cloud_processes_type
@@ -345,7 +452,12 @@ type strat_constants_type
   logical                         :: limit_conv_cloud_frac,      &
                                      mask_present,               &
                                      do_rk_microphys,            &
-                                     do_mg_microphys       
+                                     do_mg_microphys,            &       
+                                     do_mg_ncar_microphys,       &
+                                     tiedtke_macrophysics,       &
+                                     dqa_activation,             &
+                                     total_activation,           &
+                                     do_predicted_ice_number
 
 end type strat_constants_type
 

@@ -94,9 +94,9 @@ integer :: id_rayleigh_damp_table=-1
 integer :: id_rayleigh_drag_power=-1
 
 character(len=128) :: version=&
-       '$Id: ocean_momentum_source.F90,v 1.1.2.2 2012/05/17 13:41:49 smg Exp $'
+       '$Id: ocean_momentum_source.F90,v 20.0 2013/12/14 00:16:02 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 integer :: isd, ied, jsd, jed, isc, iec, jsc, jec, nk 
 

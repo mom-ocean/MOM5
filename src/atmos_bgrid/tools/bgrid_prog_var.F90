@@ -91,7 +91,7 @@ end interface
 
 logical :: do_log = .true.
 character(len=128) :: version='$Id: bgrid_prog_var.F90,v 13.0 2006/03/28 21:05:18 fms Exp $'
-character(len=128) :: tagname='$Name: siena_201207 $'
+character(len=128) :: tagname='$Name: tikal $'
 
 integer :: unit_in
 character(len=128) :: directory_in

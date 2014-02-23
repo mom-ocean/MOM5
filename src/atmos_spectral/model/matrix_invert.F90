@@ -9,7 +9,7 @@ public  :: invert
 integer, private :: maxmag
 
 character(len=128), parameter :: version = '$Id matrix_invert.f90 $'
-character(len=128), parameter :: tagname = '$Name: siena_201207 $'
+character(len=128), parameter :: tagname = '$Name: tikal $'
 logical :: entry_to_logfile_done = .false.
 
 contains

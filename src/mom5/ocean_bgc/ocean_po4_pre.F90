@@ -131,8 +131,8 @@ logical, public :: do_ocean_po4_pre
 integer                                 :: package_index
 logical                                 :: module_initialized = .false.
 
-character(len=128) :: version = '$Id: ocean_po4_pre.F90,v 1.1.2.1 2012/05/15 15:55:19 smg Exp $'
-character(len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
+character(len=128) :: version = '$Id: ocean_po4_pre.F90,v 20.0 2013/12/14 00:09:36 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 type(po4_pre_type), allocatable, dimension(:)    :: po4_pre
 integer                                          :: instances

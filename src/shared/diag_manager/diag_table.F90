@@ -210,7 +210,7 @@ MODULE diag_table_mod
   !   A simple utility has been created to help discover
   ! </DESCRIPTION>
   USE mpp_io_mod, ONLY: mpp_open, MPP_RDONLY
-  USE mpp_mod, ONLY: read_ascii_file
+  USE mpp_mod, ONLY: read_ascii_file, get_ascii_file_num_lines
   USE fms_mod, ONLY: fms_error_handler, error_mesg, file_exist, stdlog, mpp_pe, mpp_root_pe, FATAL, WARNING, lowercase, close_file
   USE time_manager_mod, ONLY: get_calendar_type, NO_CALENDAR, set_date, set_time, month_name, time_type
   USE constants_mod, ONLY: SECONDS_PER_HOUR, SECONDS_PER_MINUTE
@@ -373,8 +373,10 @@ CONTAINS
     
     ! get the stdlog unit number
     stdlog_unit = stdlog()
+    num_lines = get_ascii_file_num_lines('diag_table', DT_LINE_LENGTH)
+    allocate(diag_table(num_lines))
 
-    call read_ascii_file('diag_table', DT_LINE_LENGTH, diag_table, num_lines)
+    call read_ascii_file('diag_table', DT_LINE_LENGTH, diag_table)
     
     ! Read in the global file labeling string
     READ (UNIT=diag_table(1), FMT=*, IOSTAT=mystat) global_descriptor
@@ -665,6 +667,7 @@ CONTAINS
             & 'Unallowed character in file_duration_units in the diag_table.', err_msg) ) RETURN
     END IF
 
+            
     ! Fix the file name
     parse_file_line%file_name = fix_file_name(TRIM(parse_file_line%file_name))
 
