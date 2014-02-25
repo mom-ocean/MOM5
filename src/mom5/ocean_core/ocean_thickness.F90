@@ -609,7 +609,7 @@ subroutine ocean_thickness_init  (Time, Time_steps, Domain, Grid, Ext_mode, Thic
 
       if(vert_coordinate_class==PRESSURE_BASED) then 
           call read_data('INPUT/rho0_profile.nc','rho0_profile', rho0_profile)
-          write(stdoutunit,'(/a/)') 'rho0_profile is used to define pressure grid and pressure gradients.'
+          write(stdoutunit,'(a)') 'rho0_profile is used to define pressure grid and pressure gradients.'
           do k=1,nk
              write(stdoutunit,'(a,i4,a,e22.12)') 'rho0_profile(',k,') = ',rho0_profile(k)
              if(rho0_profile(k) <= 0.0) then 
@@ -647,7 +647,7 @@ subroutine ocean_thickness_init  (Time, Time_steps, Domain, Grid, Ext_mode, Thic
   do j=jsc,jec
      do i=isc,iec
         if(Grid%ht(i,j) > 0.0 .and. Grid%ht(i,j) < thickness_dzt_min) then 
-            write(unit,'(/a,i4,a,i4,e22.12,a,e22.12)') &
+            write(unit,'(a,i4,a,i4,a,e22.12,a,e22.12)') &
             '==>Error: ocean_thickness_init: ht(',i+Dom%ioff,',',j+Dom%joff,') = ',Grid%ht(i,j), &
             'is less than the chosen setting for thickness_dzt_min = ',thickness_dzt_min
             error_flag=.true.
@@ -665,7 +665,7 @@ subroutine ocean_thickness_init  (Time, Time_steps, Domain, Grid, Ext_mode, Thic
       do j=jsc,jec
          do i=isc,iec
             if(Grid%ht(i,j) > 0.0 .and. Grid%ht(i,j) < thickness_dzt_min_init) then 
-                write(unit,'(/a,i4,a,i4,e22.12,a,e22.12)') &
+                write(unit,'(a,i4,a,i4,a,e22.12,a,e22.12)') &
                 '==>Error: ocean_thickness_init: ht(',i+Dom%ioff,',',j+Dom%joff,') = ',Grid%ht(i,j), &
                 'is less than the chosen setting for thickness_dzt_min_init = ',thickness_dzt_min_init
                 error_flag=.true.
