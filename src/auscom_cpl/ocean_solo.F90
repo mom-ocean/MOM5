@@ -69,7 +69,7 @@ program main
 !     
 !   </DATA>
 !   <DATA NAME="years "  TYPE="integer"  DEFAULT="0">
-!     The number of months that the current integration will be run for. 
+!     The number of years that the current integration will be run for. 
 !   </DATA>
 !   <DATA NAME="months "  TYPE="integer"  DEFAULT="0">
 !     The number of months that the current integration will be run for. 
@@ -415,7 +415,7 @@ program main
 
   ! loop over the coupled calls 
   do nc=1, num_cpld_calls
-    write(stdoutunit,*) 'Coupled call' , nc 
+    !write(stdoutunit,*) 'Coupled call' , nc 
      call mpp_clock_begin(override_clock)
 
      call ice_ocn_bnd_from_data(Ice_ocean_boundary)
