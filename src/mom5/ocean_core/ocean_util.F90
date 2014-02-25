@@ -1088,8 +1088,8 @@ subroutine diagnose_sum(Time, Grid, Dom, id_name, data, factor)
   logical :: used
 
   if(id_name > 0) then 
-     work(:,:) = factor*Grid%tmask(:,:,1)*Grid%dat(:,:)*data(:,:)
-     total = mpp_global_sum(Dom%domain2d, work(:,:), NON_BITWISE_EXACT_SUM)
+     work(:,:) = Grid%tmask(:,:,1)*Grid%dat(:,:)*data(:,:)
+     total = mpp_global_sum(Dom%domain2d, work(:,:), NON_BITWISE_EXACT_SUM)*factor
      used = send_data (id_name, total, Time%model_time)
   endif
 
