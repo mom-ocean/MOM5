@@ -1612,7 +1612,7 @@ id_OFP_n2_prd_depth    = register_diag_field ('ocean_model', 'OFP_n2_prd_depth',
 
 !-- no update domains
 
-   call mpp_update_domains (kmto, OFP_domain%domain2d, complete=.false.)
+   call mpp_update_domains (kmto, OFP_domain%domain2d, complete=.true.)
    call mpp_update_domains (dato, OFP_domain%domain2d, complete=.false.)
    call mpp_update_domains (dxto, OFP_domain%domain2d, complete=.false.)
    call mpp_update_domains (dyto, OFP_domain%domain2d, complete=.false.)
