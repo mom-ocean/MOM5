@@ -3191,7 +3191,7 @@ end subroutine mom4_set_swheat_fr
 
 !#######################################################################
     subroutine mom4_get_pointers_to_variables(time0, grid0, domain0, thickness0, density0, tracers0, &
-         t, s, u, v, eta, rho, wrhot, geodepth_zt, pbot_t, cos_rot, sin_rot, tau, timestring, ghosted)   
+         t, s, u, v, eta_t, pbot_t, rho, wrhot, geodepth_zt, cos_rot, sin_rot, theta, lambda, area, dx, dy, tau, timestring, ghosted)   
 
       type(ocean_time_type), pointer, optional, intent(out) :: time0;
       type(ocean_grid_type), pointer, optional, intent(out) :: grid0;  
@@ -3199,8 +3199,8 @@ end subroutine mom4_set_swheat_fr
       type(ocean_thickness_type), pointer, optional, intent(out) :: thickness0;  
       type(ocean_density_type), pointer, optional, intent(out) :: density0;  
       type(ocean_prog_tracer_type), pointer, optional, intent(out) :: tracers0(:);  
-      real, optional, pointer, intent(out) :: t(:, :, :, :), s(:, :, :, :), u(:, :, :, :), v(:, :, :, :), &
-          eta(:, :, :), rho(:, :, :), wrhot(:,:,:),  geodepth_zt(:,:,:), pbot_t(:,:,:),cos_rot(:, :), sin_rot(:, :);
+      real, optional, pointer, intent(out) :: t(:, :, :, :), s(:, :, :, :), u(:, :, :, :), v(:, :, :, :), eta_t(:, :, :), pbot_t(:, :, :), rho(:, :, :), &
+          wrhot(:, :, :),  geodepth_zt(:, :, :), cos_rot(:, :), sin_rot(:, :), theta(:, :), lambda(:, :), area(:, :), dx(:, :), dy(:, :);
       integer, optional, intent(out) :: tau;
       character(len = *), optional, intent(out) :: timestring;
       logical, optional, intent(in) :: ghosted;  
@@ -3225,21 +3225,26 @@ end subroutine mom4_set_swheat_fr
         if(present(s)) s => t_prog(index_salt)%field(i1:i2, j1:j2, :, :);  
         if(present(u)) u => velocity%u(i1:i2, j1:j2, :, 1, :);
         if(present(v)) v => velocity%u(i1:i2, j1:j2, :, 2, :);
-        if(present(eta)) eta => ext_mode%eta_t(i1:i2, j1:j2, :);    
         if(present(rho)) rho => dens%neutralrho(i1:i2, j1:j2, :);
 
         if(present(wrhot)) wrhot => Adv_vel%wrho_bt(i1:i2, j1:j2, :);
+        if(present(eta_t)) eta_t => ext_mode%eta_t(i1:i2, j1:j2, :);    
         if(present(pbot_t)) pbot_t => ext_mode%pbot_t(i1:i2, j1:j2, :);
-        if(present(geodepth_zt)) geodepth_zt => Thickness%geodepth_zt(i1:i2, j1:j2, :);
+        if(present(geodepth_zt)) geodepth_zt => thickness%geodepth_zt(i1:i2, j1:j2, :);
 
         if(present(cos_rot)) cos_rot => grid%cos_rot(i1:i2, j1:j2);
         if(present(sin_rot)) sin_rot => grid%sin_rot(i1:i2, j1:j2);
+        if(present(theta)) theta => grid%yt(i1:i2, j1:j2);
+        if(present(lambda)) lambda => grid%xt(i1:i2, j1:j2);
+        if(present(area)) area => grid%dat(i1:i2, j1:j2);
+        if(present(dx)) dx => grid%dxtn(i1:i2, j1:j2);
+        if(present(dy)) dy => grid%dyte(i1:i2, j1:j2);
 
         if(present(timestring)) then
             call get_date(time%model_time, year, month, day, hour, minute, second);
             write(unit = timestring, fmt = '(a10,2i1,a1,2i1,a1,i4,a1,2i1,a1,2i1)') &
-                'MOM time: ', month/10, mod(month, 10), '/', day/10, mod(day, 10), '/', year, ' ', hour/10, mod(hour, 10), ':', minute/10, mod(minute, 10)
-        endif; 
+                'MOM time: ', month/10, mod(month, 10), '/', day/10, mod(day, 10), '/', year, ' ', hour/10, mod(hour, 10), ':', minute/10, mod(minute, 10);
+        endif;
 
     end subroutine
 
@@ -3249,6 +3254,7 @@ end subroutine mom4_set_swheat_fr
       integer :: i;  
 
         call mpp_update_domains(ext_mode%eta_t, domain = domain%domain2d);
+        call mpp_update_domains(ext_mode%pbot_t, domain = domain%domain2d);
         call mpp_update_domains(velocity%u(:, :, :, 1, :), velocity%u(:, :, :, 2, :), domain = domain%domain2d, gridtype = bgrid_ne);
         do i = 1, size(array = t_prog); call mpp_update_domains(t_prog(i)%field, domain = domain%domain2d);
         enddo;
