@@ -11,9 +11,9 @@ import optparse
 def main():
 
     parser = optparse.OptionParser()
-    parser.add_option("--platform", dest="platform")
-    parser.add_option("--type", dest="type")
-    parser.add_option("--experiment", dest="experiment")
+    parser.add_option("--platform")
+    parser.add_option("--type")
+    parser.add_option("--experiment")
 
     (opts, _) = parser.parse_args()
 
