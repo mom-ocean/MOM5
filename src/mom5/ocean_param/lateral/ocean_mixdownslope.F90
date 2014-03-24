@@ -518,19 +518,19 @@ ierr = check_nml_error(io_status,'ocean_mixdownslope_nml')
 
   id_topog_step_1 = register_static_field ('ocean_model', 'topog_step_1', Grd%tracer_axes(1:2), &
        'topog_step_1', 'dimensionless', missing_value=missing_value, range=(/-1.0,1.0/))
-  call diagnose_2d(Time, Grd, id_topog_step_1, topog_step(1,:,:))
+  call diagnose_2d(Time, Grd, id_topog_step_1, topog_step(:,:,1))
 
   id_topog_step_2 = register_static_field ('ocean_model', 'topog_step_2', Grd%tracer_axes(1:2), &
        'topog_step_2', 'dimensionless', missing_value=missing_value, range=(/-1.0,1.0/))
-  call diagnose_2d(Time, Grd, id_topog_step_2, topog_step(2,:,:))
+  call diagnose_2d(Time, Grd, id_topog_step_2, topog_step(:,:,2))
 
   id_topog_step_3 = register_static_field ('ocean_model', 'topog_step_3', Grd%tracer_axes(1:2), &
        'topog_step_3', 'dimensionless', missing_value=missing_value, range=(/-1.0,1.0/))
-  call diagnose_2d(Time, Grd, id_topog_step_3, topog_step(3,:,:))
+  call diagnose_2d(Time, Grd, id_topog_step_3, topog_step(:,:,3))
 
   id_topog_step_4 = register_static_field ('ocean_model', 'topog_step_4', Grd%tracer_axes(1:2), &
        'topog_step_4', 'dimensionless', missing_value=missing_value, range=(/-1.0,1.0/))
-  call diagnose_2d(Time, Grd, id_topog_step_4, topog_step(4,:,:))
+  call diagnose_2d(Time, Grd, id_topog_step_4, topog_step(:,:,4))
 
 
   allocate (id_mixdownslope(num_prog_tracers))

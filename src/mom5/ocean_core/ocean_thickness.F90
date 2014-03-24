@@ -4541,7 +4541,7 @@ subroutine update_tcell_thick_blob(Time, Grid, Ext_mode, Dens, Thickness)
             Thickness%dztloT(i,j,1)     = Thickness%dstlo(i,j,1)*Thickness%dzt_dst(i,j,1)
             Thickness%dztupT(i,j,1)     = Thickness%dstup(i,j,1)*Thickness%dzt_dst(i,j,1)
             Thickness%dztT(i,j,1,taup1) = Thickness%dztloT(i,j,1) + Thickness%dztupT(i,j,1) 
-            Thickness%rho_dztT(i,j,k,taup1) = Thickness%rho_dztT(i,j,k,tau) + dtime*Thickness%rho_dzt_tendency(i,j,k)
+            Thickness%rho_dztT(i,j,1,taup1) = Thickness%rho_dztT(i,j,1,tau) + dtime*Thickness%rho_dzt_tendency(i,j,1)
             wrk1(i,j,:) = 1.0  
          enddo
       enddo
