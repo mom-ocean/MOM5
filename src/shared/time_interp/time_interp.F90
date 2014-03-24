@@ -201,7 +201,7 @@ integer, public, parameter :: NONE=0, YEAR=1, MONTH=2, DAY=3
    logical :: module_is_initialized=.FALSE.
    logical :: perthlike_behavior=.FALSE.
 
-   namelist / time_interp_nml / perthlike_behavior
+   namelist /time_interp_nml/ perthlike_behavior
 
 contains
 
@@ -910,7 +910,7 @@ end module time_interp_mod
 
  integer :: nmin, nmax
 
- namelist / test_time_interp_nml / timelist_len
+ namelist /test_time_interp_nml/ timelist_len
 
  call fms_init
  outunit = stdout()

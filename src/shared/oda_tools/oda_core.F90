@@ -141,7 +141,7 @@ module oda_core_mod
 
   integer, allocatable, dimension(:) :: nprof_in_comp_domain
   
-  namelist /oda_core_nml/ max_misfit,add_tidal_aliasing,min_obs_err_t,&
+  namelist /oda_core_nml/ max_misfit, add_tidal_aliasing, min_obs_err_t,&
                           min_obs_err_s, eta_tide_const, debug, max_profiles,&
                           max_sfc_obs, temp_obs_rmse, salt_obs_rmse, ndebug
                           

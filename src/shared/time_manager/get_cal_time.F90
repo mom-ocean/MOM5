@@ -36,7 +36,7 @@ logical :: module_is_initialized=.false. ! This module is initialized on
 
 logical :: allow_calendar_conversion=.true.
 
-namelist / get_cal_time_nml / allow_calendar_conversion
+namelist /get_cal_time_nml/ allow_calendar_conversion
 ! </NAMELIST>
 
 character(len=128) :: version='$Id: get_cal_time.F90,v 20.0 2013/12/14 00:28:11 fms Exp $'

@@ -523,7 +523,7 @@ private
  logical :: construct_table_wrt_liq = .false.
  logical :: construct_table_wrt_liq_and_ice = .false.
 
- namelist / sat_vapor_pres_nml / show_bad_value_count_by_slice, show_all_bad_values, &
+ namelist /sat_vapor_pres_nml/ show_bad_value_count_by_slice, show_all_bad_values, &
                                  use_exact_qs, do_simple, &
                                  construct_table_wrt_liq, &
                                  construct_table_wrt_liq_and_ice
