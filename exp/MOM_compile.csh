@@ -32,7 +32,7 @@ if ( $help ) then
     echo "             ICCM     : ocean-seaice-land-atmosphere coupled model"
     echo "             EBM      : ocean-seaice-land-atmosphere coupled model with energy balance atmosphere"
     echo
-    echo "--platform   followed by the platform name that has a corresponfing environ file in the ../bin dir, default is ncrc.intel"
+    echo "--platform   followed by the platform name that has a corresponfing environ file in the ../bin dir, default is gfortran"
     echo
     echo
     exit 0
