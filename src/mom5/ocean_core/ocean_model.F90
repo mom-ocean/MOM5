@@ -331,7 +331,9 @@ use ocean_wave_mod,               only: ocean_wave_init, ocean_wave_end, ocean_w
 
 #ifdef AusCOM
   use auscom_ice_mod, only: auscom_ice_init
+#if 0
   use auscom_ice_parameters_mod,  only: redsea_gulfbay_sfix, do_sfix_now, int_sec
+#endif
   use mpp_mod,                    only: mpp_pe, mpp_root_pe
 #endif
 
@@ -2037,6 +2039,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 #endif
 
 #ifdef AusCOM
+#if 0
     ! performing horizontal mixing to fix the Red Sea and Gulf Bay salinity drift (Aug. 2010)
     ! for ACCESS simulations (no SSS restoring)
     if (redsea_gulfbay_sfix .and. do_sfix_now .and. .false.) then
@@ -2051,6 +2054,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
       endif 
       call mpp_clock_end(id_sfix)
     endif 
+#endif
 #endif
 
     call update_ocean_drifters(Velocity, Adv_vel, T_prog(:), Grid, Time)
@@ -2078,6 +2082,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 ! </SUBROUTINE> NAME="update_ocean_model"
 
 #ifdef AusCOM
+#if 0
   subroutine redsea_gulfbay_hmix_s(Time, Grid, Thickness, T_prog)!, T_diag)
 
   use mpp_domains_mod, only : mpp_global_field !,mpp_get_data_domain
@@ -2243,6 +2248,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
   deallocate (global_tmask, global_dzt, global_sp, global_dat)
 
   end subroutine redsea_gulfbay_hmix_s
+#endif
 #endif
 
 
