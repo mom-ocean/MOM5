@@ -128,7 +128,7 @@ use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_diag_tracer_type, 
 use ocean_workspace_mod,  only: wrk1_2d, wrk1
 use ocean_util_mod,       only: diagnose_2d, diagnose_3d
 
-#ifdef AusCOM
+#if defined(ACCESS)
    use auscom_ice_parameters_mod,     	 only: pop_icediag, do_ice
    use auscom_ice_mod,  only: AQICE
    use auscom_ice_mod,  only: auscom_ice_formation_new
@@ -489,8 +489,8 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
   real     :: press 
 
   if(.not. use_this_module) return 
-#ifdef AusCOM
 
+#if defined(ACCESS)
   if (pop_icediag) then
     if ( do_ice ) then
       T_diag(index_frazil)%field = 0.0
@@ -510,7 +510,6 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
   
     return
   endif
-
 #endif
 
   taup1 = Time%taup1
@@ -531,9 +530,9 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
                     T_prog(index_temp)%field(i,j,k,taup1) = tfreeze
                 endif
             endif
-#ifdef AusCOM
+#if defined(ACCESS)
             AQICE(i,j)=AQICE(i,j) - T_diag(index_frazil)%field(i,j,k)
-            !'-' is required in routine ice_heatflux for merge operation!
+            !'-' is required in routine ice_heatflux for merge operation.
 #endif
          enddo
       enddo
@@ -558,15 +557,15 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
                         T_prog(index_temp)%field(i,j,k,taup1) = tfreeze
                     endif
                 endif
-#ifdef AusCOM
+#if defined(ACCESS)
                 AQICE(i,j)=AQICE(i,j) - T_diag(index_frazil)%field(i,j,1)
-                !'-' is required in routine ice_heatflux for merge operation!
+                !'-' is required in routine ice_heatflux for merge operation.
 #endif
              enddo
           enddo
 
       else 
-#ifdef AusCOM
+#if defined(ACCESS)
        do j=jsc,jec
              do i=isc,iec
                 do k=1,nk
@@ -590,9 +589,9 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
                            T_prog(index_temp)%field(i,j,k,taup1) = tfreeze
                        endif
                    endif
-#ifdef AusCOM
+#if defined(ACCESS)
                    AQICE(i,j)=AQICE(i,j) - T_diag(index_frazil)%field(i,j,k)
-                   !'-' is required in routine ice_heatflux for merge operation!
+                   !'-' is required in routine ice_heatflux for merge operation.
 #endif
                 enddo
              enddo

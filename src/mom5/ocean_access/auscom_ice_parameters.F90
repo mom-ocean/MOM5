@@ -1,6 +1,6 @@
 module auscom_ice_parameters_mod
 
-! Set parameters  for ice formation/melting
+! Set parameters for ice formation/melting
 
 implicit none
 
@@ -42,21 +42,7 @@ logical :: iceform_adj_salt = .false.
 !real    :: lat_low_bgdiff = 10    !degrees S/N (beyond this zone set to the 'background_diffusivity') 
 !real    :: bg_diff_eq = 1.0e-6    !lowest bg_diff at equator
 !
-!20100819: employ horizontal mixing for salinity over the Red Sea and Gulf Bay
-!Red Sea (2 boxes)
-integer :: irs1 = 314
-integer :: ire1 = 324
-integer :: jrs1 = 169
-integer :: jre1 = 196
-integer :: irs2 = 325
-integer :: ire2 = 331
-integer :: jrs2 = 169
-integer :: jre2 = 180
-!Gulf Bay (1 box)
-integer :: igs = 328
-integer :: ige = 345
-integer :: jgs = 189
-integer :: jge = 198
+
 !maximum depth/level
 integer :: ksmax = 5        !deepest level of the Red Sea/Gulf Bay 
 !
@@ -71,12 +57,6 @@ logical :: chk_o2i_fields = .false.
 integer :: chk_fields_period =  1
 ! The time in seconds after which the field dumps should begin.
 integer :: chk_fields_start_time = 0
-real :: wfi_factor = 0.0    !20130314
-real :: wfo_adj = 0.0       !20130412: remove global ocean waterflux imbalance (e.g., x.xxxxE-07 kg/m^2/s)
-                            !          this number should be determined by piControl run with no adjustment for
-                            !          water flux ==> net = rain + snow - evap + river + icemelt + iceform
-                            !          wfo_adj = net[x=@ave,y=@ave,l=@ave] for a period of say, 20 years.
-                            !          The average must be properly area-weighted! 
 
 namelist /auscom_ice_nml/  dt_cpl, &
                    tlthk0,                              & !23/04/2010
@@ -93,16 +73,8 @@ namelist /auscom_ice_nml/  dt_cpl, &
                    frazil_factor,                       & !16/07/2008	     
                    iceform_adj_salt,                    & !20100410
                    sign_stflx,                          & !20100410
-                   wfi_factor,                          & !20130314
-                   wfo_adj,                             & !20130412
-                   redsea_gulfbay_sfix,                 & !20100819
-                   irs1, ire1, jrs1, jre1,              &
-                   irs2, ire2, jrs2, jre2,              &
-                   igs, ige, jgs, jge,                  &
                    ksmax,                               &
                    sfix_hours,                          &
-!                   lat_low_bgdiff,                      & !20110802
-!                   bg_diff_eq,                          & !20110801
                    chk_i2o_fields,                      &
                    chk_o2i_fields,                      &
                    chk_fields_period,                   &

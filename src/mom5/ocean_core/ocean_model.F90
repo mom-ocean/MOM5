@@ -329,12 +329,8 @@ use ocean_drifters_mod,           only: ocean_drifters_init, update_ocean_drifte
 use wave_types_mod,               only: ocean_wave_type
 use ocean_wave_mod,               only: ocean_wave_init, ocean_wave_end, ocean_wave_model
 
-#ifdef AusCOM
+#if defined(ACCESS)
   use auscom_ice_mod, only: auscom_ice_init
-#if 0
-  use auscom_ice_parameters_mod,  only: redsea_gulfbay_sfix, do_sfix_now, int_sec
-#endif
-  use mpp_mod,                    only: mpp_pe, mpp_root_pe
 #endif
 
 #ifdef ENABLE_ODA    
@@ -382,7 +378,7 @@ private
   real, dimension(isd:ied,jsd:jed)      :: bott_blthick  ! bottom boundary layer depth from sigma transport (m)
   real, dimension(isd:ied,jsd:jed)      :: rossby_radius ! rossby radius (m)
   real, dimension(isd:ied,jsd:jed,nk)   :: swheat        ! external shortwave heating source W/m^2
-#ifdef AusCOM
+#if defined(ACCESS)
   real, dimension(isd:ied,jsd:jed)      :: aice          ! ice fraction
 #endif
 
@@ -411,7 +407,7 @@ private
   real, pointer, dimension(:,:)     :: bott_blthick        =>NULL() ! bottom boundary layer depth from sigma transport (m)
   real, pointer, dimension(:,:)     :: rossby_radius       =>NULL() ! rossby radius (m) 
   real, pointer, dimension(:,:,:)   :: swheat              =>NULL() ! external shortwave heating source W/m^2
-#ifdef AusCOM
+#if defined(ACCESS)
   real, pointer, dimension(:,:)     :: aice                =>NULL() ! ice fraction
 #endif
 
@@ -562,9 +558,6 @@ private
   integer :: id_increment_velocity
   integer :: id_salinity
   integer :: id_wave
-#ifdef AusCOM
-  integer :: id_sfix
-#endif
 
   public ocean_model_init
   public ocean_model_end
@@ -708,9 +701,6 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     id_ocean                = mpp_clock_id( 'Ocean', flags=clock_flag_default,grain=CLOCK_COMPONENT )
     id_init                 = mpp_clock_id('(Ocean initialization) '         ,grain=CLOCK_SUBCOMPONENT)
     id_oda                  = mpp_clock_id('(Ocean ODA)'                     ,grain=CLOCK_SUBCOMPONENT)
-#ifdef AusCOM
-    id_sfix                = mpp_clock_id('(Red Sea/Gulf Bay salinity fix) ',grain=CLOCK_MODULE)
-#endif
     id_advect               = mpp_clock_id('(Ocean advection velocity) '     ,grain=CLOCK_MODULE)
     id_density_diag         = mpp_clock_id('(Ocean density diag) '           ,grain=CLOCK_MODULE)    
     id_density              = mpp_clock_id('(Ocean update density) '         ,grain=CLOCK_MODULE)    
@@ -1187,7 +1177,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     allocate(bott_blthick(isd:ied,jsd:jed))    
     allocate(rossby_radius(isd:ied,jsd:jed))    
     allocate(swheat(isd:ied,jsd:jed,nk))
-#ifdef AusCOM
+#if defined(ACCESS)
     allocate(aice(isd:ied,jsd:jed))
 #endif
 
@@ -1337,11 +1327,9 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     call ocean_increment_tracer_init(Grid, Domain, Time, T_prog(:))
     call ocean_increment_velocity_init(Grid, Domain, Time)
     call ocean_wave_init(Grid, Domain, Waves, Time, Time_steps, Ocean_options, debug)
-#ifdef AusCOM
+#if defined(ACCESS)
     call auscom_ice_init(Ocean%domain, Time_steps)
 #endif
-
-
 
 #ifdef ENABLE_ODA    
 #ifdef ENABLE_ECDA
@@ -1563,7 +1551,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
        ! obtain surface boundary fluxes from coupler
        call mpp_clock_begin(id_sbc)
-#ifdef AusCOM
+#if defined(ACCESS)
        call get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode,       &
             T_prog(1:num_prog_tracers), Velocity, pme, melt, river, runoff, calving, &
             upme, uriver, swflx, swflx_vis, patm, aice)
@@ -1576,7 +1564,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
        ! compute "flux adjustments" (e.g., surface tracer restoring, flux correction)
        call mpp_clock_begin(id_flux_adjust)
-#ifdef AusCOM
+#if defined(ACCESS)
        call flux_adjust(Time, T_diag(1:num_diag_tracers), Dens, Ext_mode, &
                         T_prog(1:num_prog_tracers), Velocity, river, melt, pme, aice)
 #else
@@ -2038,25 +2026,6 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     call mpp_clock_end(id_oda)
 #endif
 
-#ifdef AusCOM
-#if 0
-    ! performing horizontal mixing to fix the Red Sea and Gulf Bay salinity drift (Aug. 2010)
-    ! for ACCESS simulations (no SSS restoring)
-    if (redsea_gulfbay_sfix .and. do_sfix_now .and. .false.) then
-      call mpp_clock_begin(id_sfix)
-      if (mpp_pe() == mpp_root_pe()) then
-         write(110,*) 'MOM4, calling redsea_gulfbay_hmix_s at runtime = ', int_sec
-      endif
-      call redsea_gulfbay_hmix_s(Time, Grid, Thickness, T_prog(1:num_prog_tracers)) ! , &
-                                !T_diag(1:num_diag_tracers) )
-      if (mpp_pe() == mpp_root_pe()) then
-         write(110,*) 'MOM4, called redsea_gulfbay_hmix_s at runtime = ', int_sec
-      endif 
-      call mpp_clock_end(id_sfix)
-    endif 
-#endif
-#endif
-
     call update_ocean_drifters(Velocity, Adv_vel, T_prog(:), Grid, Time)
     
     ! sum ocean sfc state over coupling interval
@@ -2080,177 +2049,6 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
   end subroutine update_ocean_model
 ! </SUBROUTINE> NAME="update_ocean_model"
-
-#ifdef AusCOM
-#if 0
-  subroutine redsea_gulfbay_hmix_s(Time, Grid, Thickness, T_prog)!, T_diag)
-
-  use mpp_domains_mod, only : mpp_global_field !,mpp_get_data_domain
-  use mpp_mod,         only : mpp_broadcast
-
-  use auscom_ice_parameters_mod, only : irs1, ire1, jrs1, jre1, irs2, ire2, jrs2, jre2, &
-                                        igs, ige, jgs, jge, ksmax
-  use mom_oasis3_interface_mod,  only : iisd, iied, jjsd, jjed
-
-  implicit none
-
-  type(ocean_time_type),         intent(in)    :: Time
-  type(ocean_grid_type), target :: Grid ! domain and grid information for ocean model 
-  type(ocean_thickness_type),    intent(in)    :: Thickness
-  type(ocean_prog_tracer_type),  intent(inout)    :: T_prog(:)
-!  type(ocean_diag_tracer_type),  intent(inout)    :: T_diag(:)
-
-  real, dimension(:,:,:), allocatable ::  global_tmask  ! for global mask
-  real, dimension(:,:,:), allocatable ::  global_dzt    ! for global dzt
-  real, dimension(:,:,:), allocatable ::  global_sp !, global_sd      ! for global salinity 
-  real, dimension(:,:)  , allocatable ::  global_dat    ! for global area 
-
-  real :: volume = 0.0
-  real :: wetvolume = 0.0
-  real :: tot_sp = 0.0
-!  real :: tot_sd = 0.0
-  real :: ave_sp = 0.0
-!  real :: ave_sd = 0.0
-
-  integer :: tau, taup1
-  integer :: i, j, k 
-
-  integer :: nx, ny, nz
-!  integer :: iisd, iied, jjsd, jjed
-
-  nx = Grid%ni
-  ny = Grid%nj
-  nz = Grid%nk
-
-!  call mpp_get_data_domain(Domain,iisd,iied,jjsd,jjed)
-
-!  if (mpp_pe() == mpp_root_pe()) then
-!    write(110, *)'MOM4 in redsea_gulfbay_hmix_s, nx, ny, nz = ',nx, ny, nz
-!  endif
-
-  tau   = Time%tau
-  taup1 = Time%taup1
-
-  allocate (global_tmask(nx,ny,nz)) ; global_tmask=0.0
-  call mpp_global_field(Domain%domain2d, Grid%tmask, global_tmask)
-  allocate (global_dat(nx,ny))      ; global_dat=0.0
-  call mpp_global_field(Domain%domain2d, Grid%dat, global_dat)
-
-  allocate (global_dzt(nx,ny,nz))    ; global_dzt=0.0
-  call mpp_global_field(Domain%domain2d, Thickness%dzt(:,:,:), global_dzt)
-  allocate (global_sp(nx,ny,nz)) ; global_sp=0.0
-!  allocate (global_sd(nx,ny,nz)) ; global_sd=0.0
-  call mpp_global_field(Domain%domain2d, T_prog(index_salt)%field(:,:,:,taup1),global_sp)
-!  call mpp_global_field(Domain%domain2d, T_diag(index_salt)%field(:,:,:,taup1),global_sd)
-
-!  if(mpp_pe() == mpp_root_pe()) then
-!   write(111,'(10e12.5)') global_tmask
-!   write(112,'(10e12.5)') global_dzt
-!   write(113,'(10e12.5)') global_dat
-!   write(114,'(10e12.5)') global_sp  
-!  endif
-
-  do k = 1, ksmax
-    ! 
-    !for Red Sea
-    !
-    wetvolume = 0.0 
-    tot_sp = 0.0
-!    tot_sd = 0.0
-    do j=jrs1,jre1
-      do i=irs1,ire1
-         if(global_tmask(i,j,k) == 1.0) then 
-             volume = global_dat(i,j) * global_dzt(i,j,k)
-             wetvolume = wetvolume + volume
-             tot_sp = tot_sp + global_sp(i,j,k) * volume
-!             tot_sd = tot_sd + global_sd(i,j,k) * volume
-          endif
-      enddo
-    enddo
-    do j=jrs2,jre2
-      do i=irs2,ire2
-         if(global_tmask(i,j,k) == 1.0) then
-             volume = global_dat(i,j) * global_dzt(i,j,k)
-             wetvolume = wetvolume + volume
-             tot_sp = tot_sp + global_sp(i,j,k) * volume
-!             tot_sd = tot_sd + global_sd(i,j,k) * volume
-         endif
-      enddo
-    enddo
-    if (wetvolume /= 0.0) then
-       ave_sp = tot_sp/wetvolume
-!       ave_sd = tot_sd/wetvolume
-       do j=jrs1,jre1
-         do i=irs1,ire1
-            if(global_tmask(i,j,k) == 1.0) then
-               global_sp(i,j,k) = ave_sp
-!               global_sd(i,j,k) = ave_sd
-            endif
-         enddo
-       enddo
-       do j=jrs2,jre2
-         do i=irs2,ire2
-            if(global_tmask(i,j,k) == 1.0) then
-               global_sp(i,j,k) = ave_sp
-!               global_sd(i,j,k) = ave_sd
-            endif
-         enddo
-       enddo
-    endif
-    ! 
-    !for Gulf Bay
-    !
-    wetvolume = 0.0   
-    tot_sp = 0.0
-!    tot_sd = 0.0
-    do j=jgs,jge
-      do i=igs,ige
-         if(global_tmask(i,j,k) == 1.0) then
-             volume = global_dat(i,j) * global_dzt(i,j,k)
-             wetvolume = wetvolume + volume
-             tot_sp = tot_sp + global_sp(i,j,k) * volume
-!             tot_sd = tot_sd + global_sd(i,j,k) * volume
-          endif
-      enddo
-    enddo
-    if (wetvolume /= 0.0) then
-       ave_sp = tot_sp/wetvolume
-!       ave_sd = tot_sd/wetvolume
-       do j=jgs,jge
-         do i=igs,ige
-           if(global_tmask(i,j,k) == 1.0) then
-              global_sp(i,j,k) = ave_sp
-!              global_sd(i,j,k) = ave_sd
-           endif
-         enddo
-       enddo
-    endif
-
-    call mpp_broadcast(global_sp(:,:,k),nx*ny,mpp_root_pe())
-!    call mpp_broadcast(global_sd(:,:,k),nx*ny,mpp_root_pe())
-
-!    T_prog(index_salt)%field(:,:,k,taup1) = global_sp(:,:,k)
-!    T_diag(index_salt)%field(:,:,k,taup1) = global_sd(:,:,k)
-    T_prog(index_salt)%field(iisd:iied,jjsd:jjed,k,taup1) = global_sp(iisd:iied,jjsd:jjed,k)
-
-  enddo   !k=1,kdmax
-
-!  if(mpp_pe() == mpp_root_pe()) then
-!   write(115,'(10e12.5)') global_sp
-!  endif
-
-!  global_sp = 0.0
-!  call mpp_global_field(Domain%domain2d, T_prog(index_salt)%field(:,:,:,taup1),global_sp)
-!  if(mpp_pe() == mpp_root_pe()) then
-!   write(116,'(10e12.5)') global_sp
-!  endif
-
-  deallocate (global_tmask, global_dzt, global_sp, global_dat)
-
-  end subroutine redsea_gulfbay_hmix_s
-#endif
-#endif
-
 
 !#######################################################################
 ! <SUBROUTINE NAME="get_ocean_grid_size">

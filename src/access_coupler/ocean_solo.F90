@@ -151,12 +151,6 @@ program main
   use ocean_model_mod,          only: ocean_model_restart, ocean_public_type, ocean_state_type
   use ocean_types_mod,          only: ice_ocean_boundary_type
 
-  !use fpe_err_handler
-
-#ifdef AusCOM
-  use auscom_ice_parameters_mod, only: redsea_gulfbay_sfix, do_sfix_now, sfix_hours, int_sec
-#endif
-
   implicit none
 
   type (ocean_public_type)               :: Ocean_sfc          
@@ -278,11 +272,6 @@ program main
       
   call set_calendar_type (calendar_type)
 
-!!$ initialize pelists for ocean ensembles set current pelist to ensemble member
-!!$ need to call prior to diagnostics_init
-!!$ code presently not supported (mjh)
-!!$  call ocean_ensemble_init() 
-                             
   call field_manager_init(nfields)
 
   call diag_manager_init()
@@ -415,7 +404,6 @@ program main
 
   ! loop over the coupled calls 
   do nc=1, num_cpld_calls
-    !write(stdoutunit,*) 'Coupled call' , nc 
      call mpp_clock_begin(override_clock)
 
      call ice_ocn_bnd_from_data(Ice_ocean_boundary)
@@ -424,12 +412,6 @@ program main
 
      call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
 
-#ifdef AusCOM
-     do_sfix_now = .false.
-     int_sec = (nc-1) * num_cpld_calls
-     if (mod((nc-1)*num_cpld_calls,sfix_hours*3600) == 0 .and. nc /= 1) do_sfix_now = .true.  
-#endif
-     
      call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
 
      Time = Time + Time_step_coupled
@@ -445,14 +427,11 @@ program main
         call ocean_solo_restart(Time, Time_restart_current, timestamp)
      end if
 
-
      call external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
 
   enddo
 
-  !!!call external_coupler_restart( dt_cpld, num_cpld_calls, Ocean_sfc)
   ! close some of the main components 
-
   call ocean_model_end(Ocean_sfc, Ocean_state, Time)
 
   call diag_manager_end(Time)
@@ -521,7 +500,7 @@ end subroutine ocean_solo_restart
 
 !====================================================================
 ! get forcing data from data_overide 
-  subroutine ice_ocn_bnd_from_data(x)
+subroutine ice_ocn_bnd_from_data(x)
 
       type (ice_ocean_boundary_type) :: x
       type(time_type)                :: Time_next
@@ -544,22 +523,11 @@ end subroutine ocean_solo_restart
       call data_override('OCN', 'p',               x%p              , Time_next)
       call data_override('OCN', 'aice',            x%aice           , Time_next)
       call data_override('OCN', 'mh_flux',         x%mh_flux        , Time_next)
-call mpp_sync()
+    call mpp_sync()
             
-  end subroutine ice_ocn_bnd_from_data
+end subroutine ice_ocn_bnd_from_data
 
 
-!-----------------------------------------------------------------------------------------
-! 
-! Subroutines  for enabling coupling to external programs through a third party coupler
-! such as OASIS/PRISM.
-! If no external coupler then these will mostly be dummy routines.
-! These routines can also serve as spots to call other user defined routines
-!-----------------------------------------------------------------------------------------
-
-
-!-----------------------------------------------------------------------------------------
-#ifdef OASIS3
 
 ! Here we provide some hooks for calling an interface between the OASIS3 coupler and MOM.
 ! The mom_oasis3_interface module is NOT general and it is expected that the user will 
@@ -567,172 +535,95 @@ call mpp_sync()
 ! For clarity all variables should be passed as arguments rather than as globals.
 ! This may require changes to the argument lists.
 
-  subroutine external_coupler_mpi_init(mom_local_communicator, external_initialization)
-! OASIS3/PRISM acts as the master and initializes MPI. Get a local communicator.
-! need to initialize prism and get local communicator MPI_COMM_MOM first! 
-  use mom_oasis3_interface_mod, only : mom_prism_init
-  implicit none
-  integer, intent(out) :: mom_local_communicator
-  logical, intent(out) :: external_initialization
-!  print *, 'Initialising Prism'
-  mom_local_communicator = -100         ! Is there mpp_undefined parameter corresponding to MPI_UNDEFINED?
-                                        ! probably wouldn't need logical flag.
-  call mom_prism_init(mom_local_communicator)
-!  if (mpp_pe() == mpp_root_pe() ) print *, 'Finished Initialising Prism'
-  external_initialization = .true.
-  end subroutine external_coupler_mpi_init
-!-----------------------------------------------------------------------------------------
+subroutine external_coupler_mpi_init(mom_local_communicator, external_initialization)
+    ! OASIS3/PRISM acts as the master and initializes MPI. Get a local communicator.
+    ! need to initialize prism and get local communicator MPI_COMM_MOM first! 
 
-!-----------------------------------------------------------------------------------------
-  subroutine external_coupler_sbc_init(Dom, dt_cpld, Run_len)
-! Call to routine initializing arrays etc for transferring via coupler
-! Perform sanity checks and make sure all inputs are compatible
-  use mom_oasis3_interface_mod, only : coupler_init
-  implicit none
-  type(domain2d) :: Dom
-  integer :: dt_cpld
-  type(time_type) :: Run_len
-  call coupler_init(Dom, dt_cpld=dt_cpld, Run_len=Run_len)
-  end  subroutine external_coupler_sbc_init
-!-----------------------------------------------------------------------------------------
+    use mom_oasis3_interface_mod, only : mom_prism_init
+    implicit none
+    integer, intent(out) :: mom_local_communicator
+    logical, intent(out) :: external_initialization
+     print *, 'Initialising Prism'
+    mom_local_communicator = -100         ! Is there mpp_undefined parameter corresponding to MPI_UNDEFINED?
+                                          ! probably wouldn't need logical flag.
+    call mom_prism_init(mom_local_communicator)
+     if (mpp_pe() == mpp_root_pe() ) print *, 'Finished Initialising Prism'
+    external_initialization = .true.
+end subroutine external_coupler_mpi_init
 
+subroutine external_coupler_sbc_init(Dom, dt_cpld, Run_len)
+    ! Call to routine initializing arrays etc for transferring via coupler
+    ! Perform sanity checks and make sure all inputs are compatible
+    use mom_oasis3_interface_mod, only : coupler_init
+    implicit none
+    type(domain2d) :: Dom
+    integer :: dt_cpld
+    type(time_type) :: Run_len
+    call coupler_init(Dom, dt_cpld=dt_cpld, Run_len=Run_len)
+end  subroutine external_coupler_sbc_init
 
-!-----------------------------------------------------------------------------------------
-  subroutine external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nsteps, dt_cpld )
-! Perform transfers before ocean time stepping
-! May need special tratment on first call.
+subroutine external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nsteps, dt_cpld )
+    ! Perform transfers before ocean time stepping
+    ! May need special tratment on first call.
 
-  use mom_oasis3_interface_mod, only : from_coupler, into_coupler 
+    use mom_oasis3_interface_mod, only : from_coupler, into_coupler 
 
-  implicit none
-  type (ice_ocean_boundary_type), intent(INOUT) :: Ice_ocean_boundary
-  type (ocean_public_type) , intent(INOUT)        :: Ocean_sfc
-  integer , intent(IN)                       :: nsteps, dt_cpld
-  
-  integer                        :: rtimestep ! Receive timestep
-  integer                        :: stimestep ! Send timestep
+    implicit none
+    type (ice_ocean_boundary_type), intent(INOUT) :: Ice_ocean_boundary
+    type (ocean_public_type) , intent(INOUT)        :: Ocean_sfc
+    integer , intent(IN)                       :: nsteps, dt_cpld
 
-  rtimestep = (nsteps-1) * dt_cpld   ! runtime in this run segment!
-  stimestep = rtimestep
-  call from_coupler( rtimestep, Ocean_sfc, Ice_ocean_boundary )
-  call into_coupler( stimestep, Ocean_sfc, before_ocean_update = .true.)
-  end subroutine external_coupler_sbc_before
-!-----------------------------------------------------------------------------------------
+    integer                        :: rtimestep ! Receive timestep
+    integer                        :: stimestep ! Send timestep
 
+    rtimestep = (nsteps-1) * dt_cpld   ! runtime in this run segment!
+    stimestep = rtimestep
+    call from_coupler( rtimestep, Ocean_sfc, Ice_ocean_boundary )
+    call into_coupler( stimestep, Ocean_sfc, before_ocean_update = .true.)
+end subroutine external_coupler_sbc_before
 
-!-----------------------------------------------------------------------------------------
-  subroutine external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nsteps, dt_cpld )
-! Perform transfers after ocean time stepping
+subroutine external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nsteps, dt_cpld )
+    !Perform transfers after ocean time stepping
 
-  use mom_oasis3_interface_mod, only : into_coupler
+    use mom_oasis3_interface_mod, only : into_coupler
 
-  implicit none
-  type (ice_ocean_boundary_type) :: Ice_ocean_boundary
-  type (ocean_public_type)         :: Ocean_sfc
-  integer                        :: nsteps, dt_cpld
-  
-  integer                        :: stimestep ! Send timestep
+    implicit none
+    type (ice_ocean_boundary_type) :: Ice_ocean_boundary
+    type (ocean_public_type)         :: Ocean_sfc
+    integer                        :: nsteps, dt_cpld
 
-  stimestep = nsteps * dt_cpld   ! runtime in this run segment!
-#ifdef OASIS3_MCT
-  if (stimestep < num_cpld_calls*dt_cpld) call into_coupler(stimestep, Ocean_sfc, before_ocean_update = .false.)
-#else
-   call into_coupler(stimestep, Ocean_sfc, before_ocean_update = .false.)
-#endif
-  end subroutine external_coupler_sbc_after
-!-----------------------------------------------------------------------------------------
-!-----------------------------------------------------------------------------------------
-  subroutine external_coupler_restart( dt_cpld, num_cpld_calls, Ocean_sfc)
-! Clean up as appropriate and write a restart
-  use mom_oasis3_interface_mod, only : write_coupler_restart
-  implicit none
-  integer, intent(in)               :: dt_cpld, num_cpld_calls
-  integer                           :: timestep
-  type (ocean_public_type)         :: Ocean_sfc
+    integer                        :: stimestep ! Send timestep
 
-  timestep = num_cpld_calls * dt_cpld
-  call write_coupler_restart(timestep, Ocean_sfc, write_restart=.true.)
-  end subroutine external_coupler_restart
+    stimestep = nsteps * dt_cpld   ! runtime in this run segment!
+    if (stimestep < num_cpld_calls*dt_cpld) call into_coupler(stimestep, Ocean_sfc, before_ocean_update = .false.)
+end subroutine external_coupler_sbc_after
 
+subroutine external_coupler_restart( dt_cpld, num_cpld_calls, Ocean_sfc)
+    !Clean up as appropriate and write a restart
+    use mom_oasis3_interface_mod, only : write_coupler_restart
+    implicit none
+    integer, intent(in)               :: dt_cpld, num_cpld_calls
+    integer                           :: timestep
+    type (ocean_public_type)         :: Ocean_sfc
 
-!-----------------------------------------------------------------------------------------
-  subroutine external_coupler_exit
-! Clean up as appropriate
-! Final call to external program
-  use mom_oasis3_interface_mod, only : mom_prism_terminate
-  call mom_prism_terminate
-  end subroutine external_coupler_exit
-!-----------------------------------------------------------------------------------------
+    timestep = num_cpld_calls * dt_cpld
+    call write_coupler_restart(timestep, Ocean_sfc, write_restart=.true.)
+end subroutine external_coupler_restart
 
-!-----------------------------------------------------------------------------------------
-  subroutine external_coupler_mpi_exit(mom_local_communicator, external_initialization)
-! mpp_exit wont call MPI_FINALIZE if mom_local_communicator /= MPI_COMM_WORLD
-  implicit none
-  integer, intent(in) :: mom_local_communicator
-  logical, intent(in) :: external_initialization
-  integer :: ierr
-  call MPI_FINALIZE(ierr)
-  return
-  end subroutine external_coupler_mpi_exit
-!-----------------------------------------------------------------------------------------
+subroutine external_coupler_exit
+    ! Clean up as appropriate. Final call to external program
+    use mom_oasis3_interface_mod, only : mom_prism_terminate
+    call mom_prism_terminate
+end subroutine external_coupler_exit
 
-#else
-
-! Dummy subroutines.
-
-  subroutine external_coupler_mpi_init(mom_local_communicator, external_initialization)
-  implicit none
-  integer, intent(out) :: mom_local_communicator
-  logical, intent(out) :: external_initialization
-  external_initialization = .false.
-  mom_local_communicator = -100         ! Is there mpp_undefined parameter corresponding to MPI_UNDEFINED?
-                                        ! probably wouldn't need logical flag.
-  return
-  end subroutine external_coupler_mpi_init
-
-!-----------------------------------------------------------------------------------------
-  subroutine external_coupler_sbc_init(Dom, dt_cpld, Run_len)
-  implicit none
-  type(domain2d) :: Dom
-  integer :: dt_cpld
-  type(time_type) :: Run_len
-  return
-  end  subroutine external_coupler_sbc_init
-
-  subroutine external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nsteps, dt_cpld )
-  implicit none
-  type (ice_ocean_boundary_type), intent(INOUT) :: Ice_ocean_boundary
-  type (ocean_public_type) , intent(INOUT)        :: Ocean_sfc
-  integer , intent(IN)                       :: nsteps, dt_cpld
-  return
-  end subroutine external_coupler_sbc_before
-
-
-  subroutine external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nsteps, dt_cpld )
-  type (ice_ocean_boundary_type) :: Ice_ocean_boundary
-  type (ocean_public_type)         :: Ocean_sfc
-  integer                        :: nsteps, dt_cpld
-  return
-  end subroutine external_coupler_sbc_after
-
-  subroutine external_coupler_restart( dt_cpld, num_cpld_calls )
-  implicit none
-  integer, intent(in)               :: dt_cpld, num_cpld_calls
-  return
-  end subroutine external_coupler_restart
-
-  subroutine external_coupler_exit
-  return
-  end subroutine external_coupler_exit
-
-!-----------------------------------------------------------------------------------------
-  subroutine external_coupler_mpi_exit(mom_local_communicator, external_initialization)
-  implicit none
-  integer, intent(in) :: mom_local_communicator
-  logical, intent(in) :: external_initialization
-  return
-  end subroutine external_coupler_mpi_exit
-!-----------------------------------------------------------------------------------------
-#endif
+subroutine external_coupler_mpi_exit(mom_local_communicator, external_initialization)
+    ! mpp_exit wont call MPI_FINALIZE if mom_local_communicator /= MPI_COMM_WORLD
+    implicit none
+    integer, intent(in) :: mom_local_communicator
+    logical, intent(in) :: external_initialization
+    integer :: ierr
+    call MPI_FINALIZE(ierr)
+    return
+end subroutine external_coupler_mpi_exit
 
 end program main

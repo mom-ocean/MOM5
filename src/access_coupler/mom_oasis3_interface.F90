@@ -75,18 +75,9 @@ module mom_oasis3_interface_mod
 ! </NAMELIST>
 !
 !
-#ifdef OASIS3
 
-!prism stuff
-#ifdef OASIS3_MCT
-  use mod_prism
-#else
-  use mod_prism_proto 
-  use mod_prism_def_partition_proto
-  use mod_prism_put_proto
-  use mod_prism_get_proto
-  use mod_comprism_proto
-#endif
+use mod_prism
+
 !MOM4 modules: 
 use fms_mod,         only: file_exist
 use fms_mod,         only: write_version_number, open_namelist_file, close_file, check_nml_error
@@ -109,10 +100,8 @@ use time_manager_mod, only: time_type
   use mpp_mod,                  only: mpp_clock_begin, mpp_clock_end, MPP_CLOCK_SYNC
   use mpp_mod,                  only: MPP_CLOCK_DETAILED, CLOCK_MODULE
 
-!DHB 
   use auscom_ice_mod, only : il_out 
   use cpl_netcdf_setup_mod
-!dhb
 
 implicit none
 
@@ -299,11 +288,7 @@ jmt_local=jjec-jjsc+1
 ! (OASIS3 naming convention problem?).
 
 num_total_proc = mpp_npes()
-#ifdef OASIS3_MCT
-  num_coupling_proc = num_total_proc     !multi-process coupling (real parallel cpl)!
-#else
-  num_coupling_proc = 1             !mono-process coupling	
-#endif
+num_coupling_proc = num_total_proc     !multi-process coupling (real parallel cpl)!
 
 ! Type of coupling
 
@@ -755,7 +740,6 @@ real, dimension(isg:ieg,jsg:jeg) :: gtmp
 character(len=8) :: fld_ice
 
 if ( write_restart ) then
-#ifdef OASIS3_MCT
    if ( mpp_pe() == mpp_root_pe() ) then
      call create_ncfile('INPUT/o2i.nc', ncid, imt_global,jmt_global, ll=1, ilout=il_out)
      call write_nc_1Dtime(real(step), 1, 'time', ncid)
@@ -793,23 +777,6 @@ if ( write_restart ) then
       enddo
    endif
    if (mpp_pe() == mpp_root_pe()) call ncheck( nf_close(ncid) )
-#else
-   if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling) ) then
-      do jf = 1,num_fields_out
-
-         print *, 'MOM4: (write_coupler_restart) calling _put_restart at ', step, ' ', fields_out(jf)
-         call prism_put_restart_proto(id_var_out(jf),step,ierr)
-
-         if (ierr == PRISM_ToRest ) then  
-            call mpp_error(NOTE,&
-                 '==>Note from into_coupler: Written field to o2i file.')
-         else if (ierr /= PRISM_OK) then 
-            call mpp_error(FATAL,&
-                 '==>Error from into_coupler: writing field into o2i file failed.')
-         endif
-      enddo
-     endif
-#endif
 
 endif
 end subroutine write_coupler_restart
@@ -835,8 +802,5 @@ if (ierr .ne. PRISM_Ok) then
 endif
 
 end subroutine mom_prism_terminate
-
-!=====
-#endif
 
 end module mom_oasis3_interface_mod
