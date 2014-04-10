@@ -3,7 +3,7 @@
 
 set type          = MOM_solo       # type of the experiment
 set name          = box1           
-set platform      = ncrc2.intel     # A unique identifier for your platform
+set platform      = gfortran     # A unique identifier for your platform
 set npes          = 8              # number of processor
                                    # Note: If you change npes you may need to change
                                    # the layout in the corresponding namelist
@@ -111,28 +111,33 @@ source $root/bin/environs.$platform  # environment variables and loadable module
 set mppnccombine  = $root/bin/mppnccombine.$platform  # path to executable mppnccombine
 set time_stamp    = $root/bin/time_stamp.csh          # path to cshell to generate the date
 
+set echo
+
 # Check if the user has extracted the input data
   if ( ! -d $inputDataDir ) then
 
     if( $download ) then
-      cd $workdir
-      wget ftp.gfdl.noaa.gov:/perm/MOM4/mom4p1_pubrel_dec2009/exp/$name.input.tar.gz
-      tar zxvf $name.input.tar.gz
+	cd $root/data/archives
+	git annex get $name.input.tar.gz
+	mkdir -p $workdir
+	cp $name.input.tar.gz $workdir
+	cd $workdir
+	tar zxvf $name.input.tar.gz
     else  
 
     echo "ERROR: the experiment directory '$inputDataDir' does not exist or does not contain input and preprocessing data directories!"
-    echo "Please download and extract the tar ball corresponding to this experiment from GFDL anonymous ftp site!"
-    echo " cd  $workdir"
-    echo " wget ftp.gfdl.noaa.gov:/perm/MOM4/mom5_pubrel_dec2013/exp/$name.input.tar.gz"
-    echo " tar zxvf $name.input.tar.gz" 
-    echo "Then rerun this script."
+    echo "Please copy the input data from the MOM data directory. This may required downloading data from a remote git annex if you do not already have the data locally."
+    echo "cd $root/data/archives"
+    echo "git annex get $name.input.tar.gz"
+    echo "mkdir -p $workdir"
+    echo "cp $name.input.tar.gz $workdir"
+    echo "cd $workdir"
+    echo "tar zxvf $name.input.tar.gz"
     echo "Or use the --download option to do this automatically"
     exit 1
 
     endif
   endif
-
-set echo
 
 # setup directory structure
   if ( ! -d $expdir )         mkdir -p $expdir
@@ -153,7 +158,7 @@ set echo
 
 
 # --- make sure executable is up to date ---
-  set makeFile      = Make_$type
+  set makeFile = Makefile
   cd $executable:h
   make -f $makeFile
   if ( $status != 0 ) then
@@ -200,11 +205,11 @@ if ( $type == CM2M & $npes != 45 ) then
     set valid_npes = 45
 endif
 
-if ( $type == ESM2M & $npes != 90 ) then
-    set valid_npes = 90
+if ( $type == ESM2M & $npes != 120 ) then
+    set valid_npes = 120
 endif
-if ( $type == ICCM & $npes != 54 ) then
-    set valid_npes = 54
+if ( $type == ICCM & $npes != 45 ) then
+    set valid_npes = 45
 endif
 if ( $name  == atlantic1 & $npes != 24) then
     set valid_npes = 24
@@ -224,6 +229,11 @@ endif
 #   --- run the model ---
 
 $runCommand
+set model_status = $status
+if ( $model_status != 0) then
+    echo "ERROR: Model failed to run to completion"
+    exit 1
+endif
 
 #----------------------------------------------------------------------------------------------
 # generate date for file names ---
