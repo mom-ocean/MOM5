@@ -2922,7 +2922,7 @@ end subroutine ocean_sfc_end
 subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_prog, Velocity, &
                          pme, melt, river, runoff, calving, upme, uriver, swflx, swflx_vis, patm, aice)
 
-  real, dimension(isd:,jsd:),    intent(in)    :: aice 
+  real, dimension(isd:,jsd:),    intent(inout)    :: aice 
 
 #else
 
