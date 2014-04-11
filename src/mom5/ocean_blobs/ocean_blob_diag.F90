@@ -174,9 +174,10 @@ contains
   integer :: entid, detid, richardsonid
   integer :: uid, vid, wid, ageid
   integer :: retval
-  integer :: i,j,k,n
+  integer :: i,j,k,n,m
   integer :: maxhash
-  character(len=32) :: varname
+  logical :: validvar
+  character(len=128) :: varname
   integer,allocatable,dimension(:) :: tracerid, fieldid
 
   stdoutunit = stdout(); stdlogunit=stdlog()
@@ -225,41 +226,121 @@ contains
   usetracer(:)  = .false.
   usefield(:)   = .false.
   
+  write(stdoutunit,'(/,a)') 'Opening blob diagnostic table '//trim(diag_table)
   open(unit=1, iostat=ioun, file=trim(diag_table))
   if (ioun>0) then
      call error_mesg('ocean_blob_diag_mod, ocean_blob_diag_init, ',&
           'error opening blob diagnostic table: '//trim(diag_table), FATAL)
   endif
-  
-  do
-     read(unit=1, fmt='(a31)', end=10) varname
-     if(trim(varname)=='i')       usei       = .true.
-     if(trim(varname)=='j')       usej       = .true.
-     if(trim(varname)=='k')       usek       = .true.
-     if(trim(varname)=='depth')   usedepth   = .true.
-     if(trim(varname)=='st')      usest      = .true.
-     if(trim(varname)=='mass')    usemass    = .true.
-     if(trim(varname)=='density') usedensity = .true.
-     if(trim(varname)=='ent')     useent     = .true.
-     if(trim(varname)=='det')     usedet     = .true.
-     if(trim(varname)=='richardson') userichardson = .true.
-     if(trim(varname)=='gprime')  usegprime  = .true.
-     if(trim(varname)=='volume')  usevolume  = .true.
-     if(trim(varname)=='u')       useu       = .true.
-     if(trim(varname)=='v')       usev       = .true.
-     if(trim(varname)=='w')       usew       = .true.
-     if(trim(varname)=='age')     useage     = .true.
+
+  write(stdoutunit,'(a)') 'Will write the following optional blob diagnostics:'
+  m=0
+  fileread: do
+     read(unit=1, fmt=*, iostat=ioun) varname
+     if (ioun>0) then
+        ! there was an error: raise a warning but continue reading the file
+        call error_mesg('ocean_blob_diag_mod, ocean_blob_diag_init, ',&
+             'error reading blob diagnostic table: returned error '&
+             //char(ioun)//' for variable '//trim(varname), WARNING)
+        cycle fileread
+     elseif (ioun<0) then
+        ! end of the file: exit the loop
+        exit fileread
+     else
+        ! line read ok: keep going
+        write(stdoutunit,'(a)') trim(varname)
+     endif
+     m=m+1
+     validvar=.false.
+
+     if(trim(varname)=='i') then
+        usei=.true.
+        validvar=.true.
+     endif
+     if(trim(varname)=='j') then
+        usej=.true.
+        validvar=.true.
+     endif
+     if(trim(varname)=='k') then
+        usek=.true.
+        validvar=.true.
+     endif
+     if(trim(varname)=='depth') then
+        usedepth=.true.
+        validvar=.true.
+     endif
+     if(trim(varname)=='st') then
+        usest=.true.
+        validvar=.true.
+     endif
+     if(trim(varname)=='mass') then
+        usemass=.true.
+        validvar=.true.
+     endif
+     if(trim(varname)=='density') then
+        usedensity=.true.
+        validvar=.true.
+     endif
+     if(trim(varname)=='ent') then
+        useent=.true.
+        validvar=.true.
+     endif
+     if(trim(varname)=='det') then
+        usedet=.true.
+        validvar=.true.
+     endif
+     if(trim(varname)=='richardson') then
+        userichardson = .true.
+        validvar=.true.
+     endif
+     if(trim(varname)=='gprime') then
+        usegprime=.true.
+        validvar=.true.
+     endif
+     if(trim(varname)=='volume') then
+        usevolume=.true.
+        validvar=.true.
+     endif
+     if(trim(varname)=='u') then
+        useu=.true.
+        validvar=.true.
+     endif
+     if(trim(varname)=='v') then
+        usev=.true.
+        validvar=.true.
+     endif
+     if(trim(varname)=='w') then
+        usew=.true.
+        validvar=.true.
+     endif
+     if(trim(varname)=='blob_age') then
+        useage=.true.
+        validvar=.true.
+     endif
      do n=1,num_prog_tracers
         if (n==index_temp) then
-           if(trim(varname)=='heat')  usetracer(n)  = .true.
+           if(trim(varname)=='heat') then
+              usetracer(n)=.true.
+              validvar=.true.
+           endif
         else
-           if(trim(varname)==trim(T_prog(n)%name)//'_cont') usetracer(n)  = .true.
+           if(trim(varname)==trim(T_prog(n)%name)//'_cont') then
+              usetracer(n)=.true.
+              validvar=.true.
+           endif
         endif
-        if(trim(varname)==trim(T_prog(n)%name))          usefield(n)   = .true.
+        if(trim(varname)==trim(T_prog(n)%name)) then
+           usefield(n)=.true.
+           validvar=.true.
+        endif
      enddo
-  enddo
+     if (.not.validvar) call error_mesg('ocean_blob_diag_mod, ocean_blob_diag_init, ', & 
+          trim(varname)//' is not a recognised blob diagnostic field', WARNING)
+  enddo fileread
 
-10 close(unit=1) 
+  close(unit=1) 
+  if(m==0) call error_mesg('ocean_blob_diag_mod, ocean_blob_diag_init, ',&
+       'blob diagnostics table '//trim(diag_table)//' is empty', WARNING)
 
   write(filename, '("ocean_blobs.nc.",i4.4)') mpp_pe()
 
@@ -395,9 +476,9 @@ contains
   endif
 
   if(useage) then
-     ageid = def_var(rootid, 'age', NF_DOUBLE, blobdim)
+     ageid = def_var(rootid, 'blob_age', NF_DOUBLE, blobdim)
      call put_att(rootid, ageid, 'name', 'blob age')
-     call put_att(rootid, ageid, 'units', 's')
+     call put_att(rootid, ageid, 'units', 'yr')
   endif
 
   do n=1,num_prog_tracers
@@ -616,7 +697,7 @@ subroutine write_blobs(T_prog)
   if (useu)       uid       = varid(rootid, 'u')
   if (usev)       vid       = varid(rootid, 'v')
   if (usew)       wid       = varid(rootid, 'w')
-  if (useage)     ageid     = varid(rootid, 'age')
+  if (useage)     ageid     = varid(rootid, 'blob_age')
   do n=1,num_prog_tracers
      if (n==index_temp) then
         if (usetracer(n))  tracerid(n)  = varid(rootid, 'heat')

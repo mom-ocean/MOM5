@@ -199,6 +199,7 @@ type(ocean_domain_type), pointer :: Bdom  => NULL()
 type(blob_grid_type),    pointer :: Info  => NULL()
 
 real :: dtime
+real :: dtime_yr
 real :: det_factor
 real :: ent_factor
 
@@ -321,12 +322,15 @@ real    :: large_speed         = 10.0 !m/s
 logical :: no_rotation         = .false.
 real    :: critical_richardson = 0.8
 real    :: blob_height         = 100.0 !m
+real    :: blobs_south_of      = -45.0
+real    :: blobs_north_of      =  45.0
 
 namelist /ocean_blob_dynamic_bottom_nml/ use_this_module, update_method,   &
      blob_overflow_mu, blob_overflow_delta, drag, enforce_big_blobs,       &
      det_param, max_detrainment, rel_error, safety_factor, elastic,        &
      minstep, first_step, min_do_levels, rho_threshold, accept_free_blobs, &
-     large_speed, no_rotation, critical_richardson, blob_height
+     large_speed, no_rotation, critical_richardson, blob_height,           &
+     blobs_south_of, blobs_north_of
      
 contains
 !#######################################################################
@@ -371,6 +375,7 @@ subroutine blob_dynamic_bottom_init(Time, Grid, Domain, Blob_domain, PE_Info,   
   real, dimension(:,:), allocatable :: slope_y
   real, dimension(:,:), allocatable :: coeff1
   real, dimension(:,:), allocatable :: coeff2
+  real, parameter                   :: secs_in_year_r = 1.0 / (86400.0 * 365.25)
   integer :: ioun, ierr, io_status
   integer :: stdoutunit,stdlogunit
   integer :: i,j,m,iip,jjp
@@ -428,6 +433,7 @@ subroutine blob_dynamic_bottom_init(Time, Grid, Domain, Blob_domain, PE_Info,   
        'new bottom blobs', 'number of blobs')
 
   dtime_rad_to_deg = dtime*rad_to_deg
+  dtime_yr         = dtime*secs_in_year_r
 
   vert_coordinate_class = ver_coord_class
   vert_coordinate       = ver_coord
@@ -758,9 +764,13 @@ subroutine blob_dynamic_bottom_init(Time, Grid, Domain, Blob_domain, PE_Info,   
         do i=isc,iec
            iip = i+ip(m)
            jjp = j+jp(m)
-           ! check whether downslope flow is possible
-           if (kmt(i,j)>1 .and. kmt(iip,jjp)>kmt(i,j)+min_do_levels) then
-              topog_step(i,j,m)=1.0
+           ! Make sure that we are in an area we want to form blobs
+           if ( blobs_south_of>Grd%yt(iip,jjp) .or. &
+                blobs_north_of<Grd%yt(iip,jjp) ) then
+              ! check whether downslope flow is possible
+              if (kmt(i,j)>1 .and. kmt(iip,jjp)>kmt(i,j)+min_do_levels) then
+                 topog_step(i,j,m)=1.0
+              endif
            endif
         enddo
      enddo
@@ -1714,7 +1724,7 @@ subroutine dynamic_update(head, free, Time, Dens, Thickness,    &
                        this%ent    = ent
                        this%det    = det
                        this%richardson = richardson
-                       this%age    = this%age + dtime
+                       this%age    = this%age + dtime_yr
                        this%gprime = grav*(rhoE-rhoL)/rhoE
                        this%step = max(tstep,minstep)
                     elseif ((this%blob_time + 1.1*tstep) > dtime) then
@@ -1914,10 +1924,16 @@ subroutine dynamic_update(head, free, Time, Dens, Thickness,    &
                        this%density   = rhoL
                        this%densityr  = rhoLr
                        this%gprime    = grav*(rhoE-rhoL)/rhoE !diagnostic
-                       this%age       = this%age + dtime
+                       this%age       = this%age + dtime_yr
                        do n=1,num_prog_tracers
-                          this%tracer(n) = tracer(n)
-                          this%field(n)  = field(n)
+                          if(T_prog(n)%name(1:3) =='age') then
+                             ! If it is an age tracer advance the age of the tracer
+                             this%field(n)  = field(n) + dtime_yr
+                             this%tracer(n) = this%field(n)*mass
+                          else
+                             this%tracer(n) = tracer(n)
+                             this%field(n)  = field(n)
+                          endif
                        enddo
                        this%model_steps = this%model_steps + 1
                        call unlink_blob(this, head, prev, next)
@@ -1971,10 +1987,16 @@ subroutine dynamic_update(head, free, Time, Dens, Thickness,    &
               this%det      = det
               this%richardson=richardson
               this%gprime   = grav*(rhoE-rhoL)/rhoE !diagnostic
-              this%age      = this%age + dtime
+              this%age      = this%age + dtime_yr
               do n=1,num_prog_tracers
-                 this%tracer(n) = tracer(n)
-                 this%field(n)  = field(n)
+                 if(T_prog(n)%name(1:3) =='age') then
+                    ! If it is an age tracer advance the age of the tracer
+                    this%field(n)  = field(n) + dtime_yr
+                    this%tracer(n) = this%field(n)*mass
+                 else
+                    this%tracer(n) = tracer(n)
+                    this%field(n)  = field(n)
+                 endif
               enddo
               this%model_steps = this%model_steps + 1
 
@@ -2388,7 +2410,8 @@ subroutine dynamic_bottom_form_new(Time, Dens, T_prog, Thickness, Ext_mode, &
      do j=jsc,jec
         do i=isc,iec
 
-           ! check whether downslope flow is possible
+           ! check whether downslope flow is possible and it is within
+           ! the latitude bands of interest
            if (topog_step(i,j,m) == 1.0) then
 
               ! some convenient variables

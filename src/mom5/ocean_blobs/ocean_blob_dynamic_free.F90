@@ -187,6 +187,7 @@ real, allocatable, dimension(:,:)   :: datdtime !Grd%dat*dtime
 integer :: vert_coordinate_class
 integer :: vert_coordinate
 real :: dtime
+real :: dtime_yr
 
 ! Useful variables
 real :: two_omega
@@ -327,6 +328,8 @@ subroutine blob_dynamic_free_init(Grid, Domain, Time, T_prog, Blob_domain,      
   real,    intent(in)  :: smallmass
   logical, intent(out) :: use_dyn_fre
 
+  real, parameter :: secs_in_year_r = 1.0 / (86400.0 * 365.25)
+
   integer :: n
   integer :: ioun, ierr, io_status
   integer :: stdoutunit,stdlogunit
@@ -428,6 +431,7 @@ subroutine blob_dynamic_free_init(Grid, Domain, Time, T_prog, Blob_domain,      
   datdtime(:,:) = Grd%dat(:,:)*dtimein
 
   dtime      = dtimein
+  dtime_yr   = dtime*secs_in_year_r
   grav_dtime = grav*dtime
   p5_dtime   = onehalf*dtime !for convenience
   two_omega  = 2.0*omega_earth
@@ -1795,7 +1799,7 @@ subroutine dynamic_update(Time, Thickness, Ext_mode, L_system, Dens, T_prog,   &
                     ! If the blob interacts with topography in the new cell, we need to put it in the bottom
                     ! blob list.  Later, it will be packed into a buffer and sent to a neighbouring PE.
                     if (off(3) .and. k==Grd%kmt(i,j)) then
-                       this%age = this%age+dtime
+                       this%age = this%age+dtime_yr
                        call unlink_blob(this, head, prev, next)
                        call insert_blob(this, bottom_head)
                        tfer_bottom  = tfer_bottom + 1
@@ -1948,10 +1952,16 @@ subroutine dynamic_update(Time, Thickness, Ext_mode, L_system, Dens, T_prog,   &
                     this%density  = rhoL
                     this%densityr = rhoLr
                     this%gprime   = grav*(rhoE(0)-rhoL)/rhoE(0) !diagnostic
-                    this%age      = this%age + dtime
+                    this%age      = this%age + dtime_yr
                     do n=1,num_prog_tracers
-                       this%tracer(n) = tracer(n)
-                       this%field(n)  = field(n)
+                       if(T_prog(n)%name(1:3) =='age') then
+                          ! If it is an age tracer advance the age of the tracer
+                          this%field(n)  = field(n) + dtime_yr
+                          this%tracer(n) = this%field(n)*mass
+                       else
+                          this%tracer(n) = tracer(n)
+                          this%field(n)  = field(n)
+                       endif
                     enddo
                     this%model_steps = this%model_steps + 1
                     
@@ -2065,10 +2075,16 @@ subroutine dynamic_update(Time, Thickness, Ext_mode, L_system, Dens, T_prog,   &
               this%density  = rhoL
               this%densityr = rhoLr
               this%gprime   = grav*(rhoE(0)-rhoL)/rhoE(0) !diagnostic
-              this%age      = this%age + dtime
+              this%age      = this%age + dtime_yr
               do n=1,num_prog_tracers
-                 this%tracer(n) = tracer(n)
-                 this%field(n)  = field(n)
+                 if(T_prog(n)%name(1:3) =='age') then
+                    ! If it is an age tracer advance the age of the tracer
+                    this%field(n)  = field(n) + dtime_yr
+                    this%tracer(n) = this%field(n)*mass
+                 else
+                    this%tracer(n) = tracer(n)
+                    this%field(n)  = field(n)
+                 endif
               enddo
               this%model_steps = this%model_steps + 1
 
@@ -2410,7 +2426,7 @@ subroutine packbuffer(blob,buffer,entrainment,detrainment)
   stdoutunit = stdout()
 
   if (buffer%pe == NULL_PE) then
-     write (stdoutunit, '(a)') 'Error: Trying to send blob to a NULL_PE'
+     write (stdoutunit, '(a)'), 'Error: Trying to send blob to a NULL_PE'
      call mpp_error(FATAL, &
           '==>Error in ocean_blob_static_bottom_mod (packbuffer): '&
           //'Trying to send blob to a NULL_PE')
