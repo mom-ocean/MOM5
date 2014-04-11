@@ -112,7 +112,7 @@ module ocean_frazil_mod
 !</NAMELIST>
 
 use constants_mod,     only: epsln 
-use diag_manager_mod,  only: register_diag_field, send_data
+use diag_manager_mod,  only: register_diag_field
 use fms_mod,           only: open_namelist_file, check_nml_error, close_file
 use fms_mod,           only: FATAL, NOTE, stdout, stdlog
 use mpp_mod,           only: input_nml_file, mpp_error 
@@ -129,9 +129,10 @@ use ocean_workspace_mod,  only: wrk1_2d, wrk1
 use ocean_util_mod,       only: diagnose_2d, diagnose_3d
 
 #if defined(ACCESS)
-   use auscom_ice_parameters_mod,     	 only: pop_icediag, do_ice
-   use auscom_ice_mod,  only: AQICE
-   use auscom_ice_mod,  only: auscom_ice_formation_new
+use auscom_ice_parameters_mod, only: pop_icediag, do_ice
+use auscom_ice_mod,            only: AQICE
+use auscom_ice_mod,            only: auscom_ice_formation_new
+use diag_manager_mod,          only: send_data
 #endif
 
 implicit none
