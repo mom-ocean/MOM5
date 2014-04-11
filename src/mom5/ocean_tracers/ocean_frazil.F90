@@ -128,6 +128,13 @@ use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_diag_tracer_type, 
 use ocean_workspace_mod,  only: wrk1_2d, wrk1
 use ocean_util_mod,       only: diagnose_2d, diagnose_3d
 
+#if defined(ACCESS)
+use auscom_ice_parameters_mod, only: pop_icediag, do_ice
+use auscom_ice_mod,            only: AQICE
+use auscom_ice_mod,            only: auscom_ice_formation_new
+use diag_manager_mod,          only: send_data
+#endif
+
 implicit none
 
 private 
@@ -484,6 +491,28 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
 
   if(.not. use_this_module) return 
 
+#if defined(ACCESS)
+  if (pop_icediag) then
+    if ( do_ice ) then
+      T_diag(index_frazil)%field = 0.0
+      call auscom_ice_formation_new(Time,T_prog,Thickness, T_diag(index_frazil) )
+    endif
+    T_diag(index_frazil)%field=T_diag(index_frazil)%field * Grd%tmask
+    if (id_frazil_2d > 0) then 
+      used = send_data(id_frazil_2d, T_diag(index_frazil)%field(:,:,1)*dtimer, &
+           Time%model_time, rmask=Grd%tmask(:,:,1), &
+           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+    endif
+    if (id_frazil_3d > 0) then 
+      used = send_data(id_frazil_3d, T_diag(index_frazil)%field(:,:,:)*dtimer, &
+           Time%model_time, rmask=Grd%tmask(:,:,:), &
+           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+    endif
+  
+    return
+  endif
+#endif
+
   taup1 = Time%taup1
   tau   = Time%tau
 
@@ -502,6 +531,10 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
                     T_prog(index_temp)%field(i,j,k,taup1) = tfreeze
                 endif
             endif
+#if defined(ACCESS)
+            AQICE(i,j)=AQICE(i,j) - T_diag(index_frazil)%field(i,j,k)
+            !'-' is required in routine ice_heatflux for merge operation.
+#endif
          enddo
       enddo
 
@@ -525,14 +558,23 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
                         T_prog(index_temp)%field(i,j,k,taup1) = tfreeze
                     endif
                 endif
+#if defined(ACCESS)
+                AQICE(i,j)=AQICE(i,j) - T_diag(index_frazil)%field(i,j,1)
+                !'-' is required in routine ice_heatflux for merge operation.
+#endif
              enddo
           enddo
 
       else 
-
+#if defined(ACCESS)
+       do j=jsc,jec
+             do i=isc,iec
+                do k=1,nk
+#else
           do k=1,nk 
              do j=jsc,jec
                 do i=isc,iec 
+#endif
                    T_diag(index_frazil)%field(i,j,k) = 0.0
                    if(Grd%tmask(i,j,k) > 0.0) then 
                        s       = Dens%rho_salinity(i,j,k,taup1)
@@ -548,6 +590,10 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
                            T_prog(index_temp)%field(i,j,k,taup1) = tfreeze
                        endif
                    endif
+#if defined(ACCESS)
+                   AQICE(i,j)=AQICE(i,j) - T_diag(index_frazil)%field(i,j,k)
+                   !'-' is required in routine ice_heatflux for merge operation.
+#endif
                 enddo
              enddo
           enddo

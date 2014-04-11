@@ -1,55 +1,70 @@
-# Template for the NCI (nf.nci.org.au) machines. Uses intel compiler and OpenMPI.
+# $Id: gnu.mk,v 1.1.2.1.2.1 2012/03/07 15:08:54 sdu Exp $
+# template for the Intel fortran compiler
 # typical use with mkmf
 # mkmf -t template.ifc -c"-Duse_libMPI -Duse_netCDF" path_names /usr/local/include
 ############
 # commands #
 ############
-ifeq ($(VTRACE), yes)
-    FC = mpif90-vt
-    LD = mpif90-vt
-else
-    FC = mpif90
-    LD = mpif90
-endif
-
+FC = mpif90
 CC = mpicc
-
+LD = mpif90 $(MAIN_PROGRAM)
 #########
 # flags #
 #########
+DEBUG =
 REPRO =
 VERBOSE =
-OPT = on
+OPENMP =
 
-MAKEFLAGS += --jobs=4
+MAKEFLAGS += --jobs=$(shell grep '^processor' /proc/cpuinfo | wc -l)
 
-INCLUDE   = -I$(NETCDF_ROOT)/include
+FPPFLAGS := 
 
-FPPFLAGS := -fpp -Wp,-w $(INCLUDE)
-FFLAGS := -fno-alias -safe-cray-ptr -fpe0 -ftz -assume byterecl -i4 -r8 -traceback -nowarn -check noarg_temp_created -assume buffered_io
-FFLAGS_OPT = -O3 -debug minimal -fp-model precise
-FFLAGS_DEBUG = -g -O0 -debug all -check -check noarg_temp_created -check nopointer -warn -warn noerrors -ftrapuv
-FFLAGS_REPRO = -O2 -debug minimal -no-vec -fp-model precise
-FFLAGS_VERBOSE = -v -V -what
+FFLAGS := -fcray-pointer -fdefault-real-8 -ffree-line-length-none -fno-range-check -Waliasing -Wampersand -Warray-bounds -Wcharacter-truncation -Wconversion -Wline-truncation -Wintrinsics-std -Wsurprising -Wno-tabs -Wunderflow -Wunused-parameter -Wintrinsic-shadow -Wno-align-commons
+FFLAGS += -I/usr/include/mpich2 -I/usr/include
+FFLAGS += -DGFORTRAN
 
-CFLAGS := -D__IFC $(INCLUDE)
-CFLAGS_OPT = -O2 -debug minimal -no-vec
-CFLAGS_DEBUG = -O0 -g -ftrapuv -traceback
+#
+FFLAGS_OPT = -O2
+FFLAGS_REPRO = 
+FFLAGS_DEBUG = -O0 -g -W -fbounds-check 
+FFLAGS_OPENMP = -fopenmp
+FFLAGS_VERBOSE = 
+
+CFLAGS := -D__IFC 
+CFLAGS += $(shell nc-config --cflags)
+CFLAGS_OPT = -O2
+CFLAGS_OPENMP = -fopenmp
+CFLAGS_DEBUG = -O0 -g 
+
+# Optional Testing compile flags.  Mutually exclusive from DEBUG, REPRO, and OPT
+# *_TEST will match the production if no new option(s) is(are) to be tested.
+FFLAGS_TEST = -O2
+CFLAGS_TEST = -O2
 
 LDFLAGS :=
-LDFLAGS_VERBOSE := -Wl,-V,--verbose,-cref,-M
+LDFLAGS_OPENMP := -fopenmp
+LDFLAGS_VERBOSE := 
 
 ifneq ($(REPRO),)
 CFLAGS += $(CFLAGS_REPRO)
 FFLAGS += $(FFLAGS_REPRO)
 endif
-
 ifneq ($(DEBUG),)
 CFLAGS += $(CFLAGS_DEBUG)
 FFLAGS += $(FFLAGS_DEBUG)
+else ifneq ($(TEST),)
+CFLAGS += $(CFLAGS_TEST)
+FFLAGS += $(FFLAGS_TEST)
 else
 CFLAGS += $(CFLAGS_OPT)
 FFLAGS += $(FFLAGS_OPT)
+endif
+
+ifneq ($(OPENMP),)
+CFLAGS += $(CFLAGS_OPENMP)
+FFLAGS += $(FFLAGS_OPENMP)
+LDFLAGS += $(LDFLAGS_OPENMP)
 endif
 
 ifneq ($(VERBOSE),)
@@ -58,9 +73,14 @@ FFLAGS += $(FFLAGS_VERBOSE)
 LDFLAGS += $(LDFLAGS_VERBOSE)
 endif
 
-LIBS := -L$(NETCDF_ROOT)/lib -lnetcdf -lnetcdff -L$(HDF5_ROOT)/lib -lhdf5_hl -lhdf5 -lcurl -L$(ZLIB_ROOT)/lib -lz
+ifeq ($(NETCDF),3)
+  # add the use_LARGEFILE cppdef
+  ifneq ($(findstring -Duse_netCDF,$(CPPDEFS)),)
+    CPPDEFS += -Duse_LARGEFILE
+  endif
+endif
 
-LIBS += $(OPENMPI_F90LIBS) -lpthread 
+LIBS := -L/usr/local/lib -lnetcdff -lnetcdf
 LDFLAGS += $(LIBS)
 
 #---------------------------------------------------------------------------

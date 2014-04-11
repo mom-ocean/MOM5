@@ -1,3 +1,27 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!                                                                   !!
+!!                   GNU General Public License                      !!
+!!                                                                   !!
+!! This file is part of the Flexible Modeling System (FMS).          !!
+!!                                                                   !!
+!! FMS is free software; you can redistribute it and/or modify       !!
+!! it and are expected to follow the terms of the GNU General Public !!
+!! License as published by the Free Software Foundation.             !!
+!!                                                                   !!
+!! FMS is distributed in the hope that it will be useful,            !!
+!! but WITHOUT ANY WARRANTY; without even the implied warranty of    !!
+!! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the     !!
+!! GNU General Public License for more details.                      !!
+!!                                                                   !!
+!! You should have received a copy of the GNU General Public License !!
+!! along with FMS; if not, write to:                                 !!
+!!          Free Software Foundation, Inc.                           !!
+!!          59 Temple Place, Suite 330                               !!
+!!          Boston, MA  02111-1307  USA                              !!
+!! or see:                                                           !!
+!!          http://www.gnu.org/licenses/gpl.txt                      !!
+!!                                                                   !!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module mom_oasis3_interface_mod
 !
 !<CONTACT EMAIL="Dave.Bi@csiro.au"> Dave Bi (for OASIS3 hooks)
@@ -51,20 +75,14 @@ module mom_oasis3_interface_mod
 ! </NAMELIST>
 !
 !
-#ifdef OASIS3
 
-!prism stuff
-use mod_prism_proto 
-use mod_prism_def_partition_proto
-use mod_prism_put_proto
-use mod_prism_get_proto
-use mod_comprism_proto
+use mod_prism
 
 !MOM4 modules: 
 use fms_mod,         only: file_exist
 use fms_mod,         only: write_version_number, open_namelist_file, close_file, check_nml_error
 use mpp_domains_mod, only: mpp_update_domains, domain2d
-use mpp_mod,         only: input_nml_file, mpp_broadcast, mpp_pe, mpp_npes, mpp_root_pe
+use mpp_mod,         only: mpp_broadcast, mpp_pe, mpp_npes, mpp_root_pe
 use mpp_mod,         only: mpp_error, FATAL, WARNING, NOTE
 use mpp_mod,         only: stdlog, stdout
 use mpp_domains_mod, only: mpp_get_compute_domain, &
@@ -76,10 +94,21 @@ use ocean_types_mod, only: ice_ocean_boundary_type, &
                            ocean_domain_type
 use time_manager_mod, only: time_type
 
+! Timing
+
+  use mpp_mod,                  only: mpp_clock_id
+  use mpp_mod,                  only: mpp_clock_begin, mpp_clock_end, MPP_CLOCK_SYNC
+  use mpp_mod,                  only: MPP_CLOCK_DETAILED, CLOCK_MODULE
+
+  use auscom_ice_mod, only : il_out 
+  use cpl_netcdf_setup_mod
+
 implicit none
 
 public :: mom_prism_init, mom_prism_terminate, coupler_init, from_coupler, into_coupler, &
           write_coupler_restart
+
+public :: iisd, iied, jjsd, jjed, iisc, iiec, jjsc, jjec
 
 private
 
@@ -96,6 +125,8 @@ integer :: num_coupling_proc   ! Number of processes involved in the coupling
 logical :: parallel_coupling
 
 integer :: jf
+character(len=12) :: choceout
+character(len=6) :: chout
 
 !
 ! Coupling associated variables
@@ -104,15 +135,15 @@ integer :: ierr
 integer :: limt, ljmt, i, j
 integer :: step
 
-character(len=6), parameter :: cp_modnam='mom4p1'  ! Component model name same as in namcouple
+character(len=6), parameter :: cp_modnam='mom5xx'  ! Component model name same as in namcouple
 
 integer :: imt_global, jmt_global                  ! 2D global layout 
 integer :: imt_local, jmt_local                    ! 2D global layout 
 integer iisc,iiec,jjsc,jjec
 integer iisd,iied,jjsd,jjed
 
-integer, parameter :: max_fields_in=16
-integer, parameter :: max_fields_out=6
+integer, parameter :: max_fields_in=20
+integer, parameter :: max_fields_out=8
 
 integer, dimension(max_fields_in)  :: id_var_in  ! ID for fields to be rcvd
 integer, dimension(max_fields_out) :: id_var_out ! ID for fields to be sent
@@ -132,6 +163,25 @@ logical :: send_before_ocean_update=.FALSE.,       &
 ! Work array
 real, allocatable,dimension(:,:)  :: vwork
 
+! Timing
+integer :: id_oasis_send, id_oasis_recv
+integer :: id_oasis_send1, id_oasis_recv1
+
+
+!global domain
+integer isg,ieg,jsg,jeg
+
+!for paralell coupling 
+real, allocatable,dimension(:,:)  :: vwork_2
+integer, dimension(2) :: pe_layout
+integer iiscpl,iiecpl,jjscpl,jjecpl
+integer :: sendsubarray, recvsubarray , resizedrecvsubarray
+integer, dimension(:), allocatable :: counts, disps
+integer, dimension(2) :: starts,sizes,subsizes
+integer(kind=mpi_address_kind) :: start, extent
+real :: realvalue
+integer :: col_comm
+integer :: mom4_comm
 contains
 
 !-----------------------------------------------------------------------------------
@@ -164,10 +214,12 @@ if (ierr /= PRISM_Ok) then
   call prism_abort_proto(id_component, 'mom4 prism_init','STOP 2')
 endif
 
+mom4_comm = mom4_local_comm
+
 end subroutine mom_prism_init
 
 !-----------------------------------------------------------------------------------
-subroutine coupler_init(Dom, dt_cpld, Time, Time_step_coupled, Run_len)
+subroutine coupler_init(Dom, Time, Time_step_coupled, Run_len, dt_cpld)
 
 ! In this routine we set up all our arrays and determine which fields are to be passed to and fro.
 ! Determine the style of coupling
@@ -176,14 +228,15 @@ subroutine coupler_init(Dom, dt_cpld, Time, Time_step_coupled, Run_len)
 ! use them for initialising.
 
 type(domain2d)  :: Dom  
-integer         :: dt_cpld
-type(time_type), optional :: Time, Time_step_coupled, Run_len
+type(time_type),optional :: Time, Time_step_coupled, Run_len
+integer,optional         :: dt_cpld
 
 integer, dimension(5) :: il_paral
 integer, dimension(2) :: var_num_dims ! see below
 integer, dimension(4) :: var_shape  ! see below
 
-integer isg,ieg,jsg,jeg
+!integer isg,ieg,jsg,jeg
+integer :: jcol, irow
 
 integer ioun, io_status
 
@@ -191,27 +244,18 @@ integer ifield
 
 logical fmatch 
 
-integer :: stdoutunit,stdlogunit
-
 namelist /mom_oasis3_interface_nml/ num_fields_in, num_fields_out,fields_in,fields_out, &
           send_before_ocean_update, send_after_ocean_update
 
 ! all processors read the namelist--
 
-stdoutunit=stdout();stdlogunit=stdlog()
-
-#ifdef INTERNAL_FILE_NML
-read (input_nml_file, nml=mom_oasis3_interface_nml, iostat=io_status)
-ierr = check_nml_error(io_status,'mom_oasis3_interface_nml')
-#else
 ioun = open_namelist_file()
 read  (ioun, mom_oasis3_interface_nml,iostat=io_status)
+write (stdout(),'(/)')
+write (stdout(), mom_oasis3_interface_nml)
+write (stdlog(), mom_oasis3_interface_nml)
 ierr = check_nml_error(io_status,'mom_oasis3_interface_nml')
 call close_file (ioun)
-#endif
-write (stdoutunit,'(/)')
-write (stdoutunit, mom_oasis3_interface_nml)
-write (stdlogunit, mom_oasis3_interface_nml)
 
 call mpp_get_compute_domain(Dom,iisc,iiec,jjsc,jjec)
 call mpp_get_data_domain(Dom,iisd,iied,jjsd,jjed)
@@ -233,15 +277,18 @@ jmt_global=jeg-jsg+1
 imt_local=iiec-iisc+1
 jmt_local=jjec-jjsc+1
   
+  pe_layout(1)=imt_global/imt_local
+  pe_layout(2)=jmt_global/jmt_local
+  
+
+
 ! Can't we get these numbers from elsewhere? Shouldn't be hardwired.  RASF
 ! It would be better to read in num_coupling_proc and parallel_coupling and perform sanity checking.
 ! Can we change some of the variable names? It's really hard to figure out what they mean.
 ! (OASIS3 naming convention problem?).
 
 num_total_proc = mpp_npes()
-!num_coupling_proc = num_total_proc     !multi-process coupling (real parallel cpl)!
-num_coupling_proc = 1             !mono-process coupling	
-
+num_coupling_proc = num_total_proc     !multi-process coupling (real parallel cpl)!
 
 ! Type of coupling
 
@@ -265,6 +312,7 @@ else
 endif
   vwork=0.0
 
+
   ! Define name (as in namcouple) and declare each field sent/received by oce:
   !ice ==> ocn
   mom_name_read(:)=''
@@ -281,10 +329,14 @@ endif
   mom_name_read(10)='sw_irdif'
   mom_name_read(11)='lprec'
   mom_name_read(12)='fprec'
-  mom_name_read(13)='runoff'
+  mom_name_read(13)='runof'
   mom_name_read(14)='calving'
   mom_name_read(15)='p'
   mom_name_read(16)='sw_flux'   ! For partitioning shortwave flux
+  mom_name_read(17)='aice'   ! Ice fraction
+  mom_name_read(18)='mh_flux'   ! Heat flux due to melting
+  mom_name_read(19)='wfimelt'  !Water flux due to ice melting
+  mom_name_read(20)='wfiform'  !Water flux due to ice forming 
 
   !ocn ==> ice
   mom_name_write(:)=''
@@ -295,6 +347,9 @@ endif
   mom_name_write(4)='v_surf'
   mom_name_write(5)='sea_lev'
   mom_name_write(6)='frazil'
+  mom_name_write(7)='dssldx'
+  mom_name_write(8)='dssldy'
+
 
   fmatch = .false.
   do jf = 1,num_fields_in
@@ -324,24 +379,40 @@ endif
      fmatch = .false.
   enddo
 
-  il_paral (:) = 0
-  if( parallel_coupling ) then
-! ???
-  !il_paral ( clim_strategy ) = clim_Box
-  !il_paral ( clim_offset   ) = (ieg-isg+1)*(jjsc-1)+(iisc-1)
-  !il_paral ( clim_SizeX    ) = iiec-iisc+1
-  !il_paral ( clim_SizeY    ) = jjec-jjsc+1
-  !il_paral ( clim_LdX      ) = ieg-isg+1
-  ! send_before_ocean_update = .true. ! ?????
-  ! send_after_ocean_update = .false. ! ?????
-  
-  else
+!DHB
+if (mpp_pe() == mpp_root_pe() .or. parallel_coupling) then
+  il_out = 85 + mpp_pe()
+  write(chout,'(I6.6)'), il_out
+  choceout='oceout'//trim(chout)
+  open(il_out,file=choceout,form='formatted')
+  print *, 'MOM: (init_cpl), my_task opened log file: ', mpp_pe(), trim(choceout)
+endif
 
+
+    !write(il_out, *) "compute domain:",mpp_pe(), iisc, iiec, jjsc, jjec 
+    !write(il_out, *) "data domain:",mpp_pe(), iisd, iied, jjsd, jjed 
+    !write(il_out, *) "global domain:",mpp_pe(), isg, ieg, jsg, jeg 
+    !write(il_out, *) "global layout nx x ny:",pe_layout(1), pe_layout(2) 
+    !flush(il_out)
+
+  il_paral (:) = 0
+  if (.not. parallel_coupling) then 
     il_paral ( clim_strategy ) = clim_serial
     il_paral ( clim_offset   ) = 0
     il_paral ( clim_length   ) = imt_global * jmt_global
     send_before_ocean_update = .false.
     send_after_ocean_update = .true.
+  else !if( parallel_coupling .and. mpp_pe() < pe_layout(1) ) then
+
+  il_paral ( clim_strategy ) = clim_Box
+!every cpu gets coupling
+  il_paral ( clim_offset   ) = (ieg-isg+1)*(jjsc-jsg)+(iisc-isg)
+  il_paral ( clim_SizeX    ) = iiec-iisc+1
+  il_paral ( clim_SizeY    ) = jjec-jjsc+1
+  il_paral ( clim_LdX      ) = ieg-isg+1
+    send_before_ocean_update = .false.
+    send_after_ocean_update = .true.
+  
   endif
 
   !
@@ -355,7 +426,7 @@ endif
   var_shape(4)= ubound(vwork,2)     ! max index for the coupling field local dim
 
 
-if (mpp_pe() == mpp_root_pe() .or. parallel_coupling) then
+if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling )) then
   !
   ! The following steps need to be done:
   ! -> by the process if mom is monoprocess;
@@ -371,8 +442,6 @@ if (mpp_pe() == mpp_root_pe() .or. parallel_coupling) then
   !       -Define the parallel decomposition associated to the port of each
   !        field; here no decomposition for all ports.
   !
-
-
 
   call prism_def_partition_proto (id_partition, il_paral, ierr)
 
@@ -398,105 +467,176 @@ if (mpp_pe() == mpp_root_pe() .or. parallel_coupling) then
   endif
 
 endif   ! 
+  id_oasis_recv = mpp_clock_id('oasis_recv', flags=MPP_CLOCK_SYNC,grain=CLOCK_MODULE)
+  id_oasis_send = mpp_clock_id('oasis_send', flags=MPP_CLOCK_SYNC,grain=CLOCK_MODULE)
+  id_oasis_recv1 = mpp_clock_id('oasis_recv1', grain=CLOCK_MODULE)
+  id_oasis_send1 = mpp_clock_id('oasis_send1', grain=CLOCK_MODULE)
 
 end subroutine  coupler_init
 
 !=======================================================================
-subroutine into_coupler(step, Ocean_sfc, before_ocean_update, Time)
+subroutine into_coupler(step, Ocean_sfc, Time, before_ocean_update)
 !------------------------------------------!
+
+use ocean_operators_mod, only : GRAD_BAROTROPIC_P       !GRAD_SURF_sealev
+use auscom_ice_mod, only      : auscom_ice_heatflux_new
+use auscom_ice_mod, only      : chk_o2i_fields, chk_fields_period, chk_fields_start_time
 
 implicit none
 
 type (ocean_public_type) :: Ocean_sfc
-type (time_type), optional :: Time
+type (time_type),optional         :: Time
 
 integer, intent(in) :: step
-logical, intent(in) :: before_ocean_update ! Flag to indicate whether
+logical, intent(in),optional :: before_ocean_update ! Flag to indicate whether
                                            ! we are calling before or after updating the ocean
 integer:: jf, ierr, i, j
 
 real, pointer, dimension(:,:) :: vwork_local
+real, dimension(iisd:iied,jjsd:jjed) :: vtmp
+real, dimension(isg:ieg,jsg:jeg) :: gtmp
+
+  character*80 :: fname='fields_o2i_in_ocn.nc'
+  integer :: ncid,currstep,ll,ilout
+  data currstep/0/
+  save currstep
 
 ! Check if  we want to couple at this call.
 
 if ( before_ocean_update .and. (.not. send_before_ocean_update) ) return
 if ( (.not. before_ocean_update) .and. (.not. send_after_ocean_update) ) return
 
-
-do jf = 1,num_fields_out
-
-! Just point to array. Don't need to copy.
-
-  coupling_fields_out: select case( trim(fields_out(jf)))
-  case('t_surf')
-    vwork_local => Ocean_sfc%t_surf
-  case('s_surf')
-    vwork_local => Ocean_sfc%s_surf
-  case('u_surf')
-    vwork_local => Ocean_sfc%u_surf
-  case('v_surf')
-    vwork_local => Ocean_sfc%v_surf
-  case('sea_lev')
-    vwork_local => Ocean_sfc%sea_lev
-  case('frazil')
-    vwork_local => Ocean_sfc%frazil
-   case DEFAULT
-   call mpp_error(FATAL,&
-      '==>Error from into_coupler: Unknown quantity.')
-   end select coupling_fields_out
-
-
-  if (.not. parallel_coupling) then 
-
-    call mpp_global_field(Ocean_sfc%domain, vwork_local(iisc:iiec,jjsc:jjec), vwork)
-
+  
+  if (mpp_pe() == mpp_root_pe()) then
+    if (chk_o2i_fields .and. (mod(step, chk_fields_period) == 0) .and. (step >= chk_fields_start_time)) then
+        currstep=currstep+1
+      if (currstep == 1) then
+        call create_ncfile(trim(fname),ncid,imt_global,jmt_global,ll=1,ilout=il_out)
+      endif
+      write(il_out,*) 'opening file at nstep = ', trim(fname), step
+      call ncheck( nf_open(trim(fname),nf_write,ncid) )
+      call write_nc_1Dtime(real(step),currstep,'time',ncid)
+    endif
   endif
 
-  if (mpp_pe() == mpp_root_pe() .or. parallel_coupling) then
+!20110329: gradient is now calculated in initialize_ocean_sfc to avoid the domain boundary shift!
+!!!Ocean_sfc%gradient(:,:,:) = GRAD_BAROTROPIC_P(Ocean_sfc%sea_lev(:,:))
+!frazil is actually updated 
+call auscom_ice_heatflux_new(Ocean_sfc)
 
-    print *, 'MOM4: into_coupler putting field at step = ', trim(fields_out(jf)), ' ', step
+     call mpp_clock_begin(id_oasis_send)
+do jf = 1,num_fields_out
+     if(jf .ne. 1) call mpp_clock_begin(id_oasis_send1)
 
-    if (parallel_coupling) then 
-      call prism_put_proto(id_var_out(jf),step,vwork_local,ierr)
-    else
-      call prism_put_proto(id_var_out(jf),step,vwork,ierr)
+! Just point to array. Don't need to copy.
+  vtmp(:,:) = 0.0
+  coupling_fields_out: select case( trim(fields_out(jf)))
+  case('t_surf')
+    vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%t_surf(iisd:iied,jjsd:jjed)
+  case('s_surf')
+    vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%s_surf(iisd:iied,jjsd:jjed)
+  case('u_surf')
+    vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%u_surf(iisd:iied,jjsd:jjed)
+  case('v_surf')
+    vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%v_surf(iisd:iied,jjsd:jjed)
+  case('sea_lev')
+    vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%sea_lev(iisd:iied,jjsd:jjed)
+  case('frazil')
+    vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%frazil(iisd:iied,jjsd:jjed)
+  case('dssldx') 
+    vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1)
+  case('dssldy') 
+    vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2)
+  case DEFAULT
+  call mpp_error(FATAL,&
+      '==>Error from into_coupler: Unknown quantity.')
+  end select coupling_fields_out
+
+  if(.not. parallel_coupling) then  
+      call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), vwork)
+  else
+      vwork = vtmp
+  endif
+
+  if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling )) then
+
+      call prism_put_proto(id_var_out(jf),step,vwork,ierr) 
+  
+      if (chk_o2i_fields .and. (mod(step, chk_fields_period) == 0) .and. (step >= chk_fields_start_time)) then
+        if (parallel_coupling) then 
+          call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), gtmp)
+          if( mpp_pe() == mpp_root_pe() )  &
+            call write_nc2D(ncid, trim(fields_out(jf)), gtmp, 1, imt_global,jmt_global, &
+                        currstep,ilout=il_out)
+        else
+          if( mpp_pe() == mpp_root_pe() )  &
+            call write_nc2D(ncid, trim(fields_out(jf)), vwork, 1, imt_global,jmt_global, &
+                        currstep,ilout=il_out)
+        endif
     endif
 
     if (ierr /= prism_ok.and. ierr < prism_sent) then
       call prism_abort_proto(id_component, 'MOM4 into_cpl','stop 1')
     endif
 
-  
-  endif 
+   endif 
+
+     if(jf .ne. 1) call mpp_clock_end(id_oasis_send1)
 
 enddo
+     call mpp_clock_end(id_oasis_send)
 
+  if (chk_o2i_fields .and. (mod(step, chk_fields_period) == 0) .and. (step >= chk_fields_start_time) .and. (mpp_pe() == mpp_root_pe())) then
+    call ncheck(nf_close(ncid))
+  endif
 
 return
 end subroutine into_coupler
 
 !-----------------------------------------------------------------------------------
-subroutine from_coupler(step,Ice_ocean_boundary, Time)
+subroutine from_coupler(step,Ocean_sfc,Ice_ocean_boundary, Time)
 
 ! This is all highly user dependent. 
 
-use constants_mod, only: hlv    ! 2.500e6 J/kg
+use constants_mod, only  : hlv    ! 2.500e6 J/kg
+use auscom_ice_mod, only : chk_i2o_fields, chk_fields_period, chk_fields_start_time
 implicit none
 
+type (ocean_public_type) :: Ocean_sfc
 type (ice_ocean_boundary_type) :: Ice_ocean_boundary
-type (time_type), optional :: Time
+type (time_type),optional         :: Time
+
+real, dimension(isg:ieg,jsg:jeg) :: gtmp
 
 integer, intent(in) :: step
 
 real :: frac_vis_dir=0.5*0.43, frac_vis_dif=0.5*0.43,             &
         frac_nir_dir=0.5*0.57, frac_nir_dif=0.5*0.57 ! shortwave partitioning
 
-do jf = 1, num_fields_in
+  character*80 :: fname = 'fields_i2o_in_ocn.nc'
+  integer :: ncid,currstep,ll,ilout
+  data currstep/0/
+  save currstep
 
-  if (mpp_pe() == mpp_root_pe() .or. parallel_coupling) then
+  if (mpp_pe() == mpp_root_pe()) then
+    if (chk_i2o_fields .and. (mod(step, chk_fields_period) == 0) .and. (step >= chk_fields_start_time)) then 
+        currstep=currstep+1
+      if (currstep == 1) then
+        call create_ncfile(trim(fname),ncid,imt_global,jmt_global,ll=1,ilout=il_out)
+      endif
+      write(il_out,*) 'opening file at nstep = ', trim(fname), step
+      call ncheck( nf_open(trim(fname),nf_write,ncid) )
+      call write_nc_1Dtime(real(step),currstep,'time',ncid)
+    endif
+  endif
 
-    print *, 'MOM4: from_coupler getting fields at step = ', trim(fields_in(jf)), ' ', step
-    call prism_get_proto(id_var_in(jf),step,vwork,ierr)
+     call mpp_clock_begin(id_oasis_recv)
+do jf =  1, num_fields_in
+     if(jf .ne. 1) call mpp_clock_begin(id_oasis_recv1)
+
+  !if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling .and. mpp_pe() < pe_layout(1))) then
+  if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling )) then
+  call prism_get_proto(id_var_in(jf),step,vwork,ierr)
 
     if (ierr /= PRISM_Ok.and. ierr < prism_recvd) then
       call prism_abort_proto(id_component, 'MOM4 _get_ ','stop 1')
@@ -542,43 +682,102 @@ do jf = 1, num_fields_in
      Ice_ocean_boundary%t_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('lw_flux')
      Ice_ocean_boundary%lw_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
-  case('runoff')
+  case('runof')
      Ice_ocean_boundary%runoff(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('p')
      Ice_ocean_boundary%p(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('fprec')
      Ice_ocean_boundary%fprec(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+  case('aice')
+     Ice_ocean_boundary%aice(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+  case('mh_flux')
+     Ice_ocean_boundary%mh_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+  case('wfimelt')
+     Ice_ocean_boundary%wfimelt(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+  case('wfiform')
+     Ice_ocean_boundary%wfiform(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case DEFAULT
 ! Probable error. Leave as warning for the moment. RASF
    call mpp_error(WARNING,&
       '==>Warning from from_coupler: Unknown quantity.')
   end select coupling_fields_in
 
+      if (chk_i2o_fields .and. (mod(step, chk_fields_period) == 0) .and. (step >= chk_fields_start_time)) then
+        if (parallel_coupling ) then
+          call mpp_global_field(Ocean_sfc%domain, vwork(iisc:iiec,jjsc:jjec), gtmp) 
+          if( mpp_pe() == mpp_root_pe() )  &
+            call write_nc2D(ncid, trim(fields_in(jf)), gtmp, 1, imt_global,jmt_global, &
+                          currstep,ilout=il_out)
+        else
+          if( mpp_pe() == mpp_root_pe() )  &
+            call write_nc2D(ncid, trim(fields_in(jf)), vwork, 1, imt_global,jmt_global, &
+                          currstep,ilout=il_out)
+        endif
+      endif
+
+     if(jf .ne. 1) call mpp_clock_end(id_oasis_recv1)
 enddo    !jf
+     call mpp_clock_end(id_oasis_recv)
+
+  if (chk_i2o_fields .and. (mod(step, chk_fields_period) == 0) .and. (step >= chk_fields_start_time) .and. (mpp_pe() == mpp_root_pe())) then
+    call ncheck(nf_close(ncid))
+  endif
 
 end subroutine from_coupler
 
 !-----------------------------------------------------------------------------------
-subroutine write_coupler_restart(step,write_restart)
+subroutine write_coupler_restart(step,Ocean_sfc,write_restart)
+
+use auscom_ice_mod, only      : auscom_ice_heatflux_new
 
 logical, intent(in) :: write_restart
 integer, intent(in) :: step
+type (ocean_public_type) :: Ocean_sfc
+
+integer :: ncid,ll,ilout
+real, dimension(iisd:iied,jjsd:jjed) :: vtmp
+real, dimension(isg:ieg,jsg:jeg) :: gtmp
+character(len=8) :: fld_ice
 
 if ( write_restart ) then
-   if (mpp_pe() == mpp_root_pe() .or. parallel_coupling) then
+   if ( mpp_pe() == mpp_root_pe() ) then
+     call create_ncfile('INPUT/o2i.nc', ncid, imt_global,jmt_global, ll=1, ilout=il_out)
+     call write_nc_1Dtime(real(step), 1, 'time', ncid)
+   endif
+   !update frazil
+   call auscom_ice_heatflux_new(Ocean_sfc)
+   !if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling .and.  mpp_pe() < pe_layout(1)) ) then
+   if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling) ) then
       do jf = 1,num_fields_out
-         print *, 'MOM4: (write_coupler_restart) calling _put_restart at ', step, ' ', fields_out(jf)
-         call prism_put_restart_proto(id_var_out(jf),step,ierr)
+        vtmp(:,:) = 0.0
+        select case (trim(fields_out(jf)))
+          case('t_surf'); vtmp = Ocean_sfc%t_surf(iisd:iied,jjsd:jjed); fld_ice='sst_i'
+          case('s_surf'); vtmp = Ocean_sfc%s_surf(iisd:iied,jjsd:jjed); fld_ice='sss_i'
+          case('u_surf'); vtmp = Ocean_sfc%u_surf(iisd:iied,jjsd:jjed); fld_ice='ssu_i'
+          case('v_surf'); vtmp = Ocean_sfc%v_surf(iisd:iied,jjsd:jjed); fld_ice='ssv_i'
+          case('dssldx'); vtmp = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1); fld_ice='sslx_i'
+          case('dssldy'); vtmp = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2); fld_ice='ssly_i'
+          case('frazil'); vtmp = Ocean_sfc%frazil(iisd:iied,jjsd:jjed); fld_ice='pfmice_i'
+        end select
 
-         if (ierr == PRISM_ToRest ) then  
-            call mpp_error(NOTE,&
-                 '==>Note from into_coupler: Written field to o2i file.')
-         else
-            call mpp_error(FATAL,&
-                 '==>Error from into_coupler: writing field into o2i file failed.')
-         endif
+    if (parallel_coupling) then
+      call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), gtmp)
+    else
+      call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), vwork)
+    endif
+
+         if (mpp_pe() == mpp_root_pe()) then
+           if (parallel_coupling) then
+             call write_nc2D(ncid, trim(fld_ice), gtmp, 2, imt_global,jmt_global, &
+                        1,ilout=il_out)
+           else
+             call write_nc2D(ncid, fld_ice, vwork, 2, imt_global,jmt_global, 1, ilout=il_out)
+           endif
+         end if
       enddo
    endif
+   if (mpp_pe() == mpp_root_pe()) call ncheck( nf_close(ncid) )
+
 endif
 end subroutine write_coupler_restart
 
@@ -590,6 +789,10 @@ subroutine mom_prism_terminate
 ! deallocate all coupling associated arrays here ......
 ! Note: prism won't terminate MPI
 !
+
+    call MPI_Barrier(mom4_comm, ierr)
+
+
 call prism_terminate_proto (ierr)
 
 if (ierr .ne. PRISM_Ok) then
@@ -599,8 +802,5 @@ if (ierr .ne. PRISM_Ok) then
 endif
 
 end subroutine mom_prism_terminate
-
-!=====
-#endif
 
 end module mom_oasis3_interface_mod

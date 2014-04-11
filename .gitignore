@@ -2,3 +2,7 @@
 exec/
 work/
 bin/mppnccombine.gfortran
+exp/*.sh.e*
+exp/*.sh.o*
+exp/*.csh.o*
+exp/*.csh.e*

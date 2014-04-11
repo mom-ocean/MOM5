@@ -1307,27 +1307,26 @@ subroutine tempsalt_check_range(salinity,theta,depth)
   real, dimension(isd:,jsd:,:), intent(in) :: depth
   integer :: i,j,k
   
-  integer :: stdoutunit
-  stdoutunit=stdout()
+  character(len=512) :: err_msg
 
   do k=1,nk
      do j=jsc,jec
         do i=isc,iec
            if(salinity(i,j,k) < s_min .or. salinity(i,j,k) > s_max) then
-               write(stdoutunit,'(/,a,es22.12,a,i4,a1,i4,a1,i3,a,f10.4,a,f10.4,a,f10.4,a)') &
+               write(err_msg,'(a,es22.12,a,i4,a1,i4,a1,i3,a,f10.4,a,f10.4,a,f10.4,a)')      &
                ' Error: salinity out of range with value ', salinity(i,j,k),                &
                ' at (i,j,k) = (',i+Dom%ioff,',',j+Dom%joff,',',k,                           &
                '),  (lon,lat,dpt) = (',Grd%xt(i,j),',',                                     &
                Grd%yt(i,j),',', depth(i,j,k),' m)'
-               call mpp_error(FATAL, '==>Error in ocean_tempsalt_mod: salinity out of range.')
+               call mpp_error(FATAL, trim(err_msg))
            endif 
            if(theta(i,j,k) < t_min .or. theta(i,j,k) > t_max) then
-               write(stdoutunit,'(/,a,es22.12,a,i4,a1,i4,a1,i3,a,f10.4,a,f10.4,a,f10.4,a)') &
+               write(err_msg,'(a,es22.12,a,i4,a1,i4,a1,i3,a,f10.4,a,f10.4,a,f10.4,a)')      &
                ' Error: temperature out of range with value ', theta(i,j,k),                &
                ' at (i,j,k) = (',i+Dom%ioff,',',j+Dom%joff,',',k,                           &
                '),  (lon,lat,dpt) = (',Grd%xt(i,j),',',                                     &
                Grd%yt(i,j),',', depth(i,j,k),' m)'
-               call mpp_error(FATAL, '==>Error in ocean_tempsalt_mod: temperature out of range.')
+               call mpp_error(FATAL, trim(err_msg))
            endif
         enddo
      enddo
