@@ -2917,8 +2917,19 @@ end subroutine ocean_sfc_end
 !
 ! </DESCRIPTION>
 !
+
+#if defined(ACCESS)
 subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_prog, Velocity, &
                          pme, melt, river, runoff, calving, upme, uriver, swflx, swflx_vis, patm, aice)
+
+  real, dimension(isd:,jsd:),    intent(in)    :: aice 
+
+#else
+
+subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_prog, Velocity, &
+                         pme, melt, river, runoff, calving, upme, uriver, swflx, swflx_vis, patm)
+
+#endif
 
   type(ocean_time_type),          intent(in)    :: Time 
   type(ice_ocean_boundary_type),  intent(in)    :: Ice_ocean_boundary
@@ -2937,7 +2948,6 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   real, dimension(isd:,jsd:),     intent(inout) :: patm
   real, dimension(isd:,jsd:,:),   intent(inout) :: upme
   real, dimension(isd:,jsd:,:),   intent(inout) :: uriver
-  real, dimension(isd:,jsd:),     intent(inout), optional :: aice
 
   real, dimension(isd:ied,jsd:jed) :: tmp_patm
 
