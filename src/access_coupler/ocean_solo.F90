@@ -543,11 +543,9 @@ subroutine external_coupler_mpi_init(mom_local_communicator, external_initializa
     implicit none
     integer, intent(out) :: mom_local_communicator
     logical, intent(out) :: external_initialization
-     print *, 'Initialising Prism'
     mom_local_communicator = -100         ! Is there mpp_undefined parameter corresponding to MPI_UNDEFINED?
                                           ! probably wouldn't need logical flag.
     call mom_prism_init(mom_local_communicator)
-     if (mpp_pe() == mpp_root_pe() ) print *, 'Finished Initialising Prism'
     external_initialization = .true.
 end subroutine external_coupler_mpi_init
 
