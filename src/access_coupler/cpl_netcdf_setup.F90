@@ -67,7 +67,7 @@ subroutine write_nc_1Dtime(vin, nt, vname, ncid)
 
     integer, intent(in) :: ncid,nt
     integer :: varid, ncstatus
-    integer(kind=int_kind), dimension(1:6) :: adate
+    integer, dimension(1:6) :: adate
     real, intent(in) :: vin
     ! NOTE here real is default real*8 (which is actually the same as dbl_kind!)
     ! somehow the netcdf lib used here takes 'real' as real*4. therefore we need: 
