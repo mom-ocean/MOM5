@@ -379,6 +379,10 @@ program main
              Ice_ocean_boundary% mh_flux(isc:iec,jsc:jec),          &
              Ice_ocean_boundary% wfimelt(isc:iec,jsc:jec),          &
              Ice_ocean_boundary% wfiform(isc:iec,jsc:jec))
+#if defined ACCESS_CM
+    allocate(Ice_ocean_boundary%co2(isc:iec,jsc:jec),               &
+             Ice_ocean_boundary%wnd(isc:iec,jsc:jec))
+#endif
 
   Ice_ocean_boundary%u_flux          = 0.0
   Ice_ocean_boundary%v_flux          = 0.0
@@ -399,6 +403,10 @@ program main
   Ice_ocean_boundary%mh_flux         = 0.0
   Ice_ocean_boundary% wfimelt        = 0.0
   Ice_ocean_boundary% wfiform        = 0.0
+#if defined ACCESS_CM
+  Ice_ocean_boundary%co2             = 0.0
+  Ice_ocean_boundary%wnd             = 0.0
+#endif
 
   call external_coupler_sbc_init(Ocean_sfc%domain, dt_cpld, Run_len)
 

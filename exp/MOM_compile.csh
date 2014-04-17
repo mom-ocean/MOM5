@@ -61,6 +61,8 @@ if ( $type == EBM ) then
     set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DLAND_BND_TRACERS -DOVERLOAD_C8 -DOVERLOAD_C4 -DOVERLOAD_R4" )
 else if( $type == ACCESS-OM ) then
     set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DACCESS" )
+else if( $type == ACCESS-CM ) then
+    set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DACCESS -DACCESS_CM" )
 endif
 
 #
@@ -138,7 +140,7 @@ cd $executable:h
 if( $type == MOM_solo ) then
     set srcList = ( mom5/drivers )
     set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
-else if( $type == ACCESS-OM ) then
+else if( $type == ACCESS-OM || $type == ACCESS-CM ) then
     set srcList = ( access_coupler )
     set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == MOM_SIS ) then
