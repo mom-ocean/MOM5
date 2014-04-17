@@ -2,7 +2,7 @@
 
 set srcList = ( mom5/ocean_core mom5/ocean_diag mom5/ocean_wave mom5/ocean_blobs mom5/ocean_param/neutral mom5/ocean_param/sources mom5/ocean_param/lateral mom5/ocean_param/vertical mom5/ocean_param/gotm-4.0/include mom5/ocean_param/gotm-4.0/turbulence mom5/ocean_param/gotm-4.0/util mom5/ocean_tracers )
 
-if( $type == ACCESS-OM ) then
+if( $type == ACCESS-OM || $type == ACCESS-CM ) then
     set srcList = ( $srcList mom5/ocean_access )
 else
     set srcList = ( $srcList mom5/ocean_bgc ocean_shared/generic_tracers )
