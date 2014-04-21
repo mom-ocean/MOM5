@@ -4870,8 +4870,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
       wrk1_2d(:,:) = 0.0
       do j=jsc,jec
          do i=isc,iec
-            wrk1_2d(i,j) =   Grd%tmask(i,j,1)*Grd%dat(i,j)                                               &
-                  *T_prog(index_temp)%conversion*(                                                       &
+            wrk1_2d(i,j) = T_prog(index_temp)%conversion*(                                               &
                    T_prog(index_temp)%stf(i,j)                                                           &
                  + T_prog(index_temp)%runoff_tracer_flux(i,j)                                            &
                  + T_prog(index_temp)%calving_tracer_flux(i,j)                                           &
