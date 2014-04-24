@@ -88,7 +88,7 @@ cd $root/exp
 source ./ocean_compile.csh
 if ( $status ) exit $status
 
-if( $type != MOM_solo && $type != ACCESS-OM ) then
+if( $type != MOM_solo && $type != ACCESS-OM  && $type != ACCESS-CM) then
     cd $root/exp
     source ./ice_compile.csh
     if ( $status ) exit $status
