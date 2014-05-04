@@ -427,13 +427,13 @@ module generic_COBALT
   integer, parameter :: DIAZO      = 1
   integer, parameter :: LARGE      = 2
   integer, parameter :: SMALL      = 3
-  type(phytoplankton), dimension(NUM_PHYTO) :: phyto
+  type(phytoplankton), dimension(NUM_PHYTO), save :: phyto
 
   ! define three zooplankton types
   integer, parameter :: NUM_ZOO = 3
-  type(zooplankton), dimension(NUM_ZOO) :: zoo
+  type(zooplankton), dimension(NUM_ZOO), save :: zoo
 
-  type(bacteria), dimension(1) :: bact
+  type(bacteria), dimension(1), save :: bact
 
   integer, parameter :: NUM_PREY = 8
 
@@ -1000,7 +1000,7 @@ module generic_COBALT
      character(len=1)  :: mem_size ! The size in memory: d or f.
   end type vardesc
 
-  type(generic_COBALT_type) :: cobalt 
+  type(generic_COBALT_type), save :: cobalt 
   
   type(CO2_dope_vector) :: CO2_dope_vec
 

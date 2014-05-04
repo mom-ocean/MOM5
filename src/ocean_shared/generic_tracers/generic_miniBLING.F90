@@ -436,7 +436,7 @@ module generic_miniBLING_mod
      character(len=1)                   :: mem_size ! The size in memory: d or f.
   end type vardesc
 
-  type(generic_miniBLING_type)       :: bling
+  type(generic_miniBLING_type), save       :: bling
   integer, parameter                 :: num_instances = 1
   !type(generic_miniBLING_type), dimension(:), pointer       :: bling
   !integer                                               :: num_instances
