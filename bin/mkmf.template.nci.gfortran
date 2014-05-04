@@ -39,7 +39,9 @@ CFLAGS_DEBUG = -O0 -g
 FFLAGS_TEST = -O2
 CFLAGS_TEST = -O2
 
-LDFLAGS :=
+LDFLAGS := -L$(NETCDF_ROOT)/lib -lnetcdf -lnetcdff -L$(HDF5_ROOT)/lib -lhdf5_hl -lhdf5 -lcurl -L$(ZLIB_ROOT)/lib -lz
+
+
 LDFLAGS_OPENMP := -fopenmp
 LDFLAGS_VERBOSE := 
 
