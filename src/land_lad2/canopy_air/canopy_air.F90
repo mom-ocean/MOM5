@@ -4,6 +4,7 @@
 module canopy_air_mod
 
 #include "../shared/debug.inc"
+#include "../shared/concat.inc"
 
 #ifdef INTERNAL_FILE_NML
 use mpp_mod, only: input_nml_file
@@ -554,7 +555,8 @@ end function cana_tile_exists
 ! accessor functions: given a pointer to a land tile, they return pointer
 ! to the desired member of the land tile, of NULL if this member does not
 ! exist.
-#define DEFINE_CANA_ACCESSOR_0D(xtype,x) subroutine cana_ ## x ## _ptr(t,p);\
+
+#define DEFINE_CANA_ACCESSOR_0D(xtype,x) subroutine CONCAT3(cana_,x,_ptr(t,p));\
 type(land_tile_type),pointer::t;xtype,pointer::p;p=>NULL();if(associated(t))then;if(associated(t%cana))p=>t%cana%prog%x;endif;end subroutine
 
 DEFINE_CANA_ACCESSOR_0D(real,T)

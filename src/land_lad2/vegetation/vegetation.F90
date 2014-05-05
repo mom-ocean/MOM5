@@ -1,6 +1,7 @@
 module vegetation_mod
 
 #include "../shared/debug.inc"
+#include "../shared/concat.inc"
 
 #ifdef INTERNAL_FILE_NML
 use mpp_mod, only: input_nml_file
@@ -1453,16 +1454,16 @@ end function vegn_tile_exists
 ! ============================================================================
 ! cohort accessor functions: given a pointer to cohort, return a pointer to a
 ! specific member of the cohort structure
-#define DEFINE_VEGN_ACCESSOR_0D(xtype,x) subroutine vegn_ ## x ## _ptr(t,p);\
+#define DEFINE_VEGN_ACCESSOR_0D(xtype,x) subroutine CONCAT3(vegn_,x,_ptr(t,p));\
 type(land_tile_type),pointer::t;xtype,pointer::p;p=>NULL();if(associated(t))then;if(associated(t%vegn))p=>t%vegn%x;endif;end subroutine
 
-#define DEFINE_VEGN_ACCESSOR_1D(xtype,x) subroutine vegn_ ## x ## _ptr(t,p);\
+#define DEFINE_VEGN_ACCESSOR_1D(xtype,x) subroutine CONCAT3(vegn_,x,_ptr(t,p));\
 type(land_tile_type),pointer::t;xtype,pointer::p(:);p=>NULL();if(associated(t))then;if(associated(t%vegn))p=>t%vegn%x;endif;end subroutine
 
-#define DEFINE_COHORT_ACCESSOR(xtype,x) subroutine cohort_ ## x ## _ptr(c,p);\
+#define DEFINE_COHORT_ACCESSOR(xtype,x) subroutine CONCAT3(cohort_,x,_ptr(c,p));\
 type(vegn_cohort_type),pointer::c;xtype,pointer::p;p=>NULL();if(associated(c))p=>c%x;end subroutine
 
-#define DEFINE_COHORT_COMPONENT_ACCESSOR(xtype,component,x) subroutine cohort_ ## x ## _ptr(c,p);\
+#define DEFINE_COHORT_COMPONENT_ACCESSOR(xtype,component,x) subroutine CONCAT3(cohort_,x,_ptr(c,p));\
 type(vegn_cohort_type),pointer::c;xtype,pointer::p;p=>NULL();if(associated(c))p=>c%component%x;end subroutine
 
 DEFINE_VEGN_ACCESSOR_0D(integer,landuse)
