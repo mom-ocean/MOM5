@@ -4,6 +4,7 @@
 module soil_mod
 
 #include "../shared/debug.inc"
+#include "../shared/concat.inc"
 
 #ifdef INTERNAL_FILE_NML
 use mpp_mod, only: input_nml_file
@@ -2134,14 +2135,15 @@ end function soil_tile_exists
 ! ============================================================================
 ! cohort accessor functions: given a pointer to cohort, return a pointer to a
 ! specific member of the cohort structure
-#define DEFINE_SOIL_ACCESSOR_0D(xtype,x) subroutine soil_ ## x ## _ptr(t,p);\
+#define DEFINE_SOIL_ACCESSOR_0D(xtype,x) subroutine CONCAT3(soil_,x,_ptr(t,p));\
 type(land_tile_type),pointer::t;xtype,pointer::p;p=>NULL();if(associated(t))then;if(associated(t%soil))p=>t%soil%x;endif;end subroutine
-#define DEFINE_SOIL_ACCESSOR_1D(xtype,x) subroutine soil_ ## x ## _ptr(t,p);\
+#define DEFINE_SOIL_ACCESSOR_1D(xtype,x) subroutine CONCAT3(soil_,x,_ptr(t,p));\
 type(land_tile_type),pointer::t;xtype,pointer::p(:);p=>NULL();if(associated(t))then;if(associated(t%soil))p=>t%soil%x;endif;end subroutine
-#define DEFINE_SOIL_COMPONENT_ACCESSOR_0D(xtype,component,x) subroutine soil_ ## x ## _ptr(t,p);\
+#define DEFINE_SOIL_COMPONENT_ACCESSOR_0D(xtype,component,x) subroutine CONCAT3(soil_,x,_ptr(t,p));\
 type(land_tile_type),pointer::t;xtype,pointer::p;p=>NULL();if(associated(t))then;if(associated(t%soil))p=>t%soil%component%x;endif;end subroutine
-#define DEFINE_SOIL_COMPONENT_ACCESSOR_1D(xtype,component,x) subroutine soil_ ## x ## _ptr(t,p);\
+#define DEFINE_SOIL_COMPONENT_ACCESSOR_1D(xtype,component,x) subroutine CONCAT3(soil_,x,_ptr(t,p));\
 type(land_tile_type),pointer::t;xtype,pointer::p(:);p=>NULL();if(associated(t))then;if(associated(t%soil))p=>t%soil%component%x;endif;end subroutine
+
 
 DEFINE_SOIL_ACCESSOR_1D(real,w_fc)
 DEFINE_SOIL_ACCESSOR_0D(real,uptake_T)

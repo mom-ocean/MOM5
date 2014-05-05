@@ -4,6 +4,7 @@
 module land_model_mod
 
 #include "shared/debug.inc"
+#include "shared/concat.inc"
 
 use time_manager_mod, only : time_type, get_time, increment_time, time_type_to_real, &
      operator(+)
@@ -2859,7 +2860,7 @@ end subroutine land_diag_init
 ! called "lwup" in this tile. The procedure implementing a collective operation would
 ! enumerate all the tiles within the domain, call accessor routine for each of them, and
 ! get or set the value pointed to by the accessor routine.
-#define DEFINE_LAND_ACCESSOR_0D(xtype,x) subroutine land_ ## x ## _ptr(t,p);\
+#define DEFINE_LAND_ACCESSOR_0D(xtype,x) subroutine CONCAT3(land_,x,_ptr(t,p));\
 type(land_tile_type),pointer::t;xtype,pointer::p;p=>NULL();if(associated(t))p=>t%x;end subroutine
 
 DEFINE_LAND_ACCESSOR_0D(real,frac)
@@ -2875,7 +2876,7 @@ logical function land_tile_exists(tile)
   land_tile_exists = associated(tile)
 end function land_tile_exists
 
-#define DEFINE_TAG_ACCESSOR(x) subroutine  x ## _tag_ptr(t,p);\
+#define DEFINE_TAG_ACCESSOR(x) subroutine  CONCAT2(x,_tag_ptr(t,p));\
 type(land_tile_type),pointer::t;integer,pointer::p;p=>NULL();if(associated(t))\
 then;if (associated(t%x)) p=>t%x%tag;endif;end subroutine
 

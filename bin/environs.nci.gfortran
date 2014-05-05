@@ -1,0 +1,6 @@
+         source /etc/profile.d/nf_csh_modules
+         module purge
+         module load hdf5
+         module load netcdf
+         module load openmpi/1.6.5-mlx
+         setenv mpirunCommand   "mpirun -np"

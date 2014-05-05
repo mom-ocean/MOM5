@@ -41,8 +41,15 @@ integer :: snow_rad_option = -1 ! selector of the current snow rad properties op
 
 contains ! -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+#if defined(__GFORTRAN__)
+
+#define __DEBUG__(x) write(*,*) "x" , x
+
+#else
 
 #define __DEBUG__(x) write(*,*) #x , x
+
+#endif
 
 
 ! ============================================================================

@@ -1,5 +1,7 @@
 module static_vegn_mod
 
+#include "../shared/concat.inc"
+
 use constants_mod,      only : pi
 use mpp_mod,            only : mpp_max, mpp_sum
 use time_manager_mod,   only : time_type, set_date, time_type_to_real, &
@@ -454,7 +456,7 @@ end function vegn_tile_exists
 ! ============================================================================
 ! cohort accessor functions: given a pointer to cohort, return a pointer to a
 ! specific member of the cohort structure
-#define DEFINE_COHORT_ACCESSOR(xtype,x) subroutine cohort_ ## x ## _ptr(c,p);\
+#define DEFINE_COHORT_ACCESSOR(xtype,x) subroutine CONCAT3(cohort_,x,_ptr(c,p));\
 type(vegn_cohort_type),pointer::c;xtype,pointer::p;p=>NULL();if(associated(c))p=>c%x;\
 end subroutine
 
