@@ -2134,14 +2134,29 @@ end function soil_tile_exists
 ! ============================================================================
 ! cohort accessor functions: given a pointer to cohort, return a pointer to a
 ! specific member of the cohort structure
-#define DEFINE_SOIL_ACCESSOR_0D(xtype,x) subroutine soil_ ## x ## _ptr(t,p);\
+#if defined(__GFORTRAN__)
+
+! gfortran does not support ## 
+#define CONCAT1(op) op
+#define CONCAT2(op,T) CONCAT1(op)T
+#define CONCAT3(op,T,D) CONCAT2(op,T)D
+
+#else
+
+#define CONCAT3(op,T,D) op##T##D
+
+#endif
+
+
+#define DEFINE_SOIL_ACCESSOR_0D(xtype,x) subroutine CONCAT3(soil_,x,_ptr(t,p));\
 type(land_tile_type),pointer::t;xtype,pointer::p;p=>NULL();if(associated(t))then;if(associated(t%soil))p=>t%soil%x;endif;end subroutine
-#define DEFINE_SOIL_ACCESSOR_1D(xtype,x) subroutine soil_ ## x ## _ptr(t,p);\
+#define DEFINE_SOIL_ACCESSOR_1D(xtype,x) subroutine CONCAT3(soil_,x,_ptr(t,p);\
 type(land_tile_type),pointer::t;xtype,pointer::p(:);p=>NULL();if(associated(t))then;if(associated(t%soil))p=>t%soil%x;endif;end subroutine
-#define DEFINE_SOIL_COMPONENT_ACCESSOR_0D(xtype,component,x) subroutine soil_ ## x ## _ptr(t,p);\
+#define DEFINE_SOIL_COMPONENT_ACCESSOR_0D(xtype,component,x) subroutine CONCAT3(soil_,x,_ptr(t,p));\
 type(land_tile_type),pointer::t;xtype,pointer::p;p=>NULL();if(associated(t))then;if(associated(t%soil))p=>t%soil%component%x;endif;end subroutine
-#define DEFINE_SOIL_COMPONENT_ACCESSOR_1D(xtype,component,x) subroutine soil_ ## x ## _ptr(t,p);\
+#define DEFINE_SOIL_COMPONENT_ACCESSOR_1D(xtype,component,x) subroutine CONCAT3(soil_,x,_ptr(t,p));\
 type(land_tile_type),pointer::t;xtype,pointer::p(:);p=>NULL();if(associated(t))then;if(associated(t%soil))p=>t%soil%component%x;endif;end subroutine
+
 
 DEFINE_SOIL_ACCESSOR_1D(real,w_fc)
 DEFINE_SOIL_ACCESSOR_0D(real,uptake_T)
