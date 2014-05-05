@@ -14,8 +14,18 @@
 
 ! macro definition for concatenation -- for construction of names based on the
 ! names of the operations, types, and dimension numbers
+#if defined(__GFORTRAN__)
+
+#define CONCAT1(op) op
+#define CONCAT2(op,T) CONCAT1(op)T
+#define CONCAT3(op,T,D) CONCAT2(op,T)D
+
+#else
+
 #define CONCAT3(op,T,D) op##T##D
 #define CONCAT2(op,T)   op##T
+
+#endif
 
 ! names of the functions we define in this module
 #define GET_VAR(T,D) CONCAT3(get_compressed_var_,T,D)
@@ -33,11 +43,11 @@
 
 ! #### Interface definition ###################################################
 ! define specific names of the subroutines
-#define GET_VAR_D1N GET_VAR(NF_TYPE, D1N)
-#define GET_VAR_D1I GET_VAR(NF_TYPE, D1I)
+#define GET_VAR_D1N GET_VAR(NF_TYPE,D1N)
+#define GET_VAR_D1I GET_VAR(NF_TYPE,D1I)
 
-#define PUT_VAR_D1N PUT_VAR(NF_TYPE, D1N)
-#define PUT_VAR_D1I PUT_VAR(NF_TYPE, D1I)
+#define PUT_VAR_D1N PUT_VAR(NF_TYPE,D1N)
+#define PUT_VAR_D1I PUT_VAR(NF_TYPE,D1I)
 
 #define GET_REC_D4N GET_REC(NF_TYPE,D4N)
 #define GET_REC_D3N GET_REC(NF_TYPE,D3N)

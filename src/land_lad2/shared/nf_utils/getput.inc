@@ -16,8 +16,18 @@
 
 ! macro definition for concatenation -- for construction of names based on the
 ! names of the operations, types, and dimension numbers
+#if defined(__GFORTRAN__)
+
+#define CONCAT1(op) op
+#define CONCAT2(op,T) CONCAT1(op)T
+#define CONCAT3(op,T,D) CONCAT2(op,T)D
+
+#else
+
 #define CONCAT3(op,T,D) op##T##D
 #define CONCAT2(op,T)   op##T
+
+#endif
 
 ! names of the functions we define
 #define GET_VAR(T,D) CONCAT3(get_var_,T,D)
@@ -42,35 +52,35 @@
 
 ! #### Interface definition ###################################################
 ! define specific names of the subroutines
-#define GET_VAR_D0 GET_VAR(NF_TYPE, D0)
-#define GET_VAR_D1 GET_VAR(NF_TYPE, D1)
-#define GET_VAR_D2 GET_VAR(NF_TYPE, D2)
-#define GET_VAR_D3 GET_VAR(NF_TYPE, D3)
+#define GET_VAR_D0 GET_VAR(NF_TYPE,D0)
+#define GET_VAR_D1 GET_VAR(NF_TYPE,D1)
+#define GET_VAR_D2 GET_VAR(NF_TYPE,D2)
+#define GET_VAR_D3 GET_VAR(NF_TYPE,D3)
 
-#define PUT_VAR_D0 PUT_VAR(NF_TYPE, D0)
-#define PUT_VAR_D1 PUT_VAR(NF_TYPE, D1)
-#define PUT_VAR_D2 PUT_VAR(NF_TYPE, D2)
-#define PUT_VAR_D3 PUT_VAR(NF_TYPE, D3)
+#define PUT_VAR_D0 PUT_VAR(NF_TYPE,D0)
+#define PUT_VAR_D1 PUT_VAR(NF_TYPE,D1)
+#define PUT_VAR_D2 PUT_VAR(NF_TYPE,D2)
+#define PUT_VAR_D3 PUT_VAR(NF_TYPE,D3)
 
-#define GET_REC_D0N GET_REC(NF_TYPE, D0N)
-#define GET_REC_D1N GET_REC(NF_TYPE, D1N)
-#define GET_REC_D2N GET_REC(NF_TYPE, D2N)
-#define GET_REC_D3N GET_REC(NF_TYPE, D3N)
+#define GET_REC_D0N GET_REC(NF_TYPE,D0N)
+#define GET_REC_D1N GET_REC(NF_TYPE,D1N)
+#define GET_REC_D2N GET_REC(NF_TYPE,D2N)
+#define GET_REC_D3N GET_REC(NF_TYPE,D3N)
 
-#define GET_REC_D0I GET_REC(NF_TYPE, D0I)
-#define GET_REC_D1I GET_REC(NF_TYPE, D1I)
-#define GET_REC_D2I GET_REC(NF_TYPE, D2I)
-#define GET_REC_D3I GET_REC(NF_TYPE, D3I)
+#define GET_REC_D0I GET_REC(NF_TYPE,D0I)
+#define GET_REC_D1I GET_REC(NF_TYPE,D1I)
+#define GET_REC_D2I GET_REC(NF_TYPE,D2I)
+#define GET_REC_D3I GET_REC(NF_TYPE,D3I)
 
-#define PUT_REC_D0N PUT_REC(NF_TYPE, D0N)
-#define PUT_REC_D1N PUT_REC(NF_TYPE, D1N)
-#define PUT_REC_D2N PUT_REC(NF_TYPE, D2N)
-#define PUT_REC_D3N PUT_REC(NF_TYPE, D3N)
+#define PUT_REC_D0N PUT_REC(NF_TYPE,D0N)
+#define PUT_REC_D1N PUT_REC(NF_TYPE,D1N)
+#define PUT_REC_D2N PUT_REC(NF_TYPE,D2N)
+#define PUT_REC_D3N PUT_REC(NF_TYPE,D3N)
 
-#define PUT_REC_D0I PUT_REC(NF_TYPE, D0I)
-#define PUT_REC_D1I PUT_REC(NF_TYPE, D1I)
-#define PUT_REC_D2I PUT_REC(NF_TYPE, D2I)
-#define PUT_REC_D3I PUT_REC(NF_TYPE, D3I)
+#define PUT_REC_D0I PUT_REC(NF_TYPE,D0I)
+#define PUT_REC_D1I PUT_REC(NF_TYPE,D1I)
+#define PUT_REC_D2I PUT_REC(NF_TYPE,D2I)
+#define PUT_REC_D3I PUT_REC(NF_TYPE,D3I)
 
 #ifdef __INTERFACE_SECTION__
 ! nfu_get_var interface
