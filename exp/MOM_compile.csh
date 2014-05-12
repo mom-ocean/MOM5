@@ -141,8 +141,6 @@ if( $type == MOM_solo ) then
 else if( $type == ACCESS-OM ) then
     set srcList = ( access_coupler )
     set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
-    #set includes = "$includes -I$cplInc/psmile.MPI1 -I$cplInc/pio -I$cplInc/mct" 
-    #set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a -L$cplLib/ -lpsmile.MPI1 -lmct -lmpeu -lscrip"
 else if( $type == MOM_SIS ) then
     set srcList = ( coupler )
     set includes = "$includes -I$executable:h:h/lib_ice -I$executable:h:h/lib_atmos_null -I$executable:h:h/lib_land_null"
