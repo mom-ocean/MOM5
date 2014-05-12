@@ -1,8 +1,9 @@
 *~
 exec/
 work/
-bin/mppnccombine.gfortran
+bin/mppnccombine.*
 exp/*.sh.e*
 exp/*.sh.o*
 exp/*.csh.o*
 exp/*.csh.e*
+src/path_names_shared
