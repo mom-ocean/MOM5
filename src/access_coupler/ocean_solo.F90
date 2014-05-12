@@ -254,16 +254,16 @@ program main
   end select 
 
   ! get ocean_solo restart : this can override settings from namelist
-  if (file_exist('RESTART/ocean_solo.res')) then
-      call mpp_open(unit,'RESTART/ocean_solo.res',form=MPP_ASCII,action=MPP_RDONLY)
+  if (file_exist('INPUT/ocean_solo.res')) then
+      call mpp_open(unit,'INPUT/ocean_solo.res',form=MPP_ASCII,action=MPP_RDONLY)
       read(unit,*) calendar_type 
       read(unit,*) date_init
       read(unit,*) date
       call mpp_close(unit)
   endif
 
-  if (file_exist('RESTART/ocean_solo.intermediate.res')) then
-      call mpp_open(unit,'RESTART/ocean_solo.intermediate.res',form=MPP_ASCII,action=MPP_RDONLY)
+  if (file_exist('INPUT/ocean_solo.intermediate.res')) then
+      call mpp_open(unit,'INPUT/ocean_solo.intermediate.res',form=MPP_ASCII,action=MPP_RDONLY)
       read(unit,*) date_restart
       call mpp_close(unit)
   else
@@ -286,7 +286,7 @@ program main
            date_init(4),date_init(5),date_init(6))
   endif
 
-  if (file_exist('RESTART/ocean_solo.res')) then
+  if (file_exist('INPUT/ocean_solo.res')) then
       Time_start =  set_date(date(1),date(2),date(3),date(4),date(5),date(6))
   else
       Time_start = Time_init
