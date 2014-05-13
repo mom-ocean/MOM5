@@ -1,8 +1,9 @@
          source /etc/profile.d/nf_csh_modules
          module purge
-         module load intel-fc
-         module load intel-cc
+         module load intel-fc/14.2.144
+         module load intel-cc/14.2.144
          module load hdf5
-         module load netcdf
+         module load netcdf/4.3.0
+         module load oasis/dev
          module load openmpi/1.6.5-mlx
          setenv mpirunCommand   "mpirun -np"

@@ -2,9 +2,9 @@
 # Minimal compile script for fully coupled model CM2M experiments
 
 set echo
-set platform      = gfortran   # A unique identifier for your platfo
-                                  # This corresponds to the mkmf templates in $root/bin dir.
-set type          = MOM_solo      # Type of the experiment
+set platform      = gfortran    # A unique identifier for your platfo
+                                # This corresponds to the mkmf templates in $root/bin dir.
+set type          = MOM_solo    # Type of the experiment
 set help = 0
 
 set argv = (`getopt -u -o h -l type: -l platform:  -l help  --  $*`)
@@ -140,10 +140,7 @@ if( $type == MOM_solo ) then
     set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == ACCESS-OM ) then
     set srcList = ( access_coupler )
-    set cplInc = "$root:h/coupler/Linux/build/lib"
-    set cplLib = "$root:h/coupler/Linux/lib"
-    set includes = "$includes -I$cplInc/psmile.MPI1 -I$cplInc/pio -I$cplInc/mct" 
-    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a -L$cplLib/ -lpsmile.MPI1 -lmct -lmpeu -lscrip"
+    set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == MOM_SIS ) then
     set srcList = ( coupler )
     set includes = "$includes -I$executable:h:h/lib_ice -I$executable:h:h/lib_atmos_null -I$executable:h:h/lib_land_null"
