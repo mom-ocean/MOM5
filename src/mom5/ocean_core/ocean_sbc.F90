@@ -984,7 +984,11 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
              Ocean_sfc%frazil (isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
 #if defined(ACCESS)
   allocate ( Ocean_sfc%gradient (isc_bnd:iec_bnd,jsc_bnd:jec_bnd,2))
-  allocate ( sslope(isc:iec, jsc:jec, 2) ); sslope = 0.0
+  allocate ( sslope(isc:iec, jsc:jec, 2) )
+#if defined(ACCESS_CM)
+  allocate ( Ocean_sfc%co2    (isc_bnd:iec_bnd,jsc_bnd:jec_bnd), &
+             Ocean_sfc%co2flux (isc_bnd:iec_bnd,jsc_bnd:jec_bnd)) 
+#endif
 #endif
 
   Ocean_sfc%t_surf  = 0.0  ! time averaged sst (Kelvin) passed to atmosphere/ice model
@@ -994,6 +998,15 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
   Ocean_sfc%sea_lev = 0.0  ! time averaged thickness of top model grid cell (m) plus patm/(grav*rho0)
                            ! minus h_geoid - h_tide 
   Ocean_sfc%frazil  = 0.0  ! time accumulated frazil (J/m^2) passed to ice model
+#if defined(ACCESS)
+  Ocean_sfc%gradient  = 0.0  ! gradint of ssl passed to Ice model
+  sslope = 0.0
+#if defined(ACCESS_CM)
+  Ocean_sfc%co2       = 0.0 
+  Ocean_sfc%co2flux   = 0.0 
+#endif
+#endif
+
   Ocean_sfc%area    = Grid%dat(isc:iec, jsc:jec) * Grid%tmask(isc:iec, jsc:jec, 1) !grid cell area
 
   ! set restore_mask=0.0 in those regions where restoring is NOT applied
@@ -4857,8 +4870,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
       wrk1_2d(:,:) = 0.0
       do j=jsc,jec
          do i=isc,iec
-            wrk1_2d(i,j) =   Grd%tmask(i,j,1)*Grd%dat(i,j)                                               &
-                  *T_prog(index_temp)%conversion*(                                                       &
+            wrk1_2d(i,j) = T_prog(index_temp)%conversion*(                                               &
                    T_prog(index_temp)%stf(i,j)                                                           &
                  + T_prog(index_temp)%runoff_tracer_flux(i,j)                                            &
                  + T_prog(index_temp)%calving_tracer_flux(i,j)                                           &
