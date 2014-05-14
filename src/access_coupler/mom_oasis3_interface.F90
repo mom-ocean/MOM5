@@ -627,7 +627,6 @@ type (time_type),optional         :: Time
 
 real, dimension(isg:ieg,jsg:jeg) :: gtmp
 
-real, dimension(:,:), pointer :: tmask
 integer, intent(in) :: step
 
 real :: frac_vis_dir=0.5*0.43, frac_vis_dif=0.5*0.43,             &
@@ -662,10 +661,6 @@ do jf =  1, num_fields_in
       call prism_abort_proto(id_component, 'MOM4 _get_ ','stop 1')
     endif
   endif
-
-    ! Apply land mask. It seems that OASIS does not do this. 
-    call mom4_get_surface_tmask(tmask)
-    vwork = vwork * tmask
 
   if ( .not. parallel_coupling) then
     call mpp_broadcast(vwork, imt_global*jmt_global, mpp_root_pe())
