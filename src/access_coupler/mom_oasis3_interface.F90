@@ -93,7 +93,6 @@ use ocean_types_mod, only: ice_ocean_boundary_type, &
                            ocean_public_type, &
                            ocean_domain_type
 use time_manager_mod, only: time_type
-use ocean_model_mod, only : mom4_get_surface_tmask
 
 ! Timing
 
