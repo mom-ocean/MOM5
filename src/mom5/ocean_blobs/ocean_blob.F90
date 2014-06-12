@@ -351,6 +351,12 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
 
 #endif
 
+  if (introduce_blobs .and. Time%init) then
+     call mpp_error(WARNING,&
+          'introduce_blobs=.TRUE. and Time%init=.TRUE.: introduce_blobs is only for introducing blobs '//&
+          'to an existing run. introduce_blobs should usually be .FALSE. if starting from initial '//&
+          'conditions.')
+  endif
   if (bitwise_reproduction) then
      write(stdoutunit,'(a,2(/,a))')                                                                 &
           '==>Note: bitwise_reproduction=.true. in ocean_blob_nml',                                 &
