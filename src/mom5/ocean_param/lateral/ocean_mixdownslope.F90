@@ -899,7 +899,7 @@ subroutine mixdownslope (Time, Thickness, T_prog, Dens, index_temp, index_salt)
          do k=1,nk
             do j=jsc,jec   
                do i=isc,iec
-                  wrk1(i,j,k) = tend_mix(i,j,k)*mixdownslope_mask(i,j)
+                  wrk1(i,j,k) = tend_mix(i,j,k)*mixdownslope_mask(i,j)*T_prog(nt)%conversion
                enddo
             enddo
          enddo
