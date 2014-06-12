@@ -253,6 +253,14 @@ contains
      m=m+1
      validvar=.false.
 
+     if(trim(varname)=='entry')    validvar=.true.
+     if(trim(varname)=='type')     validvar=.true.
+     if(trim(varname)=='hash')     validvar=.true.
+     if(trim(varname)=='number')   validvar=.true.
+     if(trim(varname)=='time')     validvar=.true.
+     if(trim(varname)=='lat')      validvar=.true.
+     if(trim(varname)=='lon')      validvar=.true.
+     if(trim(varname)=='geodepth') validvar=.true.
      if(trim(varname)=='i') then
         usei=.true.
         validvar=.true.
