@@ -21,7 +21,7 @@ public :: compute_ocean_roughness, fixed_ocean_roughness
 
 !-----------------------------------------------------------------------
 character(len=256) :: version = '$Id: ocean_rough.F90,v 19.0 2012/01/06 20:37:13 fms Exp $'
-character(len=256) :: tagname = '$Name: siena_201207 $'
+character(len=256) :: tagname = '$Name: tikal $'
 !-----------------------------------------------------------------------
 !----- namelist -----
 

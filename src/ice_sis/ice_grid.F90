@@ -12,6 +12,7 @@ module ice_grid_mod
   use mpp_domains_mod, only: mpp_define_io_domain, mpp_copy_domain, mpp_get_global_domain
   use mpp_domains_mod, only: mpp_set_global_domain, mpp_set_data_domain, mpp_set_compute_domain
   use mpp_domains_mod, only: mpp_deallocate_domain, mpp_get_pelist, mpp_get_compute_domains
+  use mpp_domains_mod, only: SCALAR_PAIR, CGRID_NE, BGRID_NE
   use fms_mod,         only: error_mesg, FATAL, field_exist, field_size, read_data
   use fms_mod,         only: get_global_att_value, stderr
   use mosaic_mod,      only: get_mosaic_ntiles, get_mosaic_ncontacts
@@ -31,6 +32,7 @@ module ice_grid_mod
   public :: ice_line, vel_t_to_uv, cut_check, latitude, slab_ice_advect
   public :: dxdy, dydx, ice_grid_end
   public :: tripolar_grid, x_cyclic, dt_adv
+  public :: reproduce_siena_201303
 
   type(domain2D), save :: Domain
 
@@ -64,6 +66,8 @@ module ice_grid_mod
   integer            :: adv_sub_steps                ! advection steps / timestep
   real               :: dt_adv = 0.0                 ! advection timestep (sec)
   integer            :: comm_pe                      ! pe to be communicated with
+
+  logical            :: reproduce_siena_201303 = .TRUE.
 
 contains
   !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
@@ -605,8 +609,12 @@ contains
        end do
     end do
 
-    call mpp_update_domains(dte, Domain)
-    call mpp_update_domains(dtn, Domain)
+    if(reproduce_siena_201303) then
+       call mpp_update_domains(dte, Domain)
+       call mpp_update_domains(dtn, Domain)
+    else
+       call mpp_update_domains(dte, dtn, Domain, gridtype=CGRID_NE, flags = SCALAR_PAIR)
+    endif
     call mpp_update_domains(cos_rot, Domain)
     call mpp_update_domains(sin_rot, Domain)
 
@@ -633,8 +641,12 @@ contains
     dxv(isc:iec,jsc:jec) = t_on_uv(dxt)
     dyv(isc:iec,jsc:jec) = t_on_uv(dyt)
 
-    call mpp_update_domains(dxv, Domain )
-    call mpp_update_domains(dyv, Domain )
+    if(reproduce_siena_201303) then
+       call mpp_update_domains(dxv, Domain )
+       call mpp_update_domains(dyv, Domain )
+    else
+       call mpp_update_domains(dxv, dyv, Domain, gridtype=BGRID_NE, flags=SCALAR_PAIR )
+    endif
 
     !--- dxdy and dydx to be used by ice_dyn_mod.
     dydx = dTdx(dyt)
@@ -838,8 +850,12 @@ contains
        enddo
     enddo
 
-    call mpp_update_domains(ue, Domain)
-    call mpp_update_domains(vn, Domain)
+    if(reproduce_siena_201303) then
+       call mpp_update_domains(ue, Domain)
+       call mpp_update_domains(vn, Domain)
+    else
+       call mpp_update_domains(ue, vn, Domain, gridtype=CGRID_NE)
+    endif
 
     do l=1,adv_sub_steps
        do j = jsd, jec

@@ -36,7 +36,7 @@ module land_model_mod ! This is the null version
 !</NAMELIST>
 
 
-use  mpp_mod,           only : mpp_pe, mpp_chksum
+use  mpp_mod,           only : mpp_pe, mpp_chksum, mpp_root_pe
 use  mpp_mod,           only : input_nml_file
 
 use  mpp_domains_mod,   only : CYCLIC_GLOBAL_DOMAIN, mpp_get_compute_domain
@@ -77,8 +77,8 @@ public land_data_type_chksum, atm_lnd_bnd_type_chksum
 ! ==== end of public interfaces ==============================================
 
 character(len=*), parameter :: &
-     version = '$Id: land_model.F90,v 18.0.2.1.2.1.2.1.2.1.2.2.2.1.2.1 2012/05/31 15:56:39 Niki.Zadeh Exp $', &
-     tagname = '$Name: siena_201207 $'
+     version = '$Id: land_model.F90,v 20.0 2013/12/13 23:31:21 fms Exp $', &
+     tagname = '$Name: tikal $'
 
 type :: atmos_land_boundary_type
    real, dimension(:,:,:), pointer :: & ! (lon, lat, tile)
@@ -233,7 +233,7 @@ subroutine land_model_init (cplr2land, land2cplr, time_init, time, dt_fast, dt_s
   land2cplr%domain = domain
 
   npes_per_tile = mpp_npes()/ntiles
-  face = mpp_pe()/npes_per_tile + 1
+  face = (mpp_pe()-mpp_root_pe())/npes_per_tile + 1
   allocate(garea(nlon,nlat), gcellarea(nlon,nlat), gfrac(nlon,nlat))
   call get_grid_cell_area    ('LND',face,gcellarea)
   call get_grid_comp_area    ('LND',face,garea)

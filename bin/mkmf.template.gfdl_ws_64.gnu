@@ -1,4 +1,4 @@
-# $Id: gnu.mk,v 1.1.2.1.2.1 2012/03/07 15:08:54 sdu Exp $
+# $Id: mkmf.template.gfdl_ws_64.gnu,v 1.1.2.1 2013/12/18 17:47:54 Niki.Zadeh Exp $
 # template for the Intel fortran compiler
 # typical use with mkmf
 # mkmf -t template.ifc -c"-Duse_libMPI -Duse_netCDF" path_names /usr/local/include

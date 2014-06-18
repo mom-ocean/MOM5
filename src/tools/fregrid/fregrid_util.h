@@ -4,8 +4,10 @@
 void set_mosaic_data_file(int ntiles, const char *mosaic_file, const char *dir, File_config *file,
 			  const char *filename);
 void set_field_struct(int ntiles, Field_config *field, int nvar, char * varname, File_config *file);
-void get_input_grid(int ntiles, Grid_config *grid, Bound_config *bound, const char *mosaic_file, unsigned int opcode);
-void get_output_grid_from_mosaic(int ntiles, Grid_config *grid, const char *mosaic_file, unsigned int opcode);
+void get_input_grid(int ntiles, Grid_config *grid, Bound_config *bound, const char *mosaic_file, unsigned int opcode,
+                    int *great_circl_algorithm);
+void get_output_grid_from_mosaic(int ntiles, Grid_config *grid, const char *mosaic_file, unsigned int opcode,
+                                 int *great_circl_algorithm);
 void get_output_grid_by_size(int ntiles, Grid_config *grid, double lonbegin, double lonend, double latbegin, double latend, 
                              int nlon, int nlat, int finer_steps, int center_y, unsigned int opcode);
 void get_input_metadata(int ntiles, int nfiles, File_config *file1, File_config *file2,

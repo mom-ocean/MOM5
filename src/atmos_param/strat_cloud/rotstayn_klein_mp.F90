@@ -30,8 +30,8 @@ private  cloud_clear_xfer
 !-------------------------------------------------------------------------
 !---version number-------------------------------------------------------
 
-Character(len=128) :: Version = '$Id: rotstayn_klein_mp.F90,v 19.0 2012/01/06 20:26:47 fms Exp $'
-Character(len=128) :: Tagname = '$Name: siena_201207 $'
+Character(len=128) :: Version = '$Id: rotstayn_klein_mp.F90,v 20.0 2013/12/13 23:22:05 fms Exp $'
+Character(len=128) :: Tagname = '$Name: tikal $'
 
 !-------------------------------------------------------------------------
 !---namelist-------------------------------------------------------------
@@ -140,7 +140,7 @@ SUBROUTINE rotstayn_klein_microp (&
                      inv_dtcloud, pfull, deltpg, airdens, mask_present, &
                      mask, esat0, ql, qi, qa, ql_mean, qa_mean, qn_mean, &
                      omega, T, U, qv, qs, D_eros, dcond_ls, dcond_ls_ice, &
-                     qvg, gamma, tmp5, drop1, concen_dust_sub, ql_upd,  &
+                     qvg, gamma, delta_cf, drop1, concen_dust_sub, ql_upd,&
                      qi_upd, qn_upd, qi_mean, qa_upd, ahuco, n_diag_4d, &
                      diag_4d, diag_id, diag_pt, n_diag_4d_kp1,   &
                      diag_4d_kp1, limit_conv_cloud_frac, SA, SN, ST, SQ, &
@@ -164,7 +164,7 @@ REAL, dimension(idim,jdim,kdim),     INTENT(IN)   ::   &
                               omega, ahuco
 real, dimension(idim,jdim,kdim),     INTENT(INOUT)::   &
                               SN, qi_mean, ST, SQ, SL, SI, SA, qa_upd, &
-                              ql_upd, qi_upd, qn_upd, qs, tmp5, &
+                              ql_upd, qi_upd, qn_upd, qs, delta_cf, &
                               dcond_ls,dcond_ls_ice    
 REAL, dimension(idim,jdim,kdim,0:n_diag_4d),   &
                                      INTENT(INOUT)::  diag_4d
@@ -295,12 +295,13 @@ INTEGER,                             INTENT(IN)   :: otun
                                             da_cld2clr, da_clr2cld, &
                                             dprec_clr2cld, dprec_cld2clr, &
                                             Vfall, lamda_f, tmp1, tmp2, &
-                                            tmp3, tmp8, crystal, crystal2,&
+                                            tmp3, tmp8, crystal,          &
                                             rad_liq, D1_dt, D2_dt, qc1, &
                                             qc0, qceq, qcbar, U_clr, &
                                             qs_d_a, tmp2s_a, tmp3s_a, &
                                             tmp5s_a, est_a, sum_freeze, &
-                                            sum_rime, sum_berg
+                                            sum_cond,  sum_ice_adj, &
+                                            sum_rime, sum_berg, tmp5
       real                               :: dum, Si0, qs_t, qs_d, tmp2s, &
                                             tmp3s, tmp5s, est, rhi, tc, &
                                             tcrit, qldt_sum
@@ -351,6 +352,8 @@ INTEGER,                             INTENT(IN)   :: otun
       sum_freeze = 0.
       sum_rime = 0.
       sum_berg = 0.
+      sum_ice_adj = 0.
+      sum_cond = 0.
 
 !------------------------------------------------------------------------
 !    begin big vertical loop.
@@ -621,12 +624,12 @@ INTEGER,                             INTENT(IN)   :: otun
 
 !-----------------------------------------------------------------------
 !    snow falling into cloud reduces the amount that falls out of cloud: 
-!    a loss of cloud ice from settling is defined to be positive. define
+!    a loss of cloud ice from settling is defined to be negative. define
 !    the ice-fall diagnostic.
 !-----------------------------------------------------------------------
         if (diag_id%qidt_fall + diag_id%qi_fall_col > 0)  &
                  diag_4d(:,:,k,diag_pt%qidt_fall) =    &
-                                        -1.*snow_cld(:,:,k)/deltpg(:,:,k)
+                                            snow_cld(:,:,k)/deltpg(:,:,k)
          
 !-----------------------------------------------------------------------
 !    compute slope factor lamda_f.
@@ -775,9 +778,9 @@ INTEGER,                             INTENT(IN)   :: otun
 !    save  accretion process diagnostics.
 !------------------------------------------------------------------------
         if (diag_id%qldt_accr  + diag_id%ql_accr_col > 0)   &
-                           diag_4d(:,:,k,diag_pt%qldt_accr) = D1_dt(:,:,k)
+                           diag_4d(:,:,k,diag_pt%qldt_accr) = -D1_dt(:,:,k)
         if (diag_id%qndt_pra  + diag_id%qn_pra_col > 0)    &
-                            diag_4d(:,:,k,diag_pt%qndt_pra) = D1_dt(:,:,k)
+                            diag_4d(:,:,k,diag_pt%qndt_pra) = -D1_dt(:,:,k)
     
 !------------------------------------------------------------------------
 !       Autoconversion
@@ -952,12 +955,12 @@ INTEGER,                             INTENT(IN)   :: otun
 !    save autoconversion diagnostics.
 !------------------------------------------------------------------------
         if  (diag_id%qldt_auto  + diag_id%ql_auto_col > 0)   &
-                           diag_4d(:,:,k,diag_pt%qldt_auto) = tmp1(:,:,k)  
+                           diag_4d(:,:,k,diag_pt%qldt_auto) = -tmp1(:,:,k)  
         if  (diag_id%qndt_auto  + diag_id%qn_auto_col > 0)   &
-                           diag_4d(:,:,k,diag_pt%qndt_auto) = tmp1(:,:,k)  
-        if ( diag_id%autocv > 0 ) then
+                           diag_4d(:,:,k,diag_pt%qndt_auto) = -tmp1(:,:,k)  
+        if ( diag_id%aauto > 0 ) then
           where ( rad_liq(:,:,k) .gt. Nml%rthresh )    &
-                            diag_4d(:,:,k,diag_pt%autocv) = qa_mean(:,:,k)
+                            diag_4d(:,:,k,diag_pt%aauto) = qa_mean(:,:,k)
         end if
         
 !-----------------------------------------------------------------------
@@ -1015,27 +1018,19 @@ INTEGER,                             INTENT(IN)   :: otun
                 Si0 = 1. + 0.0125*(tfreeze-T(i,j,k))
                 call Jhete_dep (T(i,j,k), Si0, concen_dust_sub(i,j,k), &
                                                             crystal(i,j,k))
+                if (diag_id%dust_berg_flag > 0)   &
+                             diag_4d(i,k,j,diag_pt%dust_berg_flag) = 1.
               else
                 crystal(i,j,k)=0.
               endif
             end do
           end do
-          where ( (T(:,:,k) .lt. tfreeze) .and.   &
-                  (ql_mean(:,:,k) .gt. Nml%qmin) .and.   &
-                  (qa_mean(:,:,k) .gt. Nml%qmin))              
-            crystal2(:,:,k) = 1.e-3*exp((12.96*0.0125*  &
-                                            (tfreeze - T(:,:,k))) - 0.639)
-          elsewhere
-            crystal2(:,:,k) = 0.
-          end where
 
 !------------------------------------------------------------------------
 !    save ice crystal diagnostics.
 !------------------------------------------------------------------------
           if  (diag_id%qndt_cond + diag_id%qn_cond_col > 0) &
                         diag_4d(:,:,k,diag_pt%qndt_cond) = crystal(:,:,k)
-          if  (diag_id%qndt_evap  + diag_id%qn_evap_col > 0)   &
-                        diag_4d(:,:,k,diag_pt%qndt_evap) = crystal2(:,:,k)
           
 !------------------------------------------------------------------------
 !    do Bergeron process
@@ -1136,7 +1131,7 @@ INTEGER,                             INTENT(IN)   :: otun
 !    save the riming diagnostics.
 !-----------------------------------------------------------------------
         if  (diag_id%qldt_rime  + diag_id%ql_rime_col > 0)   &
-                            diag_4d(:,:,k,diag_pt%qldt_rime) = tmp1(:,:,k)
+                            diag_4d(:,:,k,diag_pt%qldt_rime) = -tmp1(:,:,k)
 
 !------------------------------------------------------------------------
 !       Freezing of cloud liquid to cloud ice occurs when
@@ -1165,7 +1160,7 @@ INTEGER,                             INTENT(IN)   :: otun
               sum_rime(i,j,k) = 0.
               sum_berg(i,j,k) = 0.
               if (diag_id%qldt_freez + diag_id%ql_freez_col > 0)  then
-                diag_4d(i,j,k,diag_pt%qldt_freez) = D2_dt(i,j,k)
+                diag_4d(i,j,k,diag_pt%qldt_freez) = -D2_dt(i,j,k)
               endif
               if  (diag_id%qldt_rime  + diag_id%ql_rime_col > 0) then
                 diag_4d(i,j,k,diag_pt%qldt_rime) = 0.
@@ -1177,19 +1172,6 @@ INTEGER,                             INTENT(IN)   :: otun
           end do
         end do
   
-!  Used for BC aerosol in-cloud scavenging:
-        do j=1,jdim
-          do i=1,idim
-            qldt_sum = sum_berg(i,j,k) + sum_rime(i,j,k) +   &
-                                                         sum_freeze(i,j,k)
-            if (qldt_sum > 0.)  then
-              f_snow_berg(i,j,k) =  sum_berg(i,j,k)/qldt_sum 
-            else
-              f_snow_berg(i,j,k) = 0.
-            endif
-          end do
-        end do
-        
 !------------------------------------------------------------------------
 !       Analytic integration of ql equation
 !
@@ -1263,6 +1245,7 @@ INTEGER,                             INTENT(IN)   :: otun
           qceq(:,:,k)  = qc0(:,:,k) + C_dt(:,:,k)   
           qc1(:,:,k)   = qc0(:,:,k) + C_dt(:,:,k)
           qcbar(:,:,k) = qc0(:,:,k) + 0.5*C_dt(:,:,k)
+
         end where
 
 !------------------------------------------------------------------------
@@ -1298,8 +1281,45 @@ INTEGER,                             INTENT(IN)   :: otun
 
 !       initialize tmp2 to hold (-Dterm)/D
 !------------------------------------------------------------------------
+     if (Nml%retain_cm3_bug) then
         tmp2(:,:,k) = D_dt(:,:,k)*qcbar(:,:,k)/max(D_dt(:,:,k), Nml%Dmin)
  
+     else
+          where (D_dt(:,:,k) > Nml%Dmin) 
+          tmp2(:,:,k) = D_dt(:,:,k)*qcbar(:,:,k)/max(D_dt(:,:,k), Nml%Dmin)
+          elsewhere
+          tmp2(:,:,k) = 0.0              
+          endwhere
+      endif
+
+         if (diag_id%qldt_cond + diag_id%ql_cond_col > 0)  &
+                 diag_4d(:,:,k,diag_pt%qldt_cond) =    &
+                                       max(dcond_ls(:,:,k),0.) *inv_dtcloud
+         if (diag_id%qldt_evap + diag_id%ql_evap_col > 0)   &
+              diag_4d(:,:,k,diag_pt%qldt_evap) =    &
+                  - (max(0., -1.*dcond_ls(:,:,k) )/  &
+                     max(ql_mean(:,:,k), Nml%qmin))*tmp2(:,:,k)*inv_dtcloud
+        if (diag_id%qldt_accr  + diag_id%ql_accr_col > 0)   &
+            diag_4d(:,:,k,diag_pt%qldt_accr) =    &
+                  diag_4d(:,:,k,diag_pt%qldt_accr)*tmp2(:,:,k)*inv_dtcloud
+        if (diag_id%qldt_auto  + diag_id%ql_auto_col > 0)  &
+            diag_4d(:,:,k,diag_pt%qldt_auto) =    &
+                 diag_4d (:,:,k,diag_pt%qldt_auto)*tmp2(:,:,k)*inv_dtcloud
+        if (diag_id%qldt_eros + diag_id%ql_eros_col > 0)  &
+            diag_4d(:,:,k,diag_pt%qldt_eros) =    &
+                                  -  D_eros(:,:,k)*tmp2(:,:,k)*inv_dtcloud 
+        if (diag_id%qldt_berg + diag_id%ql_berg_col > 0)   &
+           diag_4d(:,:,k,diag_pt%qldt_berg) =    &
+                 diag_4d (:,:,k,diag_pt%qldt_berg)*tmp2(:,:,k)*inv_dtcloud
+        sum_berg(:,:,k) = sum_berg(:,:,k)*tmp2(:,:,k)*inv_dtcloud
+        if (diag_id%qldt_rime  + diag_id%ql_rime_col > 0)   &
+           diag_4d(:,:,k,diag_pt%qldt_rime) =   &
+                 diag_4d (:,:,k,diag_pt%qldt_rime)*tmp2(:,:,k)*inv_dtcloud
+        sum_rime(:,:,k) = sum_rime(:,:,k)*tmp2(:,:,k)*inv_dtcloud
+        if (diag_id%qldt_freez + diag_id%ql_freez_col > 0)  &
+                 diag_4d(:,:,k,diag_pt%qldt_freez) =   &
+                  diag_4d(:,:,k,diag_pt%qldt_freez)*tmp2(:,:,k)*inv_dtcloud
+        sum_freeze(:,:,k) = sum_freeze(:,:,k)*tmp2(:,:,k)*inv_dtcloud
 !-------------------------------------------------------------------------
 !    do phase changes from large-scale processes and boundary
 !    layer condensation/evaporation
@@ -1396,13 +1416,13 @@ INTEGER,                             INTENT(IN)   :: otun
 !------------------------------------------------------------------------
           IF (    rk_act_only_if_ql_gt_qmin) THEN
             where (ql_upd(:,:,k) .GT. Nml%qmin ) 
-              C_dt(:,:,k) = max (tmp5(:,:,k), 0.)*drop1(:,:,k)*  &
+              C_dt(:,:,k) = max (delta_cf(:,:,k), 0.)*drop1(:,:,k)*  &
                                                       1.e6/airdens(:,:,k)
             elsewhere
               C_dt(:,:,k)=0.
             end where
           ELSE
-            C_dt(:,:,k)=max(tmp5(:,:,k), 0.)*drop1(:,:,k)*  &
+            C_dt(:,:,k)=max(delta_cf(:,:,k), 0.)*drop1(:,:,k)*  &
                                                        1.e6/airdens(:,:,k)
           END IF
 
@@ -1451,7 +1471,16 @@ INTEGER,                             INTENT(IN)   :: otun
               diag_4d(:,:,k,diag_pt%qndt_cond) = 0.
             endwhere
           end if  
+       if (Nml%retain_cm3_bug) then
           tmp8(:,:,k) = D_dt(:,:,k)*qcbar(:,:,k)/max(D_dt(:,:,k), Nml%Dmin)
+       else
+          where (D_dt(:,:,k) > Nml%Dmin) 
+          tmp8(:,:,k) = D_dt(:,:,k)*qcbar(:,:,k)/max(D_dt(:,:,k), Nml%Dmin)
+          elsewhere
+          tmp8(:,:,k) = 0.0              
+          endwhere
+       endif
+
           if (diag_id%qndt_pra  + diag_id%qn_pra_col > 0) then
             diag_4d(:,:,k,diag_pt%qndt_pra) =    &
                    Nml%num_mass_ratio1*diag_4d(:,:,k,diag_pt%qndt_pra)* &
@@ -1468,39 +1497,11 @@ INTEGER,                             INTENT(IN)   :: otun
                                                    tmp8(:,:,k) *inv_dtcloud
           end if
           if (diag_id%qndt_eros  + diag_id%qn_eros_col > 0) then
-            diag_4d(:,:,k,diag_pt%qndt_eros) = D_eros(:,:,k)*  &
+            diag_4d(:,:,k,diag_pt%qndt_eros) = -D_eros(:,:,k)*  &
                                                    tmp8(:,:,k)*inv_dtcloud
           end if
         end if  ! (Nml%do_liq_num)
 
-!------------------------------------------------------------------------
-!    remaining diagnostics for cloud liquid tendencies
-!------------------------------------------------------------------------
-        if (diag_id%qldt_cond + diag_id%ql_cond_col > 0)  &
-                diag_4d(:,:,k,diag_pt%qldt_cond) =    &
-                                      max(dcond_ls(:,:,k),0.) *inv_dtcloud
-        if (diag_id%qldt_evap + diag_id%ql_evap_col > 0)   &
-             diag_4d(:,:,k,diag_pt%qldt_evap) =    &
-                 - (max(0., -1.*dcond_ls(:,:,k) )/  &
-                    max(ql_mean(:,:,k), Nml%qmin))*tmp2(:,:,k)*inv_dtcloud
-        if (diag_id%qldt_accr  + diag_id%ql_accr_col > 0)   &
-            diag_4d(:,:,k,diag_pt%qldt_accr) =    &
-                  diag_4d(:,:,k,diag_pt%qldt_accr)*tmp2(:,:,k)*inv_dtcloud
-        if (diag_id%qldt_auto  + diag_id%ql_auto_col > 0)  &
-            diag_4d(:,:,k,diag_pt%qldt_auto) =    &
-                 diag_4d (:,:,k,diag_pt%qldt_auto)*tmp2(:,:,k)*inv_dtcloud
-        if (diag_id%qidt_eros + diag_id%qi_eros_col > 0)  &
-            diag_4d(:,:,k,diag_pt%qldt_eros) =    &
-                                     D_eros(:,:,k)*tmp2(:,:,k)*inv_dtcloud 
-        if (diag_id%qldt_berg + diag_id%ql_berg_col > 0)   &
-           diag_4d(:,:,k,diag_pt%qldt_berg) =    &
-                 diag_4d (:,:,k,diag_pt%qldt_berg)*tmp2(:,:,k)*inv_dtcloud
-        if (diag_id%qldt_rime  + diag_id%ql_rime_col > 0)   &
-           diag_4d(:,:,k,diag_pt%qldt_rime) =   &
-                 diag_4d (:,:,k,diag_pt%qldt_rime)*tmp2(:,:,k)*inv_dtcloud
-        if (diag_id%qldt_freez + diag_id%ql_freez_col > 0)  &
-                 diag_4d(:,:,k,diag_pt%qldt_freez) =   &
-                  diag_4d(:,:,k,diag_pt%qldt_freez)*tmp2(:,:,k)*inv_dtcloud
         if (Nml%do_liq_num) then
           if (diag_id%qndt_cond + diag_id%qn_cond_col > 0)   &
                    diag_4d(:,:,k,diag_pt%qndt_cond) =   &
@@ -1575,7 +1576,7 @@ INTEGER,                             INTENT(IN)   :: otun
         elsewhere
           Vfall(:,:,k) = 0.
         end where
-        if (diag_id%vfall > 0) diag_4d(:,:,k,diag_pt%vfall) = Vfall(:,:,k)
+        if (diag_id%vfall > 0) diag_4d(:,:,k,diag_pt%vfall) = Vfall(:,:,k)* qa_mean(:,:,k)
 
 !------------------------------------------------------------------------
 !    add to ice source the settling ice flux from above
@@ -1671,6 +1672,7 @@ INTEGER,                             INTENT(IN)   :: otun
         !scale sublimation (note use of qi mean).
 !-----------------------------------------------------------------------
         C_dt(:,:,k) = C_dt(:,:,k) + max(dcond_ls_ice(:,:,k), 0.)
+        sum_cond(:,:,k) =  max(dcond_ls_ice(:,:,k), 0.)*inv_dtcloud
         D_dt(:,:,k) = D1_dt(:,:,k) + D2_dt(:,:,k) + D_eros(:,:,k) +   &
                        (max(-1.*dcond_ls_ice(:,:,k), 0.)/   &
                                 max(qi_mean(:,:,k), Nml%qmin))
@@ -1723,7 +1725,15 @@ INTEGER,                             INTENT(IN)   :: otun
 !------------------------------------------------------------------------
 !    initialize tmp2 to hold (-Dterm)/D
 !------------------------------------------------------------------------
+   if (Nml%retain_cm3_bug) then
         tmp2 (:,:,k) = D_dt(:,:,k)*qcbar(:,:,k)/max(D_dt(:,:,k), Nml%Dmin)
+   else
+       where (D_dt(:,:,k) > Nml%Dmin)
+          tmp2(:,:,k) = D_dt(:,:,k)*qcbar(:,:,k)/max(D_dt(:,:,k), Nml%Dmin)
+      elsewhere
+          tmp2(:,:,k) = 0.0
+      endwhere
+   endif
 
 !------------------------------------------------------------------------
 !    do phase changes from large-scale processes 
@@ -1766,14 +1776,14 @@ INTEGER,                             INTENT(IN)   :: otun
                                   max(dcond_ls_ice(:,:,k), 0.)*inv_dtcloud
         if (diag_id%qidt_subl + diag_id%qi_subl_col > 0)   &
                   diag_4d(:,:,k,diag_pt%qidt_subl) =   &
-                         (max(0., -1.*dcond_ls_ice(:,:,k) )/   &
+                        -(max(0., -1.*dcond_ls_ice(:,:,k) )/   &
                            max(qi_mean(:,:,k), Nml%qmin))*tmp2(:,:,k)  &
                                                               *inv_dtcloud
         if (diag_id%qidt_melt + diag_id%qi_melt_col > 0)    &
-                  diag_4d(:,:,k,diag_pt%qidt_melt) = D2_dt(:,:,k)*  &
+                  diag_4d(:,:,k,diag_pt%qidt_melt) = -D2_dt(:,:,k)*  &
                                                    tmp2(:,:,k) *inv_dtcloud
         if (diag_id%qidt_eros + diag_id%qi_eros_col > 0)    &
-                  diag_4d(:,:,k,diag_pt%qidt_eros) = D_eros(:,:,k)*  &
+                  diag_4d(:,:,k,diag_pt%qidt_eros) =  - D_eros(:,:,k)*  &
                                                    tmp2(:,:,k) *inv_dtcloud
         
 !----------------------------------------------------------------------! 
@@ -2013,8 +2023,8 @@ INTEGER,                             INTENT(IN)   :: otun
 !-------------------------------------------------------------------------
 !    save snow sublimation diagnostics.
 !-------------------------------------------------------------------------
-        if  (diag_id%snow_subl + diag_id%snow_subl_col > 0)     &
-              diag_4d(:,:,k,diag_pt%snow_subl) = tmp2(:,:,k)/deltpg(:,:,k) 
+        if  (diag_id%qdt_snow_sublim + diag_id%q_snow_sublim_col > 0)     &
+              diag_4d(:,:,k,diag_pt%qdt_snow_sublim) = tmp2(:,:,k)/deltpg(:,:,k) 
        
 !------------------------------------------------------------------------
 !    save diagnostics for the predicted cloud tendencies so that 
@@ -2261,14 +2271,6 @@ INTEGER,                             INTENT(IN)   :: otun
 !------------------------------------------------------------------------
         if (Nml%super_choice) then
 
-!------------------------------------------------------------------------
-!    cloud fraction source diagnostic
-!------------------------------------------------------------------------
-          if (diag_id%qadt_super + diag_id%qa_super_col > 0) then
-            where (tmp1 .gt. 0.)
-              diag_4d(:,:,:,diag_pt%qadt_super) = (1.-qa_upd)*inv_dtcloud
-            endwhere
-          end if
 
 !------------------------------------------------------------------------
 !    assign additional droplets where supersaturation is predicted. 
@@ -2288,6 +2290,15 @@ INTEGER,                             INTENT(IN)   :: otun
               end do
             end do
           endif
+          if (diag_id%qndt_super + diag_id%qn_super_col > 0) then
+            if (Nml%do_liq_num) then
+              where (T .gt. tfreeze - 40. .and. tmp1 .gt. 0.)
+                diag_4d(:,:,:,diag_pt%qndt_super) =     &
+                         diag_4d(:,:,:,diag_pt%qndt_super) + drop1*1.e6/ &
+                                         airdens*(1. - qa_upd)*inv_dtcloud
+              endwhere
+            endif 
+          end if
 
 !------------------------------------------------------------------------
 !  THE -40C THRESHOLD IN THE FOLLOWING IS NOT CONSISTENT WITH THE 
@@ -2319,6 +2330,13 @@ INTEGER,                             INTENT(IN)   :: otun
                   else
                     tmp2s = 0.
                   endif
+!moved from above:
+!------------------------------------------------------------------------
+!    cloud fraction source diagnostic
+!------------------------------------------------------------------------
+          if (diag_id%qadt_super + diag_id%qa_super_col > 0) then
+              diag_4d(i,j,k,diag_pt%qadt_super) = (1.-qa_upd(i,j,k)-tmp2s)*inv_dtcloud
+          end if
                   SA(i,j,k) = SA(i,j,k) + (1.-qa_upd(i,j,k) - tmp2s)  
                   qa_upd(i,j,k)   = 1. - tmp2s        
                 endif
@@ -2329,6 +2347,9 @@ INTEGER,                             INTENT(IN)   :: otun
 !------------------------------------------------------------------------
 !    save adjustment diagnostics.
 !------------------------------------------------------------------------
+            where (T .le. tfreeze - 40.)
+              sum_ice_adj(:,:,:) = tmp1*inv_dtcloud
+            endwhere
           if (diag_id%liq_adj  + diag_id%liq_adj_col +   &
               diag_id%ice_adj + diag_id%ice_adj_col  > 0) then       
             where (T .le. tfreeze - 40.)
@@ -2336,15 +2357,6 @@ INTEGER,                             INTENT(IN)   :: otun
             elsewhere
               diag_4d(:,:,:,diag_pt%liq_adj) = tmp1*inv_dtcloud
             endwhere
-          end if
-          if (diag_id%qndt_super + diag_id%qn_super_col > 0) then
-            if (Nml%do_liq_num) then
-              where (T .gt. tfreeze - 40. .and. tmp1 .gt. 0.)
-                diag_4d(:,:,:,diag_pt%qndt_super) =     &
-                         diag_4d(:,:,:,diag_pt%qndt_super) + drop1*1.e6/ &
-                                         airdens*(1. - qa_upd)*inv_dtcloud
-              endwhere
-            endif 
           end if
 
 !-----------------------------------------------------------------------
@@ -2370,6 +2382,9 @@ INTEGER,                             INTENT(IN)   :: otun
 !-------------------------------------------------------------------------
 !    save adjustment diagnostics.
 !-------------------------------------------------------------------------
+            where (T .le. tfreeze - 20.)
+              sum_ice_adj(:,:,:) = tmp1*inv_dtcloud
+            endwhere
           if (diag_id%liq_adj + diag_id%liq_adj_col +   &
               diag_id%ice_adj + diag_id%ice_adj_col  > 0) then       
             where (T .le. tfreeze - 20.)
@@ -2428,23 +2443,33 @@ INTEGER,                             INTENT(IN)   :: otun
       if (diag_id%qadt_destr + diag_id%qa_destr_col > 0)    &
            diag_4d(:,:,:,diag_pt%qadt_destr) =    &
                    diag_4d(:,:,:,diag_pt%qadt_destr) - SA*inv_dtcloud
+           diag_4d(:,:,:,diag_pt%qadt_destr) =    &
+                   -diag_4d(:,:,:,diag_pt%qadt_destr) 
       if (diag_id%qldt_destr + diag_id%ql_destr_col > 0)    &
            diag_4d(:,:,:,diag_pt%qldt_destr) =     &
                    diag_4d(:,:,:,diag_pt%qldt_destr) - SL*inv_dtcloud
       if (diag_id%qidt_destr + diag_id%qi_destr_col > 0)    &
            diag_4d(:,:,:,diag_pt%qidt_destr) =    &
-                   diag_4d(:,:,:,diag_pt%qidt_destr) - SI*inv_dtcloud
+                  -( diag_4d(:,:,:,diag_pt%qidt_destr) - SI*inv_dtcloud)
       if (diag_id%qndt_destr + diag_id%qn_destr_col > 0 .and.    &
                                                     Nml%do_liq_num )  &
            diag_4d(:,:,:,diag_pt%qndt_destr) =    &
                    diag_4d(:,:,:,diag_pt%qndt_destr) - SN *inv_dtcloud
        
+      if (diag_id%qldt_destr + diag_id%ql_destr_col > 0)    &
+           diag_4d(:,:,:,diag_pt%qldt_destr) =     &
+                   -diag_4d(:,:,:,diag_pt%qldt_destr) 
+      if (diag_id%qndt_destr + diag_id%qn_destr_col > 0 .and.    &
+                                                    Nml%do_liq_num )  &
+           diag_4d(:,:,:,diag_pt%qndt_destr) =    &
+                   -diag_4d(:,:,:,diag_pt%qndt_destr) 
+
 !-----------------------------------------------------------------------
 !    add the ice falling out from cloud to  the qidt_fall diagnostic.
 !-----------------------------------------------------------------------
-      if ( diag_id%qidt_fall > 0 )      &
+        if (diag_id%qidt_fall + diag_id%qi_fall_col > 0)  &
              diag_4d(:,:,:,diag_pt%qidt_fall) =    &
-                      diag_4d(:,:,:,diag_pt%qidt_fall) + (snow_cld/deltpg)
+                      diag_4d(:,:,:,diag_pt%qidt_fall) - (snow_cld/deltpg)
         
 !-----------------------------------------------------------------------
 !    save output fields of profiles of total rain and snow and clear-sky
@@ -2535,6 +2560,23 @@ INTEGER,                             INTENT(IN)   :: otun
       end if 
                   
 !-----------------------------------------------------------------------
+!  Used for BC aerosol in-cloud scavenging:
+      do k=1,kdim
+        do j=1,jdim
+          do i=1,idim
+            qldt_sum = sum_berg(i,j,k) + sum_rime(i,j,k) +   &
+                       sum_ice_adj(i,j,k) + sum_cond(i,j,k) +   &
+                       sum_freeze(i,j,k)
+            if (qldt_sum > 0.)  then
+              f_snow_berg(i,j,k) = (sum_berg(i,j,k) + sum_freeze(i,j,k) + &
+                          sum_ice_adj(i,j,k) + sum_cond(i,j,k))/qldt_sum 
+            else
+              f_snow_berg(i,j,k) = 0.
+            endif
+          end do
+        end do
+      end do
+        
 
 
 

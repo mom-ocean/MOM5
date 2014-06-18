@@ -1,0 +1,71 @@
+
+Where to start
+~~~~~~~~~~~~~~
+A good place to start is the "doc" directory, where you
+will find  "user" guides for the MOM.  
+
+How to run the MOM tests
+~~~~~~~~~~~~~~~~~~~~~~~~~
+MOM tests provided in exp directory divide in two types, 
+both using the GFDL shared infrastructure (FMS) :
+
+1. Solo models   : Run stand alone MOM Ocean model.
+2. Coupled models: Run MOM coupled with GFDL ice model 
+                   (besides null versions of atmosphere and land models).
+
+To run Solo models:
+	 a. cd to exp and run mom4p1_solo_compile.csh first.
+         b. Modify the 'name' variable in the script 
+            mom4p1_solo_run.csh to be the name of the test you 
+            want to run. A list of available tests is included in the script.
+         c. Get the required input data for the test from GFDL ftp site.
+            You can get the info by running the script mom4p1_solo_run.csh
+            and following the instructions.
+	 d. Run mom4p1_solo_run.csh
+         e. The results go into subdir name/workdir
+         
+To run Coupled models:
+         Do the same steps above to mom4p1_coupled_compile.csh and  mom4p1_coupled_run.csh
+
+To run EBM models:
+         Do the same steps above to mom4p1_ebm_compile.csh and  mom4p1_ebm_run.csh
+
+
+
+Warning: The Solo and Coupled run scripts have been tested only on 10 and 24, ia64 
+         processors respectively. 
+Warning: Some of these tests require a large disk space to save the input data.
+         Choose a partition with enough space (1-2 G) to untar the code and data bundels.
+Warning: If you want to use the same root directory for all three experiments we suggest to
+         compile in the order of increasing complexity: solo -> coupled -> ebm .
+         You may have to remove some of the existing .o and .mod files
+         if you want to compile ebm experiment after the coupled experiment.
+         E.g., you probably have to:   cd ../exec; rm mpp*.o mpp*.mod fms_io*.o fms_io*.mod 
+
+Note:    IBM platform users might want to add the following line to the top of the run scripts 
+             setenv LDR_CNTRL MAXDATA=0xD0000000@DSA 
+
+
+Note:    The compile scripts provide the basic capability to use static memory allocation 
+         which might be faster on some platforms. In that case you need to adjust the values
+         of domain bounds properly according to the number of processors and layout. 
+
+
+Summary of directory contents
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+bin/
+     -- mkmf script for creating Makefiles
+     -- template files for the mkmf script
+     -- assorted other scripts
+
+exp/
+     -- all MOM experiments (test cases)
+
+src/   
+     -- source code for all models
+
+src/postprocessing/
+    -- source code for postprocessing programs
+
+src/preprocessing/
+    -- source code for preprocessing programs

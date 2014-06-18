@@ -1,0 +1,3 @@
+export OMP_NUM_THREADS=1
+export BG_APPTHREADDEPTH=1
+

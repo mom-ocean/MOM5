@@ -1,9 +1,14 @@
-
+#include "cosp_defs.H"
+#ifdef COSP_GFDL
+ 
 !---------------------------------------------------------------------
 !------------ FMS version number and tagname for this file -----------
 
-! $Id: cosp_simulator.F90,v 19.0 2012/01/06 20:04:04 fms Exp $
-! $Name: siena_201207 $
+! $Id: cosp_simulator.F90,v 20.0 2013/12/13 23:15:51 fms Exp $
+! $Name: tikal $
+! cosp_version = 1.3.2
+
+#endif
 
 ! (c) British Crown Copyright 2008, the Met Office.
 ! All rights reserved.
@@ -35,7 +40,10 @@
 !
 !
 
-#include "cosp_defs.h"
+!#include "cosp_defs.h" 
+#ifndef COSP_GFDL
+#include "cosp_defs.h" 
+#endif
 MODULE MOD_COSP_SIMULATOR
   USE MOD_COSP_TYPES
   USE MOD_COSP_RADAR
@@ -44,7 +52,7 @@ MODULE MOD_COSP_SIMULATOR
   USE MOD_COSP_MODIS_SIMULATOR
   USE MOD_COSP_MISR_SIMULATOR
 #ifdef RTTOV
-  USE MOD_COSP_RTTOV_SIMULATOR
+  USE MOD_COSP_RTTOV_SIMULATOR 
 #endif
   USE MOD_COSP_STATS
   IMPLICIT NONE
@@ -56,14 +64,17 @@ CONTAINS
 !--------------------- SUBROUTINE COSP_SIMULATOR ------------------
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #ifdef RTTOV
-SUBROUTINE COSP_SIMULATOR(me,gbx,sgx,sghydro,cfg,vgrid,sgradar,sglidar,isccp,misr,modis,rttov,stradar,stlidar)
+SUBROUTINE COSP_SIMULATOR(gbx,sgx,sghydro,cfg,vgrid,sgradar,sglidar,isccp,misr,modis,rttov,stradar,stlidar)
 #else
-SUBROUTINE COSP_SIMULATOR(me,gbx,sgx,sghydro,cfg,vgrid,sgradar,sglidar,isccp,misr,modis,stradar,stlidar)
+SUBROUTINE COSP_SIMULATOR(gbx,sgx,sghydro,cfg,vgrid,sgradar,sglidar,isccp,misr,modis,stradar,stlidar)
 #endif
 
   ! Arguments
-  integer, intent(in) :: me
+#ifdef COSP_GFDL
   type(cosp_gridbox),intent(inout) :: gbx      ! Grid-box inputs
+#else
+  type(cosp_gridbox),intent(in) :: gbx      ! Grid-box inputs
+#endif
   type(cosp_subgrid),intent(in) :: sgx      ! Subgrid inputs
   type(cosp_sghydro),intent(in) :: sghydro  ! Subgrid info for hydrometeors
   type(cosp_config),intent(in)  :: cfg      ! Configuration options
@@ -74,76 +85,84 @@ SUBROUTINE COSP_SIMULATOR(me,gbx,sgx,sghydro,cfg,vgrid,sgradar,sglidar,isccp,mis
   type(cosp_misr),intent(inout)    :: misr    ! Output from MISR simulator
   type(cosp_modis),intent(inout)   :: modis   ! Output from MODIS simulator
 #ifdef RTTOV
-  type(cosp_rttov),intent(inout)   :: rttov   ! Output from RTTOV
+  type(cosp_rttov),intent(inout)    :: rttov    ! Output from RTTOV
 #endif
   type(cosp_radarstats),intent(inout) :: stradar ! Summary statistics from radar simulator
   type(cosp_lidarstats),intent(inout) :: stlidar ! Summary statistics from lidar simulator
   ! Local variables
-  integer :: i,j,k,nSunlit
-  ! ***Timing variables 
+#ifdef COSP_GFDL
+  integer :: i,j,k, nSunlit
+#else
+  integer :: i,j,k
+#endif
+  logical :: inconsistent
+  ! Timing variables
   integer :: t0,t1,count_rate,count_max
 
-  do k=1,gbx%Nhydro
-  do j=1,gbx%Nlevels
-  do i=1,gbx%Npoints
-    if ((gbx%mr_hydro(i,j,k)>0.0).and.(gbx%Reff(i,j,k)<=0.0)) then
-       print *, '%%%% COSP_SIMULATOR: inconsistency in ',i,j,k,' :',gbx%mr_hydro(i,j,k),gbx%Reff(i,j,k)
-    endif
-  enddo
-  enddo
-  enddo
-
+  inconsistent=.false.
+!   do k=1,gbx%Nhydro
+!   do j=1,gbx%Nlevels
+!   do i=1,gbx%Npoints
+!     if ((gbx%mr_hydro(i,j,k)>0.0).and.(gbx%Reff(i,j,k)<=0.0)) inconsistent=.true.
+!   enddo
+!   enddo
+!   enddo
+  if (inconsistent)  print *, '%%%% COSP_SIMULATOR: inconsistency in mr_hydro and Reff'
+  
   !+++++++++ Radar model ++++++++++  
   if (cfg%Lradar_sim) then
-!   call system_clock(t0,count_rate,count_max)
-    call cosp_radar(me, gbx,sgx,sghydro,sgradar)
-!   call system_clock(t1,count_rate,count_max)
-!   print *, '%%%%%%  Radar:', (t1-t0)*1.0/count_rate, ' s'
+    !call system_clock(t0,count_rate,count_max)
+    call cosp_radar(gbx,sgx,sghydro,sgradar)
+    !call system_clock(t1,count_rate,count_max)
+    !print *, '%%%%%%  Radar:', (t1-t0)*1.0/count_rate, ' s'
   endif
   
   !+++++++++ Lidar model ++++++++++
   if (cfg%Llidar_sim) then
-!   call system_clock(t0,count_rate,count_max)
+    !call system_clock(t0,count_rate,count_max)
     call cosp_lidar(gbx,sgx,sghydro,sglidar)
-!   call system_clock(t1,count_rate,count_max)
-!   print *, '%%%%%%  Lidar:', (t1-t0)*1.0/count_rate, ' s'
+    !call system_clock(t1,count_rate,count_max)
+    !print *, '%%%%%%  Lidar:', (t1-t0)*1.0/count_rate, ' s'
   endif
 
-  
   !+++++++++ ISCCP simulator ++++++++++
   if (cfg%Lisccp_sim) then
-!   call system_clock(t0,count_rate,count_max)
+    !call system_clock(t0,count_rate,count_max)
     call cosp_isccp_simulator(gbx,sgx,isccp)
-!   call system_clock(t1,count_rate,count_max)
-!   print *, '%%%%%%  ISCCP:', (t1-t0)*1.0/count_rate, ' s'
+    !call system_clock(t1,count_rate,count_max)
+    !print *, '%%%%%%  ISCCP:', (t1-t0)*1.0/count_rate, ' s'
   endif
-  
+
   !+++++++++ MISR simulator ++++++++++
   if (cfg%Lmisr_sim) then
-!   call system_clock(t0,count_rate,count_max)
+    !call system_clock(t0,count_rate,count_max)
     call cosp_misr_simulator(gbx,sgx,misr)
-!   call system_clock(t1,count_rate,count_max)
-!   print *, '%%%%%%  MISR:', (t1-t0)*1.0/count_rate, ' s'
+    !call system_clock(t1,count_rate,count_max)
+    !print *, '%%%%%%  MISR:', (t1-t0)*1.0/count_rate, ' s'
   endif
   
   !+++++++++ MODIS simulator ++++++++++
   if (cfg%Lmodis_sim) then
     !call system_clock(t0,count_rate,count_max)
+#ifdef COSP_GFDL
     nSunlit = count(gbx%sunlit(:) > 0)
     call cosp_modis_simulator(gbx,sgx,sghydro,isccp, nSunlit, modis)
+#else
+    call cosp_modis_simulator(gbx,sgx,sghydro,isccp, modis)
+#endif
     !call system_clock(t1,count_rate,count_max)
     !print *, '%%%%%%  MODIS:', (t1-t0)*1.0/count_rate, ' s'
   endif
- 
+  
   !+++++++++ RTTOV ++++++++++ 
 #ifdef RTTOV 
-  if (cfg%Lrttov_sim) then
+  if (cfg%Lrttov_sim) then 
     !call system_clock(t0,count_rate,count_max) 
-    call cosp_rttov_simulator(gbx,rttov)
+    call cosp_rttov_simulator(gbx,rttov) 
     !call system_clock(t1,count_rate,count_max) 
     !print *, '%%%%%%  RTTOV:', (t1-t0)*1.0/count_rate, ' s' 
-  endif
-#endif
+  endif 
+#endif 
 
 
   !+++++++++++ Summary statistics +++++++++++
@@ -153,10 +172,10 @@ SUBROUTINE COSP_SIMULATOR(me,gbx,sgx,sghydro,cfg,vgrid,sgradar,sglidar,isccp,mis
     !call system_clock(t1,count_rate,count_max)
     !print *, '%%%%%%  Stats:', (t1-t0)*1.0/count_rate, ' s'
   endif
-
+  
   !+++++++++++ Change of units after computation of statistics +++++++++++
   ! This avoids using UDUNITS in CMOR
- 
+  
 !   if (cfg%Latb532) then
 !     where((sglidar%beta_tot > 0.0) .and. (sglidar%beta_tot /= R_UNDEF)) 
 !         sglidar%beta_tot = log10(sglidar%beta_tot)
@@ -164,7 +183,7 @@ SUBROUTINE COSP_SIMULATOR(me,gbx,sgx,sghydro,cfg,vgrid,sgradar,sglidar,isccp,mis
 !         sglidar%beta_tot = R_UNDEF
 !     end where
 !   endif
- 
+   
   ! Cloud fractions from 1 to %
   if (cfg%Lclcalipso) then
     where(stlidar%lidarcld /= R_UNDEF) stlidar%lidarcld = stlidar%lidarcld*100.0
@@ -175,22 +194,22 @@ SUBROUTINE COSP_SIMULATOR(me,gbx,sgx,sghydro,cfg,vgrid,sgradar,sglidar,isccp,mis
   if (cfg%Lclcalipso2) then
     where(stradar%lidar_only_freq_cloud /= R_UNDEF) stradar%lidar_only_freq_cloud = stradar%lidar_only_freq_cloud*100.0
   endif
- 
+  
   if (cfg%Lcltisccp) then
      where(isccp%totalcldarea /= R_UNDEF) isccp%totalcldarea = isccp%totalcldarea*100.0
-  endif
+  endif  
   if (cfg%Lclisccp) then
-     where(isccp%fq_isccp /= R_UNDEF) isccp%fq_isccp = isccp%fq_isccp*100.0
+    where(isccp%fq_isccp /= R_UNDEF) isccp%fq_isccp = isccp%fq_isccp*100.0
   endif
-
+  
   if (cfg%LclMISR) then
     where(misr%fq_MISR /= R_UNDEF) misr%fq_MISR = misr%fq_MISR*100.0
   endif
-
+  
   if (cfg%Lcltlidarradar) then
     where(stradar%radar_lidar_tcc /= R_UNDEF) stradar%radar_lidar_tcc = stradar%radar_lidar_tcc*100.0
   endif
-
+  
   if (cfg%Lclmodis) then
     where(modis%Optical_Thickness_vs_Cloud_Top_Pressure /= R_UNDEF) modis%Optical_Thickness_vs_Cloud_Top_Pressure = &
                                                       modis%Optical_Thickness_vs_Cloud_Top_Pressure*100.0
@@ -204,7 +223,7 @@ SUBROUTINE COSP_SIMULATOR(me,gbx,sgx,sghydro,cfg,vgrid,sgradar,sglidar,isccp,mis
   if (cfg%Lclimodis) then
      where(modis%Cloud_Fraction_Ice_Mean /= R_UNDEF) modis%Cloud_Fraction_Ice_Mean = modis%Cloud_Fraction_Ice_Mean*100.0
   endif
-
+ 
   if (cfg%Lclhmodis) then
      where(modis%Cloud_Fraction_High_Mean /= R_UNDEF) modis%Cloud_Fraction_High_Mean = modis%Cloud_Fraction_High_Mean*100.0
   endif
@@ -214,15 +233,15 @@ SUBROUTINE COSP_SIMULATOR(me,gbx,sgx,sghydro,cfg,vgrid,sgradar,sglidar,isccp,mis
   if (cfg%Lcllmodis) then
      where(modis%Cloud_Fraction_Low_Mean /= R_UNDEF) modis%Cloud_Fraction_Low_Mean = modis%Cloud_Fraction_Low_Mean*100.0
   endif
-
-! Change pressure from hPa to Pa.
+ 
+  ! Change pressure from hPa to Pa.
   if (cfg%Lboxptopisccp) then
     where(isccp%boxptop /= R_UNDEF) isccp%boxptop = isccp%boxptop*100.0
   endif
   if (cfg%Lpctisccp) then
     where(isccp%meanptop /= R_UNDEF) isccp%meanptop = isccp%meanptop*100.0
   endif
-
+  
 
 END SUBROUTINE COSP_SIMULATOR
 

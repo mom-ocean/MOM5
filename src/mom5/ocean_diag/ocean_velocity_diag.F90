@@ -1,7 +1,7 @@
 module ocean_velocity_diag_mod
 #define COMP isc:iec,jsc:jec
 !
-!<CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
+!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies
 !</CONTACT>
 !
 !<OVERVIEW>
@@ -180,9 +180,9 @@ type(ocean_domain_type), pointer :: Dom =>NULL()
 logical :: module_is_initialized = .FALSE.
 
 character(len=128) :: version=&
-     '$Id: ocean_velocity_diag.F90,v 1.1.2.12 2012/06/04 00:11:43 Stephen.Griffies Exp $'
+     '$Id: ocean_velocity_diag.F90,v 20.0 2013/12/14 00:12:59 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 public  ocean_velocity_diag_init
 public  ocean_velocity_diagnostics 
@@ -1029,7 +1029,7 @@ end subroutine velocity_change
 !
 ! Diagnose topostrophy as per Greg Holloway.  
 ! 
-! Stephen.Griffies@noaa.gov
+! Stephen.Griffies
 ! March 2012 
 !
 ! </DESCRIPTION>

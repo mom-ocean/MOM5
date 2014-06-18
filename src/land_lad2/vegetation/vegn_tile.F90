@@ -62,8 +62,8 @@ end interface
 
 ! ==== module constants ======================================================
 character(len=*), parameter   :: &
-     version = '$Id: vegn_tile.F90,v 19.0 2012/01/06 20:44:40 fms Exp $', & 
-     tagname = '$Name: siena_201207 $', &
+     version = '$Id: vegn_tile.F90,v 20.0 2013/12/13 23:31:19 fms Exp $', & 
+     tagname = '$Name: tikal $', &
      module_name = 'vegn_tile_mod'
 
 ! ==== types =================================================================
@@ -74,38 +74,36 @@ type :: vegn_tile_type
    integer :: n_cohorts = 0
    type(vegn_cohort_type), pointer :: cohorts(:)=>NULL()
 
-   real :: age=0 ! tile age
-
-   real :: fast_soil_C=0  ! fast soil carbon pool, (kg C/m2)
-   real :: slow_soil_C=0  ! slow soil carbon pool, (kg C/m2)
+   real :: age=0.0 ! tile age
 
    ! fields for smoothing out the contribution of the spike-type processes (e.g. 
    ! harvesting) to the soil carbon pools over some period of time
-   real :: fsc_pool=0, fsc_rate=0 ! for fast soil carbon
-   real :: ssc_pool=0, ssc_rate=0 ! for slow soil carbon
+   real :: fsc_pool=0.0, fsc_rate=0.0 ! for fast soil carbon
+   real :: ssc_pool=0.0, ssc_rate=0.0 ! for slow soil carbon
 
-   real :: csmoke_pool=0 ! carbon lost through fires, kg C/m2 
-   real :: csmoke_rate=0 ! rate of release of the above to atmosphere, kg C/(m2 yr)
+   real :: csmoke_pool=0.0 ! carbon lost through fires, kg C/m2 
+   real :: csmoke_rate=0.0 ! rate of release of the above to atmosphere, kg C/(m2 yr)
 
-   real :: harv_pool(N_HARV_POOLS) = 0. ! pools of harvested carbon, kg C/m2
-   real :: harv_rate(N_HARV_POOLS) = 0. ! rates of spending (release to the atmosphere), kg C/(m2 yr)
+   real :: harv_pool(N_HARV_POOLS) = 0.0 ! pools of harvested carbon, kg C/m2
+   real :: harv_rate(N_HARV_POOLS) = 0.0 ! rates of spending (release to the atmosphere), kg C/(m2 yr)
 
    ! values for the diagnostic of carbon budget and soil carbon acceleration
-   real :: asoil_in=0
-   real :: ssc_in=0, ssc_out=0
-   real :: fsc_in=0, fsc_out=0
-   real :: veg_in=0, veg_out=0
+   real :: ssc_out=0.0
+   real :: fsc_out=0.0
+   real :: veg_in=0.0, veg_out=0.0
 
    real :: disturbance_rate(0:1) = 0 ! 1/year
-   real :: lambda = 0. ! cumulative drought months per year
-   real :: fuel   = 0. ! fuel over dry months
-   real :: litter = 0. ! litter flux
+   real :: lambda = 0.0 ! cumulative drought months per year
+   real :: fuel   = 0.0 ! fuel over dry months
+   real :: litter = 0.0 ! litter flux
 
    ! monthly accumulated/averaged values
-   real :: theta_av = 0. ! relative soil_moisture availability not soil moisture
-   real :: tsoil_av = 0. ! bulk soil temperature
-   real :: tc_av    = 0. ! leaf temperature
-   real :: precip_av= 0. ! precipitation
+   real :: theta_av_phen = 0.0 ! relative soil_moisture availability not soil moisture
+   real :: theta_av_fire = 0.0
+   real :: psist_av = 0.0 ! soil water stress index
+   real :: tsoil_av = 0.0 ! bulk soil temperature
+   real :: tc_av    = 0.0 ! leaf temperature
+   real :: precip_av= 0.0 ! precipitation
 
    ! accumulation counters for long-term averages (monthly and annual). Having
    ! these counters in the tile is a bit stupid, since the values are the same for
@@ -114,21 +112,21 @@ type :: vegn_tile_type
    integer :: n_accum = 0 ! number of accumulated values for monthly averages
    integer :: nmn_acm = 0 ! number of accumulated values for annual averages
    ! annual-mean values
-   real :: t_ann  = 0. ! annual mean T, degK
-   real :: t_cold = 0. ! average temperature of the coldest month, degK
-   real :: p_ann  = 0. ! annual mean precip
-   real :: ncm    = 0. ! number of cold months
+   real :: t_ann  = 0.0 ! annual mean T, degK
+   real :: t_cold = 0.0 ! average temperature of the coldest month, degK
+   real :: p_ann  = 0.0 ! annual mean precip
+   real :: ncm    = 0.0 ! number of cold months
    ! annual accumulated values
-   real :: t_ann_acm  = 0. ! accumulated annual temperature for t_ann
-   real :: t_cold_acm = 0. ! temperature of the coldest month in current year
-   real :: p_ann_acm  = 0. ! accumulated annual precipitation for p_ann
-   real :: ncm_acm    = 0. ! accumulated number of cold months
+   real :: t_ann_acm  = 0.0 ! accumulated annual temperature for t_ann
+   real :: t_cold_acm = 0.0 ! temperature of the coldest month in current year
+   real :: p_ann_acm  = 0.0 ! accumulated annual precipitation for p_ann
+   real :: ncm_acm    = 0.0 ! accumulated number of cold months
 
 
    ! it's probably possible to get rid of the fields below
-   real :: npp=0 ! net primary productivity
-   real :: nep=0 ! net ecosystem productivity
-   real :: rh=0 ! soil carbon lost to the atmosphere
+   real :: npp=0.0 ! net primary productivity
+   real :: nep=0.0 ! net ecosystem productivity
+   real :: rh=0.0 ! soil carbon lost to the atmosphere
    real :: total_biomass !
    real :: area_disturbed_by_treefall
    real :: area_disturbed_by_fire
@@ -183,7 +181,7 @@ function vegn_tiles_can_be_merged(vegn1,vegn2) result(response)
   integer :: i, i1, i2
 
   if (vegn1%landuse /= vegn2%landuse) then
-     response = .false. ! different land use tiles can't be merged
+     response = .false. ! different land use types can't be merged
   else if (vegn1%landuse == LU_SCND) then ! secondary vegetation tiles
      ! get tile wood biomasses
      b1 = get_vegn_tile_bwood(vegn1)
@@ -259,9 +257,6 @@ subroutine merge_vegn_tiles(t1,w1,t2,w2)
 
   __MERGE__(age);
   
-  __MERGE__(fast_soil_C)
-  __MERGE__(slow_soil_C)
-  
   __MERGE__(fsc_pool); __MERGE__(fsc_rate)
   __MERGE__(ssc_pool); __MERGE__(ssc_rate)
 
@@ -272,9 +267,8 @@ subroutine merge_vegn_tiles(t1,w1,t2,w2)
   __MERGE__(harv_rate)
 
   ! do we need to merge these?
-  __MERGE__(asoil_in)
-  __MERGE__(ssc_in); __MERGE__(ssc_out)
-  __MERGE__(fsc_in); __MERGE__(fsc_out)
+  __MERGE__(ssc_out)
+  __MERGE__(fsc_out)
   __MERGE__(veg_in); __MERGE__(veg_out)
   
   ! or these?
@@ -284,7 +278,9 @@ subroutine merge_vegn_tiles(t1,w1,t2,w2)
   __MERGE__(litter)     ! litter flux
 
   ! monthly accumulated/averaged values
-  __MERGE__(theta_av)   ! relative soil_moisture availability not soil moisture
+  __MERGE__(theta_av_phen)   ! relative soil_moisture availability not soil moisture
+  __MERGE__(theta_av_fire)
+  __MERGE__(psist_av)   ! water potential divided by permanent wilting potential
   __MERGE__(tsoil_av)   ! bulk soil temperature
   __MERGE__(tc_av)      ! leaf temperature
   __MERGE__(precip_av)  ! precipitation

@@ -130,6 +130,7 @@ program regrid_2d
        apply_dest_mask, stop_crit, interp_method
 
   !---------------------------------------------------------------------
+  integer            :: src_unit, dst_grid_unit
   integer            :: ni_src, nj_src, ni_dst, nj_dst, ntime_src
   type(axistype)     :: time_axis, axes_dst(2)
   type(fieldtype)    :: field_lon_dst, field_lat_dst, src_field(2)
@@ -153,8 +154,8 @@ program regrid_2d
   real, dimension(:,:,:,:),    allocatable :: data_dst, data_src
 
   !--- version information variables
-  character(len=128) :: version='CVS $Id: regrid_2d.f90,v 14.0 2007/03/15 22:47:20 fms Exp $'
-  character(len=128) :: tagname='Tag $Name: siena_201207 $'
+  character(len=128) :: version='CVS $Id: regrid_2d.f90,v 20.0 2013/12/14 00:31:09 fms Exp $'
+  character(len=128) :: tagname='Tag $Name: tikal $'
 
   ! --- Begin of the program
 
@@ -227,7 +228,7 @@ contains
   !--- open grid file and store grid info
   subroutine read_dst_grid
 
-    integer                                    :: unit, ndim, nvar, natt, ntime, i
+    integer                                    :: ndim, nvar, natt, ntime, i
     integer                                    :: len1, siz_in(3)
     logical                                    :: found_xt, found_yt, found_wet
     logical                                    :: found_xc, found_yc, found_angle
@@ -239,15 +240,15 @@ contains
     if(.not. file_exist(trim(dest_grid)) ) &
          call mpp_error(FATAL, 'regrid_2d: file '//trim(dest_grid)//' does not exist')
 
-    call mpp_open(unit, trim(dest_grid),&
+    call mpp_open(dst_grid_unit, trim(dest_grid),&
          action=MPP_RDONLY, form=MPP_NETCDF, threading=MPP_MULTI, fileset=MPP_SINGLE)
 
-    call mpp_get_info(unit, ndim, nvar, natt, ntime)
+    call mpp_get_info(dst_grid_unit, ndim, nvar, natt, ntime)
 
     allocate(fields(nvar), global_atts(natt), axes(ndim) )
-    call mpp_get_axes(unit, axes)
-    call mpp_get_atts(unit, global_atts)
-    call mpp_get_fields(unit,fields)
+    call mpp_get_axes(dst_grid_unit, axes)
+    call mpp_get_atts(dst_grid_unit, global_atts)
+    call mpp_get_fields(dst_grid_unit,fields)
 
     do i=1,natt
        if (trim(mpp_get_att_name(global_atts(i))) == 'y_boundary_type') &
@@ -286,35 +287,35 @@ contains
        !--- get the land/sea mask
        if(trim(name) == 'wet') then
           found_wet = .true.
-          call mpp_read(unit,fields(i),mask_dst)
+          call mpp_read(dst_grid_unit,fields(i),mask_dst)
        endif
        if(dest_grid_type == 'T') then
        select case (trim(name))
        case ('x_T')
           found_xt = .true.
-          call mpp_read(unit,fields(i),lon_dst)
+          call mpp_read(dst_grid_unit,fields(i),lon_dst)
           field_lon_dst = fields(i)
           call mpp_get_atts(fields(i),axes=axes_dst)
        case ('y_T')
           found_yt = .true.
-          call mpp_read(unit,fields(i),lat_dst)
+          call mpp_read(dst_grid_unit,fields(i),lat_dst)
           field_lat_dst = fields(i)           
        end select
        else if ( dest_grid_type == 'C' ) then
           select case (trim(name))
           case ('x_C')
              found_xc = .true.
-             call mpp_read(unit,fields(i),lon_dst)
+             call mpp_read(dst_grid_unit,fields(i),lon_dst)
              field_lon_dst = fields(i)
              call mpp_get_atts(fields(i),axes=axes_dst)
           case('y_C')
              found_yc = .true.
-             call mpp_read(unit,fields(i),lat_dst)
+             call mpp_read(dst_grid_unit,fields(i),lat_dst)
              field_lat_dst = fields(i)
           case('angle_C')
              found_angle = .true.
              allocate(angle(ni_dst,nj_dst), sin_rot(ni_dst,nj_dst), cos_rot(ni_dst,nj_dst) )
-             call mpp_read(unit,fields(i),angle)
+             call mpp_read(dst_grid_unit,fields(i),angle)
              sin_rot = sin(angle*D2R)
              cos_rot = cos(angle*D2R)
              deallocate(angle)
@@ -333,7 +334,6 @@ contains
     
     if(.not. apply_dest_mask) mask_dst = 1.0  ! will get global data
 
-    call mpp_close(unit)
     deallocate(fields, axes)    
 
   end subroutine read_dst_grid
@@ -342,7 +342,7 @@ contains
   !--- read source grid and source data from src_file
   subroutine read_src_file
 
-    integer                                    :: unit, ndim, nvar, natt, n
+    integer                                    :: ndim, nvar, natt, n
     integer                                    :: nt, i, j, k, jj, len1, nk_src
     logical                                    :: flip_y, found_src_field(2)
     character(len=1)                           :: cart
@@ -357,12 +357,12 @@ contains
     if(.not. file_exist(trim(src_file)) ) &
          call mpp_error(FATAL, 'regrid_2d: file '//trim(src_file)//' does not exist')
 
-    call mpp_open(unit, trim(src_file),&
+    call mpp_open(src_unit, trim(src_file),&
          action=MPP_RDONLY, form=MPP_NETCDF, threading=MPP_MULTI, fileset=MPP_SINGLE)
-    call mpp_get_info(unit, ndim, nvar, natt, ntime_src)
+    call mpp_get_info(src_unit, ndim, nvar, natt, ntime_src)
 
     allocate(fields(nvar))
-    call mpp_get_fields(unit, fields)
+    call mpp_get_fields(src_unit, fields)
 
     if (numfields > nvar) call mpp_error(FATAL,'not enough fields in file')
     found_src_field = .FALSE.
@@ -415,7 +415,7 @@ contains
           ntime_src = len1
           time_axis_exists = .true.
           allocate(time_in(ntime_src))
-          call mpp_get_times(unit, time_in)
+          call mpp_get_times(src_unit, time_in)
           time_axis = axes(j)
        end select
     enddo
@@ -437,7 +437,7 @@ contains
        if (level > nk_src) call mpp_error(FATAL,'selected level exceeds size of input array')
        if (nk_src > 1) write(*,*) 'warning: selecting level ',level,' from 3d array'
        do nt=1,ntime_src
-          call mpp_read(unit,src_field(n), tmp3d,nt)
+          call mpp_read(src_unit,src_field(n), tmp3d,nt)
 
           tmp=tmp3d(:,:,level)
           !--- set up the mask of source data
@@ -463,7 +463,6 @@ contains
 
     enddo
 
-    call mpp_close(unit)
     deallocate(fields, axes, tmp, tmp3d)   
 
 
@@ -623,6 +622,8 @@ contains
           enddo
        enddo
 
+    call mpp_close(dst_grid_unit)
+    call mpp_close(src_unit)
     call mpp_close(unit)
 
   end subroutine write_dst_file

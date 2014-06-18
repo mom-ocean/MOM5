@@ -110,9 +110,9 @@ module ocean_nphysics_new_mod
 #include <ocean_memory.h>
 
 character(len=128) :: version=&
-     '$Id: ocean_nphysics_new.F90,v 1.1.2.2 2012/05/17 13:41:47 smg Exp $'
+     '$Id: ocean_nphysics_new.F90,v 20.0 2013/12/14 00:14:46 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 character(len=*), parameter :: FILENAME=&
      __FILE__

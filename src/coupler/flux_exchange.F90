@@ -261,14 +261,14 @@ private
      flux_ocean_from_ice_stocks
 
 !-----------------------------------------------------------------------
-  character(len=128) :: version = '$Id: flux_exchange.F90,v 19.0.8.1.2.1 2012/06/01 19:06:23 William.Cooke Exp $'
-  character(len=128) :: tag = '$Name: siena_201207 $'
+  character(len=128) :: version = '$Id: flux_exchange.F90,v 20.0 2013/12/13 23:27:41 fms Exp $'
+  character(len=128) :: tag = '$Name: tikal $'
 !-----------------------------------------------------------------------
 !---- exchange grid maps -----
 
 type(xmap_type), save :: xmap_sfc, xmap_runoff
 
-integer         :: n_xgrid_sfc,  n_xgrid_runoff
+integer         :: n_xgrid_sfc=0,  n_xgrid_runoff=0
 
 !-----------------------------------------------------------------------
 !-------- namelist (for diagnostics) ------
@@ -441,6 +441,10 @@ integer, parameter :: REGRID=1, REDIST=2, DIRECT=3
   real    :: ATM_PRECIP_NEW
 
 integer ::  runoff_id_diag =-1 
+
+integer :: nxc_ocn=0, nyc_ocn=0, nxc_ice=0, nyc_ice=0, nk_ice=0
+
+
 contains
 
 !#######################################################################
@@ -573,6 +577,7 @@ subroutine flux_exchange_init ( Time, Atm, Land, Ice, Ocean, Ocean_state,&
 
 #ifdef INTERNAL_FILE_NML
       read (input_nml_file, flux_exchange_nml, iostat=io)
+      ierr = check_nml_error (io, 'flux_exchange_nml')
 #else
     unit = open_namelist_file()
     ierr=1; do while (ierr /= 0)
@@ -1013,24 +1018,24 @@ subroutine flux_exchange_init ( Time, Atm, Land, Ice, Ocean, Ocean_state,&
 !AMIP ocean needs no input fields
 !choice of fields will eventually be done at runtime
 !via field_manager
-    allocate( ice_ocean_boundary%u_flux   (is:ie,js:je) )
-    allocate( ice_ocean_boundary%v_flux   (is:ie,js:je) )
-    allocate( ice_ocean_boundary%t_flux   (is:ie,js:je) )
-    allocate( ice_ocean_boundary%q_flux   (is:ie,js:je) )
-    allocate( ice_ocean_boundary%salt_flux(is:ie,js:je) )
-    allocate( ice_ocean_boundary%lw_flux  (is:ie,js:je) )
-    allocate( ice_ocean_boundary%sw_flux_vis_dir  (is:ie,js:je) )
-    allocate( ice_ocean_boundary%sw_flux_vis_dif  (is:ie,js:je) )
-    allocate( ice_ocean_boundary%sw_flux_nir_dir  (is:ie,js:je) )
-    allocate( ice_ocean_boundary%sw_flux_nir_dif  (is:ie,js:je) )
-    allocate( ice_ocean_boundary%lprec    (is:ie,js:je) )
-    allocate( ice_ocean_boundary%fprec    (is:ie,js:je) )
-    allocate( ice_ocean_boundary%runoff   (is:ie,js:je) )
-    allocate( ice_ocean_boundary%calving  (is:ie,js:je) )
-    allocate( ice_ocean_boundary%runoff_hflx   (is:ie,js:je) )
-    allocate( ice_ocean_boundary%calving_hflx  (is:ie,js:je) )
-    allocate( ice_ocean_boundary%p        (is:ie,js:je) )
-    allocate( ice_ocean_boundary%mi       (is:ie,js:je) )
+    allocate( ice_ocean_boundary%u_flux   (is:ie,js:je) ) ; ice_ocean_boundary%u_flux = 0.0
+    allocate( ice_ocean_boundary%v_flux   (is:ie,js:je) ) ; ice_ocean_boundary%v_flux = 0.0
+    allocate( ice_ocean_boundary%t_flux   (is:ie,js:je) ) ; ice_ocean_boundary%t_flux = 0.0
+    allocate( ice_ocean_boundary%q_flux   (is:ie,js:je) ) ; ice_ocean_boundary%q_flux = 0.0
+    allocate( ice_ocean_boundary%salt_flux(is:ie,js:je) ) ; ice_ocean_boundary%salt_flux = 0.0
+    allocate( ice_ocean_boundary%lw_flux  (is:ie,js:je) ) ; ice_ocean_boundary%lw_flux = 0.0
+    allocate( ice_ocean_boundary%sw_flux_vis_dir  (is:ie,js:je) ) ; ice_ocean_boundary%sw_flux_vis_dir = 0.0
+    allocate( ice_ocean_boundary%sw_flux_vis_dif  (is:ie,js:je) ) ; ice_ocean_boundary%sw_flux_vis_dif = 0.0
+    allocate( ice_ocean_boundary%sw_flux_nir_dir  (is:ie,js:je) ) ; ice_ocean_boundary%sw_flux_nir_dir = 0.0
+    allocate( ice_ocean_boundary%sw_flux_nir_dif  (is:ie,js:je) ) ; ice_ocean_boundary%sw_flux_nir_dif = 0.0
+    allocate( ice_ocean_boundary%lprec    (is:ie,js:je) ) ; ice_ocean_boundary%lprec = 0.0
+    allocate( ice_ocean_boundary%fprec    (is:ie,js:je) ) ; ice_ocean_boundary%fprec = 0.0
+    allocate( ice_ocean_boundary%runoff   (is:ie,js:je) ) ; ice_ocean_boundary%runoff = 0.0
+    allocate( ice_ocean_boundary%calving  (is:ie,js:je) ) ; ice_ocean_boundary%calving = 0.0
+    allocate( ice_ocean_boundary%runoff_hflx   (is:ie,js:je) ) ; ice_ocean_boundary%runoff_hflx = 0.0
+    allocate( ice_ocean_boundary%calving_hflx  (is:ie,js:je) ) ; ice_ocean_boundary%calving_hflx = 0.0
+    allocate( ice_ocean_boundary%p        (is:ie,js:je) ) ; ice_ocean_boundary%p = 0.0
+    allocate( ice_ocean_boundary%mi       (is:ie,js:je) ) ; ice_ocean_boundary%mi = 0.0
 
 !
 ! allocate fields for extra tracers
@@ -1075,6 +1080,16 @@ subroutine flux_exchange_init ( Time, Atm, Land, Ice, Ocean, Ocean_state,&
       call ocean_model_init_sfc(Ocean_state, Ocean)
     end if
     call mpp_set_current_pelist()
+
+    if( Ocean%is_ocean_pe) then
+       call mpp_get_compute_domain(Ocean%domain, xsize=nxc_ocn, ysize=nyc_ocn)
+    endif
+    if( Ice%pe) then
+       call mpp_get_compute_domain(Ice%domain, xsize=nxc_ice, ysize=nyc_ice)
+       nk_ice = size(Ice%part_size,3)
+    endif
+
+ 
 
     ! required by stock_move, all fluxes used to update stocks will be zero if dt_atmos,
     ! and dt_cpld are absent
@@ -2928,11 +2943,10 @@ subroutine flux_ocean_to_ice ( Time, Ocean, Ice, Ocean_Ice_Boundary )
 !  real, dimension(:,:),   intent(out) :: t_surf_ice, u_surf_ice, v_surf_ice, &
 !                                         frazil_ice, s_surf_ice, sea_lev_ice
   type(ocean_ice_boundary_type), intent(inout) :: Ocean_Ice_Boundary
-  real, dimension(size(Ocean_Ice_Boundary%t,1),size(Ocean_Ice_Boundary%t,2),size(Ice%part_size,3)) &
-       :: ice_frac
-  real :: tmp( lbound(Ocean%frazil,1):ubound(Ocean%frazil,1), lbound(Ocean%frazil,2):ubound(Ocean%frazil,2) )
-  real, dimension(:), allocatable :: ex_ice_frac
-  real, dimension(ni_atm, nj_atm) :: diag_atm
+  real, dimension(nxc_ice, nyc_ice, nk_ice) :: ice_frac
+  real, dimension(nxc_ocn, nyc_ocn )        :: tmp
+  real, dimension(n_xgrid_sfc)              :: ex_ice_frac
+  real, dimension(ni_atm, nj_atm)           :: diag_atm
   logical :: used
   integer       :: m
   integer       :: n
@@ -3056,14 +3070,12 @@ subroutine flux_ocean_to_ice ( Time, Ocean, Ice, Ocean_Ice_Boundary )
    call mpp_set_current_pelist()
   
   if ( id_ice_mask > 0 ) then
-     allocate ( ex_ice_frac(n_xgrid_sfc) )
      ice_frac        = 1.
      ice_frac(:,:,1) = 0.
      ex_ice_frac     = 0.
      call put_to_xgrid (ice_frac, 'OCN', ex_ice_frac, xmap_sfc)
      call get_from_xgrid (diag_atm, 'ATM', ex_ice_frac, xmap_sfc)
      used = send_data ( id_ice_mask, diag_atm, Time )
-     deallocate ( ex_ice_frac )
   endif
 
   if(Ice%pe) then
@@ -3703,13 +3715,10 @@ end subroutine flux_up_to_atmos
     type(ocean_public_type),       intent(in) :: Ocean
     type(ice_ocean_boundary_type), intent(in) :: Ice_Ocean_Boundary
     real    :: from_dq, cp_ocn
-    real, dimension(:,:), allocatable :: ocean_cell_area, wet, t_surf, t_pme, t_calving, t_runoff, btfHeat
-    integer :: isc,iec,jsc,jec
-
+    real, dimension(nxc_ocn, nyc_ocn) :: ocean_cell_area, wet, t_surf, t_pme, t_calving, t_runoff, btfHeat
+    integer :: isc, iec, jsc, jec
 
     call mpp_get_compute_domain(Ocean%Domain, isc, iec, jsc, jec)
-    allocate(ocean_cell_area(isc:iec, jsc:jec), t_surf(isc:iec, jsc:jec), wet(isc:iec, jsc:jec))
-    allocate(t_pme(isc:iec, jsc:jec), t_calving(isc:iec, jsc:jec),t_runoff(isc:iec, jsc:jec),btfHeat(isc:iec, jsc:jec))
     call ocean_model_data_get(ocean_state,Ocean,'area'  , ocean_cell_area,isc,jsc)
     call ocean_model_data_get(ocean_state,Ocean,'mask', wet,isc,jsc )
     call ocean_model_data_get(ocean_state,Ocean,'t_surf', t_surf,isc,jsc )
@@ -4075,7 +4084,7 @@ subroutine diag_field_init ( Time, atmos_axes, land_axes )
     logical,                          intent(in) :: do_area_weighted
 
 
-    real :: tmp( lbound(ice%lprec, 1):ubound(ice%lprec, 1), lbound(ice%lprec, 2):ubound(ice%lprec, 2) )
+    real :: tmp(nxc_ice, nyc_ice )
 
     select case(type)
     case(DIRECT)

@@ -32,11 +32,13 @@ public :: get_mosaic_contact
 public :: get_mosaic_xgrid_size
 public :: get_mosaic_xgrid
 public :: calc_mosaic_grid_area
+public :: calc_mosaic_grid_great_circle_area
+public :: is_inside_polygon
 
 logical :: module_is_initialized = .true.
 ! version information varaible
- character(len=128) :: version = '$Id: mosaic.F90,v 15.0 2007/08/14 04:14:22 fms Exp $'
- character(len=128) :: tagname = '$Name: siena_201207 $'
+ character(len=128) :: version = '$Id: mosaic.F90,v 20.0 2013/12/14 00:22:25 fms Exp $'
+ character(len=128) :: tagname = '$Name: tikal $'
 
 contains
 
@@ -123,11 +125,12 @@ end subroutine mosaic_init
 !   <INOUT NAME="area" TYPE="real, dimension(:)">
 !     area of the exchange grid. The area is scaled to represent unit earth area.
 !   </INOUT>
-  subroutine get_mosaic_xgrid(xgrid_file, i1, j1, i2, j2, area, di, dj)
+  subroutine get_mosaic_xgrid(xgrid_file, i1, j1, i2, j2, area, di, dj, istart, iend)
     character(len=*), intent(in) :: xgrid_file
     integer,       intent(inout) :: i1(:), j1(:), i2(:), j2(:)
     real,          intent(inout) :: area(:)
     real, optional,intent(inout) :: di(:), dj(:)
+    integer, optional,intent(in) :: istart, iend 
 
     character(len=len_trim(xgrid_file)+1) :: xfile
     integer :: n, strlen, nxgrid
@@ -142,10 +145,17 @@ end subroutine mosaic_init
     nxgrid = size(i1(:))
 
     if(PRESENT(di)) then
+       if( PRESENT(istart) .OR. PRESENT(iend) ) &
+          call mpp_error(FATAL, "mosaic_mod: istart and iend should not present when di is present, contact developer")
        if(.NOT. PRESENT(dj) ) call mpp_error(FATAL, "mosaic_mod: when di is present, dj should be present")
        call read_mosaic_xgrid_order2(xfile, i1, j1, i2, j2, area, di, dj)
     else
-       call read_mosaic_xgrid_order1(xfile, i1, j1, i2, j2, area)
+       if( PRESENT(istart) .AND. PRESENT(iend) ) then
+          if( iend-istart+1 .NE. nxgrid) call mpp_error(FATAL, "mosaic_mod: iend-istart+1 must equal size(i1)")
+          call read_mosaic_xgrid_order1_region(xfile, i1, j1, i2, j2, area, istart-1, iend-1) ! convert to c-index
+       else
+          call read_mosaic_xgrid_order1(xfile, i1, j1, i2, j2, area)
+       endif
     end if
 
     ! in C, programming, the starting index is 0, so need add 1 to the index.
@@ -377,6 +387,71 @@ end subroutine mosaic_init
 
   end subroutine calc_mosaic_grid_area
   ! </SUBROUTINE>
+
+  !###############################################################################
+  ! <SUBROUTINE NAME="calc_mosaic_grid_great_circle_area">
+  !   <OVERVIEW>
+  !     calculate grid cell area using great cirlce algorithm
+  !   </OVERVIEW>
+  !   <DESCRIPTION>
+  !     calculate the grid cell area. The purpose of this routine is to make 
+  !     sure the consistency between model grid area and exchange grid area.
+  !   </DESCRIPTION>
+  !   <TEMPLATE>
+  !     call calc_mosaic_grid_great_circle_area(lon, lat, area)
+  !   </TEMPLATE>
+  !   <IN NAME="lon" TYPE="real, dimension(:,:)">
+  !     geographical longitude of grid cell vertices.
+  !   </IN>
+  !   <IN NAME="lat" TYPE="real, dimension(:,:)">
+  !     geographical latitude of grid cell vertices.
+  !   </IN>
+  !   <INOUT NAME="area" TYPE="real, dimension(:,:)">
+  !     grid cell area.
+  !   </INOUT>
+  subroutine calc_mosaic_grid_great_circle_area(lon, lat, area)
+     real, dimension(:,:), intent(in)    :: lon
+     real, dimension(:,:), intent(in)    :: lat
+     real, dimension(:,:), intent(inout) :: area
+     integer                             :: nlon, nlat
+     
+
+     nlon = size(area,1)
+     nlat = size(area,2)
+     ! make sure size of lon, lat and area are consitency
+     if( size(lon,1) .NE. nlon+1 .OR. size(lat,1) .NE. nlon+1 ) &
+        call mpp_error(FATAL, "mosaic_mod: size(lon,1) and size(lat,1) should equal to size(area,1)+1")
+     if( size(lon,2) .NE. nlat+1 .OR. size(lat,2) .NE. nlat+1 ) &
+        call mpp_error(FATAL, "mosaic_mod: size(lon,2) and size(lat,2) should equal to size(area,2)+1")
+
+     call get_grid_great_circle_area( nlon, nlat, lon, lat, area)
+
+  end subroutine calc_mosaic_grid_great_circle_area
+  ! </SUBROUTINE>
+
+  !#####################################################################
+  ! This function check if a point (lon1,lat1) is inside a polygon (lon2(:), lat2(:))
+  ! lon1, lat1, lon2, lat2 are in radians.
+  function is_inside_polygon(lon1, lat1, lon2, lat2 )
+     real, intent(in) :: lon1, lat1
+     real, intent(in) :: lon2(:), lat2(:)
+     logical          :: is_inside_polygon
+     real, dimension(size(lon2(:))) :: x2, y2, z2
+     integer                        :: npts, isinside
+     integer                        :: inside_a_polygon
+
+     npts = size(lon2(:))
+
+     isinside = inside_a_polygon(lon1, lat1, npts, lon2, lat2)
+     if(isinside == 1) then
+        is_inside_polygon = .TRUE.
+     else
+        is_inside_polygon = .FALSE.
+     endif
+
+     return
+
+  end function is_inside_polygon
 
 end module mosaic_mod
 

@@ -52,8 +52,10 @@ use constants_mod,   only: rad_to_deg, epsln
 use fms_mod,         only: error_mesg, FATAL, WARNING, stdout, stderr, mpp_error
 use fms_mod,         only: read_data
 use mpp_domains_mod, only: mpp_global_sum, mpp_get_neighbor_pe, mpp_update_domains
+use mpp_domains_mod, only: mpp_get_current_ntile, mpp_get_tile_id
 use mpp_domains_mod, only: NORTH, SOUTH, EAST, WEST
 use mpp_mod,         only: mpp_sum, NULL_PE
+use grid_mod,        only: get_grid_cell_vertices, get_grid_size
 
 use ocean_parameters_mod, only: onehalf, rho0r, grav, omega_earth
 use ocean_parameters_mod, only: GEOPOTENTIAL, ZSTAR, DEPTH_BASED
@@ -170,6 +172,9 @@ subroutine blob_util_init(Grid, Domain, PE_info, Blob_domain, &
   logical,                 intent(in)         :: debug_lots
 
   real, dimension(:,:), allocatable :: dxte, dxue, dytn, dyun, verticies
+  real, dimension(:,:), allocatable :: lon_vert, lat_vert
+  integer, dimension(:), allocatable :: tile_ids
+  integer :: tile, nlon, nlat
   integer :: stdoutunit
   integer :: nfstatus, gsfile, x_vert_t_id, y_vert_t_id, ni, nj
   integer :: i,j,m, iscii,jscjj
@@ -421,86 +426,43 @@ subroutine blob_util_init(Grid, Domain, PE_info, Blob_domain, &
   ! the horizontal) for the point location scheme.
   allocate( vert_t(2,4,isd:ied,jsd:jed) )
 
-  ni = iec - (isc-1) !the -1 is because we want isc:iec inclusive
-  nj = jec - (jsc-1) !the -1 is because we want jsc:jec inclusive
+  allocate(tile_ids(mpp_get_current_ntile(Dom%domain2d)))
+  tile_ids = mpp_get_tile_id(Dom%domain2d)
+  tile = tile_ids(1)    ! Assume one tile per PE
+  deallocate(tile_ids)
 
-  filename = 'INPUT/grid_spec.nc'
+  call get_grid_size('OCN', tile, nlon, nlat)
+  allocate(lon_vert(nlon+1, nlat+1))
+  allocate(lat_vert(nlon+1, nlat+1))
 
-  nfstatus = nf_open(trim(filename), NF_NOWRITE, gsfile)
-  call nferror('opening '//trim(filename))
+  call get_grid_cell_vertices('OCN', tile, lon_vert, lat_vert)
 
-  ! We take into account two different grid_spec standards.
-  ! One is: x_T, y_T, x_vert_T, y_vert_T.  
-  ! The other is: geolon_t, geolat_t, geolon_vert_t, geolat_vert_t
-  
-  other_vars=.false.
+  ! In this grid configuration, we derive the verticies from a 2d configuration
+  ! with shape (isc:iec+1,jsc:jec+1).
+  ! The verticies with the bottom left hand corner corresponding to i,j
+  !
+  !     4     3
+  !     +-----+
+  !     | i,j |
+  !     +-----+
+  !     1     2
+  !
+  ! 1==(i,j); 2==(i+1,j); 3==(i+1,j+1); 4==(i,j+1)
 
-  nfstatus = nf_inq_varid(gsfile, 'x_vert_T', x_vert_t_id)
-  if (nfstatus==NF_ENOTVAR) then
-     nfstatus = nf_inq_varid(gsfile, 'geolon_vert_t', x_vert_t_id)
-     call nferror('reading variable id for geolon_vert_t')
-     other_vars=.true.
-  else
-     call nferror('reading variable id for x_vert_T')
-  endif
+  call mpp_update_domains(lon_vert(:,:), Dom%domain2d)
+  vert_t(1, 1, isc:iec, jsc:jec) = lon_vert(isc:iec, jsc:jec)
+  vert_t(1, 2, isc:iec, jsc:jec) = lon_vert((1+isc):(1+iec), jsc:jec)
+  vert_t(1, 3, isc:iec, jsc:jec) = lon_vert((1+isc):(1+iec), (1+jsc):(1+jec))
+  vert_t(1, 4, isc:iec, jsc:jec) = lon_vert(isc:iec, (1+jsc):(1+jec))
 
-  if (other_vars) then
-     nfstatus = nf_inq_varid(gsfile, 'geolat_vert_t', y_vert_t_id)
-     call nferror('reading variable id for geolat_vert_t')
-  else
-     nfstatus = nf_inq_varid(gsfile, 'y_vert_T', y_vert_t_id)
-     call nferror('reading variable id for y_vert_T')
-  endif
+  call mpp_update_domains(lat_vert(:,:), Dom%domain2d)
+  vert_t(2, 1, isc:iec, jsc:jec) = lat_vert(isc:iec, jsc:jec)
+  vert_t(2, 2, isc:iec, jsc:jec) = lat_vert((1+isc):(1+iec), jsc:jec)
+  vert_t(2, 3, isc:iec, jsc:jec) = lat_vert((1+isc):(1+iec), (1+jsc):(1+jec))
+  vert_t(2, 4, isc:iec, jsc:jec) = lat_vert(isc:iec, (1+jsc):(1+jec))
 
-  allocate(verticies(isd:ied,jsd:jed))
-  if (other_vars) then !geolat_t, geolon_t
-
-     ! In this grid configuration, we derive the verticies from a 2d configuration with shape (isc:iec+1,jsc:jec+1).
-     ! The verticies with the bottom left hand corner corresponding to i,j
-     !4     3 
-     !+-----+
-     !| i,j |
-     !+-----+
-     !1     2
-     ! 1==(i,j); 2==(i+1,j); 3==(i+1,j+1); 4==(i,j+1)
-     ! thus:
-     ii(1)=0; jj(1)=0
-     ii(2)=1; jj(2)=0
-     ii(3)=1; jj(3)=1
-     ii(4)=0; jj(4)=1
-
-     do m=1,4
-        iscii=isc+ii(m)
-        jscjj=jsc+jj(m)
-        
-        nfstatus = nf_get_vara_double(gsfile, x_vert_t_id, (/iscii,jscjj/), (/ni,nj/), verticies(isc:iec,jsc:jec))
-        call nferror('getting values for variable geolon_vert_t')
-        call mpp_update_domains(verticies(:,:), Dom%domain2d)
-        vert_t(1,m,:,:) = verticies(:,:)
-        
-        nfstatus = nf_get_vara_double(gsfile, y_vert_t_id, (/iscii,jscjj/), (/ni,nj/), verticies(isc:iec,jsc:jec))
-        call nferror('getting values for variable geolat_vert_t')
-        call mpp_update_domains(verticies(:,:), Dom%domain2d)
-        vert_t(2,m,:,:) = verticies(:,:)
-     enddo
-
-  else !x_T, y_T
-     
-     do m=1,4
-        nfstatus = nf_get_vara_double(gsfile, x_vert_t_id, (/isc,jsc,m/), (/ni,nj,1/), verticies(isc:iec,jsc:jec))
-        call nferror('getting values for variable x_vert_T')
-        call mpp_update_domains(verticies(:,:), Dom%domain2d)
-        vert_t(1,m,:,:) = verticies(:,:)
-
-        nfstatus = nf_get_vara_double(gsfile, y_vert_t_id, (/isc,jsc,m/), (/ni,nj,1/), verticies(isc:iec,jsc:jec))
-        call nferror('getting values for variable y_vert_T')
-        call mpp_update_domains(verticies(:,:), Dom%domain2d)
-        vert_t(2,m,:,:) = verticies(:,:)
-     enddo
-  endif
-  deallocate(verticies)
-
-
+  deallocate(lon_vert)
+  deallocate(lat_vert)
 
   ! Now fill/get the values in the halos
   if (Info%pe_E==NULL_PE)  vert_t(:,:,ied,jsc:jec) = 0.0
@@ -511,9 +473,6 @@ subroutine blob_util_init(Grid, Domain, PE_info, Blob_domain, &
   if (Info%pe_NW==NULL_PE) vert_t(:,:,isd,jed)     = 0.0
   if (Info%pe_SW==NULL_PE) vert_t(:,:,isd,jsd)     = 0.0
   if (Info%pe_SE==NULL_PE) vert_t(:,:,ied,jsd)     = 0.0
-
-  nfstatus = nf_close(gsfile)
-  call nferror('closing '//trim(filename))
 
   ! The verticies are indexed from southwest, anticlockwise
   !                  4-----3
@@ -575,21 +534,6 @@ subroutine blob_util_init(Grid, Domain, PE_info, Blob_domain, &
      Info%minlat(i) = minval(vert_t(2,:,i,:))
      Info%maxlat(i) = maxval(vert_t(2,:,i,:))
   enddo
-
-contains
-
-  subroutine nferror(description)
-    character(len=*) :: description
-    if (nfstatus /= NF_NOERR) then
-       write (stdoutunit, *) ' '
-       write (stdoutunit, *) 'ocean_blob_util_mod, blob_util_init: problem '//trim(description)
-       write (stdoutunit, *) 'error code =', nfstatus
-       if (nfstatus==NF_EEDGE)        write(stdoutunit, *) '==>Start+count exceeds dimension bound'
-       if (nfstatus==NF_EINVALCOORDS) write(stdoutunit, *) '==>Index exceeds dimension bound'
-       
-       call mpp_error(FATAL, 'ocean_blob_util_mod, blob_util_init: problem '//trim(description))
-    endif
-  end subroutine nferror
 
 end subroutine blob_util_init
 ! </SUBROUTINE>  NAME="blob_util_init"

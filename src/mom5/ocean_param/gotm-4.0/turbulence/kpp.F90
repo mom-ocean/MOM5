@@ -324,6 +324,9 @@
 !  Original author(s): Lars Umlauf
 !
 !  $Log: kpp.F90,v $
+!  Revision 20.0  2013/12/14 00:13:46  fms
+!  Merged revision 1.1.2.1 onto trunk
+!
 !  Revision 1.1.2.1  2012/05/15 16:00:53  smg
 !  initial cvs ci for these modules to mom5.
 !  AUTHOR:Griffies
@@ -933,9 +936,9 @@
       shear2 = SS(i)
       cff    = shear2*shear2/(shear2*shear2+16.0E-10)
       nu_sx  = cff*nu_sx
-# else
+# else KPP_SHEAR
       nu_sx=_ZERO_
-# endif
+# endif KPP_SHEAR
 
 #ifdef KPP_INTERNAL_WAVE
 !
@@ -952,7 +955,7 @@
 #else
       iwm  =  _ZERO_
       iws  =  _ZERO_
-#endif
+#endif KPP_INTERNAL_WAVE
 
 
 # ifdef KPP_CONVEC
@@ -962,9 +965,9 @@
       cff    =  min(_ONE_,(bvfcon-cff)/bvfcon)
       nu_sxc =  _ONE_-cff*cff
       nu_sxc =  nu_sxc*nu_sxc*nu_sxc
-# else
+# else KPP_CONVEC
       nu_sxc =  _ZERO_
-# endif
+# endif KPP_CONVEC
 !
 !     Sum contributions due to internal wave breaking, shear instability
 !     and convective diffusivity due to shear instability.
@@ -1027,7 +1030,7 @@
       nuh(i)=nuh(i)  + nu_ddt
       nus(i)=nuh(i)  + nu_dds
 
-# endif
+# endif KPP_DDMIX
 
    enddo ! loop over interior points
 

@@ -56,7 +56,7 @@ program ocean_grid_generator
   implicit none
 
   character(len=128) :: version= '$Id: ocean_grid_generator.f90,v 13.0 2006/03/28 21:44:58 fms Exp $'
-  character(len=128) :: tagname='$Name: siena_201207 $'
+  character(len=128) :: tagname='$Name: tikal $'
 
   type(hgrid_data_type) :: Hgrid
   type(vgrid_data_type) :: Vgrid

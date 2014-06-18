@@ -39,8 +39,8 @@ public :: update_biomass_pools
 
 ! ==== module constants ======================================================
 character(len=*), parameter :: &
-     version = '$Id: vegn_cohort.F90,v 19.0 2012/01/06 20:43:56 fms Exp $', &
-     tagname = '$Name: siena_201207 $'
+     version = '$Id: vegn_cohort.F90,v 20.0 2013/12/13 23:31:00 fms Exp $', &
+     tagname = '$Name: tikal $'
 
 ! ==== types =================================================================
 type :: vegn_phys_prog_type
@@ -91,7 +91,7 @@ type :: vegn_cohort_type
   real    :: cover
 
   integer :: pt = 0  ! physiology type
-  integer :: phent = 0
+  integer :: phent = 0 ! phenology type
 
   real :: b      = 0.0 ! total biomass
   real :: babove = 0.0 ! total above ground biomass

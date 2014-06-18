@@ -46,8 +46,8 @@
       type(hst_pl), private, allocatable ::   imp_hst_loss(:)
       logical, private, allocatable      ::   factor(:)
 
-character(len=128), parameter :: version     = '$Id: mo_imp_slv.F90,v 17.0.4.1.2.1.2.1.4.1.2.1 2012/02/01 13:40:55 z1l Exp $'
-character(len=128), parameter :: tagname     = '$Name: siena_201207 $'
+character(len=128), parameter :: version     = '$Id: mo_imp_slv.F90,v 20.0 2013/12/13 23:25:05 fms Exp $'
+character(len=128), parameter :: tagname     = '$Name: tikal $'
 logical                       :: module_is_initialized = .false.
 
       contains
@@ -85,13 +85,13 @@ logical                       :: module_is_initialized = .false.
       factor(:) = .true.
       eps(:)    = rel_err
 
-    if (retain_cm3_bugs) then
-      ox_ndx = get_spc_ndx( 'OX' )
-    else
-      ox_ndx = get_spc_ndx ('O3')
+      if (retain_cm3_bugs) then
+        ox_ndx = get_spc_ndx( 'OX' )
+      else
+        ox_ndx = get_spc_ndx ('O3')
+      endif
       o1d_ndx = get_spc_ndx('O1D')
       h2o_ndx = get_spc_ndx('H2O')
-    endif
       if( ox_ndx > 0 ) then
          eps(ox_ndx) = high_rel_err
       else

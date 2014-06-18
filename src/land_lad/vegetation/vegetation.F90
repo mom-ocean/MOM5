@@ -155,7 +155,7 @@ end type vegetation_type
 logical :: module_is_initialized =.FALSE.
 character(len=*), private, parameter :: module_name = 'vegetation_mod'
 character(len=128), private, parameter :: version     = '$Id: vegetation.F90,v 15.0 2007/08/14 04:00:20 fms Exp $'
-character(len=128), private, parameter :: tagname        = '$Name: siena_201207 $'
+character(len=128), private, parameter :: tagname        = '$Name: tikal $'
 
 ! module constants
 real, parameter :: d622 = rdgas/rvgas

@@ -330,8 +330,8 @@ integer :: index_salt=-1
 integer :: index_temp_sq=-1
 integer :: index_salt_sq=-1
 
-character(len=256) :: version='CVS $Id: ocean_tracer_advect.F90,v 1.1.2.3 2012/06/01 20:47:08 Stephen.Griffies Exp $'
-character(len=256) :: tagname='Tag $Name: mom5_siena_08jun2012_smg $'
+character(len=256) :: version='CVS $Id: ocean_tracer_advect.F90,v 20.0 2013/12/14 00:17:22 fms Exp $'
+character(len=256) :: tagname='Tag $Name: tikal $'
 
 
 type(ocean_domain_type), pointer :: Dom =>NULL()

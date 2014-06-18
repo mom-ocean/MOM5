@@ -129,9 +129,9 @@ real, dimension(:,:,:), allocatable :: diff_cnt ! diffusivity for northern face 
 real, dimension(:,:,:), allocatable :: diffusivity_mask ! 3d mask to selectively apply diffusion
 
 character(len=128) :: version=&
-     '$Id: ocean_lap_tracer.F90,v 1.1.2.2 2012/06/01 20:47:08 Stephen.Griffies Exp $'
+     '$Id: ocean_lap_tracer.F90,v 20.0 2013/12/14 00:14:20 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 type(ocean_grid_type), pointer   :: Grd => NULL()
 type(ocean_domain_type), pointer :: Dom => NULL()

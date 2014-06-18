@@ -30,4 +30,4 @@
   sed "s/ocean_vert_kpp_nml/ocean_vert_kpp_mom4p1_nml/g" -i input.nml 
 #
 #Do not specify the layout so that the model could run on any npes
-  sed "/.*layout.*/d" -i input.nml
+#  sed "/.*layout.*/d" -i input.nml

@@ -227,7 +227,7 @@ char *usage[] = {
   NULL};
 #define EPSLN10  (1.e-10)
 const double D2R = M_PI/180.;
-char tagname[] = "$Name: siena_201205_z1l $";
+char tagname[] = "$Name: tikal $";
 
 int main(int argc, char* argv[])
 {
@@ -268,7 +268,8 @@ int main(int argc, char* argv[])
   char    *dst_vgrid = NULL;
   double  stop_crit=0.005;
   unsigned int  finer_step = 0;
-
+  int     great_circle_algorithm_in, great_circle_algorithm_out;
+  
   char          wt_file_obj[512];
   char          *weight_file=NULL;
   char          *weight_field = NULL;
@@ -482,7 +483,22 @@ int main(int argc, char* argv[])
   else {
     if(nlon !=0 || nlat != 0) mpp_error("fregrid: when output_mosaic is specified, nlon and nlat should not be specified");
   }
-  
+
+  if(!strcmp(interp_method, "conserve_order1") ) {
+    if(mpp_pe() == mpp_root_pe())printf("****fregrid: first order conservative scheme will be used for regridding.\n");
+    opcode |= CONSERVE_ORDER1;
+  }
+  else if(!strcmp(interp_method, "conserve_order2") ) {
+    if(mpp_pe() == mpp_root_pe())printf("****fregrid: second order conservative scheme will be used for regridding.\n");
+    opcode |= CONSERVE_ORDER2;
+  }
+  else if(!strcmp(interp_method, "bilinear") ) {
+    if(mpp_pe() == mpp_root_pe())printf("****fregrid: bilinear remapping scheme will be used for regridding.\n");  
+    opcode |= BILINEAR;
+  }
+  else
+    mpp_error("fregrid: interp_method must be 'conserve_order1', 'conserve_order2' or 'bilinear'");
+      
   if( nfiles == 0) {
     if(nvector > 0 || nscalar > 0 || nvector2 > 0)
       mpp_error("fregrid: when --input_file is not specified, --scalar_field, --u_field and --v_field should also not be specified");
@@ -563,21 +579,6 @@ int main(int argc, char* argv[])
   else
     ntiles_out = 1;
 
-  if(!strcmp(interp_method, "conserve_order1") ) {
-    if(mpp_pe() == mpp_root_pe())printf("****fregrid: first order conservative scheme will be used for regridding.\n");
-    opcode |= CONSERVE_ORDER1;
-  }
-  else if(!strcmp(interp_method, "conserve_order2") ) {
-    if(mpp_pe() == mpp_root_pe())printf("****fregrid: second order conservative scheme will be used for regridding.\n");
-    opcode |= CONSERVE_ORDER2;
-  }
-  else if(!strcmp(interp_method, "bilinear") ) {
-    if(mpp_pe() == mpp_root_pe())printf("****fregrid: bilinear remapping scheme will be used for regridding.\n");  
-    opcode |= BILINEAR;
-  }
-  else
-    mpp_error("fregrid: interp_method must be 'conserve_order1', 'conserve_order2' or 'bilinear'");
-
   if(test_case) {
     if(nfiles != 1) mpp_error("fregrid: when test_case is specified, nfiles should be 1");
     sprintf(output_file[0], "%s.%s.output", test_case, interp_method);
@@ -602,14 +603,27 @@ int main(int argc, char* argv[])
   grid_out  = (Grid_config *)malloc(ntiles_out*sizeof(Grid_config));
   bound_T   = (Bound_config *)malloc(ntiles_in *sizeof(Bound_config));
   interp    = (Interp_config *)malloc(ntiles_out*sizeof(Interp_config));
-  get_input_grid( ntiles_in, grid_in, bound_T, mosaic_in, opcode );
+  get_input_grid( ntiles_in, grid_in, bound_T, mosaic_in, opcode, &great_circle_algorithm_in );
   set_weight_inf( ntiles_in, grid_in, weight_file, weight_field);
   if(mosaic_out)
-    get_output_grid_from_mosaic( ntiles_out, grid_out, mosaic_out, opcode );
-  else
+    get_output_grid_from_mosaic( ntiles_out, grid_out, mosaic_out, opcode, &great_circle_algorithm_out );
+  else {
+    great_circle_algorithm_out = 0;
     get_output_grid_by_size(ntiles_out, grid_out, lonbegin, lonend, latbegin, latend,
 			    nlon, nlat, finer_step, y_at_center, opcode);
+  }
 
+  /* find out if great_circle algorithm is used in the input grid or output grid */
+  
+  if( great_circle_algorithm_in == 0 && great_circle_algorithm_out == 0 )
+    opcode |= LEGACY_CLIP;
+  else {
+    opcode |= GREAT_CIRCLE;
+    /* currently only first-order conservative is implemented */
+    if( !(opcode & CONSERVE_ORDER1) )
+      mpp_error("fregrid: when clip_method is 'conserve_great_circle', interp_methos need to be 'conserve_order1', contact developer");
+  }
+  
   /* currently extrapolate are limited to ntiles = 1. extrapolate are limited to lat-lon input grid */
   if( extrapolate ) {
     int i, j, ind0, ind1, ind2;

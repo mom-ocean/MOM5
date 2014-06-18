@@ -116,9 +116,9 @@ type(ocean_domain_type), pointer :: Dom => NULL()
 integer :: isd, ied, jsd, jed, isc, iec, jsc, jec, nk
 
 character(len=256) :: version=&
-     '=>Using: ocean_bih_friction.f90 ($Id: ocean_bih_friction.F90,v 1.1.2.2 2012/05/29 03:34:52 Stephen.Griffies Exp $)'
+     '=>Using: ocean_bih_friction.f90 ($Id: ocean_bih_friction.F90,v 20.0 2013/12/14 00:14:08 fms Exp $)'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 logical :: module_is_initialized = .false.
 logical :: write_a_restart       = .true.

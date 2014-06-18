@@ -1,3 +1,10 @@
+!-----------------------------------------------------------------------
+! Copyright 2011 NOAA Geophysical Fluid Dynamics Lab, Princeton, NJ
+! This program is distributed under the terms of the GNU General Public
+! License. See the file COPYING contained in this directory
+!
+!  This program averages variables stored in netCDF format over the time axis
+!-----------------------------------------------------------------------
 
 program time_average
 
@@ -11,7 +18,7 @@ integer, parameter  :: BSIZE = 65536
 integer            ::  blksz = BSIZE  ! blksz must be writable for nf__create
 
 !-----------------------------------------------------------------------
-character(len=256) :: file_names(MAX_FILES), file_name_out
+character(len=2048) :: file_names(MAX_FILES), file_name_out
 logical :: use_end_time = .true.
 logical :: verbose = .false.
 logical :: add_cell_methods = .false.
@@ -71,7 +78,7 @@ namelist /input/   file_names, file_name_out, use_end_time, verbose, &
     enddo
        do i=1,len(file_name_out); file_name_out(i:i) = ' '; enddo
 
-  ! create version string (may replace with CVS $Id: time_average.f90,v 19.0 2012/01/06 22:07:34 fms Exp $)
+  ! create version string (may replace with CVS $Id: time_average.f90,v 20.0 2013/12/14 00:30:08 fms Exp $)
     version = 'FMS time averaging, version 3.0'
     if (precision(ddata) == precision(time)) then
         version = trim(version)//', precision=double'

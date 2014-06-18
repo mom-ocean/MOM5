@@ -36,7 +36,7 @@ use mpp_mod,            only: input_nml_file
 #else
 use fms_mod,            only: open_namelist_file
 #endif
-use fms_mod,            only: file_exist, error_mesg, field_size, FATAL, NOTE
+use fms_mod,            only: file_exist, error_mesg, field_size, FATAL, NOTE, WARNING
 use fms_mod,            only: close_file,  write_version_number, stdlog, stdout
 use fms_mod,            only: read_data, write_data, clock_flag_default
 use fms_mod,            only: open_restart_file, check_nml_error
@@ -177,8 +177,8 @@ logical                                :: in_different_file = .false.
 
 !-----------------------------------------------------------------------
 
-character(len=128) :: version = '$Id: atmos_model.F90,v 19.0 2012/01/06 20:00:03 fms Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: atmos_model.F90,v 20.0 2013/12/13 23:08:05 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 integer :: ivapor = NO_TRACER ! index of water vapor tracer
 
@@ -539,7 +539,7 @@ type (time_type), intent(in) :: Time_init, Time, Time_step
        call restore_state(Atm_restart)
        if(in_different_file)call restore_state(Til_restart)
        if (ipts /= mlon .or. jpts /= mlat) call error_mesg &
-               ('coupled_atmos_init', 'incorrect resolution on restart file', FATAL)
+               ('coupled_atmos_init', 'incorrect resolution on restart file', WARNING)
 
 !---- if the time step has changed then convert ----
 !        tendency to conserve mass of water

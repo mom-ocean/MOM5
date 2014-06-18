@@ -5,12 +5,13 @@
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!
 module ice_dyn_mod
 
-  use mpp_domains_mod, only: mpp_update_domains
+  use mpp_domains_mod, only: mpp_update_domains, BGRID_NE
   use constants_mod,   only: grav, pi
   use ice_grid_mod,    only: Domain, isc, iec, im, jsc, jec, isd, ied, jsd, jed, jm
   use ice_grid_mod,    only: dtw, dte, dts, dtn, dxt, dxv, dyt, dyv, cor, wett, wetv
   use ice_grid_mod,    only: t_on_uv, t_to_uv, dTdx, dTdy, dt_evp, evp_sub_steps
   use ice_grid_mod,    only: dydx, dxdy
+  use ice_grid_mod,    only: reproduce_siena_201303
   use ice_thm_mod,     only: DI, DS, DW
 
   implicit none
@@ -199,7 +200,11 @@ contains
     do l=1,evp_sub_steps
        !
        ! calculate strain tensor for viscosities and forcing elastic eqn.
-       call mpp_update_domains(ui, vi, Domain)
+       if(reproduce_siena_201303) then
+          call mpp_update_domains(ui, vi, Domain)
+       else
+          call mpp_update_domains(ui, vi, Domain, gridtype=BGRID_NE)
+       endif
 !rab       call mpp_update_domains(vi, Domain)
        !
        call set_strn(ui, vi, strn11, strn22, strn12)

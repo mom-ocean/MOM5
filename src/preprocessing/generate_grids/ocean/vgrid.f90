@@ -140,7 +140,7 @@ module vgrid_mod
   logical                         :: module_is_initialized = .false.
   !---------version information-------------------------------------------
   character(len=128) :: version = '$Id: vgrid.f90,v 13.0 2006/03/28 21:45:06 fms Exp $'
-  character(len=128) :: tagname = '$Name: siena_201207 $' 
+  character(len=128) :: tagname = '$Name: tikal $' 
   !---------public interface----------------------------------------------
   public :: generate_vgrid, vgrid_init, vgrid_end, write_vgrid_meta, write_vgrid_data
 

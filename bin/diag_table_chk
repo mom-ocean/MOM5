@@ -1,8 +1,8 @@
 #! /usr/bin/perl
 
-# $Author: fms $
-# $Revision: 17.0 $
-# $Date: 2009/08/10 20:51:27 $
+# $Author: Niki.Zadeh $
+# $Revision: 1.1.2.1 $
+# $Date: 2013/12/18 17:47:53 $
 
 # Perl script to parse the diag_table.  Count the number of files to
 # be used, and the max number of fields per file used.

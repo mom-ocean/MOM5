@@ -79,7 +79,7 @@ public   atmosphere_init, atmosphere,  atmosphere_end, atmosphere_domain
 !-----------------------------------------------------------------------
 
 character(len=128) :: version = '$Id: atmosphere.F90,v 19.0 2012/01/06 20:00:14 fms Exp $'
-character(len=128) :: tag = '$Name: siena_201207 $'
+character(len=128) :: tag = '$Name: tikal $'
 
 !-----------------------------------------------------------------------
 !---- private data ----

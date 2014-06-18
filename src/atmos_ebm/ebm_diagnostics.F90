@@ -37,7 +37,7 @@ private
 public :: ebm_diagnostics_init, ebm_diagnostics_up, ebm_diagnostics_down
 
 character(len=84), parameter :: version = '$Id: ebm_diagnostics.F90,v 11.0 2004/09/28 19:10:27 fms Exp $'
-character(len=84), parameter :: tagname='$Name: siena_201207 $'
+character(len=84), parameter :: tagname='$Name: tikal $'
 !-----------------------------------------------------------------------
 !------------------------- axis names ----------------------------------
 character(len=8) :: axiset   = 'ebm'

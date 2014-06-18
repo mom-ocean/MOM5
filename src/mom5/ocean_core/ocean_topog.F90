@@ -61,8 +61,8 @@ use ocean_util_mod,       only: write_chksum_2d, write_chksum_2d_int
 implicit none
 private
 
-character(len=256) :: version='CVS $Id: ocean_topog.F90,v 1.1.2.2 2012/05/17 13:41:40 smg Exp $'
-character(len=256) :: tagname='Tag $Name: mom5_siena_08jun2012_smg $'
+character(len=256) :: version='CVS $Id: ocean_topog.F90,v 20.0 2013/12/14 00:12:35 fms Exp $'
+character(len=256) :: tagname='Tag $Name: tikal $'
 
 #include <ocean_memory.h>
 

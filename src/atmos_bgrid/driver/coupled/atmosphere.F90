@@ -65,7 +65,7 @@ public  surf_diff_type,      get_stock_pe
 !-----------------------------------------------------------------------
 
 character(len=128) :: version = '$Id: atmosphere.F90,v 19.0 2012/01/06 19:52:46 fms Exp $'
-character(len=128) :: tag = '$Name: siena_201207 $'
+character(len=128) :: tag = '$Name: tikal $'
 
 !-----------------------------------------------------------------------
 !---- namelist (saved in file input.nml) ----

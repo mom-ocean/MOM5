@@ -1,0 +1,15 @@
+# Template for IBM xlf and xlc compilers
+#typical use with netCDF:
+# mkmf -t template.ibm -c"-Duse_libMPI -Duse_netCDF" path_names /usr/local/include
+FC = mpxlf90_r
+LD = mpxlf90_r
+CC = mpcc_r
+ CPPFLAGS =
+ NETCDF = /usr/local
+ FFLAGS   = $(CPPFLAGS) -I$(NETCDF)/include -O2 -qalias_size=1207959552 -qmaxmem=256000 -g -d -qsuffix=cpp=F90 -qintsize=4 -qrealsize=8 -qdpc -qextname=flush -qextname=mld_id -qsmp=omp:noauto -qnohot -qsimd=noauto -qnoipa
+ GFLAGS   = $(CPPFLAGS) -I$(NETCDF)/include -O2 -qalias_size=1207959552 -qmaxmem=256000 -g -d -qsuffix=cpp=F90 -qintsize=4 -qrealsize=8 -qdpc -qextname=flush -qextname=mld_id -qsmp=omp:noauto -qnohot -qsimd=noauto
+ PFLAGS   = $(CPPFLAGS) -I$(NETCDF)/include -O0 -qalias_size=1207959552 -qmaxmem=256000 -g -d -qsuffix=cpp=F90 -qintsize=4 -qrealsize=8 -qdpc -qextname=flush -qextname=mld_id -qsmp=omp:noauto -qnohot -qsimd=noauto
+ QFLAGS   = $(CPPFLAGS) -I$(NETCDF)/include -O2 -qalias_size=1207959552 -qmaxmem=256000 -g -d -qsuffix=cpp=F90 -qintsize=4 -qrealsize=8 -qdpc -qextname=flush -qextname=mld_id -qsmp=omp:noauto -qnohot -qsimd=noauto -qfixed
+ CFLAGS = -I$(NETCDF)/include
+ LDFLAGS = -L$(NETCDF)/lib -lnetcdf -lmass -qsmp
+

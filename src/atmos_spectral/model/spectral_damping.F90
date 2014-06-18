@@ -19,7 +19,7 @@ logical :: module_is_initialized = .false.
 integer :: ms, me, ns, ne, num_levels
 
 character(len=128), parameter :: version = '$Id: spectral_damping.F90,v 17.0 2009/07/21 03:00:53 fms Exp $'
-character(len=128), parameter :: tagname = '$Name: siena_201207 $'
+character(len=128), parameter :: tagname = '$Name: tikal $'
 
 public :: spectral_damping_init, spectral_damping_end, compute_spectral_damping
 public :: compute_spectral_damping_vor, compute_spectral_damping_div

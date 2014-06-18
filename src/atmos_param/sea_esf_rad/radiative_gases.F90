@@ -70,8 +70,8 @@ private
 !----------- version number for this module --------------------------
 
 character(len=128)  :: version =  &
-'$Id: radiative_gases.F90,v 19.0 2012/01/06 20:22:59 fms Exp $'
-character(len=128)  :: tagname =  '$Name: siena_201207 $'
+'$Id: radiative_gases.F90,v 20.0 2013/12/13 23:20:28 fms Exp $'
+character(len=128)  :: tagname =  '$Name: tikal $'
 
 !---------------------------------------------------------------------
 !-------  interfaces --------
@@ -3439,6 +3439,7 @@ real,                               intent(out)   :: rgas
       integer    :: index1, index2
       real       :: percent_of_period
       type(time_type) :: Gas_entry
+      character(len=256) :: err_msg
 
 !-------------------------------------------------------------------
 !    define the gas_name which is currently being processed.
@@ -3545,7 +3546,10 @@ real,                               intent(out)   :: rgas
                                   gas_dataset_entry(5), &
                                   gas_dataset_entry(6))     
             call time_interp (Gas_entry, Gas_time_list,  &
-                              percent_of_period, index1, index2)
+                              percent_of_period, index1, index2, err_msg=err_msg)
+            if(err_msg /= '') then
+               call error_mesg('radiative_gases_mod ',trim(err_msg)//' file='//trim(file_name), FATAL)
+            endif
             rgas = gas_value(index1) + percent_of_period*  &
                    (gas_value(index2) - gas_value(index1))
             call error_mesg ( 'radiative_gases_mod', &
@@ -3763,6 +3767,7 @@ logical,            intent(inout), optional  :: &
      integer            :: days7, seconds7
      type(time_type)    :: Tf_displ, First_of_month, Gas_tf_next, &
                            Time_left
+     character(len=256) :: err_msg
 !---------------------------------------------------------------------
 !  local variables:
 !    
@@ -3872,7 +3877,10 @@ logical,            intent(inout), optional  :: &
       else if (trim(gas_specification_type) == 'time_series') then
         call time_interp (Rad_time, Gas_time_list,   &
 !       call time_interp (Gas_time, Gas_time_list,   &
-                          percent_of_period, index1, index2)
+                          percent_of_period, index1, index2, err_msg=err_msg)
+        if(err_msg /= '') then
+           call error_mesg('radiative_gases_mod 1',trim(err_msg), FATAL)
+        endif
         rrvgas   = gas_value(index1) + percent_of_period*  &
                    (gas_value(index2) - gas_value(index1))
       endif
@@ -3970,7 +3978,10 @@ logical,            intent(inout), optional  :: &
                                             mean_days*3600.), 0)
             call time_interp (Rad_time - Tf_calc_intrvl, Gas_time_list, &
 !           call time_interp (Gas_time - Tf_calc_intrvl, Gas_time_list, &
-                              percent_of_period, index1, index2)
+                              percent_of_period, index1, index2, err_msg=err_msg)
+            if(err_msg /= '') then
+               call error_mesg('radiative_gases_mod 2',trim(err_msg), FATAL)
+            endif
             gas_for_last_tf_calc   = gas_value(index1) +    &
                                      percent_of_period*  &
                                      (gas_value(index2) -   &
@@ -4074,12 +4085,13 @@ logical,            intent(inout), optional  :: &
                Tf_offset = Time_left
                if (gas_tf_offset > 0) then
                  call time_interp (Rad_time + Tf_offset, Gas_time_list,&
-
-
-                                percent_of_period, index1, index2)
+                                percent_of_period, index1, index2, err_msg=err_msg)
                else
                  call time_interp (Rad_time - Tf_offset, Gas_time_list,&
-                                percent_of_period, index1, index2)
+                                percent_of_period, index1, index2, err_msg=err_msg)
+               endif
+               if(err_msg /= '') then
+                  call error_mesg('radiative_gases_mod 3',trim(err_msg), FATAL)
                endif
              else
                days3 = NINT(gas_tf_offset/24.0)
@@ -4087,7 +4099,10 @@ logical,            intent(inout), optional  :: &
                seconds3 = NINT(rseconds3)
                Tf_offset = set_time (seconds3, days3)
                call time_interp (Rad_time + Tf_offset, Gas_time_list,  &
-                                percent_of_period, index1, index2)
+                                percent_of_period, index1, index2,err_msg=err_msg)
+               if(err_msg /= '') then
+                  call error_mesg('radiative_gases_mod 4',trim(err_msg), FATAL)
+               endif
               endif
               gas_for_next_tf_calc   = gas_value(index1) +    &
                                        percent_of_period*  &

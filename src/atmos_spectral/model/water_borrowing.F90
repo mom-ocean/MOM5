@@ -10,7 +10,7 @@ private
 public :: water_borrowing
 
 character(len=128), parameter :: version = '$Id: water_borrowing.F90,v 10.0 2003/10/24 22:01:01 fms Exp $'
-character(len=128), parameter :: tagname = '$Name: siena_201207 $'
+character(len=128), parameter :: tagname = '$Name: tikal $'
 logical :: entry_to_logfile_done = .false.
 
 contains

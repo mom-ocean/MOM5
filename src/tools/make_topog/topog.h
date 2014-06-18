@@ -15,7 +15,7 @@ void create_realistic_topog(int nx_dst, int ny_dst, const double *x_dst, const d
 			    int deepen_shallow, int full_cell, int flat_bottom, int adjust_topo,
 			    int fill_isolated_cells, int dont_change_landmask, int kmt_min, double min_thickness,
 			    int open_very_this_cell, double fraction_full_cell, double *depth, 
-                            int *num_levels, domain2D domain, int debug );
+                            int *num_levels, domain2D domain, int debug, int great_circle_algorithm );
 
 void create_box_channel_topog(int nx, int ny, double basin_depth,
 			      double jwest_south, double jwest_north, double jeast_south,

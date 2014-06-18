@@ -114,7 +114,7 @@ program river_regrid
 
   !--- version information ---------------------------------------------
   character(len=128) :: version = '$ID$'
-  character(len=128) :: tagname = '$Name: siena_201207 $'
+  character(len=128) :: tagname = '$Name: tikal $'
 
   !--- other variables
   type(river_regrid_type),save      :: Source

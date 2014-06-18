@@ -26,11 +26,12 @@ module river_type_mod
   private
 
 !--- version information ---------------------------------------------
-  character(len=128) :: version = '$Id: river_type.F90,v 18.0 2010/03/02 23:37:04 fms Exp $'
-  character(len=128) :: tagname = '$Name: siena_201207 $'
+  character(len=128) :: version = '$Id: river_type.F90,v 20.0 2013/12/13 23:29:45 fms Exp $'
+  character(len=128) :: tagname = '$Name: tikal $'
 
 !--- public interface ------------------------------------------------
   public :: river_type, Leo_Mad_trios
+  integer, public, parameter :: NO_RIVER_FLAG = -9999
 
 !--- public data type ------------------------------------------------
 

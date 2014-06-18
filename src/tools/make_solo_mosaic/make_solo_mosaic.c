@@ -60,7 +60,7 @@ const int MAXTILE = 100;
 const int MAXCONTACT = 100;
 const int SHORTSTRING = 32;
 char grid_version[] = "0.2";
-char tagname[] = "$Name: siena_201205_z1l $";
+char tagname[] = "$Name: tikal $";
 
 main (int argc, char *argv[])
 {
@@ -223,6 +223,8 @@ main (int argc, char *argv[])
       }
     }
   }
+
+  printf("NOTE from make_solo_mosaic: there are %d contacts (align-contact)\n", ncontact);
 
   for(n=0; n<ntiles; n++) {
     for(m=n+1; m<ntiles; m++) {

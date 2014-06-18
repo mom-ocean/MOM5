@@ -57,8 +57,8 @@ private
 type(ocean_domain_type), pointer :: Dom => NULL()
 type(ocean_grid_type),   pointer :: Grd => NULL()
 
-character(len=128)  :: version='$Id: ocean_shortwave.F90,v 1.1.2.3 2012/06/01 20:47:08 Stephen.Griffies Exp $'
-character (len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
+character(len=128)  :: version='$Id: ocean_shortwave.F90,v 20.0 2013/12/14 00:16:14 fms Exp $'
+character (len=128) :: tagname = '$Name: tikal $'
 
 public  ocean_shortwave_init
 public  ocean_irradiance_init

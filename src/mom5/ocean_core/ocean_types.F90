@@ -16,10 +16,10 @@
 
 module ocean_types_mod
 !
-!<CONTACT EMAIL="Matthew.Harrison@noaa.gov"> Matt Harrison
+!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Matt Harrison
 !</CONTACT>
 !
-!<CONTACT EMAIL="Stephen.Griffies@noaa.gov">
+!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
 ! S. M. Griffies 
 !</CONTACT>
 !
@@ -46,9 +46,9 @@ module ocean_types_mod
 
   logical :: module_is_initialized=.false.
   character(len=128) :: version = &
-     '$Id: ocean_types.F90,v 1.1.2.17 2012/06/04 00:11:43 Stephen.Griffies Exp $'
+     '$Id: ocean_types.F90,v 20.0 2013/12/14 00:12:37 fms Exp $'
   character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 
   type, public :: obc_flux
@@ -140,7 +140,7 @@ module ocean_types_mod
 
      real, dimension(isd:ied,jsd:jed,nk)   :: rho_dzt_tendency ! rho_dzt tendency (kg/m^3)*(m/s)
 
-     real, dimension(isd:ied,jsd:jed)      :: sea_lev     ! eta_t + patm/(rho0*grav) - eta_geoid - eta_tide (m) at time taup1 for coupler
+     real, dimension(isd:ied,jsd:jed)      :: sea_lev     ! eta_t + patm/(rho0*grav) - eta_geoid - eta_tide (m) at time taup1 for coupler 
      real, dimension(isd:ied,jsd:jed,nk)   :: dzt         ! thickness (m) of T cell at time tau/taup1
      real, dimension(isd:ied,jsd:jed,nk,2) :: dzten       ! thickness (m) of east/north face of T cell at time tau/taup1
      real, dimension(isd:ied,jsd:jed,nk)   :: dzu         ! thickness (m) of U cell at time tau/taup1
@@ -556,11 +556,16 @@ module ocean_types_mod
      real, dimension(isd:ied,jsd:jed,2)      :: smf_cgrid       ! momentum flux per mass into ocean surface at Cgrid u/v points (N/m^2)
      real, dimension(isd:ied,jsd:jed,2)      :: bmf             ! momentum flux per mass into ocean bottom  (N/m^2)
      real, dimension(isd:ied,jsd:jed)        :: gamma           ! dimensionful bottom drag coefficient (kg/(m^2 sec))
+     real, dimension(isd:ied,jsd:jed)        :: langmuirfactor  ! dimensionless langmuir turbulence enhancement factor (non dimensional)
+     real, dimension(isd:ied,jsd:jed)        :: ustoke          ! x-dir surface stokes drift (m/s)
+     real, dimension(isd:ied,jsd:jed)        :: vstoke          ! y-dir surface stokes drift (m/s)
+     real, dimension(isd:ied,jsd:jed)        :: wavlen          ! wave length (m)
      real, dimension(isd:ied,jsd:jed)        :: cdbot_array     ! dimensionless static bottom drag coefficient
      real, dimension(isd:ied,jsd:jed)        :: current_wave_stress !wave-current bottom stress for sediment dynamics (N/m^2)
      real, dimension(isd:ied,jsd:jed)        :: rossby_radius   ! first baroclinic rossby radius (m)
      real, dimension(isd:ied,jsd:jed)        :: stokes_depth    ! depth scale (m) used for exponential decay of surface wave Stokes velocity
      real, dimension(isd:ied,jsd:jed,nk,2)   :: stokes_drift    ! Stokes drift velocity (m/s) from surface wave model 
+     real, dimension(isd:ied,jsd:jed,nk,2)   :: stokes_force    ! Coriolis force from Stokes drift (N/m^2)
      real, dimension(isd:ied,jsd:jed,nk,2)   :: press_force     ! thickness*density weighted (i,j)-directed press force (N/m^2)
      real, dimension(isd:ied,jsd:jed,nk,2)   :: accel           ! thickness*density weighted (i,j)-directed acceleration (N/m^2)
      real, dimension(isd:ied,jsd:jed,nk,2)   :: vfrict_impl     ! thickness*density weighted vertical friction (N/m^2)
@@ -672,7 +677,7 @@ module ocean_types_mod
 
      real, dimension(:,:,:),   _ALLOCATABLE :: rho_dzt_tendency _NULL ! rho_dzt tendency (kg/m^3)*(m/s)
 
-     real, dimension(:,:),     _ALLOCATABLE :: sea_lev _NULL ! eta_t + patm/(rho0*grav) - eta_geoid - eta_tide (m) at time taup1 for coupler
+     real, dimension(:,:),     _ALLOCATABLE :: sea_lev _NULL ! eta_t + patm/(rho0*grav) - eta_geoid - eta_tide (m) at time taup1 for coupler 
 
      real, dimension(:,:,:),   _ALLOCATABLE :: dzt    _NULL ! E system contribution to dztT
      real, dimension(:,:,:,:), _ALLOCATABLE :: dzten  _NULL ! E system contribution to dzt at east/north face of T-cell
@@ -1079,11 +1084,16 @@ module ocean_types_mod
      real, _ALLOCATABLE, dimension(:,:,:)     :: smf_cgrid       _NULL ! momentum flux into ocn surface (N/m^2) at Cgrid u/v points
      real, _ALLOCATABLE, dimension(:,:,:)     :: bmf             _NULL ! momentum flux per mass into ocean bottom  (N/m^2)
      real, _ALLOCATABLE, dimension(:,:)       :: gamma           _NULL ! dimensionful bottom drag coefficient (kg/(m^2 sec))
+     real, _ALLOCATABLE, dimension(:,:)       :: langmuirfactor  _NULL ! Langmuir turbulence enhancement factor
+     real, _ALLOCATABLE, dimension(:,:)       :: ustoke          _NULL ! x-dir surface stokes drift
+     real, _ALLOCATABLE, dimension(:,:)       :: vstoke          _NULL ! y-dir surface stokes drift
+     real, _ALLOCATABLE, dimension(:,:)       :: wavlen          _NULL ! wave length
      real, _ALLOCATABLE, dimension(:,:)       :: cdbot_array     _NULL ! dimensionless static bottom drag coefficient
      real, _ALLOCATABLE, dimension(:,:)       :: current_wave_stress _NULL !wave-current bottom stress for sediment dynamics (N/m^2)
      real, _ALLOCATABLE, dimension(:,:)       :: rossby_radius   _NULL ! first baroclinic rossby radius (m)
      real, _ALLOCATABLE, dimension(:,:)       :: stokes_depth    _NULL ! depth scale (m) for exp decay of surface wave Stokes vel
      real, _ALLOCATABLE, dimension(:,:,:,:)   :: stokes_drift    _NULL ! Stokes drift velocity (m/s) from surface wave model 
+     real, _ALLOCATABLE, dimension(:,:,:,:)   :: stokes_force    _NULL ! Coriolis force from Stokes drift velocity (N/m2)
      real, _ALLOCATABLE, dimension(:,:,:,:)   :: press_force     _NULL ! rho*dz*horz (i,j)-directed press force (N/m^2)
      real, _ALLOCATABLE, dimension(:,:,:,:)   :: accel           _NULL ! rho*dz*velocity (i,j)-directed acceleration (N/m^2)
      real, _ALLOCATABLE, dimension(:,:,:,:)   :: vfrict_impl     _NULL ! rho*dz*vertical friction (N/m^2)
@@ -1201,6 +1211,10 @@ module ocean_types_mod
      real, pointer, dimension(:,:) :: calving_hflx    =>NULL() ! heat flux, relative to 0C, of frozen land water into ocean (W/m2) 
      real, pointer, dimension(:,:) :: p               =>NULL() ! pressure of overlying sea ice and atmosphere (Pa)
      real, pointer, dimension(:,:) :: mi              =>NULL() ! mass of overlying sea ice 
+     real, pointer, dimension(:,:) :: langmuirfactor  =>NULL() ! langmuir turbulence boost factor (non-dimensional)
+     real, pointer, dimension(:,:) :: ustoke          =>NULL() ! x-dir surface stokes drift
+     real, pointer, dimension(:,:) :: vstoke          =>NULL() ! y-dir surface stokes drift
+     real, pointer, dimension(:,:) :: wavlen          =>NULL() ! wave length
 
      integer :: xtype                                          ! REGRID, REDIST or DIRECT
 
@@ -1217,7 +1231,7 @@ module ocean_types_mod
      real, pointer, dimension(:,:)    :: s_surf  =>NULL() ! SSS on t-cell (psu)
      real, pointer, dimension(:,:)    :: u_surf  =>NULL() ! i-directed surface ocean velocity on u-cell (m/s)
      real, pointer, dimension(:,:)    :: v_surf  =>NULL() ! j-directed surface ocean velocity on u-cell (m/s)
-     real, pointer, dimension(:,:)    :: sea_lev =>NULL() ! eta_t + patm/(rho0*grav) - eta_geoid - eta_tide (m)
+     real, pointer, dimension(:,:)    :: sea_lev =>NULL() ! eta_t + patm/(rho0*grav) - eta_geoid - eta_tide (m) 
      real, pointer, dimension(:,:)    :: frazil  =>NULL() ! accumulated heating (J/m^2) from 
                                                           ! frazil formation in the ocean 
      real, pointer, dimension(:,:)    :: area    =>NULL() ! T-cell area.

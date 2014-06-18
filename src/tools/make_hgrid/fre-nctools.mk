@@ -1,5 +1,5 @@
 #
-# $Id: fre-nctools.mk,v 1.1.4.2.2.2.2.3.2.2 2012/06/06 15:59:43 Zhi.Liang Exp $
+# $Id: fre-nctools.mk,v 20.0 2013/12/14 00:33:28 fms Exp $
 # ------------------------------------------------------------------------------
 # FMS/FRE Project: Makefile to Build Regridding Executables
 # ------------------------------------------------------------------------------
@@ -22,23 +22,26 @@ CFLAGS_O2:= -O2 -traceback
 INCLUDES := -I${NETCDF_HOME}/include -I./ -I../shared -I../../shared/mosaic
 CLIBS     := -L${NETCDF_HOME}/lib -L${HDF5_HOME}/lib -lnetcdf -lhdf5_hl -lhdf5 -lz -limf $(CLIBS2) $(STATIC)
 
-TARGETS  := make_hgrid 
+TARGETS  := make_hgrid make_hgrid_parallel
 
 SOURCES  := make_hgrid.c create_conformal_cubic_grid.c create_gnomonic_cubic_grid.c create_grid_from_file.c create_lonlat_grid.c
 SOURCES  += mpp_domain.c mpp_io.c tool_util.c
-SOURCES  += create_xgrid.c interp.c read_mosaic.c
+SOURCES  += read_mosaic.c create_xgrid.c interp.c
 
 OBJECTS  := $(SOURCES:c=o)
 
 HEADERS = fre-nctools.mk ../shared/mpp.h  ../shared/mpp_domain.h  ../shared/mpp_io.h ../shared/tool_util.h   \
           ../../shared/mosaic/constant.h ../../shared/mosaic/create_xgrid.h  \
           ../../shared/mosaic/interp.h  ../../shared/mosaic/mosaic_util.h  \
-          ./create_hgrid.h ../../shared/mosaic/read_mosaic.h 
+          ../../shared/mosaic/read_mosaic.h ./create_hgrid.h
 
 all: $(TARGETS)
 
 make_hgrid: $(OBJECTS) mosaic_util.o mpp.o
 	$(CC) -o $@ $^ $(CLIBS)
+
+make_hgrid_parallel: $(OBJECTS) mosaic_util_parallel.o mpp_parallel.o
+	$(MPICC) -o $@ $^ $(CLIBS)
 
 make_hgrid.o: make_hgrid.c $(HEADERS)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< 
@@ -58,8 +61,14 @@ create_grid_from_file.o: create_grid_from_file.c $(HEADERS)
 mosaic_util.o: ../../shared/mosaic/mosaic_util.c $(HEADERS)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< 
 
+mosaic_util_parallel.o: ../../shared/mosaic/mosaic_util.c $(HEADERS)
+	$(MPICC) -Duse_libMPI $(CFLAGS) $(INCLUDES) -o $@ -c $< 
+
 read_mosaic.o: ../../shared/mosaic/read_mosaic.c $(HEADERS)
 	$(CC) -Duse_netCDF $(CFLAGS) $(INCLUDES) -c $< 
+
+read_mosaic_parallel.o: ../../shared/mosaic/read_mosaic.c $(HEADERS)
+	$(MPICC) -Duse_libMPI -Duse_netCDF $(CFLAGS) $(INCLUDES) -o $@ -c $< 
 
 interp.o: ../../shared/mosaic/interp.c $(HEADERS)
 	$(CC) -Duse_netCDF $(CFLAGS) $(INCLUDES) -c $< 
@@ -72,6 +81,9 @@ mpp_domain.o: ../shared/mpp_domain.c $(HEADERS)
 
 mpp.o: ../shared/mpp.c $(HEADERS)
 	$(CC) $(CFLAGS) $(INCLUDES) -o $@ -c $< 
+
+mpp_parallel.o: ../shared/mpp.c $(HEADERS)
+	$(MPICC) -Duse_libMPI $(CFLAGS) $(INCLUDES) -o $@ -c $< 
 
 tool_util.o: ../shared/tool_util.c $(HEADERS)
 	$(CC) $(CFLAGS) $(INCLUDES) -o $@ -c $< 

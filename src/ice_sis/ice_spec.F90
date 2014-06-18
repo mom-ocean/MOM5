@@ -4,7 +4,8 @@
 module ice_spec_mod
 
 use fms_mod, only: open_namelist_file, check_nml_error, close_file, &
-                   stdlog, mpp_pe, mpp_root_pe, write_version_number
+                   stdlog, stdout, mpp_pe, mpp_root_pe, write_version_number
+use mpp_mod, only: input_nml_file
 
 use time_manager_mod, only: time_type, get_date, set_date
 use data_override_mod,only: data_override
@@ -15,8 +16,8 @@ include 'netcdf.inc'
 private
 public :: get_sea_surface
 
-character(len=128), parameter :: version = '$Id: ice_spec.F90,v 17.0 2009/07/21 03:01:45 fms Exp $'
-character(len=128), parameter :: tagname = '$Name: siena_201207 $'
+character(len=128), parameter :: version = '$Id: ice_spec.F90,v 20.0 2013/12/13 23:28:29 fms Exp $'
+character(len=128), parameter :: tagname = '$Name: tikal $'
 
 logical :: module_is_initialized = .false.
 
@@ -54,18 +55,25 @@ real ::  t_sw_freeze
 integer :: ierr, io, unit
 type(time_type) :: Spec_Time
 integer :: tod(3),dum
+integer :: stdoutunit,stdlogunit
+
+stdoutunit=stdout()
+stdlogunit=stdlog()
 
 if(.not.module_is_initialized) then
-   unit = open_namelist_file()
-   ierr=1
-   do while (ierr /= 0)
-     read(unit, nml=ice_spec_nml, iostat=io, end=20)
-     ierr = check_nml_error (io, 'ice_spec_nml')
-   enddo
-20 call close_file (unit)
+#ifdef INTERNAL_FILE_NML
+    read (input_nml_file, nml=ice_spec_nml, iostat=io)
+#else
+    unit = open_namelist_file()
+    read  (unit, ice_spec_nml,iostat=io)
+    call close_file (unit)
+#endif
+    ierr = check_nml_error(io,'ice_spec_nml')
+    write (stdoutunit,'(/)')
+    write (stdoutunit, ice_spec_nml)
+    write (stdlogunit, ice_spec_nml)
+
    call write_version_number(version, tagname)
-   unit = stdlog()
-   if(mpp_pe() == mpp_root_pe()) write (unit, nml=ice_spec_nml)
    module_is_initialized = .true.
 endif
 

@@ -26,7 +26,7 @@ character(len=128), parameter :: version = &
 '$Id: ic_from_external_file.F90,v 19.0 2012/01/06 20:35:31 fms Exp $'
 
 character(len=128), parameter :: tagname = &
-'$Name: siena_201207 $'
+'$Name: tikal $'
 
 public :: ic_from_external_file
 

@@ -265,8 +265,8 @@ logical :: module_is_initialized=.FALSE.
 logical :: used
 
 !---- version number -----
-character(len=128) :: version = '$Id: atmos_sulfate.F90,v 19.0 2012/01/06 20:31:26 fms Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: atmos_sulfate.F90,v 20.0 2013/12/13 23:24:05 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 !-----------------------------------------------------------------------
 
 contains
@@ -1212,7 +1212,7 @@ end subroutine atmos_sulfate_endts
 !      (nlon, nlat, nlev, ntime)
 !   </IN>
 subroutine atmos_DMS_emission (lon, lat, area, ocn_flx_fraction, t_surf_rad, w10m, &
-       pwt, DMS_dt, Time, is,ie,js,je,kbot)
+       pwt, DMS_dt, Time, Time_next, is,ie,js,je,kbot)
 !
       real, intent(in),    dimension(:,:)           :: lon, lat
       real, intent(in),    dimension(:,:)           :: ocn_flx_fraction
@@ -1221,7 +1221,7 @@ subroutine atmos_DMS_emission (lon, lat, area, ocn_flx_fraction, t_surf_rad, w10
       real, intent(in),    dimension(:,:)           :: area
       real, intent(in),    dimension(:,:,:)         :: pwt
       real, intent(out),   dimension(:,:,:)         :: DMS_dt
-      type(time_type), intent(in)                   :: Time    
+      type(time_type), intent(in)                   :: Time, Time_next    
       integer, intent(in)                           :: is, ie, js, je
       integer, intent(in), dimension(:,:), optional :: kbot
 !-----------------------------------------------------------------------
@@ -1240,7 +1240,7 @@ subroutine atmos_DMS_emission (lon, lat, area, ocn_flx_fraction, t_surf_rad, w10
                        trim(gocart_emission_name(1)), is, js)
 ! --- Send the DMS data to the diag_manager for output.
       if (id_DMSo > 0 ) &
-          used = send_data ( id_DMSo, DMSo, Time, is_in=is, js_in=js )
+          used = send_data ( id_DMSo, DMSo, Time_next, is_in=is, js_in=js )
 
 ! ****************************************************************************
 ! *  If ocn_flx_fraction > critical_sea_fraction: DMS_emis = seawaterDMS * transfer velocity * ocn_flx_fraction
@@ -1330,11 +1330,11 @@ subroutine atmos_DMS_emission (lon, lat, area, ocn_flx_fraction, t_surf_rad, w10
 ! DIAGNOSTICS:      DMS surface emission in kg/m2/s     
 !--------------------------------------------------------------------
       if (id_DMS_emis > 0) then
-        used = send_data ( id_DMS_emis, dms_emis*WTM_S/WTM_DMS, Time, &
+        used = send_data ( id_DMS_emis, dms_emis*WTM_S/WTM_DMS, Time_next, &
               is_in=is,js_in=js )
       endif
       if (id_DMS_emis_cmip > 0) then
-        used = send_data ( id_DMS_emis_cmip, dms_emis, Time, &
+        used = send_data ( id_DMS_emis_cmip, dms_emis, Time_next, &
               is_in=is,js_in=js )
       endif
 
@@ -1368,7 +1368,7 @@ end subroutine atmos_DMS_emission
 !      (nlon, nlat, nlev, ntime)
 !   </IN>
 subroutine atmos_SOx_emission (lon, lat, area, frac_land, &
-       z_pbl, zhalf, phalf, pwt, SO2_dt, SO4_dt, model_time, is,ie,js,je,kbot)
+       z_pbl, zhalf, phalf, pwt, SO2_dt, SO4_dt, model_time, diag_time, is,ie,js,je,kbot)
 !
 ! This subroutine calculates the tendencies of SO2 and SO4 due to
 ! their emissions.
@@ -1384,7 +1384,7 @@ subroutine atmos_SOx_emission (lon, lat, area, frac_land, &
       real, intent(in),    dimension(:,:,:)         :: zhalf, phalf
       real, intent(in),    dimension(:,:,:)         :: pwt
       real, intent(out),   dimension(:,:,:)         :: SO2_dt, SO4_dt
-      type(time_type), intent(in)                   :: model_time
+      type(time_type), intent(in)                   :: model_time,diag_time
       integer, intent(in)                           :: is, ie, js, je
       integer, intent(in), dimension(:,:), optional :: kbot
 !-----------------------------------------------------------------------
@@ -1766,55 +1766,55 @@ subroutine atmos_SOx_emission (lon, lat, area, frac_land, &
 !--------------------------------------------------------------------
       if (id_so2_emis > 0) then
         used = send_data ( id_so2_emis, so2_emis*WTM_S/WTM_so2, &
-              model_time, is_in=is,js_in=js,ks_in=1)
+              diag_time, is_in=is,js_in=js,ks_in=1)
       endif
       if (id_so2_aircraft > 0) then
         used = send_data ( id_so2_aircraft, &
               so2_aircraft*so2_aircraft_EI*WTM_S/WTM_so2, &
-              model_time, is_in=is,js_in=js, ks_in=1)
+              diag_time, is_in=is,js_in=js, ks_in=1)
       endif
       if (id_so2_cont_volc > 0) then
         used = send_data ( id_so2_cont_volc, so2_emis_cont_volc*WTM_S/WTM_so2, &
-              model_time, is_in=is,js_in=js, ks_in=1)
+              diag_time, is_in=is,js_in=js, ks_in=1)
       endif
       if (id_so2_expl_volc > 0) then
         used = send_data ( id_so2_expl_volc, so2_emis_expl_volc*WTM_S/WTM_so2, &
-              model_time, is_in=is,js_in=js, ks_in=1)
+              diag_time, is_in=is,js_in=js, ks_in=1)
       endif
       if (id_so2_biobur > 0) then
         used = send_data ( id_so2_biobur, so2_emis_biobur*WTM_S/WTM_so2, &
-              model_time, is_in=is,js_in=js,ks_in=1)
+              diag_time, is_in=is,js_in=js,ks_in=1)
       endif
       if (id_so2_ship > 0) then
         used = send_data ( id_so2_ship, so2_emis_ship*WTM_S/WTM_so2, &
-              model_time, is_in=is,js_in=js, ks_in=1)
+              diag_time, is_in=is,js_in=js, ks_in=1)
       endif
       if (id_so2_road > 0) then
         used = send_data ( id_so2_road, so2_emis_road*WTM_S/WTM_so2,  &
-               model_time, is_in=is,js_in=js, ks_in=1)
+               diag_time, is_in=is,js_in=js, ks_in=1)
       endif
       if (id_so2_domestic > 0) then
         used = send_data ( id_so2_domestic, so2_emis_domestic*WTM_S/WTM_so2, &
-              model_time, is_in=is,js_in=js, ks_in=1)
+              diag_time, is_in=is,js_in=js, ks_in=1)
       endif
       if (id_so2_industry > 0) then
         used = send_data ( id_so2_industry, so2_emis_industry*WTM_S/WTM_so2, &
-              model_time, is_in=is,js_in=js, ks_in=1)
+              diag_time, is_in=is,js_in=js, ks_in=1)
       endif
       if (id_so2_power > 0) then
         used = send_data ( id_so2_power, so2_emis_power*WTM_S/WTM_so2, &
-              model_time, is_in=is,js_in=js, ks_in=1)
+              diag_time, is_in=is,js_in=js, ks_in=1)
       endif
       if (id_so2_off_road > 0) then
         used = send_data ( id_so2_Off_road, so2_emis_off_road*WTM_S/WTM_so2, &
-               model_time, is_in=is,js_in=js, ks_in=1)
+               diag_time, is_in=is,js_in=js, ks_in=1)
       endif
       if (id_so2_ff > 0) then
         used = send_data ( id_so2_ff, so2_emis_ff*WTM_S/WTM_so2, &
-               model_time, is_in=is,js_in=js, ks_in=1)
+               diag_time, is_in=is,js_in=js, ks_in=1)
       endif
       if (id_so4_emis > 0) then
-        used = send_data ( id_so4_emis, so4_emis*WTM_S/WTM_so4, model_time, &
+        used = send_data ( id_so4_emis, so4_emis*WTM_S/WTM_so4, diag_time, &
               is_in=is,js_in=js,ks_in=1)
       endif
 
@@ -1824,9 +1824,9 @@ end subroutine atmos_SOx_emission
 !#######################################################################
       subroutine atmos_SOx_chem(pwt,temp,pfull, phalf, dt, lwc, &
         jday,hour,minute,second,lat,lon, &
-        SO2, SO4, DMS, MSA, H2O2, &
+        SO2, SO4, DMS, MSA, H2O2, oh_vmr, &
         SO2_dt, SO4_dt, DMS_dt, MSA_dt, H2O2_dt, &
-        model_time,is,ie,js,je,kbot)
+        model_time,diag_time,is,ie,js,je,kbot)
 !
       real, intent(in)                   :: dt
       integer, intent(in)                :: jday, hour,minute,second
@@ -1835,9 +1835,10 @@ end subroutine atmos_SOx_emission
       real, intent(in), dimension(:,:,:) :: lwc
       real, intent(in), dimension(:,:,:) :: temp, pfull, phalf
       real, intent(in), dimension(:,:,:) :: SO2, SO4, DMS, MSA, H2O2
+      real, intent(inout), dimension(:,:,:) :: oh_vmr
       real, intent(out),dimension(:,:,:) :: SO2_dt,SO4_dt,DMS_dt,MSA_dt,H2O2_dt
 
-      type(time_type), intent(in)                    :: model_time
+      type(time_type), intent(in)                    :: model_time,diag_time
       integer, intent(in),  dimension(:,:), optional :: kbot
       integer, intent(in)                            :: is,ie,js,je
 ! Working vectors
@@ -2003,6 +2004,7 @@ end subroutine atmos_SOx_emission
        xno3  = max(0.         , NO3_conc(i,j,k) *fac_NO3(i,j))
        xo3   = max(small_value, O3_mmr(i,j,k))
        oh_diurnal(i,j,k)=xoh
+       oh_vmr(i,j,k)=xoh/xhnm
        no3_diurnal(i,j,k)=xno3
        ho2_diurnal(i,j,k)=xho2
        jh2o2_diurnal(i,j,k)=xjh2o2
@@ -2197,65 +2199,65 @@ end subroutine atmos_SOx_emission
       end do
       if ( id_NO3 > 0) then
         used = send_data ( id_NO3, NO3_diurnal, &
-                           model_time,is_in=is,js_in=js,ks_in=1)
+                           diag_time,is_in=is,js_in=js,ks_in=1)
       endif
       if ( id_OH > 0) then
         used = send_data ( id_OH, OH_diurnal, &
-                           model_time, is_in=is, js_in=js,ks_in=1 )
+                           diag_time, is_in=is, js_in=js,ks_in=1 )
       endif
       if ( id_HO2 > 0) then
         used = send_data ( id_HO2, HO2_diurnal, &
-                           model_time, is_in=is, js_in=js,ks_in=1 )
+                           diag_time, is_in=is, js_in=js,ks_in=1 )
       endif
       if ( id_jH2O2 > 0) then
         used = send_data ( id_jH2O2, jH2O2_diurnal, &
-                           model_time, is_in=is, js_in=js,ks_in=1 )
+                           diag_time, is_in=is, js_in=js,ks_in=1 )
       endif
       if (id_ph > 0) then
         used = send_data ( id_ph, ph, &
-                           model_time,is_in=is,js_in=js,ks_in=1)
+                           diag_time,is_in=is,js_in=js,ks_in=1)
       endif
       if (id_o3 > 0) then
         used = send_data ( id_o3, o3_mmr, &
-                           model_time,is_in=is,js_in=js,ks_in=1)
+                           diag_time,is_in=is,js_in=js,ks_in=1)
       endif
 
       if (id_SO2_chem > 0) then
         used = send_data ( id_SO2_chem, &
-              SO2_dt*pwt*WTM_S/WTMAIR, model_time,is_in=is,js_in=js,ks_in=1)
+              SO2_dt*pwt*WTM_S/WTMAIR, diag_time,is_in=is,js_in=js,ks_in=1)
       endif
 
       if (id_SO4_chem > 0) then
         used = send_data ( id_SO4_chem, &
-              SO4_dt*pwt*WTM_S/WTMAIR, model_time,is_in=is,js_in=js,ks_in=1)
+              SO4_dt*pwt*WTM_S/WTMAIR, diag_time,is_in=is,js_in=js,ks_in=1)
       endif
 
       if (id_SO4_oh_prod > 0) then
         used = send_data ( id_SO4_oh_prod, &
-              SO4_oh_prod*pwt*WTM_S/WTMAIR, model_time,is_in=is,js_in=js,ks_in=1)
+              SO4_oh_prod*pwt*WTM_S/WTMAIR, diag_time,is_in=is,js_in=js,ks_in=1)
       endif
       if (id_SO4_o3_prod > 0) then
         used = send_data ( id_SO4_o3_prod, &
-              SO4_o3_prod*pwt*WTM_S/WTMAIR, model_time,is_in=is,js_in=js,ks_in=1)
+              SO4_o3_prod*pwt*WTM_S/WTMAIR, diag_time,is_in=is,js_in=js,ks_in=1)
       endif
       if (id_SO4_h2o2_prod > 0) then
         used = send_data ( id_SO4_h2o2_prod, &
-              SO4_h2o2_prod*pwt*WTM_S/WTMAIR, model_time,is_in=is,js_in=js,ks_in=1)
+              SO4_h2o2_prod*pwt*WTM_S/WTMAIR, diag_time,is_in=is,js_in=js,ks_in=1)
       endif
 
       if (id_DMS_chem > 0) then
         used = send_data ( id_DMS_chem, &
-              DMS_dt*pwt*WTM_S/WTMAIR, model_time,is_in=is,js_in=js,ks_in=1)
+              DMS_dt*pwt*WTM_S/WTMAIR, diag_time,is_in=is,js_in=js,ks_in=1)
       endif
 
       if (id_MSA_chem > 0) then
         used = send_data ( id_MSA_chem, &
-              MSA_dt*pwt*WTM_S/WTMAIR, model_time,is_in=is,js_in=js,ks_in=1)
+              MSA_dt*pwt*WTM_S/WTMAIR, diag_time,is_in=is,js_in=js,ks_in=1)
       endif
 
       if (id_H2O2_chem > 0) then
         used = send_data ( id_H2O2_chem, &
-              H2O2_dt*pwt, model_time,is_in=is,js_in=js,ks_in=1)
+              H2O2_dt*pwt, diag_time,is_in=is,js_in=js,ks_in=1)
       endif
 end subroutine atmos_SOx_chem
 

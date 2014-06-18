@@ -1,5 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #ifdef use_libMPI
 #include <mpi.h>
 #endif
@@ -223,6 +225,34 @@ void mpp_sum_double(int count, double *data)
 
 }; /* mpp_sum_double */
 
+void mpp_min_double(int count, double *data)
+{
+
+#ifdef use_libMPI
+  int i;
+  double *minval;
+  minval = (double *)malloc(count*sizeof(double));
+  MPI_Allreduce(data, minval, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+  for(i=0; i<count; i++) data[i] = minval[i];
+  free(minval);
+#endif
+
+}; /* mpp_min_double */
+
+
+void mpp_max_double(int count, double *data)
+{
+
+#ifdef use_libMPI
+  int i;
+  double *maxval;
+  maxval = (double *)malloc(count*sizeof(double));
+  MPI_Allreduce(data, maxval, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  for(i=0; i<count; i++) data[i] = maxval[i];
+  free(maxval);
+#endif
+
+}; /* mpp_max_double */
 
 /***********************************************************
     void mpp_error(char *str)
@@ -239,3 +269,67 @@ void mpp_error(char *str)
 #endif  
 }; /* mpp_error */
 
+double get_mem_usage(void)
+
+{
+  double mem;
+  
+#if defined(__sgi) || defined(__aix) || defined(__SX)
+#define RUSAGE_SELF      0         /* calling process */
+#define RUSAGE_CHILDREN  -1        /* terminated child processes */
+ struct rusage my_rusage;
+ int iret;
+
+ my_rusage.ru_maxrss = 0;
+ iret = getrusage(RUSAGE_SELF,&my_rusage);
+ mem = my_rusage.ru_maxrss;
+ mem /= 1000;
+
+#else
+ char filename[]="/proc/self/status";
+ char mesg[256];
+ FILE *fp;
+ char line[80], units[32];
+
+ fp = fopen(filename, "r");
+ if(!fp) {
+   strcpy(mesg, "tool_util.c: Can not open ascii file ");
+   strcat(mesg,filename);
+   mpp_error(mesg);
+ }
+
+ mem = 0;
+ while(fgets(line, 80, fp) != NULL)  /* get a line, up to 80 chars from fp.  done if NULL */
+   {
+     if( strncmp(line, "VmHWM:", 6) == 0) {
+       sscanf(line+6, "%lf %s", &mem, units);
+       if( strcmp(units, "kB") == 0) mem = mem/1024;
+       break;
+     }
+   }
+ fclose(fp); 
+#endif
+
+ return mem;
+ 
+}
+
+
+void print_mem_usage(const char* text)
+{
+  double m, mmin, mmax, mavg;
+
+
+    m = get_mem_usage();
+    mmin = m;
+    mmax = m;
+    mavg = m;
+    mpp_min_double(1, &mmin);
+    mpp_max_double(1, &mmax);
+    mpp_sum_double(1, &mavg);
+    mavg /= mpp_npes();
+    if( mpp_pe() == mpp_root_pe() ) {
+      printf("Memuse(MB) at %s, min=%g, max=%g, avg=%g\n", text, mmin, mmax, mavg); 
+    }
+}
+      

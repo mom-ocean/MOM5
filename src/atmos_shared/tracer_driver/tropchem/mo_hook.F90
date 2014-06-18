@@ -26,7 +26,7 @@
       real :: lat25
       
 character(len=128), parameter :: version     = '$Id: mo_hook.F90,v 19.0 2012/01/06 20:33:56 fms Exp $'
-character(len=128), parameter :: tagname     = '$Name: siena_201207 $'
+character(len=128), parameter :: tagname     = '$Name: tikal $'
 logical                       :: module_is_initialized = .false.
 
       CONTAINS

@@ -1,5 +1,5 @@
 #
-# $Id: fre-nctools.mk,v 19.0 2012/01/06 22:09:48 fms Exp $
+# $Id: fre-nctools.mk,v 20.0 2013/12/14 00:34:26 fms Exp $
 # ------------------------------------------------------------------------------
 # FMS/FRE Project: Makefile to Build Regridding Executables
 # ------------------------------------------------------------------------------
@@ -10,13 +10,15 @@
 # Copyright (C) NOAA Geophysical Fluid Dynamics Laboratory, 2009-2010
 # Designed and written by V. Balaji, Amy Langenhorst and Aleksey Yakovlev
 #
+include env.$(SITE)
 
-MPICC    := mpicc
-CC       := icc
+# MPICC and CC are defined in env.$(SITE)
+#MPICC    := mpicc
+#CC       := icc
 CFLAGS   := -O3 -g -traceback
 CFLAGS_O2:= -O2 -g -traceback
 INCLUDES := -I${NETCDF_HOME}/include -I./ -I../shared -I../../shared/mosaic
-LIBS     := -L${NETCDF_HOME}/lib/shared -L${HDF5_HOME}/lib/shared -lnetcdf -lhdf5_hl -lhdf5 -lz -limf
+CLIBS     := -L${NETCDF_HOME}/lib -L${HDF5_HOME}/lib -lnetcdf -lhdf5_hl -lhdf5 -lz -limf $(CLIBS2) $(STATIC)
 
 TARGETS  := make_vgrid
 
@@ -38,7 +40,7 @@ all: $(TARGETS)
 
 
 make_vgrid: $(OBJECTS) mosaic_util.o mpp.o
-	$(CC) -o $@ $^ $(LIBS)
+	$(CC) -o $@ $^ $(CLIBS)
 
 mosaic_util.o: ../../shared/mosaic/mosaic_util.c $(HEADERS)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< 

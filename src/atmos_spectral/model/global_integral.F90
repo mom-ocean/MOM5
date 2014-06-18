@@ -19,7 +19,7 @@ public :: mass_weighted_global_integral
 real :: global_sum_of_wts
 logical :: entry_to_logfile_done=.false.
 character(len=128), parameter :: version = '$Id: global_integral.F90,v 13.0 2006/03/28 21:17:51 fms Exp $'
-character(len=128), parameter :: tagname = '$Name: siena_201207 $'
+character(len=128), parameter :: tagname = '$Name: tikal $'
 
 contains
 
