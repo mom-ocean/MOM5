@@ -19,11 +19,13 @@ def main():
 
     experiment = args.experiment.replace('.', '_').replace('-', '_')
 
+    ret = 1
     if 'test_%s' % experiment in dir(tb.TestBitReproducibility):
         l = loader.TestLoader()
         suite = l.loadTestsFromName("test_bit_reproducibility.py:TestBitReproducibility.test_%s" % experiment)
         # nose returns False on failure - want 1. 
         ret = not nose.run(suite=suite, argv=[sys.argv[0], '-s']) 
+
     else:
 
         my_path = os.path.dirname(os.path.realpath(__file__))
