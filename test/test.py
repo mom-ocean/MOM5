@@ -6,18 +6,18 @@ import nose
 import nose.loader as loader
 import subprocess
 import test_bit_reproducibility as tb
-import optparse
+import argparse
 
 def main():
 
-    parser = optparse.OptionParser()
-    parser.add_option("--platform")
-    parser.add_option("--type")
-    parser.add_option("--experiment")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("platform")
+    parser.add_argument("type")
+    parser.add_argument("experiment")
 
-    (opts, _) = parser.parse_args()
+    args = parser.parse_args()
 
-    experiment = opts.experiment.replace('.', '_').replace('-', '_')
+    experiment = args.experiment.replace('.', '_').replace('-', '_')
 
     if 'test_%s' % experiment in dir(tb.TestBitReproducibility):
         l = loader.TestLoader()
@@ -31,7 +31,7 @@ def main():
         os.chdir(exp_path)
 
         # Specific test was not found. Try to just run the experiment directly.
-        ret = subprocess.check_call(['./MOM_run.csh', '--platform', opts.platform, '--type', opts.type, '--experiment', opts.experiment, '--download_input_data'])
+        ret = subprocess.check_call(['./MOM_run.csh', '--platform', args.platform, '--type', args.type, '--experiment', args.experiment, '--download_input_data'])
 
     return ret
 
