@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import os
 import nose
 import nose.loader as loader
 import subprocess
@@ -21,8 +22,13 @@ def main():
         suite = l.loadTestsFromName("test_bit_reproducibility.py:TestBitReproducibility.test_%s" % opts.experiment)
         ret = nose.run(suite=suite, argv=[sys.argv[0]]) 
     else:
+
+        my_path = os.path.dirname(os.path.realpath(__file__))
+        exp_path = os.path.join(my_path, '../', 'exp')
+        os.chdir(exp_path)
+
         # Specific test was not found. Try to just run the experiment directly.
-        ret = subprocess.check_call(['./MOM_run.csh', '--platform', opts.platform, '--type', opts.type, '--experiment', opts.experiment])
+        ret = subprocess.check_call(['./MOM_run.csh', '--platform', opts.platform, '--type', opts.type, '--experiment', opts.experiment, '--download_input_data'])
 
     return ret
 
