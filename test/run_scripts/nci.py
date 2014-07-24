@@ -15,7 +15,4 @@ run_script = """
 ./MOM_run.csh --platform nci --type {type} --experiment {exp}
 """
 
-build_script = """
-
-./MOM_build.csh --platform nci --type %s --experiment %s --download_input_data %s
-"""
+build_cmd = " ./MOM_compile.csh --platform nci --type %s"
