@@ -1,8 +1,13 @@
 
+from __future__ import print_function
+
 import os
 import sys
-import subprocess
+import subprocess as sp
+import shlex
+import tempfile
 import time
+import run_scripts.nci as plat
 
 class ModelTestSetup(object):
 
@@ -10,15 +15,60 @@ class ModelTestSetup(object):
 
         self.my_path = os.path.dirname(os.path.realpath(__file__))
         self.exp_path = os.path.join(self.my_path, '../', 'exp')
+        self.archive_path = os.path.join(self.my_path, '../data/archives')
 
-    def run(self, model_type, exp, walltime='00:10:00', ncpus='32', npes=None, mem='64Gb'):
+    def download_input_data(self, exp):
+
+        os.chdir(self.archive_path)
+
+        cmd = '/usr/bin/git annex get {}.input.tar.gz'.format(exp)
+        ret = sp.call(shlex.split(cmd))
+
+        os.chdir(self.my_path)
+
+        return ret
+
+    def get_output(self, fo, fe):
+
+        # The command has finished. Read output and write stdout.
+        # We don't know when output has stopped so just keep trying
+        # until it is all gone. 
+        empty_reads = 0
+        stderr = ''
+        stdout = ''
+        while True:
+            so = os.read(fo, 1024*1024)
+            se = os.read(fe, 1024*1024)
+
+            if so == '' and se == '':
+                empty_reads += 1
+            else:
+                stdout += so
+                stderr += se
+                empty_reads = 0
+
+            if empty_reads > 10:
+                break
+
+            time.sleep(2)
+
+        return (stdout, stderr)
+
+
+    def run(self, model_type, exp, walltime='00:10:00', ncpus='32',
+            npes=None, mem='64Gb'):
         """
         ncpus is for requested cpus, npes is for how many mom uses.
         """
 
+        ret = self.download_input_data(exp)
+        if ret != 0:
+            print('Error: could not download input data.', file=sys.stderr)
+            return (ret, None, None)
+
         os.chdir(self.exp_path)
 
-        run_name = "TC_%s" % exp
+        run_name = "CI_%s" % exp
         # -N value is a maximum of 15 chars.
         run_name = run_name[0:15]
 
@@ -26,46 +76,33 @@ class ModelTestSetup(object):
             npes = '--npes %s' % npes
         else:
             npes = ''
+
+        # Get temporary file names for the stdout, stderr.
+        fo, stdout_file = tempfile.mkstemp(dir=self.exp_path)
+        fe, stderr_file = tempfile.mkstemp(dir=self.exp_path)
         
         # Write script out as a file.
-        with open('run_script.sh', 'w+') as f:
-            if npes != None:
-                f.write(run_script % (walltime, ncpus, mem, run_name, model_type, exp, npes))
+        run_script = plat.run_script.format(walltime=walltime, ncpus=ncpus,
+                                            mem=mem, stdout_file=stdout_file,
+                                            stderr_file=stderr_file,
+                                            run_name=run_name,
+                                            type=model_type, exp=exp)
+        # Write out run script
+        frun, run_file = tempfile.mkstemp(dir=self.exp_path)
+        os.write(frun, run_script)
+        os.close(frun)
+        os.chmod(run_file, 0755)
 
-        # Submit the experiment
-        run_id = subprocess.check_output(['qsub', 'run_script.sh'])
-        run_id = run_id.rstrip()
+        # Submit the experiment. This will block until it has finished.
+        ret = sp.call(['qsub', run_file])
+        stdout, stderr = self.get_output(fo, fe)
 
-        # Wait for termination.
-        self.wait(run_id)
+        # Clean up temporary files. 
+        os.remove(stdout_file)
+        os.remove(stderr_file)
+        os.remove(run_script)
 
-        # Read the output file and check that run suceeded.
-        output = '%s.o%s' % (run_name, run_id.split('.')[0])
-        error = '%s.e%s' % (run_name, run_id.split('.')[0])
-        so = ''
-        with open(output, 'r') as f:
-            so = f.read()
-        with open(error, 'r') as f:
-            se = f.read()
-
+        # Change back to test dir. 
         os.chdir(self.my_path)
 
-        print so
-        print se
-        assert 'NOTE: Natural end-of-script.' in so
-
-        return (so, se)
-
-    def wait(self, run_id):
-
-        while True:
-            time.sleep(10)
-            qsub_out = ''
-            try: 
-                qsub_out = subprocess.check_output(['qstat', run_id], stderr=subprocess.STDOUT)
-            except subprocess.CalledProcessError as err:
-                qsub_out = err.output
-
-            if 'Job has finished' in qsub_out:
-                break
-
+        return (ret, stdout, stderr)
