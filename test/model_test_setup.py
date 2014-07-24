@@ -106,3 +106,16 @@ class ModelTestSetup(object):
         os.chdir(self.my_path)
 
         return (ret, stdout, stderr)
+
+
+    def build(self, model_type):
+
+        os.chdir(self.exp_path)
+
+        build_cmd = plat.build_cmd.format(model_type)
+        # Build the model.
+        ret = sp.call(shlex.split(build_cmd))
+
+        os.chdir(self.my_path)
+
+        return ret
