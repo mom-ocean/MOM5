@@ -60,7 +60,7 @@ class ModelTestSetup(object):
     def get_platform(self):
 
         # We need to get the node/platform - see if Jenkins has this set.
-        platform = 'ubuntu'
+        platform = 'nci'
 
         try:
             platform = os.environ['label']
@@ -98,11 +98,12 @@ class ModelTestSetup(object):
 
         # Write script out as a file.
         run_script = plat.run_scripts[self.get_platform()]
-        run_script.format(walltime=walltime, ncpus=ncpus,
-                                            mem=mem, stdout_file=stdout_file,
-                                            stderr_file=stderr_file,
-                                            run_name=run_name,
-                                            type=model_type, exp=exp)
+        run_script = run_script.format(walltime=walltime, ncpus=ncpus,
+                                       mem=mem, stdout_file=stdout_file,
+                                       stderr_file=stderr_file,
+                                       run_name=run_name,
+                                       type=model_type, exp=exp)
+
         # Write out run script
         frun, run_file = tempfile.mkstemp(dir=self.exp_path)
         os.write(frun, run_script)
@@ -116,7 +117,7 @@ class ModelTestSetup(object):
         # Clean up temporary files. 
         os.remove(stdout_file)
         os.remove(stderr_file)
-        os.remove(run_script)
+        os.remove(run_file)
 
         # Change back to test dir. 
         os.chdir(self.my_path)

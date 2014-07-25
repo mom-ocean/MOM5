@@ -10,6 +10,13 @@ class TestRun(ModelTestSetup):
     def __init__(self):
         super(TestRun, self).__init__()
 
+    def test_ESM2M_pi_control_C2(self):
+
+        r, so, se = self.run('ESM2M', 'ESM2M_pi-control_C2', ncpus='128',
+                             npes='120', mem='256Gb')
+        assert(r == 0)
+        assert('NOTE: Natural end-of-script.' in so)
+
     def test_om3_core3(self):
 
         r, so, se = self.run('MOM_SIS', 'om3_core3')
@@ -56,13 +63,6 @@ class TestRun(ModelTestSetup):
 
         r, so, se = self.run('CM2M', 'CM2M_coarse_BLING', ncpus='64',
                              npes='45', mem='128Gb')
-        assert(r == 0)
-        assert('NOTE: Natural end-of-script.' in so)
-
-    def test_ESM2M_pi_control_C2(self):
-
-        r, so, se = self.run('ESM2M', 'ESM2M_pi-control_C2', ncpus='128',
-                             npes='120', mem='256Gb')
         assert(r == 0)
         assert('NOTE: Natural end-of-script.' in so)
 

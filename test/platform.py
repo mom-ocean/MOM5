@@ -16,6 +16,4 @@ run_scripts['nci'] = """
 ./MOM_run.csh --platform nci --type {type} --experiment {exp}
 """
 
-run_scripts['ubuntu'] = "./MOM_run.csh --platform ubuntu --type {type} --experiment {exp}"
-
 build_cmd = " ./MOM_compile.csh --platform {platform} --type {type}"
