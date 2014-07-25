@@ -5,6 +5,7 @@ import os
 import sys
 import subprocess as sp
 import shlex
+import shutil
 import tempfile
 import time
 import platform as plat
@@ -13,19 +14,36 @@ class ModelTestSetup(object):
 
     def __init__(self): 
 
-        self.my_path = os.path.dirname(os.path.realpath(__file__))
-        self.exp_path = os.path.join(self.my_path, '../', 'exp')
-        self.archive_path = os.path.join(self.my_path, '../data/archives')
-
+        self.my_dir = os.path.dirname(os.path.realpath(__file__))
+        self.exp_dir = os.path.join(self.my_dir, '../', 'exp')
+        self.archive_dir = os.path.join(self.my_dir, '../data/archives')
+        self.work_dir = os.path.join(self.my_dir, '../', 'exp')
 
     def download_input_data(self, exp):
+        """
+        Download the experiment input data. 
 
-        os.chdir(self.archive_path)
+        This needs to be done before submitting the MOM_run.sh script because
+        the compute nodes may not have Internet access. 
+        """
 
-        cmd = '/usr/bin/git annex get {}.input.tar.gz'.format(exp)
+        os.chdir(self.archive_dir)
+
+        # Download data.
+        input = '{}.input.tar.gz'.format(exp)
+        cmd = '/usr/bin/git annex get {}'.format(input)
         ret = sp.call(shlex.split(cmd))
 
-        os.chdir(self.my_path)
+        # Unzip into work directory.
+        work = os.path.join(self.work_dir, exp)
+        if not os.path.exists(work):
+            os.mkdir(work)
+            shutil.copy(input, work)
+            os.chdir(work)
+            cmd = '/bin/tar -xvf {}'.format(input)
+            ret += sp.call(shlex.split(cmd))
+
+        os.chdir(self.my_dir)
 
         return ret
 
@@ -81,7 +99,7 @@ class ModelTestSetup(object):
             print('Error: could not download input data.', file=sys.stderr)
             return (ret, None, None)
 
-        os.chdir(self.exp_path)
+        os.chdir(self.exp_dir)
 
         run_name = "CI_%s" % exp
         # -N value is a maximum of 15 chars.
@@ -93,8 +111,8 @@ class ModelTestSetup(object):
             npes = ''
 
         # Get temporary file names for the stdout, stderr.
-        fo, stdout_file = tempfile.mkstemp(dir=self.exp_path)
-        fe, stderr_file = tempfile.mkstemp(dir=self.exp_path)
+        fo, stdout_file = tempfile.mkstemp(dir=self.exp_dir)
+        fe, stderr_file = tempfile.mkstemp(dir=self.exp_dir)
 
         # Write script out as a file.
         run_script = plat.run_scripts[self.get_platform()]
@@ -105,7 +123,7 @@ class ModelTestSetup(object):
                                        type=model_type, exp=exp)
 
         # Write out run script
-        frun, run_file = tempfile.mkstemp(dir=self.exp_path)
+        frun, run_file = tempfile.mkstemp(dir=self.exp_dir)
         os.write(frun, run_script)
         os.close(frun)
         os.chmod(run_file, 0755)
@@ -120,20 +138,20 @@ class ModelTestSetup(object):
         os.remove(run_file)
 
         # Change back to test dir. 
-        os.chdir(self.my_path)
+        os.chdir(self.my_dir)
 
         return (ret, stdout, stderr)
 
 
     def build(self, model_type):
 
-        os.chdir(self.exp_path)
+        os.chdir(self.exp_dir)
 
         platform = self.get_platform()
         build_cmd = plat.build_cmd.format(type=model_type, platform=platform)
         # Build the model.
         ret = sp.call(shlex.split(build_cmd))
 
-        os.chdir(self.my_path)
+        os.chdir(self.my_dir)
 
         return ret
