@@ -1,4 +1,5 @@
-run_script = """
+run_scripts = {}
+run_scripts['nci'] = """
 #!/bin/csh -f
 
 #PBS -P x77
@@ -15,4 +16,6 @@ run_script = """
 ./MOM_run.csh --platform nci --type {type} --experiment {exp}
 """
 
-build_cmd = " ./MOM_compile.csh --platform nci --type %s"
+run_scripts['ubuntu'] = "./MOM_run.csh --platform ubuntu --type {type} --experiment {exp}"
+
+build_cmd = " ./MOM_compile.csh --platform {platform} --type {type}"

@@ -7,7 +7,7 @@ import subprocess as sp
 import shlex
 import tempfile
 import time
-import run_scripts.nci as plat
+import platform as plat
 
 class ModelTestSetup(object):
 
@@ -16,6 +16,7 @@ class ModelTestSetup(object):
         self.my_path = os.path.dirname(os.path.realpath(__file__))
         self.exp_path = os.path.join(self.my_path, '../', 'exp')
         self.archive_path = os.path.join(self.my_path, '../data/archives')
+
 
     def download_input_data(self, exp):
 
@@ -27,6 +28,7 @@ class ModelTestSetup(object):
         os.chdir(self.my_path)
 
         return ret
+
 
     def get_output(self, fo, fe):
 
@@ -55,6 +57,19 @@ class ModelTestSetup(object):
         return (stdout, stderr)
 
 
+    def get_platform(self):
+
+        # We need to get the node/platform - see if Jenkins has this set.
+        platform = 'ubuntu'
+
+        try:
+            platform = os.environ['NODE_LABELS'].strip()
+        except KeyError:
+            pass
+
+        return platform
+ 
+
     def run(self, model_type, exp, walltime='00:10:00', ncpus='32',
             npes=None, mem='64Gb'):
         """
@@ -80,9 +95,10 @@ class ModelTestSetup(object):
         # Get temporary file names for the stdout, stderr.
         fo, stdout_file = tempfile.mkstemp(dir=self.exp_path)
         fe, stderr_file = tempfile.mkstemp(dir=self.exp_path)
-        
+
         # Write script out as a file.
-        run_script = plat.run_script.format(walltime=walltime, ncpus=ncpus,
+        run_script = plat.run_scripts[self.get_platform()]
+        run_script.format(walltime=walltime, ncpus=ncpus,
                                             mem=mem, stdout_file=stdout_file,
                                             stderr_file=stderr_file,
                                             run_name=run_name,
@@ -112,7 +128,8 @@ class ModelTestSetup(object):
 
         os.chdir(self.exp_path)
 
-        build_cmd = plat.build_cmd.format(model_type)
+        platform = self.get_platform()
+        build_cmd = plat.build_cmd.format(type=model_type, platform=platform)
         # Build the model.
         ret = sp.call(shlex.split(build_cmd))
 
