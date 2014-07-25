@@ -3,6 +3,10 @@ from model_test_setup import ModelTestSetup
 
 class TestRun(ModelTestSetup):
 
+    # Run tests in parallel.
+    # Run with nosetests test_run.py --processes=<n>
+    _multiprocess_can_split_ = True
+
     def __init__(self):
         super(TestRun, self).__init__()
 
