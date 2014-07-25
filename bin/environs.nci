@@ -1,7 +1,7 @@
          source /etc/profile.d/nf_csh_modules
          module purge
          module load intel-fc/14.3.174
-         module load intel-fc/14.3.174
+         module load intel-cc/14.3.174
          module load hdf5
          module load netcdf/4.3.0
          module load oasis/dev
