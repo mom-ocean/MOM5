@@ -67,6 +67,8 @@ class ModelTestSetup(object):
         except KeyError:
             pass
 
+        print('Platform is {}'.format(platform))
+
         return platform
  
 
