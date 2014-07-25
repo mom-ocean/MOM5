@@ -63,14 +63,7 @@ class ModelTestSetup(object):
         platform = 'ubuntu'
 
         try:
-            platform = os.environ['NODE_LABELS']
-            print('NODE_LABELS is {}'.format(platform))
-        except KeyError:
-            pass
-
-        try:
-            node = os.environ['NODE_NAME']
-            print('NODE_NAME is {}'.format(node))
+            platform = os.environ['label']
         except KeyError:
             pass
 
