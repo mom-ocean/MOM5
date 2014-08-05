@@ -34,9 +34,11 @@ class ModelTestSetup(object):
         try:
             remote = plat.local_data_repos.has_key(self.get_platform())
             cmd = '/usr/bin/git remote add local_data {}'.format(remote)
+            print('Executing: {}'.format(cmd))
             ret = sp.call(shlex.split(cmd))
             assert(ret == 0)
             cmd = '/usr/bin/git annex sync local_data'
+            print('Executing: {}'.format(cmd))
             ret = sp.call(shlex.split(cmd))
             assert(ret == 0)
         except KeyError:
