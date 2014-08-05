@@ -29,6 +29,19 @@ class ModelTestSetup(object):
 
         os.chdir(self.archive_dir)
 
+        # Set the local remote if there is one. Otherwise data will be
+        # downloaded from Amazon S3. 
+        try:
+            remote = plat.local_data_repos.has_key(self.get_platform())
+            cmd = '/usr/bin/git remote add local_data {}'.format(remote)
+            ret = sp.call(shlex.split(cmd))
+            assert(ret == 0)
+            cmd = '/usr/bin/git annex sync local_data'
+            ret = sp.call(shlex.split(cmd))
+            assert(ret == 0)
+        except KeyError:
+            pass
+
         # Download data.
         input = '{}.input.tar.gz'.format(exp)
         cmd = '/usr/bin/git annex get {}'.format(input)
