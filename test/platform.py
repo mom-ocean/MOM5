@@ -17,3 +17,6 @@ run_scripts['nci'] = """
 """
 
 build_cmd = " ./MOM_compile.csh --platform {platform} --type {type}"
+
+local_data_repos = {}
+local_data_repos['nci'] = "/short/v45/mom/"
