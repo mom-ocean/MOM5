@@ -31,8 +31,8 @@ class ModelTestSetup(object):
 
         # Set the local remote if there is one. Otherwise data will be
         # downloaded from Amazon S3. 
-        try:
-            remote = plat.local_data_repos.has_key(self.get_platform())
+        if plat.local_data_repos.has_key(self.get_platform()):
+            remote = plat.local_data_repos[self.get_platform()]
             cmd = '/usr/bin/git remote add local_data {}'.format(remote)
             print('Executing: {}'.format(cmd))
             ret = sp.call(shlex.split(cmd))
@@ -41,8 +41,6 @@ class ModelTestSetup(object):
             print('Executing: {}'.format(cmd))
             ret = sp.call(shlex.split(cmd))
             assert(ret == 0)
-        except KeyError:
-            pass
 
         # Download data.
         input = '{}.input.tar.gz'.format(exp)
