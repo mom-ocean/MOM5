@@ -13,7 +13,7 @@ run_scripts['nci'] = """
 #PBS -N {run_name}
 #PBS -W block=true
 
-./MOM_run.csh --platform nci --type {type} --experiment {exp}
+./MOM_run.csh --platform nci --type {type} --experiment {exp} {npes}
 """
 
 build_cmd = " ./MOM_compile.csh --platform {platform} --type {type}"

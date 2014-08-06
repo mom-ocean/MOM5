@@ -17,7 +17,7 @@ class ModelTestSetup(object):
         self.my_dir = os.path.dirname(os.path.realpath(__file__))
         self.exp_dir = os.path.join(self.my_dir, '../', 'exp')
         self.archive_dir = os.path.join(self.my_dir, '../data/archives')
-        self.work_dir = os.path.join(self.my_dir, '../', 'exp')
+        self.work_dir = os.path.join(self.my_dir, '../', 'work')
 
     def download_input_data(self, exp):
         """
@@ -29,8 +29,9 @@ class ModelTestSetup(object):
 
         os.chdir(self.archive_dir)
 
-        # Set the local remote if there is one. Otherwise data will be
-        # downloaded from Amazon S3. 
+        input = '{}.input.tar.gz'.format(exp)
+
+        # Set the local remote if there is one.
         if plat.local_data_repos.has_key(self.get_platform()):
             remote = plat.local_data_repos[self.get_platform()]
             cmd = '/usr/bin/git remote add local_data {}'.format(remote)
@@ -39,24 +40,23 @@ class ModelTestSetup(object):
             except sp.CalledProcessError as err:
                 # This is allowed to fail in this case
                 assert('remote local_data already exists' in err.output)
-                
-            cmd = '/usr/bin/git annex sync local_data'
-            ret = sp.call(shlex.split(cmd))
-            assert(ret == 0)
 
-        # Download data.
-        input = '{}.input.tar.gz'.format(exp)
-        cmd = '/usr/bin/git annex get {}'.format(input)
-        ret = sp.call(shlex.split(cmd))
+            cmd = '/usr/bin/git annex get {} --from local_data'.format(input)
+            ret = sp.call(shlex.split(cmd))
+        else:
+            # Otherwise data will be download from Amazon S3. 
+            cmd = '/usr/bin/git annex get {}'.format(input)
+            ret = sp.call(shlex.split(cmd))
 
         # Unzip into work directory.
-        work = os.path.join(self.work_dir, exp)
-        if not os.path.exists(work):
-            os.mkdir(work)
-            shutil.copy(input, work)
-            os.chdir(work)
-            cmd = '/bin/tar -xvf {}'.format(input)
-            ret += sp.call(shlex.split(cmd))
+        if not os.path.exists(self.work_dir):
+            os.mkdir(self.work_dir)
+        if not os.path.exists(os.path.join(self.work_dir, input)):
+            shutil.copy(input, self.work_dir)
+
+        os.chdir(self.work_dir)
+        cmd = '/bin/tar -xvf {}'.format(input)
+        ret += sp.call(shlex.split(cmd))
 
         os.chdir(self.my_dir)
 
@@ -135,7 +135,7 @@ class ModelTestSetup(object):
                                        mem=mem, stdout_file=stdout_file,
                                        stderr_file=stderr_file,
                                        run_name=run_name,
-                                       type=model_type, exp=exp)
+                                       type=model_type, exp=exp, npes=npes)
 
         # Write out run script
         frun, run_file = tempfile.mkstemp(dir=self.exp_dir)
