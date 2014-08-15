@@ -2504,8 +2504,8 @@ contains
         endif
      enddo
 
-     mret = nf_put_att_int(ncid, NCGLOBAL, 'file_format_major_version', NF_INT, 1, file_format_major_version)
-     mret = nf_put_att_int(ncid, NCGLOBAL, 'file_format_minor_version', NF_INT, 2, file_format_minor_version)
+     mret = nf_put_att_int(ncid, NF_GLOBAL, 'file_format_major_version', NF_INT, 1, file_format_major_version)
+     mret = nf_put_att_int(ncid, NF_GLOBAL, 'file_format_minor_version', NF_INT, 2, file_format_minor_version)
 
      ! End define mode
      mret = nf_enddef(ncid)

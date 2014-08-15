@@ -4712,8 +4712,8 @@ integer :: stderrunit
     call put_att(ncid, mass_of_bits_id, 'units', 'kg')
     call put_att(ncid, heat_density_id, 'long_name', 'heat density')
     call put_att(ncid, heat_density_id, 'units', 'J/kg')
-    iret = nf_put_att_int(ncid, NCGLOBAL, 'file_format_major_version', NF_INT, 1, file_format_major_version)
-    iret = nf_put_att_int(ncid, NCGLOBAL, 'file_format_minor_version', NF_INT, 3, file_format_minor_version)
+    iret = nf_put_att_int(ncid, NF_GLOBAL, 'file_format_major_version', NF_INT, 1, file_format_major_version)
+    iret = nf_put_att_int(ncid, NF_GLOBAL, 'file_format_minor_version', NF_INT, 3, file_format_minor_version)
 
     ! End define mode
     iret = nf_enddef(ncid)
@@ -4836,8 +4836,8 @@ integer :: stderrunit
   hiid = def_var(ncid, 'hi', NF_DOUBLE, i_dim)
 
   ! Attributes
-  iret = nf_put_att_int(ncid, NCGLOBAL, 'file_format_major_version', NF_INT, 1, 0)
-  iret = nf_put_att_int(ncid, NCGLOBAL, 'file_format_minor_version', NF_INT, 1, 1)
+  iret = nf_put_att_int(ncid, NF_GLOBAL, 'file_format_major_version', NF_INT, 1, 0)
+  iret = nf_put_att_int(ncid, NF_GLOBAL, 'file_format_minor_version', NF_INT, 1, 1)
   call put_att(ncid, lonid, 'long_name', 'longitude')
   call put_att(ncid, lonid, 'units', 'degrees_E')
   call put_att(ncid, latid, 'long_name', 'latitude')

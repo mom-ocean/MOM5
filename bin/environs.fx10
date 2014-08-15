@@ -1,0 +1,6 @@
+source /etc/profile.d/modules.csh
+module purge
+module load fcc/1.2.1
+module load hdf5
+module load netcdf/4.3.2
+setenv mpirunCommand "mpiexec -np"
