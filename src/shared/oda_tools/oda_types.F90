@@ -82,7 +82,7 @@ module oda_types_mod
      real, dimension(:), pointer :: data
      integer, dimension(:), pointer :: flag_t
      integer, dimension(:), pointer :: flag_s ! level-by-level flags for salinity
-#if !(defined(ENABLE_ECDA)||defined(__GFORTRAN__))
+#if !(defined(ENABLE_ECDA)||defined(__GFORTRAN__)||defined(__FUJITSU))
      ! this #if needed due to GNU not doing a logical cast properly
      ! Will be removed in a later patch to only allow logical flag.
      integer, dimension(:), pointer :: flag
