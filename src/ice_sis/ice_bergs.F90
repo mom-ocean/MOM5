@@ -231,7 +231,7 @@ integer :: stderrunit
   ! For convenience
   grd=>bergs%grd
 
-  ! Interpolate gridded fields to berg 
+  ! Interpolate gridded fields to berg
   call interp_flds(grd, i, j, xi, yj, uo, vo, ui, vi, ua, va, ssh_x, ssh_y, sst, cn, hi)
 
   f_cori=(2.*omega)*sin(pi_180*lat)
@@ -318,14 +318,14 @@ integer :: stderrunit
     vveln=vvel0+dt*ay
 
   enddo ! itloop
-  
+
   ! Limit speed of bergs based on a CFL criteria
   if (bergs%speed_limit>0.) then
     speed=sqrt(uveln*uveln+vveln*vveln) ! Speed of berg
     if (speed>0.) then
       loc_dx=min(0.5*(grd%dx(i,j)+grd%dx(i,j-1)),0.5*(grd%dy(i,j)+grd%dy(i-1,j))) ! min(dx,dy)
      !new_speed=min(loc_dx/dt*bergs%speed_limit,speed) ! Restrict speed to dx/dt x factor
-      new_speed=loc_dx/dt*bergs%speed_limit ! Speed limit as a factor of dx / dt 
+      new_speed=loc_dx/dt*bergs%speed_limit ! Speed limit as a factor of dx / dt
       if (new_speed<speed) then
         uveln=uveln*(new_speed/speed) ! Scale velocity to reduce speed
         vveln=vveln*(new_speed/speed) ! without changing the direction
@@ -460,7 +460,7 @@ integer :: stderrunit
     write(stderrunit,'("pe=",i3,x,i8,3es12.4)') mpp_pe(),j0+jj,(B(ii,jj),ii=-1,1)
   enddo
   end subroutine dump_locfld
-  
+
   subroutine dump_locvel(grd,i0,j0,A,lbl)
   ! Arguments
   type(icebergs_gridded), pointer :: grd
@@ -484,7 +484,7 @@ integer :: stderrunit
     write(stderrunit,'("pe=",i3,x,i8,3es12.4)') mpp_pe(),j0+jj,(B(ii,jj),ii=-1,0)
   enddo
   end subroutine dump_locvel
-  
+
 end subroutine accel
 
 ! ##############################################################################
@@ -513,7 +513,7 @@ real, parameter :: perday=1./86400.
             this%ui, this%vi, this%ua, this%va, this%ssh_x, this%ssh_y, this%sst, &
             this%cn, this%hi)
     SST=this%sst
-    IC=min(1.,this%cn+bergs%sicn_shift) ! Shift sea-ice concentration 
+    IC=min(1.,this%cn+bergs%sicn_shift) ! Shift sea-ice concentration
     M=this%mass
     T=this%thickness ! total thickness
   ! D=(bergs%rho_bergs/rho_seawater)*T ! draught (keel depth)
@@ -582,7 +582,7 @@ real, parameter :: perday=1./86400.
       Mbb=bergs%rho_bergs*Abits*Mbb ! in kg/s
       dMbitsM=min(Mbb*bergs%dt,nMbits) ! bergy bits mass lost to melting (kg)
       nMbits=nMbits-dMbitsM ! remove mass lost to bergy bits melt
-      if (Mnew==0.) then ! if parent berg has completely melted then 
+      if (Mnew==0.) then ! if parent berg has completely melted then
         dMbitsM=dMbitsM+nMbits ! instantly melt all the bergy bits
         nMbits=0.
       endif
@@ -662,7 +662,7 @@ real, parameter :: perday=1./86400.
       if (bergs%add_weight_to_ocean .and. .not. bergs%time_average_weight) &
          call spread_mass_across_ocean_cells(grd, i, j, this%xi, this%yj, Mnew, nMbits, this%mass_scaling)
     endif
-  
+
     this=>next
   enddo
 
@@ -678,7 +678,7 @@ subroutine spread_mass_across_ocean_cells(grd, i, j, x, y, Mberg, Mbits, scaling
   ! Local variables
   real :: xL, xC, xR, yD, yC, yU, Mass
   real :: yDxL, yDxC, yDxR, yCxL, yCxC, yCxR, yUxL, yUxC, yUxR
-  
+
   Mass=(Mberg+Mbits)*scaling
   xL=min(0.5, max(0., 0.5-x))
   xR=min(0.5, max(0., x-0.5))
@@ -781,7 +781,7 @@ real, parameter :: ssh_coast=0.00
 #endif
   ! ssh_y is at the v-point on a C-grid
   ssh_y=yj*hxp+(1.-yj)*hxm
-  
+
   ! Rotate vectors from local grid to lat/lon coordinates
   call rotate(uo, vo, cos_rot, sin_rot)
   call rotate(ui, vi, cos_rot, sin_rot)
@@ -1524,7 +1524,7 @@ integer :: stderrunit
   !
   !  Xn = X1+dt*(V1+2*V2+2*V3+V4)/6
   !  Vn = V1+dt*(A1+2*A2+2*A3+A4)/6
-  
+
   ! Get the stderr unit number
   stderrunit = stderr()
 
@@ -1580,7 +1580,7 @@ integer :: stderrunit
   u1=uvel1*dxdl1; v1=vvel1*dydl
   call accel(bergs, berg, i, j, xi, yj, lat1, uvel1, vvel1, uvel1, vvel1, dt_2, ax1, ay1)
   if (on_tangential_plane) call rotvec_to_tang(lon1,ax1,ay1,xddot1,yddot1)
-  
+
   !  X2 = X1+dt/2*V1 ; V2 = V1+dt/2*A1; A2=A(X2)
  !if (debug) write(stderr(),*) 'diamonds, evolve: x2=...'
   if (on_tangential_plane) then
@@ -1633,7 +1633,7 @@ integer :: stderrunit
   u2=uvel2*dxdl2; v2=vvel2*dydl
   call accel(bergs, berg, i, j, xi, yj, lat2, uvel2, vvel2, uvel1, vvel1, dt_2, ax2, ay2)
   if (on_tangential_plane) call rotvec_to_tang(lon2,ax2,ay2,xddot2,yddot2)
-  
+
   !  X3 = X1+dt/2*V2 ; V3 = V1+dt/2*A2; A3=A(X3)
  !if (debug) write(stderr(),*) 'diamonds, evolve: x3=...'
   if (on_tangential_plane) then
@@ -1689,7 +1689,7 @@ integer :: stderrunit
   u3=uvel3*dxdl3; v3=vvel3*dydl
   call accel(bergs, berg, i, j, xi, yj, lat3, uvel3, vvel3, uvel1, vvel1, dt, ax3, ay3)
   if (on_tangential_plane) call rotvec_to_tang(lon3,ax3,ay3,xddot3,yddot3)
-  
+
   !  X4 = X1+dt*V3 ; V4 = V1+dt*A3; A4=A(X4)
  !if (debug) write(stderr(),*) 'diamonds, evolve: x4=...'
   if (on_tangential_plane) then
@@ -1746,7 +1746,7 @@ integer :: stderrunit
   u4=uvel4*dxdl4; v4=vvel4*dydl
   call accel(bergs, berg, i, j, xi, yj, lat4, uvel4, vvel4, uvel1, vvel1, dt, ax4, ay4)
   if (on_tangential_plane) call rotvec_to_tang(lon4,ax4,ay4,xddot4,yddot4)
-  
+
   !  Xn = X1+dt*(V1+2*V2+2*V3+V4)/6
   !  Vn = V1+dt*(A1+2*A2+2*A3+A4)/6
   if (on_tangential_plane) then
@@ -2076,9 +2076,9 @@ real :: xi0, yj0, lon0, lat0
     if (debug) then
       write(stderrunit,*) 'diamonds, adjust: lon0, lat0=',lon0,lat0
       write(stderrunit,*) 'diamonds, adjust: xi0, yj0=',xi0,yj0
-      write(stderrunit,*) 'diamonds, adjust: i0,j0=',i0,j0 
+      write(stderrunit,*) 'diamonds, adjust: i0,j0=',i0,j0
       write(stderrunit,*) 'diamonds, adjust: lon, lat=',lon,lat
-      write(stderrunit,*) 'diamonds, adjust: xi,yj=',xi,yj 
+      write(stderrunit,*) 'diamonds, adjust: xi,yj=',xi,yj
       write(stderrunit,*) 'diamonds, adjust: i,j=',i,j
       write(stderrunit,*) 'diamonds, adjust: inm,jnm=',inm,jnm
       write(stderrunit,*) 'diamonds, adjust: icount=',icount
@@ -2255,7 +2255,7 @@ integer :: stderrunit
   if (grd%pe_N.ne.NULL_PE) then
     if(folded_north_on_pe) then
        call mpp_send(nbergs_to_send_n, plen=1, to_pe=grd%pe_N, tag=COMM_TAG_9)
-    else 
+    else
        call mpp_send(nbergs_to_send_n, plen=1, to_pe=grd%pe_N, tag=COMM_TAG_5)
     endif
     if (nbergs_to_send_n.gt.0) then
@@ -2643,7 +2643,7 @@ integer :: stdlogunit, stderrunit
   call mpp_get_neighbor_pe(grd%domain, WEST, grd%pe_W)
 
   folded_north_on_pe = .false.
-  if(tripolar_grid .and. grd%jec == gnj) folded_north_on_pe = .true. 
+  if(tripolar_grid .and. grd%jec == gnj) folded_north_on_pe = .true.
  !write(stderrunit,'(a,6i4)') 'diamonds, icebergs_init: pe,n,s,e,w =',mpp_pe(),grd%pe_N,grd%pe_S,grd%pe_E,grd%pe_W, NULL_PE
 
  !if (verbose) &
@@ -2972,7 +2972,7 @@ integer :: stderrunit
 
   elseif (found_restart) then ! if (.not.found_restart)
   ! only do the following if a file was found
-  
+
   if (verbose.and.mpp_pe()==mpp_root_pe()) write(*,'(2a)') 'diamonds, read_restart_bergs: found restart file = ',filename
 
   ierr=nf_open(filename, NF_NOWRITE, ncid)
@@ -3071,7 +3071,7 @@ integer :: stderrunit
   else ! if no restart file was read on this PE
     nbergs_in_file=0
   endif ! if (.not.found_restart)
-  
+
   ! Sanity check
   k=count_bergs(bergs)
   if (verbose) write(*,'(2(a,i8))') 'diamonds, read_restart_bergs: # bergs =',k,' on PE',mpp_pe()
@@ -3095,7 +3095,7 @@ integer :: stderrunit
   if (mpp_pe().eq.mpp_root_pe().and.verbose) write(*,'(a)') 'diamonds, read_restart_bergs: completed'
 
 contains
-  
+
   subroutine generate_bergs(bergs,Time)
   ! Arguments
   type(icebergs), pointer :: bergs
@@ -3151,7 +3151,7 @@ contains
       write(*,'(a,i8,a)') 'diamonds, generate_bergs: ',bergs%nbergs_start,' were generated'
 
   end subroutine generate_bergs
-  
+
 end subroutine read_restart_bergs
 
 ! ##############################################################################
@@ -3778,7 +3778,7 @@ logical :: explain=.false.
     find_cell_by_search=.true.
     return
   endif
-    
+
   do icnt=1, 1*(ie-is+je-js)
     io=i; jo=j
 
@@ -3821,7 +3821,7 @@ logical :: explain=.false.
       find_cell_by_search=.true.
       return
     endif
-    
+
     if ((i==io.and.j==jo) &
         .and. .not.find_better_min(grd, x, y, 3, i, j) &
        ) then
@@ -3869,7 +3869,7 @@ logical :: explain=.false.
 
   contains
 
-! # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+! # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
   real function dcost(x1, y1, x2, y2)
   ! Arguments
@@ -3882,7 +3882,7 @@ logical :: explain=.false.
     dcost=(x2-x1m)**2+(y2-y1)**2
   end function dcost
 
-! # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+! # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
   logical function find_better_min(grd, x, y, w, oi, oj)
   ! Arguments
@@ -3912,7 +3912,7 @@ logical :: explain=.false.
 
   end function find_better_min
 
-! # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+! # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
   logical function find_cell_loc(grd, x, y, is, ie, js, je, w, oi, oj)
   ! Arguments
@@ -4020,41 +4020,41 @@ integer :: stderrunit
   ylo=min( grd%lat(i-1,j-1), grd%lat(i,j-1), grd%lat(i-1,j), grd%lat(i,j) )
   yhi=max( grd%lat(i-1,j-1), grd%lat(i,j-1), grd%lat(i-1,j), grd%lat(i,j) )
   if (y.lt.ylo .or. y.gt.yhi) return
-  
+
   if (grd%lat(i,j).gt.89.999) then
     is_point_in_cell=sum_sign_dot_prod5(grd%lon(i-1,j-1),grd%lat(i-1,j-1), &
                                         grd%lon(i  ,j-1),grd%lat(i  ,j-1), &
                                         grd%lon(i  ,j-1),grd%lat(i  ,j  ), &
                                         grd%lon(i-1,j  ),grd%lat(i  ,j  ), &
                                         grd%lon(i-1,j  ),grd%lat(i-1,j  ), &
-                                        x, y, explain=explain) 
+                                        x, y, explain=explain)
   elseif (grd%lat(i-1,j).gt.89.999) then
     is_point_in_cell=sum_sign_dot_prod5(grd%lon(i-1,j-1),grd%lat(i-1,j-1), &
                                         grd%lon(i  ,j-1),grd%lat(i  ,j-1), &
                                         grd%lon(i  ,j  ),grd%lat(i  ,j  ), &
                                         grd%lon(i  ,j  ),grd%lat(i-1,j  ), &
                                         grd%lon(i-1,j-1),grd%lat(i-1,j  ), &
-                                        x, y, explain=explain) 
+                                        x, y, explain=explain)
   elseif (grd%lat(i-1,j-1).gt.89.999) then
     is_point_in_cell=sum_sign_dot_prod5(grd%lon(i-1,j  ),grd%lat(i-1,j-1), &
                                         grd%lon(i  ,j-1),grd%lat(i-1,j-1), &
                                         grd%lon(i  ,j-1),grd%lat(i  ,j-1), &
                                         grd%lon(i  ,j  ),grd%lat(i  ,j  ), &
                                         grd%lon(i-1,j  ),grd%lat(i-1,j  ), &
-                                        x, y, explain=explain) 
+                                        x, y, explain=explain)
   elseif (grd%lat(i,j-1).gt.89.999) then
     is_point_in_cell=sum_sign_dot_prod5(grd%lon(i-1,j-1),grd%lat(i-1,j-1), &
                                         grd%lon(i-1,j-1),grd%lat(i  ,j-1), &
                                         grd%lon(i  ,j  ),grd%lat(i  ,j-1), &
                                         grd%lon(i  ,j  ),grd%lat(i  ,j  ), &
                                         grd%lon(i-1,j  ),grd%lat(i-1,j  ), &
-                                        x, y, explain=explain) 
+                                        x, y, explain=explain)
   else
   is_point_in_cell=sum_sign_dot_prod4(grd%lon(i-1,j-1),grd%lat(i-1,j-1), &
                                       grd%lon(i  ,j-1),grd%lat(i  ,j-1), &
                                       grd%lon(i  ,j  ),grd%lat(i  ,j  ), &
                                       grd%lon(i-1,j  ),grd%lat(i-1,j  ), &
-                                      x, y, explain=explain) 
+                                      x, y, explain=explain)
   endif
 
 end function is_point_in_cell
@@ -4637,7 +4637,7 @@ integer :: scaling_id, mass_of_bits_id, heat_density_id
 character(len=35) :: filename
 type(iceberg), pointer :: this
 integer :: stderrunit
- 
+
   ! Get the stderr unit number
   stderrunit=stderr()
 
@@ -4712,12 +4712,12 @@ integer :: stderrunit
     call put_att(ncid, mass_of_bits_id, 'units', 'kg')
     call put_att(ncid, heat_density_id, 'long_name', 'heat density')
     call put_att(ncid, heat_density_id, 'units', 'J/kg')
-    iret = nf_put_att_int(ncid, NCGLOBAL, 'file_format_major_version', NF_INT, 1, file_format_major_version)
-    iret = nf_put_att_int(ncid, NCGLOBAL, 'file_format_minor_version', NF_INT, 3, file_format_minor_version)
+    iret = nf_put_att_int(ncid, NF_GLOBAL, 'file_format_major_version', NF_INT, 1, file_format_major_version)
+    iret = nf_put_att_int(ncid, NF_GLOBAL, 'file_format_minor_version', NF_INT, 3, file_format_minor_version)
 
     ! End define mode
     iret = nf_enddef(ncid)
-         
+
     ! Write variables
    !this=>bergs%first; i=0
     this=>last_berg(bergs%first); i=0
@@ -4744,7 +4744,7 @@ integer :: stderrunit
      !this=>this%next
       this=>this%prev
     enddo
-         
+
     ! Finish up
     iret = nf_close(ncid)
     if (iret .ne. NF_NOERR) write(stderrunit,*) 'diamonds, write_restart: nf_close failed'
@@ -4793,12 +4793,12 @@ integer :: stderrunit
 
   ! Get the stderr unit number
   stderrunit=stderr()
-  
+
   call get_instance_filename("iceberg_trajectories.nc", filename)
   if (mpp_npes()>10000) then
-     write(pe_name,'(a,i6.6)' )'.', mpp_pe()    
+     write(pe_name,'(a,i6.6)' )'.', mpp_pe()
   else
-     write(pe_name,'(a,i4.4)' )'.', mpp_pe()    
+     write(pe_name,'(a,i4.4)' )'.', mpp_pe()
   endif
   filename=trim(filename)//trim(pe_name)
   if (debug) write(stderrunit,*) 'diamonds, write_trajectory: creating ',filename
@@ -4836,8 +4836,8 @@ integer :: stderrunit
   hiid = def_var(ncid, 'hi', NF_DOUBLE, i_dim)
 
   ! Attributes
-  iret = nf_put_att_int(ncid, NCGLOBAL, 'file_format_major_version', NF_INT, 1, 0)
-  iret = nf_put_att_int(ncid, NCGLOBAL, 'file_format_minor_version', NF_INT, 1, 1)
+  iret = nf_put_att_int(ncid, NF_GLOBAL, 'file_format_major_version', NF_INT, 1, 0)
+  iret = nf_put_att_int(ncid, NF_GLOBAL, 'file_format_minor_version', NF_INT, 1, 1)
   call put_att(ncid, lonid, 'long_name', 'longitude')
   call put_att(ncid, lonid, 'units', 'degrees_E')
   call put_att(ncid, latid, 'long_name', 'latitude')
@@ -4887,7 +4887,7 @@ integer :: stderrunit
 
   ! End define mode
   iret = nf_enddef(ncid)
-       
+
   ! Write variables
   this=>trajectory; i=0
   do while (associated(this))
@@ -4919,7 +4919,7 @@ integer :: stderrunit
     this=>next
   enddo
   trajectory=>null()
-       
+
   ! Finish up
   iret = nf_close(ncid)
   if (iret .ne. NF_NOERR) write(stderrunit,*) 'diamonds, write_trajectory: nf_close failed',mpp_pe(),filename
@@ -5441,16 +5441,16 @@ logical function find_restart_file(filename, actual_file, multiPErestart)
 
   ! If running as ensemble, add the ensemble id string to the filename
   call get_instance_filename(filename, actual_file)
-    
+
   ! Prefer combined restart files.
   inquire(file=actual_file,exist=find_restart_file)
   if (find_restart_file) return
-    
+
   ! Uncombined restart
   if (mpp_npes()>10000) then
-     write(pe_name,'(a,i6.6)' )'.', mpp_pe()    
+     write(pe_name,'(a,i6.6)' )'.', mpp_pe()
   else
-     write(pe_name,'(a,i4.4)' )'.', mpp_pe()    
+     write(pe_name,'(a,i4.4)' )'.', mpp_pe()
   endif
   actual_file=trim(actual_file)//trim(pe_name)
   inquire(file=actual_file,exist=find_restart_file)

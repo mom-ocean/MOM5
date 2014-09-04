@@ -8,7 +8,7 @@ module ocean_blob_mod
 !</CONTACT>
 !
 !<OVERVIEW>
-! This is the main "driver" module for the Lagrangian blob scheme.  This 
+! This is the main "driver" module for the Lagrangian blob scheme.  This
 ! module calls other modules that contain the individual parameterisations.
 !
 ! Please note that the preprocessor option MOM_STATIC_ARRAYS is NOT
@@ -24,11 +24,11 @@ module ocean_blob_mod
 ! the L system contribution towards grid cell thickness.
 !
 ! This module also handles some framework wide variables, mostly
-! associated with system wide diagnostics and the system wide accounting 
+! associated with system wide diagnostics and the system wide accounting
 ! required to ensure the Eulerian model and the Lagrangian model can coexist.
 !
-! It should be noted that many of the parameterisations are not mutually 
-! exclusive.  As such, care should be excercised when creating namelists 
+! It should be noted that many of the parameterisations are not mutually
+! exclusive.  As such, care should be excercised when creating namelists
 ! for experiments.
 !</DESCRIPTION>
 !
@@ -43,63 +43,63 @@ module ocean_blob_mod
 !<NAMELIST NAME="ocean_blob_nml">
 !
 !  <DATA NAME="use_this_module" TYPE="logical">
-!  Must be true to use this module. 
-!  Default is use_this_module=.false. 
-!  </DATA> 
+!  Must be true to use this module.
+!  Default is use_this_module=.false.
+!  </DATA>
 !
 !  <DATA NAME="debug_this_module" TYPE="logical">
-!  Writes additional diagnostic data to fms.out.  This 
+!  Writes additional diagnostic data to fms.out.  This
 !  also controls debug output for the other related blob
 !  modules.
-!  Default is debug_this_module=.false. 
-!  </DATA> 
+!  Default is debug_this_module=.false.
+!  </DATA>
 !
 !  <DATA NAME="really_debug" TYPE="logical">
 !  Be careful what you wish for, this outputs A LOT of
 !  diagnostics to standard out!
-!  Default is debug_this_module=.false. 
-!  </DATA> 
+!  Default is debug_this_module=.false.
+!  </DATA>
 !
 !  <DATA NAME="do_bitwise_exact_sum" TYPE="logical">
 !  When global sum outputs are done there is additional
 !  computational expense to ensure that they are bitwise
-!  the same across an arbitrary number of processors.  
+!  the same across an arbitrary number of processors.
 !  However, for debugging purposes, it can be useful
 !  for global sums to be the same.  Note, that this differs
 !  from bitwise_reproduction in that it do_bitwise_exact_sum
 !  only applies to the mpp_global_sum diagnostic.
 !  Note that this flag controls the output for all associated
 !  blob modules.
-!  Default is do_bitwise_exact_sum=.false. 
-!  </DATA> 
+!  Default is do_bitwise_exact_sum=.false.
+!  </DATA>
 !
 !  <DATA NAME="bitwise_reproduction" TYPE="logical">
 !  There is additional cost involved in ensuring that
 !  results are reproducable across an arbitrary number of
-!  processors and across restarts.  
-!  Bitwise reproduction is a very memory intensive operation and should 
-!  only be used for debugging.  For bitwise_reproduction=.true. We need 
-!  to process blobs and their histories in the same relative order 
-!  regardless of domain decomposition and restarts. To do so, we save the 
-!  "history" of each blob subcycle is saved to a number of arrays (which 
+!  processors and across restarts.
+!  Bitwise reproduction is a very memory intensive operation and should
+!  only be used for debugging.  For bitwise_reproduction=.true. We need
+!  to process blobs and their histories in the same relative order
+!  regardless of domain decomposition and restarts. To do so, we save the
+!  "history" of each blob subcycle is saved to a number of arrays (which
 !  can be a very memory intensive process) and process them in order.
 !  Note that this flag controls reproducability for all associated
 !  blob modules.
 !  Bitwise reproducibility is only possible with the appropriate
 !  compiler flags AND when the simulation is run on hardware that is
 !  capable of producing bitwise reproduction.
-!  Default is bitwise_reproduction=.false. 
-!  </DATA> 
+!  Default is bitwise_reproduction=.false.
+!  </DATA>
 !
 !  <DATA NAME="blob_small_mass" UNITS="kg" TYPE="real">
 !  Will delete blobs of mass less than blob_small_mass.
-!  Note that this variable is for all associated blob 
+!  Note that this variable is for all associated blob
 !  modules.  The deletion of blobs is a conservative
 !  action, any mass/tracer fields that are nonzero
 !  have the remaining properties transferred back to the
 !  Eulerian system.  So, in principle, blob_small_mass
-!  can actually be a relatively large number, and the 
-!  model will remain conservative.  It has been found in 
+!  can actually be a relatively large number, and the
+!  model will remain conservative.  It has been found in
 !  certain test cases (with very low tracer values) that
 !  setting blob_small_mass to be very small (i.e. <1e2)
 !  that roundoff error can cause non-trivial errors.  So,
@@ -108,11 +108,11 @@ module ocean_blob_mod
 !  blob!)
 !  Default is blob_small_mass=1.e3
 !  </DATA>
-!  
+!
 !  <DATA NAME="mass_prop_thickness" UNITS="dimensionless" TYPE="real">
-!  Sets the maximum proportion of a grid cell that the 
+!  Sets the maximum proportion of a grid cell that the
 !  Lagrangian system may occupy.  This is actually calculated
-!  separately (and therefore must be satisfied separately) for 
+!  separately (and therefore must be satisfied separately) for
 !  the uppper and lower portions of a grid cell.
 !  Default is blob_small_mass=0.7
 !  </DATA>
@@ -171,12 +171,12 @@ private
 
 ! set up the various module specific types
 
-! set module types 
+! set module types
 type(ocean_grid_type),   pointer :: Grd => NULL()
 type(ocean_domain_type), pointer :: Dom => NULL()
-type(ocean_blob_type),   pointer :: head_dynamic_free => NULL() 
+type(ocean_blob_type),   pointer :: head_dynamic_free => NULL()
 type(ocean_blob_type),   pointer :: head_dynamic_bott => NULL()
-type(ocean_blob_type),   pointer :: head_static_free  => NULL() 
+type(ocean_blob_type),   pointer :: head_static_free  => NULL()
 type(ocean_blob_type),   pointer :: head_static_bott  => NULL()
 type(blob_grid_type),    pointer :: Info
 
@@ -317,17 +317,17 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
 
   taup1 = Time%taup1
 
-  if ( module_is_initialized ) then 
+  if ( module_is_initialized ) then
     call mpp_error(FATAL,&
-    '==>Error in ocean_blob_mod (ocean_blob_init): module already '& 
+    '==>Error in ocean_blob_mod (ocean_blob_init): module already '&
     //'initialized')
-  endif 
+  endif
 
   ! provide for namelist over-ride of default values
   ioun =  open_namelist_file()
   read (ioun,ocean_blob_nml,IOSTAT=io_status)
   write (stdoutunit,'(/)')
-  write (stdoutunit,ocean_blob_nml)  
+  write (stdoutunit,ocean_blob_nml)
   write (stdlogunit,ocean_blob_nml)
   ierr = check_nml_error(io_status,'ocean_blob_nml')
   call close_file (ioun)
@@ -375,11 +375,11 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
   isg=Dom%isg; ieg=Dom%ieg; jsg=Dom%jsg; jeg=Dom%jeg
   nk = Grd%nk
 
-  ! For the dynamic blobs, we need to have a halo of size 2 
+  ! For the dynamic blobs, we need to have a halo of size 2
   ! to be able to do the interpolation is implemented here
   call set_ocean_domain(Blob_domain, Grid, xhalo=2, yhalo=2, &
                         name='blobs', maskmap=Dom%maskmap)
-  isbd=Blob_domain%isd; iebd=Blob_domain%ied 
+  isbd=Blob_domain%isd; iebd=Blob_domain%ied
   jsbd=Blob_domain%jsd; jebd=Blob_domain%jed
 
   ! Allocate memory to an Information type
@@ -400,7 +400,7 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
   allocate(Info%jt(9))
   allocate(Info%iu(4))
   allocate(Info%ju(4))
-  !1: (i,j), 2: (i+1,j), 3: (i+1,j+1) 4: (i,j+1), 5: (i-1,j+1) 
+  !1: (i,j), 2: (i+1,j), 3: (i+1,j+1) 4: (i,j+1), 5: (i-1,j+1)
   !          6: (i-1,j), 7: (i-1,j-1), 8:(i,j-1), 9: (i+1,j-1)
   m=1; Info%it(m)= 0; Info%jt(m)= 0
   m=2; Info%it(m)= 1; Info%jt(m)= 0
@@ -442,7 +442,7 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
   ! The rest of the dimension lists the index of which cells participate
   ! as described below.
   ! Info%tidx:
-  !1: (i,j), 2: (i+1,j), 3: (i+1,j+1) 4: (i,j+1), 5: (i-1,j+1) 
+  !1: (i,j), 2: (i+1,j), 3: (i+1,j+1) 4: (i,j+1), 5: (i-1,j+1)
   !          6: (i-1,j), 7: (i-1,j-1), 8:(i,j-1), 9: (i+1,j-1)
   ! Info%uidx:
   !1: (i,j), 2: (i-1,j), 3: (i-1,j-1), 4:(i,j-1)
@@ -461,7 +461,7 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
   ! Firstly, do the edges of the compute domain
   if (Info%pe_E==NULL_PE) then
      Info%uidx(0,iec,:) = 2
-     Info%tidx(0,iec,:) = 6 
+     Info%tidx(0,iec,:) = 6
 
      Info%uidx(1,  iec,:) = 2
      Info%uidx(2,  iec,:) = 3
@@ -493,7 +493,7 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
   endif
   if (Info%pe_W==NULL_PE) then
      Info%uidx(0,isc,:) = 2
-     Info%tidx(0,isc,:) = 6 
+     Info%tidx(0,isc,:) = 6
 
      Info%uidx(1,  isc,:) = 1
      Info%uidx(2,  isc,:) = 4
@@ -509,7 +509,7 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
   endif
   if (Info%pe_S==NULL_PE) then
      Info%uidx(0,:,jsc) = 2
-     Info%tidx(0,:,jsc) = 6 
+     Info%tidx(0,:,jsc) = 6
 
      Info%uidx(1,  :,jsc) = 1
      Info%uidx(2,  :,jsc) = 2
@@ -629,11 +629,11 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
      if (T_prog(n)%name == 'salt') index_salt = n
   enddo
 
-  if (index_temp == -1 .or. index_salt == -1) then 
+  if (index_temp == -1 .or. index_salt == -1) then
      call mpp_error(FATAL, &
      '==>Error: temp and/or salt not identified in call to '&
      //'ocean_blobs_init')
-  endif 
+  endif
 
   vert_coordinate       = ver_coordinate
   vert_coordinate_class = ver_coordinate_class
@@ -658,33 +658,33 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
   id_clock_tsfr_f2b          = mpp_clock_id('(Ocean blob: transfer free to bottom )', grain=CLOCK_ROUTINE)
   id_clock_dyn_bott_new      = mpp_clock_id('(Ocean blob: form new dynamic bottom )', grain=CLOCK_ROUTINE)
 
-  if(debug_this_module) then 
+  if(debug_this_module) then
      write(stdoutunit,'(a)') &
-          '  ==>Note: running ocean_blobs_mod with debug_this_module=.true.'  
+          '  ==>Note: running ocean_blobs_mod with debug_this_module=.true.'
   endif
-  if(really_debug) then 
+  if(really_debug) then
      write(stdoutunit,'(a,/,a)') &
           '  ==>Note: running ocean_blobs_mod with really_debug=.true.',&
           '           Expect LOTS of output!!'
   endif
-  
+
   if (do_bitwise_exact_sum) then
      global_sum_flag = BITWISE_EXACT_SUM
   else
      global_sum_flag = NON_BITWISE_EXACT_SUM
-     if (debug_this_module) then 
+     if (debug_this_module) then
         write(stdoutunit,'(a)') &
              '==>Note: running ocean_blobs_mod with bitwise_flag=.false. '&
-             //'Global sums used for diagnostics will not agree bitwise.'  
+             //'Global sums used for diagnostics will not agree bitwise.'
      endif
   endif
-  
+
   write(stdoutunit,'(a)') &
        '==>Note: Using the Lagrangian buoyancy blobs scheme.'
   Ocean_options%lagrangian_blobs = 'Did use Lagrangian blobs.'
-  
+
   call write_version_number( version, tagname )
-  
+
   ! Register diagnostic fields
   allocate(id_tend_blob(num_prog_tracers))
   do n=1,num_prog_tracers
@@ -726,7 +726,7 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
   allocate(id_dstry(      0:num_prog_tracers))
 
   !The 0 is for mass
-  do n=0,num_prog_tracers 
+  do n=0,num_prog_tracers
      ! Allocate the arrays
      allocate(EL_diag(n)%entrainment(isd:ied,jsd:jed,1:nk))
      allocate(EL_diag(n)%detrainment(isd:ied,jsd:jed,1:nk))
@@ -780,9 +780,9 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
                       vert_coordinate_class, blob_diagnostics)
 
   call blob_static_free_init(Grd, Dom, num_prog_tracers, index_temp, index_salt)
-  
+
   call blob_static_bottom_init(Grd, Dom, Info, num_prog_tracers, index_temp, index_salt, dtimein)
-  
+
   call blob_dynamic_bottom_init(Time, Grd, Dom, Blob_domain, Info,                        &
                                 debug_this_module,really_debug, bitwise_reproduction,     &
                                 num_prog_tracers, index_temp, index_salt, dtimein,        &
@@ -812,10 +812,10 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
      enddo
      call mpp_update_domains(T_prog(n)%fieldT(:,:,:), Dom%domain2d, complete=T_prog(n)%complete)
   enddo
- 
+
   ! Compute the buoyancy frequency based on the full system
   call compute_buoyfreq(Time, Thickness, T_prog(index_salt)%fieldT(:,:,:), &
-                        T_prog(index_temp)%fieldT(:,:,:), Dens, use_blobs) 
+                        T_prog(index_temp)%fieldT(:,:,:), Dens, use_blobs)
 
   if (debug_this_module) then
      write(stdoutunit,'(/a)') 'From ocean_blobs_init: debug blob chksums'
@@ -833,7 +833,7 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
 
 
 contains
-  
+
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! This is a nested subroutine for checking netcdf read errors          !
@@ -847,7 +847,7 @@ contains
        if (nfstatus==NF_EEDGE)        write(stdoutunit, *) '==>Start+count exceeds dimension bound'
        if (nfstatus==NF_EINVALCOORDS) write(stdoutunit, *) '==>Index exceeds dimension bound'
        if (nfstatus==NF_ENOTVAR)      write(stdoutunit, *) '==>Variable not found'
-       
+
        call mpp_error(FATAL, 'ocean_blob_mod, ocean_blob_init: problem '//trim(description))
     endif
   end subroutine nferror
@@ -868,10 +868,10 @@ contains
     integer :: stepid, h1id, h2id, nstepsid, mstepsid, densityid
     integer :: n, m, i, j, k, type, nblobs, fileno
     logical :: found_restart, distributed, next_file_exists
-    
+
     ! We have two restart files, and we need to read them in separately.
     ! The first is to read in the gridded data.  The second is to read
-    ! in the blobs and distribute them amongst the processors.  
+    ! in the blobs and distribute them amongst the processors.
 
     ! Allocate memory to the blob counter
     allocate(blob_counter(isc:iec,jsc:jec,nk))
@@ -919,7 +919,7 @@ contains
        fileno=0
        nblobs=0
 
-       do while (next_file_exists) 
+       do while (next_file_exists)
           write(stdoutunit, '(/,a,/)') 'Reading in blobs restart from '//trim(filename)
 
           ierr = nf_open(trim(filename), NF_NOWRITE, ncid)
@@ -957,7 +957,7 @@ contains
           mstepsid   = inq_var(ncid, 'model_steps')
           if (fileno==0) allocate(tracerid(num_prog_tracers))
           do n=1, num_prog_tracers
-             if (n==index_temp) then 
+             if (n==index_temp) then
                 tracerid(n) = inq_var(ncid, 'heat')
              else
                 tracerid(n) = inq_var(ncid, trim(T_prog(n)%name))
@@ -976,8 +976,8 @@ contains
 
              ! if type==0, it is an empty entry, so we just ignore it
              if(type /= 0) then
-                ! Check if we are in the compute domain. If we are not, 
-                ! then ignore the blob.  If we are, then read in the 
+                ! Check if we are in the compute domain. If we are not,
+                ! then ignore the blob.  If we are, then read in the
                 ! blob's data.
                 if (isc<=i .and. i<=iec .and. jsc<=j .and. j<=jec) then
                    nblobs = nblobs + 1
@@ -1016,7 +1016,7 @@ contains
                    j = blob%j
                    k = blob%k
 
-                   ! new blobs were created implicitly in time, and thus, their 
+                   ! new blobs were created implicitly in time, and thus, their
                    ! properties belong to the next time step and have not been
                    ! taken into account in diagnostics
                    if(blob%new) then
@@ -1038,9 +1038,9 @@ contains
                    endif
 
                    ! Insert the blob into its correct place in the linked
-                   ! Give an error if the type is unrecognised. type==1 is 
-                   ! a static free blob and type==2 is a static bottom blob, 
-                   ! type==3 is a dynamic free blob and type==4 is a dynamic 
+                   ! Give an error if the type is unrecognised. type==1 is
+                   ! a static free blob and type==2 is a static bottom blob,
+                   ! type==3 is a dynamic free blob and type==4 is a dynamic
                    ! bottom blob.  type==0 means that it is an empty entry.
                    if (type==1) then
                       call insert_blob(blob, head_static_free)
@@ -1114,7 +1114,7 @@ subroutine init_blob_thickness(Time, Thickness, T_prog, L_system)
      this=>head_dynamic_free
 
      if(associated(this)) then
-        freecycle: do 
+        freecycle: do
            ! for convenience
            i  = this%i - Dom%ioff
            j  = this%j - Dom%joff
@@ -1153,7 +1153,7 @@ subroutine init_blob_thickness(Time, Thickness, T_prog, L_system)
 
      this=>head_dynamic_bott
      if(associated(this)) then
-        bottcycle: do 
+        bottcycle: do
            ! for convenience
            i  = this%i - Dom%ioff
            j  = this%j - Dom%joff
@@ -1161,11 +1161,11 @@ subroutine init_blob_thickness(Time, Thickness, T_prog, L_system)
 
            ! We use the EOS density regardless of the coordinates, since
            ! the value of rho_dzt for the L-system is used for the
-           ! calculation of hydrostatic pressure.  Bottom blobs only 
+           ! calculation of hydrostatic pressure.  Bottom blobs only
            ! contribute to the lower half of the grid cell thickness.
            rho_dzt = Grd%datr(i,j)*this%volume*this%density
            L_system%rho_dztlo(i,j,k) = L_system%rho_dztlo(i,j,k) + rho_dzt
-           
+
            ! Note, we do not need to initialise the L system thickness, as this is already
            ! done in the thickness module from restarts
 
@@ -1210,7 +1210,7 @@ subroutine ocean_blob_update(Time, Thickness, T_prog, Dens, Ext_mode, Adv_vel, V
 
   type(ocean_blob_type), pointer :: this=>NULL()
   type(ocean_blob_type), pointer :: head=>NULL()
-  type(ocean_blob_type), pointer :: free2bott=>NULL() 
+  type(ocean_blob_type), pointer :: free2bott=>NULL()
   type(ocean_blob_type), pointer :: bott2free=>NULL()
   integer :: tau, taup1
   integer :: k, i, j, n, p, s
@@ -1226,7 +1226,7 @@ subroutine ocean_blob_update(Time, Thickness, T_prog, Dens, Ext_mode, Adv_vel, V
   tau   = Time%tau
   taup1 = Time%taup1
 
-  if (.not. module_is_initialized ) then 
+  if (.not. module_is_initialized ) then
      call mpp_error(FATAL, &
           '==>Error in ocean_blob_mod (Lagrangian blob model): module '&
           //' needs to be initialized')
@@ -1248,7 +1248,7 @@ subroutine ocean_blob_update(Time, Thickness, T_prog, Dens, Ext_mode, Adv_vel, V
   ndetraind = 0
 
   ! We need to mpp_update these variables for the dynamic blobs if we wish to maintain
-  ! bitwise reproduction across processors.                   
+  ! bitwise reproduction across processors.
   press_grad(:,:,:,:) = 0.0
   u(:,:,:,:)          = 0.0
   rho(:,:,:)          = 0.0
@@ -1308,7 +1308,7 @@ subroutine ocean_blob_update(Time, Thickness, T_prog, Dens, Ext_mode, Adv_vel, V
   call mpp_clock_begin(id_clock_static_bottom)
   call blob_overflow_like(Time, Thickness, T_prog(:), Dens, head_static_bott, blob_counter)
   call mpp_clock_end(id_clock_static_bottom)
-  
+
   ! Dynamic free blobs
   call mpp_clock_begin(id_clock_dyn_free_update)
   call blob_dynamic_free_update(Time, Thickness, T_prog(:), Ext_mode, Dens, L_system, &
@@ -1354,7 +1354,7 @@ subroutine ocean_blob_update(Time, Thickness, T_prog, Dens, Ext_mode, Adv_vel, V
         if(p==6) head=>bott2free
         if (associated(head)) then
            this=>head
-           
+
            blobcycle: do
               i=this%di(0)
               j=this%dj(0)
@@ -1376,39 +1376,39 @@ subroutine ocean_blob_update(Time, Thickness, T_prog, Dens, Ext_mode, Adv_vel, V
 
                     if (isc<= i .and. i<=iec .and. jsc<= j .and. j<=jec) then
 
-                       Ext_mode%conv_blob(i,j)   = Ext_mode%conv_blob(i,j)   - this%mass_out(s) 
+                       Ext_mode%conv_blob(i,j)   = Ext_mode%conv_blob(i,j)   - this%mass_out(s)
                        Ext_mode%conv_blob(i,j)   = Ext_mode%conv_blob(i,j)   + this%mass_in(s)
-                       
+
                        L_system%conv_blob(i,j,k) = L_system%conv_blob(i,j,k) - this%mass_out(s)
                        L_system%conv_blob(i,j,k) = L_system%conv_blob(i,j,k) + this%mass_in(s)
-                       
+
                        mass_out(i,j,k) = mass_out(i,j,k) + this%mass_out(s)
                        mass_in(i,j,k)  = mass_in(i,j,k)  + this%mass_in(s)
-                       
-                       blob_source(i,j) = blob_source(i,j) - this%entrainment(s,0) - this%detrainment(s,0) 
-                       EL_diag(0)%entrainment(i,j,k) = EL_diag(0)%entrainment(i,j,k) + this%entrainment(s,0) 
-                       EL_diag(0)%detrainment(i,j,k) = EL_diag(0)%detrainment(i,j,k) - this%detrainment(s,0) 
-                       
+
+                       blob_source(i,j) = blob_source(i,j) - this%entrainment(s,0) - this%detrainment(s,0)
+                       EL_diag(0)%entrainment(i,j,k) = EL_diag(0)%entrainment(i,j,k) + this%entrainment(s,0)
+                       EL_diag(0)%detrainment(i,j,k) = EL_diag(0)%detrainment(i,j,k) - this%detrainment(s,0)
+
                        do n=1,num_prog_tracers
-                          tend_blob(n,i,j,k) = tend_blob(n,i,j,k) - this%entrainment(s,n) - this%detrainment(s,n) 
-                          EL_diag(n)%entrainment(i,j,k) = EL_diag(n)%entrainment(i,j,k) + this%entrainment(s,n) 
-                          EL_diag(n)%detrainment(i,j,k) = EL_diag(n)%detrainment(i,j,k) - this%detrainment(s,n) 
+                          tend_blob(n,i,j,k) = tend_blob(n,i,j,k) - this%entrainment(s,n) - this%detrainment(s,n)
+                          EL_diag(n)%entrainment(i,j,k) = EL_diag(n)%entrainment(i,j,k) + this%entrainment(s,n)
+                          EL_diag(n)%detrainment(i,j,k) = EL_diag(n)%detrainment(i,j,k) - this%detrainment(s,n)
                        enddo
                     endif
                  enddo
               endif
 
-              ! dmass and dtracer are for when a blob is destroyed (e.g. grounded, penetrated free surface) 
-              ! So, they should take the last recorded value of (i,j,k) 
+              ! dmass and dtracer are for when a blob is destroyed (e.g. grounded, penetrated free surface)
+              ! So, they should take the last recorded value of (i,j,k)
               i=this%i
               j=this%j
               k=this%k
               if (isc<= i .and. i<=iec .and. jsc<= j .and. j<=jec) then
-                 blob_source(i,j)   = blob_source(i,j) - this%dmass 
-                 EL_diag(0)%dstry(i,j,k) = EL_diag(0)%dstry(i,j,k) - this%dmass 
-                 do n=1,num_prog_tracers 
-                    tend_blob(n,i,j,k) = tend_blob(n,i,j,k) - this%dtracer(n) 
-                    EL_diag(n)%dstry(i,j,k) = EL_diag(n)%dstry(i,j,k) - this%dtracer(n) 
+                 blob_source(i,j)   = blob_source(i,j) - this%dmass
+                 EL_diag(0)%dstry(i,j,k) = EL_diag(0)%dstry(i,j,k) - this%dmass
+                 do n=1,num_prog_tracers
+                    tend_blob(n,i,j,k) = tend_blob(n,i,j,k) - this%dtracer(n)
+                    EL_diag(n)%dstry(i,j,k) = EL_diag(n)%dstry(i,j,k) - this%dtracer(n)
                  enddo
               endif
               this=>this%next
@@ -1466,14 +1466,14 @@ end subroutine ocean_blob_update
 ! <SUBROUTINE NAME="ocean_blob_cell_update">
 !
 ! <DESCRIPTION>
-! 
-! For bottom blobs, it diagnoses the blobs vertical position in the 
+!
+! For bottom blobs, it diagnoses the blobs vertical position in the
 ! models native vertical coordinate.
 !
-! For free blobs, it searches for the vertical grid cell that a free 
+! For free blobs, it searches for the vertical grid cell that a free
 ! blob resides in.
 !
-! We require the information regarding the vertical grid cell that a 
+! We require the information regarding the vertical grid cell that a
 ! blob resides in prior to the calculation of total grid cell thickness
 ! and prior to the calculation of the vertical advection velocity.
 !
@@ -1485,7 +1485,7 @@ end subroutine ocean_blob_update
 ! not impossible) we immediately kill them, returning their properties
 ! to the surface grid cell of the (i,j) column that they belong to.
 !
-! We recalculate a blobs density and volume for taup1, based on the pressure 
+! We recalculate a blobs density and volume for taup1, based on the pressure
 ! at the centre of the grid cell that it resides in.
 !
 ! </DESCRIPTION>
@@ -1499,7 +1499,7 @@ subroutine ocean_blob_cell_update(Time, Thickness, Dens, T_prog, Ext_mode, L_sys
   type(ocean_external_mode_type), intent(inout) :: Ext_mode
   type(ocean_lagrangian_type),    intent(inout) :: L_system
   type(blob_diag_type),           intent(inout) :: EL_diag(0:)
-  
+
   type(ocean_blob_type), pointer :: this=>NULL()
   integer :: i,j,k,n,old_k,km1,tau,taup1
   integer :: stdoutunit,thru_surface
@@ -1509,7 +1509,7 @@ subroutine ocean_blob_cell_update(Time, Thickness, Dens, T_prog, Ext_mode, L_sys
   taup1 = Time%taup1
 
   thru_surface = 0
-  
+
   this=>head_dynamic_bott
   if(associated(this)) then
      bottcycle: do
@@ -1524,32 +1524,32 @@ subroutine ocean_blob_cell_update(Time, Thickness, Dens, T_prog, Ext_mode, L_sys
 
         elseif(vert_coordinate==PRESSURE) then
            ! From table 6.2 of Griffies (2009): p
-           ! Here p = p(k) + dz/dzt_dst 
+           ! Here p = p(k) + dz/dzt_dst
            ! where dz is the difference in depth between the blob and the grid cell centre
            dz = this%geodepth - Thickness%depth_zt(i,j,k)
            this%st = Dens%pressure_at_depth(i,j,k) + dz/Thickness%dzt_dst(i,j,k)
 
         elseif(vert_coordinate==PSTAR) then
            ! From table 6.2 of Griffies (2009): pstar = pb0(p-p_a)/(p_b-p_a)
-           ! Here p = p(k) + dz/dzt_dst 
+           ! Here p = p(k) + dz/dzt_dst
            ! where dz is the difference in depth between the blob and the grid cell centre
            dz = this%geodepth - Thickness%depth_zt(i,j,k)
            p  = Dens%pressure_at_depth(i,j,k) + dz/Thickness%dzt_dst(i,j,k)
            this%st = Thickness%pbot0(i,j) * ( p - Ext_mode%patm_t(i,j,taup1) )  &
                                            /( Ext_mode%pbot_t(i,j,taup1) - Ext_mode%patm_t(i,j,taup1) )
-          
+
         endif
 
         this => this%next
         if (.not. associated(this)) exit bottcycle
      enddo bottcycle
   endif
-     
+
 
   this=>head_dynamic_free
   if(associated(this)) then
-     blobcycle: do 
-        
+     blobcycle: do
+
         i = this%i
         j = this%j
         old_k = this%k
@@ -1557,7 +1557,7 @@ subroutine ocean_blob_cell_update(Time, Thickness, Dens, T_prog, Ext_mode, L_sys
         ! It is only done here for debugging purposes (to make sure that intermediate
         ! checksums remain consistent).
         this%depth = this%geodepth + Ext_mode%eta_t(i,j,tau)
-        
+
         if (vert_coordinate==ZSTAR) then
            ! From table 6.1 of Griffies (2009): zstar = H(z-eta)/(H+eta)
            ! Here z=-this%geodepth
@@ -1569,18 +1569,18 @@ subroutine ocean_blob_cell_update(Time, Thickness, Dens, T_prog, Ext_mode, L_sys
            if (this%st>0.) then
               ! the blob has penetrated the free surface, so kill the blob
               thru_surface=thru_surface+1
-              EL_diag(0)%dstry(i,j,k) = EL_diag(0)%dstry(i,j,k) + this%mass 
-              do n=1,num_prog_tracers 
-                 EL_diag(n)%dstry(i,j,k) = EL_diag(n)%dstry(i,j,k) + this%tracer(n) 
-              enddo 
+              EL_diag(0)%dstry(i,j,k) = EL_diag(0)%dstry(i,j,k) + this%mass
+              do n=1,num_prog_tracers
+                 EL_diag(n)%dstry(i,j,k) = EL_diag(n)%dstry(i,j,k) + this%tracer(n)
+              enddo
               call kill_blob(Thickness, T_prog, this, i, j, k)
               this=>this%next
               if(.not. associated(this)) exit blobcycle
               cycle blobcycle
-           else ! the blob is at or below the surface.  
+           else ! the blob is at or below the surface.
               call find_depth()
            endif
-           
+
         else !vert_coordinate==PSTAR .or. PRESSURE
            ! Note: p_a<=p<=p_b; 0<=pstar<=p_b^0
            k=Grd%kmt(i,j)
@@ -1600,9 +1600,9 @@ subroutine ocean_blob_cell_update(Time, Thickness, Dens, T_prog, Ext_mode, L_sys
                  if (k==0) then
                     ! the blob has penetrated the free surface, so kill the blob
                     thru_surface=thru_surface+1
-                    EL_diag(0)%dstry(i,j,1) = EL_diag(0)%dstry(i,j,1) + this%mass 
-                    do n=1,num_prog_tracers 
-                       EL_diag(n)%dstry(i,j,1) = EL_diag(n)%dstry(i,j,1) + this%tracer(n) 
+                    EL_diag(0)%dstry(i,j,1) = EL_diag(0)%dstry(i,j,1) + this%mass
+                    do n=1,num_prog_tracers
+                       EL_diag(n)%dstry(i,j,1) = EL_diag(n)%dstry(i,j,1) + this%tracer(n)
                     enddo
                     call kill_blob(Thickness, T_prog, this, i, j, 1)
                     this=>this%next
@@ -1614,10 +1614,10 @@ subroutine ocean_blob_cell_update(Time, Thickness, Dens, T_prog, Ext_mode, L_sys
            ! Calculate the st of the blob for later use (in update_L_thickness and adjust_L_thickness)
            this%st = Thickness%depth_swt(i,j,k) - (zwt_k + this%geodepth)/Thickness%dzt_dst(i,j,k)
         endif
-        
+
         this%k = k
-        
-        ! If the blob is in fact in a different cell, we take this into account with the 
+
+        ! If the blob is in fact in a different cell, we take this into account with the
         ! calculate of divergence.
         if (old_k/=k) then
            L_system%conv_blob(i,j,old_k) = L_system%conv_blob(i,j,old_k) - this%mass
@@ -1627,11 +1627,11 @@ subroutine ocean_blob_cell_update(Time, Thickness, Dens, T_prog, Ext_mode, L_sys
            mass_in( i,j,k)     = mass_in( i,j,k)     + this%mass
            mass_out(i,j,old_k) = mass_out(i,j,old_k) + this%mass
         endif
-        
+
         if (this%mass>blob_small_mass) then
            ! Update some of the blob variables if they wont give silly numbers
            ! Blobs with mass<blob_small_mass may be required only for their history, so
-           ! updating their properties is not important as they will be erased from 
+           ! updating their properties is not important as they will be erased from
            ! memory soon enough.
            do n=1,num_prog_tracers
               this%field(n) = this%tracer(n)/this%mass
@@ -1641,12 +1641,12 @@ subroutine ocean_blob_cell_update(Time, Thickness, Dens, T_prog, Ext_mode, L_sys
                                    Dens%pressure_at_depth(i,j,k))
            this%densityr = 1./this%density
            if (vert_coordinate_class == DEPTH_BASED) then
-              this%volume = this%mass * rho0r 
+              this%volume = this%mass * rho0r
            else
               this%volume = this%mass * this%densityr
            endif
         endif
-        
+
         this => this%next
         if (.not. associated(this)) exit blobcycle
      enddo blobcycle
@@ -1666,7 +1666,7 @@ subroutine ocean_blob_cell_update(Time, Thickness, Dens, T_prog, Ext_mode, L_sys
   call diagnose_3d(Time, Grd, id_mass_in,  mass_in(:,:,:))
   call diagnose_3d(Time, Grd, id_mass_out, mass_out(:,:,:))
 
-  if (debug_this_module) then 
+  if (debug_this_module) then
      stdoutunit = stdout()
      call mpp_sum(thru_surface)
      write(stdoutunit, *) 'Free blobs destroyed from reaching surface =', thru_surface
@@ -1709,7 +1709,7 @@ contains
           k=k+1
        enddo depth_cycle
     endif
-    
+
   end subroutine find_depth
 
 end subroutine ocean_blob_cell_update
@@ -1722,8 +1722,8 @@ end subroutine ocean_blob_cell_update
 ! Calculates the contribution to thickness of all the blobs for the
 ! L system arrays in the Thickness strcture.
 !
-! The mass per unit area from the blobs is also calculated for the 
-! upper and lower part of each grid cell and stored in the L_system 
+! The mass per unit area from the blobs is also calculated for the
+! upper and lower part of each grid cell and stored in the L_system
 ! structure.  The calculate of mass per unit area is required for
 ! pressure calculations.
 !
@@ -1754,7 +1754,7 @@ subroutine update_L_thickness(Time, Thickness, T_prog, L_system, EL_diag)
   tau   = Time%tau
   taup1 = Time%taup1
 
-  ! We find the blob's position in coordinate space and then use that to 
+  ! We find the blob's position in coordinate space and then use that to
   ! find which vertical grid cell it resides in at taup1.
 
   do n=1,num_prog_tracers
@@ -1766,29 +1766,29 @@ subroutine update_L_thickness(Time, Thickness, T_prog, L_system, EL_diag)
   L_system%rho_dztup(:,:,:) = 0.0
   L_system%rho_dztlo(:,:,:) = 0.0
 
-  ! We have two kinds of rho_dzt that we save.  One is for the pressure calculation, 
+  ! We have two kinds of rho_dzt that we save.  One is for the pressure calculation,
   ! the other is for the thickness.  For the pressure calculation, we need to use
-  ! the actual density, regardless of whether it is DEPTH_BASED or PRESSURE_BASED.  
-  ! The second type is for thickness calculations.  For calculation of thickness, it 
+  ! the actual density, regardless of whether it is DEPTH_BASED or PRESSURE_BASED.
+  ! The second type is for thickness calculations.  For calculation of thickness, it
   ! does depend on the type of vertical coordinate as to whether we use the reference
   ! density, or the actual density.
 
   this=>head_dynamic_free
   total_blobs  = 0
   dstryd_blobs = 0
-  
+
   if(associated(this)) then
-     freecycle: do 
+     freecycle: do
         total_blobs = total_blobs + 1
-        
+
         i = this%i - Dom%ioff
         j = this%j - Dom%joff
         k = this%k
-        
+
         ! Calculate this blobs contribution to thickness and mass per unit area
         dzt     = Grd%datr(i,j)*this%volume
         rho_dzt = dzt*this%density
-        
+
         if (vert_coordinate_class==DEPTH_BASED) then
            ! For the Thickness structure, we use a reference density
            th_rho_dzt = dzt*rho0
@@ -1797,7 +1797,7 @@ subroutine update_L_thickness(Time, Thickness, T_prog, L_system, EL_diag)
            else
               up=.false.
            endif
-           
+
         else !vert_coordinate_class==PRESSURE_BASED
            th_rho_dzt = rho_dzt
            if (this%st<Thickness%depth_st(i,j,k)) then
@@ -1805,14 +1805,14 @@ subroutine update_L_thickness(Time, Thickness, T_prog, L_system, EL_diag)
            else
               up=.false.
            endif
-           
+
         endif
 
         ! If the contribution to thickness from all the blobs in a grid cell exceeds
-        ! the total thickness of the cell, we kill the blob and return all its 
+        ! the total thickness of the cell, we kill the blob and return all its
         ! properties to the E system so that we do not have a negative E system
         ! thickness.
-        if (up) then 
+        if (up) then
            new_dzt = Thickness%dztupL(i,j,k)+dzt
            max_dzt = max_prop_thickness*Thickness%dztupT(i,j,k)
            if (new_dzt > max_dzt) then
@@ -1845,9 +1845,9 @@ subroutine update_L_thickness(Time, Thickness, T_prog, L_system, EL_diag)
            Thickness%dztloL(i,j,k)   = new_dzt
            L_system%rho_dztlo(i,j,k) = L_system%rho_dztlo(i,j,k) + rho_dzt
         endif
-        
+
         Thickness%rho_dztL(i,j,k,taup1) = Thickness%rho_dztL(i,j,k,taup1) + th_rho_dzt
-        
+
         ! Accumulate the blob tracer content in a cell
         do n=1,num_prog_tracers
            T_prog(n)%sum_blob(i,j,k,taup1) = T_prog(n)%sum_blob(i,j,k,taup1) + this%tracer(n)
@@ -1858,9 +1858,9 @@ subroutine update_L_thickness(Time, Thickness, T_prog, L_system, EL_diag)
      enddo freecycle
   endif
   nullify(this)
-      
+
   diag_dstryd_blobs = dstryd_blobs
-    
+
   if (debug_this_module) then
      stdoutunit = stdout()
      call mpp_sum(total_blobs); call mpp_sum(dstryd_blobs)
@@ -1869,34 +1869,34 @@ subroutine update_L_thickness(Time, Thickness, T_prog, L_system, EL_diag)
      write(stdoutunit, *) 'Total dynamic free blobs          =', total_blobs
      write(stdoutunit, *) 'Blobs destroyed because dztL>dztT =', dstryd_blobs
   endif
-  
+
   total_blobs  = 0
   dstryd_blobs = 0
-  
+
   this=>head_dynamic_bott
   if (associated(this)) then
      bottcycle: do
         total_blobs = total_blobs + 1
-        
+
         i = this%i - Dom%ioff
         j = this%j - Dom%joff
         k = this%k
-        
+
         ! Calculate this blobs contribution to thickness and mass per unit area
         dzt     = Grd%datr(i,j)*this%volume
         rho_dzt = dzt*this%density
-        
+
         if (vert_coordinate_class==DEPTH_BASED) then
            ! For the Thickness structure, we use a reference density
            th_rho_dzt = dzt*rho0
         else !vert_coordinate_class==PRESSURE_BASED
            th_rho_dzt = rho_dzt
         endif
-        
+
         ! Bottom blobs only contribute to the lower half of the cell
         new_dzt = Thickness%dztloL(i,j,k)+dzt
         max_dzt = max_prop_thickness*Thickness%dztloT(i,j,k)
-        
+
         if (new_dzt > max_dzt) then
            EL_diag(0)%dstry(i,j,k) = EL_diag(0)%dstry(i,j,k) + this%mass
            do n=1,num_prog_tracers
@@ -1911,11 +1911,11 @@ subroutine update_L_thickness(Time, Thickness, T_prog, L_system, EL_diag)
         Thickness%dztloL(i,j,k)         = new_dzt
         L_system%rho_dztlo(i,j,k)       = L_system%rho_dztlo(i,j,k) + rho_dzt
         Thickness%rho_dztL(i,j,k,taup1) = Thickness%rho_dztL(i,j,k,taup1) + th_rho_dzt
-        
+
         do n=1,num_prog_tracers
            T_prog(n)%sum_blob(i,j,k,taup1) = T_prog(n)%sum_blob(i,j,k,taup1) + this%tracer(n)
         enddo
-        
+
         this=>this%next
         if(.not.associated(this)) exit bottcycle
      enddo bottcycle
@@ -1980,7 +1980,7 @@ subroutine calculate_rhoT(Time, Dens, Thickness)
   taup1 = Time%taup1
 
   rho_dzt(:,:,:) = Dens%rho(:,:,:,taup1)*Thickness%dzt(:,:,:)
-  
+
   do p=3,4
      if (p==3) this=>head_dynamic_free
      if (p==4) this=>head_dynamic_bott
@@ -2028,7 +2028,7 @@ subroutine ocean_blob_implicit(Time, Thickness, T_prog, Dens, Adv_vel, &
   taup1 = Time%taup1
 
   if (.not. use_this_module) return
-  if (.not. module_is_initialized ) then 
+  if (.not. module_is_initialized ) then
      call mpp_error(FATAL, &
           '==>Error in ocean_blob_mod (Lagrangian blob model): module '&
           //' needs to be initialized')
@@ -2067,13 +2067,13 @@ end subroutine ocean_blob_implicit
 ! <SUBROUTINE NAME="adjust_L_thickness">
 !
 ! <DESCRIPTION>
-! blob_thickness is called after new blobs are formed implicitly in 
-! time.  blob_thickness provides the same function as 
+! blob_thickness is called after new blobs are formed implicitly in
+! time.  blob_thickness provides the same function as
 ! update_L_thickness, with a couple of subtle differences.
 !
 ! At the point that this routine is called, we:
 ! 1/ Know the vertical position of an "old" blob relative to the geoid
-!    and in the Eulerian model's native vertical coordinate.  We do 
+!    and in the Eulerian model's native vertical coordinate.  We do
 !    not know a blobs depth relative to the sea surface.
 ! 2/ Know the vertical position relative to the sea surface for "new"
 !    blobs, but we do not know its position relative to the geoid or in
@@ -2081,11 +2081,11 @@ end subroutine ocean_blob_implicit
 !
 ! So, blob_thickness uses the logical new, which is part of the blob
 ! derived type, to distinguish between new blobs and old blobs. New
-! blobs have their position (upper or lower part of a grid cell) 
+! blobs have their position (upper or lower part of a grid cell)
 ! calculated using the depth relative to the sea surface height, while
-! blobs that are not new have their position calculated using the 
+! blobs that are not new have their position calculated using the
 ! Eulerian models native coordinate.
-! 
+!
 ! The accumulation of thickness and mass per unit area are done in the
 ! same was as is done in update_L_thickness.
 ! </DESCRIPTION>
@@ -2119,28 +2119,28 @@ subroutine adjust_L_thickness(Time, Thickness, T_prog, L_system)
 
   this=>head_dynamic_free
   if(associated(this)) then
-     freecycle: do 
+     freecycle: do
         ! for convenience
         i  = this%i - Dom%ioff
         j  = this%j - Dom%joff
         k  = this%k
-        
-        ! We have two kinds of rho_dzt that we save.  One is for the pressure calculation, 
+
+        ! We have two kinds of rho_dzt that we save.  One is for the pressure calculation,
         ! the other is for the thickness.  For the pressure calculation, we need to use
-        ! the actual density, regardless of whether it is DEPTH_BASED or PRESSURE_BASED.  
-        ! The second type is for thickness calculations.  For calculation of thickness, it 
+        ! the actual density, regardless of whether it is DEPTH_BASED or PRESSURE_BASED.
+        ! The second type is for thickness calculations.  For calculation of thickness, it
         ! does depend on the type of vertical coordinate as to whether we use the reference
         ! density, or the actual density.
-        
+
         ! This is for pressure calculations
         rho_dzt = Grd%datr(i,j)*this%volume*this%density
-        
-        ! For new blobs, we do not know what their vertical position in 
+
+        ! For new blobs, we do not know what their vertical position in
         ! coordiante space is, but, we do know their depth.  For old blobs
         ! we do not know their depth, but we know their position in coordinate
         ! space.
         if (this%new) then
-           if (Thickness%depth_zt(i,j,k)<=this%depth) then 
+           if (Thickness%depth_zt(i,j,k)<=this%depth) then
               Thickness%dztloL(i,j,k)   = Thickness%dztloL(i,j,k)   + Grd%datr(i,j)*this%volume
               L_system%rho_dztlo(i,j,k) = L_system%rho_dztlo(i,j,k) + rho_dzt
            else
@@ -2148,7 +2148,7 @@ subroutine adjust_L_thickness(Time, Thickness, T_prog, L_system)
               L_system%rho_dztup(i,j,k) = L_system%rho_dztup(i,j,k) + rho_dzt
            endif
            ! This is for thickness calculations
-           if(vert_coordinate_class == DEPTH_BASED)then 
+           if(vert_coordinate_class == DEPTH_BASED)then
               Thickness%rho_dztL(i,j,k,taup1) = Thickness%rho_dztL(i,j,k,taup1) + Grd%datr(i,j)*this%volume*rho0
            else
               Thickness%rho_dztL(i,j,k,taup1) = Thickness%rho_dztL(i,j,k,taup1) + rho_dzt
@@ -2174,11 +2174,11 @@ subroutine adjust_L_thickness(Time, Thickness, T_prog, L_system)
               Thickness%rho_dztL(i,j,k,taup1) = Thickness%rho_dztL(i,j,k,taup1) + rho_dzt
            endif
         endif !new blob
-           
+
         do n=1,num_prog_tracers
            T_prog(n)%sum_blob(i,j,k,taup1) = T_prog(n)%sum_blob(i,j,k,taup1) + this%tracer(n)
         enddo
-        
+
         this=>this%next
         if(.not.associated(this)) exit freecycle
      enddo freecycle
@@ -2191,13 +2191,13 @@ subroutine adjust_L_thickness(Time, Thickness, T_prog, L_system)
         i  = this%i - Dom%ioff
         j  = this%j - Dom%joff
         k  = this%k
-        
+
         ! This is for pressure calculations
         rho_dzt = Grd%datr(i,j)*this%volume*this%density
-        
+
         ! Bottom blobs only contribute to the lower half of the bottom cell.
         L_system%rho_dztlo(i,j,k) = L_system%rho_dztlo(i,j,k) + rho_dzt
-        
+
         ! This is for thickness calculations
         if(vert_coordinate_class == DEPTH_BASED)then
            Thickness%rho_dztL(i,j,k,taup1) = Thickness%rho_dztL(i,j,k,taup1) + Grd%datr(i,j)*this%volume*rho0
@@ -2209,7 +2209,7 @@ subroutine adjust_L_thickness(Time, Thickness, T_prog, L_system)
         do n=1,num_prog_tracers
            T_prog(n)%sum_blob(i,j,k,taup1) = T_prog(n)%sum_blob(i,j,k,taup1) + this%tracer(n)
         enddo
-        
+
         this=>this%next
         if(.not.associated(this)) exit bottcycle
      enddo bottcycle
@@ -2246,7 +2246,7 @@ subroutine adjust_L_thickness(Time, Thickness, T_prog, L_system)
      enddo
      write(stdoutunit, '(a,/)') 'end Lagrangian Tracer and Mass Checksums'
   endif
-     
+
 end subroutine adjust_L_thickness
 ! </SUBROUTINE>  NAME="adjust_L_thickness"
 
@@ -2255,13 +2255,13 @@ end subroutine adjust_L_thickness
 ! <SUBROUTINE NAME="ocean_blob_diagnose_depth">
 ! <DESCRIPTION>
 ! When blobs are created implicitly in time, the sea surface height has
-! not been calcualted in pressure based models (but depth has).  However, 
+! not been calcualted in pressure based models (but depth has).  However,
 ! the prognostic variable for blobs is the geodepth and not the depth.  So,
 ! for a new blob, we set the depth when it is formed and then calculate
 ! the geodepth here.  For existing blobs, we diagnose the depth using
 ! eta_t and geodepth.
 !
-! We note that in GEOPOTENTIAL coordinates, depth and geodepth are 
+! We note that in GEOPOTENTIAL coordinates, depth and geodepth are
 ! equivalent, and so we set them to be equivalent for the blobs too.
 ! </DESCRIPTION>
 !
@@ -2286,7 +2286,7 @@ subroutine ocean_blob_diagnose_depth(Time, T_prog, Ext_mode, L_system)
      if(p==3) this=>head_dynamic_free
      if(p==4) this=>head_dynamic_bott
      if(associated(this)) then
-        geoblobcycle: do 
+        geoblobcycle: do
            i = this%i - Dom%ioff
            j = this%j - Dom%joff
            k = this%k
@@ -2388,7 +2388,7 @@ contains
      integer           :: mret, ncid, m_dim, n, m, p
      character(len=31) :: filename
 
-     ! There are two restart files for the blobs.  1/ for gridded data required 
+     ! There are two restart files for the blobs.  1/ for gridded data required
      ! by the blobs (e.g. blob_counter) 2/ for the blobs themselves
 
      ! first, the gridded file
@@ -2400,11 +2400,11 @@ contains
 
      mret = nf_create(filename, NF_CLOBBER, ncid)
      if (mret .ne. NF_NOERR) write(stderrunit,'(a)') 'blobs, writerestart: nf_create failed'
-     
+
      ! Register dimensions
      mret = nf_def_dim(ncid, 'blob', NF_UNLIMITED, m_dim)
      if (mret .ne. NF_NOERR) write(stderrunit,'(a)') 'blobs, writerestart: nf_def_dim failed'
-     
+
      ! Register variables
      latid       = def_var(ncid, 'lat',         NF_DOUBLE, m_dim)
      lonid       = def_var(ncid, 'lon',         NF_DOUBLE, m_dim)
@@ -2438,7 +2438,7 @@ contains
            tracerid(n) = def_var(ncid, trim(T_prog(n)%name), NF_DOUBLE, m_dim)
         endif
      enddo
-     
+
      call put_att(ncid, latid,      'long_name', 'latitude')
      call put_att(ncid, latid,      'units',     'degrees_N')
      call put_att(ncid, lonid,      'long_name', 'longitude')
@@ -2503,18 +2503,18 @@ contains
            call put_att(ncid, tracerid(n), 'units',     'kg')
         endif
      enddo
-     
-     mret = nf_put_att_int(ncid, NCGLOBAL, 'file_format_major_version', NF_INT, 1, file_format_major_version)
-     mret = nf_put_att_int(ncid, NCGLOBAL, 'file_format_minor_version', NF_INT, 2, file_format_minor_version)
-     
+
+     mret = nf_put_att_int(ncid, NF_GLOBAL, 'file_format_major_version', NF_INT, 1, file_format_major_version)
+     mret = nf_put_att_int(ncid, NF_GLOBAL, 'file_format_minor_version', NF_INT, 2, file_format_minor_version)
+
      ! End define mode
      mret = nf_enddef(ncid)
 
      m = 0
      do p=1,4
-        ! We need to be able to distinguish between the four types of blobs 
-        ! when we restart.  So, we alot each a type.  type==1 is a static free 
-        ! blob and type==2 is a static bottom blob, type==3 is a dynamic free 
+        ! We need to be able to distinguish between the four types of blobs
+        ! when we restart.  So, we alot each a type.  type==1 is a static free
+        ! blob and type==2 is a static bottom blob, type==3 is a dynamic free
         ! blob and type==4 is a dynamic bottom blob.  type==0 means that it is
         ! an empty entry.
         nullify(this)
@@ -2522,10 +2522,10 @@ contains
         if(p==2 .and. associated(head_static_bott))  this=>head_static_bott
         if(p==3 .and. associated(head_dynamic_free)) this=>head_dynamic_free
         if(p==4 .and. associated(head_dynamic_bott)) this=>head_dynamic_bott
-        
+
         if (associated(this)) then
            fullcycle: do
-              
+
               m = m+1
               call put_double(ncid, latid,      m, this%lat)
               call put_double(ncid, lonid,      m, this%lon)
@@ -2589,12 +2589,12 @@ contains
            call put_double(ncid, tracerid(n), 1, 0.0)
         enddo
      endif
- 
+
      ! Finish up the blobs restart
      mret = nf_close(ncid)
      if (mret .ne. NF_NOERR) write(stderrunit,'(a)') 'blobs, writerestart: nf_close failed'
      deallocate(tracerid)
-     
+
      print('(a22,i3,a3,i10)'),  'number of blobs on PE ',Info%pe_this,' =',m
      call mpp_sum(m)
      write(stdoutunit,'(a,i10)') 'global number of blobs     =', m
@@ -2617,10 +2617,10 @@ contains
        if(p==2) head=>head_static_bott
        if(p==3) head=>head_dynamic_free
        if(p==4) head=>head_dynamic_bott
-       
+
        this=>head
        if (associated(this)) then
-          freecycle: do 
+          freecycle: do
              next=>this%next
              call free_blob_memory(this)
              this=>next
@@ -2639,7 +2639,7 @@ end subroutine ocean_blob_end
 ! <SUBROUTINE NAME="write_all_blobs">
 !
 ! <DESCRIPTION>
-! A convenient subroutine for debugging that dumps blob details from 
+! A convenient subroutine for debugging that dumps blob details from
 ! every list
 ! </DESCRIPTION>
 !
@@ -2713,9 +2713,9 @@ subroutine entrainment_checksum(Time, hfree, hbott, f2b, b2f)
                     k=this%dk(s)
                     print ('(2(i10,x),3(a1,i3),a1,x,i4,x,5(x,es21.14))'), this%hash, this%number, &
                          '(',i,',',j,',',k,')', s, &
-                         this%entrainment(s,0)+this%detrainment(s,0), & 
-                         this%entrainment(s,index_temp)+this%detrainment(s,index_temp), & 
-                         this%entrainment(s,index_salt)+this%detrainment(s,index_salt),& 
+                         this%entrainment(s,0)+this%detrainment(s,0), &
+                         this%entrainment(s,index_temp)+this%detrainment(s,index_temp), &
+                         this%entrainment(s,index_salt)+this%detrainment(s,index_salt),&
                          this%mass_in(s), this%mass_out(s)
                  enddo
               endif
@@ -2763,9 +2763,9 @@ subroutine entrainment_checksum(Time, hfree, hbott, f2b, b2f)
                jsc<= j .and. j<=jec) then
 
               di(i,j,k) = di(i,j,k) + i
-              dj(i,j,k) = dj(i,j,k) + j 
+              dj(i,j,k) = dj(i,j,k) + j
               dk(i,j,k) = dk(i,j,k) + k
-              
+
               out(i,j,k) = out(i,j,k) + this%mass_out(0)
            endif
 
@@ -2779,9 +2779,9 @@ subroutine entrainment_checksum(Time, hfree, hbott, f2b, b2f)
                      jsc<= j .and. j<=jec) then
 
                     di(i,j,k) = di(i,j,k) + i
-                    dj(i,j,k) = dj(i,j,k) + j 
+                    dj(i,j,k) = dj(i,j,k) + j
                     dk(i,j,k) = dk(i,j,k) + k
-                    
+
                     dmass(i,j,k) = dmass(i,j,k) + this%entrainment(s,0) + this%detrainment(s,0)
 
                     in(i,j,k)  = in(i,j,k) + this%mass_in(s)
@@ -2796,9 +2796,9 @@ subroutine entrainment_checksum(Time, hfree, hbott, f2b, b2f)
               k=this%dk(this%nfrac_steps)
               if (isc<= i .and. i<=iec .and.&
                   jsc<= j .and. j<=jec) then
-                 dmass(i,j,k) = dmass(i,j,k) + this%dmass 
-                 do n=1,num_prog_tracers 
-                    dtracer(i,j,k,n) = dtracer(i,j,k,n) + this%dtracer(n) 
+                 dmass(i,j,k) = dmass(i,j,k) + this%dmass
+                 do n=1,num_prog_tracers
+                    dtracer(i,j,k,n) = dtracer(i,j,k,n) + this%dtracer(n)
                  enddo
               endif
               if (isc<= i .and. i<=iec .and. jsc<= j .and. j<=jec) in(i,j,k)  = in(i,j,k) + this%mass_in(this%nfrac_steps)
