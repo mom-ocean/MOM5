@@ -53,10 +53,10 @@ class ModelTestSetup(object):
             os.mkdir(self.work_dir)
         if not os.path.exists(os.path.join(self.work_dir, input)):
             shutil.copy(input, self.work_dir)
-
-        os.chdir(self.work_dir)
-        cmd = '/bin/tar -xvf {}'.format(input)
-        ret += sp.call(shlex.split(cmd))
+        if not os.path.exists(os.path.join(self.work_dir, exp)):
+            os.chdir(self.work_dir)
+            cmd = '/bin/tar -xvf {}'.format(input)
+            ret += sp.call(shlex.split(cmd))
 
         os.chdir(self.my_dir)
 
