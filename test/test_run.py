@@ -14,7 +14,7 @@ class TestRun(ModelTestSetup):
 
     def test_om3_core3(self):
 
-        r, so, se = self.run('MOM_SIS', 'om3_core3')
+        r, so, se = self.run('MOM_SIS', 'om3_core3', npes=24)
         print(so)
         print(se)
         assert(r == 0)
