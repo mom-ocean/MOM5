@@ -22,7 +22,7 @@ class TestRun(ModelTestSetup):
 
     def test_om3_core1(self):
 
-        r, so, se = self.run('MOM_SIS', 'om3_core1')
+        r, so, se = self.run('MOM_SIS', 'om3_core1', npes=24)
         print(so)
         print(se)
         assert(r == 0)
