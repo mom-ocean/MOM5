@@ -54,7 +54,7 @@ class TestRun(ModelTestSetup):
 
     def test_MOM_SIS_BLING(self):
 
-        r, so, se = self.run('MOM_SIS', 'MOM_SIS_BLING')
+        r, so, se = self.run('MOM_SIS', 'MOM_SIS_BLING', npes=24)
         print(so)
         print(se)
         assert(r == 0)
