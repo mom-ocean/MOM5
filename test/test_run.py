@@ -46,7 +46,7 @@ class TestRun(ModelTestSetup):
 
     def test_MOM_SIS_TOPAZ(self):
 
-        r, so, se = self.run('MOM_SIS', 'MOM_SIS_TOPAZ')
+        r, so, se = self.run('MOM_SIS', 'MOM_SIS_TOPAZ', npes='24')
         print(so)
         print(se)
         assert(r == 0)
