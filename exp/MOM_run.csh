@@ -208,8 +208,8 @@ endif
 if ( $type == ESM2M & $npes != 120 ) then
     set valid_npes = 120
 endif
-if ( $type == ICCM & $npes != 45 ) then
-    set valid_npes = 45
+if ( $type == ICCM & $npes != 54 ) then
+    set valid_npes = 54
 endif
 if ( $name  == atlantic1 & $npes != 24) then
     set valid_npes = 24

@@ -79,7 +79,7 @@ class TestRun(ModelTestSetup):
 
     def test_ICCMp1(self):
 
-        r, so, se = self.run('ICCM', 'ICCMp1', ncpus='64', npes='45', mem='128Gb')
+        r, so, se = self.run('ICCM', 'ICCMp1', ncpus='64', npes='54', mem='128Gb')
         print(so)
         print(se)
         assert(r == 0)
