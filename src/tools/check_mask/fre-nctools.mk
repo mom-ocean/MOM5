@@ -17,8 +17,6 @@ include ./env.$(SITE)
 # (Not required if HDF5 is statically linked into NetCDF)
 ifdef ($(HDF5_HOME))
 	HDF5_LIBS := -L$(HDF5_HOME)/lib -lhdf5_hl -lhdf5 -lz
-#else
-#	HDF5_LIBS :=
 endif
 
 CFLAGS   := -O3 -g -traceback
