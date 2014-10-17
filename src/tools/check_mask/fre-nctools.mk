@@ -13,12 +13,18 @@
 # MPICC and CC are defined in env.$(SITE)
 include ./env.$(SITE)
 
-#MPICC    := mpicc
-#CC       := icc
+# HDF5 linking
+# (Not required if HDF5 is statically linked into NetCDF)
+ifdef ($(HDF5_HOME))
+	HDF5_LIBS := -L$(HDF5_HOME)/lib -lhdf5_hl -lhdf5 -lz
+#else
+#	HDF5_LIBS :=
+endif
+
 CFLAGS   := -O3 -g -traceback
 CFLAGS_O2:= -O2 -g -traceback
-INCLUDES := -I${NETCDF_HOME}/include -I./ -I../shared -I../../shared/mosaic
-CLIBS     := -L${NETCDF_HOME}/lib -L${HDF5_HOME}/lib -lnetcdf -lhdf5_hl -lhdf5 -lz -limf $(CLIBS2) $(STATIC)
+INCLUDES := -I$(NETCDF_HOME)/include -I./ -I../shared -I../../shared/mosaic
+CLIBS     := -L$(NETCDF_HOME)/lib -lnetcdf $(HDF5_LIBS) -limf $(CLIBS2) $(STATIC)
 
 TARGETS  := check_mask
 
