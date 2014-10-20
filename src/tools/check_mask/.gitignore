@@ -1,0 +1,3 @@
+*.o
+mask_table.*
+check_mask
