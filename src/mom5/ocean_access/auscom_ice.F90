@@ -148,6 +148,7 @@ do k = kmxice, 1, -1
    PTR_FRAZIL => Frazil%field(iisc:iiec,jjsc:jjec,k)
 
 #if defined(UNIT_TESTING)
+    print *, "Calling dump_field_2d"
     call dump_field_2d('ice_formation.input.temp', mpp_pe(), PTR_TEMP)
     call dump_field_2d('ice_formation.input.salt', mpp_pe(), PTR_SALT)
     call dump_field_2d('ice_formation.input.thickness', mpp_pe(), PTR_THICK)
@@ -293,6 +294,10 @@ enddo
 
 AQICE = 0.0
 ATIME = 0
+
+#if defined(UNIT_TESTING)
+    call dump_field_2d('ice_heatflux.output.frazil', mpp_pe(), Ocean_sfc%frazil)
+#endif
 
 end subroutine auscom_ice_heatflux_new
 
