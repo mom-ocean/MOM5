@@ -86,8 +86,6 @@ subroutine dump_field_2d(field_name, proc_num, field_data, do_full_dump)
     found = .false.
     dump = .true.
 
-    stop 'Error: dump_field called.'
-
     if (present(do_full_dump)) then 
         dump = do_full_dump
     end if
