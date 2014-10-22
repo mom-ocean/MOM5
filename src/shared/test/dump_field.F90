@@ -84,7 +84,7 @@ subroutine dump_field_2d(field_name, proc_num, field_data, do_full_dump)
     logical :: found, dump
 
     found = .false.
-    dump = .false.
+    dump = .true.
 
     if (present(do_full_dump)) then 
         dump = do_full_dump

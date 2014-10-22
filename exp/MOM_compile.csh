@@ -5,15 +5,18 @@ set echo
 set platform      = gfortran    # A unique identifier for your platfo
                                 # This corresponds to the mkmf templates in $root/bin dir.
 set type          = MOM_solo    # Type of the experiment
+set unit_testing = 0
 set help = 0
 
-set argv = (`getopt -u -o h -l type: -l platform:  -l help  --  $*`)
+set argv = (`getopt -u -o h -l type: -l platform: -l help: -l unit_testing  --  $*`)
 while ("$argv[1]" != "--")
     switch ($argv[1])
         case --type:
                 set type = $argv[2]; shift argv; breaksw
         case --platform:
                 set platform = $argv[2]; shift argv; breaksw
+        case --unit_testing:
+                set unit_testing = 1; breaksw
         case --help:
                 set help = 1;  breaksw
         case -h:
@@ -63,6 +66,10 @@ else if( $type == ACCESS-OM ) then
     set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DACCESS" )
 else if( $type == ACCESS-CM ) then
     set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DACCESS -DACCESS_CM" )
+endif
+
+if ( $unit_testing ) then 
+    set cppDefs = ( "$cppDefs -DUNIT_TESTING" )
 endif
 
 #
