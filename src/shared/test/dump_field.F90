@@ -166,19 +166,19 @@ end subroutine check
 
 end module
 
-program test_dump_field
+!program test_dump_field
 
-    use dump_field
+!    use dump_field
 
-    real, dimension(3, 3) :: array
+!    real, dimension(3, 3) :: array
 
-    array = reshape((/ 12.0, 32.0, 1.23123, 55.0, 3322.0, 65.0, 0.123, 99.0, 10.0 /), shape(array))
-    call dump_field_2d('sst', 4, array, .true.)
+!    array = reshape((/ 12.0, 32.0, 1.23123, 55.0, 3322.0, 65.0, 0.123, 99.0, 10.0 /), shape(array))
+!    call dump_field_2d('sst', 4, array, .true.)
 
-    array = reshape((/ 3099.0, 554343.0, 0.3221, 405.0, 23.0, 56.0, 123.0, 89.0, 0.000002 /), shape(array))
-    call dump_field_2d('sst', 4, array, .true.)
+!    array = reshape((/ 3099.0, 554343.0, 0.3221, 405.0, 23.0, 56.0, 123.0, 89.0, 0.000002 /), shape(array))
+!    call dump_field_2d('sst', 4, array, .true.)
 
-    call dump_field_close('sst')
+!    call dump_field_close('sst')
 
-end program
+!end program
 
