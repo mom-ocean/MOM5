@@ -1,10 +1,12 @@
 #!/bin/csh -f
 # Minimal runscript for MOM experiments
+# Modification. Use ncecat for restarts belonging to icebergs and tar up land components. 
+# Fix destination for wget
 
-set type          = MOM_solo       # type of the experiment
-set name          = box1           
-set platform      = gfortran     # A unique identifier for your platform
-set npes          = 8              # number of processor
+set type          = ESM2M       # type of the experiment
+set name          = ESM2M_pi-control_C2           
+set platform      = raijin.intel     # A unique identifier for your platform
+set npes          = 90              # number of processor
                                    # Note: If you change npes you may need to change
                                    # the layout in the corresponding namelist
 set valid_npes = 0
@@ -71,14 +73,14 @@ if ( $help ) then
     endif
     echo 
     echo 
-    echo "--platform   followed by the platform name that has a corresponfing environ file in the ../bin dir, default is gfortran"
+    echo "--platform   followed by the platform name that has a corresponfing environ file in the ../bin dir, default is ncrc.intel"
     echo 
     echo "--npes       followed by the number of pes to be used for this experiment"
     echo 
-    echo "Note that the executable for the run should have been built before calling this script. See MOM_compile.csh"
+    echo Note that the executable for the run should have been built before calling this script. This could be done by calling the appropriate compile script for this experiment \"type\" beforehand.
     echo 
     echo 
-    exit 1
+    exit 0
 endif
 
 set root          = $cwd:h         # The directory in which you checked out src
@@ -111,33 +113,29 @@ source $root/bin/environs.$platform  # environment variables and loadable module
 set mppnccombine  = $root/bin/mppnccombine.$platform  # path to executable mppnccombine
 set time_stamp    = $root/bin/time_stamp.csh          # path to cshell to generate the date
 
-set echo
-
 # Check if the user has extracted the input data
   if ( ! -d $inputDataDir ) then
 
     if( $download ) then
-	cd $root/data/archives
-	git annex get $name.input.tar.gz
-	mkdir -p $workdir
-	cp $name.input.tar.gz $workdir
-	cd $workdir
-	tar zxvf $name.input.tar.gz
+      cd $workdir
+#      wget ftp.gfdl.noaa.gov:/perm/MOM4/mom4p1_pubrel_dec2009/exp/$name.input.tar.gz
+      wget ftp.gfdl.noaa.gov:/perm/MOM4/mom5_pubrel_dec2013/exp/$name.input.tar.gz
+      tar zxvf $name.input.tar.gz
     else  
 
     echo "ERROR: the experiment directory '$inputDataDir' does not exist or does not contain input and preprocessing data directories!"
-    echo "Please copy the input data from the MOM data directory. This may required downloading data from a remote git annex if you do not already have the data locally."
-    echo "cd $root/data/archives"
-    echo "git annex get $name.input.tar.gz"
-    echo "mkdir -p $workdir"
-    echo "cp $name.input.tar.gz $workdir"
-    echo "cd $workdir"
-    echo "tar zxvf $name.input.tar.gz"
-    echo "Or use the --download_input_data option to do this automatically"
+    echo "Please download and extract the tar ball corresponding to this experiment from GFDL anonymous ftp site!"
+    echo " cd  $workdir"
+    echo " wget ftp.gfdl.noaa.gov:/perm/MOM4/mom5_pubrel_dec2013/exp/$name.input.tar.gz"
+    echo " tar zxvf $name.input.tar.gz" 
+    echo "Then rerun this script."
+    echo "Or use the --download option to do this automatically"
     exit 1
 
     endif
   endif
+
+set echo
 
 # setup directory structure
   if ( ! -d $expdir )         mkdir -p $expdir
@@ -158,7 +156,7 @@ set echo
 
 
 # --- make sure executable is up to date ---
-  set makeFile = Makefile
+  set makeFile      = Make_$type
   cd $executable:h
   make -f $makeFile
   if ( $status != 0 ) then
@@ -205,8 +203,8 @@ if ( $type == CM2M & $npes != 45 ) then
     set valid_npes = 45
 endif
 
-if ( $type == ESM2M & $npes != 120 ) then
-    set valid_npes = 120
+if ( $type == ESM2M & $npes != 90 ) then
+    set valid_npes = 90
 endif
 if ( $type == ICCM & $npes != 54 ) then
     set valid_npes = 54
@@ -223,17 +221,12 @@ echo "About to run the command $runCommand"
 if ( $valid_npes ) then
     echo "ERROR: This experiment is designed to run on $valid_npes pes. Please specify --npes  $valid_npes "
     echo "Note:  In order to change the default npes for an expeiment the user may need to edit the values of layouts and atmos_npes and ocean_npes in the input.nml and run the mpi command manually in the working dir"
-    exit 1 
+    exit 0 
 endif
 
 #   --- run the model ---
 
 $runCommand
-set model_status = $status
-if ( $model_status != 0) then
-    echo "ERROR: Model failed to run to completion"
-    exit 1
-endif
 
 #----------------------------------------------------------------------------------------------
 # generate date for file names ---
@@ -252,10 +245,33 @@ endif
     #Concatenate blobs restart files. mppnccombine would not work on them.
     ncecat ocean_blobs.res.nc.???? ocean_blobs.res.nc
     rm ocean_blobs.res.nc.????
+   # icebergs restarts require ncrecat
+    ncrcat icebergs.res.nc.???? icebergs.res.nc
+    rm icebergs.res.nc.????
+
+# Land restarts need to be combined with  combine-ncc
+# More simply just tar them up in this version
+# 
+    set land_files = ( cana glac lake land snow soil vegn1 vegn2 )
+    foreach file ( $land_files )
+       set input_files = `/bin/ls ${file}.res.nc.????`
+       if ( $#input_files > 0 ) then
+          tar czf ${file}.res.nc.tar $input_files
+          if ( $status != 0 ) then
+             echo "ERROR: in creating land restarts tarfile"
+             exit 1
+          endif
+          rm $input_files
+       endif
+    end
+       
+
     set file_previous = ""
     set multires = (`ls *.nc.????`)
+    unset echo
     foreach file ( $multires )
 	if ( $file:r != $file_previous:r ) then
+            set echo
 	    set input_files = ( `ls $file:r.????` )
               if ( $#input_files > 0 ) then
                  $mppnccombine $file:r $input_files
@@ -265,6 +281,7 @@ endif
                  endif
                  rm $input_files
               endif
+              unset echo
            else
               continue
            endif
@@ -272,6 +289,7 @@ endif
        end
   endif
 
+  set echo
   cd $expdir
   mkdir history
   mkdir ascii
@@ -288,23 +306,27 @@ endif
     mv ocean_blobs.nc.???? history/
     set file_previous = ""
     set multires = (`ls *.nc.????`)
+    unset echo
     foreach file ( $multires )
 	if ( $file:r != $file_previous:r ) then
+            set echo
 	    set input_files = ( `ls $file:r.????` )
               if ( $#input_files > 0 ) then
                  $mppnccombine $file:r $input_files
                  if ( $status != 0 ) then
-                   echo "ERROR: in execution of mppnccombine on restarts"
+                   echo "ERROR: in execution of mppnccombine on diagnostics"
                    exit 1
                  endif
                  rm $input_files
               endif
+              unset echo
            else
               continue
            endif
            set file_previous = $file
        end
   endif
+  set echo
 
 #----------------------------------------------------------------------------------------------
 # rename nc files with the date
