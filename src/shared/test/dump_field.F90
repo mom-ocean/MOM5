@@ -33,7 +33,7 @@ subroutine setup_2d(field_name, proc_num, nx, ny, do_full_dump)
     integer, intent(in) :: nx, ny, proc_num
     logical, intent(in) :: do_full_dump
 
-    integer :: ncid, varid, min_varid, max_varid, mean_varid,
+    integer :: ncid, varid, min_varid, max_varid, mean_varid
     integer :: x_dimid, y_dimid, t_dimid
     integer :: status
     character(len=6) :: proc_str
@@ -95,6 +95,7 @@ subroutine dump_field_2d(field_name, proc_num, field_data, do_full_dump)
 
     real :: mean, divisor
     integer :: start(3), data_size(3), idx
+    integer :: status
     logical :: found, dump
 
     found = .false.
