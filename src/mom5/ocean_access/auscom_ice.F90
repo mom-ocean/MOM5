@@ -28,6 +28,10 @@ use constants_mod, only: rho_cp &  !(J/m^3/deg C) rho_cp == rho0*cp_ocean
                         ,hlf    &  ! 3.34e5  J/kg
                         ,cp_ocean  ! 3989.24495292815 J/kg/deg
 
+#if defined(UNIT_TESTING)
+use dump_field, only: dump_field_2d, dump_field_close
+#endif
+
 implicit none
 
 real, dimension(:,:), allocatable :: &
@@ -143,6 +147,13 @@ do k = kmxice, 1, -1
    PTR_THICK => Thickness%dzt(iisc:iiec,jjsc:jjec,k)
    PTR_FRAZIL => Frazil%field(iisc:iiec,jjsc:jjec,k)
 
+#if defined(UNIT_TESTING)
+    call dump_field_2d('ice_formation.input.temp', mpp_pe(), PTR_TEMP)
+    call dump_field_2d('ice_formation.input.salt', mpp_pe(), PTR_SALT)
+    call dump_field_2d('ice_formation.input.thickness', mpp_pe(), PTR_THICK)
+    call dump_field_2d('ice_formation.input.frazil', mpp_pe(), PTR_FRAZIL)
+#endif
+
    ! Save original temperature
 
    TEMP_BEFORE = PTR_TEMP
@@ -238,9 +249,19 @@ do k = kmxice, 1, -1
 
   PTR_FRAZIL = rho_cp * frazil_factor * ( PTR_TEMP - TEMP_BEFORE) * PTR_THICK 
 
+#if defined(UNIT_TESTING)
+    call dump_field_2d('ice_formation.output.frazil', mpp_pe(), PTR_FRAZIL)
+    call dump_field_2d('ice_formation.output.qice', mpp_pe(), QICE)
+#endif
+
 enddo  !loop k = kmxice, 1, -1
 
 ATIME = ATIME + dt_ocean
+
+#if defined(UNIT_TESTING)
+    call dump_field_2d('ice_formation.output.atime', mpp_pe(), &
+                       reshape((/ float(ATIME) /), (/ 1, 1 /)))
+#endif
 
 deallocate(TEMP_BEFORE,POTICE)
 
@@ -272,6 +293,10 @@ enddo
 
 AQICE = 0.0
 ATIME = 0
+
+#if defined(UNIT_TESTING)
+    call dump_field_2d('ice_heatflux.output.frazil', mpp_pe(), Ocean_sfc%frazil)
+#endif
 
 end subroutine auscom_ice_heatflux_new
 
