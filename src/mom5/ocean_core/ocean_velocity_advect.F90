@@ -407,7 +407,7 @@ subroutine horz_advection_centered(Time, Thickness, Adv_vel, Velocity, energy_an
            do i=isc,iec
               metric_force = onefourth*( (Adv_vel%vhrho_nt(i,j,k)   + Adv_vel%vhrho_nt(i+1,j,k))  *wrk1_2d(i,j) &
                                         +(Adv_vel%vhrho_nt(i,j-1,k) + Adv_vel%vhrho_nt(i+1,j-1,k))*wrk1_2d(i,j-1) ) 
-              tmp(i,j) = (tmp1(i,j)-tmp1(i-1,j))*Grd%dxter(i,j) + (tmp2(i,j)-tmp2(i,j-1))*Grd%dytnr(i,j) &
+              tmp(i,j) = (tmp1(i,j)-tmp1(i-1,j))*Grd%dxter(i,j) + (tmp2(i,j)-tmp2(i,j-1))*Grd%dyter(i,j) &
                          + metric_force 
               wrk1_v(i,j,k,n) = Grd%tmasken(i,j,k,n)*tmp(i,j)
            enddo
