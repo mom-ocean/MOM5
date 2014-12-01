@@ -76,6 +76,8 @@ endif
 # Users must ensure the correct environment file exists for their platform.
 #
 source $root/bin/environs.$platform  # environment variables and loadable modules
+# Use prebuild Oasis3-mct library for ACCESS/nci 
+setenv OASIS_ROOT ~access/access-cm2/prebuild/oasis3-mct/Linux
 
 #
 # compile mppnccombine.c, needed only if $npes > 1
