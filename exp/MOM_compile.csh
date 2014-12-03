@@ -2,9 +2,9 @@
 # Minimal compile script for fully coupled model CM2M experiments
 
 set echo
-set platform      = gfortran    # A unique identifier for your platfo
+set platform      = nci         # A unique identifier for your platfo
                                 # This corresponds to the mkmf templates in $root/bin dir.
-set type          = MOM_solo    # Type of the experiment
+set type          = MOM_SIS     # Type of the experiment
 set unit_testing = 0
 set help = 0
 

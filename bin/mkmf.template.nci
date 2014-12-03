@@ -62,11 +62,8 @@ LDFLAGS += $(LDFLAGS_VERBOSE)
 endif
 
 LIBS := -L$(NETCDF_ROOT)/lib -lnetcdf -lnetcdff \
-		-L$(HDF5_ROOT)/lib -lhdf5_hl -lhdf5 \
 		-L$(OASIS_ROOT)/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip \
-		-lcurl -L$(ZLIB_ROOT)/lib -lz
 
-LIBS += $(OPENMPI_F90LIBS) -lpthread 
 LDFLAGS += $(LIBS)
 
 #---------------------------------------------------------------------------
