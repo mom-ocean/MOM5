@@ -30,7 +30,7 @@ INCLUDE   = -I$(NETCDF_ROOT)/include \
 
 FPPFLAGS := -fpp -Wp,-w $(INCLUDE)
 FFLAGS := -fno-alias -safe-cray-ptr -fpe0 -ftz -assume byterecl -i4 -r8 -traceback -nowarn -check noarg_temp_created -assume buffered_io
-FFLAGS_OPT = -O3 -debug minimal
+FFLAGS_OPT = -O3 -debug minimal -xHost
 FFLAGS_DEBUG = -g -O0 -debug all -check -check noarg_temp_created -check nopointer -warn -warn noerrors -ftrapuv
 FFLAGS_REPRO = -O2 -debug minimal -no-vec -fp-model precise
 FFLAGS_VERBOSE = -v -V -what
