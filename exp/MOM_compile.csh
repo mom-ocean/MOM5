@@ -70,6 +70,7 @@ endif
 
 if ( $unit_testing ) then 
     set cppDefs = ( "$cppDefs -DUNIT_TESTING" )
+    setenv DEBUG true
 endif
 
 #
