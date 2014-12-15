@@ -7,12 +7,9 @@
 
 #define PATH_MAX	255
 
-#define stderr		0
-#define stdout		6
-
 ! Handy for writing
-#define STDOUT write(stdout,*)
-#define STDERR write(stderr,*)
+#define STDOUT write(6,*)
+#define STDERR write(0,*)
 #define LEVEL0 STDERR
 #define LEVEL1 STDERR '   ',
 #define LEVEL2 STDERR '       ',
