@@ -15,9 +15,9 @@ test_args = [(('MOM_SIS', 'om3_core3'), {'ncpus' : '32', 'npes' : '24'}),
                       {'ncpus' : '64', 'npes' : '45', 'mem' : '128Gb'}),
              (('CM2M', 'CM2M_coarse_BLING'),
                      {'ncpus' : '64', 'npes' : '45', 'mem' : '128Gb'}),
-             (('ICCM', 'ICCMp1'), {'ncpus' : '64', 'npes' : '54', 'mem' : '128Gb'}),
+             (('ICCM', 'ICCMp1'), {'ncpus' : '64', 'npes' : '45', 'mem' : '128Gb'}),
              (('ESM2M', 'ESM2M_pi-control_C2'),
-                      {'ncpus' : '128', 'npes' : '120', 'mem' : '256Gb'})]
+                      {'ncpus' : '128', 'npes' : '90', 'mem' : '256Gb'})]
 
 
 class TestRun(ModelTestSetup):
