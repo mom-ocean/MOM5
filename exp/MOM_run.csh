@@ -74,6 +74,8 @@ if ( $help ) then
     echo "--platform   followed by the platform name that has a corresponfing environ file in the ../bin dir, default is gfortran"
     echo 
     echo "--npes       followed by the number of pes to be used for this experiment"
+    echo
+    echo "--download_input_data  download the input data for the test case"
     echo 
     echo "Note that the executable for the run should have been built before calling this script. See MOM_compile.csh"
     echo 
@@ -345,4 +347,4 @@ echo "NOTE: Natural end-of-script."
 #mv $name.output.tar.gz $archive/
 
 exit 0
-  
+

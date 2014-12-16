@@ -57,9 +57,9 @@ Find out what test cases are available for a particular `MODEL_TYPE`
 
 To run a `TEST_CASE`
                 
-    $ ./MOM_run.csh --platform PLATFORM_ID --type MODEL_TYPE  --experiment TEST_CASE
+    $ ./MOM_run.csh --platform PLATFORM_ID --type MODEL_TYPE  --experiment TEST_CASE --download_input_data
 
-If you do not have the right input data in the `WORKDIR` for the `TEST_CASE` the above command would ask you to download it and try again. You may need to specify the number of processor for the `TEST_CASE`, in that case the above command errors out with the right info. Note: The script `exp/preprocessing.csh` is called by the `MOM_run.csh` to modify the mom4p1 namelists of these old test cases to make them compatible with MOM5. The results go into `WORKDIR`.
+You may need to specify the number of processor for the `TEST_CASE`, in that case the above command errors out with the right info. Note: The script `exp/preprocessing.csh` is called by the `MOM_run.csh` to modify the mom4p1 namelists of these old test cases to make them compatible with MOM5. The results go into `WORKDIR`.
 
 ### Notes
 
