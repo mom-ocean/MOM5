@@ -3,14 +3,14 @@ from __future__ import print_function
 
 from model_test_setup import ModelTestSetup
 
-test_args = [(('MOM_SIS', 'om3_core3'), {'ncpus' : '32'}),
-             (('MOM_SIS', 'om3_core1'), {'ncpus' : '32'}),
+test_args = [(('MOM_SIS', 'om3_core3'), {'ncpus' : '32', 'npes' : '24'}),
+             (('MOM_SIS', 'om3_core1'), {'ncpus' : '32', 'npes' : '24'}),
              (('MOM_SIS', 'atlantic1'),
                          {'ncpus' : '32', 'npes' : '24', 'mem' : '64Gb'}),
              (('EBM', 'mom4p1_ebm1'),
                      {'ncpus' : '32', 'npes' : '17', 'mem' : '64Gb'}),
-             (('MOM_SIS', 'MOM_SIS_TOPAZ'), {'ncpus' : '24'}),
-             (('MOM_SIS', 'MOM_SIS_BLING'), {'ncpus' : '24'}),
+             (('MOM_SIS', 'MOM_SIS_TOPAZ'), {'ncpus' : '32', 'npes' : '24'}),
+             (('MOM_SIS', 'MOM_SIS_BLING'), {'ncpus' : '32', 'npes' : '24'}),
              (('CM2M', 'CM2.1p1'),
                       {'ncpus' : '64', 'npes' : '45', 'mem' : '128Gb'}),
              (('CM2M', 'CM2M_coarse_BLING'),
@@ -45,6 +45,6 @@ class TestRun(ModelTestSetup):
         assert('NOTE: Natural end-of-script.' in so)
 
     def test_experiments(self):
-        for t in test_args: 
+        for t in test_args:
             yield self.check_run, t[0], t[1]
 
