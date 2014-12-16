@@ -1,32 +1,21 @@
 
 from model_test_setup import ModelTestSetup
 
+test_args = ['MOM_solo', 'MOM_SIS', 'EBM', 'CM2M', 'ESM2M', 'ICCM',
+             'ACCESS-CM', 'ACCESS-OM']
+
 class TestBuild(ModelTestSetup):
+    """
+    Build all model types.
+    """
 
     def __init__(self):
         super(TestBuild, self).__init__()
 
-    def test_MOM_SIS(self):
-
-        ret = self.build('MOM_SIS')
+    def check_build(self, model):
+        ret = self.build(model)
         assert(ret == 0)
 
-    def test_EBM(self):
-
-        ret = self.build('EBM')
-        assert(ret == 0)
-
-    def test_CM2M(self):
-
-        ret = self.build('CM2M')
-        assert(ret == 0)
-
-    def test_ESM2M(self):
-
-        ret = self.build('ESM2M')
-        assert(ret == 0)
-
-    def test_ICCM(self):
-
-        ret = self.build('ICCM')
-        assert(ret == 0)
+    def test_builds(self):
+        for t in test_args:
+            yield self.check_build, t

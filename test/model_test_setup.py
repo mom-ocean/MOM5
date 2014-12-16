@@ -101,7 +101,7 @@ class ModelTestSetup(object):
             pass
 
         return platform
- 
+
 
     def run(self, model_type, exp, walltime='00:10:00', ncpus='32',
             npes=None, mem='64Gb'):
