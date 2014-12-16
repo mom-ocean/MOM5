@@ -1,7 +1,6 @@
 #!/bin/csh -f
 # Minimal compile script for fully coupled model CM2M experiments
 
-set echo
 set platform      = gfortran    # A unique identifier for your platfo
                                 # This corresponds to the mkmf templates in $root/bin dir.
 set type          = MOM_solo    # Type of the experiment
@@ -27,18 +26,19 @@ end
 shift argv
 if ( $help ) then
     echo "The optional arguments are:"
-    echo "--type       followed by the type of the experiment, currently one of the following:"
-    echo "             MOM_solo : solo ocean model"
-    echo "             MOM_SIS  : ocean-seaice model"
-    echo "             CM2M     : ocean-seaice-land-atmosphere coupled climate model"
-    echo "             ESM2M    : ocean-seaice-land-atmosphere coupled climate model with biogeochemistry, EarthSystemModel"
-    echo "             ICCM     : ocean-seaice-land-atmosphere coupled model"
-    echo "             EBM      : ocean-seaice-land-atmosphere coupled model with energy balance atmosphere"
+    echo "--type       followed by the type of the model, one of the following (default is MOM_solo):"
+    echo "             MOM_solo  : solo ocean model"
+    echo "             MOM_SIS   : ocean-seaice model"
+    echo "             CM2M      : ocean-seaice-land-atmosphere coupled climate model"
+    echo "             ESM2M     : ocean-seaice-land-atmosphere coupled climate model with biogeochemistry, EarthSystemModel"
+    echo "             ICCM      : ocean-seaice-land-atmosphere coupled model"
+    echo "             EBM       : ocean-seaice-land-atmosphere coupled model with energy balance atmosphere"
+    echo "             ACCESS-CM : ocean component of ACCESS-CM model."
+    echo "             ACCESS-OM : ocean component of ACCESS-OM model."
     echo
     echo "--platform   followed by the platform name that has a corresponfing environ file in the ../bin dir, default is gfortran"
     echo
-    echo
-    exit 0
+    exit 1
 endif
 
 #
@@ -178,6 +178,6 @@ make
 if( $status ) then
     echo "Make failed to create the $type executable"
     exit 1
-endif    
+endif
 
 exit

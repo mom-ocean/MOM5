@@ -76,7 +76,13 @@ You may need to specify the number of processor for the `TEST_CASE`, in that cas
 
 ## How to prepare input data
    
-The input data needed to run the selected experiments (tests) that are included in this release are available in the `data/` directory.
+The input data needed to run the selected experiments (tests) that are included in this release are available in the `data/` directory. The data should be downloaded automatically when you run the MOM_run.csh script with the --download_input_data option. Alternatively the data can be downloaded manually with the command:
+
+    $ git annex get <filename>
+
+For example, to download all data for the box_channel1 experiment one would execute:
+
+    $ git annex get $root_dir/box_channel1/INPUT/*
    
 Note that data in `ASCII/`, `HISTORY/`, `RESTART/` directories are NOT needed for running experiments. They are the outputs of the experiments and are provided for the purpose of comparing your results with results produced at GFDL. Tools are provided so that users can create data from scratch for their own experiments. For more details refer to `src/preprocessing`.
       

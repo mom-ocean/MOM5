@@ -14,7 +14,7 @@ set argv = (`getopt -u -o h -l type: -l platform: -l npes: -l experiment: -l deb
 while ("$argv[1]" != "--")
     switch ($argv[1])
         case --type:
-                set type = $argv[2]; shift argv; breaksw    
+                set type = $argv[2]; shift argv; breaksw
         case --platform:
                 set platform = $argv[2]; shift argv; breaksw
         case --npes:
@@ -45,28 +45,28 @@ if ( $help ) then
     echo 
     echo "--experiment followed by the name of the experiment of the specified type"
     echo "             To see the list of available experiments for each type use  -h --type type_name"
-    if ( $type == MOM_solo ) then    
-    echo "             Available expeiments for MOM_solo:"
+    if ( $type == MOM_solo ) then
+    echo "             Available experiments for MOM_solo:"
     echo "             box1, box_channel1, bowl1, dome1, gyre1, iom1, mk3p51, symmetric_box1, torus1, dome_bates_blobs1"
     endif
-    if ( $type == MOM_SIS ) then    
-    echo "             Available expeiments for MOM_SIS:"
+    if ( $type == MOM_SIS ) then
+    echo "             Available experiments for MOM_SIS:"
     echo "             om3_core1, om3_core3, MOM_SIS_TOPAZ, MOM_SIS_BLING, atlantic1"
     endif
-    if ( $type == CM2M ) then    
-    echo "             Available expeiments for CM2M:"
+    if ( $type == CM2M ) then
+    echo "             Available experiments for CM2M:"
     echo "             CM2.1p1, CM2M_coarse_BLING"
     endif
-    if ( $type == ESM2M ) then    
-    echo "             Available expeiments for ESM2M:"
+    if ( $type == ESM2M ) then
+    echo "             Available experiments for ESM2M:"
     echo "             ESM2M_pi-control_C2"
     endif
-    if ( $type == ICCM ) then    
-    echo "             Available expeiments for ICCM:"
+    if ( $type == ICCM ) then
+    echo "             Available experiments for ICCM:"
     echo "             ICCMp1"
     endif
-    if ( $type == EBM ) then    
-    echo "             Available expeiments for EBM:"
+    if ( $type == EBM ) then
+    echo "             Available experiments for EBM:"
     echo "             mom4p1_ebm1"
     endif
     echo 
@@ -78,7 +78,6 @@ if ( $help ) then
     echo "--download_input_data  download the input data for the test case"
     echo 
     echo "Note that the executable for the run should have been built before calling this script. See MOM_compile.csh"
-    echo 
     echo 
     exit 1
 endif
@@ -112,80 +111,57 @@ source $root/bin/environs.$platform  # environment variables and loadable module
 set mppnccombine  = $root/bin/mppnccombine.$platform  # path to executable mppnccombine
 set time_stamp    = $root/bin/time_stamp.csh          # path to cshell to generate the date
 
-set echo
-
 # Check if the user has extracted the input data
+if( $download ) then
+    cd $root/data/archives
+    git annex get $name.input.tar.gz
+    mkdir -p $workdir
+    cp $name.input.tar.gz $workdir
+    cd $workdir
+    tar zxvf $name.input.tar.gz
+endif
+
 if ( ! -d $inputDataDir ) then
-    if( $download ) then
-        cd $root/data/archives
-        git annex get $name.input.tar.gz
-        mkdir -p $workdir
-        cp $name.input.tar.gz $workdir
-        cd $workdir
-        tar zxvf $name.input.tar.gz
-    else
         echo "ERROR: the experiment directory '$inputDataDir' does not exist or does not contain input and preprocessing data directories!"
-        echo "Please copy the input data from the MOM data directory. This may required downloading data from a remote git annex if you do not already have the data locally."
+        echo "Either use the --download_input_data option or copy the input data from the MOM data directory manually."
+        echo "To manually dowload the data execute the following:"
         echo "cd $root/data/archives"
         echo "git annex get $name.input.tar.gz"
         echo "mkdir -p $workdir"
         echo "cp $name.input.tar.gz $workdir"
         echo "cd $workdir"
         echo "tar zxvf $name.input.tar.gz"
-        echo "Or use the --download_input_data option to do this automatically"
         exit 1
-    endif
 endif
 
 # setup directory structure
 if ( ! -d $expdir )         mkdir -p $expdir
 if ( ! -d $expdir/RESTART ) mkdir -p $expdir/RESTART
+if ( ! -d $expdir/INPUT ) mkdir -p $expdir/INPUT
 
-# Check the existance of essential input files
-#
-#  if ( ! -e $inputDataDir/grid_spec.nc ) then
-#    echo "ERROR: required input file does not exist $inputDataDir/grid_spec.nc "
-#    exit 1
-#  endif
-#  if ( ! -e $inputDataDir/ocean_temp_salt.res.nc ) then
-#    echo "ERROR: required input file does not exist $inputDataDir/ocean_temp_salt.res.nc "
-#    exit 1
-#  endif
-
-# --- make sure executable is up to date ---
-set makeFile = Makefile
-cd $executable:h
-make -f $makeFile
-if ( $status != 0 ) then
-    unset echo
-    echo "ERROR: make failed"
+if ( ! -e $namelist ) then
+    echo "ERROR: required input file does not exist $namelist."
+    echo "Need to download input data? See ./MOM_run.csh -h"
+    exit 1
+endif
+if ( ! -e $datatable ) then
+    echo "ERROR: required input file does not exist $datatable."
+    echo "Need to download input data? See ./MOM_run.csh -h"
+    exit 1
+endif
+if ( ! -e $diagtable ) then
+    echo "ERROR: required input file does not exist $diagtable."
+    echo "Need to download input data? See ./MOM_run.csh -h"
+    exit 1
+endif
+if ( ! -e $fieldtable ) then
+    echo "ERROR: required input file does not exist $fieldtable."
+    echo "Need to download input data? See ./MOM_run.csh -h"
     exit 1
 endif
 
 # Change to expdir
 cd $expdir
-
-# Create INPUT directory. Make a link instead of copy
-if ( ! -d $expdir/INPUT ) then
-    mkdir -p $expdir/INPUT
-endif
-
-if ( ! -e $namelist ) then
-    echo "ERROR: required input file does not exist $namelist "
-    exit 1
-endif
-if ( ! -e $datatable ) then
-    echo "ERROR: required input file does not exist $datatable "
-    exit 1
-endif
-if ( ! -e $diagtable ) then
-    echo "ERROR: required input file does not exist $diagtable "
-    exit 1
-endif
-if ( ! -e $fieldtable ) then
-    echo "ERROR: required input file does not exist $fieldtable "
-    exit 1
-endif
 
 cp $namelist   input.nml
 cp $datatable  data_table
@@ -248,9 +224,10 @@ endif
 cd RESTART
 cp $expdir/input.nml .
 cp $expdir/*_table .
+
 # combine netcdf files
 if ( $npes > 1 ) then
-    #Concatenate blobs restart files. mppnccombine would not work on them.
+    # Concatenate blobs restart files. mppnccombine would not work on them.
     ncecat ocean_blobs.res.nc.???? ocean_blobs.res.nc
     rm ocean_blobs.res.nc.????
     # Concatenate iceberg restarts
@@ -291,10 +268,6 @@ if ( $npes > 1 ) then
         set file_previous = $file
     end
 endif
-
-cd $expdir
-mkdir history
-mkdir ascii
 
 # rename ascii files with the date
 foreach out (`ls *.out`)
