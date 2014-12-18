@@ -51,4 +51,3 @@ class TestRun(ModelTestSetup):
     def test_experiments(self):
         for k in tests.keys():
             yield self.check_run, k
-
