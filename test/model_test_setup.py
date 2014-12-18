@@ -104,7 +104,7 @@ class ModelTestSetup(object):
 
 
     def run(self, model_type, exp, walltime='00:10:00', ncpus='32',
-            npes=None, mem='64Gb'):
+            npes=None, mem='64Gb', qsub=True):
         """
         ncpus is for requested cpus, npes is for how many mom uses.
         """
@@ -144,7 +144,15 @@ class ModelTestSetup(object):
         os.chmod(run_file, 0755)
 
         # Submit the experiment. This will block until it has finished.
-        ret = sp.call(['qsub', run_file])
+        if qsub:
+            ret = sp.call(['qsub', run_file])
+        else:
+            import pdb
+            pdb.set_trace()
+            ret = sp.call([run_file])
+
+        import pdb
+        pdb.set_trace()
         stdout, stderr = self.get_output(fo, fe)
 
         # Clean up temporary files. 

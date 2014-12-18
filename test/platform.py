@@ -1,6 +1,6 @@
 run_scripts = {}
-run_scripts['nci'] = """
-#!/bin/csh -f
+run_scripts['nci'] = \
+"""#!/bin/csh -f
 
 #PBS -P x77
 #PBS -q normal
