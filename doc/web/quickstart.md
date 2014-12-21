@@ -57,9 +57,9 @@ Find out what test cases are available for a particular `MODEL_TYPE`
 
 To run a `TEST_CASE`
                 
-    $ ./MOM_run.csh --platform PLATFORM_ID --type MODEL_TYPE  --experiment TEST_CASE
+    $ ./MOM_run.csh --platform PLATFORM_ID --type MODEL_TYPE  --experiment TEST_CASE --download_input_data
 
-If you do not have the right input data in the `WORKDIR` for the `TEST_CASE` the above command would ask you to download it and try again. You may need to specify the number of processor for the `TEST_CASE`, in that case the above command errors out with the right info. Note: The script `exp/preprocessing.csh` is called by the `MOM_run.csh` to modify the mom4p1 namelists of these old test cases to make them compatible with MOM5. The results go into `WORKDIR`.
+You may need to specify the number of processor for the `TEST_CASE`, in that case the above command errors out with the right info. Note: The script `exp/preprocessing.csh` is called by the `MOM_run.csh` to modify the mom4p1 namelists of these old test cases to make them compatible with MOM5. The results go into `WORKDIR`.
 
 ### Notes
 
@@ -76,7 +76,13 @@ If you do not have the right input data in the `WORKDIR` for the `TEST_CASE` the
 
 ## How to prepare input data
    
-The input data needed to run the selected experiments (tests) that are included in this release are available in the `data/` directory.
+The input data needed to run the selected experiments (tests) that are included in this release are available in the `data/` directory. The data should be downloaded automatically when you run the MOM_run.csh script with the --download_input_data option. Alternatively the data can be downloaded manually with the command:
+
+    $ git annex get <filename>
+
+For example, to download all data for the box_channel1 experiment one would execute:
+
+    $ git annex get $root_dir/box_channel1/INPUT/*
    
 Note that data in `ASCII/`, `HISTORY/`, `RESTART/` directories are NOT needed for running experiments. They are the outputs of the experiments and are provided for the purpose of comparing your results with results produced at GFDL. Tools are provided so that users can create data from scratch for their own experiments. For more details refer to `src/preprocessing`.
       

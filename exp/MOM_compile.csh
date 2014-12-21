@@ -1,7 +1,6 @@
 #!/bin/csh -f
 # Minimal compile script for fully coupled model CM2M experiments
 
-set echo
 set platform      = gfortran    # A unique identifier for your platfo
                                 # This corresponds to the mkmf templates in $root/bin dir.
 set type          = MOM_solo    # Type of the experiment
@@ -27,18 +26,19 @@ end
 shift argv
 if ( $help ) then
     echo "The optional arguments are:"
-    echo "--type       followed by the type of the experiment, currently one of the following:"
-    echo "             MOM_solo : solo ocean model"
-    echo "             MOM_SIS  : ocean-seaice model"
-    echo "             CM2M     : ocean-seaice-land-atmosphere coupled climate model"
-    echo "             ESM2M    : ocean-seaice-land-atmosphere coupled climate model with biogeochemistry, EarthSystemModel"
-    echo "             ICCM     : ocean-seaice-land-atmosphere coupled model"
-    echo "             EBM      : ocean-seaice-land-atmosphere coupled model with energy balance atmosphere"
+    echo "--type       followed by the type of the model, one of the following (default is MOM_solo):"
+    echo "             MOM_solo  : solo ocean model"
+    echo "             MOM_SIS   : ocean-seaice model"
+    echo "             CM2M      : ocean-seaice-land-atmosphere coupled climate model"
+    echo "             ESM2M     : ocean-seaice-land-atmosphere coupled climate model with biogeochemistry, EarthSystemModel"
+    echo "             ICCM      : ocean-seaice-land-atmosphere coupled model"
+    echo "             EBM       : ocean-seaice-land-atmosphere coupled model with energy balance atmosphere"
+    echo "             ACCESS-CM : ocean component of ACCESS-CM model."
+    echo "             ACCESS-OM : ocean component of ACCESS-OM model."
     echo
-    echo "--platform   followed by the platform name that has a corresponfing environ file in the ../bin dir, default is ncrc.intel"
+    echo "--platform   followed by the platform name that has a corresponfing environ file in the ../bin dir, default is gfortran"
     echo
-    echo
-    exit 0
+    exit 1
 endif
 
 #
@@ -53,10 +53,10 @@ set mkmf          = $root/bin/mkmf                    # path to executable mkmf
 set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DUSE_OCEAN_BGC -DENABLE_ODA -DSPMD -DLAND_BND_TRACERS" )
 #On Altrix systems you may include "-Duse_shared_pointers -Duse_SGI_GSM" in cppDefs for perfomance.
 #These are included in the GFDL configuration of the model.
-  
+
 set static        = 0              # 1 if you want static memory allocation, 0 for dynamic
 if($static) then
-  set executable = $root/exec/$platform/${type}_static/fms_$type.x 
+  set executable = $root/exec/$platform/${type}_static/fms_$type.x
   set cppDefs = "$cppDefs -DMOM_STATIC_ARRAYS -DNI_=360 -DNJ_=200 -DNK_=50 -DNI_LOCAL_=60 -DNJ_LOCAL_=50"
 endif
 
@@ -68,7 +68,7 @@ else if( $type == ACCESS-CM ) then
     set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DACCESS -DACCESS_CM" )
 endif
 
-if ( $unit_testing ) then 
+if ( $unit_testing ) then
     set cppDefs = ( "$cppDefs -DUNIT_TESTING" )
     setenv DEBUG true
 endif
@@ -178,6 +178,6 @@ make
 if( $status ) then
     echo "Make failed to create the $type executable"
     exit 1
-endif    
+endif
 
 exit

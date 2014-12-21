@@ -5,4 +5,5 @@ module load intel-cc/14.3.174
 module load netcdf/4.3.2
 module load oasis/dev
 module load openmpi/1.8.2
-setenv mpirunCommand   "mpirun -np"
+setenv mpirunCommand   "mpirun --mca orte_base_help_aggregate 0 -np"
+"

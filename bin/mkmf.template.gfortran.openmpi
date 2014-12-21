@@ -1,69 +1,28 @@
-# Template for the NCI (nf.nci.org.au) machines. Uses intel compiler and OpenMPI.
+# $Id: gnu.mk,v 1.1.2.1.2.1 2012/03/07 15:08:54 sdu Exp $
+# template for the Intel fortran compiler
 # typical use with mkmf
 # mkmf -t template.ifc -c"-Duse_libMPI -Duse_netCDF" path_names /usr/local/include
 ############
 # commands #
 ############
-ifeq ($(VTRACE), yes)
-    FC = mpifort-vt
-    LD = mpifort-vt
-else
-    FC = mpifort
-    LD = mpifort
-endif
 
-CC = mpicc
+FC = mpif90
+CC = gcc
+LD = mpif90  $(MAIN_PROGRAM)
 
 #########
 # flags #
 #########
-REPRO =
-VERBOSE =
-OPT = on
 
-MAKEFLAGS += --jobs=4
+MAKEFLAGS += --jobs=$(shell grep '^processor' /proc/cpuinfo | wc -l)
 
-INCLUDE   = -I$(NETCDF_ROOT)/include \
-			-I$(OASIS_ROOT)/include/psmile.MPI1 \
-			-I$(OASIS_ROOT)/include/pio \
-			-I$(OASIS_ROOT)/include/mct
+FPPFLAGS := 
 
-FPPFLAGS := -fpp -Wp,-w $(INCLUDE)
-FFLAGS := -fno-alias -safe-cray-ptr -fpe0 -ftz -assume byterecl -i4 -r8 -traceback -nowarn -check noarg_temp_created -assume buffered_io -convert big_endian
-FFLAGS_OPT = -O3 -debug minimal -xHost
-FFLAGS_DEBUG = -g -O0 -debug all -check -check noarg_temp_created -check nopointer -warn -warn noerrors -ftrapuv
-FFLAGS_REPRO = -O2 -debug minimal -no-vec -fp-model precise
-FFLAGS_VERBOSE = -v -V -what
+FFLAGS := -O2 -fcray-pointer -fdefault-real-8 -ffree-line-length-none -fno-range-check -Waliasing -Wampersand -Warray-bounds -Wcharacter-truncation -Wconversion -Wline-truncation -Wintrinsics-std -Wsurprising -Wno-tabs -Wunderflow -Wunused-parameter -Wintrinsic-shadow -Wno-align-commons -I/usr/include/openmpi -I/usr/include -DGFORTRAN
 
-CFLAGS := -D__IFC $(INCLUDE)
-CFLAGS_OPT = -O2 -debug minimal -no-vec
-CFLAGS_DEBUG = -O0 -g -ftrapuv -traceback
+CFLAGS := -D__IFC -O2 $(shell nc-config --cflags) -I/usr/include/openmpi
 
-LDFLAGS :=
-LDFLAGS_VERBOSE := -Wl,-V,--verbose,-cref,-M
-
-ifneq ($(REPRO),)
-CFLAGS += $(CFLAGS_REPRO)
-FFLAGS += $(FFLAGS_REPRO)
-endif
-
-ifneq ($(DEBUG),)
-CFLAGS += $(CFLAGS_DEBUG)
-FFLAGS += $(FFLAGS_DEBUG)
-else
-CFLAGS += $(CFLAGS_OPT)
-FFLAGS += $(FFLAGS_OPT)
-endif
-
-ifneq ($(VERBOSE),)
-CFLAGS += $(CFLAGS_VERBOSE)
-FFLAGS += $(FFLAGS_VERBOSE)
-LDFLAGS += $(LDFLAGS_VERBOSE)
-endif
-
-LIBS := -L$(NETCDF_ROOT)/lib -lnetcdf -lnetcdff \
-		-L$(OASIS_ROOT)/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip \
-
+LIBS := $(shell nc-config --flibs) -lpthread
 LDFLAGS += $(LIBS)
 
 #---------------------------------------------------------------------------
