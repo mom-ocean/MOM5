@@ -147,12 +147,8 @@ class ModelTestSetup(object):
         if qsub:
             ret = sp.call(['qsub', run_file])
         else:
-            import pdb
-            pdb.set_trace()
             ret = sp.call([run_file])
 
-        import pdb
-        pdb.set_trace()
         stdout, stderr = self.get_output(fo, fe)
 
         # Clean up temporary files. 
