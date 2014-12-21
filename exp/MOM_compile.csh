@@ -53,10 +53,10 @@ set mkmf          = $root/bin/mkmf                    # path to executable mkmf
 set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DUSE_OCEAN_BGC -DENABLE_ODA -DSPMD -DLAND_BND_TRACERS" )
 #On Altrix systems you may include "-Duse_shared_pointers -Duse_SGI_GSM" in cppDefs for perfomance.
 #These are included in the GFDL configuration of the model.
-  
+
 set static        = 0              # 1 if you want static memory allocation, 0 for dynamic
 if($static) then
-  set executable = $root/exec/$platform/${type}_static/fms_$type.x 
+  set executable = $root/exec/$platform/${type}_static/fms_$type.x
   set cppDefs = "$cppDefs -DMOM_STATIC_ARRAYS -DNI_=360 -DNJ_=200 -DNK_=50 -DNI_LOCAL_=60 -DNJ_LOCAL_=50"
 endif
 
@@ -68,7 +68,7 @@ else if( $type == ACCESS-CM ) then
     set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DACCESS -DACCESS_CM" )
 endif
 
-if ( $unit_testing ) then 
+if ( $unit_testing ) then
     set cppDefs = ( "$cppDefs -DUNIT_TESTING" )
     setenv DEBUG true
 endif
