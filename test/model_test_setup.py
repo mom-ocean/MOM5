@@ -21,32 +21,23 @@ class ModelTestSetup(object):
 
     def download_input_data(self, exp):
         """
-        Download the experiment input data. 
+        Download the experiment input data.
 
         This needs to be done before submitting the MOM_run.sh script because
-        the compute nodes may not have Internet access. 
+        the compute nodes may not have Internet access.
         """
 
         os.chdir(self.archive_dir)
 
         input = '{}.input.tar.gz'.format(exp)
 
-        # Set the local remote if there is one.
-        if plat.local_data_repos.has_key(self.get_platform()):
-            remote = plat.local_data_repos[self.get_platform()]
-            cmd = '/usr/bin/git remote add local_data {}'.format(remote)
-            try: 
-                sp.check_output(shlex.split(cmd), stderr=sp.STDOUT)
-            except sp.CalledProcessError as err:
-                # This is allowed to fail in this case
-                assert('remote local_data already exists' in err.output)
-
-            cmd = '/usr/bin/git annex get {} --from local_data'.format(input)
-            ret = sp.call(shlex.split(cmd))
-        else:
-            # Otherwise data will be download from Amazon S3. 
+        if not os.path.exists(input):
             cmd = '/usr/bin/git annex get {}'.format(input)
             ret = sp.call(shlex.split(cmd))
+
+            if ret != 0:
+                cmd = 'wget ftp.gfdl.noaa.gov:/perm/MOM4/mom5_pubrel_dec2013/exp/{}'.format(input)
+                ret = sp.call(shlex.split(cmd))
 
         # Unzip into work directory.
         if not os.path.exists(self.work_dir):
