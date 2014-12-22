@@ -115,6 +115,10 @@ set time_stamp    = $root/bin/time_stamp.csh          # path to cshell to genera
 if( $download ) then
     cd $root/data/archives
     git annex get $name.input.tar.gz
+    # If we could not download from annex then try the ftp server.
+    if ( $status > 0 ) then
+        wget ftp.gfdl.noaa.gov:/perm/MOM4/mom5_pubrel_dec2013/exp/$name.input.tar.gz
+    endif
     mkdir -p $workdir
     cp $name.input.tar.gz $workdir
     cd $workdir
