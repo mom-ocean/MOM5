@@ -31,13 +31,14 @@ class ModelTestSetup(object):
 
         input = '{}.input.tar.gz'.format(exp)
 
+        ret = 0
         if not os.path.exists(input):
             cmd = '/usr/bin/git annex get {}'.format(input)
             ret = sp.call(shlex.split(cmd))
 
             if ret != 0:
                 cmd = 'wget ftp.gfdl.noaa.gov:/perm/MOM4/mom5_pubrel_dec2013/exp/{}'.format(input)
-                ret = sp.call(shlex.split(cmd))
+                ret += sp.call(shlex.split(cmd))
 
         # Unzip into work directory.
         if not os.path.exists(self.work_dir):
