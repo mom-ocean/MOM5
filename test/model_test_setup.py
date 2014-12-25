@@ -59,7 +59,7 @@ class ModelTestSetup(object):
 
         # The command has finished. Read output and write stdout.
         # We don't know when output has stopped so just keep trying
-        # until it is all gone. 
+        # until it is all gone.
         empty_reads = 0
         stderr = ''
         stdout = ''
@@ -143,12 +143,12 @@ class ModelTestSetup(object):
 
         stdout, stderr = self.get_output(fo, fe)
 
-        # Clean up temporary files. 
-        os.remove(stdout_file)
-        os.remove(stderr_file)
-        os.remove(run_file)
+        # Move temporary files to experiment directory.
+        shutil.move(stdout_file, os.path.join(self.work_dir, exp, 'fms.out'))
+        shutil.move(stderr_file, os.path.join(self.work_dir, exp, 'fms.err'))
+        shutil.move(run_file, os.path.join(self.work_dir, exp, 'run.sh'))
 
-        # Change back to test dir. 
+        # Change back to test dir.
         os.chdir(self.my_dir)
 
         return (ret, stdout, stderr)
