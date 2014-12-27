@@ -33,7 +33,7 @@ class TestBitReproducibility(ModelTestSetup):
     def expected_checksums(self, test_name):
 
         filename = os.path.join(self.my_dir, 'checksums',
-                                '{}_checksums.txt'.format(test_name))
+                                '{}.txt'.format(test_name))
         return self.checksums_to_dict(filename)
 
 
