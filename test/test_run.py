@@ -3,6 +3,8 @@ from __future__ import print_function
 
 from model_test_setup import ModelTestSetup
 
+import shutil
+
 # This defines the different tests. To run an individual test on the command
 # line type (for example):
 # $ python -c "import test_run ; tc = test_run.TestRun() ; test_run.TestRun.check_run(tc, 'MOM_SIS.om3_core3')"
