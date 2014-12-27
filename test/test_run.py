@@ -3,6 +3,7 @@ from __future__ import print_function
 
 from model_test_setup import ModelTestSetup
 
+import os
 import shutil
 
 # This defines the different tests. To run an individual test on the command
