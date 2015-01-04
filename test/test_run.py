@@ -45,7 +45,8 @@ class TestRun(ModelTestSetup):
 
         print('############ Running {}.{} ############'.format(args[0], args[1]))
         # Clean out the work directory.
-        shutil.rmtree(os.path.join(self.work_dir, key))
+        if os.path.exists(os.path.join(self.work_dir, key)):
+            shutil.rmtree(os.path.join(self.work_dir, key))
         r, so, se = self.run(*args, **kwargs)
         if r != 0:
             print(so)
