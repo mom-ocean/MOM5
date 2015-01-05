@@ -34,13 +34,11 @@ class ModelTestSetup(object):
         ret = 0
         if not os.path.exists(input):
             cmd = '/usr/bin/git annex get {}'.format(input)
-            print('Executing {}'.format(cmd))
             ret = sp.call(shlex.split(cmd))
 
-            if ret != 0:
-                cmd = 'wget ftp.gfdl.noaa.gov:/perm/MOM4/mom5_pubrel_dec2013/exp/{}'.format(input)
-                print('Executing {}'.format(cmd))
-                ret = sp.call(shlex.split(cmd))
+        if not os.path.exists(input) or ret != 0:
+            cmd = 'wget ftp.gfdl.noaa.gov:/perm/MOM4/mom5_pubrel_dec2013/exp/{}'.format(input)
+            ret = sp.call(shlex.split(cmd))
 
         if ret != 0:
             return ret
