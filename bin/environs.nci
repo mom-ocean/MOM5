@@ -4,6 +4,9 @@ module load intel-fc/14.3.174
 module load intel-cc/14.3.174
 module load netcdf/4.3.2
 module load oasis/dev
-module load openmpi/1.8.2
+if ( $?DEBUG ) then
+    module load openmpi/1.8.4-debug
+else
+    module load openmpi/1.8.2
+endif
 setenv mpirunCommand   "mpirun --mca orte_base_help_aggregate 0 -np"
-"
