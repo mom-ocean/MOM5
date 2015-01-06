@@ -36,7 +36,7 @@ class ModelTestSetup(object):
             cmd = '/usr/bin/git annex get {}'.format(input)
             ret = sp.call(shlex.split(cmd))
 
-        if not os.path.exists(input) or ret != 0:
+        if not os.path.exists(input):
             cmd = 'wget ftp.gfdl.noaa.gov:/perm/MOM4/mom5_pubrel_dec2013/exp/{}'.format(input)
             ret = sp.call(shlex.split(cmd))
 
@@ -100,7 +100,7 @@ class ModelTestSetup(object):
         return platform
 
 
-    def run(self, model_type, exp, walltime='00:10:00', ncpus='32',
+    def run(self, model_type, exp, walltime='00:30:00', ncpus='32',
             npes=None, mem='64Gb', qsub=True):
         """
         ncpus is for requested cpus, npes is for how many mom uses.
