@@ -101,7 +101,7 @@ class ModelTestSetup(object):
 
 
     def run(self, model_type, exp, walltime='00:30:00', ncpus='32',
-            npes=None, mem='64Gb', qsub=True):
+            npes=None, mem='64Gb', qsub=True, valgrind=False):
         """
         ncpus is for requested cpus, npes is for how many mom uses.
         """
@@ -122,6 +122,11 @@ class ModelTestSetup(object):
         else:
             npes = ''
 
+        if valgrind:
+            valgrind = '--valgrind'
+        else:
+            valgrind =''
+
         # Get temporary file names for the stdout, stderr.
         fo, stdout_file = tempfile.mkstemp(dir=self.exp_dir)
         fe, stderr_file = tempfile.mkstemp(dir=self.exp_dir)
@@ -132,7 +137,8 @@ class ModelTestSetup(object):
                                        mem=mem, stdout_file=stdout_file,
                                        stderr_file=stderr_file,
                                        run_name=run_name,
-                                       type=model_type, exp=exp, npes=npes)
+                                       type=model_type, exp=exp, npes=npes,
+                                       valgrind=valgrind)
 
         # Write out run script
         frun, run_file = tempfile.mkstemp(dir=self.exp_dir)

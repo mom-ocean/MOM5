@@ -16,6 +16,8 @@ while ("$argv[1]" != "--")
                 set platform = $argv[2]; shift argv; breaksw
         case --unit_testing:
                 set unit_testing = 1; breaksw
+        case --debug:
+                set unit_testing = 1; breaksw
         case --help:
                 set help = 1;  breaksw
         case -h:
