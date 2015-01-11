@@ -36,15 +36,20 @@ class ModelTestSetup(object):
             cmd = '/usr/bin/git annex get {}'.format(input)
             ret = sp.call(shlex.split(cmd))
 
-            if ret != 0:
-                cmd = 'wget ftp.gfdl.noaa.gov:/perm/MOM4/mom5_pubrel_dec2013/exp/{}'.format(input)
-                ret += sp.call(shlex.split(cmd))
+        if not os.path.exists(input):
+            cmd = 'wget ftp.gfdl.noaa.gov:/perm/MOM4/mom5_pubrel_dec2013/exp/{}'.format(input)
+            ret = sp.call(shlex.split(cmd))
+
+        if ret != 0:
+            return ret
 
         # Unzip into work directory.
         if not os.path.exists(self.work_dir):
             os.mkdir(self.work_dir)
+
         if not os.path.exists(os.path.join(self.work_dir, input)):
             shutil.copy(input, self.work_dir)
+
         if not os.path.exists(os.path.join(self.work_dir, exp)):
             os.chdir(self.work_dir)
             cmd = '/bin/tar -xvf {}'.format(input)
@@ -59,7 +64,7 @@ class ModelTestSetup(object):
 
         # The command has finished. Read output and write stdout.
         # We don't know when output has stopped so just keep trying
-        # until it is all gone. 
+        # until it is all gone.
         empty_reads = 0
         stderr = ''
         stdout = ''
@@ -95,7 +100,7 @@ class ModelTestSetup(object):
         return platform
 
 
-    def run(self, model_type, exp, walltime='00:10:00', ncpus='32',
+    def run(self, model_type, exp, walltime='00:30:00', ncpus='32',
             npes=None, mem='64Gb', qsub=True):
         """
         ncpus is for requested cpus, npes is for how many mom uses.
@@ -143,12 +148,12 @@ class ModelTestSetup(object):
 
         stdout, stderr = self.get_output(fo, fe)
 
-        # Clean up temporary files. 
-        os.remove(stdout_file)
-        os.remove(stderr_file)
-        os.remove(run_file)
+        # Move temporary files to experiment directory.
+        shutil.move(stdout_file, os.path.join(self.work_dir, exp, 'fms.out'))
+        shutil.move(stderr_file, os.path.join(self.work_dir, exp, 'fms.err'))
+        shutil.move(run_file, os.path.join(self.work_dir, exp, 'run.sh'))
 
-        # Change back to test dir. 
+        # Change back to test dir.
         os.chdir(self.my_dir)
 
         return (ret, stdout, stderr)

@@ -262,9 +262,10 @@ if ( $npes > 1 ) then
                 $mppnccombine $file:r $input_files
                 if ( $status != 0 ) then
                     echo "ERROR: in execution of mppnccombine on restarts"
+                    echo "Command was: $mppnccombine $file:r $input_files"
                     exit 1
-                 endif
-                 rm $input_files
+                endif
+                rm $input_files
             endif
         else
             continue

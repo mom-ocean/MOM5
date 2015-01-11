@@ -3,6 +3,9 @@ from __future__ import print_function
 
 from model_test_setup import ModelTestSetup
 
+import os
+import shutil
+
 # This defines the different tests. To run an individual test on the command
 # line type (for example):
 # $ python -c "import test_run ; tc = test_run.TestRun() ; test_run.TestRun.check_run(tc, 'MOM_SIS.om3_core3')"
@@ -41,6 +44,9 @@ class TestRun(ModelTestSetup):
         kwargs['qsub'] = qsub
 
         print('############ Running {}.{} ############'.format(args[0], args[1]))
+        # Clean out the work directory.
+        if os.path.exists(os.path.join(self.work_dir, key)):
+            shutil.rmtree(os.path.join(self.work_dir, key))
         r, so, se = self.run(*args, **kwargs)
         if r != 0:
             print(so)
