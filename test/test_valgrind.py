@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import os
 import sys
+import shutil
 
 from model_test_setup import ModelTestSetup
 from test_run import tests as test_specs
