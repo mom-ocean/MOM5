@@ -88,7 +88,7 @@ set lib_include_dirs = "$root/include $code_dir/shared/include $code_dir/shared/
 
 # Build FMS.
 source ./FMS_compile.csh
-set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean"
+set includes = "-I$code_dir/shared/include -I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean"
 
 # Build the core ocean.
 cd $root/exp
@@ -148,7 +148,7 @@ if( $type == MOM_solo ) then
     set srcList = ( mom5/drivers )
     set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == ACCESS-OM || $type == ACCESS-CM ) then
-    set srcList = ( access_coupler )
+#    set srcList = ( access_coupler )
     set includes = "$includes -I$executable:h:h/$type/lib_ocean" 
     set libs = "$executable:h:h/$type/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == MOM_SIS ) then
