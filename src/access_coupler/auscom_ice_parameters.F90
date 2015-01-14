@@ -43,6 +43,21 @@ logical :: iceform_adj_salt = .false.
 !real    :: bg_diff_eq = 1.0e-6    !lowest bg_diff at equator
 !
 
+!Red Sea (2 boxes)
+integer :: irs1 = 314
+integer :: ire1 = 324
+integer :: jrs1 = 169
+integer :: jre1 = 196
+integer :: irs2 = 325
+integer :: ire2 = 331
+integer :: jrs2 = 169
+integer :: jre2 = 180
+!Gulf Bay (1 box)
+integer :: igs = 328
+integer :: ige = 345
+integer :: jgs = 189
+integer :: jge = 198
+
 !maximum depth/level
 integer :: ksmax = 5        !deepest level of the Red Sea/Gulf Bay 
 !
@@ -73,7 +88,11 @@ namelist /auscom_ice_nml/  dt_cpl, &
                    frazil_factor,                       & !16/07/2008	     
                    iceform_adj_salt,                    & !20100410
                    sign_stflx,                          & !20100410
-                   ksmax,                               &
+                   redsea_gulfbay_sfix,                 & !20150106
+                   irs1, ire1, jrs1, jre1,              & !20150106
+                   irs2, ire2, jrs2, jre2,              & !20150106
+                   igs, ige, jgs, jge,                  & !20150106
+                   ksmax,                               & !20150106
                    sfix_hours,                          &
                    chk_i2o_fields,                      &
                    chk_o2i_fields,                      &
