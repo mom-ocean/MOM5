@@ -12,7 +12,7 @@ set help = 0
 set download = 0
 set debug = 0
 set valgrind = 0
-set argv = (`getopt -u -o h -l type: -l platform: -l npes: -l experiment: -l debug  -l help -l download_input_data --  $*`)
+set argv = (`getopt -u -o h -l type: -l platform: -l npes: -l experiment: -l debug -l valgrind -l help -l download_input_data --  $*`)
 while ("$argv[1]" != "--")
     switch ($argv[1])
         case --type:

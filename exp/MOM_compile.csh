@@ -7,7 +7,7 @@ set type          = MOM_solo    # Type of the experiment
 set unit_testing = 0
 set help = 0
 
-set argv = (`getopt -u -o h -l type: -l platform: -l help: -l unit_testing  --  $*`)
+set argv = (`getopt -u -o h -l type: -l platform: -l help: -l unit_testing -l debug  --  $*`)
 while ("$argv[1]" != "--")
     switch ($argv[1])
         case --type:
