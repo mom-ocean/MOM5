@@ -64,6 +64,7 @@ integer :: ioun, io_status, ierr
   ioun =  open_namelist_file()
   read (ioun,auscom_ice_nml,IOSTAT=io_status)
   write (stdlog(),auscom_ice_nml)
+  write (stdout(),*) 'auscom_ice_nml='
   write (stdout(),'(/)')
   write (stdout(),auscom_ice_nml)
   ierr = check_nml_error(io_status,'auscom_ice_nml')

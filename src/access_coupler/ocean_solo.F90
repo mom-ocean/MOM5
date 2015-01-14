@@ -151,6 +151,10 @@ program main
   use ocean_model_mod,          only: ocean_model_restart, ocean_public_type, ocean_state_type
   use ocean_types_mod,          only: ice_ocean_boundary_type
 
+#ifdef ACCESS
+  use auscom_ice_parameters_mod, only: redsea_gulfbay_sfix, do_sfix_now, sfix_hours, int_sec
+#endif
+
   implicit none
 
   type (ocean_public_type)               :: Ocean_sfc          
@@ -419,6 +423,12 @@ program main
      call mpp_clock_end(override_clock)
 
      call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
+
+#ifdef ACCESS
+     do_sfix_now = .false.
+     int_sec = (nc-1) * num_cpld_calls
+     if (mod((nc-1)*num_cpld_calls,sfix_hours*3600) == 0 .and. nc /= 1) do_sfix_now = .true.
+#endif
 
      call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
 
