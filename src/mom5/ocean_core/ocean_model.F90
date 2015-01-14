@@ -1417,6 +1417,11 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     integer :: num_ocn
     integer :: taum1, tau, taup1
     integer :: i, j, k, n
+#if defined(ACCESS)
+    integer :: stdoutunit 
+
+    stdoutunit=stdout() 
+#endif
 
     call mpp_clock_begin(id_ocean)
 
@@ -2079,7 +2084,6 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
   use auscom_ice_parameters_mod, only : irs1, ire1, jrs1, jre1, irs2, ire2,jrs2, jre2, &
                                         igs, ige, jgs, jge, ksmax
-  use mom_oasis3_interface_mod,  only : iisd, iied, jjsd, jjed
 
   implicit none
 
@@ -2187,7 +2191,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     endif
 
     call mpp_broadcast(global_sp(:,:,k),nx*ny,mpp_root_pe())
-    T_prog(index_salt)%field(iisd:iied,jjsd:jjed,k,taup1) = global_sp(iisd:iied,jjsd:jjed,k)
+    T_prog(index_salt)%field(isd:ied,jsd:jed,k,taup1) = global_sp(isd:ied,jsd:jed,k)
 
   enddo   !k=1,kdmax
 
