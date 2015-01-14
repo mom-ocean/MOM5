@@ -63,7 +63,7 @@ integer :: ksmax = 5        !deepest level of the Red Sea/Gulf Bay
 !
 integer :: sfix_hours = 12  !do s mixing every sfix_hours.
 !
-logical :: redsea_gulfbay_sfix = .true.
+logical :: redsea_gulfbay_sfix = .false.
 logical :: do_sfix_now = .true.
 logical :: chk_i2o_fields = .false.
 logical :: chk_o2i_fields = .false.
@@ -74,25 +74,25 @@ integer :: chk_fields_period =  1
 integer :: chk_fields_start_time = 0
 
 namelist /auscom_ice_nml/  dt_cpl, &
-                   tlthk0,                              & !23/04/2010
+                   tlthk0,                              & 
                    pop_icediag,                         &
-                   do_ice_once,                         & !21/07/2008
-                   kmxice,                              & !12/03/2008
-                   fixmeltT,                            & !24/04/2008  
-                   Tmelt,                               & !24/04/2008
-                   limit_srfstress,                     & !20090319
-                   Mstress,                             & !20090319
-                   use_ioaice,                          & !20090718
-                   aice_cutoff,                         & !20090718
-                   icemlt_factor,                       & !NO longer needed!
-                   frazil_factor,                       & !16/07/2008	     
-                   iceform_adj_salt,                    & !20100410
-                   sign_stflx,                          & !20100410
-                   redsea_gulfbay_sfix,                 & !20150106
-                   irs1, ire1, jrs1, jre1,              & !20150106
-                   irs2, ire2, jrs2, jre2,              & !20150106
-                   igs, ige, jgs, jge,                  & !20150106
-                   ksmax,                               & !20150106
+                   do_ice_once,                         & 
+                   kmxice,                              & 
+                   fixmeltT,                            &   
+                   Tmelt,                               & 
+                   limit_srfstress,                     & 
+                   Mstress,                             & 
+                   use_ioaice,                          & 
+                   aice_cutoff,                         & 
+                   icemlt_factor,                       & 
+                   frazil_factor,                       & 
+                   iceform_adj_salt,                    & 
+                   sign_stflx,                          & 
+                   redsea_gulfbay_sfix,                 & 
+                   irs1, ire1, jrs1, jre1,              & 
+                   irs2, ire2, jrs2, jre2,              & 
+                   igs, ige, jgs, jge,                  & 
+                   ksmax,                               & 
                    sfix_hours,                          &
                    chk_i2o_fields,                      &
                    chk_o2i_fields,                      &
