@@ -5,7 +5,7 @@ set srcList = ( mom5/ocean_core mom5/ocean_diag mom5/ocean_wave mom5/ocean_blobs
 set lib_name = "lib_ocean"
 
 if( $type == ACCESS-OM || $type == ACCESS-CM ) then
-    set srcList = ( $srcList access_coupler )
+    set srcList = ( $srcList mom5/ocean_access )
     mkdir -p $executable:h:h/$type/$lib_name
     cd $executable:h:h/$type/$lib_name
 else
