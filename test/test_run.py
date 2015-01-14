@@ -51,6 +51,7 @@ class TestRun(ModelTestSetup):
         if r != 0:
             print(so)
             print(se)
+            print('Run exited with error {}'.format(r))
         assert(r == 0)
         assert('NOTE: Natural end-of-script.' in so)
 
