@@ -212,7 +212,7 @@ use fms_mod,                  only: write_version_number, open_namelist_file, cl
 use fms_mod,                  only: clock_flag_default
 use fms_io_mod,               only: set_domain, nullify_domain, parse_mask_table
 use mpp_domains_mod,          only: domain2d, BITWISE_EXACT_SUM, NON_BITWISE_EXACT_SUM
-use mpp_domains_mod,          only: mpp_update_domains, BGRID_NE, CGRID_NE, mpp_get_compute_domain
+use mpp_domains_mod,          only: mpp_update_domains, BGRID_NE, CGRID_NE, mpp_get_compute_domain, mpp_get_data_domain
 use mpp_mod,                  only: input_nml_file, mpp_error, mpp_pe, mpp_npes, mpp_chksum, stdlog, stdout
 use mpp_mod,                  only: mpp_clock_id, mpp_clock_begin, mpp_clock_end
 use mpp_mod,                  only: CLOCK_COMPONENT, CLOCK_SUBCOMPONENT, CLOCK_MODULE, CLOCK_ROUTINE
@@ -1418,9 +1418,9 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     integer :: taum1, tau, taup1
     integer :: i, j, k, n
 #if defined(ACCESS)
-    integer :: stdoutunit 
+    integer :: stdoutunit
 
-    stdoutunit=stdout() 
+    stdoutunit=stdout()
 #endif
 
     call mpp_clock_begin(id_ocean)
@@ -2047,13 +2047,14 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
         if (mpp_pe() == mpp_root_pe()) then
             write(stdoutunit,*) 'Calling redsea_gulfbay_hmix_s at runtime = ',int_sec
         endif
-        call redsea_gulfbay_hmix_s(Time, Grid, Thickness,T_prog(1:num_prog_tracers))
+        call redsea_gulfbay_hmix_s(Time, Grid, Thickness, &
+                                   T_prog(1:num_prog_tracers), Ocean_sfc)
         call mpp_clock_end(id_sfix)
     endif
 #endif
 
     call update_ocean_drifters(Velocity, Adv_vel, T_prog(:), Grid, Time)
-    
+
     ! sum ocean sfc state over coupling interval
     call mpp_clock_begin(id_ocean_sfc)
     call sum_ocean_sfc(Time, Thickness, T_prog(1:num_prog_tracers), &
@@ -2077,7 +2078,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 ! </SUBROUTINE> NAME="update_ocean_model"
 
 #if defined(ACCESS)
-  subroutine redsea_gulfbay_hmix_s(Time, Grid, Thickness, T_prog)
+  subroutine redsea_gulfbay_hmix_s(Time, Grid, Thickness, T_prog, Ocean_sfc)
 
   use mpp_domains_mod, only : mpp_global_field
   use mpp_mod,         only : mpp_broadcast
@@ -2087,10 +2088,11 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
   implicit none
 
-  type(ocean_time_type),         intent(in)    :: Time
+  type(ocean_time_type),         intent(in) :: Time
   type(ocean_grid_type), target :: Grid ! domain and grid information for ocean model 
-  type(ocean_thickness_type),    intent(in)    :: Thickness
-  type(ocean_prog_tracer_type),  intent(inout)    :: T_prog(:)
+  type(ocean_thickness_type),    intent(in) :: Thickness
+  type(ocean_prog_tracer_type),  intent(inout) :: T_prog(:)
+  type(ocean_public_type),       intent(in) :: Ocean_sfc
 
   real, dimension(:,:,:), allocatable ::  global_tmask  ! for global mask
   real, dimension(:,:,:), allocatable ::  global_dzt    ! for global dzt
@@ -2106,6 +2108,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
   integer :: i, j, k
 
   integer :: nx, ny, nz
+  integer :: iisd, iied, jjsd, jjed
 
   nx = Grid%ni
   ny = Grid%nj
@@ -2123,6 +2126,8 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
   call mpp_global_field(Domain%domain2d, Thickness%dzt(:,:,:), global_dzt)
   allocate (global_sp(nx,ny,nz)) ; global_sp=0.0
   call mpp_global_field(Domain%domain2d, T_prog(index_salt)%field(:,:,:,taup1),global_sp)
+
+  call mpp_get_data_domain(Ocean_sfc%domain, iisd, iied, jjsd, jjed)
 
   do k = 1, ksmax
     ! 
@@ -2191,7 +2196,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     endif
 
     call mpp_broadcast(global_sp(:,:,k),nx*ny,mpp_root_pe())
-    T_prog(index_salt)%field(isd:ied,jsd:jed,k,taup1) = global_sp(isd:ied,jsd:jed,k)
+    T_prog(index_salt)%field(iisd:iied,jjsd:jjed,k,taup1) = global_sp(iisd:iied,jjsd:jjed,k)
 
   enddo   !k=1,kdmax
 
