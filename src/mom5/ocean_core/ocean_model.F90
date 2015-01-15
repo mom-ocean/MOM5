@@ -212,7 +212,7 @@ use fms_mod,                  only: write_version_number, open_namelist_file, cl
 use fms_mod,                  only: clock_flag_default
 use fms_io_mod,               only: set_domain, nullify_domain, parse_mask_table
 use mpp_domains_mod,          only: domain2d, BITWISE_EXACT_SUM, NON_BITWISE_EXACT_SUM
-use mpp_domains_mod,          only: mpp_update_domains, BGRID_NE, CGRID_NE, mpp_get_compute_domain, mpp_get_data_domain
+use mpp_domains_mod,          only: mpp_update_domains, BGRID_NE, CGRID_NE, mpp_get_compute_domain
 use mpp_mod,                  only: input_nml_file, mpp_error, mpp_pe, mpp_npes, mpp_chksum, stdlog, stdout
 use mpp_mod,                  only: mpp_clock_id, mpp_clock_begin, mpp_clock_end
 use mpp_mod,                  only: CLOCK_COMPONENT, CLOCK_SUBCOMPONENT, CLOCK_MODULE, CLOCK_ROUTINE
@@ -2080,7 +2080,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 #if defined(ACCESS)
   subroutine redsea_gulfbay_hmix_s(Time, Grid, Thickness, T_prog, Ocean_sfc)
 
-  use mpp_domains_mod, only : mpp_global_field
+  use mpp_domains_mod, only : mpp_global_field, mpp_get_data_domain
   use mpp_mod,         only : mpp_broadcast
 
   use auscom_ice_parameters_mod, only : irs1, ire1, jrs1, jre1, irs2, ire2,jrs2, jre2, &
