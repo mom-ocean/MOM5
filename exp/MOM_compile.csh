@@ -6,6 +6,7 @@ set platform      = gfortran    # A unique identifier for your platfo
 set type          = MOM_solo    # Type of the experiment
 set unit_testing = 0
 set help = 0
+set debug = 0
 
 set argv = (`getopt -u -o h -l type: -l platform: -l help: -l unit_testing -l debug  --  $*`)
 while ("$argv[1]" != "--")
@@ -17,7 +18,7 @@ while ("$argv[1]" != "--")
         case --unit_testing:
                 set unit_testing = 1; breaksw
         case --debug:
-                set unit_testing = 1; breaksw
+                set debug = 1; breaksw
         case --help:
                 set help = 1;  breaksw
         case -h:
@@ -72,6 +73,10 @@ endif
 
 if ( $unit_testing ) then
     set cppDefs = ( "$cppDefs -DUNIT_TESTING" )
+    setenv DEBUG true
+endif
+
+if ( $debug ) then
     setenv DEBUG true
 endif
 

@@ -107,6 +107,10 @@ set executable    = $root/exec/$platform/$type/fms_$type.x      # executable cre
 # The user need not change any of the following
 #===========================================================================
 
+if ( $debug || $valgrind ) then
+    setenv DEBUG true
+endif
+
 #
 # Users must ensure the correct environment file exists for their platform.
 #
