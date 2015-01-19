@@ -204,7 +204,7 @@ endif
 
 set runCommand = "$mpirunCommand $npes $executable >fms.out"
 if ( $valgrind ) then
-    set runCommand = "$mpirunCommand $npes valgrind --suppressions=../../test/valgrind_suppressions.txt --main-stacksize=2000000000 --max-stackframe=2000000000 --error-limit=no $executable >fms.out"
+    set runCommand = "$mpirunCommand $npes -x LD_PRELOAD=/home/599/nah599/usr/local/lib/valgrind/libmpiwrap-amd64-linux.so /home/599/nah599/usr/local/bin/valgrind --suppressions=../../test/valgrind_suppressions.txt --main-stacksize=2000000000 --max-stackframe=2000000000 --error-limit=no $executable >fms.out"
 endif
 
 if ( $debug ) then
