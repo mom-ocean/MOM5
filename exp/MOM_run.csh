@@ -10,7 +10,9 @@ set npes          = 8            # number of processor
 set valid_npes = 0
 set help = 0
 set download = 0
-set argv = (`getopt -u -o h -l type: -l platform: -l npes: -l experiment: -l debug  -l help -l download_input_data --  $*`)
+set debug = 0
+set valgrind = 0
+set argv = (`getopt -u -o h -l type: -l platform: -l npes: -l experiment: -l debug -l valgrind -l help -l download_input_data --  $*`)
 while ("$argv[1]" != "--")
     switch ($argv[1])
         case --type:
@@ -22,7 +24,9 @@ while ("$argv[1]" != "--")
         case --experiment:
                 set name = $argv[2]; shift argv; breaksw
         case --debug:
-                set debug = 1;  breaksw
+                set debug = 1; breaksw
+        case --valgrind:
+                set valgrind = 1; breaksw
         case --help:
                 set help = 1;  breaksw
         case -h:
@@ -102,6 +106,10 @@ set executable    = $root/exec/$platform/$type/fms_$type.x      # executable cre
 #===========================================================================
 # The user need not change any of the following
 #===========================================================================
+
+if ( $debug || $valgrind ) then
+    setenv DEBUG true
+endif
 
 #
 # Users must ensure the correct environment file exists for their platform.
@@ -195,6 +203,14 @@ if ( $name  == mom4p1_ebm1 & $npes != 17) then
 endif
 
 set runCommand = "$mpirunCommand $npes $executable >fms.out"
+if ( $valgrind ) then
+    set runCommand = "$mpirunCommand $npes -x LD_PRELOAD=$VALGRIND_MPI_WRAPPERS valgrind --gen-suppressions=all --suppressions=../../test/valgrind_suppressions.txt --main-stacksize=2000000000 --max-stackframe=2000000000 --error-limit=no $executable >fms.out"
+endif
+
+if ( $debug ) then
+    set runCommand = "$mpirunCommand --debug $npes $executable >fms.out"
+endif
+
 echo "About to run the command $runCommand"
 
 if ( $valid_npes ) then

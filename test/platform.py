@@ -15,7 +15,7 @@ run_scripts['nci'] = \
 
 limit stacksize unlimited
 
-./MOM_run.csh --platform nci --type {type} --experiment {exp} {npes}
+./MOM_run.csh --platform nci --type {type} --experiment {exp} {npes} {valgrind}
 """
 
-build_cmd = " ./MOM_compile.csh --platform {platform} --type {type}"
+build_cmd = " ./MOM_compile.csh --platform {platform} --type {type} --unit_testing"

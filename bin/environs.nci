@@ -4,9 +4,6 @@ module load intel-fc/14.3.174
 module load intel-cc/14.3.174
 module load netcdf/4.3.2
 module load oasis/dev
-if ( $?DEBUG ) then
-    module load openmpi/1.8.4-debug
-else
-    module load openmpi/1.8.2
-endif
+module load openmpi/1.8.4
 setenv mpirunCommand   "mpirun --mca orte_base_help_aggregate 0 -np"
+setenv VALGRIND_MPI_WRAPPERS /home/599/nah599/usr/local/lib/valgrind/libmpiwrap-amd64-linux.so
