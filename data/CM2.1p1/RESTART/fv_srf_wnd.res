@@ -1,1 +1,0 @@
-../../../.git/annex/objects/4K/WP/WORM-s311080-m1260996728--fv_srf_wnd.res/WORM-s311080-m1260996728--fv_srf_wnd.res

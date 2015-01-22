@@ -1,1 +1,0 @@
-../../../.git/annex/objects/M1/56/WORM-s7588264-m1260996730--strat_cloud.res.nc/WORM-s7588264-m1260996730--strat_cloud.res.nc
