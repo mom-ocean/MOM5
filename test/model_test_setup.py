@@ -48,7 +48,7 @@ class ModelTestSetup(object):
             shutil.copy(input, self.work_dir)
 
         if not os.path.exists(os.path.join(self.work_dir, exp)):
-            cmd = '/bin/tar -xvf {}'.format(input)
+            cmd = '/bin/tar -C {} -xvf {}'.format(self.work_dir, input)
             ret += sp.call(shlex.split(cmd))
 
         return ret
