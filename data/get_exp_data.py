@@ -49,7 +49,7 @@ def main():
 
     # Set up file source and destination
     my_dir = os.path.dirname(os.path.realpath(__file__))
-    dest_dir = os.path.join(my_dir, 'archive')
+    dest_dir = os.path.join(my_dir, 'archives')
     dest = os.path.join(dest_dir, args.filename)
     src = base_url + args.filename
 

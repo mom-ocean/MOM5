@@ -121,12 +121,8 @@ set time_stamp    = $root/bin/time_stamp.csh          # path to cshell to genera
 
 # Check if the user has extracted the input data
 if( $download ) then
-    cd $root/data/archives
-    git annex get $name.input.tar.gz
-    # If we could not download from annex then try the ftp server.
-    if ( $status > 0 ) then
-        wget ftp.gfdl.noaa.gov:/perm/MOM4/mom5_pubrel_dec2013/exp/$name.input.tar.gz
-    endif
+    cd $root/data
+    ./get_exp_data.py $name.input.tar.gz
     mkdir -p $workdir
     cp $name.input.tar.gz $workdir
     cd $workdir
@@ -137,10 +133,10 @@ if ( ! -d $inputDataDir ) then
         echo "ERROR: the experiment directory '$inputDataDir' does not exist or does not contain input and preprocessing data directories!"
         echo "Either use the --download_input_data option or copy the input data from the MOM data directory manually."
         echo "To manually dowload the data execute the following:"
-        echo "cd $root/data/archives"
-        echo "git annex get $name.input.tar.gz"
+        echo "cd $root/data"
+        echo "./get_exp_data.py $name.input.tar.gz"
         echo "mkdir -p $workdir"
-        echo "cp $name.input.tar.gz $workdir"
+        echo "cp archives/$name.input.tar.gz $workdir"
         echo "cd $workdir"
         echo "tar zxvf $name.input.tar.gz"
         exit 1
