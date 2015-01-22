@@ -100,7 +100,7 @@ class ModelTestSetup(object):
         return platform
 
 
-    def run(self, model_type, exp, walltime='00:30:00', ncpus='32',
+    def run(self, model_type, exp, walltime='01:00:00', ncpus='32',
             npes=None, mem='64Gb', qsub=True, valgrind=False):
         """
         ncpus is for requested cpus, npes is for how many mom uses.
