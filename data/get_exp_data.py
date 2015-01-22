@@ -9,7 +9,7 @@ import argparse
 import tempfile
 import subprocess as sp
 
-base_url = 'https://climate-cms.nci.org.au/repository/entry/show/Data+Repository/Other+Data+at+NCI/MOM+Test+Data/'
+base_url = 'https://climate-cms.nci.org.au/repository/entry/get/Data+Repository/Other+Data+at+NCI/MOM+Test+Data/'
 
 def get_file_list(verbose=False):
 
