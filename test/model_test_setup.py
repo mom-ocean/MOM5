@@ -16,7 +16,8 @@ class ModelTestSetup(object):
 
         self.my_dir = os.path.dirname(os.path.realpath(__file__))
         self.exp_dir = os.path.join(self.my_dir, '../', 'exp')
-        self.archive_dir = os.path.join(self.my_dir, '../data/archives')
+        self.data_dir = os.path.join(self.my_dir, '../data')
+        self.archive_dir = os.path.join(self.data_dir, 'archives')
         self.work_dir = os.path.join(self.my_dir, '../', 'work')
 
     def download_input_data(self, exp):
@@ -33,11 +34,8 @@ class ModelTestSetup(object):
 
         ret = 0
         if not os.path.exists(input):
-            cmd = '/usr/bin/git annex get {}'.format(input)
-            ret = sp.call(shlex.split(cmd))
-
-        if not os.path.exists(input):
-            cmd = 'wget ftp.gfdl.noaa.gov:/perm/MOM4/mom5_pubrel_dec2013/exp/{}'.format(input)
+            cmd = '{} {}'.format(os.path.join(self.data_dir, 'get_exp_data.py'),
+                                 input)
             ret = sp.call(shlex.split(cmd))
 
         if ret != 0:
