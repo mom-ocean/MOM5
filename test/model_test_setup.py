@@ -28,32 +28,28 @@ class ModelTestSetup(object):
         the compute nodes may not have Internet access.
         """
 
-        os.chdir(self.archive_dir)
-
-        input = '{}.input.tar.gz'.format(exp)
+        filename = '{}.input.tar.gz'.format(exp)
+        input = os.path.join(self.archive_dir, filename)
 
         ret = 0
         if not os.path.exists(input):
             cmd = '{} {}'.format(os.path.join(self.data_dir, 'get_exp_data.py'),
-                                 input)
+                                 filename)
             ret = sp.call(shlex.split(cmd))
-
         if ret != 0:
             return ret
+        assert(os.path.exists(input))
 
         # Unzip into work directory.
         if not os.path.exists(self.work_dir):
             os.mkdir(self.work_dir)
 
-        if not os.path.exists(os.path.join(self.work_dir, input)):
+        if not os.path.exists(os.path.join(self.work_dir, filename)):
             shutil.copy(input, self.work_dir)
 
         if not os.path.exists(os.path.join(self.work_dir, exp)):
-            os.chdir(self.work_dir)
             cmd = '/bin/tar -xvf {}'.format(input)
             ret += sp.call(shlex.split(cmd))
-
-        os.chdir(self.my_dir)
 
         return ret
 
