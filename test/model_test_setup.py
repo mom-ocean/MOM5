@@ -12,7 +12,7 @@ import platform as plat
 
 class ModelTestSetup(object):
 
-    def __init__(self): 
+    def __init__(self):
 
         self.my_dir = os.path.dirname(os.path.realpath(__file__))
         self.exp_dir = os.path.join(self.my_dir, '../', 'exp')
