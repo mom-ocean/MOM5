@@ -1,1 +1,0 @@
-../../../.git/annex/objects/Mq/0K/WORM-s300-m1261506138--coupler.res/WORM-s300-m1261506138--coupler.res

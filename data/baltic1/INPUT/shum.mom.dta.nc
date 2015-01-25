@@ -1,1 +1,0 @@
-../../../.git/annex/objects/XW/8J/WORM-s4198636-m1335802821--shum.mom.dta.nc/WORM-s4198636-m1335802821--shum.mom.dta.nc

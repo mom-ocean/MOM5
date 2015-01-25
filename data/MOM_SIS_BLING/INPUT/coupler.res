@@ -1,1 +1,0 @@
-../../../.git/annex/objects/Fz/f8/WORM-s300-m1261505973--coupler.res/WORM-s300-m1261505973--coupler.res

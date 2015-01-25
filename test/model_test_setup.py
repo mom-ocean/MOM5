@@ -12,11 +12,12 @@ import platform as plat
 
 class ModelTestSetup(object):
 
-    def __init__(self): 
+    def __init__(self):
 
         self.my_dir = os.path.dirname(os.path.realpath(__file__))
         self.exp_dir = os.path.join(self.my_dir, '../', 'exp')
-        self.archive_dir = os.path.join(self.my_dir, '../data/archives')
+        self.data_dir = os.path.join(self.my_dir, '../data')
+        self.archive_dir = os.path.join(self.data_dir, 'archives')
         self.work_dir = os.path.join(self.my_dir, '../', 'work')
 
     def download_input_data(self, exp):
@@ -27,35 +28,28 @@ class ModelTestSetup(object):
         the compute nodes may not have Internet access.
         """
 
-        os.chdir(self.archive_dir)
-
-        input = '{}.input.tar.gz'.format(exp)
+        filename = '{}.input.tar.gz'.format(exp)
+        input = os.path.join(self.archive_dir, filename)
 
         ret = 0
         if not os.path.exists(input):
-            cmd = '/usr/bin/git annex get {}'.format(input)
+            cmd = '{} {}'.format(os.path.join(self.data_dir, 'get_exp_data.py'),
+                                 filename)
             ret = sp.call(shlex.split(cmd))
-
-        if not os.path.exists(input):
-            cmd = 'wget ftp.gfdl.noaa.gov:/perm/MOM4/mom5_pubrel_dec2013/exp/{}'.format(input)
-            ret = sp.call(shlex.split(cmd))
-
         if ret != 0:
             return ret
+        assert(os.path.exists(input))
 
         # Unzip into work directory.
         if not os.path.exists(self.work_dir):
             os.mkdir(self.work_dir)
 
-        if not os.path.exists(os.path.join(self.work_dir, input)):
+        if not os.path.exists(os.path.join(self.work_dir, filename)):
             shutil.copy(input, self.work_dir)
 
         if not os.path.exists(os.path.join(self.work_dir, exp)):
-            os.chdir(self.work_dir)
-            cmd = '/bin/tar -xvf {}'.format(input)
+            cmd = '/bin/tar -C {} -xvf {}'.format(self.work_dir, input)
             ret += sp.call(shlex.split(cmd))
-
-        os.chdir(self.my_dir)
 
         return ret
 
@@ -100,7 +94,7 @@ class ModelTestSetup(object):
         return platform
 
 
-    def run(self, model_type, exp, walltime='00:30:00', ncpus='32',
+    def run(self, model_type, exp, walltime='01:00:00', ncpus='32',
             npes=None, mem='64Gb', qsub=True, valgrind=False):
         """
         ncpus is for requested cpus, npes is for how many mom uses.

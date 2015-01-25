@@ -1,1 +1,0 @@
-../../../.git/annex/objects/qg/65/WORM-s2605572-m1143213404--ncar_precip_clim.nc/WORM-s2605572-m1143213404--ncar_precip_clim.nc
