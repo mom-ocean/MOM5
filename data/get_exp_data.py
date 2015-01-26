@@ -9,13 +9,13 @@ import argparse
 import tempfile
 import subprocess as sp
 
-base_url = 'https://climate-cms.nci.org.au/repository/entry/get/Data+Repository/Other+Data+at+NCI/MOM+Test+Data/'
+base_url = 'https://climate-cms.nci.org.au/repository/entry/{}/Data+Repository/Other+Data+at+NCI/MOM+Test+Data/'
 
 def get_file_list(verbose=False):
 
     tmp_f = tempfile.NamedTemporaryFile()
 
-    out = sp.check_output(['wget', '-O', tmp_f.name, base_url],
+    out = sp.check_output(['wget', '-O', tmp_f.name, base_url.format('show')],
                           stderr=sp.STDOUT)
     if verbose:
         print(out, file=sys.stderr)
@@ -51,7 +51,7 @@ def main():
     my_dir = os.path.dirname(os.path.realpath(__file__))
     dest_dir = os.path.join(my_dir, 'archives')
     dest = os.path.join(dest_dir, args.filename)
-    src = base_url + args.filename
+    src = base_url.format('get') + args.filename
 
     if not os.path.exists(dest_dir):
         os.mkdir(dest_dir)
