@@ -55,7 +55,7 @@ if ( $help ) then
     endif
     if ( $type == MOM_SIS ) then
     echo "             Available experiments for MOM_SIS:"
-    echo "             om3_core1, om3_core3, MOM_SIS_TOPAZ, MOM_SIS_BLING, atlantic1"
+    echo "             om3_core1, om3_core3, MOM_SIS_TOPAZ, MOM_SIS_BLING, atlantic1, global_0.25_degree_NYF"
     endif
     if ( $type == CM2M ) then
     echo "             Available experiments for CM2M:"
@@ -198,6 +198,11 @@ if ( $name  == mom4p1_ebm1 & $npes != 17) then
     set valid_npes = 17
 endif
 
+if ( $name  == global_0.25_degree_NYF & $npes != 960) then
+    set valid_npes = 960
+endif
+
+
 set runCommand = "$mpirunCommand $npes $executable >fms.out"
 if ( $valgrind ) then
     set runCommand = "$mpirunCommand $npes -x LD_PRELOAD=$VALGRIND_MPI_WRAPPERS valgrind --gen-suppressions=all --suppressions=../../test/valgrind_suppressions.txt --main-stacksize=2000000000 --max-stackframe=2000000000 --error-limit=no $executable >fms.out"
@@ -236,6 +241,28 @@ if ( -f time_stamp.out ) then
     rm -f time_stamp.out
 endif
 
+# combine output files
+if ( $npes > 1 ) then
+    set file_previous = ""
+    set multioutput = (`ls *.nc.????`)
+    foreach file ( $multioutput )
+        if ( $file:r != $file_previous:r ) then
+            set input_files = ( `ls $file:r.????` )
+            if ( $#input_files > 0 ) then
+                $mppnccombine -n4 -r $file:r $input_files
+                if ( $status != 0 ) then
+                    echo "ERROR: in execution of mppnccombine -n4 -r on outputs"
+                    echo "Command was: $mppnccombine $file:r $input_files"
+                    break
+                endif
+            endif
+        else
+            continue
+        endif
+        set file_previous = $file
+    end
+endif
+
 # get a tar restart file
 cd RESTART
 cp $expdir/input.nml .
@@ -244,11 +271,16 @@ cp $expdir/*_table .
 # combine netcdf files
 if ( $npes > 1 ) then
     # Concatenate blobs restart files. mppnccombine would not work on them.
-    ncecat ocean_blobs.res.nc.???? ocean_blobs.res.nc
-    rm ocean_blobs.res.nc.????
+    if ( -f ocean_blobs.res.nc.0000 ) then
+        ncecat ocean_blobs.res.nc.???? ocean_blobs.res.nc
+        rm ocean_blobs.res.nc.????
+    endif
+
     # Concatenate iceberg restarts
-    ncrcat icebergs.res.nc.???? icebergs.res.nc
-    rm icebergs.res.nc.????
+    if ( -f ocean_blobs.res.nc.0000 ) then
+        ncrcat icebergs.res.nc.???? icebergs.res.nc
+        rm icebergs.res.nc.????
+    endif
 
     # Land restarts need to be combined with  combine-ncc
     # More simply just tar them up in this version
@@ -271,13 +303,12 @@ if ( $npes > 1 ) then
         if ( $file:r != $file_previous:r ) then
             set input_files = ( `ls $file:r.????` )
             if ( $#input_files > 0 ) then
-                $mppnccombine $file:r $input_files
+                $mppnccombine -n4 -r $file:r $input_files
                 if ( $status != 0 ) then
-                    echo "ERROR: in execution of mppnccombine on restarts"
+                    echo "ERROR: in execution of mppnccombine -n4 -r on restarts"
                     echo "Command was: $mppnccombine $file:r $input_files"
                     exit 1
                 endif
-                rm $input_files
             endif
         else
             continue

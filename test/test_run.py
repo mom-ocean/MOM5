@@ -23,7 +23,8 @@ tests = {'om3_core3' : (('MOM_SIS', 'om3_core3'), {'ncpus' : '32', 'npes' : '24'
          'CM2.1p1' : (('CM2M', 'CM2.1p1'), {'ncpus' : '64', 'npes' : '45', 'mem' : '128Gb'}),
          'CM2M_coarse_BLING' : (('CM2M', 'CM2M_coarse_BLING'), {'ncpus' : '64', 'npes' : '45', 'mem' : '128Gb'}),
          'ICCMp1' :  (('ICCM', 'ICCMp1'), {'ncpus' : '64', 'npes' : '54', 'mem' : '128Gb'}),
-         'ESM2M_pi-control_C2' : (('ESM2M', 'ESM2M_pi-control_C2'), {'ncpus' : '128', 'npes' : '90', 'mem' : '256Gb'})}
+         'ESM2M_pi-control_C2' : (('ESM2M', 'ESM2M_pi-control_C2'), {'ncpus' : '128', 'npes' : '90', 'mem' : '256Gb'}),
+         'global_0.25_degree_NYF' : (('MOM_SIS', 'global_0.25_degree_NYF'), {'ncpus' : '960', 'npes' : '960', 'mem' : '1900Gb'})}
 
 class TestRun(ModelTestSetup):
     """
