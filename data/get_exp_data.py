@@ -15,7 +15,7 @@ def get_file_list(verbose=False):
 
     tmp_f = tempfile.NamedTemporaryFile()
 
-    out = sp.check_output(['wget', '-O', tmp_f.name, base_url.format(show)],
+    out = sp.check_output(['wget', '-O', tmp_f.name, base_url.format('show')],
                           stderr=sp.STDOUT)
     if verbose:
         print(out, file=sys.stderr)
