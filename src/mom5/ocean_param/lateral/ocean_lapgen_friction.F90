@@ -263,7 +263,7 @@ module ocean_lapgen_friction_mod
 use constants_mod,    only: pi, radius, epsln, radian
 use diag_manager_mod, only: register_diag_field, register_static_field
 use fms_mod,          only: open_namelist_file, check_nml_error, write_version_number, close_file
-use mpp_domains_mod,  only: mpp_update_domains, BGRID_NE, mpp_global_field
+use mpp_domains_mod,  only: mpp_update_domains, BGRID_NE, mpp_global_field, XUPDATE 
 use mpp_domains_mod,  only: mpp_start_update_domains, mpp_complete_update_domains
 use mpp_mod,          only: input_nml_file, mpp_sum, mpp_pe, mpp_error, mpp_max
 use mpp_mod,          only: FATAL, NOTE, stdout, stdlog
@@ -445,9 +445,9 @@ type(ocean_grid_type), pointer   :: Grd => NULL()
 type(ocean_domain_type), pointer :: Dom => NULL()
 
 character(len=256) :: version=&
-     '=>Using: ocean_lapgen_friction.F90 ($Id: ocean_lapgen_friction.F90,v 1.1.2.3 2012/05/29 15:34:52 smg Exp $)'
+     '=>Using: ocean_lapgen_friction.F90 ($Id: ocean_lapgen_friction.F90,v 20.0 2013/12/14 00:14:26 fms Exp $)'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 logical :: use_this_module       = .false.
 logical :: debug_this_module     = .false.
@@ -1093,8 +1093,8 @@ subroutine lapgen_friction(Time, Thickness, Adv_vel, Velocity, &
              usqrd = (Velocity%u(i,j,k,1,taum1)-neptune_velocity(i,j,1))**2
              vsqrd = (Velocity%u(i,j,k,2,taum1)-neptune_velocity(i,j,2))**2
              umagr = 1.0/(epsln + usqrd + vsqrd)
-             sin2theta(i,j) = 2.0*(Velocity%u(i,j,k,1,taum1) - neptune_velocity(i,j,1))* &
-                                  (Velocity%u(i,j,k,2,taum1) - neptune_velocity(i,j,2))*umagr
+             sin2theta(i,j) = 2.0*(Velocity%u(i,j,k,1,taum1)-neptune_velocity(i,j,1)) &
+                                 *(Velocity%u(i,j,k,2,taum1)-neptune_velocity(i,j,2))*umagr
              cos2theta(i,j) = (usqrd-vsqrd)*umagr
            endif  
 
@@ -1370,7 +1370,7 @@ subroutine lapgen_friction(Time, Thickness, Adv_vel, Velocity, &
                 enddo
              enddo
           enddo
-          call diagnose_3d_u(TIme, Grd, id_horz_lap_diss, wrk2(:,:,:))
+          call diagnose_3d_u(Time, Grd, id_horz_lap_diss, wrk2(:,:,:))
       endif 
 
       call diagnose_2d_u(Time, Grd, id_viscosity_scaling, viscosity_scaling(:,:))
@@ -1552,8 +1552,8 @@ subroutine anisotropic_ncar
   integer, dimension(nx) :: iwp
   integer, dimension(nx) :: nwbp_global
 
-  real, dimension(nx,ny)            :: dxtn_global
-  real, dimension(nx,ny)            :: kmu_global
+  real, dimension(nx,jsc:jec)            :: dxtn_global
+  real, dimension(nx,jsc:jec)            :: kmu_global
   real, dimension(isd:ied,jsd:jed)  :: kmu_tmp
   real, dimension(nx)               :: dist_g 
 
@@ -1574,8 +1574,8 @@ subroutine anisotropic_ncar
   kmu_global(:,:)  = 0.0
   kmu_tmp(:,:)     = Grd%kmu(:,:)
 
-  call mpp_global_field(Dom%domain2d,kmu_tmp,kmu_global)  
-  call mpp_global_field(Dom%domain2d,Grd%dxtn,dxtn_global)
+  call mpp_global_field(Dom%domain2d,kmu_tmp,kmu_global, flags = XUPDATE)  
+  call mpp_global_field(Dom%domain2d,Grd%dxtn,dxtn_global, flags = XUPDATE)
 
   do k=1,nk
 
@@ -1601,7 +1601,7 @@ subroutine anisotropic_ncar
                    ip1=i  
                endif
            endif
-           if(kmu_global(i,j+Dom%joff)<k .and. kmu_global(ip1,j+Dom%joff) >= k) then 
+           if(kmu_global(i,j)<k .and. kmu_global(ip1,j) >= k) then 
                ncount      = ncount+1
                iwp(ncount) = i
            endif
@@ -1631,23 +1631,23 @@ subroutine anisotropic_ncar
            elseif ( i .ge. index  .and.  i .le. indexo ) then
                dist_g(i) = 0.0
            elseif ( (i .gt. indexo) ) then
-               dist_g(i) = dxtn_global(i,j+Dom%joff)+dist_g(i-1)
+               dist_g(i) = dxtn_global(i,j)+dist_g(i-1)
            elseif ( i .lt. index ) then
                if (indexo .le. Grd%ni) then
                    if (i .eq. 1) then
                        dist_g(i) = 0.0
                        do ii=indexo+1,Grd%ni
-                          dist_g(i)=dxtn_global(ii,j+Dom%joff) + dist_g(i)
+                          dist_g(i)=dxtn_global(ii,j) + dist_g(i)
                        enddo
-                       dist_g(i) = dxtn_global(i,j+Dom%joff)+dist_g(i)
+                       dist_g(i) = dxtn_global(i,j)+dist_g(i)
                    else
-                       dist_g(i) = dxtn_global(i,j+Dom%joff)+dist_g(i-1)
+                       dist_g(i) = dxtn_global(i,j)+dist_g(i-1)
                    endif
                else
                    if (i .le. (indexo - Grd%ni)) then
                        dist_g(i) = 0.0
                    else
-                       dist_g(i) = dxtn_global(i,j+Dom%joff)+dist_g(i-1)
+                       dist_g(i) = dxtn_global(i,j)+dist_g(i-1)
                    endif
                endif
            endif

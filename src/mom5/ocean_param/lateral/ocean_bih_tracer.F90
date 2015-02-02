@@ -108,9 +108,9 @@ integer, dimension(:), allocatable  :: id_h_diffuse
 integer                             :: id_ah_biharmonic
 
 character(len=128) :: version=&
-     '=>Using: /bih/ocean_bih_tracer.F90 ($Id: ocean_bih_tracer.F90,v 1.1.2.2 2012/06/01 20:47:08 Stephen.Griffies Exp $)'
+     '=>Using: /bih/ocean_bih_tracer.F90 ($Id: ocean_bih_tracer.F90,v 20.0 2013/12/14 00:14:10 fms Exp $)'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 type(ocean_grid_type), pointer   :: Grd => NULL()
 type(ocean_domain_type), pointer :: Dom => NULL()

@@ -14,7 +14,7 @@ use fms_mod, only: open_namelist_file
 
 use fms_mod,            only : write_version_number, error_mesg, FATAL, NOTE, &
      mpp_pe, file_exist, close_file, check_nml_error, stdlog, &
-     mpp_root_pe, get_mosaic_tile_file
+     mpp_root_pe, get_mosaic_tile_file, fms_error_handler
 use time_interp_mod,    only : time_interp
 use diag_manager_mod,   only : get_base_date
 
@@ -47,8 +47,8 @@ public :: write_static_vegn
 ! ==== module constants =====================================================
 character(len=*), parameter :: &
      module_name = 'static_vegn_mod', &
-     version     = '$Id: vegn_static_override.F90,v 19.0 2012/01/06 20:44:38 fms Exp $', &
-     tagname     = '$Name: siena_201207 $'
+     version     = '$Id: vegn_static_override.F90,v 20.0 2013/12/13 23:31:17 fms Exp $', &
+     tagname     = '$Name: tikal $'
 
 ! ==== module data ==========================================================
 logical :: module_is_initialized = .FALSE.
@@ -72,7 +72,7 @@ integer, dimension(6) :: &
 logical :: fill_land_mask = .FALSE. ! if true, all the vegetation points on the
      ! map are filled with the information from static vegetation data, using
      ! nearest point remap; otherwise only the points that overlap with valid
-     ! static vegetation data are overriden.
+     ! static vegetation data are overridden.
 logical :: write_static_veg = .FALSE. ! if true, the state of vegetation is saved 
      ! periodically for future use as static vegetation input
 character(16) :: static_veg_freq = 'daily' ! or 'monthly', or 'annual'
@@ -146,7 +146,7 @@ subroutine static_vegn_init()
   real, allocatable          :: in_lon(:)! longitude coordinates in input file
   real, allocatable          :: in_lat(:)! latitude coordinates in input file
   logical, allocatable       :: mask(:,:)! mask of valid points in input data 
-  integer, allocatable       :: data(:,:,:,:) ! temprary array used to calculate the mask of
+  integer, allocatable       :: data(:,:,:,:) ! temporary array used to calculate the mask of
                                          ! valid input data
   logical                    :: has_records ! true if input variable has records
   integer :: tile_dim_length ! length of tile dimension in output files 
@@ -186,10 +186,14 @@ subroutine static_vegn_init()
         call error_mesg('static_vegn_init','Reading global static vegetation file "'&
              //trim(input_file)//'"', NOTE)
         input_is_multiface = .FALSE.
+        actual_input_file = input_file
      endif
      
      ! READ TIME AXIS DATA
-     __NF_ASRT__(nf_inq_unlimdim( ncid, unlimdim ))
+     if(nf_inq_unlimdim( ncid, unlimdim )/=NF_NOERR) then
+        call error_mesg('static_vegn_init',&
+            'Input file "'//trim(actual_input_file)//'" lacks record dimension.', FATAL)
+     endif 
      __NF_ASRT__(nf_inq_dimname ( ncid, unlimdim, dimname ))
      __NF_ASRT__(nf_inq_varid   ( ncid, dimname, timeid ))
      __NF_ASRT__(nf_inq_dimlen( ncid, unlimdim, timelen ))
@@ -198,7 +202,10 @@ subroutine static_vegn_init()
      
      ! GET UNITS OF THE TIME
      units = ' '
-     __NF_ASRT__(nf_get_att_text(ncid, timeid,'units',units))
+     if (nf_get_att_text(ncid, timeid,'units',units)/=NF_NOERR) then
+        call error_mesg('static_vegn_init',&
+            'Cannot read time  units from file "'//trim(actual_input_file)//'"', FATAL)
+     endif
      
      ! GET CALENDAR OF THE DATA
      calendar = ' '
@@ -218,6 +225,11 @@ subroutine static_vegn_init()
      ! READ HORIZONTAL COORDINATES
      iret = nfu_inq_compressed_var(ncid,'species',ndims=ndims,dimids=dimids,dimlens=dimlens,&
           has_records=has_records)
+     if (iret/=NF_NOERR) then
+        call error_mesg('static_vegn_init',&
+            'Cannot read compression information from file "'//trim(actual_input_file)//&
+            '": check that all dimensions listed in "compress" attributes are present in the file.', FATAL)
+     endif
      __NF_ASRT__(iret)
      allocate(in_lon(dimlens(1)),in_lat(dimlens(2)))
      __NF_ASRT__(nfu_get_dim(ncid,dimids(1),in_lon)) ! get longitude
@@ -229,13 +241,17 @@ subroutine static_vegn_init()
      allocate(map_j(lnd%is:lnd%ie,lnd%js:lnd%je))
      allocate(mask(size(in_lon),size(in_lat)))
 
+     map_i = -1
+     map_j = -1
+     mask = .false.
+
      if(fill_land_mask) then
         ! CALCULATE THE DIMENSIONS OF THE BUFFER FOR THE INPUT DATA
         if (has_records) ndims=ndims-1
         do i = ndims+1,4
            dimlens(i) = 1
         enddo
-        ! READ THE FIRST RECORD AND CALCULTE THE MASK OF THE VALID INPUT DATA
+        ! READ THE FIRST RECORD AND CALCULATE THE MASK OF THE VALID INPUT DATA
         allocate(data(dimlens(1),dimlens(2),dimlens(3),dimlens(4)))
         !             lon        lat        tile       cohort
         data(:,:,:,:) = -1
@@ -278,7 +294,7 @@ subroutine static_vegn_init()
   if(write_static_veg) then
      ! create output file for static vegetation
 
-     ! count all land tiles and determine the lenght of tile dimension
+     ! count all land tiles and determine the length of tile dimension
      ! sufficient for the current domain
      tile_dim_length = 0
      do j = lnd%js, lnd%je
@@ -328,29 +344,30 @@ subroutine static_vegn_end()
 end subroutine static_vegn_end
 
 ! ===========================================================================
-subroutine read_static_vegn (time)
+subroutine read_static_vegn (time, err_msg)
   type(time_type), intent(in)    :: time
+  character(len=*), intent(out), optional :: err_msg
 
   ! ---- local vars 
   integer :: index1, index2 ! result of time interpolation (only index1 is used)
   real    :: weight         ! another result of time interp, not used
-  character(len=256) :: err_msg
+  character(len=256) :: msg
 
   if(.not.use_static_veg)return;
 
+  msg = ''
   !   time_interp to find out the index of the current time interval
   if (timeline == 'loop') then
-     err_msg = ''
      call time_interp(time, ts, te, time_line, weight, index1, index2, &
-                      correct_leap_year_inconsistency=.true.)
-     if(err_msg /= '') then
-       call error_mesg('subroutine read_static_vegn',trim(err_msg), FATAL)
-     endif
+                      correct_leap_year_inconsistency=.true., err_msg=msg)
   else if (timeline == 'normal') then
-     call time_interp(time, time_line, weight, index1, index2)
+     call time_interp(time, time_line, weight, index1, index2, err_msg=msg)
   else
      call error_mesg(module_name,'timeline option "'//trim(timeline)// &
           '" is incorrect, use "normal" or "loop"', FATAL)
+  endif
+  if(msg /= '') then
+    if(fms_error_handler('read_static_vegn','Message from time_interp: '//trim(msg),err_msg)) return
   endif
 
   ! read the data into cohort variables

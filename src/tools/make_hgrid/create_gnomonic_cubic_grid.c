@@ -37,11 +37,10 @@ void cell_north(int ni, int nj, const double *lonc, const double *latc, double *
 void calc_cell_area(int nx, int ny, const double *x, const double *y, double *area);
 void direct_transform(double stretch_factor, int i1, int i2, int j1, int j2, double lon_p, double lat_p,
 		      int n, double *lon, double *lat);
-void setup_aligned_nest(int parent_tile, int parent_ni, int parent_nj,
-			const double *parent_xc, const double *parent_yc, int halo,
-			int refine_ratio, int istart, int iend, int jstart, int jend,
-			double *x, double *y, double *dx, double *dy,
-			double *area, double *angle_dx, double *angle_dy);
+void setup_aligned_nest(int parent_ni, int parent_nj, const double *parent_xc, const double *parent_yc,
+                        int halo, int refine_ratio, int istart, int iend, int jstart, int jend,
+                        double *xc, double *yc);
+
 void spherical_linear_interpolation(double beta, const double *p1, const double *p2, double *pb);
 
 /*******************************************************************************
@@ -58,12 +57,17 @@ void create_gnomonic_cubic_grid( char* grid_type, int *nlon, int *nlat, double *
 				 int iend_nest, int jstart_nest, int jend_nest, int halo)
 {
   const int ntiles = 6;
-  int nx, ny, nxp, ni, nip;
-  int i, j, n;
+  int ntiles2, global_nest=0;
+  int nx, ny, nxp, nyp, ni, nj, nip, njp;
+  int ni_nest, nj_nest, nx_nest, ny_nest;
+  int istart, iend, jstart, jend;
+  int ni2, nj2, ni2p, nj2p, n1, n2;
+  int *nxl=NULL, *nyl=NULL, *nil=NULL, *njl=NULL;
+  int i, j, n, npts;
   double p1[2], p2[2];
-  double *lon, *lat;
-  double *xc, *yc, *xt, *yt;
-  double *xe, *ye, *xn, *yn;
+  double *lon=NULL, *lat=NULL;
+  double *xc=NULL, *yc=NULL, *xtmp=NULL, *ytmp=NULL;
+  double *xc2=NULL, *yc2=NULL;
   int    stretched_grid=0;
 
   /* make sure the first 6 tiles have the same grid size and 
@@ -79,12 +83,63 @@ void create_gnomonic_cubic_grid( char* grid_type, int *nlon, int *nlat, double *
   for(n=1; n<ntiles; n++) {
     if(nlon[n] != nlon[0]) mpp_error("create_gnomonic_cubic_grid: all six tiles should have same size");
   }
-  
+
   nx  = nlon[0];
-  ny  = nlat[0];
-  ni  = nx/2;
-  nip = ni + 1;
+  ny  = nx;
   nxp = nx+1;
+  nyp = ny+1;
+  ni  = nx/2;
+  nj  = ni;
+  nip = ni+1;
+  njp = nip;
+  ni_nest = 0;
+  nj_nest = 0;  
+  ntiles2=ntiles;
+  global_nest=0;
+  if(nest_grid && parent_tile== 0)
+    global_nest = 1;
+  else if(nest_grid) {
+    ntiles2 = ntiles+1;
+    if( (istart_nest+1)%2 ) mpp_error("create_gnomonic_cubic_grid: istart_nest+1 is not divisbile by 2");
+    if( iend_nest%2 ) mpp_error("create_gnomonic_cubic_grid: iend_nest is not divisbile by 2");
+    if( (jstart_nest+1)%2 ) mpp_error("create_gnomonic_cubic_grid: jstart_nest+1 is not divisbile by 2");
+    if( jend_nest%2 ) mpp_error("create_gnomonic_cubic_grid: jend_nest is not divisbile by 2");  
+    istart = (istart_nest+1)/2;
+    iend   = iend_nest/2;
+    jstart = (jstart_nest+1)/2;
+    jend   = jend_nest/2;
+    ni_nest = (iend-istart+1)*refine_ratio;
+    nj_nest = (jend-jstart+1)*refine_ratio;  
+  }
+  nx_nest = ni_nest*2;
+  ny_nest = nj_nest*2;
+    
+  /* nxl/nyl supergrid size, nil, njl model grid size */
+  nxl = (int *)malloc(ntiles2*sizeof(int));
+  nyl = (int *)malloc(ntiles2*sizeof(int));
+  nil = (int *)malloc(ntiles2*sizeof(int));
+  njl = (int *)malloc(ntiles2*sizeof(int));
+
+  for(n=0; n<ntiles; n++) {
+    nxl[n] = nx;
+    nyl[n] = ny;
+    nil[n] = ni;
+    njl[n] = nj;
+  }
+  if(ntiles2 > ntiles) {
+    nxl[ntiles] = nx_nest;
+    nyl[ntiles] = ny_nest;
+    nil[ntiles] = ni_nest;
+    njl[ntiles] = nj_nest;
+  }
+
+  /* for global nest grid, set ni to the coarse grid size */
+  if(global_nest) {
+    ni /= refine_ratio;
+    nj /= refine_ratio;
+  }
+  nip=ni+1;
+  njp=nj+1;
   
   if ( do_schmidt && fabs(stretch_factor-1.) > EPSLN5 ) stretched_grid = 1;
   
@@ -102,14 +157,12 @@ void create_gnomonic_cubic_grid( char* grid_type, int *nlon, int *nlat, double *
 
   symm_ed(ni, lon, lat);
 
-  xc = (double *)malloc(ntiles*nip*nip*sizeof(double));
-  yc = (double *)malloc(ntiles*nip*nip*sizeof(double));
-  xt = (double *)malloc(ntiles*ni *ni *sizeof(double));
-  yt = (double *)malloc(ntiles*ni *ni *sizeof(double));
-  xe = (double *)malloc(ntiles*nip*ni *sizeof(double));
-  ye = (double *)malloc(ntiles*nip*ni *sizeof(double));
-  xn = (double *)malloc(ntiles*ni *nip*sizeof(double));
-  yn = (double *)malloc(ntiles*ni *nip*sizeof(double));
+  
+  npts = ntiles*nip*nip;
+  if(ntiles2>ntiles) npts += (ni_nest+1)*(nj_nest+1);
+  
+  xc = (double *)malloc(npts*sizeof(double));
+  yc = (double *)malloc(npts*sizeof(double));
   
   for(j=0; j<nip; j++) {
     for(i=0; i<nip; i++) {
@@ -174,69 +227,119 @@ void create_gnomonic_cubic_grid( char* grid_type, int *nlon, int *nlat, double *
     }
   }
   
-  /* calculate grid box center location */
-       
-  for(n=0; n<ntiles; n++) {
-    cell_center(ni, ni, xc+n*nip*nip, yc+n*nip*nip, xt+n*ni*ni, yt+n*ni*ni);
-    cell_east(ni, ni, xc+n*nip*nip, yc+n*nip*nip, xe+n*nip*ni, ye+n*nip*ni);
-    cell_north(ni, ni, xc+n*nip*nip, yc+n*nip*nip, xn+n*ni*nip, yn+n*ni*nip);
+  /* get nest grid */
+  if(global_nest) {
+    npts = ntiles*nip*nip;
+    xc2 = (double *)malloc(npts*sizeof(double));
+    yc2 = (double *)malloc(npts*sizeof(double));  
+    for(n=0; n<npts; n++) {
+      xc2[n] = xc[n];
+      yc2[n] = yc[n];
+    }
+    free(xc);
+    free(yc);
+    ni2  = ni;
+    ni2p = nip;
+    ni   = nx/2;
+    nip  = ni + 1;
+    npts = ntiles*nip*nip;
+    xc = (double *)malloc(npts*sizeof(double));
+    yc = (double *)malloc(npts*sizeof(double));  
+    for(n=0; n<ntiles; n++) {
+       printf("calling setup_aligned_nest, n=%d\n",n);
+       setup_aligned_nest(ni2, ni2, xc2+ni2p*ni2p*n, yc2+ni2p*ni2p*n, 0, refine_ratio,
+			  1, ni2, 1, ni2, xc+n*nip*nip, yc+n*nip*nip );      
+    }
   }
-
-  /* copy grid box vertices location into super grid */
-  for(n=0; n<ntiles; n++) for(j=0; j<nip; j++) for(i=0; i<nip; i++) {
-    x[n*nxp*nxp+j*2*nxp+i*2]=xc[n*nip*nip+j*nip+i];
-    y[n*nxp*nxp+j*2*nxp+i*2]=yc[n*nip*nip+j*nip+i];
+  else if( nest_grid ) {
+    setup_aligned_nest(ni, ni, xc+nip*nip*(parent_tile-1),
+		       yc+nip*nip*(parent_tile-1), halo, refine_ratio,
+		       istart, iend, jstart, jend,
+		       xc+ntiles*nip*nip, yc+ntiles*nip*nip );
   }
-
-  /* copy grid box center location to super grid */
-  for(n=0; n<ntiles; n++) for(j=0; j<ni; j++) for(i=0; i<ni; i++) {
-    x[n*nxp*nxp+(j*2+1)*nxp+i*2+1]=xt[n*ni*ni+j*ni+i];
-    y[n*nxp*nxp+(j*2+1)*nxp+i*2+1]=yt[n*ni*ni+j*ni+i];
-  }  
-
-  /* copy grid box east location to super grid */
-  for(n=0; n<ntiles; n++) for(j=0; j<ni; j++) for(i=0; i<nip; i++) {
-    x[n*nxp*nxp+(j*2+1)*nxp+i*2]=xe[n*nip*ni+j*nip+i];
-    y[n*nxp*nxp+(j*2+1)*nxp+i*2]=ye[n*nip*ni+j*nip+i];
-  }  
-
-  /* copy grid box north location to super grid */
-  for(n=0; n<ntiles; n++) for(j=0; j<nip; j++) for(i=0; i<ni; i++) {
-    x[n*nxp*nxp+j*2*nxp+i*2+1]=xn[n*ni*nip+j*ni+i];
-    y[n*nxp*nxp+j*2*nxp+i*2+1]=yn[n*ni*nip+j*ni+i];
-  }  
   
+  /* calculate grid box center location */
 
+  ni2 = 0;
+  nj2 = 0;
+  for(n=0; n<ntiles2; n++) {
+    if(nil[n]>ni2) ni2 = nil[n];
+    if(njl[n]>nj2) nj2 = njl[n];
+  }
+  ni2p = ni2+1;
+  nj2p = nj2+1;
+  xtmp = (double *)malloc(ni2p*nj2p*sizeof(double));
+  ytmp = (double *)malloc(ni2p*nj2p*sizeof(double));
+  
+  for(n=0; n<ntiles2; n++) {
+    /* copy C-cell to supergrid */
+    for(j=0; j<=njl[n]; j++) for(i=0; i<=nil[n]; i++) {
+      n1 = n*nxp*nxp+j*2*(2*nil[n]+1)+i*2;
+      n2 = n*nip*nip+j*(nil[n]+1)+i;
+      x[n1]=xc[n2];
+      y[n1]=yc[n2];
+    }
+    
+    /* cell center and copy to super grid */
+    cell_center(nil[n], njl[n], xc+n*nip*nip, yc+n*nip*nip, xtmp, ytmp);
+    for(j=0; j<njl[n]; j++) for(i=0; i<nil[n]; i++) {
+      n1 = n*nxp*nxp+(j*2+1)*(2*nil[n]+1)+i*2+1;
+      n2 = j*nil[n]+i;
+      x[n1]=xtmp[n2];
+      y[n1]=ytmp[n2];
+    }
+
+    /* cell east and copy to super grid */
+    cell_east(nil[n], njl[n], xc+n*nip*nip, yc+n*nip*nip, xtmp, ytmp);
+    for(j=0; j<njl[n]; j++) for(i=0; i<=nil[n]; i++) {
+      n1 = n*nxp*nxp+(j*2+1)*(2*nil[n]+1)+i*2;
+      n2 = j*(nil[n]+1)+i;
+      x[n1]=xtmp[n2];
+      y[n1]=ytmp[n2];
+    }
+
+    /* cell north and copy to super grid */
+    cell_north(nil[n], njl[n], xc+n*nip*nip, yc+n*nip*nip, xtmp, ytmp);
+    for(j=0; j<=njl[n]; j++) for(i=0; i<nil[n]; i++) {
+      n1 = n*nxp*nxp+(j*2)*(2*nil[n]+1)+i*2+1;
+      n2 = j*nil[n]+i;
+      x[n1]=xtmp[n2];
+      y[n1]=ytmp[n2];
+    }
+  } 
+
+  free(xtmp);
+  free(ytmp);
+  
   /* calculate grid cell length */
-  for(n=0; n<ntiles; n++) {
-    for(j=0; j<nxp; j++) {
-      for(i=0; i<nx; i++) {
-	p1[0] = x[n*nxp*nxp+j*nxp+i];
-	p1[1] = y[n*nxp*nxp+j*nxp+i];
-	p2[0] = x[n*nxp*nxp+j*nxp+i+1];
-	p2[1] = y[n*nxp*nxp+j*nxp+i+1];
-	dx[n*nx*nxp+j*nx+i] = great_circle_distance(p1, p2);
+  for(n=0; n<ntiles2; n++) {
+    for(j=0; j<=nyl[n]; j++) {
+      for(i=0; i<nxl[n]; i++) {
+	p1[0] = x[n*nxp*nxp+j*(nxl[n]+1)+i];
+	p1[1] = y[n*nxp*nxp+j*(nxl[n]+1)+i];
+	p2[0] = x[n*nxp*nxp+j*(nxl[n]+1)+i+1];
+	p2[1] = y[n*nxp*nxp+j*(nxl[n]+1)+i+1];
+	dx[n*nx*nxp+j*nxl[n]+i] = great_circle_distance(p1, p2);
       }
     }
   }
-
-  if( stretched_grid ) {
-    for(n=0; n<ntiles; n++) {
-      for(j=0; j<nx; j++) {
-	for(i=0; i<nxp; i++) {
-	  p1[0] = x[n*nxp*nxp+j*nxp+i];
-	  p1[1] = y[n*nxp*nxp+j*nxp+i];
-	  p2[0] = x[n*nxp*nxp+(j+1)*nxp+i];;
-	  p2[1] = y[n*nxp*nxp+(j+1)*nxp+i];
-	  dy[n*nx*nxp+j*nx+i] = great_circle_distance(p1, p2);
+  for(n=0; n<ntiles2; n++) {
+    if( stretched_grid || n==ntiles ) { 
+      for(j=0; j<nyl[n]; j++) {
+	for(i=0; i<=nxl[n]; i++) {
+	  p1[0] = x[n*nxp*nxp+j*(nxl[n]+1)+i];
+	  p1[1] = y[n*nxp*nxp+j*(nxl[n]+1)+i];
+	  p2[0] = x[n*nxp*nxp+(j+1)*(nxl[n]+1)+i];
+	  p2[1] = y[n*nxp*nxp+(j+1)*(nxl[n]+1)+i];
+	  dy[n*nx*nxp+j*(nxl[n]+1)+i] = great_circle_distance(p1, p2);
 	}
       }
     }
-  }
-  else {
-    for(n=0; n<ntiles; n++) {
-      for(j=0; j<nxp; j++) {
-	for(i=0; i<nx; i++) dy[n*nx*nxp+i*nxp+j] = dx[n*nx*nxp+j*nx+i];
+    else {
+      for(n=0; n<ntiles; n++) {
+	for(j=0; j<nyp; j++) {
+	  for(i=0; i<nx; i++) dy[n*nx*nxp+i*nxp+j] = dx[n*nx*nxp+j*nx+i];
+	}
       }
     }
   }
@@ -269,32 +372,31 @@ void create_gnomonic_cubic_grid( char* grid_type, int *nlon, int *nlat, double *
     }
   }
 
+  /* calculate nested grid area */
+  if(ntiles2>ntiles) calc_cell_area(nx_nest, ny_nest, x+ntiles*nxp*nyp, y+ntiles*nxp*nyp, area+ntiles*nx*ny);
+  
   /*calculate rotation angle, just some workaround, will modify this in the future. */
   calc_rotation_angle2(nxp, x, y, angle_dx, angle_dy );
 
-  if( nest_grid ) setup_aligned_nest(parent_tile, ni, ni, xc+nip*nip*(parent_tile-1),
-				     yc+nip*nip*(parent_tile-1), halo, refine_ratio,
-				     istart_nest, iend_nest, jstart_nest, jend_nest,
-				     x+ntiles*nxp*nxp, y+ntiles*nxp*nxp,
-				     dx+ntiles*nx*nxp, dy+ntiles*nxp*nx,
-				     area+ntiles*nx*nx, angle_dx+ntiles*nxp*nxp,
-				     angle_dy+ntiles*nxp*nxp);
-  
+  /* since angle is used in the model, set angle to 0 for nested region */
+  if(ntiles2>ntiles) {
+    for(i=0; i<=(nx_nest+1)*(ny_nest+1); i++) {
+      angle_dx[ntiles*nxp*nxp+i]=0;
+      angle_dy[ntiles*nxp*nxp+i]=0;
+    }
+  }
+      
   /* convert grid location from radians to degree */
-  for(i=0; i<nxp*nxp*ntiles; i++) {
+  npts = ntiles*nxp*nyp;
+  if(nx_nest>0) npts += (nx_nest+1)*(ny_nest+1);
+    
+  for(i=0; i<npts; i++) {
     x[i] = x[i]*R2D;
     y[i] = y[i]*R2D;
   }
 
-  free(xt);
-  free(yt);
   free(xc);
   free(yc);  
-  free(xe);
-  free(ye);
-  free(xn);
-  free(yn);
-  
   
 }; /* void create_gnomonic_cubic_grid */
 
@@ -1077,7 +1179,7 @@ void spherical_linear_interpolation(double beta, const double *p1, const double 
   double dd, alpha, omega;
  
   if ( fabs(p1[0] - p2[0]) < EPSLN8 && fabs(p1[1] - p2[1]) < EPSLN8 ) {
-    printf("WARNING from create_gnomonic_cubic_grid: spherical_linear_interpolation was passed two colocated points.");
+    printf("WARNING from create_gnomonic_cubic_grid: spherical_linear_interpolation was passed two colocated points.\n");
     pb[0] = p1[0];
     pb[1] = p1[1];
     return ;
@@ -1124,69 +1226,33 @@ void spherical_linear_interpolation(double beta, const double *p1, const double 
 
 /*
 
-parent_tile: tile number of parent grid.
-nx_parent  : parent grid size in x-direction.
-ny_parent  : parent grid size in y-direction.
+ni_parent  : parent grid size in x-direction.
+nj_parent  : parent grid size in y-direction.
 
 
 */
 
 
-void setup_aligned_nest(int parent_tile, int parent_ni, int parent_nj,
-			const double *parent_xc, const double *parent_yc, int halo,
-			int refine_ratio, int istart_nest, int iend_nest, int jstart_nest, int jend_nest,
-			double *x, double *y, double *dx, double *dy,
-			double *area, double *angle_dx, double *angle_dy)	
+void setup_aligned_nest(int parent_ni, int parent_nj, const double *parent_xc, const double *parent_yc,
+			int halo, int refine_ratio, int istart, int iend, int jstart, int jend,
+			double *xc, double *yc)	
 {
   double q1[2], q2[2], t1[2], t2[2], p1[0], p2[0];
   double two_pi;
-  int ni, nj, npi, npj, nx, ny, npx, npy;
-  int  parent_npi, i, j, ic, jc, imod, jmod;
-  double *xc=NULL, *yc=NULL;
-  double *xt=NULL, *yt=NULL;
-  double *xe=NULL, *ye=NULL;
-  double *xn=NULL, *yn=NULL;
-  int    istart, iend, jstart, jend;
+  int    ni, nj, npi, npj;
+  int    parent_npi, i, j, ic, jc, imod, jmod;
   
   two_pi = 2.*M_PI;
-  /* istart_nest, iend_nest, jstart_nest, jend_nest are the index on the parent supergrid.
-     transfter them on to model grid.
-  */
-  if( (istart_nest+1)%2 ) mpp_error("create_gnomonic_cubic_grid(setup_aligned_nest): istart_nest+1 is not divisbile by 2");
-  if( iend_nest%2 ) mpp_error("create_gnomonic_cubic_grid(setup_aligned_nest): iend_nest is not divisbile by 2");
-  if( (jstart_nest+1)%2 ) mpp_error("create_gnomonic_cubic_grid(setup_aligned_nest): jstart_nest+1 is not divisbile by 2");
-  if( jend_nest%2 ) mpp_error("create_gnomonic_cubic_grid(setup_aligned_nest): jend_nest is not divisbile by 2");
-  
-  istart = (istart_nest+1)/2;
-  iend   = iend_nest/2;
-  jstart = (jstart_nest+1)/2;
-  jend   = jend_nest/2;
     
   /* Check that the grid does not lie outside its parent */
-  if( jstart + floor( (-halo)/(double)refine_ratio ) < 1 ||
-      istart + floor( (-halo)/(double)refine_ratio ) < 1 ||
-      jend + ceil( halo/(double)refine_ratio ) > parent_nj ||
-      iend + ceil( halo/(double)refine_ratio ) > parent_ni )
+  if( (jstart - halo) < 1 || (istart - halo) < 1 ||
+      (jend + halo) > parent_nj || (iend + halo) > parent_ni )
     mpp_error("create_gnomonic_cubic_grid(setup_aligned_nest): nested grid lies outside its parent");
 
   ni = (iend-istart+1)*refine_ratio;
   nj = (jend-jstart+1)*refine_ratio;
   npi = ni+1;
   npj = nj+1;
-  nx = 2*ni;
-  ny = 2*nj;
-  npx = nx+1;
-  npy = ny+1;
-
-  xc = (double *)malloc(npi*npj*sizeof(double));
-  yc = (double *)malloc(npi*npj*sizeof(double));
-  xt = (double *)malloc(ni *nj *sizeof(double));
-  yt = (double *)malloc(ni *nj *sizeof(double));
-  xe = (double *)malloc(npi*nj *sizeof(double));
-  ye = (double *)malloc(npi*nj *sizeof(double));
-  xn = (double *)malloc(ni *npj*sizeof(double));
-  yn = (double *)malloc(ni *npj*sizeof(double));
-  
   parent_npi = parent_ni+1;
   
   for(j=0; j<npj; j++) {
@@ -1229,80 +1295,6 @@ void setup_aligned_nest(int parent_tile, int parent_ni, int parent_nj,
       if( xc[j*npi+i] < 0. ) xc[j*npi+i] += two_pi;
     }
   }
-
-  /* calculate grid box center location */
-  cell_center(ni, nj, xc, yc, xt, yt);
-  cell_east  (ni, nj, xc, yc, xe, ye);
-  cell_north (ni, nj, xc, yc, xn, yn);
-  /* copy grid box vertices location into super grid */
-  for(j=0; j<npj; j++) for(i=0; i<npi; i++) {
-    x[j*2*npx+i*2]=xc[j*npi+i];
-    y[j*2*npx+i*2]=yc[j*npi+i];
-  }
-
-  /* copy grid box center location to super grid */
-  for(j=0; j<nj; j++) for(i=0; i<ni; i++) {
-    x[(j*2+1)*npx+i*2+1]=xt[j*ni+i];
-    y[(j*2+1)*npx+i*2+1]=yt[j*ni+i];
-  }  
-
-  /* copy grid box east location to super grid */
-  for(j=0; j<nj; j++) for(i=0; i<npi; i++) {
-    x[(j*2+1)*npx+i*2]=xe[j*npi+i];
-    y[(j*2+1)*npx+i*2]=ye[j*npi+i];
-  }  
-
-  /* copy grid box north location to super grid */
-  for(j=0; j<npj; j++) for(i=0; i<ni; i++) {
-    x[j*2*npx+i*2+1]=xn[j*ni+i];
-    y[j*2*npx+i*2+1]=yn[j*ni+i];
-  }    
-  
-  /* calculate grid cell length */
-  for(j=0; j<npy; j++) {
-    for(i=0; i<nx; i++) {
-      p1[0] = x[j*npx+i];
-      p1[1] = y[j*npx+i];
-      p2[0] = x[j*npx+i+1];
-      p2[1] = y[j*npx+i+1];
-      dx[j*nx+i] = great_circle_distance(p1, p2);
-    }
-  }
-
-  for(j=0; j<ny; j++) {
-    for(i=0; i<npx; i++) {
-      p1[0] = x[j*npx+i];
-      p1[1] = y[j*npx+i];
-      p2[0] = x[(j+1)*npx+i];
-      p2[1] = y[(j+1)*npx+i];
-      dy[j*nx+i] = great_circle_distance(p1, p2);
-    }
-  }
-  
-  calc_cell_area(nx, ny, x, y, area);
-
-  /* The rotation angle is not used in the model and the computation on the edge id complicated,
-     so currently just set the rotation angle to be 0
-  */
-  for(i=0; i<npx*npy; i++) {
-    angle_dx[i] = 0;
-    angle_dy[i] = 0;
-  }
-  
-
-  /* convert grid location from radians to degree */
-  for(i=0; i<npx*npy; i++) {
-    x[i] = x[i]*R2D;
-    y[i] = y[i]*R2D;
-  }
-  free(xt);
-  free(yt);
-  free(xc);
-  free(yc);  
-  free(xe);
-  free(ye);
-  free(xn);
-  free(yn);  
 
 }
 

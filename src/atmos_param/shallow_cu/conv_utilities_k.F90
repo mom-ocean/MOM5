@@ -11,8 +11,8 @@ MODULE CONV_UTILITIES_k_MOD
 !---------------------------------------------------------------------
 !----------- ****** VERSION NUMBER ******* ---------------------------
 
-  character(len=128) :: version = '$Id: conv_utilities_k.F90,v 19.0 2012/01/06 20:26:00 fms Exp $'
-  character(len=128) :: tagname = '$Name: siena_201207 $'
+  character(len=128) :: version = '$Id: conv_utilities_k.F90,v 20.0 2013/12/13 23:21:37 fms Exp $'
+  character(len=128) :: tagname = '$Name: tikal $'
 
 !---------------------------------------------------------------------
 !-------  interfaces --------
@@ -31,7 +31,7 @@ MODULE CONV_UTILITIES_k_MOD
  type sounding
     logical  :: coldT
     integer  :: kmax, kinv, ktoppbl, ktopconv
-    real     :: psfc, pinv, zinv, thvinv, land, pblht, qint, delt, rhav, tke
+    real     :: psfc, pinv, zinv, thvinv, land, pblht, qint, delt, crh, tke
     real, _ALLOCATABLE :: t     (:)_NULL, qv   (:)_NULL, u     (:)_NULL
     real, _ALLOCATABLE :: v     (:)_NULL, ql   (:)_NULL, qi    (:)_NULL
     real, _ALLOCATABLE :: qa    (:)_NULL, thc  (:)_NULL, qct   (:)_NULL
@@ -150,7 +150,7 @@ contains
     sd%pblht    = 0.0
     sd%qint     = 0.0
     sd%delt     = 0.0
-    sd%rhav     = 0.0
+    sd%crh      = 0.0
     sd%tke      = 0.0
     allocate ( sd%t     (1:kd)); sd%t     =0.;
     allocate ( sd%qv    (1:kd)); sd%qv    =0.;
@@ -363,7 +363,7 @@ contains
     integer :: k, kl, ktoppbl
     real    :: sshl0a, sshl0b, ssthc0a, ssthc0b, ssqct0a, ssqct0b
     real    :: hl0bot, thc0bot, qct0bot, hl0top, thc0top, qct0top
-    real    :: thj, qvj, qlj, qij, qse, dpsum
+    real    :: thj, qvj, qlj, qij, qse, qs_sum, qt_sum, dpsum
     real, dimension(size(sd%tr,2)) :: sstr0a, sstr0b
 
     sd % exners(0) = exn_k(sd%ps(0),Uw_p);
@@ -377,7 +377,7 @@ contains
     sd % hl  (:) = Uw_p%cp_air*sd%t(:)+Uw_p%grav*sd%z(:)-  &
                    sd%leff(:)*(sd%ql(:)+sd%qi(:))
     sd % qint = 0.
-    sd % rhav = 0.; dpsum=0.
+    sd % crh = 0.; qs_sum=0.; qt_sum=0.; !dpsum=0.;
     do k=1, sd%ktopconv !sd%kmax
        sd % dp    (k) = sd%ps(k-1)-sd%ps(k)
        sd % dz    (k) = sd%zs(k)  -sd%zs(k-1)
@@ -391,13 +391,12 @@ contains
        sd % rho   (k) = sd % p(k)/     &
                         (Uw_p%rdgas * sd % thv(k) * sd % exner(k))
        sd % qint      =sd % qint + sd%qct(k)*sd%dp(k)
-       if (sd%p(k) .gt. 40000) then
-          sd % rhav = sd % rhav+ sd%rh (k)*sd%dp(k)
-          dpsum      = dpsum + sd%dp(k)
-       end if
+       qs_sum = qs_sum + sd % qs(k)  * sd%dp(k)
+       qt_sum = qt_sum + sd % qct(k) * sd%dp(k)
+       !dpsum = dpsum + sd%dp(k)
     end do
     sd % qint = sd % qint / Uw_p%grav
-    sd % rhav = sd % rhav / dpsum
+    sd % crh  = qt_sum / qs_sum
     sd % hm  (:) = Uw_p%cp_air*sd%t(:)+Uw_p%grav*sd%z(:)+sd%leff(:)*sd%qv(:)
     sd % hms (:) = Uw_p%cp_air*sd%t(:)+Uw_p%grav*sd%z(:)+sd%leff(:)*sd%qs(:)
 

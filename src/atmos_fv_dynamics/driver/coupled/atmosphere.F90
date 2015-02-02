@@ -26,6 +26,7 @@ use     fv_physics_mod, only: fv_physics_down, fv_physics_up,  &
 
 use    mpp_domains_mod, only: domain2d
 use  field_manager_mod, only: MODEL_ATMOS
+use   diag_manager_mod, only: diag_send_complete
 use      constants_mod, only: omega, cp_air, rdgas, grav, rvgas, kappa, radius, pstd_mks
 
 use            fv_pack, only: nlon, mlat, nlev, beglat, endlat, beglon, &
@@ -62,8 +63,8 @@ integer seconds, days
 integer liq_wat, ice_wat
 !-----------------------------------------------------------------------
 
-character(len=128) :: version = '$Id: atmosphere.F90,v 19.0 2012/01/06 20:00:10 fms Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: atmosphere.F90,v 20.0 2013/12/13 23:08:15 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 !-----------------------------------------------------------------------
 !---- namelist (saved in file input.nml) ----
@@ -316,6 +317,11 @@ contains
         ncnst, zvir, dt_atmos, .false.)                          
    call timing_off('FV_DIAG')     
    call mpp_clock_end(id_fv_diag)
+
+   ! Indicate to diag_manager to write diagnostics to file (if needed)
+   ! This is needed for a threaded run.
+   call diag_send_complete(Time_step_atmos)
+
    call fv_print_chksums( 'Exiting  atmosphere_up' )
 #ifdef PSET_DEBUG
    call mpp_error( FATAL, 'ATMOSPHERE_UP is set to abort if -DPSET_DEBUG!' )

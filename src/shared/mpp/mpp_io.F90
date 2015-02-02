@@ -349,19 +349,19 @@ private
   !--- public interface from mpp_io_util.h ----------------------
   public :: mpp_get_iospec, mpp_get_id, mpp_get_ncid, mpp_get_unit_range, mpp_is_valid
   public :: mpp_set_unit_range, mpp_get_info, mpp_get_atts, mpp_get_fields
-  public :: mpp_get_times, mpp_get_axes, mpp_get_recdimid, mpp_get_axis_data
+  public :: mpp_get_times, mpp_get_axes, mpp_get_recdimid, mpp_get_axis_data, mpp_get_axis_by_name
   public :: mpp_io_set_stack_size, mpp_get_field_index, mpp_get_axis_index
   public :: mpp_get_field_name, mpp_get_att_value, mpp_get_att_length
   public :: mpp_get_att_type, mpp_get_att_name, mpp_get_att_real, mpp_get_att_char
-  public :: mpp_get_att_real_scalar
-  public :: mpp_get_file_name, mpp_file_is_opened 
+  public :: mpp_get_att_real_scalar, mpp_get_axis_length
+  public :: mpp_get_file_name, mpp_file_is_opened, mpp_attribute_exist 
   public :: mpp_io_clock_on, mpp_get_time_axis, mpp_get_default_calendar
 
   !--- public interface from mpp_io_misc.h ----------------------
   public :: mpp_io_init, mpp_io_exit, netcdf_err, mpp_flush
 
   !--- public interface from mpp_io_write.h ---------------------
-  public :: mpp_write, mpp_write_meta, mpp_copy_meta, mpp_modify_meta
+  public :: mpp_write, mpp_write_meta, mpp_copy_meta, mpp_modify_meta, mpp_write_axis_data
 
   !--- public interface from mpp_io_read.h ---------------------
   public :: mpp_read, mpp_read_meta, mpp_get_tavg_info
@@ -387,6 +387,7 @@ type :: atttype
      character(len=128) :: units
      character(len=256) :: longname
      character(len=8)   :: cartesian
+     character(len=256) :: compressed
      character(len=24)  :: calendar
      integer            :: sense, len          !+/-1, depth or height?
      type(domain1D)     :: domain              !if pointer is associated, it is a distributed data axis
@@ -411,6 +412,7 @@ type :: atttype
      character(len=128)      :: standard_name   ! CF standard name
      real                    :: min, max, missing, fill, scale, add
      integer                 :: pack
+     integer(LONG_KIND), dimension(3) :: checksum
      type(axistype), pointer :: axes(:) =>NULL() !axes associated with field size, time_axis_index redundantly 
                                         !hold info already contained in axes. it's clunky and inelegant, 
                                         !but required so that axes can be shared among multiple files
@@ -818,9 +820,9 @@ type :: atttype
   integer :: pack_size ! = 1 when compiling with -r8 and = 2 when compiling with -r4.
 
   character(len=128) :: version= &
-       '$Id: mpp_io.F90,v 19.0.2.1 2012/05/09 18:28:56 Zhi.Liang Exp $'
+       '$Id: mpp_io.F90,v 20.0 2013/12/14 00:23:45 fms Exp $'
   character(len=128) :: tagname= &
-       '$Name: siena_201207 $'
+       '$Name: tikal $'
 
 contains
 

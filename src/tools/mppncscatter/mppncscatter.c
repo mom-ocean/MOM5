@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2007,2009-2010,2012 Remik Ziemlinski
+   Copyright (C) 2007,2009-2010,2012,2013 Remik Ziemlinski
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,66 +19,11 @@
 	 20070821 rsz Created.
 	 20070824 rsz Works with file test3.nc (0,1,2,3,4)D variables.
 	 20121130 rsz Fixes attributed start tile index to 1-based to be compatible with mppnccombine (thanks to Zhi Lang).
+   20130303 rsz Uneven partition should use symmetric layout (instead of remainder). Added --io-layout-x/y -j/-i -n -p -w options.
 */
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-#include <netcdf.h>
-#include <string.h>
-#include <strings.h>
-#include "strlist.h"
-#include "getopt.h"
+#include "mppncscatter.h"
 
-#define USAGE "\
-mppncscatter -- Decomposes single NetCDF file into many files (converse to mppnccombine).  The output files are created in the current working directory and prefixed with the input file name, i.e. in.nc.0000 ...\n\
-\n\
-Usage: mppncscatter [OPTION...] in.nc\n\
-\n\
-  -h, --help         Give this usage message.\n\
-      --usage                \n\
-  -s, --start N      Start file name suffix numbers from N (default is 0).\n\
-  -v, --version      Print program version.\n\
-  -V, --verbose      Progressively output messages to stdout.\n\
-  -x, --npx N        Try to split domain evenly into N columns.\n\
-  -X, --xdims d1,... List of X dimension names to scatter (for those not detectable through metadata).\n\
-  -y, --npy N        Try to split domain evenly into N rows.\n\
-  -Y, --ydims d1,... List of Y dimension names to scatter (for those not detectable through metadata).\n\
-\n\
-Report bugs to Remik . Ziemlinski @ noaa gov.\n\
-"
-
-typedef struct MNSOPTS {
-	char*   filein;		/* Input filename (allocated). */
-	int     help;     /* give usage insructions */
-	int 		nx;				/* Number of columns to split file into. (Required) */
-	int 		ny;				/* Number of rows to split file into. (Required) */
-	int     start;    /* Start filename number suffix from this. */
-	int     version;  /* give program version */
-	int     verbose;  /* Verbose echos to stdout. */
-	char**	xdims;		/* List of xdim names to scatter. */
-	int			xdims_len;/* Number of names in above list. */
-	char**	ydims;		/* List of xdim names to scatter. */
-	int			ydims_len;/* Number of names in above list. */
-} mnsopts;
-
-#define NOSCATTER 0
-#define SCATTERX 1
-#define SCATTERY 2
-
-int getmnsopts(int argc, char** argv, mnsopts* popts);
-void printusage();
-void printversion();
-void initmnsopts(mnsopts* popts);
-void freemnsopts(mnsopts* popts);
-int mppncscatter(mnsopts* popts);
-
-#define handle_error(status) {                      \
-	if (status != NC_NOERR) {                         \
-		fprintf(stderr, "%s\n", nc_strerror(status));   \
-		exit(-1);                                       \
-	}                                                 \
-}    
-
+/*-------------------------------------------------------------------*/
 void printsizetarray(size_t *a, int n) {
 	int i=0;
 	for(;i < n; ++i)
@@ -86,165 +31,29 @@ void printsizetarray(size_t *a, int n) {
 
 	fprintf(stdout, "\n");
 }
-static struct option const long_options[] =
-{ 
-	{"help",        no_argument,            0, 'h'},
-	{"usage",       no_argument,            0, 'h'},
-	{"start" ,      required_argument,      0, 's'},
-	{"version",     no_argument,            0, 'v'},
-	{"verbose",     no_argument,            0, 'V'},
-	{"npx" ,        required_argument,      0, 'x'},
-	{"xdims",     	required_argument,      0, 'X'},
-	{"npy" ,        required_argument,      0, 'y'},
-	{"ydims",     	required_argument,      0, 'Y'},
-	{0, 0, 0, 0}
-}; 
-
-void initmnsopts(mnsopts* popts)
-{
-	if (popts == NULL) 
-		return;
-
-	popts->filein = NULL;
-	popts->help = 0;
-	popts->nx = 0;
-	popts->ny = 0;
-	popts->start = 0;
-	popts->verbose = 0;
-	popts->version = 0;
-	popts->xdims = NULL;
-	popts->xdims_len = 0;
-	popts->ydims = NULL;
-	popts->ydims_len = 0;
+/*-------------------------------------------------------------------*/
+/* Return number of final x, y divisions depending if io_layout. */
+void get_num_divs(mnsopts* opts, int* nx, int* ny) {
+  if (opts == NULL) {
+    *nx = 0;
+    *ny = 0;
+  } else if (opts->nxio && opts->nyio) {
+    *nx = opts->nxio;
+    *ny = opts->nyio;
+  } else {
+    *nx = opts->nx;
+    *ny = opts->ny;  
+  }
 }
-void freemnsopts(mnsopts* popts)
-{
-	if (popts == NULL) return;
-
-	if (popts->filein != NULL) {
-		free(popts->filein);
-		popts->filein = NULL;
-	}
-
-	if (popts->xdims != NULL) {
-		freestringlist(&popts->xdims, NC_MAX_DIMS);
-		popts->xdims = NULL;
-	}
-
-	if (popts->ydims != NULL) {
-		freestringlist(&popts->ydims, NC_MAX_DIMS);
-		popts->ydims = NULL;
-	}
-}
-void printusage()
-{
-	fprintf(stderr, USAGE);
-	fprintf(stderr, "Built with NetCDF %s\n", nc_inq_libvers());
-}
-void printversion()
-{
-	fprintf(stderr, "mppncscatter 0.2.0\n");
-	fprintf(stderr, "Built with NetCDF %s\n", nc_inq_libvers());
-	fprintf(stderr, "Copyright (C) 2007,2009-2010 Remik Ziemlinski\n\
-\n\
-This program comes with NO WARRANTY, to the extent permitted by law.\n\
-You may redistribute copies of this program\n\
-under the terms of the GNU General Public License.\n"); 
-}
-int getmnsopts(int argc, char** argv, mnsopts* popts)
-{
-	int c;       
-	char *token, *cp;
-  const char delimiters[] = ",";
-
-	if (popts == NULL) return -1;
+/*-------------------------------------------------------------------*/
+int get_num_files(mnsopts* opts) {
+  int nx, ny;
+  if (opts == NULL) return 0;
   
-	if (newstringlist(&popts->xdims, &c, NC_MAX_DIMS)) {
-		printf("ERROR: Failed to allocate memory for X dimension list.\n");
-		exit(1);
-	}
-
-	if (newstringlist(&popts->ydims, &c, NC_MAX_DIMS)) {
-		printf("ERROR: Failed to allocate memory for Y dimension list.\n");
-		exit(1);
-	}
-	
-	while ( (c = getopt_long(argc, argv, "hs:vVx:y:X:Y:", long_options, 0))
-					!= -1
-					)
-		switch (c)
-			{
-			case 's':
-				popts->start = atoi(optarg);
-				break;
-
-			case 'x':
-				popts->nx = atoi(optarg);
-				break;
-
-			case 'y':
-				popts->ny = atoi(optarg);
-				break;
-
-			case 'v':
-				popts->version = 1;
-				break;
-
-			case 'V':
-				popts->verbose = 1;
-				break;
-			
-			case ':':
-				fprintf(stderr, "Error, -%c without argument.\n\n", optopt); 
-				popts->help = 1;
-				break;
-			case '?':
-				fprintf(stderr, "Error, Unknown argument %c.\n\n", optopt);
-				popts->help = 1;
-				break;
-			case 'h':
-				popts->help = 1;
-				break;
-
-			case 'X':
-				getstringlist(optarg, &popts->xdims, &popts->xdims_len);
-				break;
-
-			case 'Y':
-				getstringlist(optarg, &popts->ydims, &popts->ydims_len);
-				break;
-			}
-
-	if (popts->help)		{
-		printusage();
-		return -1;
-	}       
-	if (popts->version)		{
-		printversion();
-		return -1;
-	}
-	if (optind == argc)        {
-		fprintf(stderr, "Error, missing operand after `%s'.\n\n", argv[argc - 1]);
-		printusage();
-		return -1;
-	} 
-
-	/* get filename argument */   
-	argc -= optind;
-	argv += optind;
-	if ((argc < 1) || (argv[0] == NULL))        {
-		fprintf(stderr, "Error, input file required.\n\n");
-		printusage();
-		popts->filein = NULL;
-		return -1;
-	} else        {
-		/* store filename */
-		popts->filein = (char*)malloc(sizeof(char)*(strlen(argv[0]) + 1));
-		strcpy(popts->filein, argv[0]);
-	}
-
-	return 0;
+  get_num_divs(opts, &nx, &ny);
+  return nx*ny;
 }
+/*-------------------------------------------------------------------*/
 /* Memory copies subdomain to preallocated output pointer (either t,s,i,f,d datatype pointers).
 	 Record variables should not pass in record info in the start,count,ndim,
 	 so be sure to pass the pointers offset by 1 entry and ndim-1.
@@ -432,84 +241,79 @@ void hyperslabcopy(nc_type type, size_t *dimlen, int *dimids, size_t *start, siz
 		break;
 	}
 }
-//----------------------------------------------------------------------------
-// Returns dimension size for an even partitioning.
-// In:
-//  i: Partition index (0 <= i < n).
-//  len: Entire length of original dimension.
-//  n: Number of partitions for the dimension.
-size_t dimlen_even(int i, size_t len, int n) {
-	size_t newlen = (size_t)(len/n); 
-
-  if ( i == (n-1) ) 
-    // Last column is remainder. 
-    newlen = len - i*newlen; 
-		
-  return newlen;
-		
-	/* NOT PRODUCTION READY.
-	// Is staggered?  Assume yes for dim that has odd integer size. 
-	if (len % 2) { 
-		// Define size that will allow boundary duplication on contact edges. 
-		if (i != (n-1)) { // If this isn't the last partition...
-			// Duplicate ending edge of parts except for last partition. 
-			newlen += 1; 
-		} else { 
-			// Inner partition that shares edges with left and right neighbors. 
-			newlen = len - i*newlen; 
-		} 
-	} else { 
-		if ( i == (n-1) ) 
-			// Last column is remainder. 
-			newlen = len - i*newlen; 
-	}
-	
-	return newlen;
-	*/
+/*-------------------------------------------------------------------*/
+void free_scatter_dims(ScatterDim* dims[], int ndims) {
+  int i;
+  for(i=0; i < ndims; ++i) {
+    ScatterDim_free(dims[i]);
+  }
 }
-//----------------------------------------------------------------------------
-/* scatterdims must be preallocated.  Sets each array element to
-	 NOSCATTER, SCATTERX, or SCATTERY. These tags denote if the dimension
-	 should be scattered.
+/*-------------------------------------------------------------------*/
+/* 
+Sets each array element to NOSCATTER, SCATTERX, or SCATTERY. 
+These tags denote if the dimension should be scattered.
+'scatterdims' must be preallocated to size of 'ndims'. 
 */
-void getscatterdims(int nc, int ndims, int nvars, int *scatterdims, mnsopts *opt)
+void get_scatter_dims(int nc, int ndims, int nvars, ScatterDim* scatterdims[], mnsopts *opt)
 {
 	int dimid, varid, status;
 	char name[NC_MAX_NAME];
 	char att[256];
 	nc_type type;
+  size_t dimlen;
 	int foundunits = 0;
+  scatter_t scatter_type;
+  int ndiv;
+  int recid; 
+  
+	status = nc_inq_unlimdim(nc, &recid);
+	if (status != NC_NOERR) {
+		fprintf(stderr, "Error: %s/%d: Failed to query input file for record id.\n", __FILE__, __LINE__);
+		exit(-1);
+	}
 
 	/* Condition for scatter dimension:
 		 Coordvar is x/y based on metadata, and shares dim name. */
 	for(dimid=0; dimid < ndims; ++dimid) {
-		scatterdims[dimid] = NOSCATTER;
-		
+		scatter_type = NOSCATTER;
+    dimlen = 0;
+    ndiv = 0;
+    
 		status = nc_inq_dimname(nc, dimid, name);
 		if (status != NC_NOERR) {
-			fprintf(stderr, "Error. Failed to query number dim name from input file.\n");
-			exit(-1);
+			fprintf(stderr, "Error. Failed to query number dim name from input file for dimid %d.\n", dimid);
+			goto DIMDONE;
 		}
-		
-		// First check user's x/y dim lists from command-line.
+
+    if (dimid == recid) {
+			dimlen = NC_UNLIMITED;
+      goto DIMDONE;
+    } else {
+      status = nc_inq_dimlen(nc, dimid, &dimlen);
+      if (status != NC_NOERR) {
+        fprintf(stderr, "Error. Failed to query dim length from input file for \"%s\".\n", name);
+        goto DIMDONE;
+      }
+    }
+    
+		/* First check user's x/y dim lists from command-line. */
 		if (instringlist(opt->xdims, name, opt->xdims_len)) {
-			scatterdims[dimid] = SCATTERX;
+			scatter_type = SCATTERX;
 			goto DIMDONE;
 		} else if (instringlist(opt->ydims, name, opt->ydims_len)) {
-			scatterdims[dimid] = SCATTERY;
+			scatter_type = SCATTERY;
 			goto DIMDONE;
 		}
 		
-		// Try to auto-detect if not in list from command-line.
-		// Check to see if coordvar is X or Y. 
+		/* Try to auto-detect if not in list from command-line. */
+		/* Check to see if coordvar is X or Y. */
 		status = nc_inq_varid(nc, name, &varid);
 		if (status != NC_NOERR) {
 			/* No variable that shares dimension name. */
-			scatterdims[dimid] = NOSCATTER;
 			goto DIMDONE;
 		}
 		
-		// If not found in user's explicit list of x/y dims, infer via metadata. 
+		/* If not found in user's explicit list of x/y dims, infer via metadata. */
 		status = nc_inq_atttype(nc, varid, "units", &type);
 		if (status == NC_NOERR) {
 			if (type != NC_CHAR) {
@@ -528,7 +332,7 @@ void getscatterdims(int nc, int ndims, int nvars, int *scatterdims, mnsopts *opt
 					 (!strncasecmp(att, "degree_e",8)) || 
 					 (!strncasecmp(att, "degreee",7)) || 
 					 (!strncasecmp(att, "degreese",8)) ) {
-				scatterdims[dimid] = SCATTERX;
+				scatter_type = SCATTERX;
 				foundunits = 1;
 			}	else if	(
 								(!strncasecmp(att, "degrees_north",13)) || 
@@ -537,10 +341,10 @@ void getscatterdims(int nc, int ndims, int nvars, int *scatterdims, mnsopts *opt
 								(!strncasecmp(att, "degree_n",8)) ||
 								(!strncasecmp(att, "degreesn",8)) || 
 								(!strncasecmp(att, "degreen",7)) ) {
-				scatterdims[dimid] = SCATTERY;
+				scatter_type = SCATTERY;
 				foundunits = 1;				
 			} else {
-				scatterdims[dimid] = NOSCATTER;
+				scatter_type = NOSCATTER;
 				foundunits = 0;
 			}
 		}
@@ -560,83 +364,190 @@ void getscatterdims(int nc, int ndims, int nvars, int *scatterdims, mnsopts *opt
 			}
 
 			if ( !strncasecmp(att, "x",1) ) 
-				scatterdims[dimid] = SCATTERX;
+				scatter_type = SCATTERX;
 			else if ( !strncasecmp(att, "y",1) ) 
-				scatterdims[dimid] = SCATTERY;
+				scatter_type = SCATTERY;
 			else
-				scatterdims[dimid] = NOSCATTER;
+				scatter_type = NOSCATTER;
 		}
 		
-	DIMDONE:
-		if (opt->verbose)
-			fprintf(stdout, "Dimension \"%s\" will be scattered? %s\n", name,
-							scatterdims[dimid] != NOSCATTER ? "Yes" : "No");
+	DIMDONE:    
+    switch(scatter_type) {
+      case SCATTERX:
+        ndiv = opt->nx;
+        break;
+      case SCATTERY:
+        ndiv = opt->ny;
+        break;
+      default: 
+        ndiv = 0;
+        break;
+    }
+    
+    scatterdims[dimid] = ScatterDim_new(dimid, dimlen, name, scatter_type, ndiv);
 	}
 }
+/*-------------------------------------------------------------------*/
+/*
+Computes the start/end indices per dim if scattered.
+*/
+void get_scatter_extents(ScatterDim* scatterdims[], int ndims) {
+  int i, j;
+  ScatterDim * pdim;
+  
+  for(i=0; i < ndims; ++i) {
+    pdim = scatterdims[i];
+    if (pdim == NULL) continue;
+    if (pdim->scatter_type == NOSCATTER) continue;
+    
+    mpp_compute_extent(0, pdim->len-1, pdim->scatter_ndiv, pdim->scatter_start, pdim->scatter_end);
+    
+    /* Compute lengths for scattering. */
+    for(j=0; j < pdim->scatter_ndiv; ++j) {
+      pdim->scatter_len[j] = pdim->scatter_end[j] - pdim->scatter_start[j] + 1;
+    }
+  }
+}
+/*-------------------------------------------------------------------*/
+/*
+Computes the start/end/len per dim if scattered using optional
+io_layout mode, which must equally divide tiling.
+*/
+void get_scatter_extents_iolayout(ScatterDim* scatterdims[], int ndims, int nxio, int nyio) {
+  int d, i, k;
+  ScatterDim * pdim;
+  size_t *startio = 0;
+  size_t *endio = 0;
+  size_t *lenio = 0;
+  int ndivio;
+  int step;
+  
+  for(d=0; d < ndims; ++d) {
+    pdim = scatterdims[d];
+    if (pdim == NULL) continue;
+    if (pdim->scatter_type == NOSCATTER) continue;
+
+    if (pdim->scatter_type == SCATTERX) {
+      ndivio = nxio;
+    } else {
+      ndivio = nyio;
+    }
+    
+    step = pdim->scatter_ndiv / ndivio;
+    
+    if (startio) XFREE(startio);
+    startio = XMALLOC(size_t, ndivio);
+
+    if (endio) XFREE(endio);
+    endio = XMALLOC(size_t, ndivio);
+
+    if (lenio) XFREE(lenio);
+    lenio = XMALLOC(size_t, ndivio);
+    
+    i = k = 0;
+    while (i < pdim->scatter_ndiv) {      
+      startio[k] = pdim->scatter_start[i];
+      endio[k] = pdim->scatter_end[i + step - 1];
+      lenio[k] = endio[k] - startio[k] + 1;
+      k += 1;
+      i += step;
+    }
+        
+    pdim->scatter_ndiv = ndivio;
+
+    if (pdim->scatter_start) XFREE(pdim->scatter_start);
+    pdim->scatter_start = startio; /* Own new array. */
+    startio = 0;
+    
+    if (pdim->scatter_end) XFREE(pdim->scatter_end);
+    pdim->scatter_end = endio; /* Own new array. */
+    endio = 0;
+    
+    if (pdim->scatter_len) XFREE(pdim->scatter_len);
+    pdim->scatter_len = lenio; /* Own new array. */
+    lenio = 0;
+  }
+}
+/*-------------------------------------------------------------------*/
+void print_scatter_dims(ScatterDim* scatterdims[], int ndims) {
+  int d, i;
+  ScatterDim * pdim;
+  
+  for(d=0; d < ndims; ++d) {
+    pdim = scatterdims[d];
+    if (pdim == NULL) continue;
+
+    fprintf(stdout, "Info: Dimension %d \"%s\":\n", pdim->id, pdim->name);
+    fprintf(stdout, "Info:   Will be scattered? %s\n",
+          (pdim->scatter_type == NOSCATTER ? "No" : "Yes") );
+    
+    if (pdim->scatter_type == NOSCATTER) continue;
+    
+    fprintf(stdout, "Info:   Scatter indices (start, end, length):");
+    fflush(stdout);
+    
+    for(i=0; i < pdim->scatter_ndiv; ++i) {
+      fprintf(stdout, " (%zu,%zu,%zu)", pdim->scatter_start[i], pdim->scatter_end[i], pdim->scatter_len[i]);
+      fflush(stdout);
+    }
+    fprintf(stdout, "\n");
+  }
+}
+/*-------------------------------------------------------------------*/
 /* Define dimensions with optional scattering in new output files. */
-void defdim_even(int nc, int *ncids, int ndims, int *scatterdims, mnsopts *opt)
+void def_dim(int nc, int *ncids, int ndims, ScatterDim *scatterdims[], mnsopts *opts)
 {
 	int dimid, xi, yi, i, status, dummy, recid;
 	size_t len, newlen;
 	char name[NC_MAX_NAME];
-
-	status = nc_inq_unlimdim(nc, &recid);
-	if (status != NC_NOERR) {
-		fprintf(stderr, "Error. Failed to query input file for record id.\n");
-		exit(-1);
-	}
+  int nx, ny;
+  ScatterDim* scatdim = 0;
+  
+  get_num_divs(opts, &nx, &ny);
 
 	for(dimid=0; dimid < ndims; ++dimid) {
-		status = nc_inq_dim(nc, dimid, name, &len);
-		if (status != NC_NOERR) {
-			fprintf(stderr, "Error. Failed to get dim name and length from input file.\n");
-			exit(-1);
-		}
-		
-		if (dimid == recid)
-			len = NC_UNLIMITED;
-
-		for(yi=0; yi < opt->ny; ++yi) {
-			for(xi=0; xi < opt->nx; ++xi) {
-				// Index into complete enumerated list of partitions. Used in new filename.
-				i = yi*opt->nx + xi;
+    scatdim = scatterdims[dimid];
+    if (scatdim == NULL) continue;
+    
+		for(yi=0; yi < ny; ++yi) {
+			for(xi=0; xi < nx; ++xi) {
+				/* Index into complete enumerated list of partitions. Used in new filename. */
+				i = yi*nx + xi;
 				
-				switch(scatterdims[dimid]) {
+				switch(scatdim->scatter_type) {
 				case NOSCATTER:
-					if (opt->verbose) 
-						fprintf(stderr, "INFO : %d : DEFDIM ncid = %d, dim = %s, len = %d\n", __LINE__, ncids[i], name, (int)len);
-						
-					status = nc_def_dim(ncids[i], name, len, &dummy);
-					if (status != NC_NOERR) {
-						fprintf(stderr, "Error. Failed to define dimension %s in output file %04d.\n", name, i);
-						exit(-1);
+					if (opts->verbose) {
+						fprintf(stdout, "Info: Defining dim \"%s\".\n", scatdim->name);
+						fflush(stdout);
 					}
+						
+          if (!opts->dryrun) {
+            status = nc_def_dim(ncids[i], scatdim->name, scatdim->len, &dummy);
+            if (status != NC_NOERR) {
+              fprintf(stderr, "Error: %s/%d: Failed to define dimension \"%s\" in output file index %d. Aborting.\n", __FILE__, __LINE__, scatdim->name, i);
+              exit(-1);
+            }
+          }
 					break;
 					
 				case SCATTERX:
-					newlen = dimlen_even(xi, len, opt->nx);
-					status = nc_def_dim(ncids[i], name, newlen, &dummy);
-					if (status != NC_NOERR) {
-						fprintf(stderr, "Error. Failed to define scattered x dim \"%s\" with length %d in output file %04d.\n", name, (int)newlen, i);
-						exit(-1);
-					}
-					
-					if (opt->verbose) 
-						fprintf(stderr, "INFO : %d : DEFDIM ncid = %d, dim = %s, len = %d\n", __LINE__, ncids[i], name, (int)newlen);
-						
+          if (!opts->dryrun) {
+            status = nc_def_dim(ncids[i], scatdim->name, scatdim->scatter_len[xi], &dummy);
+            if (status != NC_NOERR) {
+              fprintf(stderr, "Error: %s/%d: Failed to define scattered x dim \"%s\" with length %d in output file index %d. Aborting.\n",  __FILE__, __LINE__, scatdim->name, (int)scatdim->scatter_len[xi], i);
+              exit(-1);
+            }
+          }
 					break;
 					
 				case SCATTERY:
-					newlen = dimlen_even(yi, len, opt->ny);
-					status = nc_def_dim(ncids[i], name, newlen, &dummy);
-					if (status != NC_NOERR) {
-						fprintf(stderr, "Error. Failed to define scattered y dim with length %d in output file %04d.\n", (int)newlen, i);
-						exit(-1);
-					}
-					
-					if (opt->verbose) 
-						fprintf(stderr, "INFO : %d : DEFDIM ncid = %d, dim = %s, len = %d\n", __LINE__, ncids[i], name, (int)newlen);
-					
+          if (!opts->dryrun) {
+            status = nc_def_dim(ncids[i], scatdim->name, scatdim->scatter_len[yi], &dummy);
+            if (status != NC_NOERR) {
+              fprintf(stderr, "Error: %s/%d: Failed to define scattered y dim \"%s\" with length %d in output file index %d. Aborting.\n",  __FILE__, __LINE__, scatdim->name, (int)scatdim->scatter_len[yi], i);
+              exit(-1);
+            }
+          }				
 					break;
 				default:
 					break;
@@ -645,129 +556,131 @@ void defdim_even(int nc, int *ncids, int ndims, int *scatterdims, mnsopts *opt)
 		}
 	}
 }
-void defvar_even(int nc, int *ncids, int nvars, int ndims, int *scatterdims, mnsopts *opt)
+/*-------------------------------------------------------------------*/
+void def_var(int nc, int *ncids, int nvars, int ndims, ScatterDim *scatterdims[], mnsopts *opts)
 {
-	int varid, xi, yi, i, j, status, varidnew, natt, ndimvar;
+	int varid, xi, yi, ifile, j, status, varidnew, natt, ndimvar;
 	size_t len, newlen;
 	char varname[NC_MAX_NAME], attname[NC_MAX_NAME], dimname[NC_MAX_NAME];
 	nc_type type;
 	int dimids[NC_MAX_DIMS];
-	// Scatter attribute.
-	int attdata[4];
+	/* Scatter attribute. */
+	int scatatt[4];
+  char verbose = opts->verbose;
+  char dryrun = opts->dryrun;
+  int nx, ny;
+  ScatterDim* scatdim = 0;
+  
+  get_num_divs(opts, &nx, &ny);
 
-	if (opt->verbose)	
-		fprintf(stdout, "DEBUG : %d\n", __LINE__);
-							
-	/* The first element in the scatter attribute is always 1. */
-	attdata[0] = 1;
+  /* 
+  From mppnccombine:
+     "domain_decomposition = #0, #1, #2, #3 attribute
+     #0 starting position of original dimension
+     #1 ending position of original dimension
+     #2 starting position of decomposed dimension
+     #3 ending position of decomposed dimension
+  rsz: 
+     All values are 1-based.
+     #0 is always 1.
+     #1 is the original length.
+     #2 is 1 based new start.
+     #3 is 1 based new length.
+  */
+	scatatt[0] = 1;
 
 	for(varid=0; varid < nvars; ++varid) {
 		status = nc_inq_var(nc, varid, varname, &type, &ndimvar, dimids, &natt);
 		if (status != NC_NOERR) {
-			fprintf(stderr, "Error. Failed to query var from input file.\n");
+			fprintf(stderr, "Error: %s/%d: Failed to query var from input file. Aborting.\n", __FILE__, __LINE__);
 			exit(-1);
 		}
 
-		for(yi=0; yi < opt->ny; ++yi) {
-			for(xi=0; xi < opt->nx; ++xi) {
-				i = yi*opt->nx + xi;
+		for(yi=0; yi < ny; ++yi) {
+			for(xi=0; xi < nx; ++xi) {
+				ifile = yi*nx + xi;
 
-				status = nc_def_var(ncids[i], varname, type, ndimvar, dimids, &varidnew);
-				if (status != NC_NOERR) {
-					fprintf(stderr, "Error. Failed to define var %s in output file %d.\n", varname, i);
-					exit(-1);
+        if (!dryrun) {
+          status = nc_def_var(ncids[ifile], varname, type, ndimvar, dimids, &varidnew);
+          if (status != NC_NOERR) {
+            fprintf(stderr, "Error: %s/%d: Failed to define var \"%s\" in output file index %d. Aborting.\n", __FILE__, __LINE__, varname, ifile+opts->start);
+            exit(-1);
+          }
+        }
+
+				if (verbose) {
+					fprintf(stdout, "Info: Defining variable \"%s\" for file %d.\n", varname, ifile+opts->start);
+					fflush(stdout);
 				}
-
-				if (opt->verbose)
-					fprintf(stdout, "DEBUG : %d : Defining variable %s\n", __LINE__, varname);
 
 				/* Copy atts. */
-				for(j=0; j < natt; ++j) {
-					status = nc_inq_attname(nc, varid, j, attname);
-					if (status != NC_NOERR) {
-						fprintf(stderr, "Error. Failed to get name for att id %d.\n", j);
-						exit(-1);
-					}
-					
-					status = nc_copy_att(nc, varid, attname, ncids[i], varidnew);
-					if (status != NC_NOERR) {
-						fprintf(stderr, "Error. Failed to copy att %s to output file %d.\n", varname, i);
-						exit(-1);
-					}
-				}
+        if (!dryrun) {
+          for(j=0; j < natt; ++j) {
+            status = nc_inq_attname(nc, varid, j, attname);
+            if (status != NC_NOERR) {
+              fprintf(stderr, "Error: %s/%d: Failed to define var \"%s\" in output file index %d. Aborting.\n", __FILE__, __LINE__, varname, ifile+opts->start);
+              exit(-1);
+            }
+            
+            status = nc_copy_att(nc, varid, attname, ncids[ifile], varidnew);
+            if (status != NC_NOERR) {
+              fprintf(stderr, "Error: %s/%d: Failed to copy var \"%s\" att \"%s\" to output file index %d. Aborting.\n", __FILE__, __LINE__, varname, attname, ifile+opts->start);
+              exit(-1);
+            }
+          }
+        }
 				
-				// Need to add new attribute "domain_decomposition" for
-				// dimension variables that are 1D.
+				/* Need to add new attribute "domain_decomposition" for
+				   dimension variables that are 1D. */
 				if (ndimvar == 1) {
-					if (opt->verbose)
-						fprintf(stdout, "DEBUG : %d :\tscatterdims[dimids[0]] = %d\n", __LINE__, scatterdims[dimids[0]]);		
-									
-					status = nc_inq_dimname(nc, dimids[0], dimname);
-					if (status != NC_NOERR) {
-						fprintf(stderr, "Error. Failed to get dim name from input file for dim id %d.\n", dimids[0]);
-						exit(-1);
-					}
-					
-					status = nc_inq_dimlen(nc, dimids[0], &len);
-					if (status != NC_NOERR) {
-						fprintf(stderr, "Error. Failed to get dim length from input file.\n");
-						exit(-1);
-					}
+          scatdim = scatterdims[dimids[0]];
+          if (scatdim == NULL) continue;
+          
+					/* Vars only dimension is scattered and var name is also the dim name. */
+					if ( (scatdim->scatter_type == SCATTERX) && 
+							 (strcmp(varname, scatdim->name)==0) ) {
+						scatatt[1] = (int)scatdim->len;					
+  					scatatt[2] = scatdim->scatter_start[xi] + 1; /* 1-based. */
+						scatatt[3] = scatdim->scatter_len[xi];
 
-					// Vars only dimension is scattered and var name is also the dim name.
-					if ( (scatterdims[dimids[0]] == SCATTERX) && 
-							 (strcmp(varname, dimname)==0) ) {
-						attdata[1] = (int)len;
-						
-						if (xi == 0) {
-							attdata[2] = 1;
-						} else {
-							newlen = dimlen_even(xi-1, len, opt->nx);
-							attdata[2] = (int)(xi * newlen) + 1; // 1-based syntax. 
-						}
-						
-						newlen = dimlen_even(xi, len, opt->nx);
-						attdata[3] = (int)newlen;
-
-						if (opt->verbose) {
-							fprintf(stdout, "Adding attribute:\t%s:domain_decomposition = %d %d %d %d\n", varname, attdata[0], attdata[1], attdata[2], attdata[3]);
+						if (verbose) {
+							fprintf(stdout, "Info:   Adding attribute:  %s:domain_decomposition = %d %d %d %d\n", varname, scatatt[0], scatatt[1], scatatt[2], scatatt[3]);
+							fflush(stdout);
 						}
 
-						status = nc_put_att_int(ncids[i], varid, "domain_decomposition", NC_INT, 4, attdata);
-						if (status != NC_NOERR) {
-							fprintf(stderr, "Error. Failed to set domain_decomposition attribute data for output file %d.\n", i);
-							exit(-1);
-						}								
-					} else if ( (scatterdims[dimids[0]] == SCATTERY) && 
-											(strcmp(varname, dimname)==0) ) {
-						attdata[1] = (int)len;
+            if (!dryrun) {
+              status = nc_put_att_int(ncids[ifile], varid, "domain_decomposition", NC_INT, 4, scatatt);
+              if (status != NC_NOERR) {
+                fprintf(stderr, "Error: %s/%d: Failed to set \"domain_decomposition\" attribute data for output file index %d. Aborting.\n", __FILE__, __LINE__, ifile+opts->start);
+                exit(-1);
+              }
+            }
+					} else if ( (scatdim->scatter_type == SCATTERY) && 
+											(strcmp(varname, scatdim->name)==0) ) {
+            scatatt[1] = (int)scatdim->len;					
+  					scatatt[2] = scatdim->scatter_start[yi] + 1; 
+						scatatt[3] = scatdim->scatter_len[yi];
 						
-						if (yi == 0) {
-							attdata[2] = 1;
-						} else {
-							newlen = dimlen_even(yi-1, len, opt->ny);
-							attdata[2] = (int)(yi * newlen) + 1; // 1-based syntax.
-						}
-						
-						newlen = dimlen_even(yi, len, opt->ny);
-						attdata[3] = (int)newlen;
-						
-            if (opt->verbose) {
-							fprintf(stdout, "Adding attribute:\t%s:domain_decomposition = %d %d %d %d\n", varname, attdata[0], attdata[1], attdata[2], attdata[3]);
+						if (verbose) {
+							fprintf(stdout, "Info:   Adding attribute:  %s:domain_decomposition = %d %d %d %d\n", varname, scatatt[0], scatatt[1], scatatt[2], scatatt[3]);
+							fflush(stdout);
 						}
 
-						status = nc_put_att_int(ncids[i], varid, "domain_decomposition", NC_INT, 4, attdata);
-						if (status != NC_NOERR) {
-							fprintf(stderr, "Error. Failed to set domain_decomposition attribute data for variable %s output file %d.\n", varname, i);
-							exit(-1);
-						}
+            if (!dryrun) {
+              status = nc_put_att_int(ncids[ifile], varid, "domain_decomposition", NC_INT, 4, scatatt);
+              if (status != NC_NOERR) {
+                fprintf(stderr, "Error: %s/%d: Failed to set \"domain_decomposition\" attribute data for output file index %d. Aborting.\n", __FILE__, __LINE__, ifile+opts->start);
+                exit(-1);
+              }
+            }
 					} 
 				} 
 			}
 		}
 	}
 }
-void putvar_even(int nc, int *ncids, int ndims, int nvars, int *scatterdims, mnsopts *opt)
+/*-------------------------------------------------------------------*/
+void put_var(int nc, int *ncids, int ndims, int nvars, ScatterDim *scatterdims[], mnsopts *opt)
 {
 	int varid, xi, yi, i, j, status, varidnew, natt, ndimvar, recid, reci, dimi;
 	size_t dimlen[NC_MAX_DIMS], size;
@@ -775,8 +688,10 @@ void putvar_even(int nc, int *ncids, int ndims, int nvars, int *scatterdims, mns
 	size_t outstart[4] = {0,0,0,0};
 	size_t count[4], newlen;
 	size_t nrec = 0;
+  
 	size_t maxsize[5] = {0,0,0,0,0}; /* Array of maxsizes for each datatype. */
-	enum maxsizeindex {CHAR=0,SHORT,INT,FLOAT,DOUBLE} ;
+	enum maxsizeindex {CHAR=0,SHORT,INT,FLOAT,DOUBLE};
+  
 	char varname[NC_MAX_NAME], attname[NC_MAX_NAME], dimname[NC_MAX_NAME];
 	nc_type type;
 	int dimids[NC_MAX_DIMS];
@@ -785,17 +700,23 @@ void putvar_even(int nc, int *ncids, int ndims, int nvars, int *scatterdims, mns
 	int *ip, *oip;
 	float *fp, *ofp;
 	double *dp, *odp;
+  ScatterDim *scatdim = 0;
+  int nx, ny;
 
+  if (opt->dryrun) return;
+  
+  get_num_divs(opt, &nx, &ny);
+  
 	status = nc_inq_unlimdim(nc, &recid);
 	if (status != NC_NOERR) {
-		fprintf(stderr, "Error. Failed to query input file for record id.\n");
+		fprintf(stderr, "Error. Failed to query input file for record id. Aborting.\n");
 		exit(-1);
 	}
 
 	if (recid != -1) {
 		status = nc_inq_dimlen(nc, recid, &nrec);
 		if (status != NC_NOERR) {
-			fprintf(stderr, "Error. Failed to number of records from input file.\n");
+			fprintf(stderr, "Error. Failed to number of records from input file. Aborting.\n");
 			exit(-1);
 		}
 	}
@@ -803,7 +724,7 @@ void putvar_even(int nc, int *ncids, int ndims, int nvars, int *scatterdims, mns
 	for(i=0; i < ndims; ++i) {
 		status = nc_inq_dimlen(nc, i, &dimlen[i]);
 		if (status != NC_NOERR) {
-			fprintf(stderr, "Error. Failed to query dim length for dim id %d in input file.\n", i);
+			fprintf(stderr, "Error. Failed to query dim length for dim id %d in input file. Aborting.\n", i);
 			exit(-1);
 		}
 	}
@@ -812,7 +733,7 @@ void putvar_even(int nc, int *ncids, int ndims, int nvars, int *scatterdims, mns
 	for(varid=0; varid < nvars; ++varid) {
 		status = nc_inq_var(nc, varid, varname, &type, &ndimvar, dimids, &natt);
 		if (status != NC_NOERR) {
-			fprintf(stderr, "Error. Failed to query var id %d in input file.\n", varid);
+			fprintf(stderr, "Error. Failed to query var id %d in input file. Aborting.\n", varid);
 			exit(-1);
 		}
 
@@ -867,7 +788,7 @@ void putvar_even(int nc, int *ncids, int ndims, int nvars, int *scatterdims, mns
 	for(varid=0; varid < nvars; ++varid) {
 		status = nc_inq_var(nc, varid, varname, &type, &ndimvar, dimids, &natt);
 		if (status != NC_NOERR) {
-			fprintf(stderr, "Error. Failed to query var id %d in input file.\n", varid);
+			fprintf(stderr, "Error. Failed to query var id %d in input file. Aborting.\n", varid);
 			exit(-1);
 		}
 		
@@ -878,177 +799,166 @@ void putvar_even(int nc, int *ncids, int ndims, int nvars, int *scatterdims, mns
 			continue;
 		
 		if (opt->verbose) {
-			fprintf(stdout, "Reading data for static variable %s.\n", varname);
+			fprintf(stdout, "Info: Reading data for static variable \"%s\".\n", varname);
+			fflush(stdout);
 		}
 
-		switch(type) {
-		case NC_BYTE: case NC_CHAR:
-			status = nc_get_var_text(nc, varid, tp);
-			if (status != NC_NOERR) {
-				fprintf(stderr, "Error. Failed to get var %s char data from input file.\n", varname);
-				exit(-1);
-			}
-			break;
-		case NC_SHORT:
-			status = nc_get_var_short(nc, varid, sp);
-			if (status != NC_NOERR) {
-				fprintf(stderr, "Error. Failed to get var %s short data from input file.\n", varname);
-				exit(-1);
-			}
-			break;
-		case NC_INT:
-			status = nc_get_var_int(nc, varid, ip);
-			if (status != NC_NOERR) {
-				fprintf(stderr, "Error. Failed to get var %s int data from input file.\n", varname);
-				exit(-1);
-			}
-			break;
-		case NC_FLOAT:
-			status = nc_get_var_float(nc, varid, fp);
-			if (status != NC_NOERR) {
-				fprintf(stderr, "Error. Failed to get var %s float data from input file.\n", varname);
-				exit(-1);
-			}
-			break;
-		case NC_DOUBLE:
-			status = nc_get_var_double(nc, varid, dp);
-			if (status != NC_NOERR) {
-				fprintf(stderr, "Error. Failed to get var %s double data from input file.\n", varname);
-				exit(-1);
-			}
-			break;
-		default:
-			fprintf(stderr, "Error. Unknown data type for var %s.\n", varname);
-			break;
-		}
+    switch(type) {
+      case NC_BYTE: case NC_CHAR:
+        status = nc_get_var_text(nc, varid, tp);
+        if (status != NC_NOERR) {
+          fprintf(stderr, "Error. Failed to get var %s char data from input file.\n", varname);
+          exit(-1);
+        }
+        break;
+      case NC_SHORT:
+        status = nc_get_var_short(nc, varid, sp);
+        if (status != NC_NOERR) {
+          fprintf(stderr, "Error. Failed to get var %s short data from input file.\n", varname);
+          exit(-1);
+        }
+        break;
+      case NC_INT:
+        status = nc_get_var_int(nc, varid, ip);
+        if (status != NC_NOERR) {
+          fprintf(stderr, "Error. Failed to get var %s int data from input file.\n", varname);
+          exit(-1);
+        }
+        break;
+      case NC_FLOAT:
+        status = nc_get_var_float(nc, varid, fp);
+        if (status != NC_NOERR) {
+          fprintf(stderr, "Error. Failed to get var %s float data from input file.\n", varname);
+          exit(-1);
+        }
+        break;
+      case NC_DOUBLE:
+        status = nc_get_var_double(nc, varid, dp);
+        if (status != NC_NOERR) {
+          fprintf(stderr, "Error. Failed to get var %s double data from input file.\n", varname);
+          exit(-1);
+        }
+        break;
+      default:
+        fprintf(stderr, "Error. Unknown data type for var %s.\n", varname);
+        break;
+    }
 
-		for(yi=0; yi < opt->ny; ++yi) {
-			for(xi=0; xi < opt->nx; ++xi) {
-				i = yi*opt->nx + xi;
+		for(yi=0; yi < ny; ++yi) {
+			for(xi=0; xi < nx; ++xi) {
+				i = yi*nx + xi;
 
 				if (ndimvar > 0) {
 					for(dimi=0; dimi < ndimvar; ++dimi) {
-						switch(scatterdims[dimids[dimi]]) {
+            scatdim = scatterdims[dimids[dimi]];
+            if (scatdim == NULL) continue;
+
+						switch(scatdim->scatter_type) {
 						case NOSCATTER:
 							instart[dimi] = 0;
-							count[dimi] = dimlen[dimids[dimi]];
+							count[dimi] = scatdim->len;
 							break;
 						case SCATTERX:
-							if (xi == 0) {
-								newlen = dimlen_even(xi, dimlen[dimids[dimi]], opt->nx);
-								instart[dimi] = 0;
-							} else {
-								newlen = dimlen_even(xi-1, dimlen[dimids[dimi]], opt->nx);
-								instart[dimi] = newlen*xi;
-								
-							}
-							count[dimi] = newlen;
-							break;
-							
+              instart[dimi] = scatdim->scatter_start[xi];
+							count[dimi] = scatdim->scatter_len[xi];
+							break;							
 						case SCATTERY:
-							if (yi == 0) {
-								newlen = dimlen_even(yi, dimlen[dimids[dimi]], opt->ny);
-								instart[dimi] = 0;
-							} else {
-								newlen = dimlen_even(yi-1, dimlen[dimids[dimi]], opt->ny);
-								instart[dimi] = newlen*yi;
-								
-							}
-							count[dimi] = newlen;
+              instart[dimi] = scatdim->scatter_start[yi];
+							count[dimi] = scatdim->scatter_len[yi];
 							break;
 						}
 					}
 					
 					if (opt->verbose) {
-            fprintf(stdout, "\tvar = %s\n", varname);
-            fprintf(stdout, "\tstart = ");
+            fprintf(stdout, "Info: Performing hyperslab copy into file %d.\n", i+opt->start);
+            fprintf(stdout, "Info:   var = \"%s\"\n", varname);
+            fprintf(stdout, "Info:   start = ");
             printsizetarray(instart, ndimvar);
-            fprintf(stdout, "\tcount = ");
+            fprintf(stdout, "Info:   count = ");
             printsizetarray(count, ndimvar);
-            fprintf(stdout, "\toutstart = ");
-            printsizetarray(outstart, ndimvar);				
-            fprintf(stdout, "Performing hyperslab copy into tile %d.\n", i);
+            fprintf(stdout, "Info:   outstart = ");
+            printsizetarray(outstart, ndimvar);
+            fflush(stdout);
 					}
 
-					hyperslabcopy(type, dimlen, dimids, instart, count, ndimvar, tp, sp, ip, fp, dp, otp, osp, oip, ofp, odp); 
+          hyperslabcopy(type, dimlen, dimids, instart, count, ndimvar, tp, sp, ip, fp, dp, otp, osp, oip, ofp, odp); 
 					
-					switch(type) {
-					case NC_BYTE: case NC_CHAR:
-						status = nc_put_vara_text(ncids[i], varid, outstart, count, otp);
-						if (status != NC_NOERR) {
-							fprintf(stderr, "Error. Failed to put var \"%s\" char data into output file %d.\n", varname, i);
-							handle_error(status);
-						}
-						break;
-					case NC_SHORT:
-						status = nc_put_vara_short(ncids[i], varid, outstart, count, osp);
-						if (status != NC_NOERR) {
-							fprintf(stderr, "Error. Failed to put var \"%s\" short data into output file %d.\n", varname, i);
-							handle_error(status);
-						}
-						break;
-					case NC_INT:
-						status = nc_put_vara_int(ncids[i], varid, outstart, count, oip);
-						if (status != NC_NOERR) {
-							fprintf(stderr, "Error. Failed to put var \"%s\" int data into output file %d.\n", varname, i);
-							handle_error(status);
-						}
-						break;
-					case NC_FLOAT:
-						status = nc_put_vara_float(ncids[i], varid, outstart, count, ofp);
-						if (status != NC_NOERR) {
-							fprintf(stderr, "Error. Failed to put var \"%s\" float data into output file %d.\n", varname, i);
-							handle_error(status);
-						}
-						break;
-					case NC_DOUBLE:
-						status = nc_put_vara_double(ncids[i], varid, outstart, count, odp);
-						if (status != NC_NOERR) {
-							fprintf(stderr, "Error. Failed to put var \"%s\" double data into output file %d.\n", varname, i);
-							handle_error(status);
-						}
-						break;
-					}
-				} else {
-					/* Scalar variable. */
-					switch(type) {
-					case NC_BYTE: case NC_CHAR:
-						status = nc_put_var_text(ncids[i], varid, tp);
-						if (status != NC_NOERR) {
-							fprintf(stderr, "Error. Failed to put scalar var %s text data into output file %d.\n", varname, i);
-							exit(-1);
-						}
-						break;
-					case NC_SHORT:
-						status = nc_put_var_short(ncids[i], varid, sp);
-						if (status != NC_NOERR) {
-							fprintf(stderr, "Error. Failed to put scalar var %s short data into output file %d.\n", varname, i);
-							exit(-1);
-						}
-						break;
-					case NC_INT:
-						status = nc_put_var_int(ncids[i], varid, ip);
-						if (status != NC_NOERR) {
-							fprintf(stderr, "Error. Failed to put scalar var %s int data into output file %d.\n", varname, i);
-							exit(-1);
-						}
-						break;
-					case NC_FLOAT:
-						status = nc_put_var_float(ncids[i], varid, fp);
-						if (status != NC_NOERR) {
-							fprintf(stderr, "Error. Failed to put scalar var %s float data into output file %d.\n", varname, i);
-							exit(-1);
-						}
-						break;
-					case NC_DOUBLE:
-						status = nc_put_var_double(ncids[i], varid, dp);
-						if (status != NC_NOERR) {
-							fprintf(stderr, "Error. Failed to put scalar var %s double data into output file %d.\n", varname, i);
-							exit(-1);
-						}
-						break;
-					}
-				}
+          switch(type) {
+          case NC_BYTE: case NC_CHAR:
+            status = nc_put_vara_text(ncids[i], varid, outstart, count, otp);
+            if (status != NC_NOERR) {
+              fprintf(stderr, "Error. Failed to put var \"%s\" char data into output file %d.\n", varname, i);
+              handle_error(status);
+            }
+            break;
+          case NC_SHORT:
+            status = nc_put_vara_short(ncids[i], varid, outstart, count, osp);
+            if (status != NC_NOERR) {
+              fprintf(stderr, "Error. Failed to put var \"%s\" short data into output file %d.\n", varname, i);
+              handle_error(status);
+            }
+            break;
+          case NC_INT:
+            status = nc_put_vara_int(ncids[i], varid, outstart, count, oip);
+            if (status != NC_NOERR) {
+              fprintf(stderr, "Error. Failed to put var \"%s\" int data into output file %d.\n", varname, i);
+              handle_error(status);
+            }
+            break;
+          case NC_FLOAT:
+            status = nc_put_vara_float(ncids[i], varid, outstart, count, ofp);
+            if (status != NC_NOERR) {
+              fprintf(stderr, "Error. Failed to put var \"%s\" float data into output file %d.\n", varname, i);
+              handle_error(status);
+            }
+            break;
+          case NC_DOUBLE:
+            status = nc_put_vara_double(ncids[i], varid, outstart, count, odp);
+            if (status != NC_NOERR) {
+              fprintf(stderr, "Error. Failed to put var \"%s\" double data into output file %d.\n", varname, i);
+              handle_error(status);
+            }
+            break;
+          }
+        } else { /* Scalar variable. */
+          switch(type) {
+          case NC_BYTE: case NC_CHAR:
+            status = nc_put_var_text(ncids[i], varid, tp);
+            if (status != NC_NOERR) {
+              fprintf(stderr, "Error. Failed to put scalar var \"%s\" text data into output file %d.\n", varname, i);
+              exit(-1);
+            }
+            break;
+          case NC_SHORT:
+            status = nc_put_var_short(ncids[i], varid, sp);
+            if (status != NC_NOERR) {
+              fprintf(stderr, "Error. Failed to put scalar var \"%s\" short data into output file %d.\n", varname, i);
+              exit(-1);
+            }
+            break;
+          case NC_INT:
+            status = nc_put_var_int(ncids[i], varid, ip);
+            if (status != NC_NOERR) {
+              fprintf(stderr, "Error. Failed to put scalar var \"%s\" int data into output file %d.\n", varname, i);
+              exit(-1);
+            }
+            break;
+          case NC_FLOAT:
+            status = nc_put_var_float(ncids[i], varid, fp);
+            if (status != NC_NOERR) {
+              fprintf(stderr, "Error. Failed to put scalar var \"%s\" float data into output file %d.\n", varname, i);
+              exit(-1);
+            }
+            break;
+          case NC_DOUBLE:
+            status = nc_put_var_double(ncids[i], varid, dp);
+            if (status != NC_NOERR) {
+              fprintf(stderr, "Error. Failed to put scalar var \"%s\" double data into output file %d.\n", varname, i);
+              exit(-1);
+            }
+            break;
+          }
+        }
 			}
 		}
 	}
@@ -1079,8 +989,10 @@ void putvar_even(int nc, int *ncids, int ndims, int nvars, int *scatterdims, mns
 				}
 			}
 
-			if (opt->verbose)
-				fprintf(stdout, "Reading variable %s, record %d.\n", varname, reci);
+			if (opt->verbose) {
+				fprintf(stdout, "Info: Reading variable \"%s\", record %d.\n", varname, reci);
+			  fflush(stdout);
+		  }
 			
 			/*printsizetarray(instart, ndimvar);
 				printsizetarray(count, ndimvar);*/
@@ -1126,50 +1038,49 @@ void putvar_even(int nc, int *ncids, int ndims, int nvars, int *scatterdims, mns
 				break;
 			}
 			
-			for(yi=0; yi < opt->ny; ++yi) {
-				for(xi=0; xi < opt->nx; ++xi) {
-					i = yi*opt->nx + xi;
+			for(yi=0; yi < ny; ++yi) {
+				for(xi=0; xi < nx; ++xi) {
+					i = yi*nx + xi;
 					
 					for(dimi=1; dimi < ndimvar; ++dimi) {
-						switch(scatterdims[dimids[dimi]]) {
+            scatdim = scatterdims[dimids[dimi]];
+            if (scatdim == NULL) continue;
+
+						switch(scatdim->scatter_type) {
 						case NOSCATTER:
 							instart[dimi] = 0;
-							count[dimi] = dimlen[dimids[dimi]];
+							count[dimi] = scatdim->len;
 							break;
 						case SCATTERX:
-							if (xi == 0) {
-								newlen = dimlen_even(xi, dimlen[dimids[dimi]], opt->nx);
-								instart[dimi] = 0;
-							} else {
-								newlen = dimlen_even(xi-1, dimlen[dimids[dimi]], opt->nx);
-								instart[dimi] = newlen*xi;
-								
-							}
-							count[dimi] = newlen;
-							break;
-							
+              instart[dimi] = scatdim->scatter_start[xi];
+							count[dimi] = scatdim->scatter_len[xi];
+							break;							
 						case SCATTERY:
-							if (yi == 0) {
-								newlen = dimlen_even(yi, dimlen[dimids[dimi]], opt->ny);
-								instart[dimi] = 0;
-							} else {
-								newlen = dimlen_even(yi-1, dimlen[dimids[dimi]], opt->ny);
-								instart[dimi] = newlen*yi;
-								
-							}
-							count[dimi] = newlen;
+              instart[dimi] = scatdim->scatter_start[yi];
+							count[dimi] = scatdim->scatter_len[yi];
 							break;
-
 						}
 					}
 					
-					if (opt->verbose)
-						fprintf(stdout, "Dicing variable %s, record %d\n", varname, reci);
+					if (opt->verbose) {
+            fprintf(stdout, "Info: Performing hyperslab copy into file %d.\n", i+opt->start);
+            fprintf(stdout, "Info:   var = \"%s\"\n", varname);
+            fprintf(stdout, "Info:   start = ");
+            printsizetarray(instart, ndimvar);
+            fprintf(stdout, "Info:   count = ");
+            printsizetarray(count, ndimvar);
+            fprintf(stdout, "Info:   outstart = ");
+            printsizetarray(outstart, ndimvar);
+            fflush(stdout);
+					}
 
 					hyperslabcopy(type, dimlen, dimids, instart, count, ndimvar == 1?0:ndimvar, tp, sp, ip, fp, dp, otp, osp, oip, ofp, odp); 						
 
-					if (opt->verbose)
-						fprintf(stdout, "Writing variable %s, record %d\n", varname, reci);
+					if (opt->verbose) {
+						fprintf(stdout, "Info: Writing variable \"%s\", record %d\n", varname, reci);
+						fflush(stdout);
+					}
+					
 					switch(type) {
 					case NC_BYTE: case NC_CHAR:
 						status = nc_put_vara_text(ncids[i], varid, outstart, count, otp);
@@ -1223,10 +1134,98 @@ void putvar_even(int nc, int *ncids, int ndims, int nvars, int *scatterdims, mns
 	free( dp);
 	free(odp);
 }
-int mppncscatter(mnsopts* popts) 
+/*-------------------------------------------------------------------*/
+void scatter_dims(int nc, int ndims, int nvars, ScatterDim* scatterdims[], mnsopts* opt) {
+  /* Populate scatter types and num divisions. */
+  get_scatter_dims(nc, ndims, nvars, scatterdims, opt);
+  
+  /* Compute scatter indices. */
+  get_scatter_extents(scatterdims, ndims);
+  
+  /* Convert to io_layout. */
+  if (opt->nxio && opt->nyio) {
+    if (opt->nx % opt->nxio) {
+      fprintf(stderr, "Error: x divisions are not wholly divisble by io-layout x divisions (%d/%d=%g). Aborting.\n", opt->nx, opt->nxio, ((float)opt->nx)/opt->nxio); 
+      exit(1);  
+    }
+
+    if (opt->ny % opt->nyio) {
+      fprintf(stderr, "Error: y divisions are not wholly divisble by io-layout y divisions (%d/%d=%g). Aborting.\n", opt->ny, opt->nyio, ((float)opt->ny)/opt->nyio); 
+      exit(1);  
+    }
+    
+    get_scatter_extents_iolayout(scatterdims, ndims, opt->nxio, opt->nyio);
+  }
+  
+  if (opt->verbose) {
+    print_scatter_dims(scatterdims, ndims);
+  }
+}
+/*-------------------------------------------------------------------*/
+/*
+In:
+  isg: Start index for all tiles.
+  ieg: End index for all tiles.
+  ndivs: Number of tiles.
+
+Out:
+  start:  Start indices of symmetric tiling.
+          Must be pre-allocated array of size ndivs.
+  end:  End indices of symmetric tiling.
+        Must be pre-allocated array of size ndivs.
+*/
+void mpp_compute_extent(size_t isg, size_t ieg, size_t ndivs, size_t* start, size_t* end) {
+  size_t n = ieg - isg + 1;
+  size_t iss = isg;
+  size_t ndiv, imax, ndmax, ie, ndmirror;
+  char symmetrize;
+  
+  for(ndiv=0; ndiv < ndivs; ++ndiv) {
+    symmetrize = ( EVEN(ndivs) && EVEN(n) ) ||
+      ( ODD(ndivs) && ODD(n) ) ||
+      ( ODD(ndivs) && EVEN(n) && (ndivs < (n/2)) );
+      
+    if (ndiv == 0) {
+      imax = ieg;
+      ndmax = ndivs;
+    }
+    
+    if ( ndiv < ((ndivs-1)/2+1) ) {
+      ie = iss + ceil( ((float)(imax-iss+1.0))/(ndmax-ndiv) ) - 1;
+      ndmirror = (ndivs-1) - ndiv;
+      if ( (ndmirror > ndiv) && symmetrize) {
+        start[ndmirror] = MAX( isg+ieg-ie, ie+1 );
+        end[ndmirror]   = MAX( isg+ieg-iss, ie+1 );
+        imax = start[ndmirror] - 1;
+        ndmax = ndmax - 1;
+      }
+    } else {
+      if (symmetrize) {
+        iss = start[ndiv];
+        ie = end[ndiv];
+      } else {
+        ie = iss + ceil( ((float)(imax-iss+1.0))/(ndmax-ndiv) ) - 1;
+      }
+    }
+
+    start[ndiv] = iss;
+    end[ndiv] = ie;
+
+    if (ie < iss) {
+      fprintf(stderr, "Error: %s/%d: domain extents must be positive definite. \"ie\"=%zu, \"iss\"=%zu\n", __FILE__, __LINE__, ie, iss);
+    }
+    if ( (ndiv == (ndivs-1)) && (end[ndiv] != ieg) ) {
+      fprintf(stderr, "Error: %s/%d: domain extents do not span space completely.\n", __FILE__, __LINE__);
+    }
+    
+    iss = ie + 1;
+  }
+}
+/*-------------------------------------------------------------------*/
+int mppncscatter(mnsopts* opts) 
 {
 	int status = 0;
-	int nfiles = popts->nx * popts->ny; 
+	int nfiles = 0; /* number of output files. */
 	int nc; /* input file id. */
 	int *ncids = NULL; /* store ncid for output files. */
 	int i,j,k;
@@ -1237,15 +1236,15 @@ int mppncscatter(mnsopts* popts)
 	int natts, ngatts, ndims, nvars, unlimdimid;
 	nc_type type;
 	size_t len;
-	int scatterdims[NC_MAX_DIMS];
-	int *scatterlenx = NULL;
-	int *scatterleny = NULL; /* Stores subdomain dim sizes for each output file. */
+  ScatterDim * scatterdims[NC_MAX_DIMS];
 	char name[NC_MAX_NAME];
-
-	ncids = (int*)malloc(sizeof(int)*nfiles);
-
+  char outnameformat[256]; /* Format string for creating out filenames. */
+  char dryrun = opts->dryrun;
+  char verbose = opts->verbose;
+  
+  /*-------------------------------------------------*/
 	/* Strip path in file name for output file names. */
-	prefix = popts->filein;
+	prefix = opts->filein;
 	pchar = strstr(prefix, "/");
 	if (pchar != NULL) {
 		do {
@@ -1253,110 +1252,157 @@ int mppncscatter(mnsopts* popts)
 		} while(pchar = strstr(prefix, "/"));
 	}
 
-	status = nc_open(popts->filein, NC_NOWRITE, &nc);
+  /*-------------------------------------------------*/
+  /* Get basic input file info. */
+	status = nc_open(opts->filein, NC_NOWRITE, &nc);
 	if (status != NC_NOERR) {
-		fprintf(stderr, "Error. Failed to open input file.\n");
+		fprintf(stderr, "Error: %s/%d: Failed to open input file \"%s\". Aborting.\n", __FILE__, __LINE__, opts->filein);
 		return -1;
 	}
 
 	status = nc_inq(nc, &ndims, &nvars, &ngatts, &unlimdimid);
 	if (status != NC_NOERR) {
-		fprintf(stderr, "Error. Failed to query general info for input file.\n");
+		fprintf(stderr, "Error: %s/%d: Failed to query general info for input file. Aborting.\n", __FILE__, __LINE__);
 		return -1;
 	}
 
 	status = nc_inq_format(nc, &format);
 	if (status != NC_NOERR) {
-		fprintf(stderr, "Error. Failed to query input file format.\n");
+		fprintf(stderr, "Error: %s/%d: Failed to query input file format. Aborting.\n", __FILE__, __LINE__);
 		return -1;
 	}
 
+  switch(format) {
+    case NC_FORMAT_64BIT:
+      format = NC_64BIT_OFFSET;
+      break;
+    case NC_FORMAT_NETCDF4:
+      format = NC_NETCDF4;
+      break;
+    case NC_FORMAT_NETCDF4_CLASSIC:
+      format = NC_CLASSIC_MODEL | NC_NETCDF4;
+      break;
+    case NC_FORMAT_CLASSIC:
+    default:
+      format = 0;
+      break;
+  }
+  
+  /*-------------------------------------------------*/
+  if (opts->prefix) 
+    i = strlen(opts->prefix);
+  else
+    i = 0;
+  
+  sprintf(outnameformat, "%s%s%%s.%%0%dd", ((i>0) ? opts->prefix : ""), ((i>0) ? "/" : ""), opts->width);
+  
+  /*-------------------------------------------------*/
+  scatter_dims(nc, ndims, nvars, scatterdims, opts);
+  
+  nfiles = get_num_files(opts);
+	ncids = XMALLOC(int, nfiles);
+  
 	for(i=0; i < nfiles; ++i) {
-		if (sprintf(output, "%s.%04d", prefix, i+popts->start) < 1) {
-			fprintf(stderr, "Error. Failed to create output file name.\n");
+		if (sprintf(output, outnameformat, prefix, i+opts->start) < 1) {
+			fprintf(stderr, "Error: %s/%d: Failed to create output file name. Aborting.\n", __FILE__, __LINE__);
 			return -1;
 		}
-		status = nc_create(output, NC_CLOBBER | format, &ncids[i]);
-		if (status != NC_NOERR) {
-			fprintf(stderr, "Error. Failed to create output file %s.\n", output);
-			return -1;
-		}
-		status = nc_set_fill(ncids[i], NC_NOFILL, &dummy);
-		if (status != NC_NOERR) {
-			fprintf(stderr, "Error. Failed to disable prefill for output file %s.\n", output);
-			return -1;
-		}
+    
+    if (verbose) {
+      fprintf(stdout, "Info: Creating file \"%s\".\n", output);
+      fflush(stdout);
+    }
+      
+    if (!dryrun) {
+      status = nc_create(output, NC_CLOBBER | format, &ncids[i]);
+      if (status != NC_NOERR) {
+        fprintf(stderr, "Error: %s/%d: Failed to create output file \"%s\". Aborting.\n",  __FILE__, __LINE__, output);
+        return -1;
+      }
+    
+      status = nc_set_fill(ncids[i], NC_NOFILL, &dummy);
+      if (status != NC_NOERR) {
+        fprintf(stderr, "Error: %s/%d: Failed to disable prefill for output file \"%s\". Aborting.\n",  __FILE__, __LINE__, output);
+        return -1;
+      }
 
-		status = nc_put_att_int(ncids[i], NC_GLOBAL, "NumFilesInSet", NC_INT, 1, &nfiles);
-		if (status != NC_NOERR) {
-			fprintf(stderr, "Error. Failed to add global attribute \"NumFilesInSet\" to output file %s.\n", output);
-			return -1;
-		}
+      status = nc_put_att_int(ncids[i], NC_GLOBAL, "NumFilesInSet", NC_INT, 1, &nfiles);
+      if (status != NC_NOERR) {
+        fprintf(stderr, "Error: %s/%d: Failed to add global attribute \"NumFilesInSet\" to output file \"%s\". Aborting.\n", __FILE__, __LINE__, output);
+        return -1;
+      }
+    }
 	}	
  
+  /*-------------------------------------------------------*/
 	/* Copy all global attributes. */
-	for(j=0; j < ngatts; ++j) {
-		for(i=0; i < nfiles; ++i) {
-			status = nc_inq_attname(nc, NC_GLOBAL, j, name);
-			if (status != NC_NOERR) {
-				fprintf(stderr, "Error. Failed to get global attribute name from input file.\n");
-				return -1;
-			}
+  if (!dryrun) {
+    for(j=0; j < ngatts; ++j) {
+      for(i=0; i < nfiles; ++i) {
+        status = nc_inq_attname(nc, NC_GLOBAL, j, name);
+        if (status != NC_NOERR) {
+          fprintf(stderr, "Error. Failed to get global attribute name from input file.\n");
+          return -1;
+        }
 
-			status = nc_copy_att(nc, NC_GLOBAL, name, ncids[i], NC_GLOBAL);
-			if (status != NC_NOERR) {
-				fprintf(stderr, "Error. Failed to copy global attribute to output file %04d.\n", i);
-				return -1;
-			}
-		}
+        status = nc_copy_att(nc, NC_GLOBAL, name, ncids[i], NC_GLOBAL);
+        if (status != NC_NOERR) {
+          fprintf(stderr, "Error. Failed to copy global attribute to output file %04d.\n", i);
+          return -1;
+        }
+      }
+    }
+  }
+  
+  if (verbose) {
+		fprintf(stdout, "Info: Defining output dimensions.\n");
+		fflush(stdout);
 	}
+	
+	def_dim(nc, ncids, ndims, scatterdims, opts);
 
-	getscatterdims(nc, ndims, nvars, scatterdims, popts);
+	if (verbose) {
+		fprintf(stdout, "Info: Defining output variables.\n");
+		fflush(stdout);
+	}
+	
+	def_var(nc, ncids, nvars, ndims, scatterdims, opts);
 
-	if (popts->verbose)
-		fprintf(stdout, "Defining output dimensions.\n");
+	if (verbose) {
+		fprintf(stdout, "Info: Ending define mode.\n");
+		fflush(stdout);
+	}
+	
+  if (!dryrun) {
+    for(i=0; i < nfiles; ++i)
+      nc_enddef(ncids[i]);
+  }
+  
+	put_var(nc, ncids, ndims, nvars, scatterdims, opts);
 
-	defdim_even(nc, ncids, ndims, scatterdims, popts);
-
-	if (popts->verbose)
-		fprintf(stdout, "Defining output variables.\n");
-
-	defvar_even(nc, ncids, nvars, ndims, scatterdims, popts);
-
-	if (popts->verbose)
-		fprintf(stdout, "Ending define mode.\n");
-
-	for(i=0; i < nfiles; ++i)
-		nc_enddef(ncids[i]);
-
-	putvar_even(nc, ncids, ndims, nvars, scatterdims, popts);
-
+	if (verbose) {
+		fprintf(stdout, "Info: Closing files.\n");
+		fflush(stdout);
+	}
+	
 	nc_close(nc);
-	for(i=0; i < nfiles; ++i)
-		nc_close(ncids[i]);
+  
+  if (!dryrun) {
+    for(i=0; i < nfiles; ++i)
+      nc_close(ncids[i]);
+  }
+
+	if (verbose) {
+		fprintf(stdout, "Info: Freeing memory.\n");
+		fflush(stdout);
+	}
 
 	if (ncids != NULL)
 		free(ncids);
 
+  free_scatter_dims(scatterdims, ndims);
+
 	return 0;
 }
-int
-main(int argc, char** argv)
-{
-	int status;
-	mnsopts opts;
 
-	status = 0;
-
-	initmnsopts(&opts);
-	
-	/* parse command-line args.  */
-	status = getmnsopts(argc, argv, &opts);
-	
-	status = status ? status : mppncscatter(&opts);               
-	
-	freemnsopts(&opts);
-	
-	return status;
-} 
 

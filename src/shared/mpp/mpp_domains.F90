@@ -174,7 +174,7 @@ module mpp_domains_mod
   public :: mpp_get_tile_id, mpp_get_domain_extents, mpp_get_current_ntile, mpp_get_ntile_count
   public :: mpp_get_refine_overlap_number, mpp_get_mosaic_refine_overlap
   public :: mpp_get_tile_list
-  public :: mpp_get_tile_npes, mpp_get_domain_root_pe
+  public :: mpp_get_tile_npes, mpp_get_domain_root_pe, mpp_get_tile_pelist, mpp_get_tile_compute_domains
   public :: mpp_get_num_overlap, mpp_get_overlap
   public :: mpp_get_io_domain, mpp_get_domain_pe, mpp_get_domain_tile_root_pe
   public :: mpp_get_domain_name, mpp_get_io_domain_layout
@@ -241,6 +241,8 @@ module mpp_domains_mod
      private
      integer                  :: count = 0                 ! number of ovrelapping
      integer                  :: pe
+     integer                  :: start_pos                 ! start position in the buffer
+     integer                  :: totsize                   ! all message size
      integer ,        pointer :: msgsize(:)      => NULL() ! overlapping msgsize to be sent or received
      integer,         pointer :: tileMe(:)       => NULL() ! my tile id for this overlap
      integer,         pointer :: tileNbr(:)      => NULL() ! neighbor tile id for this overlap
@@ -264,10 +266,11 @@ module mpp_domains_mod
      integer                     :: whalo, ehalo, shalo, nhalo ! halo size
      integer                     :: xbegin, xend, ybegin, yend
      integer                     :: nsend, nrecv
+     integer                     :: sendsize, recvsize
      type(overlap_type), pointer :: send(:) => NULL()
      type(overlap_type), pointer :: recv(:) => NULL()
      type(refineSpec),   pointer :: rSpec(:)=> NULL()
-     type(overlapSpec),  pointer :: next => NULL()
+     type(overlapSpec),  pointer :: next
   end type overlapSpec
 
   type tile_type
@@ -361,7 +364,7 @@ module mpp_domains_mod
      integer                     :: extra_halo
      type(overlap_type), pointer :: send(:) => NULL()
      type(overlap_type), pointer :: recv(:) => NULL()
-     type(nestSpec),     pointer :: next => NULL()
+     type(nestSpec),     pointer :: next
 
   end type nestSpec
 
@@ -457,6 +460,8 @@ module mpp_domains_mod
      integer, dimension(MAX_REQUEST) :: request_recv
      integer, dimension(MAX_REQUEST) :: size_recv
      integer, dimension(MAX_REQUEST) :: type_recv
+     integer, dimension(MAX_REQUEST) :: buffer_pos_send
+     integer, dimension(MAX_REQUEST) :: buffer_pos_recv
      integer(LONG_KIND)              :: field_addrs(MAX_DOMAIN_FIELDS)
      integer(LONG_KIND)              :: field_addrs2(MAX_DOMAIN_FIELDS)
      integer                         :: nfields 
@@ -533,8 +538,8 @@ module mpp_domains_mod
   logical :: domain_clocks_on=.FALSE.
   integer :: send_clock=0, recv_clock=0, unpk_clock=0
   integer :: wait_clock=0, pack_clock=0
-  integer :: send_clock_nonblock=0, recv_clock_nonblock=0, unpk_clock_nonblock=0
-  integer :: wait_clock_nonblock=0, pack_clock_nonblock=0  
+  integer :: send_pack_clock_nonblock=0, recv_clock_nonblock=0, unpk_clock_nonblock=0
+  integer :: wait_clock_nonblock=0  
   integer :: nest_send_clock=0, nest_recv_clock=0, nest_unpk_clock=0
   integer :: nest_wait_clock=0, nest_pack_clock=0
 
@@ -1711,21 +1716,21 @@ end interface
   interface mpp_get_boundary
      module procedure mpp_get_boundary_r8_2d
      module procedure mpp_get_boundary_r8_3d
-     module procedure mpp_get_boundary_r8_4d
-     module procedure mpp_get_boundary_r8_5d
+!     module procedure mpp_get_boundary_r8_4d
+!     module procedure mpp_get_boundary_r8_5d
      module procedure mpp_get_boundary_r8_2dv
      module procedure mpp_get_boundary_r8_3dv
-     module procedure mpp_get_boundary_r8_4dv
-     module procedure mpp_get_boundary_r8_5dv
+!     module procedure mpp_get_boundary_r8_4dv
+!     module procedure mpp_get_boundary_r8_5dv
 #ifdef OVERLOAD_R4
      module procedure mpp_get_boundary_r4_2d
      module procedure mpp_get_boundary_r4_3d
-     module procedure mpp_get_boundary_r4_4d
-     module procedure mpp_get_boundary_r4_5d
+!     module procedure mpp_get_boundary_r4_4d
+!     module procedure mpp_get_boundary_r4_5d
      module procedure mpp_get_boundary_r4_2dv
      module procedure mpp_get_boundary_r4_3dv
-     module procedure mpp_get_boundary_r4_4dv
-     module procedure mpp_get_boundary_r4_5dv
+!     module procedure mpp_get_boundary_r4_4dv
+!     module procedure mpp_get_boundary_r4_5dv
 #endif
   end interface
 
@@ -2458,9 +2463,9 @@ end interface
 
   !--- version information variables
   character(len=128), public :: version= &
-       '$Id: mpp_domains.F90,v 19.0.2.1.2.3.2.1 2012/05/15 19:13:31 z1l Exp $'
+       '$Id: mpp_domains.F90,v 20.0 2013/12/14 00:22:42 fms Exp $'
   character(len=128), public :: tagname= &
-       '$Name: siena_201207 $'
+       '$Name: tikal $'
 
 
 contains

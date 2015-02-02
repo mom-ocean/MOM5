@@ -285,8 +285,8 @@ logical :: module_is_initialized = .FALSE.
 logical :: used
 
 !---- version number -----
-character(len=128) :: version = '$Id: atmos_carbon_aerosol.F90,v 19.0 2012/01/06 20:29:40 fms Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: atmos_carbon_aerosol.F90,v 20.0 2013/12/13 23:23:44 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 !-----------------------------------------------------------------------
 
 type(time_type)                        :: bcff_time
@@ -317,7 +317,7 @@ subroutine atmos_carbon_aerosol_driver(lon, lat, ocn_flx_fraction,  &
                                omphob, omphob_dt, &
                                omphil, omphil_dt, &
                                oh_conc,&
-                               model_time, is, ie, js, je )
+                               diag_time, is, ie, js, je )
 
 !-----------------------------------------------------------------------
    real, intent(in),  dimension(:,:)   :: lon, lat
@@ -331,7 +331,7 @@ subroutine atmos_carbon_aerosol_driver(lon, lat, ocn_flx_fraction,  &
    real, intent(in),  dimension(:,:,:) :: oh_conc
    real, intent(out), dimension(:,:,:) :: bcphob_dt,bcphil_dt
    real, intent(out), dimension(:,:,:) :: omphob_dt,omphil_dt
-type(time_type), intent(in)            :: model_time
+type(time_type), intent(in)            :: diag_time
 integer, intent(in)                    :: is, ie, js, je
 !-----------------------------------------------------------------------
 
@@ -793,7 +793,7 @@ real,dimension(size(bcphob,1),size(bcphob,2),size(bcphob,3)) ::zzz1,  &
                                                        bcphil_emis(:,:,k)
         end do
 
-        used = send_data ( id_bc_emis_col, bc_emis, model_time, &
+        used = send_data ( id_bc_emis_col, bc_emis, diag_time, &
               is_in=is,js_in=js)
       endif
  
@@ -806,7 +806,7 @@ real,dimension(size(bcphob,1),size(bcphob,2),size(bcphob,3)) ::zzz1,  &
                                                        omphil_emis(:,:,k)
         end do
 
-        used = send_data ( id_om_emis_col, om_emis, model_time, &
+        used = send_data ( id_om_emis_col, om_emis, diag_time, &
               is_in=is,js_in=js)
       endif
 
@@ -821,7 +821,7 @@ real,dimension(size(bcphob,1),size(bcphob,2),size(bcphob,3)) ::zzz1,  &
           bc_emis(:,:) = bc_emis(:,:) + pwt(:,:,k)*&
                                (bcphob_emis(:,:,k) + bcphil_emis(:,:,k))
         end do
-        used = send_data ( id_bc_emis_colv2, bc_emis, model_time, &
+        used = send_data ( id_bc_emis_colv2, bc_emis, diag_time, &
               is_in=is,js_in=js)
       endif
  
@@ -833,90 +833,90 @@ real,dimension(size(bcphob,1),size(bcphob,2),size(bcphob,3)) ::zzz1,  &
           om_emis(:,:) = om_emis(:,:) + pwt(:,:,k)* &
                                (omphob_emis(:,:,k) + omphil_emis(:,:,k))
         end do
-        used = send_data ( id_om_emis_colv2, om_emis, model_time, &
+        used = send_data ( id_om_emis_colv2, om_emis, diag_time, &
               is_in=is,js_in=js)
       endif
 
 !-----------------------------------------------------------------
 
       if (id_bcphob_emis > 0) then
-        used = send_data ( id_bcphob_emis, bcphob_emis, model_time, &
+        used = send_data ( id_bcphob_emis, bcphob_emis, diag_time, &
               is_in=is,js_in=js,ks_in=1)
       endif
       if (id_bcphil_emis > 0) then
-        used = send_data ( id_bcphil_emis, bcphil_emis, model_time, &
+        used = send_data ( id_bcphil_emis, bcphil_emis, diag_time, &
               is_in=is,js_in=js,ks_in=1)
       endif
       if (id_omphob_emis > 0) then
-        used = send_data ( id_omphob_emis, omphob_emis, model_time, &
+        used = send_data ( id_omphob_emis, omphob_emis, diag_time, &
               is_in=is,js_in=js,ks_in=1)
       endif
       if (id_omphil_emis > 0) then
-        used = send_data ( id_omphil_emis, omphil_emis, model_time, &
+        used = send_data ( id_omphil_emis, omphil_emis, diag_time, &
               is_in=is,js_in=js,ks_in=1)
       endif
       if (id_bcphob_sink > 0) then
-        used = send_data ( id_bcphob_sink, bcphob_sink, model_time, &
+        used = send_data ( id_bcphob_sink, bcphob_sink, diag_time, &
               is_in=is,js_in=js,ks_in=1)
       endif
       if (id_omphob_sink > 0) then
-        used = send_data ( id_omphob_sink, omphob_sink, model_time, &
+        used = send_data ( id_omphob_sink, omphob_sink, diag_time, &
               is_in=is,js_in=js,ks_in=1)
       endif
       if (id_bcemisbf > 0) then
-        used = send_data ( id_bcemisbf, bcemisbf, model_time, &
+        used = send_data ( id_bcemisbf, bcemisbf, diag_time, &
               is_in=is,js_in=js)
       endif
       if (id_emisbb > 0) then
-        used = send_data ( id_emisbb, emisob, model_time, &
+        used = send_data ( id_emisbb, emisob, diag_time, &
               is_in=is,js_in=js)
       endif
       if (id_omemisbb_col > 0) then
-        used = send_data ( id_omemisbb_col, omemisob_2d, model_time, &
+        used = send_data ( id_omemisbb_col, omemisob_2d, diag_time, &
               is_in=is,js_in=js)
       endif
       if (id_bcemisbb > 0) then
-        used = send_data ( id_bcemisbb, bcemisob, model_time, &
+        used = send_data ( id_bcemisbb, bcemisob, diag_time, &
               is_in=is,js_in=js,ks_in=1)
       endif
       if (id_bcemissh > 0) then
-        used = send_data ( id_bcemissh, bcemissh, model_time, &
+        used = send_data ( id_bcemissh, bcemissh, diag_time, &
               is_in=is,js_in=js)
       endif
       if (id_bcemisff > 0) then
-        used = send_data ( id_bcemisff, bcemisff, model_time, &
+        used = send_data ( id_bcemisff, bcemisff, diag_time, &
               is_in=is,js_in=js,ks_in=1)
       endif
       if (id_bcemisav > 0) then
-        used = send_data ( id_bcemisav, bcemisav*bc_aircraft_EI, model_time, &
+        used = send_data ( id_bcemisav, bcemisav*bc_aircraft_EI, diag_time, &
               is_in=is,js_in=js,ks_in=1)
       endif
       if (id_omemisbf > 0) then
-        used = send_data ( id_omemisbf, omemisbf, model_time, &
+        used = send_data ( id_omemisbf, omemisbf, diag_time, &
               is_in=is,js_in=js)
       endif
       if (id_omemisbb > 0) then
-        used = send_data ( id_omemisbb, omemisob, model_time, &
+        used = send_data ( id_omemisbb, omemisob, diag_time, &
               is_in=is,js_in=js,ks_in=1)
       endif
       if (id_omemissh > 0) then
-        used = send_data ( id_omemissh, omemissh, model_time, &
+        used = send_data ( id_omemissh, omemissh, diag_time, &
               is_in=is,js_in=js)
       endif
       if (id_omemisff > 0) then
-        used = send_data ( id_omemisff, omemisff, model_time, &
+        used = send_data ( id_omemisff, omemisff, diag_time, &
               is_in=is,js_in=js,ks_in=1)
       endif
       if (id_omemisbg > 0) then
-        used = send_data ( id_omemisbg, omemisbg, model_time, &
+        used = send_data ( id_omemisbg, omemisbg, diag_time, &
               is_in=is,js_in=js)
       endif
       if (id_omemisoc > 0) then
-        used = send_data ( id_omemisoc, omemisocean, model_time, &
+        used = send_data ( id_omemisoc, omemisocean, diag_time, &
               is_in=is,js_in=js)
       endif
       if (id_bc_tau > 0) then
-        used = send_data ( id_bc_tau, bc_tau, model_time, &
+        used = send_data ( id_bc_tau, bc_tau, diag_time, &
               is_in=is,js_in=js,ks_in=1)
       endif
 !

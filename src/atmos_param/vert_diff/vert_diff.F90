@@ -54,13 +54,20 @@ type surf_diff_type
 end type surf_diff_type
 
 
-real,    allocatable, dimension(:,:,:) :: e_global, f_t_global, f_q_global 
+real,    allocatable, dimension(:,:,:) :: e_global, f_t_global, f_q_global
+!-->cjg
+real,    allocatable, dimension(:,:,:) :: e_clubb
+!<--cjg
 
 ! storage compartment for tracer vert. diffusion options, and for f
 ! coefficient if necessary
 type :: tracer_data_type
    real, pointer :: f(:,:,:) => NULL() ! f coefficient field
    logical :: do_vert_diff
+!-->cjg: flag for tracers that should be diffused with diff_t_clubb instead of diff_t
+!        i.e. all tracers except sphum, liq_wat, ice_wat, cld_amt, liq_drp, ice_num
+   logical :: do_clubb_diff
+!<--cjg
    logical :: do_surf_exch
 end type tracer_data_type
 ! tracer diffusion options and storage for f coefficients
@@ -70,11 +77,15 @@ type(tracer_data_type), allocatable :: tracers(:)
 logical :: do_conserve_energy = .true.
 logical :: use_virtual_temp_vert_diff, do_mcm_plev
 integer :: sphum, mix_rat
+!-->cjg
+integer :: do_clubb
+integer :: liq_wat, ice_wat, cld_amt, liq_drp, ice_num
+!<--cjg
 
 !--------------------- version number ---------------------------------
 
-character(len=128) :: version = '$Id: vert_diff.F90,v 19.0 2012/01/06 20:27:29 fms Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: vert_diff.F90,v 20.0 2013/12/13 23:22:25 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 logical            :: module_is_initialized = .false.
 
 real, parameter :: d608 = (RVGAS-RDGAS)/RDGAS
@@ -86,13 +97,16 @@ contains
 subroutine vert_diff_init (Tri_surf, idim, jdim, kdim,    &
                                do_conserve_energy_in,         &
                                use_virtual_temp_vert_diff_in, &
-                               do_mcm_plev_in )
+                               do_mcm_plev_in, do_clubb_in )  !cjg
 
  type(surf_diff_type), intent(inout) :: Tri_surf
  integer,              intent(in)    :: idim, jdim, kdim
  logical,              intent(in)    :: do_conserve_energy_in
  logical, optional,    intent(in)    :: use_virtual_temp_vert_diff_in
  logical, optional,    intent(in)    :: do_mcm_plev_in
+!-->cjg
+ integer, optional,    intent(in)    :: do_clubb_in
+!<--cjg
 
  integer :: ntprog ! number of prognostic tracers in the atmosphere
  character(len=32)  :: tr_name ! tracer name
@@ -120,6 +134,20 @@ subroutine vert_diff_init (Tri_surf, idim, jdim, kdim,    &
 
     if(sphum==NO_TRACER) sphum=mix_rat
 
+!-->cjg
+    if (present(do_clubb_in)) then
+         do_clubb = do_clubb_in
+    else
+         do_clubb = 0
+    endif
+
+    liq_wat = get_tracer_index( MODEL_ATMOS, 'liq_wat')
+    ice_wat = get_tracer_index( MODEL_ATMOS, 'ice_wat')
+    cld_amt = get_tracer_index( MODEL_ATMOS, 'cld_amt')
+    liq_drp = get_tracer_index( MODEL_ATMOS, 'liq_drp')
+    ice_num = get_tracer_index( MODEL_ATMOS, 'ice_num')
+!<--cjg
+
     if(present(use_virtual_temp_vert_diff_in)) then
       use_virtual_temp_vert_diff = use_virtual_temp_vert_diff_in
     else
@@ -141,6 +169,13 @@ subroutine vert_diff_init (Tri_surf, idim, jdim, kdim,    &
     allocate(f_t_global (idim, jdim, kdim-1)) ; f_t_global = 0.0 
     allocate(f_q_global (idim, jdim, kdim-1)) ; f_q_global = 0.0
 
+!-->cjg
+    if (do_clubb > 0) then
+      if (allocated( e_clubb )) deallocate ( e_clubb )
+      allocate( e_clubb (idim, jdim, kdim-1)) ; e_clubb = 0.0
+    end if
+!<--cjg
+
     module_is_initialized = .true.
 
  endif
@@ -157,6 +192,17 @@ subroutine vert_diff_init (Tri_surf, idim, jdim, kdim,    &
     if (query_method('diff_vert',MODEL_ATMOS,n,scheme)) then
        tracers(n)%do_vert_diff = (uppercase(scheme) /= 'NONE')
     endif
+
+    !-->cjg: if clubb is activated, any tracer except should use do_clubb_diff
+    if (do_clubb > 0 .and. (n/=sphum .and. n/=liq_wat .and. n/=ice_wat .and.   &
+                        n/=cld_amt .and. n/=liq_drp .and. n/=ice_num )) then
+      tracers(n)%do_vert_diff = .false.
+      tracers(n)%do_clubb_diff = .true. 
+    else
+      tracers(n)%do_clubb_diff = .false. 
+    endif
+    !<--cjg
+
     ! do not exchange tracer with surface if it is not present in either land or
     ! ice model
     if (n==sphum) then
@@ -251,8 +297,7 @@ subroutine gcm_vert_diff_down (is, js, delt,                &
                           dtau_du, dtau_dv,                 &
                           dt_u, dt_v, dt_t, dt_q, dt_tr,    &
                           dissipative_heat, Tri_surf,       &
-                          kbot                              )
-
+                          diff_t_clubb, kbot                ) !cjg
 integer, intent(in)                        :: is, js
 real,    intent(in)                        :: delt
 real,    intent(in)   , dimension(:,:,:)   :: u, v, t, q,     &
@@ -268,6 +313,9 @@ real,    intent(inout), dimension(:,:,:,:) :: dt_tr
 real,    intent(out)  , dimension(:,:,:)   :: dissipative_heat
 type(surf_diff_type), intent(inout)        :: Tri_surf
 
+!-->cjg
+real,    intent(in)   , dimension(:,:,:), optional :: diff_t_clubb
+!<--cjg
 integer, intent(in)   , dimension(:,:), optional :: kbot
 
 ! ---- local vars
@@ -285,6 +333,13 @@ integer :: i, j, n, kb, ie, je, ntr, nlev
   if(.not. module_is_initialized) call error_mesg ('gcm_vert_diff_down in vert_diff_mod',  &
       'the initialization routine gcm_vert_diff_init has not been called', &
        FATAL)
+
+!-->cjg
+ if(do_clubb > 0 .and. .not.present(diff_t_clubb)) then
+     call error_mesg ('gcm_vert_diff_down in vert_diff_mod',  &
+     'diff_t_clubb must be present when do_clubb > 0', FATAL)
+ endif
+!<--cjg
     
  ie = is + size(t,1) -1
  je = js + size(t,2) -1
@@ -378,6 +433,64 @@ integer :: i, j, n, kb, ie, je, ntr, nlev
     Tri_surf%delta_u (is:ie,js:je) = delta_u_n
     Tri_surf%delta_v (is:ie,js:je) = delta_v_n
 
+!--> cjg
+ ! Perform diffusion for tracers using diff_t_clubb mixing coefficients
+ if (do_clubb > 0) then
+   !  recompute nu for a different diffusivity
+   call compute_nu   (diff_t_clubb, p_half, p_full, z_full, t, q, nu)
+   ! calculate e, the same for all tracers since their diffusivities are 
+   ! the same, and mu_delt_n, nu_n, e_n1
+   call compute_e (delt, mu, nu, e, a, b, c, g)
+   do j = 1,size(mu,2)
+   do i = 1,size(mu,1)
+      kb = nlev ; if(present(kbot)) kb=kbot(i,j)
+      mu_delt_n(i,j) = mu(i,j,kb  )*delt
+           nu_n(i,j) = nu(i,j,kb  )
+           e_n1(i,j) = e (i,j,kb-1)
+   enddo
+   enddo
+
+   do n = 1,ntr
+      ! calculate f_tr, f_tr_delt_n1, delta_tr_n for this tracer
+      if(.not.tracers(n)%do_clubb_diff) cycle ! skip non-diffusive tracers
+      call explicit_tend (mu, nu, tr(:,:,:,n), dt_tr(:,:,:,n))
+      call compute_f (dt_tr(:,:,:,n), b, c, g, f_tr)
+      do j = 1,size(mu,2)
+      do i = 1,size(mu,1)
+         kb = nlev ; if(present(kbot)) kb=kbot(i,j)
+         f_tr_delt_n1(i,j) = f_tr (i,j,kb-1)*delt
+         delta_tr_n(i,j)   = dt_tr(i,j,kb,n)*delt
+      enddo
+      enddo
+
+      ! store information needed by flux_exchange module
+      Tri_surf%delta_tr(is:ie,js:je,n) = &
+           delta_tr_n(:,:) + mu_delt_n(:,:)*nu_n(:,:)*f_tr_delt_n1(:,:)
+      Tri_surf%dflux_tr(is:ie,js:je,n) = -nu_n(:,:)*(1.0 - e_n1(:,:))
+
+      if(tracers(n)%do_surf_exch) then
+         ! store f for future use on upward sweep
+         tracers(n)%f(is:ie,js:je,:) = f_tr(:,:,:)
+      else
+       ! upward sweep of tridaigonal solver for tracers that do not exchange 
+         ! with surface
+         flux_tr  (:,:) = 0.0 ! surface flux of tracer
+         dflux_dtr(:,:) = 0.0 ! d(sfc flux)/d(tr atm)
+         call diff_surface ( &
+              mu_delt_n(:,:), nu_n(:,:), e_n1(:,:), f_tr_delt_n1(:,:), &
+              dflux_dtr(:,:), flux_tr(:,:), 1.0, delta_tr_n(:,:) )
+         call vert_diff_up ( &
+              delt, e(:,:,:), f_tr(:,:,:), delta_tr_n(:,:), dt_tr(:,:,:,n), &
+              kbot )
+      endif
+   enddo
+
+   ! Store e for upward pass
+   e_clubb = e
+
+ endif
+!<--cjg
+
 !-----------------------------------------------------------------------
 
 end subroutine gcm_vert_diff_down
@@ -438,6 +551,14 @@ integer, intent(in),    dimension(:,:), optional :: kbot
                     tracers(n)%f       (is:ie,js:je,:) ,   &
                     Tri_surf%delta_tr  (is:ie,js:je,n) ,   &
                     dt_tr(:,:,:,n), kbot )
+!-->cjg
+    elseif (tracers(n)%do_clubb_diff.and.tracers(n)%do_surf_exch) then
+       call vert_diff_up (delt ,                           &
+                    e_clubb            (is:ie,js:je,:) ,   &
+                    tracers(n)%f       (is:ie,js:je,:) ,   &
+                    Tri_surf%delta_tr  (is:ie,js:je,n) ,   &
+                    dt_tr(:,:,:,n), kbot )
+!<--cjg
     endif
  enddo
 

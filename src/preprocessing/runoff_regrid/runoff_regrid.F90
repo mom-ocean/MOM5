@@ -79,7 +79,7 @@ program runoff_regrid
 
   !--- version information ---------------------------------------------
   character(len=128)   :: version= '$ID$'
-  character(len=128)   :: tagname= '$Name: siena_201205_z1l $'
+  character(len=128)   :: tagname= '$Name: tikal $'
   !--- other variables -------------------------------------------------
   real,    allocatable :: time_value(:)
   real,    allocatable :: runoff(:,:,:), runoff_src(:,:,:)

@@ -17,7 +17,7 @@ implicit none
 private
 
 character(len=128), parameter :: version = '$Id: grid_fourier.F90,v 11.0 2004/09/28 19:30:50 fms Exp $'
-character(len=128), parameter :: tagname = '$Name: siena_201207 $'
+character(len=128), parameter :: tagname = '$Name: tikal $'
 
 public :: grid_fourier_init, grid_fourier_end, trans_grid_to_fourier, trans_fourier_to_grid
 public :: get_lon_max, get_longitude_origin, get_deg_lon

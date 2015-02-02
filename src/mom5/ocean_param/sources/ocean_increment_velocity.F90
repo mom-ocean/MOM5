@@ -93,8 +93,8 @@ type(ocean_grid_type),   pointer :: Grd => NULL()
 public ocean_increment_velocity_init
 public ocean_increment_velocity_source
 
-character(len=126)  :: version = '$Id: ocean_increment_velocity.F90,v 1.1.2.2.12.1 2012/07/27 04:47:06 smg Exp $'
-character (len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
+character(len=126)  :: version = '$Id: ocean_increment_velocity.F90,v 20.0 2013/12/14 00:16:00 fms Exp $'
+character (len=128) :: tagname = '$Name: tikal $'
 
 ! for diagnostics 
 logical :: used

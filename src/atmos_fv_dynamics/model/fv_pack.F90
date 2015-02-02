@@ -169,7 +169,7 @@ module fv_pack
    character(len=24) :: restart_format = 'native'   ! native or netcdf
 
    character(len=128) :: version = '$Id: fv_pack.F90 1.1.2.15.2.2'
-   character(len=128) :: tagname = '$Name: siena_201207 $'
+   character(len=128) :: tagname = '$Name: tikal $'
 
 
 #ifndef USE_LIMA

@@ -112,7 +112,9 @@ src/mom5/ocean_bgc/ocean_generic_tracer.F90
 src/mom5/ocean_bgc/ocmip2_cfc.F90 
 src/mom5/ocean_param/lateral/ocean_lap_friction.F90 
 src/mom5/ocean_param/gotm-4.0/turbulence/cmue_b.F90
-src/ocean_shared/generic_tracers/generic_BLING.F90 
+src/ocean_shared/generic_tracers/generic_BLING.F90
+src/ocean_shared/generic_tracers/generic_miniBLING.F90 
+src/ocean_shared/generic_tracers/generic_COBALT.F90
 src/mom5/ocean_core/ocean_util.F90 
 src/mom5/ocean_core/ocean_parameters.F90
 src/mom5/ocean_param/sources/ocean_overexchange.F90 

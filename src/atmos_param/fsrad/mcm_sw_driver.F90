@@ -27,7 +27,7 @@ implicit none
 
       integer :: kx, kp
       character(len=128) :: version = '$Id: mcm_sw_driver.F90,v 10.0 2003/10/24 22:00:31 fms Exp $'
-      character(len=128) :: tagname = '$Name: siena_201207 $'
+      character(len=128) :: tagname = '$Name: tikal $'
       logical :: module_is_initialized = .false.
 
       public :: mcm_shortwave_driver, mcm_sw_driver_init, &

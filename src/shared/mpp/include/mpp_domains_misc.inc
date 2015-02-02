@@ -54,6 +54,9 @@
       end if
 
       !--- namelist 
+#ifdef INTERNAL_FILE_NML
+      read (input_nml_file, mpp_domains_nml, iostat=io_status)
+#else
       unit_begin = 103
       unit_end   = 512
       do unit_nml = unit_begin, unit_end
@@ -64,6 +67,12 @@
       open(unit_nml,file='input.nml', iostat=io_status)
       read(unit_nml,mpp_domains_nml,iostat=io_status)
       close(unit_nml)
+#endif
+
+      if (io_status > 0) then
+         call mpp_error(FATAL,'=>mpp_domains_init: Error reading input.nml')
+      endif
+
 
       select case(lowercase(trim(debug_update_domain)))
       case("none")
@@ -99,8 +108,7 @@
           recv_clock          = mpp_clock_id( 'Halo recv' )
           unpk_clock          = mpp_clock_id( 'Halo unpk' )
           wait_clock          = mpp_clock_id( 'Halo wait' )
-          pack_clock_nonblock = mpp_clock_id( 'Halo pack nonblock' )
-          send_clock_nonblock = mpp_clock_id( 'Halo send nonblock' )
+          send_pack_clock_nonblock = mpp_clock_id( 'Halo pack and send nonblock' )
           recv_clock_nonblock = mpp_clock_id( 'Halo recv nonblock' )
           unpk_clock_nonblock = mpp_clock_id( 'Halo unpk nonblock' )
           wait_clock_nonblock = mpp_clock_id( 'Halo wait nonblock' )
@@ -140,6 +148,8 @@ subroutine init_nonblock_type( nonblock_obj )
    nonblock_obj%request_send(:)    = 0
    nonblock_obj%request_recv(:)    = 0
 #endif
+   nonblock_obj%buffer_pos_send(:) = 0
+   nonblock_obj%buffer_pos_recv(:) = 0
    nonblock_obj%nfields            = 0
    nonblock_obj%field_addrs(:)     = 0
    nonblock_obj%field_addrs2(:)    = 0
@@ -1668,18 +1678,18 @@ end subroutine init_nonblock_type
 #define MPP_GET_BOUNDARY_2D_ mpp_get_boundary_r8_2d
 #undef MPP_GET_BOUNDARY_3D_
 #define MPP_GET_BOUNDARY_3D_ mpp_get_boundary_r8_3d
-#undef MPP_GET_BOUNDARY_4D_
-#define MPP_GET_BOUNDARY_4D_ mpp_get_boundary_r8_4d
-#undef MPP_GET_BOUNDARY_5D_
-#define MPP_GET_BOUNDARY_5D_ mpp_get_boundary_r8_5d
+!#undef MPP_GET_BOUNDARY_4D_
+!#define MPP_GET_BOUNDARY_4D_ mpp_get_boundary_r8_4d
+!#undef MPP_GET_BOUNDARY_5D_
+!#define MPP_GET_BOUNDARY_5D_ mpp_get_boundary_r8_5d
 #undef MPP_GET_BOUNDARY_2D_V_
 #define MPP_GET_BOUNDARY_2D_V_ mpp_get_boundary_r8_2dv
 #undef MPP_GET_BOUNDARY_3D_V_
 #define MPP_GET_BOUNDARY_3D_V_ mpp_get_boundary_r8_3dv
-#undef MPP_GET_BOUNDARY_4D_V_
-#define MPP_GET_BOUNDARY_4D_V_ mpp_get_boundary_r8_4dv
-#undef MPP_GET_BOUNDARY_5D_V_
-#define MPP_GET_BOUNDARY_5D_V_ mpp_get_boundary_r8_5dv
+!#undef MPP_GET_BOUNDARY_4D_V_
+!#define MPP_GET_BOUNDARY_4D_V_ mpp_get_boundary_r8_4dv
+!#undef MPP_GET_BOUNDARY_5D_V_
+!#define MPP_GET_BOUNDARY_5D_V_ mpp_get_boundary_r8_5dv
 #include <mpp_get_boundary.h>
 
 #ifdef OVERLOAD_R4
@@ -1689,18 +1699,18 @@ end subroutine init_nonblock_type
 #define MPP_GET_BOUNDARY_2D_ mpp_get_boundary_r4_2d
 #undef MPP_GET_BOUNDARY_3D_
 #define MPP_GET_BOUNDARY_3D_ mpp_get_boundary_r4_3d
-#undef MPP_GET_BOUNDARY_4D_
-#define MPP_GET_BOUNDARY_4D_ mpp_get_boundary_r4_4d
-#undef MPP_GET_BOUNDARY_5D_
-#define MPP_GET_BOUNDARY_5D_ mpp_get_boundary_r4_5d
+!#undef MPP_GET_BOUNDARY_4D_
+!#define MPP_GET_BOUNDARY_4D_ mpp_get_boundary_r4_4d
+!#undef MPP_GET_BOUNDARY_5D_
+!#define MPP_GET_BOUNDARY_5D_ mpp_get_boundary_r4_5d
 #undef MPP_GET_BOUNDARY_2D_V_
 #define MPP_GET_BOUNDARY_2D_V_ mpp_get_boundary_r4_2dv
 #undef MPP_GET_BOUNDARY_3D_V_
 #define MPP_GET_BOUNDARY_3D_V_ mpp_get_boundary_r4_3dv
-#undef MPP_GET_BOUNDARY_4D_V_
-#define MPP_GET_BOUNDARY_4D_V_ mpp_get_boundary_r4_4dv
-#undef MPP_GET_BOUNDARY_5D_V_
-#define MPP_GET_BOUNDARY_5D_V_ mpp_get_boundary_r4_5dv
+!#undef MPP_GET_BOUNDARY_4D_V_
+!#define MPP_GET_BOUNDARY_4D_V_ mpp_get_boundary_r4_4dv
+!#undef MPP_GET_BOUNDARY_5D_V_
+!#define MPP_GET_BOUNDARY_5D_V_ mpp_get_boundary_r4_5dv
 #include <mpp_get_boundary.h>
 #endif
 

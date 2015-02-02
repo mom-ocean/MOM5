@@ -223,7 +223,8 @@ contains
  integer, intent(in) :: ncid, varid, xtype
  real,    intent(in) :: missval
 
-  integer :: istat
+  integer :: istatmiss
+  integer :: istatfill
 ! machine dependent data kind
   integer(2) :: imiss2
   integer(4) :: imiss4
@@ -235,21 +236,26 @@ contains
     select case (xtype)
            case (NF90_REAL4)
                 miss4 = missval
-                istat = NF90_PUT_ATT (ncid, varid, 'missing_value', miss4)
+                istatmiss = NF90_PUT_ATT (ncid, varid, 'missing_value', miss4)
+                istatfill = NF90_PUT_ATT (ncid, varid, '_FillValue', miss4)
            case (NF90_INT2)
                 imiss2 = nint(missval)
-                istat = NF90_PUT_ATT (ncid, varid, 'missing_value', imiss2)
+                istatmiss = NF90_PUT_ATT (ncid, varid, 'missing_value', imiss2)
+                istatfill = NF90_PUT_ATT (ncid, varid, '_FillValue', imiss2)
            case (NF90_INT)
                 imiss4 = nint(missval)
-                istat = NF90_PUT_ATT (ncid, varid, 'missing_value', imiss4)
+                istatmiss = NF90_PUT_ATT (ncid, varid, 'missing_value', imiss4)
+                istatfill = NF90_PUT_ATT (ncid, varid, '_FillValue', imiss4)
            case (NF90_REAL8)
                 miss8 = missval
-                istat = NF90_PUT_ATT (ncid, varid, 'missing_value', miss8)
+                istatmiss = NF90_PUT_ATT (ncid, varid, 'missing_value', miss8)
+                istatfill = NF90_PUT_ATT (ncid, varid, '_FillValue', miss8)
            case default
                 call error_handler ('invalid xtype for missing value')
            end select
 
-    if (istat /= NF90_NOERR) call error_handler ('putting missing value', ncode=istat)
+    if (istatmiss /= NF90_NOERR) call error_handler ('putting missing value', ncode=istatmiss)
+    if (istatfill /= NF90_NOERR) call error_handler ('putting fill value', ncode=istatfill)
 
  end subroutine put_missing_value
 

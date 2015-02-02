@@ -14,7 +14,7 @@ implicit none
 private
 
 character(len=128), parameter :: version = '$Id: gauss_and_legendre.F90,v 10.0 2003/10/24 22:01:02 fms Exp $'
-character(len=128), parameter :: tagname ='$Name: siena_201207 $'
+character(len=128), parameter :: tagname ='$Name: tikal $'
 
 logical :: entry_to_logfile_done=.false.
 

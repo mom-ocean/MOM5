@@ -342,9 +342,9 @@ integer :: index_temp=-1
 integer :: index_salt=-1
 
 character(len=128) :: version=&
-     '$Id: ocean_sigma_transport.F90,v 1.1.2.2 2012/05/17 13:41:45 smg Exp $'
+     '$Id: ocean_sigma_transport.F90,v 20.0 2013/12/14 00:14:30 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 integer :: unit=6  
 logical :: module_is_initialized = .FALSE.

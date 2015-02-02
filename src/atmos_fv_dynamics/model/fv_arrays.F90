@@ -150,7 +150,7 @@ module fv_arrays_mod
 !MPI communicator for ypelist
   integer :: commID
 !PSET
-  type(mpp_pset_type),save, public :: pset
+  type(mpp_pset_type), public :: pset
 
   public :: fv_arrays_init, fv_arrays_exit, fv_stack_push, &
        fv_print_chksum, fv_print_chksums, fv_thread_bcast, &

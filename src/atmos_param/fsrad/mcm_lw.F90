@@ -20,7 +20,7 @@
 !------------ VERSION NUMBER ----------------
 
       character(len=128) :: version = '$Id: mcm_lw.F90,v 13.0 2006/03/28 21:09:36 fms Exp $'
-      character(len=128) :: tagname = '$Name: siena_201207 $'
+      character(len=128) :: tagname = '$Name: tikal $'
       logical :: module_is_initialized = .false.
 
       public :: MCM_LW_RAD, mcm_lw_init, mcm_lw_end

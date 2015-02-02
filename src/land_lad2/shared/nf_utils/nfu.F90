@@ -65,8 +65,8 @@ end interface
 ! ---- module constants ------------------------------------------------------
 character(len=*), parameter :: &
      module_name = 'nf_utils_mod', &
-     version     = '$Id: nfu.F90,v 17.0 2009/07/21 03:02:52 fms Exp $', &
-     tagname     = '$Name: siena_201207 $'
+     version     = '$Id: nfu.F90,v 20.0 2013/12/13 23:30:42 fms Exp $', &
+     tagname     = '$Name: tikal $'
 
 ! ---- module types ----------------------------------------------------------
 type nfu_validtype
@@ -87,36 +87,54 @@ contains ! -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 #define __BODY_SECTION__
 ! ============================================================================
-function inq_dim_n(ncid, name, len, dimid) result (iret)
+function inq_dim_n(ncid, name, len, dimid, is_compressed) result (iret)
   integer :: iret
   integer, intent(in) :: ncid
   character(*),intent(in) :: name
   integer, intent(out), optional :: len
   integer, intent(out), optional :: dimid
+  logical, intent(out), optional :: is_compressed
 
-  integer :: id
+  integer :: id,varid,attlen
 
   __NF_TRY__(nf_inq_dimid(ncid,name, id),iret,7)
   if(present(dimid))dimid = id
   if(present(len)) &
        iret = nf_inq_dimlen(ncid,id,len)
+  if (present(is_compressed)) then
+     is_compressed = .FALSE.
+     if (nf_inq_varid(ncid,name,varid)==NF_NOERR) then
+        is_compressed=(nf_inq_attlen(ncid,varid,'compress',attlen)==NF_NOERR)
+     endif        
+  endif
 7 return
 end function
 
 ! ============================================================================
-function inq_dim_i(ncid, id, name, len) result (iret)
+function inq_dim_i(ncid, id, name, len, is_compressed) result (iret)
   integer :: iret
   integer, intent(in) :: ncid
   integer, intent(in) :: id
   character(*), intent(out), optional :: name
   integer     , intent(out), optional :: len
+  logical     , intent(out), optional :: is_compressed
 
+  character(len=NF_MAX_NAME) :: dname
+  integer :: varid,attlen
+
+  __NF_TRY__(nf_inq_dimname(ncid,id,dname),iret,7)
   if(present(name)) then
-     __NF_TRY__(nf_inq_dimname(ncid,id,name),iret,7)
+     name=dname
   endif
   if(present(len)) then
      __NF_TRY__(nf_inq_dimlen(ncid,id,len),iret,7)
   end if
+  if (present(is_compressed)) then
+     is_compressed = .FALSE.
+     if (nf_inq_varid(ncid,dname,varid)==NF_NOERR) then
+        is_compressed=(nf_inq_attlen(ncid,varid,'compress',attlen)==NF_NOERR)
+     endif        
+  endif
 7 return
 end function
 
@@ -707,13 +725,13 @@ function nfu_validtype2ascii(v) result (string)
   type(nfu_validtype), intent(in) :: v
 
   if(v%hasmin.and.v%hasmax) then
-     write(string,'("[",g,",",g,"]")') v%min, v%max
+     write(string,'("[",g23.16,",",g23.16,"]")') v%min, v%max
   else if (v%hasmin) then
-     write(string,'("[",g,")")') v%min
+     write(string,'("[",g23.16,")")') v%min
   else if (v%hasmax) then
-     write(string,'("(",g,"]")') v%max
+     write(string,'("(",g23.16,"]")') v%max
   else 
-     write(string,'("/=",g)') v%min
+     write(string,'("/=",g23.16)') v%min
   endif
 end function
 

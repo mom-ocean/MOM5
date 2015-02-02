@@ -72,8 +72,8 @@ public  wet_deposition,    &
         sjl_fillz
 
 !---- version number -----
-character(len=128) :: version = '$Id: atmos_tracer_utilities.F90,v 19.0 2012/01/06 20:31:32 fms Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: atmos_tracer_utilities.F90,v 20.0 2013/12/13 23:24:13 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 logical :: module_is_initialized = .FALSE.
 
@@ -457,7 +457,7 @@ subroutine write_namelist_values (unit, ntrace)
 !<SUBROUTINE NAME = "dry_deposition">
 subroutine dry_deposition( n, is, js, u, v, T, pwt, pfull, dz, &
                            u_star, landmask, dsinku, tracer, Time, &
-                           lon, half_day, drydep_data)
+                           Time_next, lon, half_day, drydep_data)
 ! When formulation of dry deposition is resolved perhaps use the following?
 !                           landfr, seaice_cn, snow_area, & 
 !                           vegn_cover, vegn_lai, & 
@@ -567,7 +567,7 @@ logical, intent(in), dimension(:,:) :: landmask
 !real, intent(in), dimension(:,:)    :: landfr, z_pbl, b_star, rough_mom
 !real, intent(in), dimension(:,:)    :: seaice_cn, snow_area, vegn_cover,  &
 !                                       vegn_lai
-type(time_type), intent(in)         :: Time
+type(time_type), intent(in)         :: Time, Time_next
 type(interpolate_type),intent(inout)  :: drydep_data
 real, intent(out), dimension(:,:)   :: dsinku
 
@@ -791,7 +791,7 @@ endwhere
         case default
           diag_scale = 1.
       end select
-      used = send_data ( id_tracer_ddep(n), dsinku*pwt/diag_scale, Time, &
+      used = send_data ( id_tracer_ddep(n), dsinku*pwt/diag_scale, Time_next, &
           is_in =is,js_in=js)
     endif
     if (id_tracer_ddep_cmip(n) > 0 ) then
@@ -808,11 +808,11 @@ endwhere
         case default
           diag_scale = 1.
         end select
-       used = send_data ( id_tracer_ddep_cmip(n), dsinku*pwt/diag_scale,Time, &
+       used = send_data ( id_tracer_ddep_cmip(n), dsinku*pwt/diag_scale,Time_next, &
            is_in =is,js_in=js)
     endif
     if (id_tracer_dvel(n) > 0 ) then
-      used = send_data ( id_tracer_dvel(n), drydep_vel, Time, &
+      used = send_data ( id_tracer_dvel(n), drydep_vel, Time_next, &
           is_in =is,js_in=js)
     end if
 end subroutine dry_deposition
@@ -1955,12 +1955,12 @@ end subroutine GET_RH
 ! ######################################################################
 !
 subroutine get_w10m(z_full, u, v, rough_mom,u_star, b_star, q_star, &
-       w10m_ocean, w10m_land, Time, is,js)
+       w10m_ocean, w10m_land, Time_next, is,js)
 
 real, intent(in),    dimension(:,:) :: z_full, u, v
 real, intent(in),    dimension(:,:)   :: rough_mom
 real, intent(in),    dimension(:,:)   :: u_star, b_star, q_star
-type(time_type), intent(in)           :: Time
+type(time_type), intent(in)           :: Time_next
 integer, intent(in)                   :: is,js
 
 logical :: used
@@ -1990,12 +1990,12 @@ real, parameter :: scaling_factor=1.
 
 ! Send the scaling factor
       if (id_delm > 0 ) then
-        used = send_data ( id_delm, del_m, Time, is_in=is,js_in=js )
+        used = send_data ( id_delm, del_m, Time_next, is_in=is,js_in=js )
       endif
 
 ! Send the 10m wind speed data to the diag_manager for output.
       if (id_w10m > 0 ) then
-        used = send_data ( id_w10m, w10m_land, Time, is_in=is,js_in=js )
+        used = send_data ( id_w10m, w10m_land, Time_next, is_in=is,js_in=js )
       endif
 
 end subroutine get_w10m

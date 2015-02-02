@@ -37,7 +37,7 @@ sub ensureTrailingSlash {
    local $/ = '/'; chomp @_[0]; @_[0] .= '/';
 }
 
-my $version = '$Id: mkmf,v 16.1 2010/05/19 18:49:19 fms Exp $ ';
+my $version = '$Id: mkmf,v 1.1.2.1 2013/12/18 17:47:54 Niki.Zadeh Exp $ ';
 
 # initialize variables: use getopts for these
 getopts( 'a:I:c:dfm:o:l:p:t:vx' ) || die "\aSyntax: $0 [-a abspath] [-c cppdefs] [-d] [-f] [-m makefile] [-o otherflags] ][-p program] [-t template] [-v] [-x] [-I \"space separated include dirs\"] [targets]\n";
@@ -106,8 +106,8 @@ if ( $opt_c ) {
       $cppdefs_xlf =~ s/,/\\,/g; # escape any commas already there
       $cppdefs_xlf =~ s/\s+/,/g; # replace whitespace with commas
       &print_formatted_list("CPPDEFS_XLF = $cppdefs_xlf");
-      $compile_cmd{'.F'}   = q/$(FC) $(CPPDEFS_XLF) $(FFLAGS) -c/;
-      $compile_cmd{'.F90'} = q/$(FC) $(CPPDEFS_XLF) $(FFLAGS) -c/;
+      $compile_cmd{'.F'}   = q/$(FC) $(CPPDEFS_XLF) $(FFLAGS) $(OTHERFLAGS) -c/;
+      $compile_cmd{'.F90'} = q/$(FC) $(CPPDEFS_XLF) $(FFLAGS) $(OTHERFLAGS) -c/;
    }
    &print_formatted_list("CPPDEFS = $opt_c") if $opt_c;
 }

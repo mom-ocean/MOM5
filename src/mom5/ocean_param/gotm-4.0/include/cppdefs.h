@@ -55,13 +55,8 @@
 #else
 #define REALTYPE real(kind=8)
 !#define MPI_REALTYPE	MPI_DOUBLE_PRECISION
-#ifdef GFORTRAN
-#define _ZERO_ 0.0
-#define _ONE_  1.0
-#else
-#define _ZERO_ 0.0d0
-#define _ONE_  1.0d0
-#endif
+#define _ZERO_ 0.0_8
+#define _ONE_  1.0_8
 #endif
 
 ! non-local fluxes

@@ -1,5 +1,5 @@
 #
-# $Id: fre-nctools.mk,v 1.1.2.1.2.1 2012/06/06 17:04:07 Zhi.Liang Exp $
+# $Id: fre-nctools.mk,v 20.0 2013/12/14 00:35:20 fms Exp $
 # ------------------------------------------------------------------------------
 # FMS/FRE Project: Makefile to Build Regridding Executables
 # ------------------------------------------------------------------------------
@@ -20,7 +20,7 @@ CFLAGS_O2:= -O2 -g -traceback
 INCLUDES := -I${NETCDF_HOME}/include -I./ -I../shared -I../../shared/mosaic
 CLIBS     := -L${NETCDF_HOME}/lib -L${HDF5_HOME}/lib -lnetcdf -lhdf5_hl -lhdf5 -lz -limf $(CLIBS2) $(STATIC)
 
-TARGETS  := runoff_regrid
+TARGETS  := runoff_regrid runoff_regrid_parallel
 
 SOURCES  := runoff_regrid.c
 SOURCES  += create_xgrid.c gradient_c2l.c interp.c read_mosaic.c
@@ -38,8 +38,14 @@ all: $(TARGETS)
 runoff_regrid: $(OBJECTS) mosaic_util.o mpp.o
 	$(CC) -o $@ $^ $(CLIBS)
 
+runoff_regrid_parallel: $(OBJECTS) mosaic_util_parallel.o mpp_parallel.o
+	$(MPICC) -o $@ $^ $(CLIBS)
+
 mosaic_util.o: ../../shared/mosaic/mosaic_util.c $(HEADERS)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< 
+
+mosaic_util_parallel.o: ../../shared/mosaic/mosaic_util.c $(HEADERS)
+	$(MPICC) -Duse_libMPI $(CFLAGS) $(INCLUDES) -o $@ -c $< 
 
 read_mosaic.o: ../../shared/mosaic/read_mosaic.c $(HEADERS)
 	$(CC) -Duse_netCDF $(CFLAGS) $(INCLUDES) -c $< 
@@ -58,6 +64,9 @@ mpp_domain.o: ../shared/mpp_domain.c $(HEADERS)
 
 mpp.o: ../shared/mpp.c $(HEADERS)
 	$(CC) $(CFLAGS) $(INCLUDES) -o $@ -c $< 
+
+mpp_parallel.o: ../shared/mpp.c $(HEADERS)
+	$(MPICC) -Duse_libMPI $(CFLAGS) $(INCLUDES) -o $@ -c $< 
 
 tool_util.o: ../shared/tool_util.c $(HEADERS)
 	$(CC) $(CFLAGS) $(INCLUDES) -o $@ -c $< 

@@ -23,7 +23,7 @@ private
 !----------- ****** VERSION NUMBER ******* ---------------------------
 
 character(len=128)  :: version =  '$Id: strat_chem_driver.F90,v 19.0 2012/01/06 20:32:12 fms Exp $'
-character(len=128)  :: tagname =  '$Name: siena_201207 $'
+character(len=128)  :: tagname =  '$Name: tikal $'
 logical             :: module_is_initialized = .FALSE.
 
 !-------  interfaces --------

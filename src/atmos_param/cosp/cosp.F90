@@ -1,9 +1,14 @@
- 
+#include "cosp_defs.H"
+#ifdef COSP_GFDL
+
 !---------------------------------------------------------------------
 !------------ FMS version number and tagname for this file -----------
 
-! $Id: cosp.F90,v 19.0 2012/01/06 20:02:49 fms Exp $
-! $Name: siena_201207 $
+! $Id: cosp.F90,v 20.0 2013/12/13 23:10:35 fms Exp $
+! $Name: tikal $
+! cosp_version = 1.3.2
+
+#endif
 
 ! (c) British Crown Copyright 2008, the Met Office.
 ! All rights reserved.
@@ -29,7 +34,10 @@
 ! IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT 
 ! OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+#ifndef COSP_GFDL
 #include "cosp_defs.h"
+#endif
 MODULE MOD_COSP
   USE MOD_COSP_TYPES
   USE MOD_COSP_SIMULATOR
@@ -43,13 +51,19 @@ CONTAINS
 !--------------------- SUBROUTINE COSP ---------------------------
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #ifdef RTTOV
-SUBROUTINE COSP(me,overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,rttov,stradar,stlidar, sghydro,cloud_type)
+#ifdef COSP_GFDL
+SUBROUTINE COSP(overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,rttov,stradar,stlidar,sghydro,cloud_type)
 #else
-SUBROUTINE COSP(me,overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,stradar,stlidar, sghydro, cloud_type)
+SUBROUTINE COSP(overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,rttov,stradar,stlidar)
+#endif COSP_GFDL
+#else
+#ifdef COSP_GFDL
+SUBROUTINE COSP(overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,stradar,stlidar, sghydro, cloud_type)
+#else
+SUBROUTINE COSP(overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,stradar,stlidar)
+#endif COSP_GFDL
 #endif
-
   ! Arguments
-  integer, intent(in) :: me
   integer,intent(in) :: overlap !  overlap type in SCOPS: 1=max, 2=rand, 3=max/rand
   integer,intent(in) :: Ncolumns
   type(cosp_config),intent(in) :: cfg   ! Configuration options
@@ -60,15 +74,17 @@ SUBROUTINE COSP(me,overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr
   type(cosp_sglidar),intent(inout) :: sglidar ! Output from lidar simulator
   type(cosp_isccp),intent(inout)   :: isccp   ! Output from ISCCP simulator
   type(cosp_misr),intent(inout)    :: misr    ! Output from MISR simulator
-  type(cosp_MODIS),intent(inout)   :: modis   ! Output from MODIS simulator
+  type(cosp_modis),intent(inout)   :: modis   ! Output from MODIS simulator
 #ifdef RTTOV
   type(cosp_rttov),intent(inout)   :: rttov   ! Output from RTTOV
 #endif
   type(cosp_radarstats),intent(inout) :: stradar ! Summary statistics from radar simulator
   type(cosp_lidarstats),intent(inout) :: stlidar ! Summary statistics from lidar simulator
+#ifdef COSP_GFDL
   type(cosp_sghydro), intent(inout)   :: sghydro   ! Subgrid info for hydrometeors en each iteration
   real, dimension(gbx%Npoints, Ncolumns, gbx%Nlevels),  &
-                  intent(in), optional ::  cloud_type
+                   intent(in), optional ::  cloud_type
+#endif
 
   ! Local variables 
   integer :: Npoints   ! Number of gridpoints
@@ -76,10 +92,9 @@ SUBROUTINE COSP(me,overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr
   integer :: Nhydro    ! Number of hydrometeors
   integer :: Niter     ! Number of calls to cosp_simulator
   integer :: i_first,i_last ! First and last gridbox to be processed in each iteration
-  integer :: i,j,k,Ni
+  integer :: i,Ni
   integer,dimension(2) :: ix,iy
   logical :: reff_zero
-  real :: minv,maxv
   real :: maxp,minp
   integer,dimension(:),allocatable :: & ! Dimensions nPoints
                   seed    !  It is recommended that the seed is set to a different value for each model
@@ -89,12 +104,14 @@ SUBROUTINE COSP(me,overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr
   ! Types used in one iteration
   type(cosp_gridbox) :: gbx_it
   type(cosp_subgrid) :: sgx_it
+#ifdef COSP_GFDL
   type(cosp_sghydro) :: sghydro_it
+#endif
   type(cosp_vgrid)   :: vgrid_it
   type(cosp_sgradar) :: sgradar_it
   type(cosp_sglidar) :: sglidar_it
   type(cosp_isccp)   :: isccp_it
-  type(cosp_MODIS)   :: modis_it
+  type(cosp_modis)   :: modis_it
   type(cosp_misr)    :: misr_it
 #ifdef RTTOV
   type(cosp_rttov)   :: rttov_it
@@ -138,7 +155,6 @@ SUBROUTINE COSP(me,overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr
   call cosp_check_input('mr_hydro',gbx%mr_hydro,min_val=0.0)
   ! Effective radius [m]. (Npoints,Nlevels,Nhydro)
   call cosp_check_input('Reff',gbx%Reff,min_val=0.0)
-
   reff_zero=.true.
   if (any(gbx%Reff > 1.e-8)) then
      reff_zero=.false.
@@ -157,7 +173,8 @@ SUBROUTINE COSP(me,overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr
   
   ! Aerosols concentration and distribution parameters
   call cosp_check_input('conc_aero',gbx%conc_aero,min_val=0.0)
-  ! Check sg tau, emiss, mrs and sizes if they are being input from 
+#ifdef COSP_GFDL
+  ! Check sg tau, emiss, mrs and sizes if they are being input from
   ! model
   if (sgx%cols_input_from_model) then
   call cosp_check_input('sgx%Reff1',sghydro%Reff(:,:,:,1),min_val=0.0)
@@ -166,11 +183,34 @@ SUBROUTINE COSP(me,overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr
   call cosp_check_input('sgx%Reff6',sghydro%Reff(:,:,:,6),min_val=0.0)
   call cosp_check_input('sgx%  mr1',sghydro%mr_hydro(:,:,:,1),min_val=0.0)
   call cosp_check_input('sgx%  mr2',sghydro%mr_hydro(:,:,:,2),min_val=0.0)
-  call cosp_check_input('sgx%  mr5',sghydro%mr_hydro(:,:,:,5),min_val=0.0)  
+  call cosp_check_input('sgx%  mr5',sghydro%mr_hydro(:,:,:,5),min_val=0.0)
   call cosp_check_input('sgx%  mr6',sghydro%mr_hydro(:,:,:,6),min_val=0.0)
-  call cosp_check_input('sgx%  tau',sgx%dtau_col,min_val=0.0)   
+  call cosp_check_input('sgx%  tau',sgx%dtau_col,min_val=0.0)
   call cosp_check_input('sgx%   em',sgx%dem_col,min_val=0.0)
  endif
+#else
+  ! Checks for CRM mode
+  if (Ncolumns == 1) then
+     if (gbx%use_precipitation_fluxes) then
+        print *, '---------- COSP ERROR ------------'
+        print *, ''
+        print *, 'Use of precipitation fluxes not supported in CRM mode (Ncolumns=1)'
+        print *, ''
+        print *, '----------------------------------'
+        stop
+     endif
+     if ((maxval(gbx%dtau_c) > 0.0).or.(maxval(gbx%dem_c) > 0.0)) then
+        print *, '---------- COSP ERROR ------------'
+        print *, ''
+        print *, ' dtau_c > 0.0 or dem_c > 0.0. In CRM mode (Ncolumns=1), '
+        print *, ' the optical depth (emmisivity) of all clouds must be '
+        print *, ' passed through dtau_s (dem_s)'
+        print *, ''
+        print *, '----------------------------------'
+        stop
+     endif
+  endif
+#endif
 
    ! We base the seed in the decimal part of the surface pressure.
    allocate(seed(Npoints))
@@ -180,13 +220,25 @@ SUBROUTINE COSP(me,overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr
    minp = minval(gbx%psfc)
    maxp = maxval(gbx%psfc)
    if (Npoints .gt. 1) seed=int((gbx%psfc-minp)/(maxp-minp)*100000) + 1
+   ! Below it's how it was done in the original implementation of the ISCCP simulator. 
+   ! The one above is better for offline data, when you may have packed data 
+   ! that subsamples the decimal fraction of the surface pressure. 
+!    if (Npoints .gt. 1) seed=(gbx%psfc-int(gbx%psfc))*1000000 
 
   
    if (gbx%Npoints_it >= gbx%Npoints) then ! One iteration gbx%Npoints
 #ifdef RTTOV
-        call cosp_iter(me,overlap,seed,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,rttov,stradar,stlidar,sghydro,cloud_type)
+#ifdef COSP_GFDL
+        call cosp_iter(overlap,seed,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,rttov,stradar,stlidar,sghydro,cloud_type)
 #else
-        call cosp_iter(me,overlap,seed,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,stradar,stlidar, sghydro,cloud_type)
+        call cosp_iter(overlap,seed,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,rttov,stradar,stlidar)
+#endif
+#else
+#ifdef COSP_GFDL
+        call cosp_iter(overlap,seed,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,stradar,stlidar, sghydro,cloud_type)
+#else
+        call cosp_iter(overlap,seed,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,stradar,stlidar)
+#endif
 #endif
    else ! Several iterations to save memory
         Niter = gbx%Npoints/gbx%Npoints_it ! Integer division
@@ -210,11 +262,17 @@ SUBROUTINE COSP(me,overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr
                                             gbx_it)
                 call construct_cosp_vgrid(gbx_it,vgrid%Nlvgrid,vgrid%use_vgrid,vgrid%csat_vgrid,vgrid_it)
                 call construct_cosp_subgrid(Ni, Ncolumns, Nlevels, sgx_it)
+#ifdef COSP_GFDL
                 call construct_cosp_sghydro(Ni, Ncolumns, Nlevels, N_hydro, sghydro_it)
+#endif
                 call construct_cosp_sgradar(cfg,Ni,Ncolumns,Nlevels,N_HYDRO,sgradar_it)
                 call construct_cosp_sglidar(cfg,Ni,Ncolumns,Nlevels,N_HYDRO,PARASOL_NREFL,sglidar_it)
                 call construct_cosp_isccp(cfg,Ni,Ncolumns,Nlevels,isccp_it)
+#ifdef COSP_GFDL
                 call construct_cosp_modis(cfg, Ni, Ncolumns, modis_it)
+#else
+                call construct_cosp_modis(cfg, Ni, modis_it)
+#endif
                 call construct_cosp_misr(cfg,Ni,misr_it)
 #ifdef RTTOV
                 call construct_cosp_rttov(Ni,gbx%nchan,rttov_it)
@@ -224,7 +282,9 @@ SUBROUTINE COSP(me,overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr
             elseif (i == Niter) then ! last iteration
                 call free_cosp_gridbox(gbx_it,.true.)
                 call free_cosp_subgrid(sgx_it)
+#ifdef COSP_GFDL
                 call free_cosp_sghydro(sghydro_it)
+#endif
                 call free_cosp_vgrid(vgrid_it)
                 call free_cosp_sgradar(sgradar_it)
                 call free_cosp_sglidar(sglidar_it)
@@ -237,8 +297,8 @@ SUBROUTINE COSP(me,overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr
                 call free_cosp_radarstats(stradar_it)
                 call free_cosp_lidarstats(stlidar_it)
                 ! Allocate types for iterations
-                call construct_cosp_gridbox(gbx%time,gbx%time_bnds,gbx%radar_freq,gbx%surface_radar,gbx%use_mie_tables,  &
-                                            gbx%use_gas_abs,gbx%do_ray,gbx%melt_lay,gbx%k2,Ni,Nlevels,  &
+                call construct_cosp_gridbox(gbx%time,gbx%time_bnds,gbx%radar_freq,gbx%surface_radar,gbx%use_mie_tables, &
+                                            gbx%use_gas_abs,gbx%do_ray,gbx%melt_lay,gbx%k2,Ni,Nlevels, &
                                             Ncolumns,N_HYDRO,gbx%Nprmts_max_hydro, &
                                             gbx%Naero,gbx%Nprmts_max_aero,Ni,gbx%lidar_ice_type,gbx%isccp_top_height, &
                                             gbx%isccp_top_height_direction,gbx%isccp_overlap,gbx%isccp_emsfc_lw, &
@@ -252,15 +312,21 @@ SUBROUTINE COSP(me,overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr
                 gbx_it%dist_type_aero   = gbx_it%dist_type_aero
                 call construct_cosp_vgrid(gbx_it,vgrid%Nlvgrid,vgrid%use_vgrid,vgrid%csat_vgrid,vgrid_it)
                 call construct_cosp_subgrid(Ni, Ncolumns, Nlevels, sgx_it)
+#ifdef COSP_GFDL
                 call construct_cosp_sghydro(Ni, Ncolumns, Nlevels, N_hydro, sghydro_it)
+#endif
                 call construct_cosp_sgradar(cfg,Ni,Ncolumns,Nlevels,N_HYDRO,sgradar_it)
                 call construct_cosp_sglidar(cfg,Ni,Ncolumns,Nlevels,N_HYDRO,PARASOL_NREFL,sglidar_it)
                 call construct_cosp_isccp(cfg,Ni,Ncolumns,Nlevels,isccp_it)
+#ifdef COSP_GFDL
                 call construct_cosp_modis(cfg,Ni, Ncolumns, modis_it)
+#else
+                call construct_cosp_modis(cfg,Ni, modis_it)
+#endif
                 call construct_cosp_misr(cfg,Ni,misr_it)
 #ifdef RTTOV 
-                call construct_cosp_rttov(Ni,gbx%nchan,rttov_it)
-#endif
+                call construct_cosp_rttov(Ni,gbx%nchan,rttov_it) 
+#endif 
                 call construct_cosp_radarstats(cfg,Ni,Ncolumns,vgrid%Nlvgrid,N_HYDRO,stradar_it)
                 call construct_cosp_lidarstats(cfg,Ni,Ncolumns,vgrid%Nlvgrid,N_HYDRO,PARASOL_NREFL,stlidar_it)
             endif
@@ -276,19 +342,28 @@ SUBROUTINE COSP(me,overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr
             if (cfg%Lmodis_sim) call cosp_modis_cpsection(ix,iy,modis,modis_it)
             if (cfg%Lmisr_sim)  call cosp_misr_cpsection(ix,iy,misr,misr_it)
 #ifdef RTTOV 
-            if (cfg%Lrttov_sim) call cosp_rttov_cpsection(ix,iy,rttov,rttov_it)
+            if (cfg%Lrttov_sim) call cosp_rttov_cpsection(ix,iy,rttov,rttov_it) 
 #endif
             if (cfg%Lradar_sim) call cosp_radarstats_cpsection(ix,iy,stradar,stradar_it)
             if (cfg%Llidar_sim) call cosp_lidarstats_cpsection(ix,iy,stlidar,stlidar_it)
-            print *,'---------ix: ',ix
+!             print *,'---------ix: ',ix
 #ifdef RTTOV
-            call cosp_iter(me,overlap,seed(ix(1):ix(2)),cfg,vgrid_it,gbx_it,sgx_it,sgradar_it, &
+#ifdef COSP_GFDL
+            call cosp_iter(overlap,seed(ix(1):ix(2)),cfg,vgrid_it,gbx_it,sgx_it,sgradar_it, &
                            sglidar_it,isccp_it,misr_it,modis_it,rttov_it,stradar_it,stlidar_it, sghydro_it, cloud_type)
 #else
-            call cosp_iter(me, overlap,seed(ix(1):ix(2)),cfg,vgrid_it,gbx_it,sgx_it,sgradar_it, &
-                           sglidar_it,isccp_it,misr_it,modis_it,stradar_it,stlidar_it, sghydro_it,cloud_type)
+            call cosp_iter(overlap,seed(ix(1):ix(2)),cfg,vgrid_it,gbx_it,sgx_it,sgradar_it, &
+                           sglidar_it,isccp_it,misr_it,modis_it,rttov_it,stradar_it,stlidar_it)
 #endif
-            
+#else
+#ifdef COSP_GFDL
+            call cosp_iter( overlap,seed(ix(1):ix(2)),cfg,vgrid_it,gbx_it,sgx_it,sgradar_it, &
+                           sglidar_it,isccp_it,misr_it,modis_it,stradar_it,stlidar_it, sghydro_it,cloud_type)
+#else
+            call cosp_iter(overlap,seed(ix(1):ix(2)),cfg,vgrid_it,gbx_it,sgx_it,sgradar_it, &
+                           sglidar_it,isccp_it,misr_it,modis_it,stradar_it,stlidar_it)
+#endif
+#endif
             ! --- Copy results to output structures ---
             ix=(/1,Ni/)
             iy=(/i_first,i_last/)
@@ -299,15 +374,17 @@ SUBROUTINE COSP(me,overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr
             if (cfg%Lmodis_sim) call cosp_modis_cpsection(ix,iy,modis_it,modis)
             if (cfg%Lmisr_sim)  call cosp_misr_cpsection(ix,iy,misr_it,misr)
 #ifdef RTTOV 
-            if (cfg%Lrttov_sim) call cosp_rttov_cpsection(ix,iy,rttov_it,rttov)
-#endif
+            if (cfg%Lrttov_sim) call cosp_rttov_cpsection(ix,iy,rttov_it,rttov) 
+#endif 
             if (cfg%Lradar_sim) call cosp_radarstats_cpsection(ix,iy,stradar_it,stradar)
             if (cfg%Llidar_sim) call cosp_lidarstats_cpsection(ix,iy,stlidar_it,stlidar)
         enddo
         ! Deallocate types
         call free_cosp_gridbox(gbx_it,.true.)
         call free_cosp_subgrid(sgx_it)
+#ifdef COSP_GFDL
         call free_cosp_sghydro(sghydro_it)
+#endif
         call free_cosp_vgrid(vgrid_it)
         call free_cosp_sgradar(sgradar_it)
         call free_cosp_sglidar(sglidar_it)
@@ -315,7 +392,7 @@ SUBROUTINE COSP(me,overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr
         call free_cosp_modis(modis_it)
         call free_cosp_misr(misr_it)
 #ifdef RTTOV 
-        call free_cosp_rttov(rttov_it)
+        call free_cosp_rttov(rttov_it) 
 #endif
         call free_cosp_radarstats(stradar_it)
         call free_cosp_lidarstats(stlidar_it)
@@ -329,13 +406,19 @@ END SUBROUTINE COSP
 !--------------------- SUBROUTINE COSP_ITER ----------------------
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #ifdef RTTOV
-SUBROUTINE COSP_ITER(me,overlap,seed,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,rttov,stradar,stlidar, sghydro, cloud_type)
+#ifdef COSP_GFDL
+SUBROUTINE COSP_ITER(overlap,seed,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,rttov,stradar,stlidar, sghydro, cloud_type)
 #else
-SUBROUTINE COSP_ITER(me,overlap,seed,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,stradar,stlidar, sghydro,cloud_type)
+SUBROUTINE COSP_ITER(overlap,seed,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,rttov,stradar,stlidar)
 #endif
-
+#else
+#ifdef COSP_GFDL
+SUBROUTINE COSP_ITER(overlap,seed,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,stradar,stlidar, sghydro,cloud_type)
+#else
+SUBROUTINE COSP_ITER(overlap,seed,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,stradar,stlidar)
+#endif
+#endif
   ! Arguments
-  integer, intent(in) :: me
   integer,intent(in) :: overlap !  overlap type in SCOPS: 1=max, 2=rand, 3=max/rand
   integer,dimension(:),intent(in) :: seed
   type(cosp_config),intent(in) :: cfg   ! Configuration options
@@ -352,17 +435,20 @@ SUBROUTINE COSP_ITER(me,overlap,seed,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,mis
 #endif
   type(cosp_radarstats),intent(inout) :: stradar ! Summary statistics from radar simulator
   type(cosp_lidarstats),intent(inout) :: stlidar ! Summary statistics from lidar simulator
+#ifdef COSP_GFDL
   type(cosp_sghydro), intent(inout)   :: sghydro   ! Subgrid info for hydrometeors en each iteration
   real, dimension(gbx%Npoints, gbx%Ncolumns, gbx%Nlevels),  &
                   intent(in), optional ::  cloud_type
+#endif
+
 
   ! Local variables 
   integer :: Npoints   ! Number of gridpoints
   integer :: Ncolumns  ! Number of subcolumns
   integer :: Nlevels   ! Number of levels
   integer :: Nhydro    ! Number of hydrometeors
-  integer :: Niter     ! Number of calls to cosp_simulator
   integer :: i,j,k
+  integer :: I_HYDRO 
   real,dimension(:,:),pointer :: column_frac_out ! Array with one column of frac_out
   integer :: scops_debug=0    !  set to non-zero value to print out inputs for debugging in SCOPS
   real,dimension(:, :),allocatable :: cca_scops,ls_p_rate,cv_p_rate, &
@@ -370,7 +456,10 @@ SUBROUTINE COSP_ITER(me,overlap,seed,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,mis
                                ! Levels are from TOA to SURFACE. (nPoints, nLev)
   real,dimension(:,:),allocatable :: frac_ls,prec_ls,frac_cv,prec_cv ! Cloud/Precipitation fraction in each model level
                                                                      ! Levels are from SURFACE to TOA
-! type(cosp_sghydro) :: sghydro   ! Subgrid info for hydrometeors en each iteration
+  real,dimension(:,:),allocatable :: rho ! (Npoints, Nlevels). Atmospheric density
+#ifndef COSP_GFDL
+  type(cosp_sghydro) :: sghydro   ! Subgrid info for hydrometeors en each iteration
+#endif
 
   
   !++++++++++ Dimensions ++++++++++++
@@ -378,7 +467,7 @@ SUBROUTINE COSP_ITER(me,overlap,seed,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,mis
   Ncolumns = gbx%Ncolumns
   Nlevels  = gbx%Nlevels
   Nhydro   = gbx%Nhydro
-   
+    
   !++++++++++ Climate/NWP mode ++++++++++  
   if (Ncolumns > 1) then
         !++++++++++ Subgrid sampling ++++++++++
@@ -391,10 +480,19 @@ SUBROUTINE COSP_ITER(me,overlap,seed,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,mis
         prec_ls=0.0
         frac_cv=0.0
         prec_cv=0.0
-
+#ifdef COSP_GFDL
 IF (sgx%cols_input_from_model) then
   sgx%frac_out = cloud_type
 ELSE
+        ! Cloud fractions for SCOPS from TOA to SFC
+        tca_scops = gbx%tca(:,Nlevels:1:-1)
+        cca_scops = gbx%cca(:,Nlevels:1:-1)
+
+        ! Call to SCOPS
+        ! strat and conv arrays are passed with levels from TOA to SURFACE.
+        call scops(Npoints,Nlevels,Ncolumns,seed,tca_scops,cca_scops,overlap,sgx%frac_out,scops_debug)
+ENDIF
+#else
         ! Cloud fractions for SCOPS from TOA to SFC
         tca_scops = gbx%tca(:,Nlevels:1:-1)
         cca_scops = gbx%cca(:,Nlevels:1:-1)
@@ -402,7 +500,7 @@ ELSE
         ! Call to SCOPS
         ! strat and conv arrays are passed with levels from TOA to SURFACE.
         call scops(Npoints,Nlevels,Ncolumns,seed,tca_scops,cca_scops,overlap,sgx%frac_out,scops_debug)
-ENDIF
+#endif
         
         ! temporarily use prec_ls/cv to transfer information about precipitation flux into prec_scops
         if(gbx%use_precipitation_fluxes) then
@@ -422,8 +520,8 @@ ENDIF
         do j=1,Npoints,1
         do k=1,Nlevels,1
             do i=1,Ncolumns,1
-                if (sgx%frac_out (j,i,Nlevels+1-k) .eq. I_LSC) frac_ls(j,k)=frac_ls(j,k)+1.
-                if (sgx%frac_out (j,i,Nlevels+1-k) .eq. I_CVC) frac_cv(j,k)=frac_cv(j,k)+1.
+                if (sgx%frac_out (j,i,Nlevels+1-k) == I_LSC) frac_ls(j,k)=frac_ls(j,k)+1.
+                if (sgx%frac_out (j,i,Nlevels+1-k) == I_CVC) frac_cv(j,k)=frac_cv(j,k)+1.
                 if (sgx%prec_frac(j,i,Nlevels+1-k) .eq. 1) prec_ls(j,k)=prec_ls(j,k)+1.
                 if (sgx%prec_frac(j,i,Nlevels+1-k) .eq. 2) prec_cv(j,k)=prec_cv(j,k)+1.
                 if (sgx%prec_frac(j,i,Nlevels+1-k) .eq. 3) then
@@ -452,14 +550,39 @@ ENDIF
        
        ! Deallocate arrays that will no longer be used
         deallocate(tca_scops,cca_scops,ls_p_rate,cv_p_rate)
-         
+
         ! Populate the subgrid arrays
-!       call construct_cosp_sghydro(Npoints,Ncolumns,Nlevels,Nhydro,sghydro)
+#ifndef COSP_GFDL
+        call construct_cosp_sghydro(Npoints,Ncolumns,Nlevels,Nhydro,sghydro)
+#endif
         do k=1,Ncolumns
+#ifdef COSP_GFDL
 IF (sgx%cols_input_from_model) then
-!   the sghydro%mr_hydro cloud components were previously defined in 
-!   cosp_driver and have been passed in 
+!   the sghydro%mr_hydro cloud components were previously defined in
+!   cosp_driver and have been passed in
 ELSE
+            !--------- Mixing ratios for clouds and Reff for Clouds and precip -------
+            column_frac_out => sgx%frac_out(:,k,:)
+            where (column_frac_out == I_LSC)     !+++++++++++ LS clouds ++++++++
+                sghydro%mr_hydro(:,k,:,I_LSCLIQ) = gbx%mr_hydro(:,:,I_LSCLIQ)
+                sghydro%mr_hydro(:,k,:,I_LSCICE) = gbx%mr_hydro(:,:,I_LSCICE)
+
+                sghydro%Reff(:,k,:,I_LSCLIQ)     = gbx%Reff(:,:,I_LSCLIQ)
+                sghydro%Reff(:,k,:,I_LSCICE)     = gbx%Reff(:,:,I_LSCICE)
+                sghydro%Reff(:,k,:,I_LSRAIN)     = gbx%Reff(:,:,I_LSRAIN)
+                sghydro%Reff(:,k,:,I_LSSNOW)     = gbx%Reff(:,:,I_LSSNOW)
+                sghydro%Reff(:,k,:,I_LSGRPL)     = gbx%Reff(:,:,I_LSGRPL)
+            elsewhere (column_frac_out == I_CVC) !+++++++++++ CONV clouds ++++++++
+                sghydro%mr_hydro(:,k,:,I_CVCLIQ) = gbx%mr_hydro(:,:,I_CVCLIQ)
+                sghydro%mr_hydro(:,k,:,I_CVCICE) = gbx%mr_hydro(:,:,I_CVCICE)
+ 
+                sghydro%Reff(:,k,:,I_CVCLIQ)     = gbx%Reff(:,:,I_CVCLIQ)
+                sghydro%Reff(:,k,:,I_CVCICE)     = gbx%Reff(:,:,I_CVCICE)
+                sghydro%Reff(:,k,:,I_CVRAIN)     = gbx%Reff(:,:,I_CVRAIN)
+                sghydro%Reff(:,k,:,I_CVSNOW)     = gbx%Reff(:,:,I_CVSNOW)
+            end where
+ENDIF
+#else
             !--------- Mixing ratios for clouds and Reff for Clouds and precip -------
             column_frac_out => sgx%frac_out(:,k,:)
             where (column_frac_out == I_LSC)     !+++++++++++ LS clouds ++++++++
@@ -480,7 +603,7 @@ ELSE
                 sghydro%Reff(:,k,:,I_CVRAIN)     = gbx%Reff(:,:,I_CVRAIN) 
                 sghydro%Reff(:,k,:,I_CVSNOW)     = gbx%Reff(:,:,I_CVSNOW) 
             end where 
-ENDIF
+#endif
             !--------- Precip -------
             if (.not. gbx%use_precipitation_fluxes) then
                 where (column_frac_out == I_LSC)  !+++++++++++ LS Precipitation ++++++++
@@ -496,9 +619,21 @@ ENDIF
         ! convert the mixing ratio and precipitation flux from gridbox mean to the fraction-based values
         do k=1,Nlevels
             do j=1,Npoints
+#ifdef COSP_GFDL
 !RSH: When  columns are input, are already in-cloud values.
 IF (sgx%cols_input_from_model) then
 ELSE
+                !--------- Clouds -------
+                if (frac_ls(j,k) .ne. 0.) then
+                    sghydro%mr_hydro(j,:,k,I_LSCLIQ) = sghydro%mr_hydro(j,:, k,I_LSCLIQ)/frac_ls(j,k)
+                    sghydro%mr_hydro(j,:,k,I_LSCICE) = sghydro%mr_hydro(j,:, k,I_LSCICE)/frac_ls(j,k)
+                 endif
+                 if (frac_cv(j,k) .ne. 0.) then
+                     sghydro%mr_hydro(j,:,k,I_CVCLIQ) = sghydro%mr_hydro(j,:,k,I_CVCLIQ)/frac_cv(j,k)
+                     sghydro%mr_hydro(j,:,k,I_CVCICE) = sghydro%mr_hydro(j,:,k,I_CVCICE)/frac_cv(j,k)
+                 endif
+ENDIF
+#else
                 !--------- Clouds -------
                 if (frac_ls(j,k) .ne. 0.) then
                     sghydro%mr_hydro(j,:,k,I_LSCLIQ) = sghydro%mr_hydro(j,:,k,I_LSCLIQ)/frac_ls(j,k)
@@ -508,7 +643,7 @@ ELSE
                     sghydro%mr_hydro(j,:,k,I_CVCLIQ) = sghydro%mr_hydro(j,:,k,I_CVCLIQ)/frac_cv(j,k)
                     sghydro%mr_hydro(j,:,k,I_CVCICE) = sghydro%mr_hydro(j,:,k,I_CVCICE)/frac_cv(j,k)
                 endif
-ENDIF
+#endif
                 !--------- Precip -------
                 if (gbx%use_precipitation_fluxes) then
                     if (prec_ls(j,k) .ne. 0.) then
@@ -536,16 +671,45 @@ ENDIF
         deallocate(frac_ls,prec_ls,frac_cv,prec_cv)
         
         if (gbx%use_precipitation_fluxes) then
-            ! convert precipitation flux into mixing ratio
-
-            call pf_to_mr(me,Npoints,Nlevels,Ncolumns,gbx%rain_ls,gbx%snow_ls,gbx%grpl_ls, &
-                        gbx%rain_cv,gbx%snow_cv,sgx%prec_frac,gbx%p,gbx%T, &
-                        sghydro%mr_hydro(:,:,:,I_LSRAIN),sghydro%mr_hydro(:,:,:,I_LSSNOW),sghydro%mr_hydro(:,:,:,I_LSGRPL), &
-                        sghydro%mr_hydro(:,:,:,I_CVRAIN),sghydro%mr_hydro(:,:,:,I_CVSNOW))
+            ! Density
+            allocate(rho(Npoints,Nlevels))
+            I_HYDRO = I_LSRAIN
+            call cosp_precip_mxratio(Npoints,Nlevels,Ncolumns,gbx%p,gbx%T,sgx%prec_frac,1., &
+                    n_ax(I_HYDRO),n_bx(I_HYDRO),alpha_x(I_HYDRO),c_x(I_HYDRO),d_x(I_HYDRO), &
+                    g_x(I_HYDRO),a_x(I_HYDRO),b_x(I_HYDRO), &
+                    gamma_1(I_HYDRO),gamma_2(I_HYDRO),gamma_3(I_HYDRO),gamma_4(I_HYDRO), &
+                    gbx%rain_ls,sghydro%mr_hydro(:,:,:,I_HYDRO),sghydro%Reff(:,:,:,I_HYDRO))
+            I_HYDRO = I_LSSNOW
+            call cosp_precip_mxratio(Npoints,Nlevels,Ncolumns,gbx%p,gbx%T,sgx%prec_frac,1., &
+                    n_ax(I_HYDRO),n_bx(I_HYDRO),alpha_x(I_HYDRO),c_x(I_HYDRO),d_x(I_HYDRO), &
+                    g_x(I_HYDRO),a_x(I_HYDRO),b_x(I_HYDRO), &
+                    gamma_1(I_HYDRO),gamma_2(I_HYDRO),gamma_3(I_HYDRO),gamma_4(I_HYDRO), &
+                    gbx%snow_ls,sghydro%mr_hydro(:,:,:,I_HYDRO),sghydro%Reff(:,:,:,I_HYDRO))
+            I_HYDRO = I_CVRAIN
+            call cosp_precip_mxratio(Npoints,Nlevels,Ncolumns,gbx%p,gbx%T,sgx%prec_frac,2., &
+                    n_ax(I_HYDRO),n_bx(I_HYDRO),alpha_x(I_HYDRO),c_x(I_HYDRO),d_x(I_HYDRO), &
+                    g_x(I_HYDRO),a_x(I_HYDRO),b_x(I_HYDRO), &
+                    gamma_1(I_HYDRO),gamma_2(I_HYDRO),gamma_3(I_HYDRO),gamma_4(I_HYDRO), &
+                    gbx%rain_cv,sghydro%mr_hydro(:,:,:,I_HYDRO),sghydro%Reff(:,:,:,I_HYDRO))
+            I_HYDRO = I_CVSNOW
+            call cosp_precip_mxratio(Npoints,Nlevels,Ncolumns,gbx%p,gbx%T,sgx%prec_frac,2., &
+                    n_ax(I_HYDRO),n_bx(I_HYDRO),alpha_x(I_HYDRO),c_x(I_HYDRO),d_x(I_HYDRO), &
+                    g_x(I_HYDRO),a_x(I_HYDRO),b_x(I_HYDRO), &
+                    gamma_1(I_HYDRO),gamma_2(I_HYDRO),gamma_3(I_HYDRO),gamma_4(I_HYDRO), &
+                    gbx%snow_cv,sghydro%mr_hydro(:,:,:,I_HYDRO),sghydro%Reff(:,:,:,I_HYDRO))
+            I_HYDRO = I_LSGRPL
+            call cosp_precip_mxratio(Npoints,Nlevels,Ncolumns,gbx%p,gbx%T,sgx%prec_frac,1., &
+                    n_ax(I_HYDRO),n_bx(I_HYDRO),alpha_x(I_HYDRO),c_x(I_HYDRO),d_x(I_HYDRO), &
+                    g_x(I_HYDRO),a_x(I_HYDRO),b_x(I_HYDRO), &
+                    gamma_1(I_HYDRO),gamma_2(I_HYDRO),gamma_3(I_HYDRO),gamma_4(I_HYDRO), &
+                    gbx%grpl_ls,sghydro%mr_hydro(:,:,:,I_HYDRO),sghydro%Reff(:,:,:,I_HYDRO))
+            if(allocated(rho)) deallocate(rho)
         endif
    !++++++++++ CRM mode ++++++++++
    else
-!     call construct_cosp_sghydro(Npoints,Ncolumns,Nlevels,Nhydro,sghydro)
+#ifndef COSP_GFDL
+      call construct_cosp_sghydro(Npoints,Ncolumns,Nlevels,Nhydro,sghydro)
+#endif
       sghydro%mr_hydro(:,1,:,:) = gbx%mr_hydro
       sghydro%Reff(:,1,:,:) = gbx%Reff
       !--------- Clouds -------
@@ -553,16 +717,18 @@ ENDIF
              sgx%frac_out(:,1,:) = 1  ! Subgrid cloud array. Dimensions (Npoints,Ncolumns,Nlevels)
       endwhere
    endif ! Ncolumns > 1
-   
+  
    !++++++++++ Simulator ++++++++++
 #ifdef RTTOV
-    call cosp_simulator(me,gbx,sgx,sghydro,cfg,vgrid,sgradar,sglidar,isccp,misr,modis,rttov,stradar,stlidar)
+    call cosp_simulator(gbx,sgx,sghydro,cfg,vgrid,sgradar,sglidar,isccp,misr,modis,rttov,stradar,stlidar)
 #else
-    call cosp_simulator(me,gbx,sgx,sghydro,cfg,vgrid,sgradar,sglidar,isccp,misr,modis,stradar,stlidar)
+    call cosp_simulator(gbx,sgx,sghydro,cfg,vgrid,sgradar,sglidar,isccp,misr,modis,stradar,stlidar)
 #endif
 
-
     ! Deallocate subgrid arrays
+#ifndef COSP_GFDL
+    call free_cosp_sghydro(sghydro)
+#endif
 END SUBROUTINE COSP_ITER
 
 END MODULE MOD_COSP

@@ -168,7 +168,7 @@ use fms_mod,          only: open_namelist_file, check_nml_error, write_version_n
 use fms_mod,          only: read_data
 use mpp_domains_mod,  only: mpp_update_domains, CGRID_NE
 use mpp_domains_mod,  only: mpp_start_update_domains, mpp_complete_update_domains
-use mpp_domains_mod,  only: mpp_global_min, mpp_global_max, mpp_global_field
+use mpp_domains_mod,  only: mpp_global_min, mpp_global_max, mpp_global_field, XUPDATE 
 use mpp_mod,          only: input_nml_file, mpp_sum, mpp_pe, mpp_error, mpp_max
 use mpp_mod,          only: FATAL, NOTE, stdout, stdlog
 
@@ -215,7 +215,6 @@ integer :: id_sin2theta            =-1
 integer :: id_cos2theta            =-1
 integer :: id_neptune_bih_u        =-1
 integer :: id_neptune_bih_v        =-1
-integer :: id_neptune_psi          =-1
 integer :: id_ncar_rescale         =-1
 integer :: id_along                =-1
 integer :: id_across               =-1
@@ -339,9 +338,9 @@ type(ocean_grid_type), pointer   :: Grd => NULL()
 type(ocean_domain_type), pointer :: Dom => NULL()
 
 character(len=256) :: version=&
-     '=>Using: ocean_bihcgrid_friction.F90 ($Id: ocean_bihcgrid_friction.F90,v 1.1.2.6 2012/06/08 20:15:35 Stephen.Griffies Exp $)'
+     '=>Using: ocean_bihcgrid_friction.F90 ($Id: ocean_bihcgrid_friction.F90,v 20.0 2013/12/14 00:14:12 fms Exp $)'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 logical :: use_this_module       = .false.
 logical :: debug_this_module     = .false.
@@ -874,7 +873,7 @@ subroutine bihcgrid_friction(Time, Thickness, Adv_vel, Velocity, bih_viscosity, 
 
   integer :: i, j, k, n
   integer :: taum1, tau
-  integer :: stdoutunit
+  integer :: stdoutunit, ibl
   stdoutunit=stdout() 
 
   if(.not. use_this_module) then
@@ -1413,8 +1412,8 @@ subroutine ncar_boundary_scale_create(Time)
   integer, dimension(nx) :: iwp
   integer, dimension(nx) :: nwbp_global
 
-  real, dimension(nx,ny)            :: dxt_global
-  real, dimension(nx,ny)            :: kmt_global
+  real, dimension(nx,jsc:jec)       :: dxt_global
+  real, dimension(nx,jsc:jec)       :: kmt_global
   real, dimension(isd:ied,jsd:jed)  :: kmt_tmp
   real, dimension(isd:ied,jsd:jed)  :: ncar_rescale2d
   real, dimension(nx)               :: dist_g 
@@ -1440,8 +1439,8 @@ subroutine ncar_boundary_scale_create(Time)
   ncar_rescale(:,:,:) = 0.0
   ncar_rescale2d(:,:) = 0.0
 
-  call mpp_global_field(Dom%domain2d,kmt_tmp,kmt_global)  
-  call mpp_global_field(Dom%domain2d,Grd%dxt,dxt_global)
+  call mpp_global_field(Dom%domain2d,kmt_tmp,kmt_global, flags = XUPDATE)  
+  call mpp_global_field(Dom%domain2d,Grd%dxt,dxt_global, flags = XUPDATE)
 
   do k=1,nk
      do j=jsc,jec
@@ -1461,7 +1460,7 @@ subroutine ncar_boundary_scale_create(Time)
                    ip1=i  
                endif
            endif
-           if(kmt_global(i,j+Dom%joff)<k .and. kmt_global(ip1,j+Dom%joff) >= k) then 
+           if(kmt_global(i,j)<k .and. kmt_global(ip1,j) >= k) then 
                ncount      = ncount+1
                iwp(ncount) = i
            endif
@@ -1491,23 +1490,23 @@ subroutine ncar_boundary_scale_create(Time)
            elseif ( i .ge. index  .and.  i .le. indexo ) then
                dist_g(i) = 0.0
            elseif ( (i .gt. indexo) ) then
-               dist_g(i) = dxt_global(i,j+Dom%joff)+dist_g(i-1)
+               dist_g(i) = dxt_global(i,j)+dist_g(i-1)
            elseif ( i .lt. index ) then
                if (indexo .le. Grd%ni) then
                    if (i .eq. 1) then
                        dist_g(i) = 0.0
                        do ii=indexo+1,Grd%ni
-                          dist_g(i)=dxt_global(ii,j+Dom%joff) + dist_g(i)
+                          dist_g(i)=dxt_global(ii,j) + dist_g(i)
                        enddo
-                       dist_g(i) = dxt_global(i,j+Dom%joff)+dist_g(i)
+                       dist_g(i) = dxt_global(i,j)+dist_g(i)
                    else
-                       dist_g(i) = dxt_global(i,j+Dom%joff)+dist_g(i-1)
+                       dist_g(i) = dxt_global(i,j)+dist_g(i-1)
                    endif
                else
                    if (i .le. (indexo - Grd%ni)) then
                        dist_g(i) = 0.0
                    else
-                       dist_g(i) = dxt_global(i,j+Dom%joff)+dist_g(i-1)
+                       dist_g(i) = dxt_global(i,j)+dist_g(i-1)
                    endif
                endif
            endif

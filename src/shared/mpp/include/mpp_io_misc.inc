@@ -1,6 +1,6 @@
 
 ! -*-f90-*-
-! $Id: mpp_io_misc.inc,v 19.0 2012/01/06 22:03:22 fms Exp $
+! $Id: mpp_io_misc.inc,v 20.0 2013/12/14 00:26:36 fms Exp $
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                      !
@@ -66,6 +66,12 @@
       read(unit_nml,mpp_io_nml,iostat=io_status)
       close(unit_nml)
 #endif
+
+      if (io_status > 0) then
+         call mpp_error(FATAL,'=>mpp_io_init: Error reading input.nml')
+      endif
+
+
       outunit = stdout(); logunit=stdlog()
       write(outunit, mpp_io_nml)
       write(logunit, mpp_io_nml)

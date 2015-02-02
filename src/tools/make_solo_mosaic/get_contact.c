@@ -198,6 +198,9 @@ int get_align_contact(int tile1, int tile2, int nx1, int ny1, int nx2, int ny2,
   if(tile1 == tile2) {
     int i, folded = 1;
     double dx;
+    int num;
+ 
+    num = 0;
     xb1 = north_bound(x1, nx1, ny1);
     yb1 = north_bound(y1, nx1, ny1);
     for(i=0; i<nx1/2; i++) {
@@ -207,10 +210,17 @@ int get_align_contact(int tile1, int tile2, int nx1, int ny1, int nx2, int ny2,
       }
       dx = fabs(xb1[i] - xb1[nx1-i-1]);
       if( dx !=0 && dx != 360 ) {
-	folded = 0;
-	break;
+        if(dx == 180) 
+           num++;
+        else {
+	   folded = 0;
+	   break;
+        }
       }
     }
+    /* if number of pair with lontitude difference == 180 is more than 1, it is not tripolar grid */
+    if(num>1) folded = 0;
+
     if(folded) {
       istart1[ncontact] = 1;
       iend1[ncontact]   = nx1/2;
@@ -250,7 +260,7 @@ int get_overlap_contact( int tile1, int tile2, int nx1, int ny1, int nx2, int ny
   p2x[0] = 0; p2y[0]=0;
   count = get_overlap_index(x2[l2], y2[l2], nx1, ny1, x1, y1, p1x, p1y);
   /* southeast corner */
-  p2x[1] = nx2-1; p2y[2] = 0;
+  p2x[1] = nx2-1; p2y[1] = 0;
   if( count > 0 ) {
     l2 = nx2-1;
     count = get_overlap_index(x2[l2], y2[l2], nx1, ny1, x1, y1, p1x+1, p1y+1);

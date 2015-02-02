@@ -55,8 +55,8 @@ private
 !---------------------------------------------------------------------
 !----------- version number for this module -------------------
 
-character(len=128)  :: version =  '$Id: microphys_rad.F90,v 19.0 2012/01/06 20:20:15 fms Exp $'
-character(len=128)  :: tagname =  '$Name: siena_201207 $'
+character(len=128)  :: version =  '$Id: microphys_rad.F90,v 20.0 2013/12/13 23:20:12 fms Exp $'
+character(len=128)  :: tagname =  '$Name: tikal $'
 
 
 !---------------------------------------------------------------------
@@ -95,13 +95,16 @@ real          ::  alpha = 0.1
                   ! frequency-independent parameter for absorption due 
                   ! to cloud drops in the infrared. this value is given 
                   ! in held et al, JAS, 1993. [ m**2 / g ]
+logical :: ignore_donner_cells = .false.
+                  ! when set to .true., the effects of donner cell clouds 
+                  ! in the radiation code are ignored
 
 namelist /microphys_rad_nml /     &
                                lwem_form, &
                                do_orig_donner_stoch, &
                                do_delta_adj, &
                                do_const_asy, val_const_asy, &
-                               alpha
+                               alpha, ignore_donner_cells
 
 !----------------------------------------------------------------------
 !----  public data -------
@@ -2739,9 +2742,15 @@ type(microrad_properties_type), intent(in), optional :: Lscrad_props, &
 !----------------------------------------------------------------------
 !    it's a cell.
 !----------------------------------------------------------------------
+              IF (ignore_donner_cells) then
+                  cldext(i,j,k,n,1) = 0. 
+                  cldsct(i,j,k,n,1) = 0. 
+                  cldasymm(i,j,k,n,1) = 1. 
+              ELSE
                   cldext(i,j,k,n,1) = Cellrad_props%cldext(i,j,k,n)
                   cldsct(i,j,k,n,1) = Cellrad_props%cldsct(i,j,k,n)
                   cldasymm(i,j,k,n, 1) = Cellrad_props%cldasymm(i,j,k,n)
+              ENDIF
                 else if ( stoch_cloud_type(i,j,k,n) == 2) then 
                  
 !----------------------------------------------------------------------
@@ -2777,11 +2786,15 @@ type(microrad_properties_type), intent(in), optional :: Lscrad_props, &
           do j=1,size(cldext,2) ! Lons
             do i=1,size(cldext,1) ! Lats
                 if ( stoch_cloud_type(i,j,k,nn) == 3) then 
+              IF (ignore_donner_cells) then
+                abscoeff(i,j,k,n,1) = 0.                              
+              ELSE
                  
 !----------------------------------------------------------------------
 !    it's a cell.
 !----------------------------------------------------------------------
                 abscoeff(i,j,k,n,1) = Cellrad_props%abscoeff(i,j,k,n)
+               ENDIF
                 else if ( stoch_cloud_type(i,j,k,nn) == 2) then 
                  
 !----------------------------------------------------------------------

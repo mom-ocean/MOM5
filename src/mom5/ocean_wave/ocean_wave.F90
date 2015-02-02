@@ -75,9 +75,9 @@ type(ocean_domain_type), pointer   :: Dom =>NULL()
 type(ocean_grid_type), pointer     :: Grd =>NULL()
 
 character(len=128) :: &
-     version='$Id: ocean_wave.F90,v 1.1.2.2 2012/05/17 13:41:56 smg Exp $'
+     version='$Id: ocean_wave.F90,v 20.0 2013/12/14 00:17:26 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 real,parameter:: gtpi=grav/2.0/pi, epsln=1e-20 
 real,parameter:: sqrt_2 = sqrt(2.)

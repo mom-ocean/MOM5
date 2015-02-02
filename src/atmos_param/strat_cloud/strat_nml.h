@@ -1,5 +1,5 @@
-! $Id: strat_nml.h,v 19.0 2012/01/06 20:27:25 fms Exp $
-! $Name: siena_201207 $
+! $Id: strat_nml.h,v 20.0 2013/12/13 23:22:19 fms Exp $
+! $Name: tikal $
 
 !------------------------------------------------------------------------
 !---namelist------
@@ -100,6 +100,30 @@
 !  <DATA NAME="microphys_scheme" TYPE="character" DEFAULT="rotstayn_klein">
 !   the microphysics scheme being used (currently either 
 !   "morrison_gettelman" or "rotstayn_klein")
+!  </DATA>
+!  <DATA NAME="macrophys_scheme" TYPE="character" DEFAULT="tiedtke">
+!   the macrophysics scheme being used (currently either 
+!   "tiedtke" or "           ")
+!  </DATA>
+!  <DATA NAME="aerosol_activation_scheme" TYPE="character" DEFAULT="dqa">
+!   the aerosol activation scheme being used (currently either 
+!   "dqa" or "total")
+!  </DATA>
+!  <DATA NAME="mass_cons" TYPE="logical" DEFAULT=".true.">
+!   should we use ensure water mass conservation by adjusting precip to 
+!   balance column water mass change ?
+!  </DATA>
+!  <DATA NAME="activate_all_ice_always" TYPE="logical" DEFAULT=".true.">
+!   should all potentially available ice particles be activated under all
+!   conditions ? (or only when dqa is increasing)
+!  </DATA>
+!  <DATA NAME="do_hallet_mossop" TYPE="logical" DEFAULT=".false.">
+!   the hallet-mossop process should be included in the NCAR microphysics?
+!  </DATA>
+!  <DATA NAME="retain_cm3_bug" TYPE="logical" DEFAULT=".false.">
+!   the minor bug present in CM3, in which several small terms in qv and 
+!   temp equations were retained while corresponding terms in ql and qi 
+!   were not, is retained? 
 !  </DATA>
 !  <DATA NAME="super_ice_opt" TYPE="integer" DEFAULT="0">
 !   flag to indicate how to treat supersaturation; 0 => don't allow.  
@@ -225,6 +249,12 @@ INTEGER, PARAMETER  :: max_strat_pts = 5
   real              :: num_mass_ratio1= 1.
   real              :: num_mass_ratio2= 1.
   character(len=64) :: microphys_scheme = 'rotstayn_klein'
+  character(len=64) :: macrophys_scheme = 'tiedtke'
+  character(len=64) :: aerosol_activation_scheme = 'dqa'
+  logical           :: mass_cons = .true.
+  logical           :: activate_all_ice_always= .true.
+  logical           :: do_hallet_mossop = .false.
+  logical           :: retain_cm3_bug = .false.
   integer           :: super_ice_opt = 0
   logical           :: do_ice_nucl_wpdf = .false.
 
@@ -253,6 +283,10 @@ INTEGER, PARAMETER  :: max_strat_pts = 5
   integer                             :: isamp = 1 
   integer                             :: jsamp = 1 
   integer                             :: ksamp = 1 
+  
+! 1 / relative variance of sub-grid cloud water distribution
+! see morrison and gettelman, 2007, J. Climate for details
+  real                                :: qcvar = 2.
 
 
 namelist / strat_cloud_nml /   &
@@ -261,13 +295,17 @@ namelist / strat_cloud_nml /   &
        mc_thresh, diff_thresh, super_choice, tracer_advec, qmin, Dmin, &
        efact, vfact, cfact, do_old_snowmelt, iwc_crit, vfall_const2,  &
        vfall_exp2, num_mass_ratio1, num_mass_ratio2,   &
-       microphys_scheme, super_ice_opt, do_ice_nucl_wpdf,  &
+       microphys_scheme, macrophys_scheme, aerosol_activation_scheme, &
+       mass_cons, activate_all_ice_always, do_hallet_mossop,  &
+       retain_cm3_bug, super_ice_opt, do_ice_nucl_wpdf,  &
 
        use_online_aerosol, use_sub_seasalt, sea_salt_scale, om_to_oc, &
        N_land, N_ocean, var_limit, do_liq_num, do_dust_berg, N_min,  & 
 
        do_pdf_clouds, betaP, qthalfwidth, nsublevels, kmap, kord, pdf_org, &
 
-       num_strat_pts, strat_pts, debugo, isamp, jsamp, ksamp
+       num_strat_pts, strat_pts, debugo, isamp, jsamp, ksamp,  &
+       
+       qcvar
 
 

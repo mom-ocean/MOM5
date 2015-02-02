@@ -13,7 +13,7 @@ module spec_mpp_mod
   private
   
   character(len=128), private :: version = '$Id: spec_mpp.F90,v 14.0 2007/03/15 22:12:44 fms Exp $'
-  character(len=128), private :: tagname = '$Name: siena_201207 $'
+  character(len=128), private :: tagname = '$Name: tikal $'
   type(domain2D), save, public :: grid_domain,  spectral_domain,  global_spectral_domain
   logical, private :: module_is_initialized=.FALSE.
   integer, private :: pe, npes

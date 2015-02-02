@@ -196,7 +196,7 @@ end type land_type
 logical                       :: module_is_initialized = .FALSE.
 character(len=*),   parameter :: module_name = 'land_mod'
 character(len=128), parameter :: version     = '$Id: land_model.F90,v 19.0 2012/01/06 20:38:57 fms Exp $'
-character(len=128), parameter :: tagname     = '$Name: siena_201207 $'
+character(len=128), parameter :: tagname     = '$Name: tikal $'
 
 
 ! ==== local module variables ================================================

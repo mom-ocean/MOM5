@@ -347,9 +347,9 @@ integer :: index_temp=-1
 integer :: index_salt=-1
 
 character(len=128) :: version=&
-       '$Id: ocean_rivermix.F90,v 1.1.2.1 2012/05/15 16:05:39 smg Exp $'
+       '$Id: ocean_rivermix.F90,v 20.0 2013/12/14 00:16:10 fms Exp $'
 character (len=128) :: tagname=&
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 integer :: isd, ied, jsd, jed, isc, iec, jsc, jec, nk
 
@@ -694,9 +694,10 @@ subroutine rivermix (Time, Thickness, Dens, T_prog, river, runoff, calving, &
             call diagnose_3d(Time, Grd, id_runoffmix(n), T_prog(n)%wrk1(:,:,:)*T_prog(n)%conversion)
          endif
       enddo
-      call watermass_diag_runoff(Time, Dens, T_prog, calving, &
+      call watermass_diag_runoff(Time, Dens, T_prog, runoff, &
       T_prog(index_temp)%wrk1(:,:,:),T_prog(index_salt)%wrk1(:,:,:))
 
+      
       do n=1,num_prog_tracers  
         T_prog(n)%wrk1(:,:,:) = 0.0
       enddo  
@@ -718,6 +719,7 @@ subroutine rivermix (Time, Thickness, Dens, T_prog, river, runoff, calving, &
       call watermass_diag_calving(Time, Dens, T_prog, calving, &
       T_prog(index_temp)%wrk1(:,:,:),T_prog(index_salt)%wrk1(:,:,:))
 
+      
   endif  ! discharge_combine_runoff_calve
 
 

@@ -1,4 +1,12 @@
-
+!-----------------------------------------------------------------------
+! Copyright 2011 NOAA Geophysical Fluid Dynamics Lab, Princeton, NJ
+! This program is distributed under the terms of the GNU General Public
+! License. See the file COPYING contained in this directory
+!
+!  This program aggregates vertical data by pressure levels
+!
+!-----------------------------------------------------------------------
+ 
 program run_pressure_interp
 
 use netcdf
@@ -234,7 +242,7 @@ real, parameter :: rgog = RDGAS*tlapse/GRAV
 
       call set_verbose_level (verbose)
 
-  ! create version string (may replace with CVS $Id: run_pressure_interp.F90,v 19.0 2012/01/06 22:07:23 fms Exp $)
+  ! create version string (may replace with CVS $Id: run_pressure_interp.F90,v 20.0 2013/12/14 00:29:42 fms Exp $)
     version = 'pressure level interpolator, version 3.0'
     if (precision(ps) == precision(time)) then
         version = trim(version)//', precision=double'

@@ -257,7 +257,7 @@ const int BOX_CHANNEL       = 6;
 const int DOME              = 7;
 
 char grid_version[] = "0.2";
-char tagname[] = "$Name: siena_201205_z1l $";
+char tagname[] = "$Name: tikal $";
 
 int main(int argc, char* argv[])
 {
@@ -288,6 +288,7 @@ int main(int argc, char* argv[])
   int    open_very_this_cell = 1;
   double min_thickness = 0.1;
   int    my_topog_type;
+  int    use_great_circle_algorithm=0;
   int    cyclic_x, cyclic_y, tripolar_grid;
   int    errflg = (argc == 1);
   int    option_index, i, c;
@@ -644,15 +645,15 @@ int main(int argc, char* argv[])
     id_level = (int *)malloc(ntiles*sizeof(int));
     /* loop through each tile to get tile information and set up meta data for output file */
     fid = mpp_open(output_file, MPP_WRITE);
-    mpp_def_global_att(fid, "grid_version", grid_version);
-    mpp_def_global_att(fid, "code_version", tagname);
-    mpp_def_global_att(fid, "history", history);
+
     dim_ntiles = mpp_def_dim(fid, "ntiles", ntiles);
     nx = (int *)malloc(ntiles*sizeof(int));
     ny = (int *)malloc(ntiles*sizeof(int));
     nxp = (int *)malloc(ntiles*sizeof(int));
     nyp = (int *)malloc(ntiles*sizeof(int));   
     for( n = 0; n < ntiles; n++ ) {
+      int use_great_circle_algorithm_prev=0;
+      
       tile_files[n] = (char *)malloc(STRING*sizeof(double));
       start[0] = n;
       start[1] = 0;
@@ -689,11 +690,27 @@ int main(int argc, char* argv[])
 				"topographic depth at T-cell centers", "units", "meters");
       if(vgrid_file) id_level[n] = mpp_def_var(fid, level_name, NC_INT, 2, dims, 2, "standard_name",
 					       "number of vertical T-cells", "units", "none");
+      /* when topog_type is realistics, check if use great_circle_algorithm */
+      use_great_circle_algorithm = get_great_circle_algorithm(g_fid);
+      if(n>0) {
+	if( use_great_circle_algorithm != use_great_circle_algorithm_prev)
+	  mpp_error("make_topog: atribute 'great_circle_algorithm' of field 'tile' have different value for different tile");
+      }
+      use_great_circle_algorithm_prev = use_great_circle_algorithm;
+
       mpp_close(g_fid);
     }
     mpp_close(m_fid);
+    mpp_def_global_att(fid, "grid_version", grid_version);
+    mpp_def_global_att(fid, "code_version", tagname);
+    if(use_great_circle_algorithm) mpp_def_global_att(fid, "great_circle_algorithm", "TRUE");
+    mpp_def_global_att(fid, "history", history);
+    
     mpp_end_def(fid);
 
+    if(mpp_pe()==mpp_root_pe() && use_great_circle_algorithm)
+      printf("\n NOTE from make_topog: use great circle algorithm\n");
+    
     /* get the boundary condition for realistics topogrpahy, currently only support tripolar_grid,
      cyclic_x and cyclic_y*/
     if(my_topog_type == REALISTIC) get_boundary_type(mosaic_file, VERSION_2, &cyclic_x, &cyclic_y, &tripolar_grid);
@@ -762,13 +779,13 @@ int main(int argc, char* argv[])
       case IDEALIZED:
 	create_idealized_topog( nx[n], ny[n], x, y, bottom_depth, min_depth, depth);
 	break;
-      case REALISTIC:
+      case REALISTIC:	
 	create_realistic_topog(nxc, nyc, x, y, vgrid_file, topog_file, topog_field, scale_factor,
 			       tripolar_grid, cyclic_x, cyclic_y, fill_first_row, filter_topog, num_filter_pass,
 			       smooth_topo_allow_deepening, round_shallow, fill_shallow,
 			       deepen_shallow, full_cell, flat_bottom, adjust_topo,
 			       fill_isolated_cells, dont_change_landmask, kmt_min, min_thickness, open_very_this_cell,
-			       fraction_full_cell, depth, num_levels, domain, verbose );
+			       fraction_full_cell, depth, num_levels, domain, verbose, use_great_circle_algorithm );
 	break;
       case BOX_CHANNEL:
 	create_box_channel_topog(nx[n], ny[n], bottom_depth,

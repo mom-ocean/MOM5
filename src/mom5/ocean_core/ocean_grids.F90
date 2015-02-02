@@ -125,9 +125,9 @@ integer :: id_dyte=-1
 logical :: used
 
 character(len=128) :: version=&
-     '$Id: ocean_grids.F90,v 1.1.2.10 2012/06/04 00:11:43 Stephen.Griffies Exp $'
+     '$Id: ocean_grids.F90,v 20.0 2013/12/14 00:10:44 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 public ocean_grids_init
 public set_ocean_grid_size
@@ -1668,6 +1668,12 @@ subroutine set_ocean_vgrid_arrays (Domain, Grid, obc)
 end subroutine set_ocean_vgrid_arrays
 ! </SUBROUTINE> NAME="set_ocean_vgrid_arrays"
 
+!#######################################################################
+! <SUBROUTINE NAME="init_grids_diag">
+!
+! <DESCRIPTION>
+! Initialize some grid diagnostics. 
+! </DESCRIPTION>
 subroutine init_grids_diag(Grid, Time)
 
   type(ocean_grid_type), intent(inout) :: grid

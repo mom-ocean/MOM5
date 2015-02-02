@@ -8,11 +8,12 @@ use fms_mod, only: open_namelist_file
 
 use fms_mod, only : &
      write_version_number, file_exist, check_nml_error, &
-     close_file, stdlog
+     close_file, stdlog, stdout
 
-use land_constants_mod, only : NBANDS
+use land_constants_mod, only : NBANDS, BAND_VIS, BAND_NIR
 use land_tile_selectors_mod, only : &
      tile_selector_type, SEL_VEGN, register_tile_selector
+use table_printer_mod
 
 implicit none
 private
@@ -112,8 +113,8 @@ public :: read_vegn_data_namelist
 
 ! ==== constants =============================================================
 character(len=*), parameter   :: &
-     version     = '$Id: vegn_data.F90,v 19.0 2012/01/06 20:44:32 fms Exp $', &
-     tagname     = '$Name: siena_201207 $', &
+     version     = '$Id: vegn_data.F90,v 20.0 2013/12/13 23:31:06 fms Exp $', &
+     tagname     = '$Name: tikal $', &
      module_name = 'vegn_data_mod'
 real, parameter :: TWOTHIRDS  = 2.0/3.0
 
@@ -174,6 +175,9 @@ type spec_data_type
 
   ! critical temperature for leaf drop, was internal to phenology
   real    :: tc_crit
+  ! critical soil-water-stress index, used in place of fact_crit_phen and 
+  ! cnst_crit_phen. It is used if and only if it's value is greater than 0
+  real    :: psi_stress_crit_phen
   real    :: fact_crit_phen, cnst_crit_phen ! wilting factor and offset to 
     ! get critical value for leaf drop -- only one is non-zero at any time
   real    :: fact_crit_fire, cnst_crit_fire ! wilting factor and offset to 
@@ -343,6 +347,8 @@ real :: gamma_resp(0:MSPECIES)= &
 !       c4grass       c3grass    temp-decid      tropical     evergreen      BE     BD     BN     NE     ND      G      D      T      A
 real :: tc_crit(0:MSPECIES)= &
        (/ 283.16,      278.16,       283.16,        283.16,      263.16,      0.,    0.,    0.,    0.,    0.,    0.,    0.,    0.,    0. /)
+real :: psi_stress_crit_phen(0:MSPECIES)= & ! iff > 0, critical soil-water-stress index for leaf drop, overrides water content
+       (/    0.0,         0.0,          0.0,           0.0,         0.0,    0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0 /)       
 real :: cnst_crit_phen(0:MSPECIES)= & ! constant critical value for leaf drop
        (/    0.1,         0.1,          0.1,           0.1,         0.1,    0.1,   0.1,   0.1,   0.1,   0.1,   0.1,   0.1,   0.1,   0.1  /)
 real :: fact_crit_phen(0:MSPECIES)= & ! factor for wilting to get critical value for leaf drop
@@ -417,8 +423,8 @@ namelist /vegn_data_nml/ &
   smoke_fraction, agf_bs, K1,K2, fsc_liv, fsc_wood, &
   tau_drip_l, tau_drip_s, GR_factor, tg_c3_thresh, tg_c4_thresh, &
   fsc_pool_spending_time, ssc_pool_spending_time, harvest_spending_time, &
-  l_fract, T_transp_min, &
-  tc_crit, cnst_crit_phen, fact_crit_phen, cnst_crit_fire, fact_crit_fire, &
+  l_fract, T_transp_min,  tc_crit, psi_stress_crit_phen, &
+  cnst_crit_phen, fact_crit_phen, cnst_crit_fire, fact_crit_fire, &
   scnd_biomass_bins, phen_ev1, phen_ev2
 
 
@@ -433,6 +439,8 @@ subroutine read_vegn_data_namelist()
   integer :: io           ! i/o status for the namelist
   integer :: ierr         ! error code, returned by i/o routines
   integer :: i
+  
+  type(table_printer_type) :: table
 
   call write_version_number(version, tagname)
 #ifdef INTERNAL_FILE_NML
@@ -504,6 +512,7 @@ subroutine read_vegn_data_namelist()
   spdata%leaf_size = leaf_size
 
   spdata%tc_crit   = tc_crit
+  spdata%psi_stress_crit_phen = psi_stress_crit_phen
   spdata%cnst_crit_phen = cnst_crit_phen
   spdata%fact_crit_phen = fact_crit_phen
   spdata%cnst_crit_fire = cnst_crit_fire
@@ -539,6 +548,74 @@ subroutine read_vegn_data_namelist()
 
   write (unit, nml=vegn_data_nml)
 
+  call init_with_headers(table,species_name)
+  call add_row(table,'Treefall dist. rate', spdata(:)%treefall_disturbance_rate)
+  call add_row(table,'Mortality kills balive', spdata(:)%mortality_kills_balive)
+  call add_row(table,'Phisiology Type', spdata(:)%pt)
+  call add_row(table,'C1',            spdata(:)%c1)
+  call add_row(table,'C2',            spdata(:)%c2)
+  call add_row(table,'C3',            spdata(:)%c3)
+
+  call add_row(table,'alpha_leaf',    spdata(:)%alpha(CMPT_LEAF))
+  call add_row(table,'alpha_root',    spdata(:)%alpha(CMPT_ROOT))
+  call add_row(table,'alpha_vleaf',   spdata(:)%alpha(CMPT_VLEAF))
+  call add_row(table,'alpha_sapwood', spdata(:)%alpha(CMPT_SAPWOOD))
+  call add_row(table,'alpha_wood',    spdata(:)%alpha(CMPT_WOOD))
+  call add_row(table,'alpha_repro',   spdata(:)%alpha(CMPT_REPRO))
+
+  call add_row(table,'beta_leaf',     spdata(:)%beta(CMPT_LEAF))
+  call add_row(table,'beta_root',     spdata(:)%beta(CMPT_ROOT))
+  call add_row(table,'beta_vleaf',    spdata(:)%beta(CMPT_VLEAF))
+  call add_row(table,'beta_sapwood',  spdata(:)%beta(CMPT_SAPWOOD))
+  call add_row(table,'beta_wood',     spdata(:)%beta(CMPT_WOOD))
+  call add_row(table,'beta_repro',    spdata(:)%beta(CMPT_REPRO))
+
+  call add_row(table,'dfr',           spdata(:)%dfr)
+
+  call add_row(table,'srl',           spdata(:)%srl)
+  call add_row(table,'root_r',        spdata(:)%root_r)
+  call add_row(table,'root_perm',     spdata(:)%root_perm)
+
+  call add_row(table,'specific_leaf_area', spdata(:)%specific_leaf_area)
+  call add_row(table,'leaf_size',     spdata(:)%leaf_size)
+  call add_row(table,'leaf_life_span',spdata(:)%leaf_life_span)
+
+  call add_row(table,'alpha_phot',    spdata(:)%alpha_phot)
+  call add_row(table,'m_cond',        spdata(:)%m_cond)
+  call add_row(table,'Vmax',          spdata(:)%Vmax)
+  call add_row(table,'gamma_resp',    spdata(:)%gamma_resp)
+  call add_row(table,'wet_leaf_dreg', spdata(:)%wet_leaf_dreg)
+  call add_row(table,'leaf_age_onset',spdata(:)%leaf_age_onset)
+  call add_row(table,'leaf_age_tau',  spdata(:)%leaf_age_tau)
+
+  call add_row(table,'leaf_refl_vis', spdata(:)%leaf_refl(BAND_VIS))
+  call add_row(table,'leaf_refl_nir', spdata(:)%leaf_refl(BAND_NIR))
+  call add_row(table,'leaf_tran_vis', spdata(:)%leaf_tran(BAND_VIS))
+  call add_row(table,'leaf_tran_nir', spdata(:)%leaf_tran(BAND_NIR))
+  call add_row(table,'leaf_emis',     spdata(:)%leaf_emis)
+  call add_row(table,'ksi',           spdata(:)%ksi)
+  call add_row(table,'phi1',          spdata(:)%phi1)
+  call add_row(table,'phi2',          spdata(:)%phi2)
+  call add_row(table,'mu_bar',        spdata(:)%mu_bar)
+
+  call add_row(table,'cmc_lai',       spdata(:)%cmc_lai)
+  call add_row(table,'cmc_pow',       spdata(:)%cmc_pow)
+  call add_row(table,'csc_lai',       spdata(:)%csc_lai)
+  call add_row(table,'csc_pow',       spdata(:)%csc_pow)
+  call add_row(table,'fuel_intensity',spdata(:)%fuel_intensity)
+
+  call add_row(table,'tc_crit',       spdata(:)%tc_crit)
+  call add_row(table,'psi_stress_crit_phen', spdata(:)%psi_stress_crit_phen)
+  call add_row(table,'fact_crit_phen',spdata(:)%fact_crit_phen)
+  call add_row(table,'cnst_crit_phen',spdata(:)%cnst_crit_phen)
+  call add_row(table,'fact_crit_fire',spdata(:)%fact_crit_fire)
+  call add_row(table,'cnst_crit_fire',spdata(:)%cnst_crit_fire)
+
+  call add_row(table,'smoke_fraction',spdata(:)%smoke_fraction)
+
+  call print(table,stdout())
+  call print(table,unit)
+  
 end subroutine 
 
 

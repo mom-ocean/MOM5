@@ -213,9 +213,9 @@ integer :: index_temp=-1
 integer :: index_salt=-1
 
 character(len=128) :: version=&
-       '$Id: ocean_xlandmix.F90,v 1.1.2.2 2012/05/17 13:41:49 smg Exp $'
+       '$Id: ocean_xlandmix.F90,v 20.0 2013/12/14 00:16:30 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 integer :: isd, ied, jsd, jed, isc, iec, jsc, jec, nk
 integer :: isg, ieg, jsg, jeg

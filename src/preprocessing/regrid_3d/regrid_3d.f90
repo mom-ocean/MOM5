@@ -148,7 +148,7 @@ program regrid_3d
   type(axistype)     :: depth_axis, time_axis, axes_dst(2)
   type(fieldtype)    :: field_lon_dst, field_lat_dst
   type(fieldtype)    :: dest_field(max_fields)
-  integer            :: dest_unit         
+  integer            :: dest_unit, dst_grid_unit         
   logical            :: time_axis_exists = .false.
   real, parameter    :: tol = 1.e-10   ! tolerance for detecting missing values
   real, parameter    :: max_val=1.e20
@@ -165,8 +165,8 @@ program regrid_3d
   real, dimension(:,:),          allocatable :: lon_dst, lat_dst
   real, dimension(:,:,:),        allocatable :: mask_dst
   !--- version information variables
-  character(len=128) :: version='CVS $Id: regrid_3d.f90,v 18.0.2.1 2010/11/22 14:57:59 z1l Exp $'
-  character(len=128) :: tagname='Tag $Name: siena_201205_z1l $'
+  character(len=128) :: version='CVS $Id: regrid_3d.f90,v 20.0 2013/12/14 00:31:13 fms Exp $'
+  character(len=128) :: tagname='Tag $Name: tikal $'
 
   ! --- Begin of the program
 
@@ -245,7 +245,7 @@ contains
   !--- open grid file and store grid info
   subroutine read_dst_grid
 
-    integer                                    :: unit, ndim, nvar, natt, ntime, i, j, k
+    integer                                    :: ndim, nvar, natt, ntime, i, j, k
     integer                                    :: len1, siz_in(3)
     logical                                    :: found_xt, found_yt, found_kmt
     character(len=32)                          :: name
@@ -256,14 +256,14 @@ contains
     if(.not. file_exist(trim(dest_grid)) ) &
          call mpp_error(FATAL, 'regrid_3d: file '//trim(dest_grid)//' does not exist')
 
-    call mpp_open(unit, trim(dest_grid),&
+    call mpp_open(dst_grid_unit, trim(dest_grid),&
          action=MPP_RDONLY, form=MPP_NETCDF, threading=MPP_MULTI, fileset=MPP_SINGLE)
 
-    call mpp_get_info(unit, ndim, nvar, natt, ntime)
+    call mpp_get_info(dst_grid_unit, ndim, nvar, natt, ntime)
 
     allocate(fields(nvar), axes(ndim) )
-    call mpp_get_axes(unit, axes)
-    call mpp_get_fields(unit,fields)
+    call mpp_get_axes(dst_grid_unit, axes)
+    call mpp_get_fields(dst_grid_unit,fields)
 
     !--------------------------------------------------------------------
     ! get output grid information
@@ -294,22 +294,21 @@ contains
        select case (trim(name))
        case ('x_T')
           found_xt = .true.
-          call mpp_read(unit,fields(i),lon_dst)
+          call mpp_read(dst_grid_unit,fields(i),lon_dst)
           field_lon_dst = fields(i)
           call mpp_get_atts(fields(i),axes=axes_dst)
        case ('y_T')
           found_yt = .true.
-          call mpp_read(unit,fields(i),lat_dst)
+          call mpp_read(dst_grid_unit,fields(i),lat_dst)
           field_lat_dst = fields(i)           
        case ('num_levels')
           found_kmt = .true.
-          call mpp_read(unit,fields(i),kmt )
+          call mpp_read(dst_grid_unit,fields(i),kmt )
        end select
     enddo
     if(.not.found_kmt) call mpp_error(FATAL,'regrid_3d: field num_levels is not in the file '//trim(dest_grid) )
     if(.not.found_xt) call mpp_error(FATAL,'regrid_3d: field x_T is not in the file '//trim(dest_grid) )
     if(.not.found_yt) call mpp_error(FATAL,'regrid_3d: field y_T is not in the file '//trim(dest_grid) )
-    call mpp_close(unit)
 
     allocate(mask_dst(ni_dst,nj_dst,nk_dst) )
 
@@ -661,11 +660,18 @@ contains
        enddo
     enddo
 
-    deallocate(tmp, tmp1, data_src, data_dst, mask_src)
-    if(.not. use_source_vertical_grid) deallocate(depth_src_3d, depth_dst_3d, tmp2 )
+    if(allocated(tmp)) deallocate(tmp)
+    if(allocated(tmp1)) deallocate(tmp1)
+    if(allocated(data_src)) deallocate(data_src)
+    if(allocated(data_dst)) deallocate(data_dst)
+    if(allocated(mask_src)) deallocate(mask_src)
+    if(allocated(tmp2)) deallocate(tmp2)
+    if(allocated(depth_src_3d)) deallocate(depth_src_3d)
+    if(allocated(depth_dst_3d)) deallocate(depth_dst_3d)
+
     !--- write out chksum for parallel checking
 
-
+    call mpp_close(dst_grid_unit)
     call mpp_close(dest_unit)
     call mpp_close(src_unit)
     call horiz_interp_end

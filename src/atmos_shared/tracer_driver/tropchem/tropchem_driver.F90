@@ -313,8 +313,8 @@ type (horiz_interp_type), save :: Interp
 
 
 !---- version number ---------------------------------------------------
-character(len=128), parameter :: version     = '$Id: tropchem_driver.F90,v 19.0 2012/01/06 20:34:20 fms Exp $'
-character(len=128), parameter :: tagname     = '$Name: siena_201207 $'
+character(len=128), parameter :: version     = '$Id: tropchem_driver.F90,v 20.0 2013/12/13 23:25:19 fms Exp $'
+character(len=128), parameter :: tagname     = '$Name: tikal $'
 !-----------------------------------------------------------------------
 
 contains
@@ -522,35 +522,36 @@ subroutine tropchem_driver( lon, lat, land, ocn_flx_fraction, pwt, r, chem_dt,  
 !     ... read in the surface emissions, using interpolator
 !-----------------------------------------------------------------------
       if (has_emis(n)) then
-         call read_2D_emis_data( inter_emis(n), emis, Time, &
+         call read_2D_emis_data( inter_emis(n), emis, Time, Time_next, &
                                  emis_field_names(n)%field_names, &
                                  diurnal_emis(n), coszen, half_day, lon, &
                                  is, js, id_emis(n) )
          if (tracnam(n) == 'NO') then
            emisz(:,:,n) = emis(:,:)
            if (id_no_emis_cmip > 0) then
-             used = send_data(id_no_emis_cmip,emis*1.0e04*0.030/AVOGNO,Time, &
+             used = send_data(id_no_emis_cmip,emis*1.0e04*0.030/AVOGNO, &
+                                  Time_next, &
                                                   is_in=is,js_in=js)
            endif
          endif
          if (tracnam(n) == 'CO') then
            emisz(:,:,n) = emis(:,:)
            if (id_co_emis_cmip > 0) then
-             used = send_data(id_co_emis_cmip,emis*1.0e04*0.028/AVOGNO,Time, &
+             used = send_data(id_co_emis_cmip,emis*1.0e04*0.028/AVOGNO,Time_next, &
                                                   is_in=is,js_in=js)
            endif
          endif
          if (tracnam(n) == 'SO2') then
            emisz(:,:,n) = emis(:,:)
            if (id_so2_emis_cmip > 0) then
-             used = send_data(id_so2_emis_cmip,emis*1.0e04*0.064/AVOGNO,Time, &
+             used = send_data(id_so2_emis_cmip,emis*1.0e04*0.064/AVOGNO,Time_next, &
                                                   is_in=is,js_in=js)
            endif
          endif
          if (tracnam(n) == 'NH3') then
            emisz(:,:,n) = emis(:,:)
            if (id_nh3_emis_cmip > 0) then
-             used = send_data(id_nh3_emis_cmip,emis*1.0e04*0.017/AVOGNO,Time, &
+             used = send_data(id_nh3_emis_cmip,emis*1.0e04*0.017/AVOGNO,Time_next, &
                                                   is_in=is,js_in=js)
            endif
          endif
@@ -571,7 +572,7 @@ subroutine tropchem_driver( lon, lat, land, ocn_flx_fraction, pwt, r, chem_dt,  
 !     ... read in the 3-D emissions, using interpolator
 !-----------------------------------------------------------------------
       if (has_emis3d(n)) then
-         call read_3D_emis_data( inter_emis3d(n), emis3d, Time, phalf, &
+         call read_3D_emis_data( inter_emis3d(n), emis3d, Time, Time_next,phalf, &
                                  emis3d_field_names(n)%field_names, &
                                  diurnal_emis3d(n), coszen, half_day, lon, &
                                  is, js, id_emis3d(n) )
@@ -610,7 +611,7 @@ subroutine tropchem_driver( lon, lat, land, ocn_flx_fraction, pwt, r, chem_dt,  
 
             flux_sw_down_vis = flux_sw_down_vis_dir+flux_sw_down_vis_dif
 
-            call calc_xactive_isop ( n, Time, lon, lat, oro, pwtsfc, is, js, &
+            call calc_xactive_isop ( n, Time, Time_next, lon, lat, oro, pwtsfc, is, js, &
                  area, land, tsfcair, flux_sw_down_vis, &
                  coszen, emis, id_gamma_lai_age=id_glaiage, &
                  id_gamma_temp=id_gtemp, id_gamma_light=id_glight, &
@@ -633,7 +634,7 @@ subroutine tropchem_driver( lon, lat, land, ocn_flx_fraction, pwt, r, chem_dt,  
                end if
             end if
          case ('DMS')
-            call calc_xactive_emis( n, Time, lon, lat, pwt, is, ie, js, je, &
+            call calc_xactive_emis( n, Time, Time_next,lon, lat, pwt, is, ie, js, je, &
                  area, land, ocn_flx_fraction,tsurf, w10m, xactive_emis, &
                  kbot=kbot, id_emis_diag=id_xactive_emis(n) )
             if (has_xactive_emis(n)) then
@@ -653,7 +654,7 @@ subroutine tropchem_driver( lon, lat, land, ocn_flx_fraction, pwt, r, chem_dt,  
          call interpolator( inter_aircraft_emis(n), Time, phalf, &
                             airc_emis(:,:,:,n), trim(airc_names(n)),is,js)
          if(id_airc(n) > 0)&
-              used = send_data(id_airc(n),airc_emis(:,:,:,n),Time, is_in=is, js_in=js)
+              used = send_data(id_airc(n),airc_emis(:,:,:,n),Time_next, is_in=is, js_in=js)
     
          if (tracnam(n) == 'CO') then
            do k=1, size(emis3d,3)
@@ -680,25 +681,25 @@ subroutine tropchem_driver( lon, lat, land, ocn_flx_fraction, pwt, r, chem_dt,  
       end if
          if (tracnam(n) == 'NO') then
            if (id_no_emis_cmip2 > 0) then
-             used = send_data(id_no_emis_cmip2,emisz(:,:,n)*1.0e04*0.030/AVOGNO,Time, &
+             used = send_data(id_no_emis_cmip2,emisz(:,:,n)*1.0e04*0.030/AVOGNO,Time_next, &
                                                  is_in=is,js_in=js)
            endif
          endif
          if (tracnam(n) == 'CO') then
            if (id_co_emis_cmip2 > 0) then
-             used = send_data(id_co_emis_cmip2,emisz(:,:,n)*1.0e04*0.028/AVOGNO,Time, &
+             used = send_data(id_co_emis_cmip2,emisz(:,:,n)*1.0e04*0.028/AVOGNO,Time_next, &
                                                  is_in=is,js_in=js)
            endif
          endif
          if (tracnam(n) == 'SO2') then
            if (id_so2_emis_cmip2 > 0) then
-             used = send_data(id_so2_emis_cmip2,emisz(:,:,n)*1.0e04*0.064/AVOGNO,Time, &
+             used = send_data(id_so2_emis_cmip2,emisz(:,:,n)*1.0e04*0.064/AVOGNO,Time_next, &
                                                  is_in=is,js_in=js)
            endif
          endif
          if (tracnam(n) == 'NH3') then
            if (id_nh3_emis_cmip2 > 0) then
-             used = send_data(id_nh3_emis_cmip2,emisz(:,:,n)*1.0e04*0.017/AVOGNO,Time, &
+             used = send_data(id_nh3_emis_cmip2,emisz(:,:,n)*1.0e04*0.017/AVOGNO,Time_next, &
                                                   is_in=is,js_in=js)
            endif
          endif
@@ -719,7 +720,7 @@ subroutine tropchem_driver( lon, lat, land, ocn_flx_fraction, pwt, r, chem_dt,  
 !     ... read in the sulfate aerosol concentrations
 !-----------------------------------------------------------------------
    call interpolator(sulfate, Time, phalf, sulfate_data, 'sulfate', is,js)
-   used = send_data(id_sul, sulfate_data, Time, is_in=is, js_in=js)
+   used = send_data(id_sul, sulfate_data, Time_next, is_in=is, js_in=js)
 
 !  call mpp_clock_begin(clock_id)
 
@@ -920,10 +921,10 @@ subroutine tropchem_driver( lon, lat, land, ocn_flx_fraction, pwt, r, chem_dt,  
 !-----------------------------------------------------------------------
    do n = 1,pcnstm1
       if(id_prod(n)>0) then
-         used = send_data(id_prod(n),prod(:,:,:,n),Time,is_in=is,js_in=js)
+         used = send_data(id_prod(n),prod(:,:,:,n),Time_next,is_in=is,js_in=js)
       end if
       if(id_loss(n)>0) then
-         used = send_data(id_loss(n),loss(:,:,:,n),Time,is_in=is,js_in=js)
+         used = send_data(id_loss(n),loss(:,:,:,n),Time_next,is_in=is,js_in=js)
       end if
       
       if (n == sphum_ndx) then
@@ -968,7 +969,7 @@ subroutine tropchem_driver( lon, lat, land, ocn_flx_fraction, pwt, r, chem_dt,  
 !     ... output diagnostic tendency
 !-----------------------------------------------------------------------
       if(id_chem_tend(n)>0) then
-         used = send_data( id_chem_tend(n), tend_tmp(:,:,:), Time, is_in=is,js_in=js)
+         used = send_data( id_chem_tend(n), tend_tmp(:,:,:), Time_next, is_in=is,js_in=js)
       end if
      
 !-----------------------------------------------------------------------
@@ -977,7 +978,7 @@ subroutine tropchem_driver( lon, lat, land, ocn_flx_fraction, pwt, r, chem_dt,  
       if(has_ubc(n)) then
          call interpolator(ub(n), Time, phalf, r_ub(:,:,:,n), trim(ub_names(n)), is, js)
          if(id_ub(n)>0) then
-            used = send_data(id_ub(n), r_ub(:,:,:,n), Time, is_in=is, js_in=js)
+            used = send_data(id_ub(n), r_ub(:,:,:,n), Time_next, is_in=is, js_in=js)
          end if
          where (pfull(:,:,:) < ub_pres)            
             chem_dt(:,:,:,indices(n)) = (r_ub(:,:,:,n) - r(:,:,:,indices(n))) / relaxed_dt
@@ -996,7 +997,7 @@ subroutine tropchem_driver( lon, lat, land, ocn_flx_fraction, pwt, r, chem_dt,  
          call time_interp( lbc_Time, lb(n)%gas_time(:), frac, index1, index2 )
          r_lb(n) = lb(n)%gas_value(index1) + frac*( lb(n)%gas_value(index2) - lb(n)%gas_value(index1) )
          if(id_lb(n)>0) then
-            used = send_data(id_lb(n), r_lb(n), Time)
+            used = send_data(id_lb(n), r_lb(n), Time_next)
          end if
          where (pfull(:,:,:) > lb_pres)
             chem_dt(:,:,:,indices(n)) = (r_lb(n) - r(:,:,:,indices(n))) / relaxed_dt_lbc
@@ -1008,16 +1009,16 @@ subroutine tropchem_driver( lon, lat, land, ocn_flx_fraction, pwt, r, chem_dt,  
 !     ...send ox budget(jmao,1/1/2011)
 !-----------------------------------------------------------------------
    if(id_prodox>0) then
-      used = send_data(id_prodox, prodox(:,:,:), Time, is_in=is, js_in=js)
+      used = send_data(id_prodox, prodox(:,:,:), Time_next, is_in=is, js_in=js)
    end if
    if(id_lossox>0) then
-      used = send_data(id_lossox, lossox(:,:,:), Time, is_in=is, js_in=js)
+      used = send_data(id_lossox, lossox(:,:,:), Time_next, is_in=is, js_in=js)
    end if
 !-----------------------------------------------------------------------
 !     ... surface concentration diagnostics
 !-----------------------------------------------------------------------
       if ( o3_ndx>0 ) then
-         used = send_data(id_srf_o3, r_temp(:,:,size(r_temp,3),o3_ndx), Time, is_in=is, js_in=js)
+         used = send_data(id_srf_o3, r_temp(:,:,size(r_temp,3),o3_ndx), Time_next, is_in=is, js_in=js)
       end if
 
    
@@ -1074,7 +1075,7 @@ subroutine tropchem_driver( lon, lat, land, ocn_flx_fraction, pwt, r, chem_dt,  
 !     ... Cly chemical tendency diagnostic
 !-----------------------------------------------------------------------
    if (id_dclydt_chem>0) then
-      used = send_data(id_dclydt_chem, (cly(:,:,:)-cly0(:,:,:))/dt, Time, is_in=is, js_in=js)
+      used = send_data(id_dclydt_chem, (cly(:,:,:)-cly0(:,:,:))/dt, Time_next, is_in=is, js_in=js)
    end if
 
 !-----------------------------------------------------------------------
@@ -1201,11 +1202,11 @@ subroutine tropchem_driver( lon, lat, land, ocn_flx_fraction, pwt, r, chem_dt,  
    end if
    if (cl_ndx>0) then
       chem_dt(:,:,:,indices(cl_ndx)) = chem_dt(:,:,:,indices(cl_ndx)) + dclydt(:,:,:)
-      used = send_data(id_dclydt, dclydt, Time, is_in=is, js_in=js)
+      used = send_data(id_dclydt, dclydt, Time_next, is_in=is, js_in=js)
    end if
    if (br_ndx>0) then
       chem_dt(:,:,:,indices(br_ndx)) = chem_dt(:,:,:,indices(br_ndx)) + dbrydt(:,:,:)
-      used = send_data(id_dbrydt, dbrydt, Time, is_in=is, js_in=js)
+      used = send_data(id_dbrydt, dbrydt, Time_next, is_in=is, js_in=js)
    end if
    
 !-----------------------------------------------------------------------
@@ -1228,7 +1229,7 @@ subroutine tropchem_driver( lon, lat, land, ocn_flx_fraction, pwt, r, chem_dt,  
 !-----------------------------------------------------------------------
    do n = 1,phtcnt
       if(id_jval(n)>0) then
-         used = send_data(id_jval(n),jvals(:,:,:,n),Time,is_in=is,js_in=js)
+         used = send_data(id_jval(n),jvals(:,:,:,n),Time_next,is_in=is,js_in=js)
       end if
    end do
 
@@ -1237,26 +1238,26 @@ subroutine tropchem_driver( lon, lat, land, ocn_flx_fraction, pwt, r, chem_dt,  
 !-----------------------------------------------------------------------
    do n = 1,gascnt
       if(id_rate_const(n)>0) then
-         used = send_data(id_rate_const(n),rate_constants(:,:,:,n),Time,is_in=is,js_in=js)
+         used = send_data(id_rate_const(n),rate_constants(:,:,:,n),Time_next,is_in=is,js_in=js)
       end if
    end do
 
 !-----------------------------------------------------------------------
 !     ... Output diagnostics
 !-----------------------------------------------------------------------
-   used = send_data(id_volc_aer, strat_aerosol, Time, is_in=is, js_in=js)
-   used = send_data(id_psc_sat, psc_vmr_save(:,:,:,1), Time, is_in=is, js_in=js)
-   used = send_data(id_psc_nat, psc_vmr_save(:,:,:,2), Time, is_in=is, js_in=js)
-   used = send_data(id_psc_ice, psc_vmr_save(:,:,:,3), Time, is_in=is, js_in=js)
+   used = send_data(id_volc_aer, strat_aerosol, Time_next, is_in=is, js_in=js)
+   used = send_data(id_psc_sat, psc_vmr_save(:,:,:,1), Time_next, is_in=is, js_in=js)
+   used = send_data(id_psc_nat, psc_vmr_save(:,:,:,2), Time_next, is_in=is, js_in=js)
+   used = send_data(id_psc_ice, psc_vmr_save(:,:,:,3), Time_next, is_in=is, js_in=js)
    if (id_h2o_chem>0) then
       if (sphum_ndx>0) then
-         used = send_data(id_h2o_chem, r_temp(:,:,:,sphum_ndx), Time, is_in=is, js_in=js)
+         used = send_data(id_h2o_chem, r_temp(:,:,:,sphum_ndx), Time_next, is_in=is, js_in=js)
       else
-         used = send_data(id_h2o_chem, q(:,:,:)*WTMAIR/WTMH2O, Time, is_in=is, js_in=js)
+         used = send_data(id_h2o_chem, q(:,:,:)*WTMAIR/WTMH2O, Time_next, is_in=is, js_in=js)
       end if
    end if      
-   used = send_data(id_coszen, coszen_local(:,:), Time, is_in=is, js_in=js)
-   used = send_data(id_imp_slv_nonconv,imp_slv_nonconv(:,:,:),Time,is_in=is,js_in=js)
+   used = send_data(id_coszen, coszen_local(:,:), Time_next, is_in=is, js_in=js)
+   used = send_data(id_imp_slv_nonconv,imp_slv_nonconv(:,:,:),Time_next,is_in=is,js_in=js)
 
 !-----------------------------------------------------------------------
 !     ... convert H2O VMR tendency to specific humidity tendency
@@ -2098,14 +2099,14 @@ end subroutine tropchem_driver_end
 !                             is, js, id_emis_diag ) 
 !   </TEMPLATE>
 
-subroutine read_2D_emis_data( emis_type, emis, Time, &
+subroutine read_2D_emis_data( emis_type, emis, Time, Time_next, &
                               field_names, &
                               Ldiurnal, coszen, half_day, lon, &
                               is, js, id_emis_diag )
     
    type(interpolate_type),intent(inout) :: emis_type
    real, dimension(:,:),intent(out) :: emis
-   type(time_type),intent(in) :: Time
+   type(time_type),intent(in) :: Time, Time_next
    character(len=*),dimension(:), intent(in) :: field_names
    logical, intent(in) :: Ldiurnal
    real, dimension(:,:), intent(in) :: coszen, half_day, lon
@@ -2154,7 +2155,7 @@ subroutine read_2D_emis_data( emis_type, emis, Time, &
 
    if (present(id_emis_diag)) then
       if (id_emis_diag > 0) then
-         used = send_data(id_emis_diag,emis,Time,is_in=is,js_in=js)
+         used = send_data(id_emis_diag,emis,Time_next,is_in=is,js_in=js)
       end if
    end if
 end subroutine read_2D_emis_data
@@ -2176,7 +2177,7 @@ end subroutine read_2D_emis_data
 !                             is, js, id_emis_diag ) 
 !   </TEMPLATE>
 
-subroutine read_3D_emis_data( emis_type, emis, Time, phalf, &
+subroutine read_3D_emis_data( emis_type, emis, Time, Time_next, phalf, &
                               field_names, &
                               Ldiurnal, coszen, half_day, lon, &
                               is, js, id_emis_diag )
@@ -2184,7 +2185,7 @@ subroutine read_3D_emis_data( emis_type, emis, Time, phalf, &
    type(interpolate_type),intent(inout) :: emis_type
    real, dimension(:,:,:),intent(in) :: phalf
    real, dimension(:,:,:),intent(out) :: emis
-   type(time_type),intent(in) :: Time
+   type(time_type),intent(in) :: Time, Time_next
    character(len=*),dimension(:), intent(in) :: field_names
    logical, intent(in) :: Ldiurnal
    real, dimension(:,:), intent(in) :: coszen, half_day, lon
@@ -2232,7 +2233,7 @@ subroutine read_3D_emis_data( emis_type, emis, Time, phalf, &
 
    if (present(id_emis_diag)) then
       if (id_emis_diag > 0) then
-         used = send_data(id_emis_diag,emis,Time,is_in=is,js_in=js)
+         used = send_data(id_emis_diag,emis,Time_next,is_in=is,js_in=js)
       end if
    end if
 end subroutine read_3D_emis_data
@@ -2251,12 +2252,12 @@ end subroutine read_3D_emis_data
 !     call calc_xactive_emis( index, emis, Time, is, js, id_emis_diag ) 
 !   </TEMPLATE>
 
-subroutine calc_xactive_emis( index, Time, lon, lat, pwt, is, ie, js, je, &
+subroutine calc_xactive_emis( index, Time, Time_next, lon, lat, pwt, is, ie, js, je, &
                               area, land, ocn_flx_fraction, tsurf, w10m, emis, &
                               kbot, id_emis_diag )
     
    integer,intent(in) :: index
-   type(time_type),intent(in) :: Time
+   type(time_type),intent(in) :: Time, Time_next
    real, intent(in), dimension(:,:) :: lon, lat
    real, intent(in), dimension(:,:,:) :: pwt
    integer, intent(in) :: is, ie, js, je
@@ -2274,7 +2275,7 @@ subroutine calc_xactive_emis( index, Time, lon, lat, pwt, is, ie, js, je, &
    
    if (index == dms_ndx) then
       call atmos_DMS_emission( lon, lat, area, ocn_flx_fraction, tsurf, w10m, pwt, &
-                               emis, Time, is, ie, js, je, kbot )
+                               emis, Time, Time_next, is, ie, js, je, kbot )
    else
       call error_mesg ('calc_xactive_emis', &
                        'Interactive emissions not defined for species: '//trim(tracnam(index)), FATAL)
@@ -2282,7 +2283,7 @@ subroutine calc_xactive_emis( index, Time, lon, lat, pwt, is, ie, js, je, &
 
    if (present(id_emis_diag)) then
       if (id_emis_diag > 0) then
-         used = send_data( id_emis_diag, emis, Time, is_in=is, js_in=js)
+         used = send_data( id_emis_diag, emis, Time_next, is_in=is, js_in=js)
       end if
    end if
 end subroutine calc_xactive_emis
@@ -2803,14 +2804,14 @@ end subroutine isop_xactive_init
 !                                 id_tsfcair, id_fsdvd, id_climtas, id_climfsds, id_emis_diag ) 
 !   </TEMPLATE>
              
-subroutine calc_xactive_isop( index, Time, lon, lat, oro, pwtsfc, is, js, &
+subroutine calc_xactive_isop( index, Time, Time_next,lon, lat, oro, pwtsfc, is, js, &
                               area, land, tsfcair, flux_sw_down_vis, &
                               coszen, emis,   id_gamma_lai_age, &
                               id_gamma_temp, id_gamma_light, id_tsfcair, &
                               id_fsdvd, id_climtas, id_climfsds, id_emis_diag ) 
     
    integer,intent(in) :: index
-   type(time_type),intent(in) :: Time
+   type(time_type),intent(in) :: Time, Time_next
    real, intent(in), dimension(:,:) :: lon, lat
    real, intent(in), dimension(:,:) :: pwtsfc
    integer, intent(in) :: is, js 
@@ -2872,44 +2873,44 @@ subroutine calc_xactive_isop( index, Time, lon, lat, oro, pwtsfc, is, js, &
 !accumulate isoprene emissions in diagnostic - units should be molec/cm2/s
    if (present(id_emis_diag)) then
       if (id_emis_diag > 0) then
-         used = send_data( id_emis_diag, emis, Time, is_in=is, js_in=js)
+         used = send_data( id_emis_diag, emis, Time_next, is_in=is, js_in=js)
       end if
    end if
 
 ! also store sw visible direct at surface and surface air temperature diagnostics
    if (present(id_fsdvd)) then 
       if (id_fsdvd > 0) then 
-         used = send_data( id_fsdvd, flux_sw_down_vis, Time, is_in=is, js_in=js)
+         used = send_data( id_fsdvd, flux_sw_down_vis, Time_next, is_in=is, js_in=js)
       end if
    end if
 
    if (present(id_tsfcair)) then 
       if (id_tsfcair > 0) then 
-         used = send_data( id_tsfcair, tsfcair, Time, is_in=is, js_in=js)
+         used = send_data( id_tsfcair, tsfcair, Time_next, is_in=is, js_in=js)
       end if
    end if
 
    if (present(id_gamma_light)) then 
       if (id_gamma_light > 0) then 
-         used = send_data( id_gamma_light, diag_gamma_light(is:ie,js:je), Time, is_in=is, js_in=js)
+         used = send_data( id_gamma_light, diag_gamma_light(is:ie,js:je), Time_next, is_in=is, js_in=js)
       end if
    end if
 
    if (present(id_gamma_temp)) then 
       if (id_gamma_temp > 0) then 
-         used = send_data( id_gamma_temp, diag_gamma_temp(is:ie,js:je), Time, is_in=is, js_in=js)
+         used = send_data( id_gamma_temp, diag_gamma_temp(is:ie,js:je), Time_next, is_in=is, js_in=js)
       end if
    end if
 
    if (present(id_climtas)) then 
       if (id_climtas > 0) then 
-         used = send_data( id_climtas, diag_climtas(is:ie,js:je), Time, is_in=is, js_in=js)
+         used = send_data( id_climtas, diag_climtas(is:ie,js:je), Time_next, is_in=is, js_in=js)
       end if
    end if
 
    if (present(id_climfsds)) then 
       if (id_climfsds > 0) then 
-         used = send_data( id_climfsds, diag_climfsds(is:ie,js:je), Time, is_in=is, js_in=js)
+         used = send_data( id_climfsds, diag_climfsds(is:ie,js:je), Time_next, is_in=is, js_in=js)
       end if
    end if
 
@@ -2921,7 +2922,7 @@ subroutine calc_xactive_isop( index, Time, lon, lat, oro, pwtsfc, is, js, &
 !            print*, 'id_gamma_lai_age = ', id_gamma_lai_age
 !            print*, 'sum(diag_gamma_lai_age', sum(diag_gamma_lai_age(:,:))
 !         end if
-         used = send_data( id_gamma_lai_age, diag_gamma_lai_age(is:ie,js:je), Time, is_in=is, js_in=js)
+         used = send_data( id_gamma_lai_age, diag_gamma_lai_age(is:ie,js:je), Time_next, is_in=is, js_in=js)
               
       end if
    end if

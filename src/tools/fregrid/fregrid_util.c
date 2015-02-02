@@ -130,7 +130,7 @@ void set_weight_inf(int ntiles, Grid_config *grid, const char *weight_file, cons
   void get_mosaic_grid()
 
 *******************************************************************************/
-void get_input_grid(int ntiles, Grid_config *grid, Bound_config *bound_T, const char *mosaic_file, unsigned int opcode)
+void get_input_grid(int ntiles, Grid_config *grid, Bound_config *bound_T, const char *mosaic_file, unsigned int opcode, int *great_circle_algorithm)
 {
   int         n, m1, m2, i, j, l, ind1, ind2, nlon, nlat;
   int         ts, tw, tn, te, halo, nbound;
@@ -152,6 +152,7 @@ void get_input_grid(int ntiles, Grid_config *grid, Bound_config *bound_T, const 
   nx = (int *)malloc(ntiles * sizeof(int) );
   ny = (int *)malloc(ntiles * sizeof(int) );
 
+  *great_circle_algorithm = 0;
   m_fid = mpp_open(mosaic_file, MPP_READ);
   get_file_path(mosaic_file, dir);
   for(n=0; n<ntiles; n++) {
@@ -160,7 +161,8 @@ void get_input_grid(int ntiles, Grid_config *grid, Bound_config *bound_T, const 
     mpp_get_var_value_block(m_fid, vid, start, nread, filename);
     sprintf(grid_file, "%s/%s", dir, filename);
     g_fid = mpp_open(grid_file, MPP_READ);
-    
+
+    if(n==0) *great_circle_algorithm = get_great_circle_algorithm(g_fid);
     nx[n] = mpp_get_dimlen(g_fid, "nx");
     ny[n] = mpp_get_dimlen(g_fid, "ny");
     if(nx[n]%2) mpp_error("fregrid_util(get_input_grid): the size of dimension nx should be even (on supergrid)");
@@ -333,7 +335,8 @@ void get_input_grid(int ntiles, Grid_config *grid, Bound_config *bound_T, const 
   void get_output_grid_from_mosaic(Mosaic_config *mosaic)
 
 *******************************************************************************/
-void get_output_grid_from_mosaic(int ntiles, Grid_config *grid, const char *mosaic_file, unsigned int opcode)
+void get_output_grid_from_mosaic(int ntiles, Grid_config *grid, const char *mosaic_file, unsigned int opcode,
+				 int *great_circle_algorithm)
 {
   int         n, i, j, ii, jj, npes, layout[2];
   int         m_fid, g_fid, vid, ind;
@@ -352,6 +355,9 @@ void get_output_grid_from_mosaic(int ntiles, Grid_config *grid, const char *mosa
     start[n] = 0;
     nread[n] = 1;
   }
+
+  *great_circle_algorithm = 0;
+
   /* check if the grid is tripolar grid or not */
   for(n=0; n<ntiles; n++) grid[n].is_tripolar = 0;
   if(ntiles == 1 && mpp_field_exist(mosaic_file, "contacts") ) {
@@ -394,6 +400,7 @@ void get_output_grid_from_mosaic(int ntiles, Grid_config *grid, const char *mosa
     mpp_get_var_value_block(m_fid, vid, start, nread, filename);
     sprintf(grid_file, "%s/%s", dir, filename);
     g_fid = mpp_open(grid_file, MPP_READ);
+    if(n==0) *great_circle_algorithm = get_great_circle_algorithm(g_fid);
     nx[n] = mpp_get_dimlen(g_fid, "nx");
     ny[n] = mpp_get_dimlen(g_fid, "ny");
     if(nx[n]%2) mpp_error("fregrid_util(get_output_grid_from_mosaic): the size of dimension nx should be even (on supergrid)");
@@ -676,17 +683,20 @@ void setup_vertical_interp(VGrid_config *vgrid_in, VGrid_config *vgrid_out)
   
   nk1 = vgrid_in->nz;
   nk2 = vgrid_out->nz;
-  for(kstart=0; kstart<nk2; k++) {
-    if(vgrid_out->z[k] >= vgrid_in->z[0]) break;
+
+
+  for(kstart=0; kstart<nk2; kstart++) {
+    if(vgrid_out->z[kstart] >= vgrid_in->z[0]) break;
   }
-  for(kend=nk2-1; k>=0; k--) {
-    if(vgrid_out->z[k] <= vgrid_in->z[nk1-1]) break;
+  for(kend=nk2-1; kend>=0; kend--) {
+    if(vgrid_out->z[kend] <= vgrid_in->z[nk1-1]) break;
   }
 
-  if(kstart >0) {
+
+  if(kstart >0 && mpp_pe()==mpp_root_pe()) {
     printf("NOTE from fregrid_util: the value from level 0 to level %d will be set to the value at the shallowest source levle.\n", kstart-1);
   }
-  if(kend <nk2-1) {
+  if(kend <nk2-1 && mpp_pe()==mpp_root_pe()) {
     printf("NOTE from fregrid_util: the value from level %d to level %d will be set to the value at the deepest source levle.\n", kend+1, nk2-1);
   }  
   vgrid_out->kstart = kstart;
@@ -1546,7 +1556,9 @@ void get_input_data(int ntiles, Field_config *field, Grid_config *grid, Bound_co
   int         *data_i4;
   Data_holder *dHold;
   int         interp_method;
-  
+  double      missing_value;
+
+  missing_value = field->var[varid].missing;
   interp_method = field->var[varid].interp_method;
   if(interp_method == CONSERVE_ORDER1)
     halo = 0;
@@ -1613,10 +1625,12 @@ void get_input_data(int ntiles, Field_config *field, Grid_config *grid, Bound_co
     }
       
     if(field[n].var[varid].scale != 0) {
-      for(i=0; i<nx*ny*nz; i++) data[i] *= field[n].var[varid].scale;
+      for(i=0; i<nx*ny*nz; i++)
+	if(data[i] != missing_value) data[i] *= field[n].var[varid].scale;
     }
     if(field[n].var[varid].offset != 0) {
-      for(i=0; i<nx*ny*nz; i++) data[i] += field[n].var[varid].offset;
+      for(i=0; i<nx*ny*nz; i++)
+	if(data[i] != missing_value) data[i] += field[n].var[varid].offset;
     }      
 
     /* extrapolate data if needed */
@@ -1813,6 +1827,7 @@ void allocate_field_data(int ntiles, Field_config *field, Grid_config *grid, int
 void write_field_data(int ntiles, Field_config *field, Grid_config *grid, int varid, int level_z, int level_n, int level_t)
 {
   double *gdata;
+  double missing_value;
   short  *data_i2;
   int    *data_i4;
   int    nx, ny, nz, n, ndim, i, j, data_size, pos;
@@ -1829,6 +1844,7 @@ void write_field_data(int ntiles, Field_config *field, Grid_config *grid, int va
     start[i] = 0; nwrite[i] = 1;
   }
 
+  missing_value = field->var[varid].missing;
   pos = 0;
   if(field->var[varid].has_taxis) start[pos++] = level_t;
   if(field->var[varid].has_naxis) start[pos++] = level_n;
@@ -1849,10 +1865,12 @@ void write_field_data(int ntiles, Field_config *field, Grid_config *grid, int va
     data_size = nx*ny*nz;
 
     if(field[n].var[varid].offset != 0) {
-      for(i=0; i<nx*ny*nz; i++) field[n].data[i] -= field[n].var[varid].offset;
+      for(i=0; i<nx*ny*nz; i++)
+	if(field[n].data[i] != missing_value) field[n].data[i] -= field[n].var[varid].offset;
     }
     if(field[n].var[varid].scale != 0) {
-      for(i=0; i<nx*ny*nz; i++) field[n].data[i] /= field[n].var[varid].scale;
+      for(i=0; i<nx*ny*nz; i++)
+	if(field[n].data[i] != missing_value) field[n].data[i] /= field[n].var[varid].scale;
     }
 
     if(mpp_npes() == 1) {

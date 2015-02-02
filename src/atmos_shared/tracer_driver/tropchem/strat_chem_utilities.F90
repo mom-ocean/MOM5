@@ -265,6 +265,7 @@ real, dimension(size(age,1),size(age,2),size(age,3),nspecies_age) :: dfdage
 type(time_type) :: cfc_Time, cfc_base_Time
 !--lwh
 real, dimension(size(age,1),size(age,2),nspecies_tropc) :: cfc
+character(len=256) :: err_msg
 
 call get_date( Time, iyear, imon, iday, ihour, imin, isec )
 
@@ -345,7 +346,11 @@ do k = 1,kl
       else if (cfc_Time > tropc_Time(ntime_tropc)) then
          cfc_Time = tropc_Time(ntime_tropc)
       end if
-      call time_interp( cfc_Time, tropc_Time(:), dt1, it1, it2 )
+      call time_interp( cfc_Time, tropc_Time(:), dt1, it1, it2, err_msg=err_msg )
+      if(err_msg /= '') then
+         call error_mesg('strat_chem_dcly_dt', trim(err_msg) , FATAL)
+      endif
+
       cfc(i,j,:) = tropc(it1,:)*(1-dt1) + tropc(it2,:)*dt1
 !--lwh
 
@@ -1274,7 +1279,7 @@ real, dimension(:,:), intent(out) :: extra_h2o
 integer :: i, k, il, kl, index1, index2
 real :: frac, ch4_trop, min_h2o
 type(time_type) :: time_trop
-
+character(len=256) :: err_msg
 
 il = size(h2o,1)
 kl = size(h2o,2)
@@ -1287,7 +1292,10 @@ do i=1,il
    else
       time_trop = increment_time( Time, -NINT(age(i,k)/tfact), 0)
    end if
-   call time_interp( time_trop, ch4_time(:), frac, index1, index2 )
+   call time_interp( time_trop, ch4_time(:), frac, index1, index2, err_msg=err_msg )
+   if(err_msg /= '') then
+      call error_mesg('strat_chem_get_extra_h2o', trim(err_msg) , FATAL)
+   endif 
    ch4_trop = ch4_value(index1) + frac*(ch4_value(index2)-ch4_value(index1))
    min_h2o = 2. * MAX( 0., ch4_trop - ch4(i,k) )
    if (age(i,k) > 0.1) then

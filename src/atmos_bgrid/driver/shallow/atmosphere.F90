@@ -56,7 +56,7 @@ public  atmosphere,      &
 !-----------------------------------------------------------------------
 
 character(len=128) :: version = '$Id: atmosphere.F90,v 14.0 2007/03/15 21:56:36 fms Exp $'
-character(len=128) :: tag = '$Name: siena_201207 $'
+character(len=128) :: tag = '$Name: tikal $'
 
 !-----------------------------------------------------------------------
 !---- namelist (saved in file input.nml) ----

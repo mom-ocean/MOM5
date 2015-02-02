@@ -42,7 +42,7 @@ implicit none
 private
 
 character(len=128), parameter :: version='$Id: polvani_2007.F90,v 19.0 2012/01/06 20:35:37 fms Exp $'
-character(len=128), parameter :: tagname='$Name: siena_201207 $'
+character(len=128), parameter :: tagname='$Name: tikal $'
 
 public :: polvani_2007, polvani_2007_tracer_init, get_polvani_2007_tracers
 

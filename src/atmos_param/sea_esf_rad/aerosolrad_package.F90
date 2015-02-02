@@ -57,8 +57,8 @@ private
 !---------------------------------------------------------------------
 !----------- version number for this module -------------------
 
-character(len=128)  :: version =  '$Id: aerosolrad_package.F90,v 19.0 2012/01/06 20:13:05 fms Exp $'
-character(len=128)  :: tagname =  '$Name: siena_201207 $'
+character(len=128)  :: version =  '$Id: aerosolrad_package.F90,v 20.0 2013/12/13 23:18:56 fms Exp $'
+character(len=128)  :: tagname =  '$Name: tikal $'
 
 
 !---------------------------------------------------------------------
@@ -1100,6 +1100,9 @@ type(time_type),         intent(in)   :: Time
 
 
       integer  :: yr, mo, dy, hr, mn, sc
+      integer  :: na, ni, nw
+      type(aerosol_properties_type) :: Aerosol_props_tem
+      
     
 !---------------------------------------------------------------------
 !    define the time for which the volcanic properties will be obtained.
@@ -1233,6 +1236,61 @@ type(time_type),         intent(in)   :: Time
             endif
           endif
         endif
+
+          if (force_to_repro_quebec) then
+            if (.not. band_calculation_completed) then
+              allocate (Aerosol_props_tem%aerextbandlw  &
+                                       (N_AEROSOL_BANDS, naermodels))
+              allocate (Aerosol_props_tem%aerssalbbandlw  &
+                                       (N_AEROSOL_BANDS, naermodels))
+              allocate (Aerosol_props_tem%aerextbandlw_cn &
+                                       (N_AEROSOL_BANDS_CN, naermodels))
+              allocate (Aerosol_props_tem%aerssalbbandlw_cn  &
+                                       (N_AEROSOL_BANDS_CN, naermodels))
+              aerextbandlw_MOD = 0.0                          
+              aerssalbbandlw_MOD = 0.0
+              aerextbandlw_cn_MOD = 0.0                              
+              aerssalbbandlw_cn_MOD = 0.0
+              Aerosol_props_tem%aerextbandlw = 0.0               
+              Aerosol_props_tem%aerssalbbandlw = 0.0                 
+              Aerosol_props_tem%aerextbandlw_cn = 0.0
+              Aerosol_props_tem%aerssalbbandlw_cn = 0.0
+              do nw=1,naermodels    
+                do na=1,N_AEROSOL_BANDS  
+                  do ni=1,num_wavenumbers 
+                    Aerosol_props_tem%aerextbandlw(na,nw) =   &
+                               Aerosol_props_tem%aerextbandlw(na,nw) + &
+                                aeroextivl(ni,nw)*sflwwts(na,ni)*1.0E+03
+                    Aerosol_props_tem%aerssalbbandlw(na,nw) =   &
+                              Aerosol_props_tem%aerssalbbandlw(na,nw) +   &
+                                     aerossalbivl(ni,nw)*sflwwts(na,ni)
+                  end do
+                end do
+              end do
+              do nw=1,naermodels    
+                do na=1,N_AEROSOL_BANDS_CN
+                  do ni=1,num_wavenumbers 
+                    Aerosol_props_tem%aerextbandlw_cn(na,nw) = &
+                         Aerosol_props_tem%aerextbandlw_cn(na,nw) + &
+                            aeroextivl(ni,nw)*sflwwts_cn(na,ni)*1.0E+03
+                    Aerosol_props_tem%aerssalbbandlw_cn(na,nw) =    &
+                           Aerosol_props_tem%aerssalbbandlw_cn(na,nw) +&
+                                  aerossalbivl(ni,nw)*sflwwts_cn(na,ni)
+                  end do
+                end do
+              end do
+
+              aerextbandlw_MOD = Aerosol_props_tem%aerextbandlw
+              aerssalbbandlw_MOD = Aerosol_props_tem%aerssalbbandlw
+              aerextbandlw_cn_MOD = Aerosol_props_tem%aerextbandlw_cn
+              aerssalbbandlw_cn_MOD = Aerosol_props_tem%aerssalbbandlw_cn
+              band_calculation_completed = .true.
+              deallocate (Aerosol_props_tem%aerextbandlw)
+              deallocate (Aerosol_props_tem%aerssalbbandlw)
+              deallocate (Aerosol_props_tem%aerextbandlw_cn)
+              deallocate (Aerosol_props_tem%aerssalbbandlw_cn)
+            endif
+          endif
 
 !---------------------------------------------------------------------------
 
@@ -1713,49 +1771,6 @@ type(aerosol_properties_type), intent(inout) :: Aerosol_props
 !---------------------------------------------------------------------
         if (Rad_control%do_lwaerosol_forcing .or. &
                 Lw_control%do_lwaerosol) then
-!$OMP MASTER
-          if (force_to_repro_quebec) then
-            if (.not. band_calculation_completed) then
-              Aerosol_props%aerextbandlw = 0.0               
-              Aerosol_props%aerssalbbandlw = 0.0                 
-              Aerosol_props%aerextbandlw_cn = 0.0
-              Aerosol_props%aerssalbbandlw_cn = 0.0
-              do nw=1,naermodels    
-                do na=1,N_AEROSOL_BANDS  
-                  do ni=1,num_wavenumbers 
-                    Aerosol_props%aerextbandlw(na,nw) =   &
-                               Aerosol_props%aerextbandlw(na,nw) + &
-                                aeroextivl(ni,nw)*sflwwts(na,ni)*1.0E+03
-                    Aerosol_props%aerssalbbandlw(na,nw) =   &
-                              Aerosol_props%aerssalbbandlw(na,nw) +   &
-                                     aerossalbivl(ni,nw)*sflwwts(na,ni)
-                  end do
-                end do
-              end do
-              do nw=1,naermodels    
-                do na=1,N_AEROSOL_BANDS_CN
-                  do ni=1,num_wavenumbers 
-                    Aerosol_props%aerextbandlw_cn(na,nw) = &
-                         Aerosol_props%aerextbandlw_cn(na,nw) + &
-                            aeroextivl(ni,nw)*sflwwts_cn(na,ni)*1.0E+03
-                    Aerosol_props%aerssalbbandlw_cn(na,nw) =    &
-                               Aerosol_props%aerssalbbandlw_cn(na,nw) +&
-                                  aerossalbivl(ni,nw)*sflwwts_cn(na,ni)
-                  end do
-                end do
-              end do
-
-              aerextbandlw_MOD = Aerosol_props%aerextbandlw
-              aerssalbbandlw_MOD = Aerosol_props%aerssalbbandlw
-              aerextbandlw_cn_MOD = Aerosol_props%aerextbandlw_cn
-              aerssalbbandlw_cn_MOD = Aerosol_props%aerssalbbandlw_cn
-              band_calculation_completed = .true.
-            endif
-          endif
-!$OMP END MASTER
-#ifndef IBM_FIX 
-!$OMP BARRIER
-#endif 
           Aerosol_props%aerextbandlw = aerextbandlw_MOD
           Aerosol_props%aerssalbbandlw = aerssalbbandlw_MOD
           Aerosol_props%aerextbandlw_cn = aerextbandlw_cn_MOD

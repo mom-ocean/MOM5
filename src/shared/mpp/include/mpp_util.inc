@@ -1,6 +1,6 @@
 
 ! -*-f90-*-
-! $Id: mpp_util.inc,v 19.0.2.1 2012/04/13 16:25:53 sdu Exp $
+! $Id: mpp_util.inc,v 20.0 2013/12/14 00:27:35 fms Exp $
 
 
 #ifdef use_libSMA
@@ -556,6 +556,14 @@ end function rarray_to_char
   end subroutine mpp_set_current_pelist
 
   !#####################################################################
+  function mpp_get_current_pelist_name()
+   ! Simply return the current pelist name
+   character(len=len(peset(current_peset_num)%name)) :: mpp_get_current_pelist_name
+
+   mpp_get_current_pelist_name = peset(current_peset_num)%name
+  end function mpp_get_current_pelist_name
+
+  !#####################################################################
     !this is created for use by mpp_define_domains within a pelist
     !will be published but not publicized
   subroutine mpp_get_current_pelist( pelist, name, commID )
@@ -801,7 +809,7 @@ end function rarray_to_char
          call mpp_error( FATAL, 'MPP_CLOCK_BEGIN: cannot change pelist context of a clock.' )
     if( clocks(id)%is_on) call mpp_error(FATAL, 'MPP_CLOCK_BEGIN: mpp_clock_begin is called again '// &
                 'before calling mpp_clock_end for the clock '//trim(clocks(id)%name) )
-    if( clocks(id)%sync_on_begin )then
+    if( clocks(id)%sync_on_begin .OR. sync_all_clocks )then
        !do an untimed sync at the beginning of the clock
        !this puts all PEs in the current pelist on par, so that measurements begin together
        !ending time will be different, thus measuring load imbalance for this clock.
@@ -852,6 +860,21 @@ end function rarray_to_char
 !$OMP END MASTER
     return
   end subroutine mpp_clock_end
+
+ !#####################################################################
+  subroutine mpp_record_time_start()
+
+     mpp_record_timing_data = .TRUE.
+
+  end subroutine mpp_record_time_start
+
+  !#####################################################################
+  subroutine mpp_record_time_end()
+
+     mpp_record_timing_data = .FALSE.
+
+  end subroutine mpp_record_time_end
+
 
   !#####################################################################
   subroutine increment_current_clock( event_id, bytes )
@@ -1012,7 +1035,7 @@ end function rarray_to_char
 1000 format(a)
 1001 format(a,f8.2,a,f8.2,a,i6)
 1002 format(a)
-1003 format(a,i6,'    ','  ',f6.1,a,'    ',f7.3,'MB/sec')
+1003 format(a,i6,'    ','  ',f9.1,a,'    ',f9.2,'MB/sec')
 1004 format(a,i8,a,f9.2,a)
 1005 format(a,f9.2,a)
     return
@@ -1258,28 +1281,110 @@ end function rarray_to_char
 ! read(input_nml_file, nml=<name_nml>, iostat=status)
 !
 ! 
-  subroutine read_input_nml
+  subroutine read_input_nml()
 
 ! version and tagging information
-    character(len=128) :: version = '$Id: mpp_util.inc,v 19.0.2.1 2012/04/13 16:25:53 sdu Exp $'
-    character(len=128) :: tagname = '$Name: siena_201207 $' 
+    character(len=128) :: version = '$Id: mpp_util.inc,v 20.0 2013/12/14 00:27:35 fms Exp $'
+    character(len=128) :: tagname = '$Name: tikal $' 
 
-!private variables
+! private variables
     integer :: log_unit
     integer :: num_lines, i
+    logical :: file_exist
+    character(len=32) :: pelist_name
+    character(len=128) :: filename
 
-    call read_ascii_file('input.nml', INPUT_STR_LENGTH, input_nml_file, num_lines=num_lines)
+! check the status of input_nml_file
+    if ( allocated(input_nml_file) ) then
+      deallocate(input_nml_file)
+    endif
+
+! the following code is necessary for using alternate namelist files (nests, stretched grids, etc)
+    pelist_name = mpp_get_current_pelist_name()
+    filename='input_'//trim(pelist_name)//'.nml'
+    inquire(FILE=filename, EXIST=file_exist)
+    if (.not. file_exist ) then
+       filename='input.nml'
+    endif
+    num_lines = get_ascii_file_num_lines(filename, INPUT_STR_LENGTH)
+    allocate(input_nml_file(num_lines))
+    call read_ascii_file(filename, INPUT_STR_LENGTH, input_nml_file)
 
 ! write info logfile
     if (pe == root_pe) then
        log_unit = stdlog()
        write(log_unit,'(a)')  '========================================================================'
        write(log_unit,'(a)')  'READ_INPUT_NML: '//trim(version)//':'//trim(tagname)
+       write(log_unit,'(a)')  'READ_INPUT_NML: '//trim(filename)//' '
        do i = 1, num_lines
           write(log_unit,*) trim(input_nml_file(i))
        enddo
     end if
   end subroutine read_input_nml
+
+
+  !#######################################################################
+  !z1l: This is extracted from read_ascii_file
+  function get_ascii_file_num_lines(FILENAME, LENGTH, PELIST)
+    character(len=*), intent(in) :: FILENAME
+    integer, intent(in) :: LENGTH
+    integer, intent(in), optional, dimension(:) :: PELIST
+
+    integer :: num_lines, get_ascii_file_num_lines
+    character(len=LENGTH) :: str_tmp
+    character(len=5) :: text
+    integer :: status, f_unit, from_pe
+    logical :: file_exist
+
+    if( read_ascii_file_on) then
+       call mpp_error(FATAL,  &
+          "mpp_util.inc: get_ascii_file_num_lines is called again before calling read_ascii_file")
+    endif
+    read_ascii_file_on = .true.    
+
+    from_pe = root_pe
+    get_ascii_file_num_lines = -1
+    num_lines = -1
+    if ( pe == root_pe ) then
+       inquire(FILE=FILENAME, EXIST=file_exist)
+
+       if ( file_exist ) then
+          f_unit = get_unit()
+          open(UNIT=f_unit, FILE=FILENAME, ACTION='READ', STATUS='OLD', IOSTAT=status)
+
+          if ( status .ne. 0 ) then
+             write (UNIT=text, FMT='(I5)') status
+             call mpp_error(FATAL, 'get_ascii_file_num_lines: Error opening file:' //trim(FILENAME)// &
+                            '.  (IOSTAT = '//trim(text)//')')
+          else
+             num_lines = 1
+             do 
+                read (UNIT=f_unit, FMT='(A)', IOSTAT=status) str_tmp
+                if ( status .lt. 0 ) exit
+                if ( status .gt. 0 ) then
+                   write (UNIT=text, FMT='(I5)') num_lines
+                   call mpp_error(FATAL, 'get_ascii_file_num_lines: Error reading line '//trim(text)// &
+                        ' in file '//trim(FILENAME)//'.')
+                end if
+                if ( len_trim(str_tmp) == LENGTH ) then
+                   write(UNIT=text, FMT='(I5)') length
+                   call mpp_error(FATAL, 'get_ascii_file_num_lines: Length of output string ('//trim(text)//' is too small.&
+                        & Increase the LENGTH value.')
+                end if
+                num_lines = num_lines + 1
+             end do
+             close(UNIT=f_unit)
+          end if
+       else
+          call mpp_error(FATAL, 'get_ascii_file_num_lines: File '//trim(FILENAME)//' does not exist.')
+       end if
+    end if
+
+    ! Broadcast number of lines
+    call mpp_broadcast(num_lines, from_pe, PELIST=PELIST)
+    get_ascii_file_num_lines = num_lines
+
+  end function get_ascii_file_num_lines
 
   !-----------------------------------------------------------------------
   !
@@ -1303,33 +1408,30 @@ end function rarray_to_char
   !    read (UNIT=array_name(i), FMT=*) var1, var2, ...
   ! end do
   ! 
-  subroutine read_ascii_file(FILENAME, LENGTH, Content, num_lines, PELIST)
-    character(len=*), intent(in) ::FILENAME
-    integer, intent(in) :: LENGTH
-    character(len=LENGTH), intent(inout), dimension(:), allocatable :: Content
-    integer, intent(out), optional, target :: num_lines
-    integer, intent(in), optional, dimension(:) :: PELIST
+  subroutine read_ascii_file(FILENAME, LENGTH, Content, PELIST)
+    character(len=*),    intent(in)               :: FILENAME
+    integer,             intent(in)               :: LENGTH
+    character(len=*), intent(inout), dimension(:) :: Content
+    integer, intent(in), optional,   dimension(:) :: PELIST
 
     ! version and tagging information
-    character(len=*), parameter :: VERSION = '$Id: mpp_util.inc,v 19.0.2.1 2012/04/13 16:25:53 sdu Exp $'
-    character(len=*), parameter :: TAGNAME = '$Name: siena_201207 $' 
+    character(len=*), parameter :: VERSION = '$Id: mpp_util.inc,v 20.0 2013/12/14 00:27:35 fms Exp $'
+    character(len=*), parameter :: TAGNAME = '$Name: tikal $' 
 
-    character(len=LENGTH) :: str_tmp
     character(len=5) :: text
     logical :: file_exist
     integer :: status, i, f_unit, log_unit
     integer :: from_pe
-    integer, pointer :: pnum_lines
-    integer, target :: mynum_lines
+    integer :: pnum_lines, num_lines
+
+    if( .NOT. read_ascii_file_on) then
+       call mpp_error(FATAL,  &
+          "mpp_util.inc: get_ascii_file_num_lines needs to be called before calling read_ascii_file")
+    endif
+    read_ascii_file_on = .false.        
 
     from_pe = root_pe
-
-    ! Use pnum_lines to point to num_lines if present, else use a local variable
-    if ( present(num_lines) ) then
-       pnum_lines => num_lines
-    else
-       pnum_lines => mynum_lines
-    end if
+    num_lines = size(Content(:))
 
     if ( pe == root_pe ) then
        ! write info logfile
@@ -1347,87 +1449,54 @@ end function rarray_to_char
           if ( status .ne. 0 ) then
              write (UNIT=text, FMT='(I5)') status
              call mpp_error(FATAL, 'READ_ASCII_FILE: Error opening file: '//trim(FILENAME)//'.  (IOSTAT = '//trim(text)//')')
-             pnum_lines = -1
           else
-             pnum_lines = 1
-             do 
-                read (UNIT=f_unit, FMT='(A)', IOSTAT=status) str_tmp
-                if ( status .lt. 0 ) exit
-                if ( status .gt. 0 ) then
-                   write (UNIT=text, FMT='(I5)') pnum_lines
-                   call mpp_error(FATAL, 'READ_ASCII_FILE: Error reading line '//trim(text)//' in file '//trim(FILENAME)//'.')
-                   pnum_lines = -1
-                   exit
-                end if
-                if ( len_trim(str_tmp) == LENGTH ) then
-                   write(UNIT=text, FMT='(I5)') length
-                   call mpp_error(FATAL, 'READ_ASCII_FILE: Length of output string ('//trim(text)//' is too small.&
-                        & Increase the LENGTH value.')
-                   pnum_lines = -1
-                   exit
-                end if
-                pnum_lines = pnum_lines + 1
-             end do
 
-             if ( pnum_lines .gt. 0 ) then
-                allocate(Content(pnum_lines), STAT=status)
+             if ( num_lines .gt. 0 ) then
+                Content(:) = ' '
+
+                rewind(UNIT=f_unit, IOSTAT=status)
                 if ( status .ne. 0 ) then
-                   write (UNIT=text, FMT='(I5)') pe
-                   call mpp_error(FATAL, 'READ_ASCII_FILE: PE '//trim(text)//'. Unable to allocate space for array&
-                        & of character strings.')
-                   pnum_lines = -1
+                   write (UNIT=text, FMT='(I5)') status
+                   call mpp_error(FATAL, 'READ_ASCII_FILE: Unable to re-read file '//trim(FILENAME)//'. (IOSTAT = '&
+                        //trim(text)//'.')
                 else
-                   Content(:) = ' '
+                   ! A second 'sanity' check on the file
+                   pnum_lines = 1
 
-                   rewind(UNIT=f_unit, IOSTAT=status)
-                   if ( status .ne. 0 ) then
-                      write (UNIT=text, FMT='(I5)') status
-                      call mpp_error(FATAL, 'READ_ASCII_FILE: Unable to re-read file '//trim(FILENAME)//'. (IOSTAT = '&
-                           &//trim(text)//')')
-                      deallocate(Content) ! No content.
-                      pnum_lines = -1
-                   else
-                      ! A second 'sanity' check on the file
-                      pnum_lines = 1
+                   do 
+                      read (UNIT=f_unit, FMT='(A)', IOSTAT=status) Content(pnum_lines)
 
-                      do 
-                         read (UNIT=f_unit, FMT='(A)', IOSTAT=status) Content(pnum_lines)
-                         if ( status .lt. 0 ) exit
-                         if ( status .gt. 0 ) then
-                            write (UNIT=text, FMT='(I5)') pnum_lines
-                            call mpp_error(FATAL, 'READ_ASCII_FILE: Error reading line '//trim(text)//' in file '//trim(FILENAME)//'.')
-                            pnum_lines = -1
-                            exit
-                         end if
-                         pnum_lines = pnum_lines + 1
-                      end do
+                      if ( status .lt. 0 ) exit
+                      if ( status .gt. 0 ) then
+                         write (UNIT=text, FMT='(I5)') pnum_lines
+                         call mpp_error(FATAL, 'READ_ASCII_FILE: Error reading line '//trim(text)//' in file '//trim(FILENAME)//'.')
+                      end if
+                      if(pnum_lines > num_lines) then
+                         call mpp_error(FATAL, 'READ_ASCII_FILE: number of lines in file '//trim(FILENAME)// &
+                                ' is greater than size(Content(:)). ')
+                      end if
+                      if ( len_trim(Content(pnum_lines)) == LENGTH ) then
+                         write(UNIT=text, FMT='(I5)') length
+                         call mpp_error(FATAL, 'READ_ASCII_FILE: Length of output string ('//trim(text)//' is too small.&
+                              & Increase the LENGTH value.')
+                      end if
+                      pnum_lines = pnum_lines + 1
+                   end do
+                   if(num_lines .NE. pnum_lines) then
+                      call mpp_error(FATAL, 'READ_ASCII_FILE: number of lines in file '//trim(FILENAME)// &
+                          ' does not equal to size(Content(:)) ' )
                    end if
                 end if
              end if
-
              close(UNIT=f_unit)
           end if
        else
           call mpp_error(FATAL, 'READ_ASCII_FILE: File '//trim(FILENAME)//' does not exist.')
-          pnum_lines = -1
        end if
     end if
 
-    ! Broadcast number of lines
-    call mpp_broadcast(pnum_lines, from_pe, PELIST=PELIST)
-    
-    if ( (pe .ne. root_pe).and.(pnum_lines > 0) ) then
-       allocate (Content(pnum_lines), STAT=status)
-       if ( status .ne. 0 ) then
-          write (UNIT=text, FMT='(I5)') pe
-          call mpp_error(FATAL, 'READ_ASCII_FILE: PE '//trim(text)//'. Unable to allocate space for array&
-               & of character strings.')
-       else
-          Content(:) = ' '
-       end if
-    endif
-
     ! Broadcast character array
     call mpp_broadcast(Content, LENGTH, from_pe, PELIST=PELIST)
+
   end subroutine read_ascii_file
   

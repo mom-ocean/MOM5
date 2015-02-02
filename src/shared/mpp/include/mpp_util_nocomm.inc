@@ -1,6 +1,6 @@
 
 ! -*-f90-*-
-! $Id: mpp_util_nocomm.inc,v 19.0 2012/01/06 22:04:49 fms Exp $
+! $Id: mpp_util_nocomm.inc,v 20.0 2013/12/14 00:27:39 fms Exp $
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                             !
@@ -13,7 +13,7 @@ subroutine mpp_error_basic( errortype, errormsg )
   !uses ABORT and FLUSH calls, may need to use cpp to rename
   integer,                    intent(in) :: errortype
   character(len=*), intent(in), optional :: errormsg
-  character(len=256)                     :: text
+  character(len=512)                     :: text
   logical                                :: opened
   integer                                :: istat, errunit, outunit
 
@@ -87,10 +87,13 @@ end subroutine mpp_sync
   !this is to check if current PE's outstanding puts are complete
   !but we can't use shmem_fence because we are actually waiting for
   !a remote PE to complete its get
-subroutine mpp_sync_self( pelist, check, request )
+subroutine mpp_sync_self( pelist, check, request, msg_size, msg_type )
   integer, intent(in), optional :: pelist(:)
   integer, intent(in), optional :: check
   integer, intent(inout), optional :: request(:)
+  integer, intent(in   ), optional :: msg_size(:)
+  integer, intent(in   ), optional :: msg_type(:)
+
 
   return
 end subroutine mpp_sync_self

@@ -50,7 +50,7 @@ private
 !----------- ****** VERSION NUMBER ******* ---------------------------
 
   character(len=128)  :: version =  '$Id: mgrp_prscr_clds.F90,v 19.0 2012/01/06 20:19:41 fms Exp $'
-  character(len=128)  :: tagname =  '$Name: siena_201207 $'
+  character(len=128)  :: tagname =  '$Name: tikal $'
 
 
 

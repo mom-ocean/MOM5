@@ -261,8 +261,8 @@ module MO_FASTJX_MOD
 !-----------------------------------------------------------------------
 !     version number and tagname.
 !-----------------------------------------------------------------------
-      character(len=128)            :: version     = '$Id: mo_fastjx.F90,v 19.0 2012/01/06 20:33:53 fms Exp $'
-      character(len=128)            :: tagname     = '$Name: siena_201207 $'
+      character(len=128)            :: version     = '$Id: mo_fastjx.F90,v 20.0 2013/12/13 23:24:59 fms Exp $'
+      character(len=128)            :: tagname     = '$Name: tikal $'
 
 !    include 'parm_CTM.f'  for fast-JX code v5.3+ (prather 6/05)
 !
@@ -705,6 +705,7 @@ module MO_FASTJX_MOD
 !-----------------------------------------------------------------------
       ZPJ(:,:)  = 0.d0 
       FFF(:,:) = 0.d0 
+      FREFI = 0.d0 
       FREFL = 0.d0 
       FREFS = 0.d0       
 
@@ -916,7 +917,7 @@ module MO_FASTJX_MOD
                                                                         
 !---set surface reflectance                                             
       RFLECT = srf_alb !SA(ILNG,JLAT) 
-      RFL(:) = max(0.d0,min(1.d0,RFLECT))                                                                                                                                                 
+      RFL(:) = max(0.0,min(1.0,RFLECT))                                                                                                                                                 
 !-----------------------------------------------------------------------
 !---Loop over all wavelength bins to calc mean actinic flux AVGF(L)     
 !-----------------------------------------------------------------------                                                                       
@@ -1863,7 +1864,7 @@ module MO_FASTJX_MOD
         do J = 4,NJVAL 
                                                                         
           if (TQQ(2,J) .gt. TQQ(1,J)) then 
-           TFACT = max(0.d0,min(1.d0,(TT-TQQ(1,J))/(TQQ(2,J)-TQQ(1,J)))) 
+           TFACT = max(0.0,min(1.0,(TT-TQQ(1,J))/(TQQ(2,J)-TQQ(1,J)))) 
           else 
            TFACT = 0.d0 
           endif 
@@ -1899,7 +1900,7 @@ module MO_FASTJX_MOD
 !---IV=NJVAL-1 = Xsect (total abs) for Acetone - pre-calc Temp interp fa
         IV    = NJVAL-1 
         TFACA = (TT-TQQ(1,IV))/(TQQ(2,IV)-TQQ(1,IV)) 
-        TFACA = max(0.d0, min(1.d0, TFACA)) 
+        TFACA = max(0.0, min(1.0, TFACA)) 
 !---IV=NJVAL = Q2 for Acetone=>(2), specifically designed for quadratic 
 !---      but force to Q2=0 by 210K                                     
         IV    = NJVAL 
@@ -1907,10 +1908,10 @@ module MO_FASTJX_MOD
         if (TT .lt. TQQ(1,IV)) then 
           TFAC0 = (TT - 210.d0)/(TQQ(1,IV)-210.d0) 
         endif 
-        TFAC0 = max(0.d0, min(1.d0, TFAC0)) 
+        TFAC0 = max(0.0, min(1.0, TFAC0)) 
 !---IV=NJVAL+1 = Q1A for Acetone => (1), allow full range of T = 200K-30
         IV    = NJVAL+1 
-        TT200 = min(300.d0, max(200.d0, TT)) 
+        TT200 = min(300.0, max(200.0, TT)) 
         TFAC1 = (TT200-TQQ(1,IV))/(TQQ(2,IV)-TQQ(1,IV)) 
 !---IV=NJVAL+2 = Q1B for Acetone => (1)                                 
         IV    = NJVAL+2 
@@ -2590,7 +2591,7 @@ module MO_FASTJX_MOD
          do II = J-1,1,-1 
           DIFF        = RZ2(II+1)*sqrt(1.0d0-XMU1**2)-RZ2(II) 
                                                 ! filter                
-          if (II.eq.1)  DIFF = max(DIFF,0.d0) 
+          if (II.eq.1)  DIFF = max(DIFF,0.0) 
 !  Tangent height below current level - beam passes through twice       
           if (DIFF .lt. 0.0d0)  then 
             XMU2      = sqrt(1.0d0 - (1.0d0-XMU1**2)/RQ2(II)) 
