@@ -449,18 +449,18 @@ program main
 
   enddo
 
+  call external_coupler_restart( dt_cpld, num_cpld_calls, Ocean_sfc)
+
   ! close some of the main components 
   call ocean_model_end(Ocean_sfc, Ocean_state, Time)
 
   call diag_manager_end(Time)
 
   ! need to reset pelist before calling mpp_clock_end
-  call mpp_set_current_pelist() 
+  ! call mpp_set_current_pelist()
 
   ! write restart file
   call ocean_solo_restart(Time_end, Time_restart_current)
-
-  call external_coupler_restart( dt_cpld, num_cpld_calls, Ocean_sfc)
 
   call fms_io_exit
 
