@@ -727,9 +727,9 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
     ierr = check_nml_error(io_status,'ocean_obc_nml')
     call close_file (unit)
 #endif
-    write (stdoutunit,'(/)')
-    write (stdoutunit, ocean_obc_nml)
-    write (stdlogunit, ocean_obc_nml)
+    !write (stdoutunit,'(/)')
+    !write (stdoutunit, ocean_obc_nml)
+    !write (stdlogunit, ocean_obc_nml)
 
     !--- write out version information ---------------------------------
     call write_version_number( version, tagname )

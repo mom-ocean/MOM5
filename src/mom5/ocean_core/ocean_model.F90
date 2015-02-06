@@ -467,7 +467,7 @@ private
   type(ocean_grid_type),          target, save   :: Grid
   type(ocean_thickness_type),     target, save   :: Thickness
 
-  type(ocean_time_type),          target, save   :: Time
+  type(ocean_time_type),          public, target, save   :: Time
   type(ocean_time_steps_type),    target, save   :: Time_steps
   type(ocean_options_type),       target, save   :: Ocean_options
   type(ocean_velocity_type),      target, save   :: Velocity
@@ -3337,8 +3337,8 @@ subroutine mom4_set_swheat_fr(swheat_fr_input)
 end subroutine mom4_set_swheat_fr
 
 !#######################################################################
-    subroutine mom4_get_pointers_to_variables(time0, grid0, domain0, thickness0, density0, tracers0, &
-         t, s, u, v, eta_t, pbot_t, rho, wrhot, geodepth_zt, cos_rot, sin_rot, theta, lambda, area, dx, dy, tau, timestring, ghosted)   
+    subroutine mom4_get_pointers_to_variables(time0, grid0, domain0, thickness0, density0, tracers0, t, s, u, v, eta_t, pbot_t, &
+        rho, wrhot, geodepth_zt, cos_rot, sin_rot, theta_t, theta_u, lambda_t, lambda_u, area_t, area_u, dx, dy, tau, timestring, ghosted)   
 
       type(ocean_time_type), pointer, optional, intent(out) :: time0;
       type(ocean_grid_type), pointer, optional, intent(out) :: grid0;  
@@ -3347,7 +3347,8 @@ end subroutine mom4_set_swheat_fr
       type(ocean_density_type), pointer, optional, intent(out) :: density0;  
       type(ocean_prog_tracer_type), pointer, optional, intent(out) :: tracers0(:);  
       real, optional, pointer, intent(out) :: t(:, :, :, :), s(:, :, :, :), u(:, :, :, :), v(:, :, :, :), eta_t(:, :, :), pbot_t(:, :, :), rho(:, :, :), &
-          wrhot(:, :, :),  geodepth_zt(:, :, :), cos_rot(:, :), sin_rot(:, :), theta(:, :), lambda(:, :), area(:, :), dx(:, :), dy(:, :);
+          wrhot(:, :, :),  geodepth_zt(:, :, :), cos_rot(:, :), sin_rot(:, :), theta_t(:, :), theta_u(:, :), lambda_t(:, :), lambda_u(:, :), &
+              area_t(:, :), area_u(:, :), dx(:, :), dy(:, :);
       integer, optional, intent(out) :: tau;
       character(len = *), optional, intent(out) :: timestring;
       logical, optional, intent(in) :: ghosted;  
@@ -3381,9 +3382,12 @@ end subroutine mom4_set_swheat_fr
 
         if(present(cos_rot)) cos_rot => grid%cos_rot(i1:i2, j1:j2);
         if(present(sin_rot)) sin_rot => grid%sin_rot(i1:i2, j1:j2);
-        if(present(theta)) theta => grid%yt(i1:i2, j1:j2);
-        if(present(lambda)) lambda => grid%xt(i1:i2, j1:j2);
-        if(present(area)) area => grid%dat(i1:i2, j1:j2);
+        if(present(theta_t)) theta_t => grid%yt(i1:i2, j1:j2);
+        if(present(lambda_t)) lambda_t => grid%xt(i1:i2, j1:j2);
+        if(present(theta_u)) theta_u => grid%yu(i1:i2, j1:j2);
+        if(present(lambda_u)) lambda_u => grid%xu(i1:i2, j1:j2);
+        if(present(area_t)) area_t => grid%dat(i1:i2, j1:j2);
+        if(present(area_u)) area_u => grid%dau(i1:i2, j1:j2);
         if(present(dx)) dx => grid%dxtn(i1:i2, j1:j2);
         if(present(dy)) dy => grid%dyte(i1:i2, j1:j2);
 
