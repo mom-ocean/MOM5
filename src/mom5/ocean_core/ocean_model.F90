@@ -2671,7 +2671,7 @@ subroutine mom4_put_prog_tracer(index, fld)
      enddo
   enddo
   call mpp_update_domains(T_prog(index)%field(:,:,:,tau), &
-       Domain%domain2d)
+       Domain%domain2d, complete=T_prog(index)%complete)
 end subroutine mom4_put_prog_tracer
 ! </SUBROUTINE> NAME="mom4_put_prog_tracer"
 
