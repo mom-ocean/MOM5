@@ -375,7 +375,7 @@ integer :: id_eta_tend_gm_flx_glob    =-1
 integer :: id_eta_tend_ndiff_flx      =-1
 integer :: id_eta_tend_ndiff_flx_glob =-1
 
-integer, dimension(:), allocatable  :: id_neutral_physics_ndiffuse ! tendency from GM 
+integer, dimension(:), allocatable  :: id_neutral_physics_ndiffuse ! tendency from neutral diffusion 
 integer, dimension(:), allocatable  :: id_neutral_physics_gm       ! tendency from GM 
 integer, dimension(:), allocatable  :: id_k33_implicit          ! K33 handled implicitly in time 
 integer, dimension(:), allocatable  :: id_flux_x_ndiffuse       ! i-directed tracer flux from neutral diffuse
@@ -514,9 +514,9 @@ integer :: index_salt
 integer :: neutralrho_nk
 
 character(len=128) :: version=&
-     '$Id: ocean_nphysicsC.F90,v 1.1.2.2 2012/05/17 13:41:47 smg Exp $'
+     '$Id: ocean_nphysicsC.F90,v 20.0 2013/12/14 00:14:40 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 character(len=*), parameter :: FILENAME=&
      __FILE__

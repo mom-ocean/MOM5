@@ -47,19 +47,20 @@ module river_mod
 #endif
 
   use mpp_mod,             only : CLOCK_SUBCOMPONENT, CLOCK_ROUTINE
-  use mpp_mod,             only : mpp_error, mpp_chksum, FATAL, WARNING, stdlog, mpp_npes
+  use mpp_mod,             only : mpp_error, mpp_chksum, FATAL, WARNING, NOTE, stdlog, mpp_npes
   use mpp_mod,             only : mpp_pe, stdout, mpp_chksum, mpp_max
   use mpp_mod,             only : mpp_clock_id, mpp_clock_begin, mpp_clock_end, MPP_CLOCK_DETAILED
   use mpp_domains_mod,     only : domain2d, mpp_get_compute_domain, mpp_get_global_domain 
   use mpp_domains_mod,     only : mpp_get_data_domain, mpp_update_domains, mpp_get_ntile_count
-  use fms_mod,             only : write_version_number, check_nml_error
+  use fms_mod,             only : write_version_number, check_nml_error, string
   use fms_mod,             only : close_file, file_exist, field_size, read_data, write_data, lowercase
   use fms_mod,             only : field_exist, CLOCK_FLAG_DEFAULT
-  use fms_io_mod,          only : get_mosaic_tile_file
+  use fms_io_mod,          only : get_mosaic_tile_file, get_instance_filename
   use diag_manager_mod,    only : diag_axis_init, register_diag_field, register_static_field, send_data
   use time_manager_mod,    only : time_type, increment_time, get_time
-  use river_type_mod,      only : river_type, Leo_Mad_trios
-  use river_physics_mod,   only : river_physics_step, river_physics_init
+  use river_type_mod,      only : river_type, Leo_Mad_trios, NO_RIVER_FLAG
+  use river_physics_mod,   only : river_physics_step, river_physics_init, river_impedes_lake, &
+                                  river_impedes_large_lake
   use constants_mod,       only : PI, RADIAN, tfreeze, DENS_H2O, hlf
   use stock_constants_mod, only : ISTOCK_WATER, ISTOCK_HEAT
   use land_tile_mod,       only : land_tile_type, land_tile_enum_type, &
@@ -72,8 +73,8 @@ module river_mod
   private
 
 !--- version information ---------------------------------------------
-  character(len=128) :: version = '$Id: river.F90,v 19.0 2012/01/06 20:40:55 fms Exp $'
-  character(len=128) :: tagname = '$Name: siena_201207 $'
+  character(len=128) :: version = '$Id: river.F90,v 20.0 2013/12/13 23:29:41 fms Exp $'
+  character(len=128) :: tagname = '$Name: tikal $'
 
 !--- public interface ------------------------------------------------
   public :: river_init, river_end, river_type, update_river, river_stock_pe
@@ -105,7 +106,10 @@ module river_mod
   real               :: channel_tau = 86400*365.25*10     ! channel geometry reflects average flow over O(10 y)
   logical :: lake_area_bug = .FALSE. ! if set to true, reverts to buggy (quebec)
       ! behavior, where by mistake cell area was used instead of land area to 
-      ! compute the area of lakes. 
+      ! compute the area of lakes.
+  logical :: stop_on_mask_mismatch = .TRUE. ! if set to false, then the data mismatches (mmismatch
+      ! of land and river masks, and discharges in pouints where there is no ocean) are reported,
+      ! but don't cause the abort of the program. 
   namelist /river_nml/ dt_slow, diag_freq, debug_river, do_age,              &
                        Somin, outflowmean_min, num_c, rt_c_name, rt_t_ref,   &
                        rt_vf_ref, rt_q10, rt_kinv, rt_source_conc_file,      &
@@ -113,7 +117,7 @@ module river_mod
                        rt_source_flux_name, ave_DHG_exp, ave_AAS_exp,        &
                        ave_DHG_coef, do_rivers, sinuosity, channel_tau,      &
                        land_area_called_cellarea, all_big_outlet_ctn0,       &
-                       lake_area_bug
+                       lake_area_bug, stop_on_mask_mismatch
 
   character(len=128) :: river_src_file   = 'INPUT/river_data.nc'
   character(len=128) :: river_Omean_file = 'INPUT/river_Omean.nc'
@@ -123,7 +127,7 @@ module river_mod
   integer :: isd, ied, jsd, jed                         ! data domain decomposition 
   integer :: nlon, nlat                                 ! size of computational river grid 
   integer :: num_lake_lev
-  integer :: id_outflowmean
+  integer :: id_outflowmean, id_lake_depth_sill
   integer :: id_dx, id_basin, id_So, id_depth, id_width, id_vel
   integer :: id_LWSr, id_FWSr, id_HSr, id_meltr
   integer :: i_species
@@ -160,7 +164,6 @@ module river_mod
   character(len=5), allocatable, dimension(:) :: conc_units
   integer                       :: num_fast_calls 
   integer                       :: slow_step = 0          ! record number of slow time step run.
-  real                          :: D2R
   type(domain2d),          save :: domain
   type(river_type) ,       save :: River
 
@@ -186,7 +189,7 @@ contains
     integer,         intent(in) :: id_lon, id_lat    ! IDs of diagnostic axes
     logical,         intent(out):: river_land_mask(:,:) ! land mask seen by rivers
 
-    integer              :: unit, outunit, io_status, ierr
+    integer              :: unit, io_status, ierr
     integer              :: sec, day, i, j
     integer              :: nxc, nyc
     character(len=128)   :: filename
@@ -195,7 +198,6 @@ contains
     type(Leo_Mad_trios)   :: DHG_coef           ! downstream equation coefficients
     type(Leo_Mad_trios)   :: AAS_exp            ! at-a-station equation exponents 
 
-    D2R = PI/180.
     riverclock = mpp_clock_id('update_river'           , CLOCK_FLAG_DEFAULT, CLOCK_SUBCOMPONENT)
     slowclock = mpp_clock_id('update_river_slow'       , CLOCK_FLAG_DEFAULT, CLOCK_ROUTINE)
     bndslowclock = mpp_clock_id('update_river_bnd_slow', CLOCK_FLAG_DEFAULT, CLOCK_ROUTINE)
@@ -368,17 +370,24 @@ contains
     call river_diag_init (id_lon, id_lat)
 
 !--- read restart file 
-    call get_mosaic_tile_file('INPUT/river.res.nc', filename, .false., domain)
+    call get_instance_filename('INPUT/river.res.nc', filename)
+    call get_mosaic_tile_file(trim(filename), filename, .false., domain)
 
-    outunit=stdout()
     if(file_exist(trim(filename),domain) ) then
+        call mpp_error(NOTE, 'river_init : Read restart files '//trim(filename))
         call read_data(filename,'storage',          River%storage,          domain)
         call read_data(filename,'storage_c',        River%storage_c,        domain)
         call read_data(filename,'discharge2ocean',  discharge2ocean_next,   domain)
         call read_data(filename,'discharge2ocean_c',discharge2ocean_next_c, domain)
         call read_data(filename,'Omean',            River%outflowmean,      domain)
-        write(outunit,*) 'Read restart files INPUT/river.res.nc'
+        if (field_exist(filename,'depth',domain)) then 
+             ! call mpp_error(WARNING, 'river_init : Reading field "depth" from '//trim(filename))
+             call read_data(filename,'depth',       River%depth,            domain)
+        else
+             ! call mpp_error(WARNING, 'river_init : "depth" is not present in '//trim(filename))
+        endif     
     else
+        call mpp_error(NOTE, 'river_init : cold start, set data to 0')
         River%storage    = 0.0
         River%storage_c  = 0.0
         discharge2ocean_next   = 0.0
@@ -388,7 +397,6 @@ contains
         else
            River%outflowmean = CONST_OMEAN
         end if
-        write(outunit,*) 'cold restart, set data to 0 '
     endif
     River%stordis_c = River%dt_slow * discharge2ocean_next_c/DENS_H2O
     River%stordis   = River%dt_slow *(discharge2ocean_next + &
@@ -482,7 +490,8 @@ contains
     real, dimension(isd:ied,jsd:jed,num_lake_lev) :: &
                              lake_wl, lake_ws
     real, dimension(isc:iec,jsc:jec) :: &
-                             lake_depth_sill, lake_width_sill, &
+                             lake_depth_sill, lake_width_sill, lake_backwater, &
+			     lake_backwater_1, &
                              lake_whole_area, &
                              rivr_LMASS,       & ! mass of liquid water in rivers in cell
                              rivr_FMASS,       & ! mass of ice in rivers in cell
@@ -534,7 +543,9 @@ contains
     lake_width_sill  = 0
     lake_whole_area  = 0
     lake_conn   = 0
-    ce = first_elmt(lnd%tile_map, is=isc, js=jsc)
+    lake_backwater = 0
+    lake_backwater_1 = 0
+     ce = first_elmt(lnd%tile_map, is=isc, js=jsc)
     te = tail_elmt (lnd%tile_map)
     do while(ce /= te)
        call get_elmt_indices(ce,i,j,k)
@@ -558,6 +569,8 @@ contains
        lake_width_sill(i,j)  = tile%lake%pars%width_sill
        lake_whole_area(i,j)  = tile%lake%pars%whole_area
        lake_conn (i,j)       = tile%lake%pars%connected_to_next
+       lake_backwater(i,j)   = tile%lake%pars%backwater
+       lake_backwater_1(i,j) = tile%lake%pars%backwater_1
        enddo
 
 call mpp_update_domains (lake_sfc_A,  domain)
@@ -567,16 +580,40 @@ call mpp_update_domains (lake_ws, domain)
 call mpp_update_domains (lake_conn,   domain)
    do i=isc,iec
      do j=jsc,jec
-       i_next = River%i_tocell(i,j)
-       j_next = River%j_tocell(i,j)
-       if (lake_conn(i,j).gt.0.5 ) then
-           if (lake_conn(i_next,j_next).gt.0.5 .or. all_big_outlet_ctn0) then
-               lake_depth_sill(i,j) = lake_sfc_bot(i_next,j_next) &
-                +(lake_wl(i_next,j_next,1)+lake_ws(i_next,j_next,1))/DENS_H2O
-             endif
+       if (River%i_tocell(i,j) /= NO_RIVER_FLAG) then
+          i_next = River%i_tocell(i,j)
+          j_next = River%j_tocell(i,j)
+       else
+          ! to avoid indices out of bounds in the lake_sfc_A check
+          i_next = i; j_next=j
+       endif
+         
+       if (lake_backwater(i,j).gt.0.5 .and. lake_sfc_A(i,j).gt.0. .and. &
+                                            lake_sfc_A(i_next,j_next).gt.0. ) then
+        ! because of river backwater, lake in this cell relaxes toward level of
+        ! lake in next cell downstream. (river depth is still simple function
+        ! of discharge though.)
+         lake_depth_sill(i,j) = lake_sfc_bot(i_next,j_next) &
+            +(lake_wl(i_next,j_next,1)+lake_ws(i_next,j_next,1))/DENS_H2O
+       elseif (lake_backwater_1(i,j).gt.0.5) then
+        ! to determine depth of backwater, lake at coastal cell has base level
+        ! set to river depth in same cell
+         lake_depth_sill(i,j) = lake_depth_sill(i,j) + River%depth(i,j)
+       elseif (lake_conn(i,j).gt.0.5 ) then
+        ! for all but furthest dowstream cell of a multi-cell lake, 
+        ! relax toward level in next cell (same lake) downstream
+         if (lake_conn(i_next,j_next).gt.0.5 .or. all_big_outlet_ctn0) then
+             lake_depth_sill(i,j) = lake_sfc_bot(i_next,j_next) &
+              +(lake_wl(i_next,j_next,1)+lake_ws(i_next,j_next,1))/DENS_H2O
          endif
-       enddo
+       elseif (river_impedes_lake) then
+         if (lake_width_sill(i,j).lt.0..or.river_impedes_large_lake) then
+             ! lake level in cell relaxes toward river level in cell
+             lake_depth_sill(i,j) = lake_depth_sill(i,j) + River%depth(i,j)
+         endif
+       endif
      enddo
+   enddo
 
 ! leftovers from horizontal mixing option, now gone
 !call mpp_update_domains (lake_T,  domain)
@@ -660,7 +697,7 @@ call mpp_update_domains (lake_conn,   domain)
             rivr_MELT = rivr_MELT / lnd%area
        used = send_data (id_meltr, rivr_MELT, River%time, mask=lnd%area>0) 
     end if
-    if(mod(slow_step, diag_freq) == 0)  call river_diag()
+    if(mod(slow_step, diag_freq) == 0)  call river_diag(lake_depth_sill)
     call mpp_clock_end(diagclock)
 
   end subroutine update_river_slow
@@ -749,10 +786,10 @@ call mpp_update_domains (lake_conn,   domain)
     call write_data(filename,'discharge2ocean'  ,discharge2ocean_next  (isc:iec,jsc:jec),   domain)
     call write_data(filename,'discharge2ocean_c',discharge2ocean_next_c(isc:iec,jsc:jec,:), domain)
     call write_data(filename,'Omean',            River%outflowmean,                         domain)
+    call write_data(filename,'depth', River%depth, domain)
   
   end subroutine save_river_restart
-
-
+  
 !#####################################################################
   subroutine get_river_data(land_lon, land_lat, land_frac)
     real,            intent(in) :: land_lon(isc:,jsc:)  ! geographical lontitude of cell center
@@ -760,8 +797,8 @@ call mpp_update_domains (lake_conn,   domain)
     real,            intent(in) :: land_frac(isc:,jsc:) ! land area fraction of land grid.
 
     integer                           :: ni, nj, i, j, siz(4), ntiles
-    real, dimension(:,:), allocatable :: xt, yt, frac, lake_frac, tmp
-    integer                           :: start(4), nread(4)
+    real, dimension(:,:), allocatable :: xt, yt, frac, glon, glat, lake_frac
+    integer :: nerrors ! number of errors detected during initialization
 
     ntiles = mpp_get_ntile_count(domain)
 
@@ -771,31 +808,22 @@ call mpp_update_domains (lake_conn,   domain)
     if(ni .NE. River%nlon .OR. nj .NE. River%nlat) call mpp_error(FATAL, &
        "river_mod: size mismatch between river grid and land grid")
 
+    allocate(glon(ni,nj), glat(ni, nj))
     allocate(xt(isc:iec, jsc:jec), yt(isc:iec, jsc:jec), frac(isc:iec, jsc:jec) )
     allocate(lake_frac(isc:iec, jsc:jec))
 
+    if (ntiles == 1) then
+        call read_data(river_src_file, 'x', glon, no_domain=.true.)
+        call read_data(river_src_file, 'y', glat, no_domain=.true.)
+      endif
     call read_data(river_src_file, 'x', xt, domain)
     call read_data(river_src_file, 'y', yt, domain) 
     call read_data(river_src_file, 'land_frac', frac, domain) 
     call read_data(river_src_file, 'lake_frac', lake_frac, domain) 
     !--- the following will be changed when the river data sets is finalized. 
-!!$    xt = xt*D2R;
-!!$    yt = yt*D2R;   
     xt = land_lon
     yt = land_lat
 !--- transform to radians, since land model grid use radians and compare with land grid.
-
-
-!!$    do j = jsc, jec
-!!$       do i = isc, iec
-!!$          if(abs(xt(i,j) - land_lon(i,j)) > epsln) call mpp_error(FATAL, &
-!!$             "river_mod: longitude mismatch between river grid and land grid")
-!!$          if(abs(yt(i,j) - land_lat(i,j)) > epsln) call mpp_error(FATAL, &
-!!$             "river_mod: latitude mismatch between river grid and land grid")
-!!$          if(abs(frac(i,j) - land_frac(i,j)) > epsln) call mpp_error(FATAL, &
-!!$             "river_mod: area fraction mismatch between river grid and land grid")
-!!$       end do
-!!$    end do
 
     allocate(River%lon_1d    (1:ni            ) )
     allocate(River%lat_1d    (1:nj            ) )
@@ -842,22 +870,13 @@ call mpp_update_domains (lake_conn,   domain)
     allocate(River%source_flux(isc:iec, jsc:jec,num_species-num_c+1:num_species))
 
     if(ntiles == 1) then   ! lat-lon grid, use actual grid location
-       start = 1; nread = 1
-       nread(1) = ni
-       allocate(tmp(ni,1))
-       call read_data(river_src_file, 'x', tmp, start, nread, no_domain=.TRUE.)
-       River%lon_1d = tmp(:,1)
-       deallocate(tmp)
-       start = 1; nread = 1
-       nread(2) = nj      
-       allocate(tmp(1,nj))            
-       call read_data(river_src_file, 'y', tmp, start, nread, no_domain=.TRUE.)
-       River%lat_1d = tmp(1,:)
-       deallocate(tmp)
+       River%lon_1d(:)      = glon(:,1)
+       River%lat_1d(:)      = glat(1,:)
     else                   ! cubic grid, use index.
        River%lon_1d(:)      = (/ (i, i=1,River%nlon) /)
        River%lat_1d(:)      = (/ (i, i=1,River%nlat) /)
     end if
+    deallocate(glon, glat)
 
     River%lon(:,:)       = land_lon(:,:)
     River%lat(:,:)       = land_lat(:,:)
@@ -888,6 +907,36 @@ call mpp_update_domains (lake_conn,   domain)
     where (River%tocell(:,:).eq. 32) River%tocell(:,:)=6
     where (River%tocell(:,:).eq. 64) River%tocell(:,:)=7
     where (River%tocell(:,:).eq.128) River%tocell(:,:)=8
+    
+    nerrors = 0
+    do j = jsc, jec
+    do i = isc, iec
+!!$          if(abs(xt(i,j) - land_lon(i,j)) > epsln) call mpp_error(FATAL, &
+!!$             "get_river_data: longitude mismatch between river grid and land grid")
+!!$          if(abs(yt(i,j) - land_lat(i,j)) > epsln) call mpp_error(FATAL, &
+!!$             "get_river_data: latitude mismatch between river grid and land grid")
+!!$          if(abs(frac(i,j) - land_frac(i,j)) > epsln) call mpp_error(FATAL, &
+!!$             "get_river_data: area fraction mismatch between river grid and land grid")
+
+       ! check that river and land masks match
+       if ((frac(i,j)>0).neqv.(land_frac(i,j)>0)) then
+          call mpp_error(WARNING,'get_river_data: land and river masks do not match at '//&
+               trim(coordinates(i,j)))
+          nerrors = nerrors+1
+       endif
+
+       ! check that the rivers do not discarge in the middle of the continents
+       if ((River%tocell(i,j)==0).and.(land_frac(i,j)>1.0-epsln)) then
+          call mpp_error(WARNING, &
+               'get_river_data: river discharges into a land point '&
+               //trim(coordinates(i,j))//' where there is no ocean')
+          nerrors = nerrors+1
+       endif    
+    end do
+    end do
+    
+    if (nerrors>0.and.stop_on_mask_mismatch) call mpp_error(FATAL,& 
+        'get_river_data: river/land mask-related mismatch detected during river data initialization')
 
     call read_data(river_src_file, 'basin', River%basinid, domain)
     where (River%basinid >0)
@@ -981,6 +1030,8 @@ call mpp_update_domains (lake_conn,   domain)
            missing_value=missing )
       enddo
 
+    id_lake_depth_sill= register_diag_field ( mod_name, 'rv_dsill', (/id_lon, id_lat/), &
+         River%Time, 'effective lake sill depth', 'm', missing_value=missing )
     id_outflowmean   = register_diag_field ( mod_name, 'rv_Qavg', (/id_lon, id_lat/), &
          River%Time, 'long-time average vol. flow', 'm3/s', missing_value=missing )
     id_depth     = register_diag_field ( mod_name, 'rv_depth', (/id_lon, id_lat/), &
@@ -1080,7 +1131,8 @@ call mpp_update_domains (lake_conn,   domain)
 
 !#####################################################################
 
-  subroutine river_diag
+  subroutine river_diag(lake_depth_sill)
+    real, dimension(isc:iec,jsc:jec), intent(in) :: lake_depth_sill
     logical :: used   ! logical for send_data
     real diag_factor  (isc:iec,jsc:jec)
     real diag_factor_2(isc:iec,jsc:jec)
@@ -1169,6 +1221,8 @@ call mpp_update_domains (lake_conn,   domain)
         diag_factor*River%disc2o(isc:iec,jsc:jec,i_species), River%Time)
       enddo
 
+    if (id_lake_depth_sill > 0) used = send_data (id_lake_depth_sill, &
+            lake_depth_sill, River%Time, mask=River%mask )
     if (id_outflowmean > 0) used = send_data (id_outflowmean, &
             River%outflowmean(isc:iec,jsc:jec), River%Time, mask=River%mask )
     if (id_width > 0) used = send_data (id_width, &
@@ -1237,6 +1291,12 @@ end select
 end subroutine river_stock_pe
 
 !#####################################################################
+! returns string indicating the coordiantes of the point i,j
+function coordinates(i,j) result(s); character(128) :: s
+   integer, intent(in) :: i,j
+   s ='('//trim(string(i))//','//trim(string(j))//')'
+   if (lnd%nfaces>1) s=trim(s)//' on cubic sphere face '//string(lnd%face) 
+end function coordinates
 
 end module river_mod
 

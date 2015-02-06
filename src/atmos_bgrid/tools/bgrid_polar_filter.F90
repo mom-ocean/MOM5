@@ -75,7 +75,7 @@ private
 !--------------------------------
 ! version id info
  character(len=128) :: version='$Id: bgrid_polar_filter.F90,v 10.0 2003/10/24 22:00:19 fms Exp $'
- character(len=128) :: tagname='$Name: siena_201207 $'
+ character(len=128) :: tagname='$Name: tikal $'
  logical :: do_log = .true.
 !--------------------------------
 ! private data

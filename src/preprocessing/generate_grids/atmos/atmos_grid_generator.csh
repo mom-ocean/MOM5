@@ -18,7 +18,7 @@
 #######################################################################
 
   set echo
-  set platform     = "gfdl_ws_64.intel"                       # A unique identifier for your platform
+  set platform     = "ncrc.intel"                       # A unique identifier for your platform
 #
   set root         = $cwd:h:h:h:h                       # The directory that contains src/ and bin/
   set npes         = 1

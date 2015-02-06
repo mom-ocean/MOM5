@@ -4,8 +4,9 @@ use mpp_mod, only : mpp_root_pe
 use constants_mod, only : PI, radius
 use fms_mod, only : uppercase, lowercase, field_exist, field_size, read_data, &
      error_mesg, string, FATAL, NOTE
+use fms_io_mod, only : get_great_circle_algorithm, get_global_att_value
 use mosaic_mod, only : get_mosaic_ntiles, get_mosaic_xgrid_size, get_mosaic_grid_sizes, &
-     get_mosaic_xgrid, calc_mosaic_grid_area
+     get_mosaic_xgrid, calc_mosaic_grid_area, calc_mosaic_grid_great_circle_area
 
 ! the following two use statement are only needed for define_cube_mosaic
 use mpp_domains_mod, only : domain2d, mpp_define_mosaic, mpp_get_compute_domain, &
@@ -47,8 +48,8 @@ end interface
 ! ==== module constants ======================================================
 character(len=*), parameter :: &
      module_name = 'grid_mod', &
-     version     = '$Id: grid.F90,v 19.0 2012/01/06 21:58:33 fms Exp $', &
-     tagname     = '$Name: siena_201207 $'
+     version     = '$Id: grid.F90,v 20.0 2013/12/14 00:20:48 fms Exp $', &
+     tagname     = '$Name: tikal $'
 
 character(len=*), parameter :: &
      grid_dir  = 'INPUT/',     &      ! root directory for all grid files
@@ -63,11 +64,20 @@ integer, parameter :: &
 
 ! ==== module variables ======================================================
 integer :: grid_version = -1
+logical :: great_circle_algorithm = .FALSE.
+logical :: first_call = .TRUE.
+
 
 contains 
 
 function get_grid_version()
   integer :: get_grid_version
+
+  if(first_call) then
+     great_circle_algorithm = get_great_circle_algorithm()
+     first_call = .FALSE.
+  endif
+
   if(grid_version<0) then
     if(field_exist(grid_file, 'geolon_t')) then
        grid_version = VERSION_0 
@@ -193,7 +203,11 @@ subroutine get_grid_cell_area(component, tile, cellarea, domain)
      endif
      allocate(glonb(nlon+1,nlat+1),glatb(nlon+1,nlat+1))
      call get_grid_cell_vertices(component, tile, glonb, glatb, domain)
-     call calc_mosaic_grid_area(glonb*pi/180.0, glatb*pi/180.0, cellarea)
+     if (great_circle_algorithm) then
+        call calc_mosaic_grid_great_circle_area(glonb*pi/180.0, glatb*pi/180.0, cellarea)
+     else
+        call calc_mosaic_grid_area(glonb*pi/180.0, glatb*pi/180.0, cellarea)
+     end if
      deallocate(glonb,glatb)
   end select
 
@@ -219,10 +233,17 @@ subroutine get_grid_comp_area(component,tile,area,domain)
      xgrid_name, & ! name of the variable holding xgrid names
      tile_name,  & ! name of the tile
      xgrid_file, & ! name of the current xgrid file
-     mosaic_name   ! name of the mosaic
+     mosaic_name,& ! name of the mosaic
+     mosaic_file,&
+     tilefile 
+  character(len=4096)     :: attvalue
+  character(len=MAX_NAME), allocatable :: nest_tile_name(:)
   character(len=MAX_NAME) :: varname1, varname2
   integer :: is,ie,js,je ! boundaries of our domain
   integer :: i0, j0 ! offsets for x and y, respectively
+  integer :: num_nest_tile, ntiles
+  logical :: is_nest
+  integer :: found_xgrid_files ! how many xgrid files we actually found in the grid spec
 
   select case (get_grid_version())
   case(VERSION_0,VERSION_1)
@@ -274,11 +295,32 @@ subroutine get_grid_comp_area(component,tile,area,domain)
         call error_mesg(module_name//'/get_grid_comp_area',&
         'size of the output argument "area" is not consistent with the domain',FATAL) 
 
+     ! find the nest tile 
+     call read_data(grid_file, 'atm_mosaic', mosaic_name)
+     call read_data(grid_file,'atm_mosaic_file',mosaic_file)
+     mosaic_file = grid_dir//trim(mosaic_file)
+     ntiles = get_mosaic_ntiles(trim(mosaic_file))   
+     allocate(nest_tile_name(ntiles))  
+     num_nest_tile = 0
+     do n = 1, ntiles
+        call read_data(mosaic_file, 'gridfiles', tilefile, level=n)        
+        tilefile = grid_dir//trim(tilefile)
+        if( get_global_att_value(tilefile, "nest_grid", attvalue) ) then
+           if(trim(attvalue) == "TRUE") then
+              num_nest_tile = num_nest_tile + 1
+              nest_tile_name(num_nest_tile) = trim(mosaic_name)//'_tile'//char(n+ichar('0'))
+           else if(trim(attvalue) .NE. "FALSE") then
+              call error_mesg(module_name//'/get_grid_comp_area', 'value of global attribute nest_grid in file'// &
+                   trim(tilefile)//' should be TRUE of FALSE', FATAL)
+           endif
+        end if
+     end do
      area(:,:) = 0
      if(field_exist(grid_file,xgrid_name)) then
         ! get the number of the exchange-grid files
         call field_size(grid_file,xgrid_name,siz)
         n_xgrid_files = siz(2)
+        found_xgrid_files = 0
         ! loop through all exchange grid files
         do n = 1, n_xgrid_files
            ! get the name of the current exchange grid file
@@ -288,6 +330,17 @@ subroutine get_grid_comp_area(component,tile,area,domain)
            if(n_xgrid_files>1) then
               if(index(xgrid_file,trim(tile_name))==0) cycle
            endif
+           found_xgrid_files = found_xgrid_files + 1
+           !---make sure the atmosphere grid is not a nested grid
+           is_nest = .false. 
+           do m = 1, num_nest_tile
+              if(index(xgrid_file, trim(nest_tile_name(m))) .NE. 0) then
+                 is_nest = .true.
+                 exit
+              end if
+           end do
+           if(is_nest) cycle 
+
            ! finally read the exchange grid
            nxgrid = get_mosaic_xgrid_size(grid_dir//xgrid_file)
            allocate(i1(nxgrid), j1(nxgrid), i2(nxgrid), j2(nxgrid), xgrid_area(nxgrid))
@@ -301,7 +354,12 @@ subroutine get_grid_comp_area(component,tile,area,domain)
            end do
            deallocate(i1, j1, i2, j2, xgrid_area)
         enddo
+        if (found_xgrid_files == 0) &
+           call error_mesg('get_grid_comp_area', 'no xgrid files were found for component '& 
+                 //trim(component)//' (mosaic name is '//trim(mosaic_name)//')', FATAL)
+
      endif
+     deallocate(nest_tile_name)
   end select ! version
   ! convert area to m2
   area = area*4*PI*radius**2
@@ -321,7 +379,7 @@ subroutine get_grid_cell_vertices_1D(component, tile, glonb, glatb)
 
   integer                      :: nlon, nlat
   integer                      :: start(4), nread(4)
-  real, allocatable            :: tmp(:,:)
+  real, allocatable            :: tmp(:,:), x_vert_t(:,:,:), y_vert_t(:,:,:)
   character(len=MAX_FILE)      :: filename1, filename2
 
   call get_grid_size_for_one_tile(component, tile, nlon, nlat)
@@ -353,8 +411,22 @@ subroutine get_grid_cell_vertices_1D(component, tile, glonb, glatb)
         call read_data(grid_file, 'xb'//lowercase(component(1:1)), glonb, no_domain=.true.)
         call read_data(grid_file, 'yb'//lowercase(component(1:1)), glatb, no_domain=.true.)
      case('OCN')
-        call error_mesg(module_name//'/get_grid_cell_vertices_1D',&
-           'reading of OCN grid vertices from VERSION_1 grid specs is not implemented', FATAL)
+        allocate (x_vert_t(nlon,1,2), y_vert_t(1,nlat,2) ) 
+        start = 1; nread = 1
+        nread(1) = nlon; nread(2) = 1; start(3) = 1
+        call read_data(grid_file, "x_vert_T", x_vert_t(:,:,1), start, nread, no_domain=.TRUE.)
+        nread(1) = nlon; nread(2) = 1; start(3) = 2
+        call read_data(grid_file, "x_vert_T", x_vert_t(:,:,2), start, nread, no_domain=.TRUE.)
+
+        nread(1) = 1; nread(2) = nlat; start(3) = 1
+        call read_data(grid_file, "y_vert_T", y_vert_t(:,:,1), start, nread, no_domain=.TRUE.)
+        nread(1) = 1; nread(2) = nlat; start(3) = 4
+        call read_data(grid_file, "y_vert_T", y_vert_t(:,:,2), start, nread, no_domain=.TRUE.)
+        glonb(1:nlon) = x_vert_t(1:nlon,1,1)
+        glonb(nlon+1) = x_vert_t(nlon,1,2)
+        glatb(1:nlat) = y_vert_t(1,1:nlat,1)
+        glatb(nlat+1) = y_vert_t(1,nlat,2)
+        deallocate(x_vert_t, y_vert_t)
      end select
   case(VERSION_2)
      ! get the name of the mosaic file for the component
@@ -445,13 +517,16 @@ subroutine get_grid_cell_vertices_2D(component, tile, lonb, latb, domain)
         enddo
         deallocate(buffer)
      case('OCN')
-        !!!!!! ERROR: this is not going to work when domain is present, because the size of the
-        ! domain is smaller by 1 then the size of the vertices array
-        if (present(domain)) &
-           call error_mesg(module_name//'/get_grid_cell_vertices',&
-           'reading of OCN grid vertices from VERSION_0 grid specs for non-global domain is not implemented', FATAL)
-        call read_data(grid_file, 'geolon_vert_t', lonb, no_domain=.not.present(domain), domain=domain )
-        call read_data(grid_file, 'geolat_vert_t', latb, no_domain=.not.present(domain), domain=domain )
+        if (present(domain)) then
+           start = 1; nread = 1
+           start(1) = is; start(2) = js
+           nread(1) = ie-is+2; nread(2) = je-js+2
+           call read_data(grid_file, 'geolon_vert_t', lonb, start, nread, no_domain=.true. )
+           call read_data(grid_file, 'geolat_vert_t', latb, start, nread, no_domain=.true. )
+         else
+           call read_data(grid_file, 'geolon_vert_t', lonb, no_domain=.TRUE. )
+           call read_data(grid_file, 'geolat_vert_t', latb, no_domain=.TRUE. )
+         endif
      end select
   case(VERSION_1)
      select case(component)

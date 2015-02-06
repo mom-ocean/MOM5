@@ -45,7 +45,7 @@ char *usage[] = {
   "                                                                                    ",
   NULL };
 
-char tagname[] = "$Name: siena_201205_z1l $";
+char tagname[] = "$Name: tikal $";
 const char xaxis_name[] = "grid_xt_sub01";
 const char yaxis_name[] = "grid_yt_sub01";
 

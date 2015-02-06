@@ -1,11 +1,11 @@
 module ocean_pressure_mod
 #define COMP isc:iec,jsc:jec
 !  
-! <CONTACT EMAIL="Stephen.Griffies@noaa.gov">
+! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
 ! S.M. Griffies 
 ! </CONTACT>
 !
-! <REVIEWER EMAIL="Tony.Rosati@noaa.gov">
+! <REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov">
 ! A. Rosati 
 ! </REVIEWER>
 !
@@ -111,9 +111,9 @@ type(ocean_domain_type), pointer :: Dom =>NULL()
 type(ocean_grid_type), pointer   :: Grd =>NULL()
 
 character(len=128) :: version = &
-     '$Id: ocean_pressure.F90,v 1.1.2.8 2012/06/08 02:06:42 Stephen.Griffies Exp $'
+     '$Id: ocean_pressure.F90,v 20.0 2013/12/14 00:10:57 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 ! for vertical coordinate
 integer :: vert_coordinate 

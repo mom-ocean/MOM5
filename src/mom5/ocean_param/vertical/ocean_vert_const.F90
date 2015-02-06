@@ -68,9 +68,9 @@ type(ocean_domain_type), pointer :: Dom => NULL()
 integer :: isd, ied, jsd, jed, isc, iec, jsc, jec, nk
 
 character(len=256) :: version=&
-     '=>Using: const/ocean_vert_const.F90 ($Id: ocean_vert_const.F90,v 1.1.2.4 2012/06/08 20:33:56 Stephen.Griffies Exp $)'
+     '=>Using: const/ocean_vert_const.F90 ($Id: ocean_vert_const.F90,v 20.0 2013/12/14 00:16:38 fms Exp $)'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 integer :: index_temp
 integer :: index_salt

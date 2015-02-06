@@ -40,7 +40,7 @@ implicit none
 private
 
 character(len=128), parameter :: version = '$Id: spherical_fourier.F90,v 13.0 2006/03/28 21:18:33 fms Exp $'
-character(len=128), parameter :: tagname = '$Name: siena_201207 $'
+character(len=128), parameter :: tagname = '$Name: tikal $'
 
 interface trans_spherical_to_fourier
    module procedure trans_spherical_to_fourier_3d,  &

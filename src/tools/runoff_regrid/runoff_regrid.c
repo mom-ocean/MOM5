@@ -28,6 +28,7 @@
 #include <math.h>
 #include "mpp.h"
 #include "mpp_io.h"
+#include "mpp_domain.h"
 #include "create_xgrid.h"
 #include "tool_util.h"
 
@@ -87,7 +88,7 @@ char *usage[] = {
   "                                                                               ",
   NULL};
 
-char tagname[] = "$Name: siena_201205_z1l $";
+char tagname[] = "$Name: tikal $";
 
 typedef struct {
   int nx;
@@ -112,6 +113,8 @@ typedef struct {
   int    *i_out;
   int    *j_out;
   double *xgrid_area;
+  int    *imap;
+  int    *jmap;
 } Remap_type;
 
 double distance(double lon1, double lat1, double lon2, double lat2);
@@ -155,7 +158,7 @@ int main(int argc, char* argv[])
   };  
 
   mpp_init(NULL,NULL);
-  if(mpp_npes() > 1) mpp_error("runoff_regrid: the tool is supposed to run on single processor");
+  /*  if(mpp_npes() > 1) mpp_error("runoff_regrid: the tool is supposed to run on single processor"); */
   while ((c = getopt_long(argc, argv, "", long_options, &option_index)) != -1) {
     switch (c) {
     case 'a':
@@ -205,20 +208,28 @@ int main(int argc, char* argv[])
     strcat(history, " ");
     strcat(history, argv[i]);
   }
-
   
   /* get input grid */
   get_input_grid(input_file, input_fld_name, &grid_in);
+  if(mpp_pe() == mpp_root_pe() )printf("\nNOTE from runoff_regrid: complete get_input_grid\n");
   /* get output grid */
   get_output_grid(output_mosaic, output_topog, sea_level, &grid_out);
+  if(mpp_pe() == mpp_root_pe() ) printf("\nNOTE from runoff_regrid: complete get_output_grid\n");  
   /* computing remapping information */
   setup_remap(&grid_in, &grid_out, &remap);
+  if(mpp_pe() == mpp_root_pe() )printf("\nNOTE from runoff_regrid: complete setup_remap\n");
   
-  /* do the remapping and write out data */ 
-  process_data(input_file, input_fld_name, output_file, output_fld_name, &grid_in, &grid_out, &remap, history);
+  /* do the remapping and write out data */
+  /* process data on the root pe */
+  if(mpp_pe() == mpp_root_pe()) {
+    process_data(input_file, input_fld_name, output_file, output_fld_name, &grid_in, &grid_out, &remap, history);
+  }
 
-  printf("NOTE from runoff_regrid: succefully created runoff data %s\n", output_file);
-  
+  if(mpp_pe() == mpp_root_pe() ) printf("NOTE from runoff_regrid: succefully created runoff data %s\n", output_file);
+
+  mpp_end();
+
+  return 0;
 }  
      
   
@@ -331,7 +342,7 @@ void get_output_grid(const char *mosaic, const char *topog_file, double sea_leve
    n_ext = 0;
    
    if(tmp[0] > -90 + EPSLN10 ) n_ext = 1;
-   printf("The south extension is %d\n", n_ext);
+   if(mpp_pe() == mpp_root_pe() ) printf("The south extension is %d\n", n_ext);
    nx  = ni/2;
    ny  = nj/2;
    ny_old = ny;
@@ -394,6 +405,7 @@ void get_output_grid(const char *mosaic, const char *topog_file, double sea_leve
    ny = mpp_get_dimlen(fid, "ny");
    if(nx != grid->nx || ny != grid->ny-n_ext)
      mpp_error("runoff_regrid: grid size mismatch between mosaic file and topog file");
+   ny += n_ext;
    depth = (double *)malloc(nx*ny_old*sizeof(double));
    grid->mask = (double *)malloc(nx*ny*sizeof(double));
    vid = mpp_get_varid(fid, "depth");
@@ -404,48 +416,119 @@ void get_output_grid(const char *mosaic, const char *topog_file, double sea_leve
      if(depth[(j-n_ext)*nx+i] >sea_level) grid->mask[j*nx+i] = 1.0;
    }
    free(depth);			    
-      
+
+
+    
 }
 
 void setup_remap(const Grid_type *grid_in, const Grid_type *grid_out, Remap_type *remap)
 {
   int nx_in, ny_in, nx_out, ny_out;
-  int nxgrid, i;
+  int nxgrid, i, j, ii, jj, l, ll;
   int *i_in, *j_in, *i_out, *j_out;
   double *xgrid_area;
+  int npes, layout[2], nxgrid_local;
+  int isc, iec, jsc, jec, nxc, nyc;
+  domain2D domain;
+  double *xc=NULL, *yc=NULL;
+  int *imap=NULL, *jmap=NULL;
+  
   
   nx_in = grid_in ->nx;
   ny_in = grid_in ->ny;
   nx_out = grid_out ->nx;
   ny_out = grid_out ->ny;
+  npes = mpp_npes();
   
+  mpp_define_layout(nx_out, ny_out, npes, layout);
+  mpp_define_domain2d(nx_out, ny_out, layout, 0, 0, &domain);
+
+  mpp_get_compute_domain2d(domain, &isc, &iec, &jsc, &jec);
+  nxc = iec-isc+1;
+  nyc = jec-jsc+1;
+  xc = (double *)malloc((nxc+1)*(nyc+1)*sizeof(double));
+  yc = (double *)malloc((nxc+1)*(nyc+1)*sizeof(double));
+
+  /* copy grid to local data */
+  for(j=0; j<=nyc; j++) for(i=0; i<=nxc; i++) {
+    jj = j+jsc;
+    ii = i+isc;
+    xc[j*(nxc+1)+i] = grid_out->xc[jj*(nx_out+1)+ii];  
+    yc[j*(nxc+1)+i] = grid_out->yc[jj*(nx_out+1)+ii];
+  }
+    
   i_in       = (int    *)malloc(MAXXGRID   * sizeof(int   ));
   j_in       = (int    *)malloc(MAXXGRID   * sizeof(int   ));
   i_out      = (int    *)malloc(MAXXGRID   * sizeof(int   ));
   j_out      = (int    *)malloc(MAXXGRID   * sizeof(int   ));
   xgrid_area = (double *)malloc(MAXXGRID   * sizeof(double));
-    
-  nxgrid = create_xgrid_1dx2d_order1(&nx_in, &ny_in, &nx_out, &ny_out, grid_in->xc1d,
-				     grid_in->yc1d,  grid_out->xc,  grid_out->yc,
+
+  nxgrid = create_xgrid_1dx2d_order1(&nx_in, &ny_in, &nxc, &nyc, grid_in->xc1d,
+				     grid_in->yc1d,  xc,  yc,
 				     grid_in->mask, i_in, j_in, i_out, j_out, xgrid_area);
+  /* add isc and jsc to i_out and j_out */
+  for(i=0; i<nxgrid; i++) {
+     i_out[i] += isc;
+     j_out[i] += jsc;
+  }
+
+  nxgrid_local = nxgrid;
+  
+  mpp_sum_int(1, &nxgrid);
+  
   remap->nxgrid = nxgrid;
   remap->i_in = (int *)malloc(nxgrid*sizeof(int));
   remap->j_in = (int *)malloc(nxgrid*sizeof(int));  
   remap->i_out = (int *)malloc(nxgrid*sizeof(int));
   remap->j_out = (int *)malloc(nxgrid*sizeof(int));
   remap->xgrid_area = (double *)malloc(nxgrid*sizeof(double));
-  for(i=0; i<nxgrid; i++) {
-    remap->i_in[i] = i_in[i];
-    remap->j_in[i] = j_in[i];
-    remap->i_out[i] = i_out[i];
-    remap->j_out[i] = j_out[i];
-    remap->xgrid_area[i] = xgrid_area[i];
+
+  mpp_gather_field_int_root( nxgrid_local, i_in, remap->i_in);
+  mpp_gather_field_int_root( nxgrid_local, j_in, remap->j_in);
+  mpp_gather_field_int_root( nxgrid_local, i_out, remap->i_out);
+  mpp_gather_field_int_root( nxgrid_local, j_out, remap->j_out);
+  mpp_gather_field_double_root( nxgrid_local, xgrid_area, remap->xgrid_area);
+
+  
+  /* compute the nearest ocean points for any land points */
+  imap = (int *)malloc(nxc*nyc*sizeof(int));
+  jmap = (int *)malloc(nxc*nyc*sizeof(int));
+  remap->imap = (int *)malloc(nx_out*ny_out*sizeof(int));
+  remap->jmap = (int *)malloc(nx_out*ny_out*sizeof(int));
+
+  for(i=0; i<nxc*nyc; i++) {
+    imap[i] = -1;
+    jmap[i] = -1;
   }
+  
+  
+  for(j=0; j<nyc; j++) {
+    for(i=0; i<nxc; i++) {
+      jj = j+jsc;
+      ii = i+isc;
+      ll = jj*nx_out+ii;
+      l = j*nxc+i;
+      if( grid_out->mask[ll] == 0) {
+	nearest(nx_out, ny_out, grid_out->mask, grid_out->xt, grid_out->yt,
+		grid_out->xt[ll], grid_out->yt[ll], &(imap[l]), &(jmap[l]) );
+      }
+    }
+  }
+  mpp_global_field_int(domain, nxc, nyc, imap, remap->imap);
+  mpp_global_field_int(domain, nxc, nyc, jmap, remap->jmap);
+  
+
+  free(imap);
+  free(jmap);
+    
+  free(xc);
+  free(yc);
   free(i_in);
   free(j_in);
   free(i_out);
   free(j_out);
   free(xgrid_area);
+  mpp_delete_domain2d(&domain);
   
 }
 
@@ -521,6 +604,7 @@ void process_data(const char *infile, const char *fld_name_in, const char *outfi
   
   /* loop through ntime */
   for(n=0; n<ntime; n++) {
+    
     for(i=0; i<4; i++) {
       start[i] = 0; nwrite[i] = 1; nread[i] = 1;
     }        
@@ -544,13 +628,13 @@ void process_data(const char *infile, const char *fld_name_in, const char *outfi
       */
       data_out[j2*nx_out+i2] += data_in[j1*nx_in+i1]*xarea;
     }
-
+    
     /* move the runoff to the nearest ocean points */
     for(j=0; j<ny_out; j++) for(i=0; i<nx_out; i++) {
       l = j*nx_out+i;
       if(data_out[l] > 0 && grid_out->mask[l] == 0) {
-	nearest(nx_out, ny_out, grid_out->mask, grid_out->xt, grid_out->yt,
-		grid_out->xt[l], grid_out->yt[l], &iout, &jout);
+	iout = remap->imap[l];
+	jout = remap->jmap[l];
         data_out[jout*nx_out+iout] += data_out[l];
 	data_out[l] = 0;
       }
@@ -613,8 +697,9 @@ double distance(double lon1, double lat1, double lon2, double lat2)
 }
 	  
 /* find the nearest ocean point of a given land point. */
+
 void nearest(int nlon, int nlat, double *mask, const double *lon, const double *lat,
-		     double plon, double plat, int *iout, int *jout)
+	     double plon, double plat, int *iout, int *jout)
 {
   int i,j, n;
   double r, r1;
@@ -632,4 +717,26 @@ void nearest(int nlon, int nlat, double *mask, const double *lon, const double *
   }
 
 }
-	  
+
+/* do a radial search starting from (iref, jref). */
+/* #define MAX_ITER 1000 */
+/* void radial_search(int nlon, int nlat, double *mask, const double *lon, const double *lat, */
+/* 		   double plon, double plat, int *iout, int *jout, int iref, int jref) */
+/* { */
+
+/*   iter = 0; */
+/*   while (iter<MAX_ITER) { */
+/*     iter++; */
+
+/*     /\* left boundary *\/ */
+/*     i_left = iref-n; */
+/*     if (i_left < 0) /\* cyclic condition is assumed here *\/ */
+/*       i_left = nlon + i_left; */
+/* 	else */
+/* 	  i_left = 1 */
+
+
+
+
+/*   } */
+  

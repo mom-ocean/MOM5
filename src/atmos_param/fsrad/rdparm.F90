@@ -47,7 +47,7 @@ private
       INTEGER, PARAMETER :: KO2=12,KO21=KO2+1,KO2M=KO2-1
 
       character(len=128) :: version = '$Id: rdparm.F90,v 10.0 2003/10/24 22:00:32 fms Exp $'
-      character(len=128) :: tagname = '$Name: siena_201207 $'
+      character(len=128) :: tagname = '$Name: tikal $'
       logical            :: module_is_initialized = .false.
 
 public RDPARM_INIT, RDPARM_END

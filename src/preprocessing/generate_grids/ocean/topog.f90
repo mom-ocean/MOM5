@@ -200,7 +200,6 @@ module topog_mod
   !</DATA>
   !<DATA NAME="min_thickness" TYPE="real" UNITS="METERS">
   !  minimum vertical thickness allowed. with default value 0.1. Increase or decrease this number as needed.
-  !</DATA>
   !<DATA NAME="debug" TYPE="logical" >
   ! Control standard output. Default value is true so to show lots of information.
   !</DATA>
@@ -298,8 +297,8 @@ module topog_mod
   namelist /obc_nml/ nobc, direction, is, ie, js, je, nsmooth, name
 
   !--- version information ---------------------------------------------
-  character(len=128) :: version = '$Id: topog.f90,v 17.0.4.3 2012/06/08 13:32:10 Zhi.Liang Exp $'
-  character(len=128) :: tagname = '$Name: siena_201205_z1l $'  
+  character(len=128) :: version = '$Id: topog.f90,v 20.0 2013/12/14 00:30:50 fms Exp $'
+  character(len=128) :: tagname = '$Name: tikal $'  
   !--- other variables
   logical              :: module_is_initialized = .false.
   real                 :: grid_tol = 1.e-2

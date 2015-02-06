@@ -65,8 +65,8 @@ private
 !----------- ****** VERSION NUMBER ******* ---------------------------
 
 
-character(len=128)  :: version =  '$Id: fms_donner.F90,v 19.0 2012/01/06 20:08:38 fms Exp $'
-character(len=128)  :: tagname =  '$Name: siena_201207 $'
+character(len=128)  :: version =  '$Id: fms_donner.F90,v 20.0 2013/12/13 23:17:30 fms Exp $'
+character(len=128)  :: tagname =  '$Name: tikal $'
 
 
 !--------------------------------------------------------------------
@@ -1100,8 +1100,8 @@ type(donner_nml_type), intent(inout) :: Nml
     if (Nml%do_budget_analysis) then
       allocate (id_water_budget (n_water_budget))
       allocate (id_ci_water_budget (n_water_budget))
-      allocate (id_enthalpy_budget (n_water_budget))
-      allocate (id_ci_enthalpy_budget (n_water_budget))
+      allocate (id_enthalpy_budget (n_enthalpy_budget))
+      allocate (id_ci_enthalpy_budget (n_enthalpy_budget))
       allocate (id_precip_budget (n_precip_paths, n_precip_types))
       allocate (id_ci_precip_budget (n_precip_paths, n_precip_types))
       id_water_budget(1)    = register_diag_field    &

@@ -184,6 +184,7 @@ use ocean_bih_tracer_mod,       only: bih_tracer
 
 #ifdef USE_OCEAN_BGC
 use ocean_generic_mod,          only: ocean_generic_get_field, ocean_generic_get_field_pointer
+use ocean_generic_mod,          only: ocean_generic_set_pointer
 #endif
 
 use ocean_lap_tracer_mod,       only: lap_tracer 
@@ -226,8 +227,8 @@ private
 logical :: prog_module_initialized = .false.
 logical :: diag_module_initialized = .false.
 
-character(len=256) :: version='CVS $Id: ocean_tracer.F90,v 1.1.2.7 2012/06/04 00:20:31 smg Exp $'
-character(len=256) :: tagname='Tag $Name: mom5_siena_08jun2012_smg $'
+character(len=256) :: version='CVS $Id: ocean_tracer.F90,v 20.0 2013/12/14 00:17:20 fms Exp $'
+character(len=256) :: tagname='Tag $Name: tikal $'
 character(len=48), parameter          :: mod_name = 'ocean_tracer_mod'
 
 integer :: num_tracers       =0
@@ -1559,11 +1560,13 @@ function ocean_prog_tracer_init (Grid, Thickness, Ocean_options, Domain, Time, T
   endif 
 
 #ifdef USE_OCEAN_BGC 
-  !Get the %filed for "generic" tracers as it might have already been set.
-  !nnz: find a way to use their already allocated field pointer directly.
+  !Point the %field4d_ptr and %tendency for "generic" tracers to the corresponding T_prog(n)%field and T_prog(n)%K33_implicit 
+  !to utilize the already allocated memory in MOM and to avoid copying the arrays back and forth between generic tracers and MOM
   do n=1,num_prog_tracers
     if(T_prog(n)%type .eq. 'generic') then
-       call ocean_generic_get_field(T_prog(n)%name,T_prog(n)%field)
+       call ocean_generic_set_pointer(T_prog(n)%name, 'field', T_prog(n)%field, isd, jsd)
+       !T_prog(n)%K33_implicit is used in vertdiff method below for calculating vertical diffusivity
+       call ocean_generic_set_pointer(T_prog(n)%name, 'tendency', T_prog(n)%K33_implicit, isd, jsd)
     endif
   enddo
 #endif
@@ -2015,7 +2018,8 @@ function ocean_diag_tracer_init (Time, Thickness, vert_coordinate_type, num_diag
    if (num_diag_tracers .gt. 0 ) then 
       do n=1,num_diag_tracers
          if(T_diag(n)%type .eq. 'generic') then
-            call ocean_generic_get_field(T_diag(n)%name,T_diag(n)%field)
+            !call ocean_generic_get_field(T_diag(n)%name,T_diag(n)%field)
+            call ocean_generic_set_pointer(T_diag(n)%name, 'field', T_diag(n)%field, isd, jsd)
             
             !nnz: find a way to use their already allocated field pointer directly.
             !#ifndef MOM_STATIC_ARRAYS

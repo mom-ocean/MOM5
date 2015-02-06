@@ -76,8 +76,8 @@ logical :: module_is_initialized=.FALSE.
 logical :: used
 
 !---- version number -----
-character(len=128) :: version = '$Id: atmos_soa.F90,v 19.0 2012/01/06 20:31:24 fms Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: atmos_soa.F90,v 20.0 2013/12/13 23:24:02 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 !-----------------------------------------------------------------------
 
 contains
@@ -230,7 +230,7 @@ end subroutine atmos_SOA_endts
 !-----------------------------------------------------------------------
       SUBROUTINE atmos_SOA_chem(pwt,temp,pfull, phalf, dt, &
                           jday,hour,minute,second,lat,lon, &
-                          SOA, SOA_dt, Time,is,ie,js,je,kbot)
+                          SOA, SOA_dt, Time,Time_next,is,ie,js,je,kbot)
 
 ! ****************************************************************************
       real, intent(in),    dimension(:,:,:)          :: pwt
@@ -240,7 +240,7 @@ end subroutine atmos_SOA_endts
       real, intent(in),  dimension(:,:)              :: lat, lon  ! [radian]
       real, intent(in),    dimension(:,:,:)          :: SOA
       real, intent(out),   dimension(:,:,:)          :: SOA_dt
-      type(time_type), intent(in)                    :: Time
+      type(time_type), intent(in)                    :: Time, Time_next
       integer, intent(in),  dimension(:,:), optional :: kbot
       integer, intent(in)                            :: is,ie,js,je
 ! Working vectors
@@ -327,7 +327,7 @@ end subroutine atmos_SOA_endts
 
       if (id_SOA_chem > 0) then
         used = send_data ( id_SOA_chem, &
-              SOA_chem, Time,is_in=is,js_in=js,ks_in=1)
+              SOA_chem, Time_next,is_in=is,js_in=js,ks_in=1)
       endif
 
 ! column production of SOA 
@@ -340,7 +340,7 @@ end subroutine atmos_SOA_endts
 
       if (id_SOA_chem_col > 0) then
         used = send_data ( id_SOA_chem_col, &
-                           SOA_prod, Time,is_in=is,js_in=js)
+                           SOA_prod, Time_next,is_in=is,js_in=js)
       endif
 
 

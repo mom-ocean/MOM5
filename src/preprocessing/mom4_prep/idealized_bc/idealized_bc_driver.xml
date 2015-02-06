@@ -1,8 +1,0 @@
-<?xml version="1.0" standalone="no"?>
-<!DOCTYPE PROGRAM SYSTEM 
-          "/net2/nnz/opt/tools/xmlDoc/share/xmlDoc/schema/fms.dtd">
-<PROGRAM NAME="idealized_bc_driver" DATE="0000/00/00 00:00:00" HISTORY="http://cobweb.gfdl.noaa.gov/fms-cgi-bin/viewcvs/preprocessing/mom4_prep/idealized_bc"><CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">Z. Liang </CONTACT><REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies </REVIEWER><OVERVIEW>
- Driver for ideal surface boundary conditions
-</OVERVIEW><DESCRIPTION>
- The program drives the idealized boundary condition generation routines. 
- </DESCRIPTION><USE NAME="         fms_mod"/><USE NAME="idealized_bc_mod"/><USE NAME="   constants_mod"/><USE NAME="         mpp_mod"/></PROGRAM>

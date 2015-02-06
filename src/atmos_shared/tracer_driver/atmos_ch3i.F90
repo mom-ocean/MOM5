@@ -63,8 +63,8 @@ real, parameter :: boltz = 1.38044e-16      ! Boltzmann's Constant (erg/K)
 
 character(len=7), parameter :: module_name = 'tracers'
 !---- version number -----
-character(len=128) :: version = '$Id: atmos_ch3i.F90,v 19.0 2012/01/06 20:29:42 fms Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: atmos_ch3i.F90,v 20.0 2013/12/13 23:23:47 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 logical :: module_is_initialized = .FALSE.
 
 contains
@@ -265,7 +265,7 @@ if (has_emissions) then
    else
       emis_source(:,:,kd) = emis(:,:)/pwt(:,:,kd) * emis_cons
    end if
-   used = send_data(id_emissions,emis,Time,is_in=is,js_in=js)
+   used = send_data(id_emissions,emis,Time_next,is_in=is,js_in=js)
 end if
 
 !-----------------------------------------------------------------------
@@ -290,8 +290,8 @@ do k = 1,kd
 end do
 ch3i_loss(:,:,:) = ( j_ch3i(:,:,:) + k_ch3i_oh(:,:,:)*conc_oh(:,:,:) ) &
                  * ch3i(:,:,:) ! VMR/s
-used = send_data( id_loss, ch3i_loss, Time, is_in=is, js_in=js )
-used = send_data( id_j_ch3i, j_ch3i, Time, is_in=is, js_in=js )
+used = send_data( id_loss, ch3i_loss, Time_next, is_in=is, js_in=js )
+used = send_data( id_j_ch3i, j_ch3i, Time_next, is_in=is, js_in=js )
 
 ch3i_dt(:,:,:) = emis_source(:,:,:) - ch3i_loss(:,:,:)
 

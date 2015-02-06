@@ -88,8 +88,8 @@ type(ocean_grid_type),   pointer :: Grd => NULL()
 public ocean_sponges_velocity_init
 public sponge_velocity_source
 
-character(len=126)  :: version = '$Id: ocean_sponges_velocity.F90,v 1.1.2.2 2012/05/17 13:41:49 smg Exp $'
-character (len=128) :: tagname = '$Name: mom5_siena_08jun2012_smg $'
+character(len=126)  :: version = '$Id: ocean_sponges_velocity.F90,v 20.0 2013/12/14 00:16:26 fms Exp $'
+character (len=128) :: tagname = '$Name: tikal $'
 
 ! for diagnostics 
 logical :: used

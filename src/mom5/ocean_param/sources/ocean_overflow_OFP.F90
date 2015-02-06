@@ -338,9 +338,9 @@ logical :: compute_watermass_diag = .false.
 !----------------------------------------------------------------------------------
 
 character(len=128) :: version=&
-       '=>Using: ocean_overflow_OFP.f90 ($Id: ocean_overflow_OFP.F90,v 1.1.2.2 2012/05/17 13:41:49 smg Exp $)'
+       '=>Using: ocean_overflow_OFP.f90 ($Id: ocean_overflow_OFP.F90,v 20.0 2013/12/14 00:16:08 fms Exp $)'
 character (len=128) :: tagname=&
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 ! number of prognostic tracers
 integer :: num_prog_tracers=0
@@ -1612,7 +1612,9 @@ id_OFP_n2_prd_depth    = register_diag_field ('ocean_model', 'OFP_n2_prd_depth',
 
 !-- no update domains
 
+   ! integer variables
    call mpp_update_domains (kmto, OFP_domain%domain2d, complete=.true.)
+   ! real variables
    call mpp_update_domains (dato, OFP_domain%domain2d, complete=.false.)
    call mpp_update_domains (dxto, OFP_domain%domain2d, complete=.false.)
    call mpp_update_domains (dyto, OFP_domain%domain2d, complete=.false.)

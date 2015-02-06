@@ -6,6 +6,7 @@ module vegn_disturbance_mod
 use land_constants_mod, only : seconds_per_year
 use vegn_data_mod,   only : spdata, fsc_wood, fsc_liv, agf_bs, LEAF_OFF
 use vegn_tile_mod,   only : vegn_tile_type
+use soil_tile_mod,   only : soil_tile_type
 use vegn_cohort_mod, only : vegn_cohort_type, height_from_biomass, lai_from_biomass, &
      update_biomass_pools
 
@@ -20,14 +21,15 @@ public :: update_fuel
 
 ! ==== module constants ======================================================
 character(len=*), parameter :: &
-     version = '$Id: vegn_disturbance.F90,v 19.0 2012/01/06 20:44:34 fms Exp $', &
-     tagname = '$Name: siena_201207 $', &
+     version = '$Id: vegn_disturbance.F90,v 20.0 2013/12/13 23:31:08 fms Exp $', &
+     tagname = '$Name: tikal $', &
      module_name = 'vegn_disturbance_mod'
 
 contains ! -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-subroutine vegn_disturbance(vegn, dt)
-  type(vegn_tile_type), intent(inout) :: vegn
+subroutine vegn_disturbance(vegn, soil, dt)
+  type(vegn_tile_type), intent(inout) :: vegn ! vegetation data
+  type(soil_tile_type), intent(inout) :: soil ! soil data
   real, intent(in) :: dt ! time since last disturbance calculations, s
   
 
@@ -64,25 +66,25 @@ subroutine vegn_disturbance(vegn, dt)
      ! "dead" biomass : wood + sapwood
      delta = (cc%bwood+cc%bsw)*fraction_lost;
       
-     vegn%slow_soil_C = vegn%slow_soil_C + (1.0-spdata(sp)%smoke_fraction)*delta*(1-fsc_wood);
-     vegn%fast_soil_C = vegn%fast_soil_C + (1.0-spdata(sp)%smoke_fraction)*delta*   fsc_wood;
+     soil%slow_soil_C(1) = soil%slow_soil_C(1) + (1.0-spdata(sp)%smoke_fraction)*delta*(1-fsc_wood);
+     soil%fast_soil_C(1) = soil%fast_soil_C(1) + (1.0-spdata(sp)%smoke_fraction)*delta*   fsc_wood;
      cc%bwood = cc%bwood * (1-fraction_lost);
      cc%bsw   = cc%bsw   * (1-fraction_lost);
       
      vegn%csmoke_pool = vegn%csmoke_pool + spdata(sp)%smoke_fraction*delta;
       
      ! for budget tracking - temporarily not keeping wood and the rest separately,ens
-     !      vegn%ssc_in+=delta*(1.0-spdata(sp)%smoke_fraction)*(1-fsc_wood); */
-     !      vegn%fsc_in+=delta*(1.0-spdata(sp)%smoke_fraction)*fsc_wood; */
+     !      soil%ssc_in(1)+=delta*(1.0-spdata(sp)%smoke_fraction)*(1-fsc_wood); */
+     !      soil%fsc_in(1)+=delta*(1.0-spdata(sp)%smoke_fraction)*fsc_wood; */
       
-     vegn%ssc_in = vegn%ssc_in+(cc%bwood+cc%bsw)*fraction_lost *(1.0-spdata(sp)%smoke_fraction);
-     !     vegn%fsc_in+=cc%bsw*fraction_lost *(1.0-spdata(sp)%smoke_fraction);
+     soil%ssc_in(1) = soil%ssc_in(1)+(cc%bwood+cc%bsw)*fraction_lost *(1.0-spdata(sp)%smoke_fraction);
+     !     soil%fsc_in(1)+=cc%bsw*fraction_lost *(1.0-spdata(sp)%smoke_fraction);
      vegn%veg_out = vegn%veg_out+delta;
       
      !"alive" biomass: leaves, roots, and virtual pool
      delta = (cc%bl+cc%blv+cc%br)*fraction_lost;
-     vegn%fast_soil_C = vegn%fast_soil_C + (1.0-spdata(sp)%smoke_fraction)*delta*    fsc_liv ;
-     vegn%slow_soil_C = vegn%slow_soil_C + (1.0-spdata(sp)%smoke_fraction)*delta*(1- fsc_liv);
+     soil%fast_soil_C(1) = soil%fast_soil_C(1) + (1.0-spdata(sp)%smoke_fraction)*delta*    fsc_liv ;
+     soil%slow_soil_C(1) = soil%slow_soil_C(1) + (1.0-spdata(sp)%smoke_fraction)*delta*(1- fsc_liv);
       
      cc%bl  = cc%bl  * (1-fraction_lost);
      cc%blv = cc%blv * (1-fraction_lost);
@@ -91,9 +93,9 @@ subroutine vegn_disturbance(vegn, dt)
      vegn%csmoke_pool = vegn%csmoke_pool + spdata(sp)%smoke_fraction*delta;
       
      ! for budget tracking- temporarily keeping alive separate ens
-     ! /*      vegn%fsc_in+=delta* fsc_liv; */
-     ! /*      vegn%ssc_in+=delta* (1-fsc_liv); */
-     vegn%fsc_in = vegn%fsc_in+delta*(1.0-spdata(sp)%smoke_fraction);
+     ! /*      soil%fsc_in(1)+=delta* fsc_liv; */
+     ! /*      soil%ssc_in(1)+=delta* (1-fsc_liv); */
+     soil%fsc_in(1) = soil%fsc_in(1)+delta*(1.0-spdata(sp)%smoke_fraction);
      vegn%veg_out = vegn%veg_out+delta;
       
      !"living" biomass:leaves, roots and sapwood
@@ -102,10 +104,10 @@ subroutine vegn_disturbance(vegn, dt)
 
      if(cc%bliving < BMIN) then
         ! remove vegetaion competely 	      
-        vegn%fast_soil_C = vegn%fast_soil_C + fsc_liv*cc%bliving+ fsc_wood*cc%bwood;
-        vegn%slow_soil_C = vegn%slow_soil_C + (1.- fsc_liv)*cc%bliving+ (1-fsc_wood)*cc%bwood;
+        soil%fast_soil_C(1) = soil%fast_soil_C(1) + fsc_liv*cc%bliving+ fsc_wood*cc%bwood;
+        soil%slow_soil_C(1) = soil%slow_soil_C(1) + (1.- fsc_liv)*cc%bliving+ (1-fsc_wood)*cc%bwood;
         
-        vegn%fsc_in = vegn%fsc_in + cc%bwood+cc%bliving;
+        soil%fsc_in(1) = soil%fsc_in(1) + cc%bwood+cc%bliving;
         vegn%veg_out = vegn%veg_out + cc%bwood+cc%bliving;
         
         cc%bliving = 0.;
@@ -197,7 +199,7 @@ subroutine update_fuel(vegn, wilt)
            + wilt*spdata(cc%species)%fact_crit_fire
      theta_crit = max(0.0,min(1.0, theta_crit))
      if((cc%height < fire_height_threashold) &
-          .and.(vegn%theta_av < theta_crit)  &
+          .and.(vegn%theta_av_fire < theta_crit)  &
           .and.(vegn%tsoil_av > 278.16)) then
         babove = cc%bl + agf_bs * (cc%bsw + cc%bwood + cc%blv);
         ! this is fuel available durng the drought months only
@@ -209,7 +211,7 @@ subroutine update_fuel(vegn, wilt)
   ! the last cohort -- currently it doesn't matter since we have just one cohort, 
   ! but something needs to be done about that in the future
   ignition_rate = 0.;
-  if ( (vegn%theta_av < theta_crit) &
+  if ( (vegn%theta_av_fire < theta_crit) &
        .and. (vegn%tsoil_av>278.16)) ignition_rate = 1.;
   vegn%lambda = vegn%lambda + ignition_rate;
 
@@ -219,8 +221,9 @@ end subroutine update_fuel
 
 
 ! ============================================================================
-subroutine vegn_nat_mortality(vegn, deltat)
-  type(vegn_tile_type), intent(inout) :: vegn
+subroutine vegn_nat_mortality(vegn, soil, deltat)
+  type(vegn_tile_type), intent(inout) :: vegn  ! vegetation data
+  type(soil_tile_type), intent(inout) :: soil  ! soil data
   real, intent(in) :: deltat ! time since last mortality calculations, s
   
   ! ---- local vars
@@ -252,8 +255,8 @@ subroutine vegn_nat_mortality(vegn, deltat)
      ! "dead" biomass : wood + sapwood
      delta = bdead*fraction_lost;
 
-     vegn%slow_soil_C = vegn%slow_soil_C + (1-fsc_wood)*delta;
-     vegn%fast_soil_C = vegn%fast_soil_C +    fsc_wood *delta;
+     soil%slow_soil_C(1) = soil%slow_soil_C(1) + (1-fsc_wood)*delta;
+     soil%fast_soil_C(1) = soil%fast_soil_C(1) +    fsc_wood *delta;
 
      cc%bwood = cc%bwood * (1-fraction_lost);
      cc%bsw   = cc%bsw   * (1-fraction_lost);
@@ -262,23 +265,23 @@ subroutine vegn_nat_mortality(vegn, deltat)
      ! It doesn't look correct to me: ssc_in should probably include factor 
      ! (1-fsc_wood) and the whole calculations should be moved up in front
      ! of bwood and bsw modification
-     ! vegn%fsc_in+= cc%bsw*fraction_lost;
-     vegn%ssc_in  = vegn%ssc_in  + (cc%bwood+cc%bsw)*fraction_lost;
+     ! soil%fsc_in(1)+= cc%bsw*fraction_lost;
+     soil%ssc_in(1)  = soil%ssc_in(1)  + (cc%bwood+cc%bsw)*fraction_lost;
      vegn%veg_out = vegn%veg_out + delta;
      
      ! kill the live biomass if mortality is set to affect it
      if (spdata(cc%species)%mortality_kills_balive) then
         delta = (cc%bl + cc%blv + cc%br)*fraction_lost
         
-        vegn%slow_soil_C = vegn%slow_soil_C + (1-fsc_liv)*delta;
-        vegn%fast_soil_C = vegn%fast_soil_C +    fsc_liv *delta;
+        soil%slow_soil_C(1) = soil%slow_soil_C(1) + (1-fsc_liv)*delta;
+        soil%fast_soil_C(1) = soil%fast_soil_C(1) +    fsc_liv *delta;
         
         cc%br  = cc%br  * (1-fraction_lost);
         cc%bl  = cc%bl  * (1-fraction_lost);
         cc%blv = cc%blv * (1-fraction_lost);
 
         ! for budget tracking
-        vegn%ssc_in  = vegn%ssc_in  + (cc%bwood+cc%bsw)*fraction_lost;
+        soil%ssc_in(1)  = soil%ssc_in(1)  + (cc%bwood+cc%bsw)*fraction_lost;
         vegn%veg_out = vegn%veg_out + delta;
      endif
 

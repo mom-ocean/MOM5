@@ -10,7 +10,7 @@ use data_override_mod, only : data_override
 
 use nf_utils_mod, only : nfu_inq_dim, nfu_inq_var, nfu_def_dim, nfu_def_var, &
      nfu_get_var, nfu_put_att
-use land_io_mod, only : print_netcdf_error, read_field
+use land_io_mod, only : print_netcdf_error, read_field, input_buf_size
 use land_tile_mod, only : land_tile_type, land_tile_list_type, land_tile_enum_type, &
      first_elmt, tail_elmt, next_elmt, current_tile, operator(/=), &
      get_elmt_indices
@@ -60,20 +60,20 @@ end interface
 ! ==== module constants ======================================================
 character(len=*), parameter :: &
      module_name = 'land_tile_io_mod', &
-     version     = '$Id: land_tile_io.F90,v 19.0.6.2 2012/05/14 19:16:06 Zhi.Liang Exp $', &
-     tagname     = '$Name: siena_201207 $'
+     version     = '$Id: land_tile_io.F90,v 20.0 2013/12/13 23:29:59 fms Exp $', &
+     tagname     = '$Name: tikal $'
 
 ! name of the "compressed" dimension (and dimension variable) in the output 
 ! netcdf files -- that is, the dimensions written out using compression by 
 ! gathering, as described in CF conventions. See subroutines write_tile_data,
 ! read_tile_data, read_unpack_tile_data, write_cohort_data
 character(len=*),   parameter :: tile_index_name   = 'tile_index'
-integer, parameter :: INPUT_BUF_SIZE=1024 ! size of the input buffer for tile input 
 
 
 ! ==== NetCDF declarations ===================================================
 include 'netcdf.inc'
 #define __NF_ASRT__(x) call print_netcdf_error((x),module_name,__LINE__)
+
 
 contains ! -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -141,6 +141,8 @@ subroutine create_tile_out_file_idx(ncid, name, glon, glat, tidx, tile_dim_lengt
   integer, allocatable :: tidx2(:)  ! array of tile indices from all PEs in io_domain
   integer :: p ! io_domain PE iterator 
   integer :: k ! current index in tidx2 array for receive operation
+  integer :: i
+  integer :: iret
 
   ! form the full name of the file
   call get_instance_filename(trim(name), full_name)
@@ -190,7 +192,8 @@ subroutine create_tile_out_file_idx(ncid, name, glon, glat, tidx, tile_dim_lengt
      __NF_ASRT__(nfu_def_dim(ncid,'lon' ,glon(:) ,'longitude','degrees_east'))
      __NF_ASRT__(nfu_def_dim(ncid,'lat' ,glat(:) ,'latitude','degrees_north'))
 
-     __NF_ASRT__(nfu_def_dim(ncid,'tile',tile_dim_length))
+     iret=nfu_def_dim(ncid,'tile',(/(p,p=1,tile_dim_length)/),'tile number within grid cell')
+     __NF_ASRT__(iret)
      ! the size of tile dimension really does not matter for the output, but it does
      ! matter for uncompressing utility, since it uses it as a size of the array to
      ! unpack to
@@ -359,7 +362,7 @@ subroutine read_tile_data_i0d_fptr(ncid,name,fptr)
    __NF_ASRT__(nfu_inq_dim(ncid,dimids(1),idxname))
    __NF_ASRT__(nfu_inq_var(ncid,idxname,id=idxid))
    ! allocate input buffers for compression index and the variable
-   bufsize = min(INPUT_BUF_SIZE,dimlen(1))
+   bufsize = min(input_buf_size,dimlen(1))
    allocate(idx(bufsize),x1d(bufsize))
    ! read the input buffer-by-buffer
    do j = 1,dimlen(1),bufsize
@@ -368,7 +371,7 @@ subroutine read_tile_data_i0d_fptr(ncid,name,fptr)
       ! read the data
       __NF_ASRT__(nf_get_vara_int(ncid,varid,(/j/),(/min(bufsize,dimlen(1)-j+1)/),x1d))
       ! distribute the data over the tiles
-      do i = 1, min(INPUT_BUF_SIZE,dimlen(1)-j+1)
+      do i = 1, min(input_buf_size,dimlen(1)-j+1)
          call get_tile_by_idx(idx(i),lnd%nlon,lnd%nlat,lnd%tile_map,&
                               lnd%is,lnd%js, tileptr)
          call fptr(tileptr, ptr)
@@ -415,7 +418,7 @@ subroutine read_tile_data_r0d_fptr(ncid,name,fptr)
    __NF_ASRT__(nfu_inq_dim(ncid,dimids(1),idxname))
    __NF_ASRT__(nfu_inq_var(ncid,idxname,id=idxid))
    ! allocate input buffers for compression index and the variable
-   bufsize=min(INPUT_BUF_SIZE,dimlen(1))
+   bufsize=min(input_buf_size,dimlen(1))
    allocate(idx(bufsize),x1d(bufsize))
    ! read the input buffer-by-buffer
    do j = 1,dimlen(1),bufsize
@@ -471,7 +474,7 @@ subroutine read_tile_data_r1d_fptr_all(ncid,name,fptr)
    __NF_ASRT__(nfu_inq_dim(ncid,dimids(1),idxname))
    __NF_ASRT__(nfu_inq_var(ncid,idxname,id=idxid))
    ! allocate input buffers for compression index and the variable
-   bufsize=min(INPUT_BUF_SIZE,dimlen(1))
+   bufsize=min(input_buf_size,dimlen(1))
    allocate(idx(bufsize),x1d(bufsize*dimlen(2)))
    ! read the input buffer-by-buffer
    do j = 1,dimlen(1),bufsize
@@ -531,7 +534,7 @@ subroutine read_tile_data_r1d_fptr_idx (ncid,name,fptr,index)
    __NF_ASRT__(nfu_inq_dim(ncid,dimids(1),idxname))
    __NF_ASRT__(nfu_inq_var(ncid,idxname,id=idxid))
    ! allocate input buffers for compression index and the variable
-   bufsize=min(INPUT_BUF_SIZE,dimlen(1))
+   bufsize=min(input_buf_size,dimlen(1))
    allocate(idx(bufsize),x1d(bufsize))
    ! read the input buffer-by-buffer
    do j = 1,dimlen(1),bufsize

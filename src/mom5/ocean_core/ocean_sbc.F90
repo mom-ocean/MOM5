@@ -542,6 +542,10 @@ integer :: id_ustokes      =-1
 integer :: id_vstokes      =-1
 integer :: id_stokes_depth =-1
 
+integer :: id_ustoke          =-1
+integer :: id_vstoke          =-1
+integer :: id_wavlen          =-1
+
 integer :: id_net_sfc_heating       =-1
 integer :: id_total_net_sfc_heating =-1
 
@@ -745,9 +749,9 @@ private :: compute_latent_heat_fusion
 
 
 character(len=128) :: version=&
-     '$Id: ocean_sbc.F90,v 1.1.2.8 2012/05/31 17:09:53 Stephen.Griffies Exp $'
+     '$Id: ocean_sbc.F90,v 20.0 2013/12/14 00:10:59 fms Exp $'
 character (len=128) :: tagname = &
-     '$Name: mom5_siena_08jun2012_smg $'
+     '$Name: tikal $'
 
 logical :: module_is_initialized          =.false.
 logical :: use_waterflux                  =.true.
@@ -756,6 +760,8 @@ logical :: use_waterflux_override_calving =.false.
 logical :: use_waterflux_override_fprec   =.false.
 logical :: use_waterflux_override_evap    =.false.
 logical :: rotate_winds                   =.false.
+logical :: taux_sinx                      =.false.
+logical :: tauy_siny                      =.false.
 logical :: runoffspread                   =.false.
 logical :: calvingspread                  =.false.
 logical :: salt_restore_under_ice         =.true.
@@ -787,6 +793,7 @@ logical :: use_constant_sst_for_restore   =.false.
 logical :: use_ideal_runoff               =.false.
 logical :: use_ideal_calving              =.false.
 logical :: read_stokes_drift              =.false.
+logical :: do_langmuir                    =.false.
 
 real    :: constant_sss_for_restore       = 35.0
 real    :: constant_sst_for_restore       = 12.0
@@ -817,7 +824,7 @@ logical :: do_bitwise_exact_sum       = .true.
 
 namelist /ocean_sbc_nml/ temp_restore_tscale, salt_restore_tscale, salt_restore_under_ice, salt_restore_as_salt_flux,        &
          eta_restore_tscale, zero_net_pme_eta_restore,                                                                       & 
-         rotate_winds, use_waterflux, waterflux_tavg, max_ice_thickness, runoffspread, calvingspread,                        &
+         rotate_winds, taux_sinx, tauy_siny, use_waterflux, waterflux_tavg, max_ice_thickness, runoffspread, calvingspread,  &
          use_waterflux_override_calving, use_waterflux_override_evap, use_waterflux_override_fprec,                          &
          salinity_ref, zero_net_salt_restore, zero_net_water_restore, zero_net_water_coupler, zero_net_water_couple_restore, &
          zero_net_salt_correction, zero_net_water_correction,                                                                &
@@ -828,7 +835,7 @@ namelist /ocean_sbc_nml/ temp_restore_tscale, salt_restore_tscale, salt_restore_
          temp_correction_scale, salt_correction_scale, tau_x_correction_scale, tau_y_correction_scale, do_bitwise_exact_sum, &
          sbc_heat_fluxes_const, sbc_heat_fluxes_const_value, sbc_heat_fluxes_const_seasonal,                                 &
          use_constant_sss_for_restore, constant_sss_for_restore, use_constant_sst_for_restore, constant_sst_for_restore,     &
-         use_ideal_calving, use_ideal_runoff, constant_hlf, constant_hlv, read_stokes_drift
+         use_ideal_calving, use_ideal_runoff, constant_hlf, constant_hlv, read_stokes_drift, do_langmuir
 
 contains
 
@@ -967,7 +974,8 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
   Ocean_sfc%s_surf  = 0.0  ! time averaged sss (psu) passed to atmosphere/ice models
   Ocean_sfc%u_surf  = 0.0  ! time averaged u-current (m/sec) passed to atmosphere/ice models
   Ocean_sfc%v_surf  = 0.0  ! time averaged v-current (m/sec)  passed to atmosphere/ice models 
-  Ocean_sfc%sea_lev = 0.0  ! time averaged thickness of top model grid cell (m) plus patm/(grav*rho0) 
+  Ocean_sfc%sea_lev = 0.0  ! time averaged thickness of top model grid cell (m) plus patm/(grav*rho0)
+                           ! minus h_geoid - h_tide 
   Ocean_sfc%frazil  = 0.0  ! time accumulated frazil (J/m^2) passed to ice model
   Ocean_sfc%area    = Grid%dat(isc:iec, jsc:jec) * Grid%tmask(isc:iec, jsc:jec, 1) !grid cell area
 
@@ -1512,6 +1520,19 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
 
   ! register dynamic fields 
 
+  id_ustoke = register_diag_field('ocean_model','ww3 ustoke', Grd%vel_axes_uv(1:2),&
+       Time%model_time, 'i-directed stokes drift velocity', 'm/s',                   &
+       missing_value=missing_value,range=(/-10.,10./),                       &
+       standard_name='surface stokes drift x-velocity')
+
+  id_vstoke = register_diag_field('ocean_model','ww3 vstoke', Grd%vel_axes_uv(1:2),&
+       Time%model_time, 'j-directed stokes drift velocity', 'm/s',                   &
+       missing_value=missing_value,range=(/-10.,10./),                       &
+       standard_name='surface stokes drift y-velocity')
+
+  id_wavlen = register_diag_field('ocean_model','ww3 wavlen', Grd%tracer_axes(1:2),  &
+       Time%model_time, 'mean wave length', 'm')
+  
   id_tau_x = register_diag_field('ocean_model','tau_x', Grd%vel_axes_u(1:2), &
        Time%model_time, 'i-directed wind stress forcing u-velocity', 'N/m^2',&
        missing_value=missing_value,range=(/-10.,10./),                       &
@@ -2449,7 +2470,7 @@ end subroutine ocean_sbc_diag_init
 !  Ocean_sfc%s_surf  = time averaged sss (psu) passed to atmosphere/ice models
 !  Ocean_sfc%u_surf  = time averaged u-current (m/sec) passed to atmosphere/ice models
 !  Ocean_sfc%v_surf  = time averaged v-current (m/sec)  passed to atmosphere/ice models 
-!  Ocean_sfc%sea_lev = time averaged ocean free surface height (m) plus patm/(grav*rho0) 
+!  Ocean_sfc%sea_lev = time averaged ocean free surface height (m) plus patm/(grav*rho0) - h_geoid - h_tide 
 !  Ocean_sfc%frazil  = time accumulated frazil (J/m^2) passed to ice model.  time averaging 
 !                      not performed, since ice model needs the frazil accumulated over the 
 !                      ocean time steps.  Note that Ocean_sfc%frazil is accumulated, whereas 
@@ -2809,7 +2830,8 @@ end subroutine ocean_sfc_restart
 ! T_diag%frazil, which is saved in the diagnostic tracer restart file.  
 ! </DESCRIPTION>
 !
-subroutine ocean_sfc_end()
+subroutine ocean_sfc_end(Ocean_sfc)
+  type(ocean_public_type), intent(in), target :: Ocean_sfc
 
     call ocean_sfc_restart
 
@@ -2902,7 +2924,18 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
      enddo
   enddo
 
-
+  !------- Calculate Langmuir turbulence enhancement and stokes drift if do_langmuir is true ------------------------
+    if ( do_langmuir ) then 
+       do j = jsc_bnd,jec_bnd
+          do i = isc_bnd,iec_bnd
+             ii = i + i_shift
+             jj = j + j_shift
+             Velocity%ustoke(ii,jj) = Ice_ocean_boundary%ustoke(i,j)
+             Velocity%vstoke(ii,jj) = Ice_ocean_boundary%vstoke(i,j)
+             Velocity%wavlen(ii,jj)= Ice_ocean_boundary%wavlen(i,j)
+          enddo
+       enddo
+    endif
   !--------momentum fluxes------------------------------------- 
   !
 
@@ -2927,6 +2960,26 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
             tmp_y = -Grd%sin_rot(i,j)*Velocity%smf_bgrid(i,j,1) + Grd%cos_rot(i,j)*Velocity%smf_bgrid(i,j,2)
             Velocity%smf_bgrid(i,j,1) = tmp_x
             Velocity%smf_bgrid(i,j,2) = tmp_y
+         enddo
+      enddo
+  endif
+ 
+  ! for idealized tests 
+  if (taux_sinx) then
+      do j=jsc,jec
+         do i=isc,iec
+            Velocity%smf_bgrid(i,j,1) = 0.1*sin(Grd%xu(i,j)/(2.0*pi))*Grd%umask(i,j,1)
+            Velocity%smf_bgrid(i,j,2) = 0.0
+         enddo
+      enddo
+  endif
+ 
+  ! for idealized tests 
+  if (tauy_siny) then
+      do j=jsc,jec
+         do i=isc,iec
+            Velocity%smf_bgrid(i,j,1) = 0.0
+            Velocity%smf_bgrid(i,j,2) = 0.1*sin(Grd%yu(i,j)/(2.0*pi))*Grd%umask(i,j,1)
          enddo
       enddo
   endif
@@ -2957,7 +3010,7 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
      enddo
   enddo
 
-  ! for use in forcing momentum equation 
+  ! for use in forcing momentum  
   if(horz_grid == MOM_BGRID) then 
      do n=1,2
         do j=jsc,jec
@@ -4368,6 +4421,24 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
   endif 
 
+  !----Langmuir turbulence related diagnostics-------------------------------
+  ! i-directed stokes drift velocity (m/s)
+  if (do_langmuir) then
+     if (id_ustoke > 0) used =  send_data(id_ustoke, Velocity%ustoke(:,:), &
+                            Time%model_time, rmask=Grd%umask(:,:,1), &
+                            is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+
+     ! j-directed stokes drift velocity (m/s)
+     if (id_vstoke > 0) used =  send_data(id_vstoke, Velocity%vstoke(:,:), &
+                            Time%model_time, rmask=Grd%umask(:,:,1), &
+                            is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+
+     ! mean wave length (m)
+     if (id_wavlen > 0) used =  send_data(id_wavlen, Velocity%wavlen(:,:), &
+                            Time%model_time, rmask=Grd%tmask(:,:,1), &
+                            is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  endif
+
   ! wind stress curl (N/m^3) averaged to U-point
   ! Ekman pumping velocity averaged to U-point 
   if (id_tau_curl > 0 .or. id_ekman_we > 0) then 
@@ -4637,16 +4708,20 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
 
   ! net heat flux from radiation+latent+sensible (as passed through coupler) + mass transport 
+  ! note that the addition of frozen_precip is operationally how the model computes the 
+  ! heat contribution from mass transport.  however, it is arguably not correct, since 
+  ! the frozen precip is typically best approximated to be at 0C, rather than SST. But
+  ! we diagnose the contribution in this manner in order to agree with the prognostic model
+  ! methods.  
   if(id_net_sfc_heating > 0) then 
       wrk1_2d(:,:) = 0.0
       do j=jsc,jec
          do i=isc,iec
-            wrk1_2d(i,j) =   T_prog(index_temp)%conversion*(       &
-                   T_prog(index_temp)%stf(i,j)                     &
-                 + T_prog(index_temp)%runoff_tracer_flux(i,j)      &
-                 + T_prog(index_temp)%calving_tracer_flux(i,j)     &
-                 + liquid_precip(i,j)*T_prog(index_temp)%tpme(i,j) &
-                 + evaporation(i,j)*T_prog(index_temp)%tpme(i,j) )
+            wrk1_2d(i,j) =   T_prog(index_temp)%conversion*(                                              &
+                   T_prog(index_temp)%stf(i,j)                                                            &
+                 + T_prog(index_temp)%runoff_tracer_flux(i,j)                                             &
+                 + T_prog(index_temp)%calving_tracer_flux(i,j)                                            &
+                 + (frozen_precip(i,j)+liquid_precip(i,j)+evaporation(i,j))*T_prog(index_temp)%tpme(i,j) )
          enddo
       enddo
       call diagnose_2d(Time, Grd, id_net_sfc_heating, wrk1_2d(:,:))
@@ -4656,13 +4731,12 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
       wrk1_2d(:,:) = 0.0
       do j=jsc,jec
          do i=isc,iec
-            wrk1_2d(i,j) =   Grd%tmask(i,j,1)*Grd%dat(i,j)         &
-                  *T_prog(index_temp)%conversion*(                 &
-                   T_prog(index_temp)%stf(i,j)                     &
-                 + T_prog(index_temp)%runoff_tracer_flux(i,j)      &
-                 + T_prog(index_temp)%calving_tracer_flux(i,j)     &
-                 + liquid_precip(i,j)*T_prog(index_temp)%tpme(i,j) &
-                 + evaporation(i,j)*T_prog(index_temp)%tpme(i,j) )
+            wrk1_2d(i,j) =   Grd%tmask(i,j,1)*Grd%dat(i,j)                                               &
+                  *T_prog(index_temp)%conversion*(                                                       &
+                   T_prog(index_temp)%stf(i,j)                                                           &
+                 + T_prog(index_temp)%runoff_tracer_flux(i,j)                                            &
+                 + T_prog(index_temp)%calving_tracer_flux(i,j)                                           &
+                 + (frozen_precip(i,j)+liquid_precip(i,j)+evaporation(i,j))*T_prog(index_temp)%tpme(i,j) )
          enddo
       enddo
       call diagnose_sum(Time, Grd, Dom, id_total_net_sfc_heating, wrk1_2d, 1e-15)
@@ -4693,6 +4767,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
   ! evaporative heat flux (W/m2) (<0 cools ocean)
   if (id_evap_heat > 0) then
+      tmp_flux=0.0
       do j=jsc_bnd,jec_bnd
          do i=isc_bnd,iec_bnd
             ii=i+i_shift
@@ -4704,6 +4779,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
   ! total evaporative heating (Watts) 
   if (id_total_ocean_evap_heat > 0) then
+      tmp_flux=0.0
       do j=jsc_bnd,jec_bnd
          do i=isc_bnd,iec_bnd
             ii=i+i_shift
@@ -5292,13 +5368,13 @@ subroutine compute_latent_heat_fusion(salinity)
 
 real, dimension(isd:,jsd:), intent(in) :: salinity
 
-real, parameter  :: c0  =  3.334265169240710e5
-real, parameter  :: c1  = -2.789444646733159
-real, parameter  :: c3  = -4.984585692734338e3
-real, parameter  :: c6  =  1.195857305019339e3
-real, parameter  :: c10 = -5.792068522727968e2
-real, parameter  :: c15 =  6.836527214265952e2
-real, parameter  :: c21 = -2.371103254714944e2
+real, parameter  :: c0  =  3.334265169240710d5
+real, parameter  :: c1  = -2.789444646733159d0
+real, parameter  :: c3  = -4.984585692734338d3
+real, parameter  :: c6  =  1.195857305019339d3
+real, parameter  :: c10 = -5.792068522727968d2
+real, parameter  :: c15 =  6.836527214265952d2
+real, parameter  :: c21 = -2.371103254714944d2
 
 real    :: x 
 integer :: i,j

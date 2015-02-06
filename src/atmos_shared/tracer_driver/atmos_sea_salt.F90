@@ -38,8 +38,8 @@ private
 public  atmos_sea_salt_sourcesink, atmos_sea_salt_init, atmos_sea_salt_end
 
 !---- version number -----
-character(len=128) :: version = '$Id: atmos_sea_salt.F90,v 19.0 2012/01/06 20:31:22 fms Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: atmos_sea_salt.F90,v 20.0 2013/12/13 23:23:59 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 
 !-----------------------------------------------------------------------
@@ -117,7 +117,8 @@ contains
                                        lon, lat, ocn_flx_fraction, pwt, &
                                        zhalf, pfull, w10m, t, rh, &
                                        seasalt, seasalt_dt, dt, SS_setl, &
-                                       SS_emis, Time, is,ie,js,je, kbot)
+                                       SS_emis, Time, Time_next, &
+                                       is,ie,js,je, kbot)
 
 !-----------------------------------------------------------------------
    integer, intent(in)                 :: i_SS
@@ -134,7 +135,7 @@ contains
    real, intent(in),  dimension(:,:,:) :: zhalf, pfull, t, rh
    real, intent(out), dimension(:,:,:) :: seasalt_dt
    integer, intent(in)                 :: is, ie, js, je
-   type(time_type), intent(in) :: Time     
+   type(time_type), intent(in) :: Time, Time_next     
    integer, intent(in),  dimension(:,:), optional :: kbot
 !-----------------------------------------------------------------------
 
@@ -252,11 +253,11 @@ integer  i, j, k, id, jd, kd, kb, ir, irh
 
 ! Send the emission data to the diag_manager for output.
       if (id_SS_emis(i_SS) > 0 ) then
-        used = send_data ( id_SS_emis(i_SS), SS_emis, Time, &
+        used = send_data ( id_SS_emis(i_SS), SS_emis, Time_next, &
               is_in=is,js_in=js )
       endif
       if (id_ocn_flx_fraction > 0) then
-        used = send_data ( id_ocn_flx_fraction, ocn_flx_fraction, Time, &
+        used = send_data ( id_ocn_flx_fraction, ocn_flx_fraction, Time_next, &
              is_in=is,js_in=js )
       endif
 
@@ -325,7 +326,7 @@ integer  i, j, k, id, jd, kd, kb, ir, irh
 
 ! Send the settling data to the diag_manager for output.
       if (id_SS_setl(i_SS) > 0 ) then
-        used = send_data ( id_SS_setl(i_SS), SS_setl, Time, &
+        used = send_data ( id_SS_setl(i_SS), SS_setl, Time_next, &
               is_in=is,js_in=js )
       endif
 

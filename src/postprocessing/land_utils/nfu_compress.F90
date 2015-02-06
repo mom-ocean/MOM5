@@ -1,3 +1,9 @@
+!-----------------------------------------------------------------------
+! Copyright 2011 NOAA Geophysical Fluid Dynamics Lab, Princeton, NJ
+! This program is distributed under the terms of the GNU General Public
+! License. See the file COPYING contained in this directory
+!
+!-----------------------------------------------------------------------
 #define __NF_TRY__(err_code,iret,LABEL) iret=err_code;\
 call cdfe(iret,"",__LINE__,verb);\
 if(iret/=NF_NOERR)goto LABEL

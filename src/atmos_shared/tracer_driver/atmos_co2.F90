@@ -137,10 +137,10 @@ contains
 !   </OUT>
 !
 
-subroutine atmos_co2_sourcesink(is, ie, js, je, Time, dt, pwt, co2, sphum, co2_restore)
+subroutine atmos_co2_sourcesink(is, ie, js, je, Time, Time_next, dt, pwt, co2, sphum, co2_restore)
 
    integer, intent(in)                 :: is, ie, js, je
-   type (time_type),      intent(in)   :: Time
+   type (time_type),      intent(in)   :: Time, Time_next
    real, intent(in)                    :: dt
    real, intent(in),  dimension(:,:,:) :: pwt          ! kg/m2
    real, intent(in),  dimension(:,:,:) :: co2          ! moist mmr
@@ -199,7 +199,7 @@ if (ind_co2 > 0 .and. do_co2_restore) then
 ! restoring diagnostic in moles co2/m2/sec 
 ! pwt is moist air, so no need to divide by 1-sphum here
     if (id_co2restore > 0) sent = send_data (id_co2restore, co2_restore  *  &
-                                         pwt / (WTMCO2*1.e-3), Time, is_in=is,js_in=js)
+                                         pwt / (WTMCO2*1.e-3), Time_next, is_in=is,js_in=js)
   endif
 
 !else
@@ -208,7 +208,7 @@ if (ind_co2 > 0 .and. do_co2_restore) then
 endif
 
 !! add pwt as a diagnostic
-if (id_pwt > 0) sent = send_data (id_pwt, pwt, Time, is_in=is,js_in=js)
+if (id_pwt > 0) sent = send_data (id_pwt, pwt, Time_next, is_in=is,js_in=js)
 
 
 end subroutine atmos_co2_sourcesink
@@ -322,10 +322,10 @@ end subroutine atmos_co2_rad
 !
 !
 
-subroutine atmos_co2_emissions(is, ie, js, je, Time, dt, pwt, co2, sphum, co2_emiss_dt, kbot)
+subroutine atmos_co2_emissions(is, ie, js, je, Time, Time_next, dt, pwt, co2, sphum, co2_emiss_dt, kbot)
 
    integer, intent(in)                 :: is, ie, js, je
-   type (time_type),      intent(in)   :: Time
+   type (time_type),      intent(in)   :: Time, Time_next
    real, intent(in)                    :: dt
    real, intent(in),  dimension(:,:,:) :: pwt          ! kg/m2
    real, intent(in),  dimension(:,:,:) :: co2          ! moist mmr
@@ -375,7 +375,7 @@ if (ind_co2 > 0 .and. do_co2_emissions) then
     call error_mesg (trim(error_header), ' data override needed for co2 emission ', FATAL)
   endif
 
-  if (id_co2_emiss_orig > 0) sent = send_data (id_co2_emiss_orig, co2_emis2d, Time, is_in=is,js_in=js)
+  if (id_co2_emiss_orig > 0) sent = send_data (id_co2_emiss_orig, co2_emis2d, Time_next, is_in=is,js_in=js)
 
 ! lowest model layer
     do j=1,jd
@@ -388,7 +388,7 @@ if (ind_co2 > 0 .and. do_co2_emissions) then
 
 ! co2 mol emission diagnostic in moles CO2/m2/sec 
   if (id_co2_mol_emiss > 0) sent = send_data (id_co2_mol_emiss,   &
-                 co2_emiss_dt(:,:,kd)*pwt(:,:,kd)/(WTMCO2*1.e-3), Time, is_in=is,js_in=js)
+                 co2_emiss_dt(:,:,kd)*pwt(:,:,kd)/(WTMCO2*1.e-3), Time_next, is_in=is,js_in=js)
 
 endif
 

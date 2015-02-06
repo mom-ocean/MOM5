@@ -78,8 +78,8 @@ character(len=9), parameter :: mod_name = 'vert_diff'
 !-----------------------------------------------------------------------
 !---- version number ----
 
-character(len=128) :: version = '$Id: vert_diff_driver.F90,v 19.0 2012/01/06 20:27:31 fms Exp $'
-character(len=128) :: tagname = '$Name: siena_201207 $'
+character(len=128) :: version = '$Id: vert_diff_driver.F90,v 20.0 2013/12/13 23:22:29 fms Exp $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 logical :: module_is_initialized = .false.
 
@@ -93,7 +93,7 @@ contains
                                    u, v, t, q, trs,                    &
                                    dtau_du, dtau_dv, tau_x, tau_y,     &
                                    dt_u, dt_v, dt_t, dt_q, dt_trs,     &
-                                   Surf_diff,  mask, kbot              )
+                                   Surf_diff, diff_t_clubb, mask, kbot ) !cjg
 
 integer, intent(in)                     :: is, js
 type(time_type),   intent(in)           :: Time
@@ -110,6 +110,9 @@ real, intent(inout), dimension(:,:,:,:) :: dt_trs
 
 type(surf_diff_type), intent(inout)     :: Surf_diff
 
+!-->cjg
+real, intent(in)   , dimension(:,:,:), optional :: diff_t_clubb
+!<--cjg
 real   , intent(in), dimension(:,:,:), optional :: mask
 integer, intent(in), dimension(:,:),   optional :: kbot
 
@@ -203,11 +206,14 @@ integer :: ie, je
    where (q_2 < 0.0)  q_2 = 0.0
  endif
 
+!--> cjg
  call gcm_vert_diff_down (is, js, delt, u, v, tt, q_2, trs(:,:,:,1:ntp), &
-                          diff_mom, diff_heat, p_half, p_full, z_full,   &
+                          diff_mom, diff_heat,                           &
+                          p_half, p_full, z_full,                        &
                           tau_x, tau_y, dtau_du, dtau_dv,                &
-                          dt_u, dt_v, dt_t, dt_q, dt_trs(:,:,:,1:ntp), &
-                          dissipative_heat, Surf_diff,  kbot           )
+                          dt_u, dt_v, dt_t, dt_q, dt_trs(:,:,:,1:ntp),   &
+                          dissipative_heat, Surf_diff,  diff_t_clubb, kbot ) !cjg
+!<--cjg
 
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -372,11 +378,14 @@ integer :: ie, je
 !#######################################################################
 
  subroutine vert_diff_driver_init ( Surf_diff, idim, jdim, kdim,  &
-                                    axes, Time )
+                                    axes, Time, do_clubb )  !cjg
 
  type(surf_diff_type), intent(inout) :: Surf_diff
  integer             , intent(in)    :: idim, jdim, kdim, axes(4)
  type(time_type)     , intent(in)    :: Time
+!-->cjg
+ integer, intent(in)                 :: do_clubb
+!<--cjg
 
  integer :: unit, io, ierr, tr, logunit
  integer :: ntprog ! number of prognostic tracers in the atmosphere
@@ -409,7 +418,7 @@ integer :: ie, je
 !-------- initialize gcm vertical diffusion ------
 
    call vert_diff_init (Surf_diff, idim, jdim, kdim, do_conserve_energy, &
-                        use_virtual_temp_vert_diff, do_mcm_plev)
+                        use_virtual_temp_vert_diff, do_mcm_plev, do_clubb) !cjg
 
 !-----------------------------------------------------------------------
 

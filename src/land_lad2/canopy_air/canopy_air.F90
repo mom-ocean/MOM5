@@ -1,9 +1,9 @@
 ! ============================================================================
 ! canopy air
 ! ============================================================================
-#include "../shared/debug.inc"
-
 module canopy_air_mod
+
+#include "../shared/debug.inc"
 
 #ifdef INTERNAL_FILE_NML
 use mpp_mod, only: input_nml_file
@@ -49,8 +49,8 @@ public :: cana_step_2
 
 ! ==== module constants ======================================================
 character(len=*), private, parameter :: &
-  version = '$Id: canopy_air.F90,v 19.0 2012/01/06 20:40:41 fms Exp $', &
-  tagname = '$Name: siena_201207 $', &
+  version = '$Id: canopy_air.F90,v 20.0 2013/12/13 23:29:31 fms Exp $', &
+  tagname = '$Name: tikal $', &
   module_name = 'canopy_air_mod'
 
 ! options for turbulence parameter calculations
@@ -62,15 +62,16 @@ real :: init_T           = 288.
 real :: init_T_cold      = 260.
 real :: init_q           = 0.
 real :: init_co2         = 350.0e-6 ! ppmv = mol co2/mol of dry air
-real :: rav_lit_vi       = 0.       ! litter resistance to vapor per v_idx
 character(len=32) :: turbulence_to_use = 'lm3w' ! or lm3v
 logical :: save_qco2     = .TRUE.
 logical :: sfc_dir_albedo_bug = .FALSE. ! if true, reverts to buggy behavior
 ! where direct albedo was mistakenly used for part of sub-canopy diffuse light
+logical :: allow_small_z0 = .FALSE. ! to use z0 provided by lake and glac modules
+real :: lai_min_turb = 0.0 ! fudge to desensitize Tv to SW/cosz inconsistency
 namelist /cana_nml/ &
   init_T, init_T_cold, init_q, init_co2, turbulence_to_use, &
-  canopy_air_mass, canopy_air_mass_for_tracers, cpw, rav_lit_vi, save_qco2, &
-  sfc_dir_albedo_bug
+  canopy_air_mass, canopy_air_mass_for_tracers, cpw, save_qco2, &
+  sfc_dir_albedo_bug, allow_small_z0, lai_min_turb
 !---- end of namelist --------------------------------------------------------
 
 logical            :: module_is_initialized =.FALSE.
@@ -335,7 +336,6 @@ subroutine cana_turbulence (u_star,&
   real :: Kh_top   ! turbulent exchange coefficient on top of the canopy
   real :: vegn_idx ! total vegetation index = LAI+SAI
   real :: rah_sca  ! ground-SCA resistance
-  real :: rav_lit  ! additional resistance of litter to vapor transport
 
   vegn_idx = vegn_lai+vegn_sai  ! total vegetation index
   select case(turbulence_option)
@@ -343,7 +343,7 @@ subroutine cana_turbulence (u_star,&
      if(vegn_cover > 0) then
         wind  = u_star/VONKARM*log((vegn_height-land_d)/land_z0m) ! normalized wind on top of the canopy
         a     = vegn_cover*a_max
-        con_v_h = (2*vegn_lai*leaf_co*(1-exp(-a/2))/a)*sqrt(wind/vegn_d_leaf)
+        con_v_h = (2*max(vegn_lai,lai_min_turb)*leaf_co*(1-exp(-a/2))/a)*sqrt(wind/vegn_d_leaf)
         con_g_h = u_star*a*VONKARM*(1-land_d/vegn_height) &
              / (exp(a*(1-grnd_z0s/vegn_height)) - exp(a*(1-(land_z0s+land_d)/vegn_height)))
      else
@@ -355,7 +355,7 @@ subroutine cana_turbulence (u_star,&
      a = a_max
      wind=u_star/VONKARM*log((height-land_d)/land_z0m) ! normalized wind on top of the canopy
   
-     con_v_h = (2*vegn_lai*leaf_co*(1-exp(-a/2))/a)*sqrt(wind/vegn_d_leaf)
+     con_v_h = (2*max(vegn_lai,lai_min_turb)*leaf_co*(1-exp(-a/2))/a)*sqrt(wind/vegn_d_leaf)
 
      if (land_d > 0.06 .and. vegn_idx > 0.25) then
         Kh_top = VONKARM*u_star*(height-land_d)
@@ -367,10 +367,7 @@ subroutine cana_turbulence (u_star,&
      endif
      con_g_h = 1.0/rah_sca
   end select
-! not a good parameterization, but just using for sensitivity analyses now.
-! ignores differing biomass and litter turnover rates.
-  rav_lit = rav_lit_vi * vegn_idx
-  con_g_v = con_g_h/(1.+rav_lit*con_g_h)
+  con_g_v = con_g_h
   con_v_v = con_v_h
 end subroutine
 
@@ -397,8 +394,8 @@ subroutine cana_roughness(lm2, &
      subs_z0m, subs_z0s, &
      snow_z0m, snow_z0s, snow_area, &
      vegn_cover, vegn_height, vegn_lai, vegn_sai, &
-     land_d, land_z0m, land_z0s )
-  logical, intent(in) :: lm2
+     land_d, land_z0m, land_z0s, is_lake_or_glac )
+  logical, intent(in) :: lm2, is_lake_or_glac
   real, intent(in) :: &
        subs_z0m, subs_z0s, snow_z0m, snow_z0s, snow_area, vegn_cover, vegn_height, &
        vegn_lai, vegn_sai
@@ -465,6 +462,12 @@ subroutine cana_roughness(lm2, &
      endif
      land_z0s = land_z0m*exp(-2.0) 
 
+     if (allow_small_z0.and.is_lake_or_glac) then
+         land_d = 0
+	 land_z0m = grnd_z0m
+	 land_z0s = grnd_z0s
+       endif
+     
   end select
 
 end subroutine cana_roughness
@@ -500,7 +503,7 @@ subroutine cana_step_1 ( cana,&
   ! ---- local vars
   real :: rho, grnd_q, qsat, DqsatDTg
 
-  call check_temp_range(grnd_T,'cana_step_1','grnd_T')
+  call check_temp_range(grnd_T,'cana_step_1','grnd_T', lnd%time)
 
   call qscomp(grnd_T,p_surf,qsat,DqsatDTg)
   grnd_q = grnd_rh * qsat

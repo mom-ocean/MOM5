@@ -61,8 +61,8 @@ private
 !----------- ****** VERSION NUMBER ******* ---------------------------
 
 
-character(len=128)  :: version =  '$Id: donner_deep.F90,v 19.0 2012/01/06 20:06:52 fms Exp $'
-character(len=128)  :: tagname =  '$Name: siena_201207 $'
+character(len=128)  :: version =  '$Id: donner_deep.F90,v 20.0 2013/12/13 23:17:16 fms Exp $'
+character(len=128)  :: tagname =  '$Name: tikal $'
 
 
 !--------------------------------------------------------------------
@@ -1601,27 +1601,30 @@ real, dimension(:,:,:),       intent(out),               &
 !    precip associated with the cell and meso circulations.
 !    UNITS KG / KG/ DAY 
 !--------------------------------------------------------------------
-        do k=1,nlev_lsm
-          frz_meso(:,:,k) = (Don_budgets%precip_budget(:,:,k,2,2) + &
+        if (Initialized%do_conservation_checks .or.   &
+                                          Nml%do_budget_analysis) then
+          do k=1,nlev_lsm
+            frz_meso(:,:,k) = (Don_budgets%precip_budget(:,:,k,2,2) + &
                    Don_budgets%precip_budget(:,:,k,2,3) + &
                    Don_budgets%precip_budget(:,:,k,4,2) + &
                    Don_budgets%precip_budget(:,:,k,4,3))*  &
                                                      Don_conv%a1(:,:)
-          liq_meso(:,:,k) = (Don_budgets%precip_budget(:,:,k,1,2) + &
+            liq_meso(:,:,k) = (Don_budgets%precip_budget(:,:,k,1,2) + &
                    Don_budgets%precip_budget(:,:,k,1,3) + &
                    Don_budgets%precip_budget(:,:,k,3,2) + &
                    Don_budgets%precip_budget(:,:,k,3,3) + &
                    Don_budgets%precip_budget(:,:,k,5,2) + &
                    Don_budgets%precip_budget(:,:,k,5,3))*  &
                                                      Don_conv%a1(:,:)
-          frz_cell(:,:,k) = (Don_budgets%precip_budget(:,:,k,2,1) + &
+            frz_cell(:,:,k) = (Don_budgets%precip_budget(:,:,k,2,1) + &
                    Don_budgets%precip_budget(:,:,k,4,1))*   &
                                                      Don_conv%a1(:,:)
-          liq_cell(:,:,k) = (Don_budgets%precip_budget(:,:,k,1,1) + &
+            liq_cell(:,:,k) = (Don_budgets%precip_budget(:,:,k,1,1) + &
                    Don_budgets%precip_budget(:,:,k,3,1) + &
                    Don_budgets%precip_budget(:,:,k,5,1))*  &
                                                      Don_conv%a1(:,:)
-        end do
+          end do
+        endif
 
 !--------------------------------------------------------------------
 !    call deallocate_local_variables to deallocate space used by the

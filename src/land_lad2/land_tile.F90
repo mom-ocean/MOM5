@@ -14,7 +14,7 @@ use lake_tile_mod, only : &
 use soil_tile_mod, only : &
      soil_tile_type, new_soil_tile, delete_soil_tile, soil_is_selected, &
      soil_tiles_can_be_merged, merge_soil_tiles, get_soil_tile_tag, &
-     soil_tile_stock_pe, soil_tile_heat
+     soil_tile_stock_pe, soil_tile_carbon, soil_tile_heat
 use cana_tile_mod, only : &
      cana_tile_type, new_cana_tile, delete_cana_tile, cana_is_selected, &
      cana_tiles_can_be_merged, merge_cana_tiles, get_cana_tile_tag, &
@@ -105,8 +105,8 @@ end interface
 
 ! ==== module constants ======================================================
 character(len=*), parameter :: &
-     version = '$Id: land_tile.F90,v 17.0 2009/07/21 03:02:24 fms Exp $', &
-     tagname = '$Name: siena_201207 $'
+     version = '$Id: land_tile.F90,v 20.0 2013/12/13 23:29:28 fms Exp $', &
+     tagname = '$Name: tikal $'
 
 ! ==== data types ============================================================
 ! land_tile_type describes the structure of the land model tile; basically
@@ -351,6 +351,8 @@ function land_tile_carbon(tile) result(carbon) ; real carbon
      carbon = carbon + cana_tile_carbon(tile%cana)
   if (associated(tile%vegn)) &
      carbon = carbon + vegn_tile_carbon(tile%vegn)
+  if (associated(tile%soil)) &
+     carbon = carbon + soil_tile_carbon(tile%soil)
 end function 
 
 

@@ -22,7 +22,7 @@ end type diag_buff_type
 integer, parameter :: MIN_DIAG_BUFF_SIZE = 1
 character(len=*), parameter :: &
      version = '$Id: land_tile_diag_buff.F90,v 17.0 2009/07/21 03:02:39 fms Exp $', &
-     tagname = '$Name: siena_201207 $'
+     tagname = '$Name: tikal $'
 
 contains ! -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

@@ -1,5 +1,5 @@
 #
-# $Id: fre-nctools.mk,v 1.1.6.3.2.4.2.1 2012/06/06 17:15:06 Zhi.Liang Exp $
+# $Id: fre-nctools.mk,v 20.0 2013/12/14 00:33:52 fms Exp $
 # ------------------------------------------------------------------------------
 # FMS/FRE Project: Makefile to Build Regridding Executables
 # ------------------------------------------------------------------------------
@@ -24,7 +24,7 @@ CLIBS     := -L${NETCDF_HOME}/lib -L${HDF5_HOME}/lib -lnetcdf -lhdf5_hl -lhdf5 -
 TARGETS  := make_solo_mosaic
 
 SOURCES  := make_solo_mosaic.c get_contact.c
-SOURCES  += mpp.o mpp_domain.c mpp_io.c tool_util.c
+SOURCES  += mpp.c mpp_domain.c mpp_io.c tool_util.c
 SOURCES  += create_xgrid.c interp.c mosaic_util.c read_mosaic.c
 
 OBJECTS  := $(SOURCES:c=o)

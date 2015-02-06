@@ -62,6 +62,9 @@
 !  Original author(s): Lars Umlauf
 !
 !  $Log: variances.F90,v $
+!  Revision 20.0  2013/12/14 00:13:55  fms
+!  Merged revision 1.1.2.1 onto trunk
+!
 !  Revision 1.1.2.1  2012/05/15 16:00:54  smg
 !  initial cvs ci for these modules to mom5.
 !  AUTHOR:Griffies

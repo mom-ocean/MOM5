@@ -5,10 +5,8 @@ use time_manager_mod,   only : time_type
 use diag_axis_mod,      only : get_axis_length
 use diag_manager_mod,   only : register_diag_field, register_static_field, &
      send_data
-#ifdef USE_LOG_DIAG_FIELD_INFO
 use diag_util_mod,      only : log_diag_field_info
-#endif
-use fms_mod,            only : write_version_number
+use fms_mod,            only : write_version_number, error_mesg, string, FATAL
 
 use land_tile_selectors_mod, only : tile_selectors_init, tile_selectors_end, &
      tile_selector_type, register_tile_selector, selector_suffix, &
@@ -32,6 +30,8 @@ public :: diag_buff_type
 
 public :: register_tiled_diag_field
 public :: register_tiled_static_field
+public :: add_tiled_diag_field_alias
+public :: add_tiled_static_field_alias
 public :: send_tile_data
 public :: send_tile_data_r0d_fptr, send_tile_data_r1d_fptr
 public :: send_tile_data_i0d_fptr
@@ -51,8 +51,8 @@ end interface
 ! ==== module constants ======================================================
 character(len=*), parameter :: &
      module_name = 'lan_tile_diag_mod', &
-     version     = '$Id: land_tile_diag.F90,v 19.0 2012/01/06 20:42:05 fms Exp $', &
-     tagname     = '$Name: siena_201207 $'
+     version     = '$Id: land_tile_diag.F90,v 20.0 2013/12/13 23:29:55 fms Exp $', &
+     tagname     = '$Name: tikal $'
 
 integer, parameter :: INIT_FIELDS_SIZE     = 1     ! initial size of the fields array
 integer, parameter :: BASE_TILED_FIELD_ID  = 65536 ! base value for tiled field 
@@ -73,7 +73,8 @@ type :: tiled_diag_field_type
    integer :: op     ! aggregation operation
    logical :: static ! if true, the diag field is static
    integer :: n_sends! number of data points sent to the field since last dump
-   character(32) :: name ! for debugging purposes only
+   integer :: alias = 0 ! ID of the first alias in the chain
+   character(32) :: module,name ! for debugging purposes only
 end type tiled_diag_field_type
 
 
@@ -176,11 +177,120 @@ function register_tiled_static_field(module_name, field_name, axes, &
 
 end function
 
+
+! ============================================================================
+subroutine add_tiled_static_field_alias(id0, module_name, field_name, axes, &
+     long_name, units, missing_value, range, op)
+  integer,          intent(inout) :: id0 ! id of the original diag field on input;
+   ! if negative then it may be replaced with the alias id on output
+  character(len=*), intent(in) :: module_name
+  character(len=*), intent(in) :: field_name
+  integer,          intent(in) :: axes(:)
+  character(len=*), intent(in), optional :: long_name
+  character(len=*), intent(in), optional :: units
+  real,             intent(in), optional :: missing_value
+  real,             intent(in), optional :: range(2)
+  integer,          intent(in), optional :: op ! aggregation operation code
+
+  ! --- local vars
+  type(time_type) :: init_time
+
+  call reg_field_alias(id0, .true., module_name, field_name, axes, init_time, &
+     long_name, units, missing_value, range, op)
+end subroutine
+
+
+! ============================================================================
+subroutine add_tiled_diag_field_alias(id0, module_name, field_name, axes, init_time, &
+     long_name, units, missing_value, range, op)
+  integer,          intent(inout) :: id0 ! id of the original diag field on input;
+   ! if negative then it may be replaced with the alias id on output
+  character(len=*), intent(in) :: module_name
+  character(len=*), intent(in) :: field_name
+  integer,          intent(in) :: axes(:)
+  type(time_type),  intent(in) :: init_time
+  character(len=*), intent(in), optional :: long_name
+  character(len=*), intent(in), optional :: units
+  real,             intent(in), optional :: missing_value
+  real,             intent(in), optional :: range(2)
+  integer,          intent(in), optional :: op ! aggregation operation code
+
+  call reg_field_alias(id0, .false., module_name, field_name, axes, init_time, &
+     long_name, units, missing_value, range, op)
+end subroutine
+
+! ============================================================================
+subroutine reg_field_alias(id0, static, module_name, field_name, axes, init_time, &
+     long_name, units, missing_value, range, op)
+
+
+  integer,          intent(inout) :: id0 ! id of the original diag field on input;
+  logical,          intent(in) :: static
+   ! if negative then it may be replaced with the alias id on output
+  character(len=*), intent(in) :: module_name
+  character(len=*), intent(in) :: field_name
+  integer,          intent(in) :: axes(:)
+  type(time_type),  intent(in) :: init_time
+  character(len=*), intent(in), optional :: long_name
+  character(len=*), intent(in), optional :: units
+  real,             intent(in), optional :: missing_value
+  real,             intent(in), optional :: range(2)
+  integer,          intent(in), optional :: op ! aggregation operation code
+  
+  ! local vars
+  integer :: id1
+  integer :: ifld0, ifld1
+  
+  if (id0>0) then
+    ifld0 = id0-BASE_TILED_FIELD_ID
+    if (ifld0<1.or.ifld0>n_fields) &
+       call error_mesg(module_name, 'incorrect index ifld0 '//string(ifld0)//&
+                    ' in definition of tiled diag field alias "'//&
+                    trim(module_name)//'/'//trim(field_name)//'"', FATAL)
+    id1 = reg_field(static, module_name, field_name, init_time, axes, long_name, &
+          units, missing_value, range, op=op, offset=fields(ifld0)%offset)
+    if (id1>0) then
+      ifld1 = id1-BASE_TILED_FIELD_ID
+      ! check that sizes of the fields are identical
+      if (fields(ifld0)%size/=fields(ifld1)%size) &
+         call error_mesg(module_name, 'sizes of diag field "'//           &
+           trim(fields(ifld0)%module)//'/'//trim(fields(ifld0)%name)//    &
+           '" and its alias "'//trim(module_name)//'/'//trim(field_name)//&
+           '" are not the same', FATAL)
+      ! check that "static" status of the fields is the same
+      if(fields(ifld0)%static.and..not.fields(ifld1)%static) &
+         call error_mesg(module_name,                                     &
+           'attempt to register non-static alias"'//                      &
+           trim(module_name)//'/'//trim(field_name)//                     &
+           '" of static field "'//                                        &
+           trim(fields(ifld0)%module)//'/'//trim(fields(ifld0)%name)//'"',&
+           FATAL)
+      if(.not.fields(ifld0)%static.and.fields(ifld1)%static) &
+         call error_mesg(module_name,                                     &
+           'attempt to register static alias"'//                          &
+           trim(module_name)//'/'//trim(field_name)//                     &
+           '" of non-static field "'//                                    &
+           trim(fields(ifld0)%module)//'/'//trim(fields(ifld0)%name)//'"',&
+           FATAL)
+
+      ! copy alias field from the original into the alias, to preserve the chain
+      fields(ifld1)%alias = fields(ifld0)%alias
+      ! update alias field in the head of alias chain
+      fields(ifld0)%alias = ifld1
+    endif
+  else
+    ! the "main" field has not been registered, so simply redister the alias
+    ! as a diag field
+    id0 = reg_field(static, module_name, field_name, init_time, axes, long_name, &
+          units, missing_value, range, op=op)
+  endif
+end subroutine
+
 ! ============================================================================
 ! provides unified interface for registering a diagnostic field with full set
 ! of selectors
 function reg_field(static, module_name, field_name, init_time, axes, &
-     long_name, units, missing_value, range, require, op) result(id)
+     long_name, units, missing_value, range, require, op, offset) result(id)
  
   integer :: id
 
@@ -195,6 +305,7 @@ function reg_field(static, module_name, field_name, init_time, axes, &
   real,             intent(in), optional :: range(2)
   logical,          intent(in), optional :: require
   integer,          intent(in), optional :: op
+  integer,          intent(in), optional :: offset
 
   ! ---- local vars
   integer, pointer :: diag_ids(:) ! ids returned by FMS diag manager for each selector
@@ -205,11 +316,9 @@ function reg_field(static, module_name, field_name, init_time, axes, &
   type(tile_selector_type) :: sel
   ! ---- global vars: n_fields, fields, current_offset -- all used and updated
 
-#ifdef USE_LOG_DIAG_FIELD_INFO
   ! log diagnostic field information
   call log_diag_field_info ( module_name, trim(field_name), axes, long_name, units,&
                              missing_value, range, dynamic=.not.static )
-#endif
   ! go through all possible selectors and try to register a diagnostic field 
   ! with the name derived from field name and selector; if any of the 
   ! registrations succeeds, return a tiled field id, otherwise return 0.
@@ -245,7 +354,11 @@ function reg_field(static, module_name, field_name, init_time, axes, &
      ! set the array of FMS diagnostic field IDs for each selector
      fields(id)%ids => diag_ids
      ! set the field offset in the diagnostic buffers
-     fields(id)%offset = current_offset
+     if (present(offset)) then
+        fields(id)%offset = offset
+     else
+        fields(id)%offset = current_offset
+     endif  
      ! calculate field size per tile and increment current offset to
      ! reserve space in per-tile buffers. We assume that the first two axes 
      ! are horizontal coordinates, so their size is not taken into account
@@ -253,7 +366,10 @@ function reg_field(static, module_name, field_name, init_time, axes, &
      do i = 3, size(axes(:))
         fields(id)%size = fields(id)%size * get_axis_length(axes(i))
      enddo
-     current_offset = current_offset + fields(id)%size
+     ! if offset is present in the list of the arguments, it means that we don't
+     ! want to increase the current_offset -- this is an alias field
+     if (.not.present(offset)) &
+        current_offset = current_offset + fields(id)%size
      ! store the code of the requested tile aggregation operation
      if(present(op)) then
         fields(id)%op = op
@@ -266,6 +382,7 @@ function reg_field(static, module_name, field_name, init_time, axes, &
      fields(id)%n_sends = 0
      ! store the name of the field -- for now, only to be able to see what it is 
      ! in the debugger
+     fields(id)%module=module_name 
      fields(id)%name=field_name
      ! increment the field id by some (large) number to distinguish it from the 
      ! IDs of regular FMS diagnostic fields
@@ -312,19 +429,11 @@ function reg_field_set(static, sel, module_name, field_name, axes, init_time, &
   ! try registering diagnostic field with FMS diagnostic manager.
   if (static) then
      id = register_static_field ( module_name, fname,   &
-#ifdef USE_LOG_DIAG_FIELD_INFO
           axes, lname, units, missing_value, range, require, do_not_log=.TRUE. )
-#else
-          axes, lname, units, missing_value, range, require )
-#endif
   else
      id = register_diag_field ( module_name,  fname,   &
           axes, init_time, lname, units, missing_value, range, &
-#ifdef USE_LOG_DIAG_FIELD_INFO
           mask_variant=.true., do_not_log=.TRUE. )
-#else
-          mask_variant=.true. )
-#endif
   endif
 
 end function
@@ -354,6 +463,11 @@ subroutine send_tile_data_0d(id, x, buffer)
 
   ! increment sent data counter
   fields(i)%n_sends = fields(i)%n_sends + 1
+  ! increment sent data counter in all aliases
+  do while(fields(i)%alias>0)
+    i=fields(i)%alias
+    fields(i)%n_sends = fields(i)%n_sends + 1
+  enddo
 end subroutine
 
 ! ============================================================================
@@ -379,6 +493,11 @@ subroutine send_tile_data_1d(id, x, buffer)
 
   ! increment sent data counter
   fields(i)%n_sends = fields(i)%n_sends + 1
+  ! increment sent data counter in all aliases
+  do while(fields(i)%alias>0)
+    i=fields(i)%alias
+    fields(i)%n_sends = fields(i)%n_sends + 1
+  enddo
 end subroutine
 
 ! NOTE: 2-d fields can be handled similarly to 1-d with reshape

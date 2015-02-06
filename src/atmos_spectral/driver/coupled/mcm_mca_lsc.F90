@@ -44,7 +44,7 @@
       '$Id: mcm_mca_lsc.F90,v 11.0 2004/09/28 19:28:56 fms Exp $'
 
       character(len=128) :: tagname = &
-      '$Name: siena_201207 $'
+      '$Name: tikal $'
 
       real,allocatable,dimension(:) :: qmh,q,dqph,dq,tauran,tausno
 

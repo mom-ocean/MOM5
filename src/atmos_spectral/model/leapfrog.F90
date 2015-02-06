@@ -24,7 +24,7 @@ interface leapfrog_2level_B
 end interface
 
 character(len=128), parameter :: version = '$Id leapfrog.f90 $'
-character(len=128), parameter :: tagname = '$Name: siena_201207 $'
+character(len=128), parameter :: tagname = '$Name: tikal $'
 
 public :: leapfrog, leapfrog_2level_A, leapfrog_2level_B
 

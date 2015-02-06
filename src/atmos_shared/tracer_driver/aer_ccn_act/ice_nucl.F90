@@ -29,8 +29,8 @@ private ice_nucl_k, fast, slow, bc_het
 
 !------------------------------------------------------------------------
 !----version number------------------------------------------------------
-Character(len=128) :: Version = '$Id: ice_nucl.F90,v 19.0 2012/01/06 20:31:40 fms Exp $'
-Character(len=128) :: Tagname = '$Name: siena_201207 $'
+Character(len=128) :: Version = '$Id: ice_nucl.F90,v 20.0 2013/12/13 23:24:20 fms Exp $'
+Character(len=128) :: Tagname = '$Name: tikal $'
 
 !------------------------------------------------------------------------
 !--namelist--------------------------------------------------------------
@@ -50,6 +50,9 @@ logical     :: limit_rhil = .false.     !
 logical     :: do_ice_nucl_ss_wpdf =      &
                                 .false. ! use seasalt particles for 
                                         ! homogeneous nucleation ?
+! ---> h1g
+logical     :: retain_ice_nucl_bug = .true.
+! <--- h1g
 !------------------------------------------------------------------------
 ! note that in-situ nucleation at cold temperatures most likely results
 ! in small sulfate (homogeneous nucleation). Heterogeneous nucleation, 
@@ -86,7 +89,7 @@ namelist / ice_nucl_nml /  dust_opt, do_het, use_dust_instead_of_bc, &
                            limit_immersion_frz, limit_rhil, &
                            do_ice_nucl_ss_wpdf, d_sulf, &
                            d_bc, rh_crit_het, dust_surf, dust_frac_min, &
-                           dust_frac_max, dust_frac, rh_dust_max
+                           dust_frac_max, dust_frac, rh_dust_max, retain_ice_nucl_bug
 
 integer, parameter :: npoints = 64     ! # for Gauss-Hermite quadrature
 real, parameter    :: wp2_eps = 0.0001 ! w variance threshold
@@ -332,7 +335,7 @@ real,                 intent(out)   :: Ni, rh_crit_1d, ni_sulf,  &
 !--local variables-----
 
       REAL    :: tc, rhl_thresh, A, B, C, nsulf, nss, naer, nbc, ndu,  &
-                 ndu_l, nbccrit,  rhi, rhl, rhid
+                 ndu_l, nbccrit,  rhi, rhl, rhid, Sat_max
       LOGICAL :: do_hom
 
 !-----------------------------------------------------------------------
@@ -457,7 +460,26 @@ real,                 intent(out)   :: Ni, rh_crit_1d, ni_sulf,  &
 !    calculate relative humidity threshold for homogeneous nucleation.
 !------------------------------------------------------------------------
           A = 6.e-4 * LOG(W1) + 6.6e-3
-          B = 6.e-3 * LOG(W1) + 1.052
+! ---> h1g, 2012-06-29, B=6.e-2 * LOG(W1) + 1.052 from 
+!   (1) Liu, X., and J. E. Penner, 2005: Ice nucleation parameterization
+!                for global models. Meteor. Z., 14, 499-514. (2005)
+!   (2) Liu, Xiaohong, Joyce E. Penner, Steven J. Ghan, Minghuai Wang, 2007: 
+!                Inclusion of Ice Microphysics in the NCAR Community Atmospheric 
+!                Model Version 3 (CAM3). J. Climate, 20, 4526-4547. doi: http://dx.doi.org/10.1175/JCLI4264.1 
+!   (3) M. Salzmann1,*, Y. Ming2, J.-C. Golaz2, P. A. Ginoux2, H. Morrison3, A. Gettelman3, M. Kr¨amer4, 
+!                and L. J. Donner, Two-moment bulk stratiform cloud microphysics 
+!                in the GFDL AM3 GCM: description, evaluation, and sensitivity tests, ACP (2010)
+!   change from
+!         B = 6.e-3 * LOG(W1) + 1.052
+!          to
+        if( retain_ice_nucl_bug ) then
+          B = 6.e-3 * LOG(W1) + 1.052 
+        else
+          B = 6.e-2 * LOG(W1) + 1.052
+        endif 
+
+! <--- h1g, 2012-06-29
+
           C = 1.68 * LOG(W1) + 129.35
           rhl_thresh = A * Tc**2 + B * Tc + C 
 
@@ -567,6 +589,44 @@ real,                 intent(out)   :: Ni, rh_crit_1d, ni_sulf,  &
           Ni_dust = MIN(MAX(imass(7)/dust_surf, dust_frac_min),   &
                      dust_frac_max)*EXP(-0.639 + 0.1296*(100.*(rhid - 1. )))
           Ni_dust = MIN (Ni_dust,  ndu_l)
+
+        ELSE IF   ( dust_opt .EQ. 6 ) THEN
+          Ni_dust  = 1.5e-10* EXP(-0.639 + 0.1296*(100.*(rhid - 1. )))
+
+! --->h1g, 2012-06-30
+! calculate maximum super-saturation Sat_max following 
+!    (1) Liu, X., and J. E. Penner, 2005: Ice nucleation parameterization
+!                for global models. Meteor. Z., 14, 499-514. (2005)
+        ELSE IF   ( dust_opt .EQ. 7 ) THEN
+          IF ( use_dust_instead_of_bc) THEN
+
+!-------------------------------------------------------------------------
+!    dust is activated.  units of #/cm^3. Use only dust_frac of the total
+!    dust for nucleation.
+!-------------------------------------------------------------------------
+            ndu =  1.e-6*(Nfact_du1*imass(8) + Nfact_du2*imass(9) + &
+                          Nfact_du3*imass(10) + Nfact_du4*imass(11) + &
+                          Nfact_du5*imass(12))
+            nbc = dust_frac * ndu
+          ELSE
+!-------------------------------------------------------------------------
+!    black carbon is activated. 1.e-6 is conversion from from m^-3 to cm^-3.
+!-------------------------------------------------------------------------
+            nbc =  MIN(imass(6)*1.e-6*6./(rho_bc*pi*d_bc**3)* &
+                       exp(-9./2. * (log(sigma_bc))**2), 1.e10)
+          ENDIF
+          nbc = max(nbc, 1.e-10) 
+          call S_max(Sat_max, nbc, w1, tc)
+
+          if( tc < -20.0 ) then
+            Ni_dust = MIN(MAX(imass(7)/dust_surf, dust_frac_min),   &
+                     dust_frac_max)*EXP(-0.639 + 0.1296*(max(100.*(rhid - 1. ), Sat_max)))
+          else
+            Ni_dust = MIN(MAX(imass(7)/dust_surf, dust_frac_min),   &
+                     dust_frac_max)*EXP(-0.639 + 0.1296*(100.*(rhid - 1. )))
+          endif
+! <---h1g, 2012-06-30
+
         endif 
 
 !-------------------------------------------------------------------------
@@ -690,7 +750,37 @@ REAL, INTENT (IN )    :: NBC, W1, TC
 
 END SUBROUTINE  bc_het
 
+!------------------------------------------------------------------------
 
+!########################################################################
+
+SUBROUTINE  S_max(Sat_max, nbc, w1, tc)
+REAL, INTENT (INOUT ) :: Sat_max
+REAL, INTENT (IN )    :: nbc, w1, tc
+real                  ::  A,  B,   C,   &
+                          a1, a2, a3,   &
+                          b1, b2, b3,   &
+                          c1, c2, c3
+
+         a1 = -0.2035*nbc**(-0.8854)
+         a2 =  0.2725*nbc**(-0.415)
+         a3 = -0.0069
+
+         b1 = -24.759*nbc**(-0.8831)
+         b2 = 29.893*nbc**(-0.4067)
+         b3 = -0.672
+
+         c1 = -732.36*nbc**(-0.8712)
+         c2 = 822.49*nbc**(-0.3951)
+         c3 = 6.702
+
+         A = a1*w1*w1 + a2 * w1 +a3
+         B = b1*w1*w1 + b2 * w1 +b3
+         C = c1*w1*w1 + c2 * w1 +c3
+
+         Sat_max = A * tc*tc + B * tc + C
+
+END SUBROUTINE  S_max
 !------------------------------------------------------------------------
 
 

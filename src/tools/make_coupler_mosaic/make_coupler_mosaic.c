@@ -21,13 +21,14 @@
 #include "mpp_domain.h"
 #include "mosaic_util.h"
 #include "create_xgrid.h"
+#define print_grid 0
 
 char *usage[] = {
   "",
-  "  make_coupler_mosaic --atmos_mosaic atmos_mosaic.nc --ocean_mosaic ocean_mosaic.nc ",
+  "  make_coupler_mosaic --atmos_mosaic atmos_mosaic.nc --ocean_mosaic ocean_mosaic.nc      ",
   "              --ocean_topog ocean_topog.nc [--land_mosaic land_mosaic.nc] [--wave_mosaic]",
-  "              [--sea_level #]  [--interp_method #] [--mosaic_name mosaic_name] ",
-  "              [--check ] [--verbose]                                              ",
+  "              [--sea_level #]  [--interp_method #] [--mosaic_name mosaic_name]           ",
+  "              [--area_ratio_thresh #] [--check ] [--verbose] [--print_memory]            ",
   " ",
   "make_coupler_mosaic generates three exchange grids for the FMS coupler. The output ",
   "file includes exchange grid files for fluxes between atmosphere and surface (sea ice ",
@@ -85,9 +86,16 @@ char *usage[] = {
   " ",
   "--mosaic_name mosaic_name      coupler mosaic name. The output coupler mosaic file will be ",
   "                               mosaic_name.nc. default value is 'mosaic'. ",
-  " ",  
+  "                                                                                        ",
+  "--area_ratio_thresh #          Criteria to decide if an overlap between any two model is an ",
+  "                               exchange grid or not. When overlap area/model grid area is greater ",
+  "                               than area_ratio_thresh, that overlap is saved as exchange grid. ",
+  "                               The default value is 1.e-6                                      ",
+  "                                                                                              ",
   "--check                        check the tiling error",
   "",
+  "--print_memory                 debug memory usage when it is set                       ",
+  "  ",
   "--verbose                      Set --verbose to print out messages during running.        ",
   "", 
   
@@ -100,15 +108,18 @@ char *usage[] = {
   NULL };
 
 #define D2R (M_PI/180.)
+#define R2D (180./M_PI)
 #define MAXXGRIDFILE 100 
 #define MX 2000  
-#define AREA_RATIO_THRESH (1.e-6)
 #define TINY_VALUE (1.e-7)
 #define TOLORENCE (1.e-4)
 #define MIN_AREA_FRAC (1.e-4)
+#define GREAT_CIRCLE_CLIP 1
+#define LEGACY_CLIP 2
+
 
 char grid_version[] = "0.2";
-char tagname[] = "$Name: siena_201205_z1l $";
+char tagname[] = "$Name: tikal $";
 
 /* This file will get the directory that stores the file and the file name (without the dir path) */
 void get_file_dir_and_name(char *file, char *filedir, char *filename)
@@ -208,40 +219,6 @@ void get_global_data(const char *data_file, const char *fieldname, int nx, int n
   
 }
  
-int concave(int n, double *x, double *y)
-{
-   int i,j,k;
-   int flag = 0;
-   double z, prev_z;
-   int changed_sign = 0;
-   
-   if (n < 3)
-      return(-1);
-
-   for (i=0;i<n;i++) {
-      j = (i - 1 + n) % n;
-      k = (i + 1    ) % n;
-      z  = (x[j] - x[i]) * (y[k] - y[j]);
-      z -= (y[j] - y[i]) * (x[k] - x[j]);
-      if( z == 0 ) mpp_error("make_coupler_mosaic(concave): z should not be 0");
-      if( i > 0 ) {
-	if( (prev_z < 0 && z > 0) || (prev_z >0 && z < 0 ) ) {/* change sign */
-	    if(changed_sign) 
-	      return i-1;  /* previous point is concave points */
-	    else if(i==n-1)
-	      return i;    /* last point is concave points */
-	    else
-	      changed_sign=1;
-	}
-      }
-      prev_z = z;
-   }
-   if(changed_sign)
-     return 0; /* first point is concaved points */
-   else
-     return -1;  /* convex */
-}
-
 void get_global_area(int nx, int ny, const double *x, const double *y, double *area)
 {
   double *x_local, *y_local, *area_local;  
@@ -304,7 +281,7 @@ int get_nest_contact(const int *nx, const int *ny, int ncontacts, const int *til
     if(nnest>1)mpp_error("make_coupler_mosaic(get_nest_contact): only support one nest region, contact developer"); 
     if(nx2_contact*ny2_contact > nx1_contact*ny1_contact) {
       if(nx2_contact%nx1_contact || ny2_contact%ny1_contact )
-	mpp_error("make_coupler_mosaic(get_nest_contact):it is not a integer refinement");
+	if(mpp_pe()==mpp_root_pe()) mpp_error("make_coupler_mosaic(get_nest_contact):it is not a integer refinement");
       is_nest    [0] = istart2[n];
       ie_nest    [0] = iend2  [n];
       js_nest    [0] = jstart2[n];
@@ -336,8 +313,6 @@ int get_nest_contact(const int *nx, const int *ny, int ncontacts, const int *til
   
 }
 
-
-
 int main (int argc, char *argv[])
 {
   int c, i, same_mosaic;
@@ -352,6 +327,7 @@ int main (int argc, char *argv[])
   char **otile_name=NULL, **atile_name=NULL, **ltile_name=NULL, **wtile_name=NULL;
   int x_refine = 2, y_refine = 2;
   int  interp_order = 2;
+  double area_ratio_thresh = 1.0e-6;
   unsigned int check = 0;
   unsigned int verbose = 0;
   int errflg = (argc == 1);
@@ -372,9 +348,19 @@ int main (int argc, char *argv[])
   int    *nxw = NULL, *nyw = NULL;
   double **xocn = NULL, **yocn = NULL, **xatm = NULL, **yatm = NULL, **xlnd = NULL, **ylnd = NULL;
   double **xwav = NULL, **ywav = NULL;
+  double **cart_xatm=NULL, **cart_yatm=NULL, **cart_zatm=NULL;
+  double **cart_xocn=NULL, **cart_yocn=NULL, **cart_zocn=NULL;
+  double **cart_xlnd=NULL, **cart_ylnd=NULL, **cart_zlnd=NULL;
+  double **cart_xwav=NULL, **cart_ywav=NULL, **cart_zwav=NULL;
   double **area_ocn = NULL, **area_lnd = NULL, **area_atm = NULL, **area_wav = NULL;
+  double **atm_xarea=NULL;
   double **omask = NULL;
   double sea_level = 0.;
+  int    clip_method = LEGACY_CLIP;
+  int    atm_great_circle_algorithm=0;
+  int    lnd_great_circle_algorithm=0;
+  int    ocn_great_circle_algorithm=0;
+  
   int    lnd_same_as_atm = 0;
   int    ocn_same_as_atm = 0;
   int    wav_same_as_ocn = 0;
@@ -385,18 +371,21 @@ int main (int argc, char *argv[])
   int    ocn_south_ext = 0;
   int    tile_nest, is_nest, ie_nest, js_nest, je_nest;
   int    tile_parent, is_parent, ie_parent, js_parent, je_parent;
+  int    print_memory=0;
   
   static struct option long_options[] = {
-    {"atmos_mosaic",       required_argument, NULL, 'a'},
-    {"land_mosaic",        required_argument, NULL, 'l'},
-    {"ocean_mosaic",       required_argument, NULL, 'o'},
-    {"wave_mosaic",        required_argument, NULL, 'w'},
-    {"ocean_topog",        required_argument, NULL, 't'},
-    {"sea_level",          required_argument, NULL, 's'},
-    {"interp_order",       required_argument, NULL, 'i'},
-    {"mosaic_name",        required_argument, NULL, 'm'},
-    {"check",              no_argument,       NULL, 'n'},
-    {"verbose",            no_argument,       NULL, 'v'},    
+    {"atmos_mosaic",         required_argument, NULL, 'a'},
+    {"land_mosaic",          required_argument, NULL, 'l'},
+    {"ocean_mosaic",         required_argument, NULL, 'o'},
+    {"wave_mosaic",          required_argument, NULL, 'w'},
+    {"ocean_topog",          required_argument, NULL, 't'},
+    {"sea_level",            required_argument, NULL, 's'},
+    {"interp_order",         required_argument, NULL, 'i'},
+    {"mosaic_name",          required_argument, NULL, 'm'},
+    {"area_ratio_thresh",    required_argument, NULL, 'r'},
+    {"check",                no_argument,       NULL, 'n'},
+    {"verbose",              no_argument,       NULL, 'v'},
+    {"print_memory",         no_argument,       NULL, 'p'},
     {NULL, 0, NULL, 0}
   };
 
@@ -433,11 +422,16 @@ int main (int argc, char *argv[])
     case 'm':
       strcpy(mosaic_name,optarg);
       break;
+    case 'r':
+      area_ratio_thresh = atof(optarg);
     case 'n':
       check = 1;
       break;
     case 'v':
       verbose = 1;
+      break;
+    case 'p':
+      print_memory = 1;
       break;
     case '?':
       errflg++;
@@ -475,6 +469,8 @@ int main (int argc, char *argv[])
   if( !strcmp(amosaic_file, "mosaic.nc") || !strcmp(lmosaic_file, "mosaic.nc") || !strcmp(omosaic_file, "mosaic.nc") ) 
     mpp_error("make_coupler_mosaic: the file name of amosaic, lmosaic or omosaic can not be mosaic.nc"); 
 
+  if(print_memory) print_mem_usage("before read atmosphere grid");
+  
   /*
    * Read atmosphere grid
    */
@@ -500,6 +496,7 @@ int main (int argc, char *argv[])
     xatm       = (double **) malloc( ntile_atm*sizeof(double *));
     yatm       = (double **) malloc( ntile_atm*sizeof(double *));
     area_atm   = (double **) malloc( ntile_atm*sizeof(double *));
+    if(check) atm_xarea  = (double **) malloc( ntile_atm*sizeof(double *)); 
     atile_name = (char **)malloc(ntile_atm*sizeof(char *));
     /* grid should be located in the same directory of mosaic file */
     get_file_path(amosaic, dir);
@@ -516,6 +513,17 @@ int main (int argc, char *argv[])
       g_fid = mpp_open(file, MPP_READ);
       nxa[n] = mpp_get_dimlen(g_fid, "nx");
       nya[n] = mpp_get_dimlen(g_fid, "ny");
+      /* check if use great_circle_algorithm */
+      {
+	int great_circle_algorithm=0;
+	great_circle_algorithm = get_great_circle_algorithm(g_fid);
+	if(n>0) {
+	  if( atm_great_circle_algorithm != great_circle_algorithm)
+	    mpp_error("make_topog: atribute 'great_circle_algorithm' of field 'tile' have different value for different tile");
+	}
+	atm_great_circle_algorithm = great_circle_algorithm;
+      }
+      
       mpp_close(g_fid);
       if(nxa[n]%x_refine != 0 ) mpp_error("make_coupler_mosaic: atmos supergrid x-size can not be divided by x_refine");
       if(nya[n]%y_refine != 0 ) mpp_error("make_coupler_mosaic: atmos supergrid y-size can not be divided by y_refine");
@@ -523,52 +531,53 @@ int main (int argc, char *argv[])
       nya[n] /= y_refine;
       xatm[n]     = (double *)malloc((nxa[n]+1)*(nya[n]+1)*sizeof(double));
       yatm[n]     = (double *)malloc((nxa[n]+1)*(nya[n]+1)*sizeof(double));
-      get_global_grid(file, nxa[n], nya[n], x_refine, y_refine, xatm[n], yatm[n]);
-
-    }
-    
-      /* The following is a temprary fix to solve the issue that there is no pole in stretched grid
-	 adjust the points close to pole to pole.*/
-/*     { */
-/*       double min_y, max_y; */
-/*       int i, j; */
-/*       min_y = 90; */
-/*       max_y = -90; */
-/*       for(n=0; n<ntile_atm; n++) { */
-/* 	for(i=0; i<(nxa[n]+1)*(nya[n]+1); i++) { */
-/* 	  if(yatm[n][i] < min_y) min_y = yatm[n][i]; */
-/* 	  if(yatm[n][i] > max_y) max_y = yatm[n][i]; */
-/* 	} */
-/*       } */
-    
-/*       for(n=0; n<ntile_atm; n++) { */
-/* 	for(j=0; j<nya[n]+1; j++) for(i=0; i<nxa[n]+1; i++) { */
-/* 	  if(yatm[n][j*(nxa[n]+1)+i] <= min_y) { */
-/* 	    printf("set atmosphere latitude at n=%d, i= %d, j=%d from %f to -90\n", n, i, j, yatm[n][j*(nxa[n]+1)+i]); */
-/* 	    yatm[n][j*(nxa[n]+1)+i] = -90; */
-/* 	  } */
-/* 	  if(yatm[n][j*(nxa[n]+1)+i] >= max_y) { */
-/* 	    printf("set atmosphere latitude at n=%d, i= %d, j=%d from %f to 90\n", n, i, j, yatm[n][j*(nxa[n]+1)+i]); */
-/* 	    yatm[n][j*(nxa[n]+1)+i] = 90; */
-/* 	  } */
-/* 	} */
-/*       } */
-/*     } */
-    for(n=0; n<ntile_atm; n++) {
-      int i, j;
-      
-      
       area_atm[n] = (double *)malloc((nxa[n]  )*(nya[n]  )*sizeof(double));
-      /*scale grid from degree to radian, because create_xgrid assume the grid is in radians */
+      if(check) {
+	atm_xarea[n]= (double *)malloc((nxa[n]  )*(nya[n]  )*sizeof(double));
+        for(i=0; i<nxa[n]*nya[n]; i++) atm_xarea[n][i] = 0;
+      }
+      get_global_grid(file, nxa[n], nya[n], x_refine, y_refine, xatm[n], yatm[n]);
+      /* convert to radians */
       for(i=0; i<(nxa[n]+1)*(nya[n]+1); i++) {
 	xatm[n][i] *= D2R;
 	yatm[n][i] *= D2R;
       }
-      get_global_area(nxa[n], nya[n], xatm[n], yatm[n], area_atm[n]);
-      for(j=0; j<nya[n]; j++) for(i=0; i<nxa[n]; i++) {
-	if(area_atm[n][j*nxa[n]+i] <= 0 ) printf("n=%d, i=%d, j=%d, area=%f\n",n,i,j,area_atm[n][j*nxa[n]+i]);
+      
+    }
+    
+    if(atm_great_circle_algorithm)
+      clip_method = GREAT_CIRCLE_CLIP;
+    else
+      clip_method = LEGACY_CLIP;
+  
+    /* Currenly only implement interp_order = 1 when clip_method = "conserve_great_circle" */
+    if( interp_order != 1 && clip_method == GREAT_CIRCLE_CLIP)
+      mpp_error("make_coupler_mosaic:  Currenly only implement interp_order = 1 when clip_method = 'conserve_great_circle', contact developer");
+    
+
+    /* compute atm_area */
+    if(clip_method == GREAT_CIRCLE_CLIP) {
+      cart_xatm       = (double **) malloc( ntile_atm*sizeof(double *));
+      cart_yatm       = (double **) malloc( ntile_atm*sizeof(double *));      
+      cart_zatm =  (double **) malloc( ntile_atm*sizeof(double *));
+      for(n=0; n<ntile_atm; n++) {
+	cart_xatm[n]     = (double *)malloc((nxa[n]+1)*(nya[n]+1)*sizeof(double));
+	cart_yatm[n]     = (double *)malloc((nxa[n]+1)*(nya[n]+1)*sizeof(double));
+	cart_zatm[n]     = (double *)malloc((nxa[n]+1)*(nya[n]+1)*sizeof(double));
+	latlon2xyz((nxa[n]+1)*(nya[n]+1), xatm[n], yatm[n], cart_xatm[n], cart_yatm[n], cart_zatm[n]);
+	get_grid_great_circle_area(&(nxa[n]), &(nya[n]), xatm[n], yatm[n], area_atm[n]);
       }
     }
+    else {
+      for(n=0; n<ntile_atm; n++) {
+	int i, j;      
+	get_global_area(nxa[n], nya[n], xatm[n], yatm[n], area_atm[n]);
+	for(j=0; j<nya[n]; j++) for(i=0; i<nxa[n]; i++) {
+	  if(area_atm[n][j*nxa[n]+i] <= 0 ) printf("n=%d, i=%d, j=%d, area=%f\n",n,i,j,area_atm[n][j*nxa[n]+i]);
+	}
+      }
+    }
+
     mpp_close(m_fid);
     /* read the contact information in atmos_mosaic to see if there is a nested grid */
     ncontacts = read_mosaic_ncontacts( amosaic );
@@ -603,7 +612,7 @@ int main (int argc, char *argv[])
       
     }
   }
-  
+  if(print_memory)print_mem_usage("after read atmosphere grid");  
   /*
    * Read land grid
    */
@@ -641,6 +650,17 @@ int main (int argc, char *argv[])
       g_fid = mpp_open(file, MPP_READ);
       nxl[n] = mpp_get_dimlen(g_fid, "nx");
       nyl[n] = mpp_get_dimlen(g_fid, "ny");
+      /* check if use great_circle_algorithm */
+      {
+	int great_circle_algorithm=0;
+	great_circle_algorithm = get_great_circle_algorithm(g_fid);
+	if(n>0) {
+	  if( lnd_great_circle_algorithm != great_circle_algorithm)
+	    mpp_error("make_topog: atribute 'great_circle_algorithm' of field 'tile' have different value for different tile");
+	}
+	lnd_great_circle_algorithm = great_circle_algorithm;
+      }
+      
       mpp_close(g_fid);
       if(nxl[n]%x_refine != 0 ) mpp_error("make_coupler_mosaic: land supergrid x-size can not be divided by x_refine");
       if(nyl[n]%y_refine != 0 ) mpp_error("make_coupler_mosaic: land supergrid y-size can not be divided by y_refine");
@@ -648,46 +668,33 @@ int main (int argc, char *argv[])
       nyl[n]      /= y_refine;
       xlnd[n]     = (double *)malloc((nxl[n]+1)*(nyl[n]+1)*sizeof(double));
       ylnd[n]     = (double *)malloc((nxl[n]+1)*(nyl[n]+1)*sizeof(double));
+      area_lnd[n] = (double *)malloc((nxl[n]  )*(nyl[n]  )*sizeof(double));   
       get_global_grid(file, nxl[n], nyl[n], x_refine, y_refine, xlnd[n], ylnd[n]);
-    }
-
-    /* The following is a temprary fix to solve the issue that there is no pole in stretched grid
-       adjust the points close to pole to pole.*/
-    {
-      double min_y, max_y;
-      int i, j;
-      min_y = 90;
-      max_y = -90;
-      for(n=0; n<ntile_lnd; n++) {
-	for(i=0; i<(nxl[n]+1)*(nyl[n]+1); i++) {
-	  if(ylnd[n][i] < min_y) min_y = ylnd[n][i];
-	  if(ylnd[n][i] > max_y) max_y = ylnd[n][i];
-	}
-      }
-    
-      for(n=0; n<ntile_lnd; n++) {
-	for(j=0; j<nyl[n]+1; j++) for(i=0; i<nxl[n]+1; i++) {
-	  if(ylnd[n][j*(nxl[n]+1)+i] <= min_y) {
-	    printf("set land latitude at n=%d, i= %d, j=%d from %f to -90\n", n, i, j, ylnd[n][j*(nxl[n]+1)+i]);
-	    ylnd[n][j*(nxl[n]+1)+i] = -90;
-	  }
-	  if(ylnd[n][j*(nxl[n]+1)+i] >= max_y) {
-	    printf("set land latitude at n=%d, i= %d, j=%d from %f to 90\n", n, i, j, ylnd[n][j*(nxl[n]+1)+i]);
-	    ylnd[n][j*(nxl[n]+1)+i] = 90;
-	  }
-	}
-      }
-    }
-      
-    for(n=0; n<ntile_lnd; n++) {    
-      area_lnd[n] = (double *)malloc((nxl[n]  )*(nyl[n]  )*sizeof(double));
-      
       /*scale grid from degree to radian, because create_xgrid assume the grid is in radians */
       for(i=0; i<(nxl[n]+1)*(nyl[n]+1); i++) {
 	xlnd[n][i] *= D2R;
 	ylnd[n][i] *= D2R;
       }
-      get_global_area(nxl[n], nyl[n], xlnd[n], ylnd[n], area_lnd[n]);
+      
+    }
+
+    /* compute lnd_area */
+    if(clip_method == GREAT_CIRCLE_CLIP) {
+      cart_xlnd = (double **) malloc( ntile_lnd*sizeof(double *));
+      cart_ylnd = (double **) malloc( ntile_lnd*sizeof(double *));      
+      cart_zlnd =  (double **) malloc( ntile_lnd*sizeof(double *));
+      for(n=0; n<ntile_lnd; n++) {
+	cart_xlnd[n]     = (double *)malloc((nxl[n]+1)*(nyl[n]+1)*sizeof(double));
+	cart_ylnd[n]     = (double *)malloc((nxl[n]+1)*(nyl[n]+1)*sizeof(double));
+	cart_zlnd[n]     = (double *)malloc((nxl[n]+1)*(nyl[n]+1)*sizeof(double));
+	latlon2xyz((nxl[n]+1)*(nyl[n]+1), xlnd[n], ylnd[n], cart_xlnd[n], cart_ylnd[n], cart_zlnd[n]);
+	get_grid_great_circle_area(&(nxl[n]), &(nyl[n]), xlnd[n], ylnd[n], area_lnd[n]);
+      }
+    }
+    else {    
+      for(n=0; n<ntile_lnd; n++) {      
+	get_global_area(nxl[n], nyl[n], xlnd[n], ylnd[n], area_lnd[n]);
+      }
     }
     mpp_close(m_fid);
   }
@@ -697,14 +704,24 @@ int main (int argc, char *argv[])
     ntile_lnd = ntile_atm;
     nxl = nxa;
     nyl = nya;
-    xlnd = xatm;
-    ylnd = yatm;
+    if(clip_method == GREAT_CIRCLE_CLIP) {
+      cart_xlnd = cart_xatm;
+      cart_ylnd = cart_yatm;
+      cart_zlnd = cart_zatm;
+    }
+    else {
+      xlnd = xatm;
+      ylnd = yatm;
+    }
     area_lnd = area_atm;
     lnd_same_as_atm = 1;
     strcpy(lmosaic_name, amosaic_name);
     ltile_name = atile_name;
+    lnd_great_circle_algorithm = atm_great_circle_algorithm;
   }
 
+  if(print_memory)print_mem_usage("after read land grid");
+  
   if (strcmp(omosaic, amosaic) == 0 ) ocn_same_as_atm = 1;
   /*
    * Read ocean grid boundaries and mask (where water is) for each tile within the mosaic.
@@ -750,6 +767,17 @@ int main (int argc, char *argv[])
       g_fid = mpp_open(file, MPP_READ);
       nxo[n] = mpp_get_dimlen(g_fid, "nx");
       nyo[n] = mpp_get_dimlen(g_fid, "ny");
+      /* check if use great_circle_algorithm */
+      {
+	int great_circle_algorithm=0;
+	great_circle_algorithm = get_great_circle_algorithm(g_fid);
+	if(n>0) {
+	  if( ocn_great_circle_algorithm != great_circle_algorithm)
+	    mpp_error("make_topog: atribute 'great_circle_algorithm' of field 'tile' have different value for different tile");
+	}
+	ocn_great_circle_algorithm = great_circle_algorithm;
+      }
+      
       mpp_close(g_fid);
       
       if(nxo[n]%x_refine != 0 ) mpp_error("make_coupler_mosaic: ocean supergrid x-size can not be divided by x_refine");
@@ -768,16 +796,30 @@ int main (int argc, char *argv[])
       */
       if(ntile_ocn == 1) {
 	int na;
-	for(i=1; i<=nxo[n]; i++) 
-	  if(tmpy[i] != tmpy[i-1]) mpp_error("make_coupler_mosaic: latitude is not uniform along j=0");
-	/* calculate the minimum of latitude of atmosphere grid */
-	min_atm_lat = 9999; /* dummy large value */
-	for(na=0; na<ntile_atm; na++) {
-	  min_lat = minval_double((nxa[na]+1)*(nya[na]+1), yatm[na]);
-	  if(min_atm_lat > min_lat) min_atm_lat = min_lat;
+	int is_uniform;
+
+	/* check if the latitude is uniform or not at j=1 */
+        is_uniform = 1;
+	for(i=1; i<=nxo[n]; i++) {
+          if(tmpy[i] != tmpy[i-1]) {
+	    is_uniform = 0;
+	    if(mpp_pe()==mpp_root_pe()) printf("\nNOTE from make_coupler_mosaic: ocean grid latitude is not uniform along j = 1\n");
+	  }
 	}
-	if(tmpy[0]*D2R > min_atm_lat + TINY_VALUE) { /* extend one point in south direction*/
-	  ocn_south_ext = 1;
+
+	/* if latitude is uniform along j = 1, may add row in southmost */
+	if( is_uniform ) {
+	  /* calculate the minimum of latitude of atmosphere grid */
+	  min_atm_lat = 9999; /* dummy large value */
+	  for(na=0; na<ntile_atm; na++) {
+	    min_lat = minval_double((nxa[na]+1)*(nya[na]+1), yatm[na]);
+	    if(min_atm_lat > min_lat) min_atm_lat = min_lat;
+	  }
+	  min_atm_lat = -90.*D2R;
+	  if(tmpy[0]*D2R > min_atm_lat + TINY_VALUE) { /* extend one point in south direction*/
+	    ocn_south_ext = 1;
+	    if(mpp_pe()==mpp_root_pe())printf("make_coupler_mosaic: one row is add to the south end to cover the globe\n");
+	  }
 	}
       }
       nyo_old = nyo[n];
@@ -796,10 +838,26 @@ int main (int argc, char *argv[])
 	  yocn[n][i] = min_atm_lat;
 	}
       }
-
-      get_global_area(nxo[n], nyo[n], xocn[n], yocn[n], area_ocn[n]);
       free(tmpx);
       free(tmpy);
+    }
+    
+    if(clip_method == GREAT_CIRCLE_CLIP) {
+      cart_xocn = (double **) malloc( ntile_lnd*sizeof(double *));
+      cart_yocn = (double **) malloc( ntile_lnd*sizeof(double *));      
+      cart_zocn =  (double **) malloc( ntile_ocn*sizeof(double *));
+      for(n=0; n<ntile_ocn; n++) {
+	cart_xocn[n]     = (double *)malloc((nxo[n]+1)*(nyo[n]+1)*sizeof(double));
+	cart_yocn[n]     = (double *)malloc((nxo[n]+1)*(nyo[n]+1)*sizeof(double));
+	cart_zocn[n]     = (double *)malloc((nxo[n]+1)*(nyo[n]+1)*sizeof(double));	
+	latlon2xyz((nxo[n]+1)*(nyo[n]+1), xocn[n], yocn[n], cart_xocn[n], cart_yocn[n], cart_zocn[n]);
+	get_grid_great_circle_area(&(nxo[n]), &(nyo[n]), xocn[n], yocn[n], area_ocn[n]);
+      }
+    }
+    else {
+      for(n=0; n<ntile_ocn; n++) {
+        get_global_area(nxo[n], nyo[n], xocn[n], yocn[n], area_ocn[n]);
+      }
     }
     mpp_close(m_fid);
 
@@ -814,8 +872,12 @@ int main (int argc, char *argv[])
       
       t_fid = mpp_open(otopog, MPP_READ);
       if(n==0) {
-         ntiles = mpp_get_dimlen(t_fid, "ntiles");
-	 if(ntile_ocn != ntiles) mpp_error("make_coupler_mosaic: dimlen ntiles in mosaic file is not the same as dimlen in topog file");
+         if(mpp_dim_exist(t_fid, "ntiles"))
+            ntiles = mpp_get_dimlen(t_fid, "ntiles");
+         else
+	    ntiles = 1;
+
+         if(ntile_ocn != ntiles) mpp_error("make_coupler_mosaic: dimlen ntiles in mosaic file is not the same as dimlen in topog file");
       }
 
       if(ntiles == 1)
@@ -858,7 +920,12 @@ int main (int argc, char *argv[])
       }
     }
   }    
-
+  if(print_memory)print_mem_usage("after read ocean grid");
+  
+  /* when atm_great_circle_algorithm is 0, lnd_great_circle_algorithm/ocn_great_circle_algorithm must be 0 */
+  if( atm_great_circle_algorithm == 0 && (lnd_great_circle_algorithm || ocn_great_circle_algorithm))
+    mpp_error("make_coupler_mosaic: when atm does not use great_circle_algorithm, lnd/ocn can not use great_circle_algorithm");
+  
   /*
    * Read wave grid
    */
@@ -913,11 +980,62 @@ int main (int argc, char *argv[])
 	xwav[n][i] *= D2R;
 	ywav[n][i] *= D2R;
       }
-      get_global_area(nxw[n], nyw[n], xwav[n], ywav[n], area_wav[n]);
+    }
+
+    if(clip_method == GREAT_CIRCLE_CLIP) {
+      cart_xwav = (double **) malloc( ntile_wav*sizeof(double *));
+      cart_ywav = (double **) malloc( ntile_wav*sizeof(double *));      
+      cart_zwav = (double **) malloc( ntile_wav*sizeof(double *));
+      for(n=0; n<ntile_wav; n++) {
+	cart_xwav[n]     = (double *)malloc((nxw[n]+1)*(nyw[n]+1)*sizeof(double));
+	cart_ywav[n]     = (double *)malloc((nxw[n]+1)*(nyw[n]+1)*sizeof(double));
+	cart_zwav[n]     = (double *)malloc((nxw[n]+1)*(nyw[n]+1)*sizeof(double));
+	latlon2xyz((nxw[n]+1)*(nyw[n]+1), xwav[n], ywav[n], cart_xwav[n], cart_ywav[n], cart_zwav[n]);
+	get_grid_great_circle_area(&(nxw[n]), &(nyw[n]), xwav[n], ywav[n], area_wav[n]);
+      }
+    }
+    else {
+      for(n=0; n<ntile_wav; n++) {
+        get_global_area(nxw[n], nyw[n], xwav[n], ywav[n], area_wav[n]);
+      }
     }
     mpp_close(m_fid);  
   }
-  
+
+  /* remove longitude and latitude data when clip_method is 'great_circle' */
+  if(!print_grid){
+    int n;
+    if(clip_method == GREAT_CIRCLE_CLIP){
+      for(n=0; n<ntile_atm; n++) {
+	free(xatm[n]);
+	free(yatm[n]);
+      }
+      free(xatm);
+      free(yatm);
+      for(n=0; n<ntile_ocn; n++) {
+	free(xocn[n]);
+	free(yocn[n]);
+      }
+      free(xocn);
+      free(yocn);
+      if( xlnd ) {
+	for(n=0; n<ntile_lnd; n++) {
+	  free(xlnd[n]);
+	  free(ylnd[n]);
+	}
+	free(xlnd);
+	free(ylnd);
+      }
+      if( xwav ) {
+	for(n=0; n<ntile_wav; n++) {
+	  free(xwav[n]);
+	  free(ywav[n]);
+	}
+	free(xwav);
+	free(ywav);
+      }
+    }
+  }
   /* Either omosaic is different from both lmosaic and amosaic,
      or all the three mosaic are the same
   */
@@ -931,7 +1049,6 @@ int main (int argc, char *argv[])
 						      "but different from lmosaic.");
     same_mosaic = 1;
   }
-    
     
   /***************************************************************************************
      First generate the exchange grid between atmos mosaic and land/ocean mosaic              
@@ -1040,6 +1157,9 @@ int main (int argc, char *argv[])
       }
     }
 
+  if(print_memory)print_mem_usage("before calcuting exchange grid");
+
+	
     time_start = time(NULL);
     for(na=0; na<ntile_atm; na++) {
       
@@ -1048,9 +1168,11 @@ int main (int argc, char *argv[])
       double   xa_min, ya_min, xo_min, yo_min, xl_min, yl_min, xa_avg;
       double   xa_max, ya_max, xo_max, yo_max, xl_max, yl_max;
       double   xarea;
-      double   xa[MV], ya[MV], xl[MV], yl[MV], xo[MV], yo[MV];
-      double   x_out[MV], y_out[MV];
-      double   atmxlnd_x[MX][MV], atmxlnd_y[MX][MV];
+      double   xa[MV], ya[MV], za[MV];
+      double   xl[MV], yl[MV], zl[MV];
+      double   xo[MV], yo[MV], zo[MV];
+      double   x_out[MV], y_out[MV], z_out[MV];
+      double   atmxlnd_x[MX][MV], atmxlnd_y[MX][MV], atmxlnd_z[MX][MV];
       int      num_v[MX];
       int      axl_i[MX], axl_j[MX], axl_t[MX];
       double   axl_xmin[MX], axl_xmax[MX], axl_ymin[MX], axl_ymax[MX];
@@ -1061,8 +1183,13 @@ int main (int argc, char *argv[])
       int      *js_lnd, *je_lnd;
       int      *js_ocn, *je_ocn;
       int      *is_lnd, *ie_lnd;
-      int      *is_ocn, *ie_ocn;        
+      int      *is_ocn, *ie_ocn;
+      char     mesg[256];
 
+      if(print_memory) {
+        sprintf(mesg, "start of loop na=%d", na);
+        print_mem_usage(mesg);
+      }
       for(nl=0; nl<ntile_lnd; nl++) naxl[na][nl] = 0;
       for(no=0; no<ntile_ocn; no++) naxo[na][no] = 0;
       layout[0] = mpp_npes();
@@ -1081,178 +1208,318 @@ int main (int argc, char *argv[])
       je_lnd = (int *)malloc(ntile_lnd*sizeof(int));
       js_ocn = (int *)malloc(ntile_ocn*sizeof(int));
       je_ocn = (int *)malloc(ntile_ocn*sizeof(int));
-      ya_min = 9999;
-      ya_max = -9999;
-      
-      for(la=is;la<=ie;la++) {
-	
-	ia = la%nxa[na];
-	ja = la/nxa[na];
-	n0 = ja    *(nxa[na]+1) + ia;
-	n1 = ja    *(nxa[na]+1) + ia+1;
-	n2 = (ja+1)*(nxa[na]+1) + ia+1;
-	n3 = (ja+1)*(nxa[na]+1) + ia;
-	
-	ya[0] = yatm[na][n0];
-        ya[1] = yatm[na][n1];
-	ya[2] = yatm[na][n2];
-        ya[3] = yatm[na][n3];
-	if(ya[0] > ya_max) ya_max = ya[0];
-	if(ya[1] > ya_max) ya_max = ya[1];
-	if(ya[2] > ya_max) ya_max = ya[2];
-	if(ya[3] > ya_max) ya_max = ya[3];
-	if(ya[0] < ya_min) ya_min = ya[0];
-	if(ya[1] < ya_min) ya_min = ya[1];
-	if(ya[2] < ya_min) ya_min = ya[2];
-	if(ya[3] < ya_min) ya_min = ya[3];
+
+      if( clip_method == GREAT_CIRCLE_CLIP ) { /* we just use is = 0 and ie = nx-1,
+						we may change it to improve performace */
+	for(nl=0; nl<ntile_lnd; nl++) {
+	  is_lnd[nl] = 0;
+	  ie_lnd[nl] = nxl[nl]-1;
+	  js_lnd[nl] = 0;
+	  je_lnd[nl] = nyl[nl]-1;
+	}
+	for(no=0; no<ntile_ocn; no++) {
+	  is_ocn[no] = 0;
+	  ie_ocn[no] = nxo[no]-1;
+	  js_ocn[no] = 0;
+	  je_ocn[no] = nyo[no]-1;
+	}
       }
+      else {
+	ya_min = 9999;
+	ya_max = -9999;
+	for(la=is;la<=ie;la++) {
+	
+	  ia = la%nxa[na];
+	  ja = la/nxa[na];
+	  n0 = ja    *(nxa[na]+1) + ia;
+	  n1 = ja    *(nxa[na]+1) + ia+1;
+	  n2 = (ja+1)*(nxa[na]+1) + ia+1;
+	  n3 = (ja+1)*(nxa[na]+1) + ia;
+	
+	  ya[0] = yatm[na][n0];
+	  ya[1] = yatm[na][n1];
+	  ya[2] = yatm[na][n2];
+	  ya[3] = yatm[na][n3];
+	  if(ya[0] > ya_max) ya_max = ya[0];
+	  if(ya[1] > ya_max) ya_max = ya[1];
+	  if(ya[2] > ya_max) ya_max = ya[2];
+	  if(ya[3] > ya_max) ya_max = ya[3];
+	  if(ya[0] < ya_min) ya_min = ya[0];
+	  if(ya[1] < ya_min) ya_min = ya[1];
+	  if(ya[2] < ya_min) ya_min = ya[2];
+	  if(ya[3] < ya_min) ya_min = ya[3];
+	}
      
-     for(nl=0; nl<ntile_lnd; nl++) {
-       js_lnd[nl] = nyl[nl]; je_lnd[nl] = -1;
-       for(jl = 0; jl <= nyl[nl]; jl ++) for(il = 0; il <= nxl[nl]; il++) {
-	 yy = ylnd[nl][jl    *(nxl[nl]+1) + il];
-	 if( yy > ya_min && yy < ya_max ) {
-	   if(jl > je_lnd[nl] ) je_lnd[nl] = jl;
-	   if(jl < js_lnd[nl] ) js_lnd[nl] = jl;
-	 }
-       }
-       js_lnd[nl] = max(0, js_lnd[nl]-1);
-       je_lnd[nl] = min(nyl[nl]-1, je_lnd[nl]+1);
-       if(nl==na ||  !lnd_same_as_atm ) {
-	 is_lnd[nl] = 0;
-	 ie_lnd[nl] = nxl[nl]-1;
-       }
-       else {
-	 is_lnd[nl] = nxl[nl]-1;
-	 ie_lnd[nl] = 0;
-       }
+	for(nl=0; nl<ntile_lnd; nl++) {
+	  js_lnd[nl] = nyl[nl]; je_lnd[nl] = -1;
+	  for(jl = 0; jl <= nyl[nl]; jl ++) for(il = 0; il <= nxl[nl]; il++) {
+	    yy = ylnd[nl][jl    *(nxl[nl]+1) + il];
+            if( yy > ya_min ) {
+               if(jl < js_lnd[nl] ) js_lnd[nl] = jl;
+            }
+            if( yy < ya_max ) {
+               if(jl > je_lnd[nl] ) je_lnd[nl] = jl;
+            }
+	  }
+	  js_lnd[nl] = max(0, js_lnd[nl]-1);
+	  je_lnd[nl] = min(nyl[nl]-1, je_lnd[nl]+1);
+	  if(nl==na ||  !lnd_same_as_atm ) {
+	    is_lnd[nl] = 0;
+	    ie_lnd[nl] = nxl[nl]-1;
+	  }
+	  else {
+	    is_lnd[nl] = nxl[nl]-1;
+	    ie_lnd[nl] = 0;
+	  }
        
-     }
+	}
 
-     for(no=0; no<ntile_ocn; no++) {
-       js_ocn[no] = nyo[no]; je_ocn[no] = -1;
-       for(jo = 0; jo <= nyo[no]; jo ++) for(io = 0; io <= nxo[no]; io++) {
-	 yy = yocn[no][jo    *(nxo[no]+1) + io];
-	 if( yy > ya_min && yy < ya_max ) {
-	   if(jo > je_ocn[no] ) je_ocn[no] = jo;
-	   if(jo < js_ocn[no] ) js_ocn[no] = jo;
-	 }
-       }
-       js_ocn[no] = max(0, js_ocn[no]-1);
-       je_ocn[no] = min(nyo[no]-1, je_ocn[no]+1);
+	for(no=0; no<ntile_ocn; no++) {
+	  js_ocn[no] = nyo[no]; je_ocn[no] = -1;
+	  for(jo = 0; jo <= nyo[no]; jo ++) for(io = 0; io <= nxo[no]; io++) {
+	    yy = yocn[no][jo    *(nxo[no]+1) + io];
+            if( yy > ya_min ) {
+               if(jo < js_ocn[no] ) js_ocn[no] = jo;
+            }
+            if( yy < ya_max ) {
+               if(jo > je_ocn[no] ) je_ocn[no] = jo;
+            }
+	  }
+	  js_ocn[no] = max(0, js_ocn[no]-1);
+	  je_ocn[no] = min(nyo[no]-1, je_ocn[no]+1);
 
-       if(no==na ||  !ocn_same_as_atm ) {
-	 is_ocn[no] = 0;
-	 ie_ocn[no] = nxo[no]-1;
-       }
-       else {
-	 is_ocn[no] = nxo[no]-1;
-	 ie_ocn[no] = 0;
-       }
+	  if(no==na ||  !ocn_same_as_atm ) {
+	    is_ocn[no] = 0;
+	    ie_ocn[no] = nxo[no]-1;
+	  }
+	  else {
+	    is_ocn[no] = nxo[no]-1;
+	    ie_ocn[no] = 0;
+	  }
        
-     }
+	}
+      }
 
      if(mpp_pe()==mpp_root_pe() && verbose)printf("na = %d, la = %d, is=%d, ie = %d\n", na, la, is, ie);
       for(la=is;la<=ie;la++) {
-	int ind_concave;
-       	if(mpp_pe()==mpp_root_pe() && verbose)printf("na = %d, la = %d, is=%d, ie = %d\n", na, la, is, ie);
 	ia = la%nxa[na];
 	ja = la/nxa[na];
-	n0 = ja    *(nxa[na]+1) + ia;
-	n1 = ja    *(nxa[na]+1) + ia+1;
-	n2 = (ja+1)*(nxa[na]+1) + ia+1;
-	n3 = (ja+1)*(nxa[na]+1) + ia;
-	xa[0] = xatm[na][n0]; ya[0] = yatm[na][n0];
-        xa[1] = xatm[na][n1]; ya[1] = yatm[na][n1];
-	xa[2] = xatm[na][n2]; ya[2] = yatm[na][n2];
-        xa[3] = xatm[na][n3]; ya[3] = yatm[na][n3];
-	ya_min  = minval_double(4, ya);
-	ya_max  = maxval_double(4, ya);
 
-	na_in   = fix_lon(xa, ya, 4, M_PI);
-
-	/* check if the range of longitude is */ 
-	/* currently do not check concave, convex is assumed */
-	/*	ind_concave = concave(na_in, xa, ya); */
-	ind_concave = -1;
-	if( ind_concave >= 0) {
-	  printf("concave point, ia=%d, ja=%d, ind=%d\n", ia, ja, ind_concave);
+        if(print_grid) {
+          n0 = ja    *(nxa[na]+1) + ia;
+          n1 = ja    *(nxa[na]+1) + ia+1;
+          n2 = (ja+1)*(nxa[na]+1) + ia+1;
+          n3 = (ja+1)*(nxa[na]+1) + ia;
+          xa[0] = xatm[na][n0]; ya[0] = yatm[na][n0];
+          xa[1] = xatm[na][n1]; ya[1] = yatm[na][n1];
+          xa[2] = xatm[na][n2]; ya[2] = yatm[na][n2];
+          xa[3] = xatm[na][n3]; ya[3] = yatm[na][n3];
+          printf("atm grid is \n");
+          printf("%15.11f, %15.11f \n", xa[0]*R2D, ya[0]*R2D);
+          printf("%15.11f, %15.11f \n", xa[1]*R2D, ya[1]*R2D);
+          printf("%15.11f, %15.11f \n", xa[2]*R2D, ya[2]*R2D);
+          printf("%15.11f, %15.11f \n", xa[3]*R2D, ya[3]*R2D);
+          printf("%15.11f, %15.11f \n", xa[0]*R2D, ya[0]*R2D);
+        }
+	
+	if(clip_method == GREAT_CIRCLE_CLIP) { /*clockwise*/
+	  n0 = ja    *(nxa[na]+1) + ia;
+	  n1 = (ja+1)*(nxa[na]+1) + ia;
+	  n2 = (ja+1)*(nxa[na]+1) + ia+1;
+	  n3 = ja    *(nxa[na]+1) + ia+1;
+	  xa[0] = cart_xatm[na][n0]; ya[0] = cart_yatm[na][n0]; za[0] = cart_zatm[na][n0];
+	  xa[1] = cart_xatm[na][n1]; ya[1] = cart_yatm[na][n1]; za[1] = cart_zatm[na][n1];
+	  xa[2] = cart_xatm[na][n2]; ya[2] = cart_yatm[na][n2]; za[2] = cart_zatm[na][n2];
+	  xa[3] = cart_xatm[na][n3]; ya[3] = cart_yatm[na][n3]; za[3] = cart_zatm[na][n3];
 	}
-	xa_min  = minval_double(na_in, xa);
-	xa_max  = maxval_double(na_in, xa);
-	xa_avg  = avgval_double(na_in, xa);
+	else {
+	  n0 = ja    *(nxa[na]+1) + ia;
+	  n1 = ja    *(nxa[na]+1) + ia+1;
+	  n2 = (ja+1)*(nxa[na]+1) + ia+1;
+	  n3 = (ja+1)*(nxa[na]+1) + ia;
+	  xa[0] = xatm[na][n0]; ya[0] = yatm[na][n0];
+	  xa[1] = xatm[na][n1]; ya[1] = yatm[na][n1];
+	  xa[2] = xatm[na][n2]; ya[2] = yatm[na][n2];
+	  xa[3] = xatm[na][n3]; ya[3] = yatm[na][n3];
+	  ya_min  = minval_double(4, ya);
+	  ya_max  = maxval_double(4, ya);
+
+	  na_in   = fix_lon(xa, ya, 4, M_PI);
+
+	  xa_min  = minval_double(na_in, xa);
+	  xa_max  = maxval_double(na_in, xa);
+	  xa_avg  = avgval_double(na_in, xa);
+	}
 	count = 0;
-	for(nl=0; nl<ntile_lnd; nl++) {
-	  for(jl = js_lnd[nl]; jl <= je_lnd[nl]; jl ++) for(il = is_lnd[nl]; il <= ie_lnd[nl]; il++) {
-	    n0 = jl    *(nxl[nl]+1) + il;
-	    n1 = jl    *(nxl[nl]+1) + il+1;
-	    n2 = (jl+1)*(nxl[nl]+1) + il+1;
-	    n3 = (jl+1)*(nxl[nl]+1) + il;
-	    xl[0] = xlnd[nl][n0]; yl[0] = ylnd[nl][n0];
-	    xl[1] = xlnd[nl][n1]; yl[1] = ylnd[nl][n1];
-	    xl[2] = xlnd[nl][n2]; yl[2] = ylnd[nl][n2];
-	    xl[3] = xlnd[nl][n3]; yl[3] = ylnd[nl][n3];
-	    yl_min = minval_double(4, yl);
-	    yl_max = maxval_double(4, yl);
-            if(yl_min >= ya_max || yl_max <= ya_min ) continue;	    
-	    nl_in  = fix_lon(xl, yl, 4, xa_avg);
-	    xl_min = minval_double(nl_in, xl);
-	    xl_max = maxval_double(nl_in, xl);
-	    /* xl should in the same range as xa after lon_fix, so no need to
-	       consider cyclic condition
-	    */
-	      	    
-	    if(xa_min >= xl_max || xa_max <= xl_min ) continue;
-	    //	    if(use_great_circle)
-	    //	      n_out=clip_great_circle(xa, ya, na_in, xl, yl, nl_in, x_out, y_out );
-	    //	    else
-	    n_out = clip_2dx2d( xa, ya, na_in, xl, yl, nl_in, x_out, y_out );
-	    if (  n_out > 0 ) {
-	      xarea = poly_area(x_out, y_out, n_out);
-	      min_area = min(area_lnd[nl][jl*nxl[nl]+il], area_atm[na][la]);
-	      if( xarea/min_area > AREA_RATIO_THRESH ) {
-		/*  remember the exchange grid vertices */
-		for(n=0; n<n_out; n++) {
-		  atmxlnd_x[count][n] = x_out[n];
-		  atmxlnd_y[count][n] = y_out[n];
+      	for(nl=0; nl<ntile_lnd; nl++) {
+       	  for(jl = js_lnd[nl]; jl <= je_lnd[nl]; jl ++) for(il = is_lnd[nl]; il <= ie_lnd[nl]; il++) {
+
+            if(print_grid) {
+              n0 = jl    *(nxl[nl]+1) + il;
+              n1 = jl    *(nxl[nl]+1) + il+1;
+              n2 = (jl+1)*(nxl[nl]+1) + il+1;
+              n3 = (jl+1)*(nxl[nl]+1) + il;
+              xl[0] = xlnd[nl][n0]; yl[0] = ylnd[nl][n0];
+              xl[1] = xlnd[nl][n1]; yl[1] = ylnd[nl][n1];
+              xl[2] = xlnd[nl][n2]; yl[2] = ylnd[nl][n2];
+              xl[3] = xlnd[nl][n3]; yl[3] = ylnd[nl][n3];
+
+              printf("land grid is \n");
+              printf("%15.11f, %15.11f \n", xl[0]*R2D, yl[0]*R2D);
+              printf("%15.11f, %15.11f \n", xl[1]*R2D, yl[1]*R2D);
+              printf("%15.11f, %15.11f \n", xl[2]*R2D, yl[2]*R2D);
+              printf("%15.11f, %15.11f \n", xl[3]*R2D, yl[3]*R2D);
+              printf("%15.11f, %15.11f \n", xl[0]*R2D, yl[0]*R2D);
+            }
+
+       	   if(clip_method == GREAT_CIRCLE_CLIP) { /* clockwise */
+	      n0 = jl    *(nxl[nl]+1) + il;
+	      n1 = (jl+1)*(nxl[nl]+1) + il;
+	      n2 = (jl+1)*(nxl[nl]+1) + il+1;
+	      n3 = jl    *(nxl[nl]+1) + il+1;	      
+	      xl[0] = cart_xlnd[nl][n0]; yl[0] = cart_ylnd[nl][n0]; zl[0] = cart_zlnd[nl][n0];
+	      xl[1] = cart_xlnd[nl][n1]; yl[1] = cart_ylnd[nl][n1]; zl[1] = cart_zlnd[nl][n1];
+	      xl[2] = cart_xlnd[nl][n2]; yl[2] = cart_ylnd[nl][n2]; zl[2] = cart_zlnd[nl][n2];
+	      xl[3] = cart_xlnd[nl][n3]; yl[3] = cart_ylnd[nl][n3]; zl[3] = cart_zlnd[nl][n3];
+	      if(lnd_same_as_atm) {
+		if(na==nl && ja==jl && ia==il) {
+		  n_out = 4;
+		  for(n=0; n<n_out; n++) {
+		    x_out[n] = xl[n];
+		    y_out[n] = yl[n];
+		    z_out[n] = zl[n];
+		  }
 		}
+		else
+		  n_out = 0;
+	      }
+              else {
+		n_out = clip_2dx2d_great_circle(xa, ya, za, 4, xl, yl, zl, 4,
+						x_out, y_out, z_out);
+	      }
+	   }
+	    else {
+	      n0 = jl    *(nxl[nl]+1) + il;
+	      n1 = jl    *(nxl[nl]+1) + il+1;
+	      n2 = (jl+1)*(nxl[nl]+1) + il+1;
+	      n3 = (jl+1)*(nxl[nl]+1) + il;
+	      xl[0] = xlnd[nl][n0]; yl[0] = ylnd[nl][n0];
+	      xl[1] = xlnd[nl][n1]; yl[1] = ylnd[nl][n1];
+	      xl[2] = xlnd[nl][n2]; yl[2] = ylnd[nl][n2];
+	      xl[3] = xlnd[nl][n3]; yl[3] = ylnd[nl][n3];
+	      yl_min = minval_double(4, yl);
+	      yl_max = maxval_double(4, yl);
+	      if(yl_min >= ya_max || yl_max <= ya_min ) continue;	    
+	      nl_in  = fix_lon(xl, yl, 4, xa_avg);
+	      xl_min = minval_double(nl_in, xl);
+	      xl_max = maxval_double(nl_in, xl);
+	      /* xl should in the same range as xa after lon_fix, so no need to
+		 consider cyclic condition
+	      */
+	      	    
+	      if(xa_min >= xl_max || xa_max <= xl_min ) continue;
+	      n_out = clip_2dx2d( xa, ya, na_in, xl, yl, nl_in, x_out, y_out );
+	    }
+	    
+	    if (  n_out > 0 ) {
+	      if(clip_method == GREAT_CIRCLE_CLIP)
+		xarea=great_circle_area ( n_out, x_out, y_out, z_out);
+	      else
+		xarea = poly_area(x_out, y_out, n_out);
+	      min_area = min(area_lnd[nl][jl*nxl[nl]+il], area_atm[na][la]);
+	      if( xarea/min_area > area_ratio_thresh ) {
+
+                if(print_grid) {
+                  double xtmp[20],ytmp[20];
+                  printf("n_axl is %d\n", n_out);
+                  /* convert to lon-lat */
+                  xyz2latlon(n_out, x_out, y_out, z_out, xtmp, ytmp);
+                  for(n=0; n<n_out; n++) printf("%15.11f, %15.11f \n", xtmp[n]*R2D, ytmp[n]*R2D);
+                }
+
 		axl_i[count]    = il;
 		axl_j[count]    = jl;
 		axl_t[count]    = nl;
 		num_v[count]    = n_out;
-		axl_xmin[count] = minval_double(n_out, x_out);
-		axl_xmax[count] = maxval_double(n_out, x_out);
-		axl_ymin[count] = minval_double(n_out, y_out);
-		axl_ymax[count] = maxval_double(n_out, y_out);
 		axl_area[count] = 0;
 		if(interp_order == 2) {
 		  axl_clon[count] = 0;
 		  axl_clat[count] = 0;
 		}
+		
+		/*  remember the exchange grid vertices */
+		if( clip_method == GREAT_CIRCLE_CLIP) {
+		  for(n=0; n<n_out; n++) {
+		    atmxlnd_x[count][n] = x_out[n];
+		    atmxlnd_y[count][n] = y_out[n];
+		    atmxlnd_z[count][n] = z_out[n];
+		  }
+		}
+		else {
+		  for(n=0; n<n_out; n++) {
+		    atmxlnd_x[count][n] = x_out[n];
+		    atmxlnd_y[count][n] = y_out[n];
+		  }
+		  axl_xmin[count] = minval_double(n_out, x_out);
+		  axl_xmax[count] = maxval_double(n_out, x_out);
+		  axl_ymin[count] = minval_double(n_out, y_out);
+		  axl_ymax[count] = maxval_double(n_out, y_out);
+		}
+
 		++count;
 		if(count>MX) mpp_error("make_coupler_mosaic: count is greater than MX, increase MX");
       	      }
 	    }
 	  }
 	}
-
 	/* calculate atmos/ocean x-cells */
 	for(no=0; no<ntile_ocn; no++) {
 	  for(jo = js_ocn[no]; jo <= je_ocn[no]; jo++) for(io = is_ocn[no]; io <= ie_ocn[no]; io++) {
 	    double ocn_frac, lnd_frac;
-	    n0 = jo    *(nxo[no]+1) + io;
-	    n1 = jo    *(nxo[no]+1) + io+1;
-	    n2 = (jo+1)*(nxo[no]+1) + io+1;
-	    n3 = (jo+1)*(nxo[no]+1) + io;
-	    xo[0] = xocn[no][n0]; yo[0] = yocn[no][n0];
-	    xo[1] = xocn[no][n1]; yo[1] = yocn[no][n1];
-	    xo[2] = xocn[no][n2]; yo[2] = yocn[no][n2];
-	    xo[3] = xocn[no][n3]; yo[3] = yocn[no][n3];
-	    yo_min = minval_double(4, yo);
-	    yo_max = maxval_double(4, yo);
-	    no_in  = fix_lon(xo, yo, 4, xa_avg);
-	    xo_min = minval_double(no_in, xo);
-	    xo_max = maxval_double(no_in, xo);
+
+            if(print_grid) {
+              n0 = jo    *(nxo[no]+1) + io;
+              n1 = jo    *(nxo[no]+1) + io+1;
+              n2 = (jo+1)*(nxo[no]+1) + io+1;
+              n3 = (jo+1)*(nxo[no]+1) + io;
+              xo[0] = xocn[no][n0]; yo[0] = yocn[no][n0];
+              xo[1] = xocn[no][n1]; yo[1] = yocn[no][n1];
+              xo[2] = xocn[no][n2]; yo[2] = yocn[no][n2];
+              xo[3] = xocn[no][n3]; yo[3] = yocn[no][n3];
+              printf("ocean grid is \n");
+              printf("%15.11f, %15.11f \n", xo[0]*R2D+360, yo[0]*R2D);
+              printf("%15.11f, %15.11f \n", xo[1]*R2D+360, yo[1]*R2D);
+              printf("%15.11f, %15.11f \n", xo[2]*R2D+360, yo[2]*R2D);
+              printf("%15.11f, %15.11f \n", xo[3]*R2D+360, yo[3]*R2D);
+              printf("%15.11f, %15.11f \n", xo[0]*R2D+360, yo[0]*R2D);
+            }
+
+
+     	    if(clip_method == GREAT_CIRCLE_CLIP) { /* clockwise */
+	      n0 = jo    *(nxo[no]+1) + io;
+	      n1 = (jo+1)*(nxo[no]+1) + io;
+	      n2 = (jo+1)*(nxo[no]+1) + io+1;
+	      n3 = jo    *(nxo[no]+1) + io+1;
+	      xo[0] = cart_xocn[no][n0]; yo[0] = cart_yocn[no][n0]; zo[0] = cart_zocn[no][n0]; 
+	      xo[1] = cart_xocn[no][n1]; yo[1] = cart_yocn[no][n1]; zo[1] = cart_zocn[no][n1]; 
+	      xo[2] = cart_xocn[no][n2]; yo[2] = cart_yocn[no][n2]; zo[2] = cart_zocn[no][n2]; 	      
+	      xo[3] = cart_xocn[no][n3]; yo[3] = cart_yocn[no][n3]; zo[3] = cart_zocn[no][n3];
+	    }
+	    else {
+	      n0 = jo    *(nxo[no]+1) + io;
+	      n1 = jo    *(nxo[no]+1) + io+1;
+	      n2 = (jo+1)*(nxo[no]+1) + io+1;
+	      n3 = (jo+1)*(nxo[no]+1) + io;
+	      xo[0] = xocn[no][n0]; yo[0] = yocn[no][n0];
+	      xo[1] = xocn[no][n1]; yo[1] = yocn[no][n1];
+	      xo[2] = xocn[no][n2]; yo[2] = yocn[no][n2];
+	      xo[3] = xocn[no][n3]; yo[3] = yocn[no][n3];
+	      yo_min = minval_double(4, yo);
+	      yo_max = maxval_double(4, yo);
+	      no_in  = fix_lon(xo, yo, 4, xa_avg);
+	      xo_min = minval_double(no_in, xo);
+	      xo_max = maxval_double(no_in, xo);
+	    }
 	    ocn_frac = omask[no][jo*nxo[no]+io];
 	    lnd_frac = 1 - ocn_frac;
 
@@ -1260,43 +1527,26 @@ int main (int argc, char *argv[])
 	      /* xo should in the same range as xa after lon_fix, so no need to
 		 consider cyclic condition
 	      */
-              if(xa_min >= xo_max || xa_max <= xo_min || yo_min >= ya_max || yo_max <= ya_min ) continue;	    
-	      if(ind_concave >= 0) {
-		double x1[4], y1[4];
-		for(i=0; i<2; i++) {
-		  if(i==0) {
-		    x1[0] = xa[0]; x1[1] = xa[1]; x1[2] = xa[3];
-		    y1[0] = ya[0]; y1[1] = ya[1]; y1[2] = ya[3];
-		  }
-		  else {
-		    x1[0] = xa[1]; x1[1] = xa[2]; x1[2] = xa[3];
-		    y1[0] = ya[1]; y1[1] = ya[2]; y1[2] = ya[3];
-		  }
-		  if (  (n_out = clip_2dx2d( x1, y1, 3, xo, yo, no_in, x_out, y_out )) > 0) {  
-		    xarea = poly_area(x_out, y_out, n_out )*ocn_frac;
-		    min_area = min(area_ocn[no][jo*nxo[no]+io], area_atm[na][la]);
-		    if(xarea/min_area > AREA_RATIO_THRESH) {
+	      
+	      if( clip_method == GREAT_CIRCLE_CLIP ) {
+		n_out = clip_2dx2d_great_circle(xa, ya, za, 4, xo, yo, zo, 4,
+						x_out, y_out, z_out);
+	      }
+	      else {
+		if(xa_min >= xo_max || xa_max <= xo_min || yo_min >= ya_max || yo_max <= ya_min ) continue;
+		n_out = clip_2dx2d( xa, ya, na_in, xo, yo, no_in, x_out, y_out );
+	      }
+	      if (  n_out > 0) {
 
-		      atmxocn_area[na][no][naxo[na][no]] = xarea;
-		      atmxocn_io[na][no][naxo[na][no]]   = io;
-		      atmxocn_jo[na][no][naxo[na][no]]   = jo;
-		      atmxocn_ia[na][no][naxo[na][no]]   = ia;
-		      atmxocn_ja[na][no][naxo[na][no]]   = ja;
-		      if(interp_order == 2) {
-			atmxocn_clon[na][no][naxo[na][no]] = poly_ctrlon ( x_out, y_out, n_out, xa_avg)*ocn_frac;
-			atmxocn_clat[na][no][naxo[na][no]] = poly_ctrlat ( x_out, y_out, n_out )*ocn_frac;		
-		      }
-		    }
-		  }
-		}
-		++(naxo[na][no]);
-		if(naxo[na][no] > MAXXGRID) mpp_error("naxo is greater than MAXXGRID, increase MAXXGRID");
-	      }   
-	      else if (  (n_out = clip_2dx2d( xa, ya, na_in, xo, yo, no_in, x_out, y_out )) > 0) {
-		xarea = poly_area(x_out, y_out, n_out )*ocn_frac;
+		
+		if( clip_method == GREAT_CIRCLE_CLIP )
+		  xarea=great_circle_area ( n_out, x_out, y_out, z_out)*ocn_frac;
+		else
+		  xarea = poly_area(x_out, y_out, n_out )*ocn_frac;
+
 		min_area = min(area_ocn[no][jo*nxo[no]+io], area_atm[na][la]);
-		if(xarea/min_area > AREA_RATIO_THRESH) {
-	    
+		if(xarea/min_area > area_ratio_thresh) {
+
 		  atmxocn_area[na][no][naxo[na][no]] = xarea;
 		  atmxocn_io[na][no][naxo[na][no]]   = io;
 		  atmxocn_jo[na][no][naxo[na][no]]   = jo;
@@ -1314,11 +1564,30 @@ int main (int argc, char *argv[])
 	    if(lnd_frac > MIN_AREA_FRAC) { /* over land */
 	      /* find the overlap of atmxlnd and ocean cell */
 	      for(l=0; l<count; l++) {
-		if(axl_xmin[l] >= xo_max || axl_xmax[l] <= xo_min || axl_ymin[l] >= ya_max || axl_ymax[l] <= ya_min ) continue;	  
-		if((n_out = clip_2dx2d( atmxlnd_x[l], atmxlnd_y[l], num_v[l], xo, yo, no_in, x_out, y_out )) > 0) {
-		  xarea = poly_area(x_out, y_out, n_out )*lnd_frac;
+		if( clip_method == GREAT_CIRCLE_CLIP ) 
+		  n_out = clip_2dx2d_great_circle(atmxlnd_x[l], atmxlnd_y[l], atmxlnd_z[l], num_v[l], xo, yo, zo, 4,
+						  x_out, y_out, z_out);
+		else {
+		  if(axl_xmin[l] >= xo_max || axl_xmax[l] <= xo_min || axl_ymin[l] >= ya_max || axl_ymax[l] <= ya_min ) continue;
+		  n_out = clip_2dx2d( atmxlnd_x[l], atmxlnd_y[l], num_v[l], xo, yo, no_in, x_out, y_out );
+		}
+		if( n_out > 0) {
+		  if( clip_method == GREAT_CIRCLE_CLIP )
+		    xarea=great_circle_area ( n_out, x_out, y_out, z_out)*lnd_frac;
+		  else
+		    xarea = poly_area(x_out, y_out, n_out )*lnd_frac;
 		  min_area = min(area_lnd[axl_t[l]][axl_j[l]*nxl[axl_t[l]]+axl_i[l]], area_atm[na][la]);
-		  if(xarea/min_area > AREA_RATIO_THRESH) {
+		  if(xarea/min_area > area_ratio_thresh) {
+
+                    if(print_grid) {
+                      double xtmp[20],ytmp[20];
+                      printf("num exchange grid between ocean and axl is %d\n", n_out);
+                      /* convert to lon-lat */
+                      xyz2latlon(n_out, x_out, y_out, z_out, xtmp, ytmp);
+
+                      for(n=0; n<n_out; n++) printf("%15.11f, %15.11f \n", xtmp[n]*R2D, ytmp[n]*R2D);
+                    }
+
 		    axl_area[l] += xarea;
 		    if(interp_order == 2) {
 		      axl_clon[l] += poly_ctrlon ( x_out, y_out, n_out, xa_avg)*lnd_frac;
@@ -1334,7 +1603,7 @@ int main (int argc, char *argv[])
 	for(l=0; l<count; l++) {
 	  nl = axl_t[l];
 	  min_area = min(area_lnd[nl][axl_j[l]*nxl[nl]+axl_i[l]], area_atm[na][la]);
-	  if(axl_area[l]/min_area > AREA_RATIO_THRESH) {
+	  if(axl_area[l]/min_area > area_ratio_thresh) {
 	    atmxlnd_area[na][nl][naxl[na][nl]] = axl_area[l];
 	    atmxlnd_ia  [na][nl][naxl[na][nl]] = ia;
 	    atmxlnd_ja  [na][nl][naxl[na][nl]] = ja;
@@ -1360,9 +1629,13 @@ int main (int argc, char *argv[])
       free(ie_ocn);
       free(js_ocn);
       free(je_ocn); 
+      if(print_memory) {
+        sprintf(mesg, "end of loop na=%d", na);
+        print_mem_usage(mesg);
+      }
       
     } /* end of na loop */
-
+   if(print_memory)print_mem_usage("after calcuting exchange grid");
     time_end = time(NULL);
     if(verbose) printf("one pe %d, The loop used %f seconds.\n", mpp_pe(), difftime(time_end, time_start));
     /* calculate the centroid of model grid, as well as land_mask and ocean_mask */
@@ -1386,31 +1659,33 @@ int main (int argc, char *argv[])
             
       if(interp_order == 1) {
 	for(na=0; na<ntile_atm; na++) {
-	  for(nl=0; nl<ntile_lnd; nl++) {
-	    int nxgrid;
+	   /* could not add the exchange grid between land and nest atmosphere */
+	  if( na != tile_nest ) {
+	    for(nl=0; nl<ntile_lnd; nl++) {
+	      int nxgrid;
 	  
-	    nxgrid = naxl[na][nl];
-	    mpp_sum_int(1, &nxgrid);
-	    if(nxgrid > 0) {
-	      double *g_area;
-	      int    *g_il, *g_jl;
-	      int    ii;
-	      g_il = (int    *)malloc(nxgrid*sizeof(int   ));
-	      g_jl = (int    *)malloc(nxgrid*sizeof(int   ));	
-	      g_area = (double *)malloc(nxgrid*sizeof(double));
-	      mpp_gather_field_int   (naxl[na][nl], atmxlnd_il[na][nl], g_il);
-	      mpp_gather_field_int   (naxl[na][nl], atmxlnd_jl[na][nl], g_jl);
-	      mpp_gather_field_double(naxl[na][nl], atmxlnd_area[na][nl], g_area);
-	      for(i=0; i<nxgrid; i++) {
-		ii = g_jl[i]*nxl[nl]+g_il[i];
-		l_area[nl][ii] += g_area[i];
+	      nxgrid = naxl[na][nl];
+	      mpp_sum_int(1, &nxgrid);
+	      if(nxgrid > 0) {
+		double *g_area;
+		int    *g_il, *g_jl;
+		int    ii;
+		g_il = (int    *)malloc(nxgrid*sizeof(int   ));
+		g_jl = (int    *)malloc(nxgrid*sizeof(int   ));	
+		g_area = (double *)malloc(nxgrid*sizeof(double));
+		mpp_gather_field_int   (naxl[na][nl], atmxlnd_il[na][nl], g_il);
+		mpp_gather_field_int   (naxl[na][nl], atmxlnd_jl[na][nl], g_jl);
+		mpp_gather_field_double(naxl[na][nl], atmxlnd_area[na][nl], g_area);
+		for(i=0; i<nxgrid; i++) {
+		  ii = g_jl[i]*nxl[nl]+g_il[i];
+		  l_area[nl][ii] += g_area[i];
+		}
+		free(g_il);
+		free(g_jl);
+		free(g_area);
 	      }
-	      free(g_il);
-	      free(g_jl);
-	      free(g_area);
 	    }
 	  }
-
 	  /* could not add the exchange grid between ocean and nest atmosphere */
 	  if( na != tile_nest ) {
 	    for(no=0; no<ntile_ocn; no++) {
@@ -1476,47 +1751,49 @@ int main (int argc, char *argv[])
 	    a_clon[la] = 0;
 	    a_clat[la] = 0;
 	  }
-
-	  for(nl=0; nl<ntile_lnd; nl++) {
-	    int nxgrid;
+	   /* could not add the exchange grid between land and nest atmosphere */
+	  if( na != tile_nest ) {
+	    for(nl=0; nl<ntile_lnd; nl++) {
+	      int nxgrid;
 	  
-	    nxgrid = naxl[na][nl];
-	    mpp_sum_int(1, &nxgrid);
-	    if(nxgrid > 0) {
-	      double *g_area, *g_clon, *g_clat;
-	      int    *g_ia,   *g_ja,   *g_il, *g_jl;
-	      int    ii;
-	      g_ia = (int    *)malloc(nxgrid*sizeof(int   ));
-	      g_ja = (int    *)malloc(nxgrid*sizeof(int   ));
-	      g_il = (int    *)malloc(nxgrid*sizeof(int   ));
-	      g_jl = (int    *)malloc(nxgrid*sizeof(int   ));	
-	      g_area = (double *)malloc(nxgrid*sizeof(double));
-	      g_clon = (double *)malloc(nxgrid*sizeof(double));
-	      g_clat = (double *)malloc(nxgrid*sizeof(double));
-	      mpp_gather_field_int   (naxl[na][nl], atmxlnd_ia[na][nl], g_ia);
-	      mpp_gather_field_int   (naxl[na][nl], atmxlnd_ja[na][nl], g_ja);
-	      mpp_gather_field_int   (naxl[na][nl], atmxlnd_il[na][nl], g_il);
-	      mpp_gather_field_int   (naxl[na][nl], atmxlnd_jl[na][nl], g_jl);
-	      mpp_gather_field_double(naxl[na][nl], atmxlnd_area[na][nl], g_area);
-	      mpp_gather_field_double(naxl[na][nl], atmxlnd_clon[na][nl], g_clon);
-	      mpp_gather_field_double(naxl[na][nl], atmxlnd_clat[na][nl], g_clat);
-	      for(i=0; i<nxgrid; i++) {
-		ii = g_ja[i]*nxa[na]+g_ia[i];
-		a_area[ii] += g_area[i];
-		a_clon[ii] += g_clon[i];
-		a_clat[ii] += g_clat[i];
-		ii = g_jl[i]*nxl[nl]+g_il[i];
-		l_area[nl][ii] += g_area[i];
-		l_clon[nl][ii] += g_clon[i];
-		l_clat[nl][ii] += g_clat[i];
+	      nxgrid = naxl[na][nl];
+	      mpp_sum_int(1, &nxgrid);
+	      if(nxgrid > 0) {
+		double *g_area, *g_clon, *g_clat;
+		int    *g_ia,   *g_ja,   *g_il, *g_jl;
+		int    ii;
+		g_ia = (int    *)malloc(nxgrid*sizeof(int   ));
+		g_ja = (int    *)malloc(nxgrid*sizeof(int   ));
+		g_il = (int    *)malloc(nxgrid*sizeof(int   ));
+		g_jl = (int    *)malloc(nxgrid*sizeof(int   ));	
+		g_area = (double *)malloc(nxgrid*sizeof(double));
+		g_clon = (double *)malloc(nxgrid*sizeof(double));
+		g_clat = (double *)malloc(nxgrid*sizeof(double));
+		mpp_gather_field_int   (naxl[na][nl], atmxlnd_ia[na][nl], g_ia);
+		mpp_gather_field_int   (naxl[na][nl], atmxlnd_ja[na][nl], g_ja);
+		mpp_gather_field_int   (naxl[na][nl], atmxlnd_il[na][nl], g_il);
+		mpp_gather_field_int   (naxl[na][nl], atmxlnd_jl[na][nl], g_jl);
+		mpp_gather_field_double(naxl[na][nl], atmxlnd_area[na][nl], g_area);
+		mpp_gather_field_double(naxl[na][nl], atmxlnd_clon[na][nl], g_clon);
+		mpp_gather_field_double(naxl[na][nl], atmxlnd_clat[na][nl], g_clat);
+		for(i=0; i<nxgrid; i++) {
+		  ii = g_ja[i]*nxa[na]+g_ia[i];
+		  a_area[ii] += g_area[i];
+		  a_clon[ii] += g_clon[i];
+		  a_clat[ii] += g_clat[i];
+		  ii = g_jl[i]*nxl[nl]+g_il[i];
+		  l_area[nl][ii] += g_area[i];
+		  l_clon[nl][ii] += g_clon[i];
+		  l_clat[nl][ii] += g_clat[i];
+		}
+		free(g_ia);
+		free(g_ja);
+		free(g_il);
+		free(g_jl);
+		free(g_area);
+		free(g_clon);
+		free(g_clat);
 	      }
-	      free(g_ia);
-	      free(g_ja);
-	      free(g_il);
-	      free(g_jl);
-	      free(g_area);
-	      free(g_clon);
-	      free(g_clat);
 	    }
 	  }
 
@@ -1638,15 +1915,15 @@ int main (int argc, char *argv[])
 
       /* calculate ocean_frac and compare ocean_frac with omask */
       /* also write out ocn_frac */
-      {
+      if(mpp_pe()==mpp_root_pe()){
 	int    io, jo;
 	double ocn_frac;
 	int    id_mask, fid, dims[2];
 	char ocn_mask_file[STRING];
 	double *mask;
-	int ny;
+	int ny, nbad;
 
-
+        nbad = 0;
 	for(no=0; no<ntile_ocn; no++) {
 	  ny = nyo[no]-ocn_south_ext;
 	  mask = (double *)malloc(nxo[no]*ny*sizeof(double));
@@ -1654,9 +1931,9 @@ int main (int argc, char *argv[])
 	    i = (jo+ocn_south_ext)*nxo[no]+io;
 	    ocn_frac = o_area[no][i]/area_ocn[no][i];
 	    if( fabs(omask[no][i] - ocn_frac) > TOLORENCE ) {
+              nbad++;
 	      printf("at ocean point (%d,%d), omask = %f, ocn_frac = %f, diff = %f\n",
 		     io, jo, omask[no][i], ocn_frac, omask[no][i] - ocn_frac);
-	      mpp_error("make_coupler_mosaic: omask is not equal ocn_frac");
 	    }
 	    mask[jo*nxo[no]+io] = ocn_frac;
 	  }
@@ -1667,6 +1944,7 @@ int main (int argc, char *argv[])
 	  fid = mpp_open(ocn_mask_file, MPP_WRITE);
 	  mpp_def_global_att(fid, "grid_version", grid_version);
 	  mpp_def_global_att(fid, "code_version", tagname);
+	  if( clip_method == GREAT_CIRCLE_CLIP) mpp_def_global_att(fid, "great_circle_algorithm", "TRUE");
 	  mpp_def_global_att(fid, "history", history);
           	  
 
@@ -1679,6 +1957,10 @@ int main (int argc, char *argv[])
 	  mpp_close(fid);
 	  free(mask);
 	}
+        if(nbad>0) {
+          printf("make_coupler_mosaic: number of points with omask != ofrac is %d\n", nbad);
+          mpp_error("make_coupler_mosaic: omask is not equal ocn_frac");
+        }
       }
 
       /* calculate land_frac and  write out land_frac */
@@ -1701,6 +1983,7 @@ int main (int argc, char *argv[])
 	  fid = mpp_open(lnd_mask_file, MPP_WRITE);
 	  mpp_def_global_att(fid, "grid_version", grid_version);
 	  mpp_def_global_att(fid, "code_version", tagname);
+	  if( clip_method == GREAT_CIRCLE_CLIP) mpp_def_global_att(fid, "great_circle_algorithm", "TRUE");
 	  mpp_def_global_att(fid, "history", history);
 	  dims[1] = mpp_def_dim(fid, "nx", nxl[nl]); 
 	  dims[0] = mpp_def_dim(fid, "ny", nyl[nl]);
@@ -1747,6 +2030,7 @@ int main (int argc, char *argv[])
 	  fid = mpp_open(axl_file[nfile_axl], MPP_WRITE);
 	  mpp_def_global_att(fid, "grid_version", grid_version);
 	  mpp_def_global_att(fid, "code_version", tagname);
+	  if( clip_method == GREAT_CIRCLE_CLIP) mpp_def_global_att(fid, "great_circle_algorithm", "TRUE");
 	  mpp_def_global_att(fid, "history", history);
 	  dim_string = mpp_def_dim(fid, "string", STRING);
 	  dim_ncells = mpp_def_dim(fid, "ncells", nxgrid);
@@ -1790,6 +2074,21 @@ int main (int argc, char *argv[])
 
 	  mpp_gather_field_double(naxl[na][nl], atmxlnd_area[na][nl], gdata_dbl);
 	  if(check) {
+	    int *gdata_ia=NULL, *gdata_ja=NULL;
+	    int ia, ja;
+	    
+	    gdata_ia = (int *)malloc(nxgrid*sizeof(int));
+	    gdata_ja = (int *)malloc(nxgrid*sizeof(int));
+            mpp_gather_field_int(naxl[na][nl], atmxlnd_ia[na][nl], gdata_ia);
+            mpp_gather_field_int(naxl[na][nl], atmxlnd_ja[na][nl], gdata_ja);
+	    for(n=0; n<nxgrid; n++) {
+	      ja = gdata_ja[n] - 1;
+	      ia = gdata_ia[n] - 1;
+	      atm_xarea[na][ja*nxa[na]+ia] += gdata_dbl[n];
+	    }
+	    free(gdata_ia);
+	    free(gdata_ja);
+
 	    if( na == tile_nest) 
 	      for(n=0; n<nxgrid; n++) axl_area_sum_nest += gdata_dbl[n];
 	    else
@@ -1852,6 +2151,7 @@ int main (int argc, char *argv[])
 	  fid = mpp_open(axo_file[nfile_axo], MPP_WRITE);
 	  mpp_def_global_att(fid, "grid_version", grid_version);
           mpp_def_global_att(fid, "code_version", tagname);
+	  if( clip_method == GREAT_CIRCLE_CLIP) mpp_def_global_att(fid, "great_circle_algorithm", "TRUE");
 	  mpp_def_global_att(fid, "history", history);
 	  dim_string = mpp_def_dim(fid, "string", STRING);
 	  dim_ncells = mpp_def_dim(fid, "ncells", nxgrid);
@@ -1897,7 +2197,23 @@ int main (int argc, char *argv[])
 	  gdata_dbl = (double *)malloc(nxgrid*sizeof(double));
 
 	  mpp_gather_field_double(naxo[na][no], atmxocn_area[na][no], gdata_dbl);
+
 	  if(check) {
+	    int *gdata_ia=NULL, *gdata_ja=NULL;
+            int ia, ja;
+	    
+	    gdata_ia = (int *)malloc(nxgrid*sizeof(int));
+	    gdata_ja = (int *)malloc(nxgrid*sizeof(int));
+            mpp_gather_field_int(naxo[na][no], atmxocn_ia[na][no], gdata_ia);
+            mpp_gather_field_int(naxo[na][no], atmxocn_ja[na][no], gdata_ja);
+	    for(n=0; n<nxgrid; n++) {
+	      ja = gdata_ja[n] - 1;
+	      ia = gdata_ia[n] - 1;
+	      atm_xarea[na][ja*nxa[na]+ia] += gdata_dbl[n];
+	    }
+	    free(gdata_ia);
+	    free(gdata_ja);
+
 	    if( na == tile_nest)
 	      for(n=0; n<nxgrid; n++) axo_area_sum_nest += gdata_dbl[n];
 	    else
@@ -2090,7 +2406,7 @@ int main (int argc, char *argv[])
       double   xarea, xctrlon, xctrlat;
       double   xl_min, yl_min, xo_min, yo_min, xl_avg;
       double   xl_max, yl_max, xo_max, yo_max;
-      double   xl[MV], yl[MV], xo[MV], yo[MV], x_out[MV], y_out[MV];
+      double   xl[MV], yl[MV], zl[MV], xo[MV], yo[MV], zo[MV], x_out[MV], y_out[MV], z_out[MV];
       domain2D Dom;
       int      *is_ocn, *ie_ocn;
       int      *js_ocn, *je_ocn;
@@ -2109,86 +2425,130 @@ int main (int argc, char *argv[])
       is_ocn = (int *)malloc(ntile_ocn*sizeof(int));
       ie_ocn = (int *)malloc(ntile_ocn*sizeof(int));
       
-      for(ll=is;ll<=ie;ll++) {
-	
-	il = ll%nxl[nl];
-	jl = ll/nxl[nl];
-	n0 = jl    *(nxl[nl]+1) + il;
-	n1 = jl    *(nxl[nl]+1) + il+1;
-	n2 = (jl+1)*(nxl[nl]+1) + il+1;
-	n3 = (jl+1)*(nxl[nl]+1) + il;
-	
-	yl[0] = ylnd[nl][n0];
-        yl[1] = ylnd[nl][n1];
-	yl[2] = ylnd[nl][n2];
-        yl[3] = ylnd[nl][n3];
-	if(yl[0] > yl_max) yl_max = yl[0];
-	if(yl[1] > yl_max) yl_max = yl[1];
-	if(yl[2] > yl_max) yl_max = yl[2];
-	if(yl[3] > yl_max) yl_max = yl[3];
-	if(yl[0] < yl_min) yl_min = yl[0];
-	if(yl[1] < yl_min) yl_min = yl[1];
-	if(yl[2] < yl_min) yl_min = yl[2];
-	if(yl[3] < yl_min) yl_min = yl[3];
-      }
-      for(no=0; no<ntile_ocn; no++) {
-	js_ocn[no] = nyo[no]; je_ocn[no] = -1;
-	for(jo = 0; jo <= nyo[no]; jo ++) for(io = 0; io <= nxo[no]; io++) {
-	  yy = yocn[no][jo    *(nxo[no]+1) + io];
-	  if( yy > yl_min && yy < yl_max ) {
-	    if(jo > je_ocn[no] ) je_ocn[no] = jo;
-	    if(jo < js_ocn[no] ) js_ocn[no] = jo;
-	  }
+      if(clip_method == GREAT_CIRCLE_CLIP) {
+	for(no=0; no<ntile_ocn; no++) {
+	  is_ocn[no] = 0;
+	  ie_ocn[no] = nxo[no]-1;
+	  js_ocn[no] = 0;
+	  je_ocn[no] = nyo[no]-1;
 	}
-	js_ocn[no] = max(0, js_ocn[no]-1);
-	je_ocn[no] = min(nyo[no]-1, je_ocn[no]+1);
-	is_ocn[no] = 0;
-	ie_ocn[no] = nxo[no] - 1;
+      }	
+      else {
+	for(ll=is;ll<=ie;ll++) {
+	
+	  il = ll%nxl[nl];
+	  jl = ll/nxl[nl];	  
+	  n0 = jl    *(nxl[nl]+1) + il;
+	  n1 = jl    *(nxl[nl]+1) + il+1;
+	  n2 = (jl+1)*(nxl[nl]+1) + il+1;
+	  n3 = (jl+1)*(nxl[nl]+1) + il;
+	
+	  yl[0] = ylnd[nl][n0];
+	  yl[1] = ylnd[nl][n1];
+	  yl[2] = ylnd[nl][n2];
+	  yl[3] = ylnd[nl][n3];
+	  if(yl[0] > yl_max) yl_max = yl[0];
+	  if(yl[1] > yl_max) yl_max = yl[1];
+	  if(yl[2] > yl_max) yl_max = yl[2];
+	  if(yl[3] > yl_max) yl_max = yl[3];
+	  if(yl[0] < yl_min) yl_min = yl[0];
+	  if(yl[1] < yl_min) yl_min = yl[1];
+	  if(yl[2] < yl_min) yl_min = yl[2];
+	  if(yl[3] < yl_min) yl_min = yl[3];
+	}
+	for(no=0; no<ntile_ocn; no++) {
+	  js_ocn[no] = nyo[no]; je_ocn[no] = -1;
+	  for(jo = 0; jo <= nyo[no]; jo ++) for(io = 0; io <= nxo[no]; io++) {
+	    yy = yocn[no][jo    *(nxo[no]+1) + io];
+	    if( yy > yl_min && yy < yl_max ) {
+	      if(jo > je_ocn[no] ) je_ocn[no] = jo;
+	      if(jo < js_ocn[no] ) js_ocn[no] = jo;
+	    }
+	  }
+	  js_ocn[no] = max(0, js_ocn[no]-1);
+	  je_ocn[no] = min(nyo[no]-1, je_ocn[no]+1);
+	  is_ocn[no] = 0;
+	  ie_ocn[no] = nxo[no] - 1;
+	}	
       }
       
       for(ll=is;ll<=ie;ll++) {
 	il = ll%nxl[nl];
 	jl = ll/nxl[nl];
-	n0 = jl    *(nxl[nl]+1) + il;
-	n1 = jl    *(nxl[nl]+1) + il+1;
-	n2 = (jl+1)*(nxl[nl]+1) + il+1;
-	n3 = (jl+1)*(nxl[nl]+1) + il;
-	xl[0] = xlnd[nl][n0]; yl[0] = ylnd[nl][n0];
-	xl[1] = xlnd[nl][n1]; yl[1] = ylnd[nl][n1];
-	xl[2] = xlnd[nl][n2]; yl[2] = ylnd[nl][n2];
-	xl[3] = xlnd[nl][n3]; yl[3] = ylnd[nl][n3];
-	yl_min  = minval_double(4, yl);
-	yl_max  = maxval_double(4, yl);
-	nl_in   = fix_lon(xl, yl, 4, M_PI);
-	xl_min  = minval_double(nl_in, xl);
-	xl_max  = maxval_double(nl_in, xl);
-	xl_avg  = avgval_double(nl_in, xl);      
+	if(clip_method == GREAT_CIRCLE_CLIP) { /* clockwise */
+	  n0 = jl    *(nxl[nl]+1) + il;
+	  n1 = (jl+1)*(nxl[nl]+1) + il;
+	  n2 = (jl+1)*(nxl[nl]+1) + il+1;
+	  n3 = jl    *(nxl[nl]+1) + il+1;	      
+	  xl[0] = cart_xlnd[nl][n0]; yl[0] = cart_ylnd[nl][n0]; zl[0] = cart_zlnd[nl][n0];
+	  xl[1] = cart_xlnd[nl][n1]; yl[1] = cart_ylnd[nl][n1]; zl[1] = cart_zlnd[nl][n1];
+	  xl[2] = cart_xlnd[nl][n2]; yl[2] = cart_ylnd[nl][n2]; zl[2] = cart_zlnd[nl][n2];
+	  xl[3] = cart_xlnd[nl][n3]; yl[3] = cart_ylnd[nl][n3]; zl[3] = cart_zlnd[nl][n3];
+	}
+	else {
+	  n0 = jl    *(nxl[nl]+1) + il;
+	  n1 = jl    *(nxl[nl]+1) + il+1;
+	  n2 = (jl+1)*(nxl[nl]+1) + il+1;
+	  n3 = (jl+1)*(nxl[nl]+1) + il;
+	  xl[0] = xlnd[nl][n0]; yl[0] = ylnd[nl][n0];
+	  xl[1] = xlnd[nl][n1]; yl[1] = ylnd[nl][n1];
+	  xl[2] = xlnd[nl][n2]; yl[2] = ylnd[nl][n2];
+	  xl[3] = xlnd[nl][n3]; yl[3] = ylnd[nl][n3];
+	  yl_min  = minval_double(4, yl);
+	  yl_max  = maxval_double(4, yl);
+	  nl_in   = fix_lon(xl, yl, 4, M_PI);
+	  xl_min  = minval_double(nl_in, xl);
+	  xl_max  = maxval_double(nl_in, xl);
+	  xl_avg  = avgval_double(nl_in, xl);
+	}
 	for(no=0; no<ntile_ocn; no++) {
 	  for(jo = js_ocn[no]; jo <= je_ocn[no]; jo++) for(io = is_ocn[no]; io <= ie_ocn[no]; io++) if(omask[no][jo*nxo[no]+io] > MIN_AREA_FRAC) {
 	    double ocn_frac;
-	    n0 = jo    *(nxo[no]+1) + io;
-	    n1 = jo    *(nxo[no]+1) + io+1;
-	    n2 = (jo+1)*(nxo[no]+1) + io+1;
-	    n3 = (jo+1)*(nxo[no]+1) + io;
-	    xo[0] = xocn[no][n0]; yo[0] = yocn[no][n0];
-	    xo[1] = xocn[no][n1]; yo[1] = yocn[no][n1];
-	    xo[2] = xocn[no][n2]; yo[2] = yocn[no][n2];
-	    xo[3] = xocn[no][n3]; yo[3] = yocn[no][n3];
-	    yo_min = minval_double(4, yo);
-	    yo_max = maxval_double(4, yo);
-            if(yo_min >= yl_max || yo_max <= yl_min ) continue;	    
-	    no_in  = fix_lon(xo, yo, 4, xl_avg);
-	    xo_min = minval_double(no_in, xo);
-	    xo_max = maxval_double(no_in, xo);
-	    /* xo should in the same range as xa after lon_fix, so no need to
-	       consider cyclic condition
-	    */
-	    if(xl_min >= xo_max || xl_max <= xo_min ) continue;
+	    if(clip_method == GREAT_CIRCLE_CLIP) { /* clockwise */
+	      n0 = jo    *(nxo[no]+1) + io;
+	      n1 = (jo+1)*(nxo[no]+1) + io;
+	      n2 = (jo+1)*(nxo[no]+1) + io+1;
+	      n3 = jo    *(nxo[no]+1) + io+1;
+	      xo[0] = cart_xocn[no][n0]; yo[0] = cart_yocn[no][n0]; zo[0] = cart_zocn[no][n0]; 
+	      xo[1] = cart_xocn[no][n1]; yo[1] = cart_yocn[no][n1]; zo[1] = cart_zocn[no][n1]; 
+	      xo[2] = cart_xocn[no][n2]; yo[2] = cart_yocn[no][n2]; zo[2] = cart_zocn[no][n2]; 	      
+	      xo[3] = cart_xocn[no][n3]; yo[3] = cart_yocn[no][n3]; zo[3] = cart_zocn[no][n3];
+	    }
+	    else {
+	      n0 = jo    *(nxo[no]+1) + io;
+	      n1 = jo    *(nxo[no]+1) + io+1;
+	      n2 = (jo+1)*(nxo[no]+1) + io+1;
+	      n3 = (jo+1)*(nxo[no]+1) + io;
+	      xo[0] = xocn[no][n0]; yo[0] = yocn[no][n0];
+	      xo[1] = xocn[no][n1]; yo[1] = yocn[no][n1];
+	      xo[2] = xocn[no][n2]; yo[2] = yocn[no][n2];
+	      xo[3] = xocn[no][n3]; yo[3] = yocn[no][n3];
+	      yo_min = minval_double(4, yo);
+	      yo_max = maxval_double(4, yo);
+	      if(yo_min >= yl_max || yo_max <= yl_min ) continue;	    
+	      no_in  = fix_lon(xo, yo, 4, xl_avg);
+	      xo_min = minval_double(no_in, xo);
+	      xo_max = maxval_double(no_in, xo);
+	      /* xo should in the same range as xa after lon_fix, so no need to
+		 consider cyclic condition
+	      */
+	      if(xl_min >= xo_max || xl_max <= xo_min ) continue;
+	    }
 	    ocn_frac = omask[no][jo*nxo[no]+io];
-	    if (  (n_out = clip_2dx2d( xl, yl, nl_in, xo, yo, no_in, x_out, y_out )) > 0 ){
-	      xarea = poly_area(x_out, y_out, n_out )*ocn_frac;
+	    if(clip_method == GREAT_CIRCLE_CLIP) {
+	      n_out = clip_2dx2d_great_circle(xl, yl, zl, 4, xo, yo, zo, 4,
+						x_out, y_out, z_out);
+	    }
+	    else
+	      n_out = clip_2dx2d( xl, yl, nl_in, xo, yo, no_in, x_out, y_out );
+	    
+	    if (  n_out > 0 ){
+	      if(clip_method == GREAT_CIRCLE_CLIP)
+		xarea=great_circle_area ( n_out, x_out, y_out, z_out)*ocn_frac;
+	      else
+		xarea = poly_area(x_out, y_out, n_out )*ocn_frac;
 	      min_area = min(area_ocn[no][jo*nxo[no]+io], area_lnd[nl][ll] );
-	      if(xarea/min_area > AREA_RATIO_THRESH ) {
+	      if(xarea/min_area > area_ratio_thresh ) {
 		lndxocn_area[nl][no][nlxo[nl][no]] = xarea;
 		lndxocn_io[nl][no][nlxo[nl][no]]   = io;
 		lndxocn_jo[nl][no][nlxo[nl][no]]   = jo;
@@ -2359,6 +2719,7 @@ int main (int argc, char *argv[])
 	  fid = mpp_open(lxo_file[nfile_lxo], MPP_WRITE);
 	  mpp_def_global_att(fid, "grid_version", grid_version);
           mpp_def_global_att(fid, "code_version", tagname);
+	  if( clip_method == GREAT_CIRCLE_CLIP) mpp_def_global_att(fid, "great_circle_algorithm", "TRUE");
 	  mpp_def_global_att(fid, "history", history);
 	  dim_string = mpp_def_dim(fid, "string", STRING);
 	  dim_ncells = mpp_def_dim(fid, "ncells", nxgrid);
@@ -2402,6 +2763,7 @@ int main (int argc, char *argv[])
 	  gdata_dbl = (double *)malloc(nxgrid*sizeof(double));
 
 	  mpp_gather_field_double(nlxo[nl][no], lndxocn_area[nl][no], gdata_dbl);
+	  
 	  mpp_put_var_value(fid, id_xgrid_area, gdata_dbl);
 	  mpp_gather_field_int(nlxo[nl][no], lndxocn_il[nl][no], gdata_int);
 	  mpp_put_var_value_block(fid, id_tile1_cell, start, nwrite, gdata_int);
@@ -2565,8 +2927,8 @@ int main (int argc, char *argv[])
       double   xo_min, yo_min, xw_min, yw_min, xw_avg;
       double   xo_max, yo_max, xw_max, yw_max;
       double   xarea;
-      double   xw[MV], yw[MV], xo[MV], yo[MV];
-      double   x_out[MV], y_out[MV];
+      double   xw[MV], yw[MV], zw[MV], xo[MV], yo[MV], zo[MV];
+      double   x_out[MV], y_out[MV], z_out[MV];
       size_t   count;
       domain2D Dom;
       double   yy;
@@ -2587,102 +2949,139 @@ int main (int argc, char *argv[])
       je_ocn = (int *)malloc(ntile_ocn*sizeof(int));
       yw_min = 9999;
       yw_max = -9999;
-      
-      for(lw=is;lw<=ie;lw++) {
-	
-	iw = lw%nxw[nw];
-	jw = lw/nxw[nw];
-	n0 = jw    *(nxw[nw]+1) + iw;
-	n1 = jw    *(nxw[nw]+1) + iw+1;
-	n2 = (jw+1)*(nxw[nw]+1) + iw+1;
-	n3 = (jw+1)*(nxw[nw]+1) + iw;
-	
-	yw[0] = ywav[nw][n0];
-        yw[1] = ywav[nw][n1];
-	yw[2] = ywav[nw][n2];
-        yw[3] = ywav[nw][n3];
-	if(yw[0] > yw_max) yw_max = yw[0];
-	if(yw[1] > yw_max) yw_max = yw[1];
-	if(yw[2] > yw_max) yw_max = yw[2];
-	if(yw[3] > yw_max) yw_max = yw[3];
-	if(yw[0] < yw_min) yw_min = yw[0];
-	if(yw[1] < yw_min) yw_min = yw[1];
-	if(yw[2] < yw_min) yw_min = yw[2];
-	if(yw[3] < yw_min) yw_min = yw[3];
-      }
-      /*      printf("yw_min=%f, yw_max=%f\n", yw_min, yw_max); */
-     
-      for(no=0; no<ntile_ocn; no++) {
-	js_ocn[no] = nyo[no]; je_ocn[no] = -1;
-	for(jo = 0; jo <= nyo[no]; jo ++) for(io = 0; io <= nxo[no]; io++) {
-	  yy = yocn[no][jo    *(nxo[no]+1) + io];
-	  if( yy > yw_min && yy < yw_max ) {
-	    if(jo > je_ocn[no] ) je_ocn[no] = jo;
-	    if(jo < js_ocn[no] ) js_ocn[no] = jo;
-	  }
-	}
-	js_ocn[no] = max(0, js_ocn[no]-1);
-	je_ocn[no] = min(nyo[no]-1, je_ocn[no]+1);
 
-	if(no==nw ||  !wav_same_as_ocn ) {
+      if(clip_method == GREAT_CIRCLE_CLIP) {
+	for(no=0; no<ntile_ocn; no++) {
 	  is_ocn[no] = 0;
 	  ie_ocn[no] = nxo[no]-1;
+	  js_ocn[no] = 0;
+	  je_ocn[no] = nyo[no]-1;
 	}
-	else {
-	  is_ocn[no] = nxo[no]-1;
-	  ie_ocn[no] = 0;
-	}
-       
       }
+      else {
+	for(lw=is;lw<=ie;lw++) {
+	
+	  iw = lw%nxw[nw];
+	  jw = lw/nxw[nw];
+	  n0 = jw    *(nxw[nw]+1) + iw;
+	  n1 = jw    *(nxw[nw]+1) + iw+1;
+	  n2 = (jw+1)*(nxw[nw]+1) + iw+1;
+	  n3 = (jw+1)*(nxw[nw]+1) + iw;
+	
+	  yw[0] = ywav[nw][n0];
+	  yw[1] = ywav[nw][n1];
+	  yw[2] = ywav[nw][n2];
+	  yw[3] = ywav[nw][n3];
+	  if(yw[0] > yw_max) yw_max = yw[0];
+	  if(yw[1] > yw_max) yw_max = yw[1];
+	  if(yw[2] > yw_max) yw_max = yw[2];
+	  if(yw[3] > yw_max) yw_max = yw[3];
+	  if(yw[0] < yw_min) yw_min = yw[0];
+	  if(yw[1] < yw_min) yw_min = yw[1];
+	  if(yw[2] < yw_min) yw_min = yw[2];
+	  if(yw[3] < yw_min) yw_min = yw[3];
+	}
+	/*      printf("yw_min=%f, yw_max=%f\n", yw_min, yw_max); */
      
+	for(no=0; no<ntile_ocn; no++) {
+	  js_ocn[no] = nyo[no]; je_ocn[no] = -1;
+	  for(jo = 0; jo <= nyo[no]; jo ++) for(io = 0; io <= nxo[no]; io++) {
+	    yy = yocn[no][jo    *(nxo[no]+1) + io];
+	    if( yy > yw_min && yy < yw_max ) {
+	      if(jo > je_ocn[no] ) je_ocn[no] = jo;
+	      if(jo < js_ocn[no] ) js_ocn[no] = jo;
+	    }
+	  }
+	  js_ocn[no] = max(0, js_ocn[no]-1);
+	  je_ocn[no] = min(nyo[no]-1, je_ocn[no]+1);
+
+	  if(no==nw ||  !wav_same_as_ocn ) {
+	    is_ocn[no] = 0;
+	    ie_ocn[no] = nxo[no]-1;
+	  }
+	  else {
+	    is_ocn[no] = nxo[no]-1;
+	    ie_ocn[no] = 0;
+	  }
+	}
+      }
       for(lw=is;lw<=ie;lw++) {
        	if(mpp_pe()==mpp_root_pe() && verbose)printf("nw = %d, lw = %d, is=%d, ie = %d\n", nw, lw, is, ie);
 	iw = lw%nxw[nw];
 	jw = lw/nxw[nw];
-	n0 = jw    *(nxw[nw]+1) + iw;
-	n1 = jw    *(nxw[nw]+1) + iw+1;
-	n2 = (jw+1)*(nxw[nw]+1) + iw+1;
-	n3 = (jw+1)*(nxw[nw]+1) + iw;
-	xw[0] = xwav[nw][n0]; yw[0] = ywav[nw][n0];
-        xw[1] = xwav[nw][n1]; yw[1] = ywav[nw][n1];
-	xw[2] = xwav[nw][n2]; yw[2] = ywav[nw][n2];
-        xw[3] = xwav[nw][n3]; yw[3] = ywav[nw][n3];
-	yw_min  = minval_double(4, yw);
-	yw_max  = maxval_double(4, yw);
-	nw_in   = fix_lon(xw, yw, 4, M_PI);
-	xw_min  = minval_double(nw_in, xw);
-	xw_max  = maxval_double(nw_in, xw);
-	xw_avg  = avgval_double(nw_in, xw);
-	count = 0;
+	if(clip_method == GREAT_CIRCLE_CLIP) { /* clockwise */
+	  n0 = jw    *(nxw[nw]+1) + iw;
+	  n1 = (jw+1)*(nxw[nw]+1) + iw;
+	  n2 = (jw+1)*(nxw[nw]+1) + iw+1;
+	  n3 = jw    *(nxw[nw]+1) + iw+1;	      
+	  xw[0] = cart_xwav[nw][n0]; yw[0] = cart_ywav[nw][n0]; zw[0] = cart_zwav[nw][n0];
+	  xw[1] = cart_xwav[nw][n1]; yw[1] = cart_ywav[nw][n1]; zw[1] = cart_zwav[nw][n1];
+	  xw[2] = cart_xwav[nw][n2]; yw[2] = cart_ywav[nw][n2]; zw[2] = cart_zwav[nw][n2];
+	  xw[3] = cart_xwav[nw][n3]; yw[3] = cart_ywav[nw][n3]; zw[3] = cart_zwav[nw][n3];
+	}
+	else {	
+	  n0 = jw    *(nxw[nw]+1) + iw;
+	  n1 = jw    *(nxw[nw]+1) + iw+1;
+	  n2 = (jw+1)*(nxw[nw]+1) + iw+1;
+	  n3 = (jw+1)*(nxw[nw]+1) + iw;
+	  xw[0] = xwav[nw][n0]; yw[0] = ywav[nw][n0];
+	  xw[1] = xwav[nw][n1]; yw[1] = ywav[nw][n1];
+	  xw[2] = xwav[nw][n2]; yw[2] = ywav[nw][n2];
+	  xw[3] = xwav[nw][n3]; yw[3] = ywav[nw][n3];
+	  yw_min  = minval_double(4, yw);
+	  yw_max  = maxval_double(4, yw);
+	  nw_in   = fix_lon(xw, yw, 4, M_PI);
+	  xw_min  = minval_double(nw_in, xw);
+	  xw_max  = maxval_double(nw_in, xw);
+	  xw_avg  = avgval_double(nw_in, xw);
+	}
 
 	/* calculate wave/ocean x-cells */
 	for(no=0; no<ntile_ocn; no++) {
 	  for(jo = js_ocn[no]; jo <= je_ocn[no]; jo++) for(io = is_ocn[no]; io <= ie_ocn[no]; io++) {
 	    double ocn_frac;
-	    n0 = jo    *(nxo[no]+1) + io;
-	    n1 = jo    *(nxo[no]+1) + io+1;
-	    n2 = (jo+1)*(nxo[no]+1) + io+1;
-	    n3 = (jo+1)*(nxo[no]+1) + io;
-	    xo[0] = xocn[no][n0]; yo[0] = yocn[no][n0];
-	    xo[1] = xocn[no][n1]; yo[1] = yocn[no][n1];
-	    xo[2] = xocn[no][n2]; yo[2] = yocn[no][n2];
-	    xo[3] = xocn[no][n3]; yo[3] = yocn[no][n3];
-	    yo_min = minval_double(4, yo);
-	    yo_max = maxval_double(4, yo);
-	    no_in  = fix_lon(xo, yo, 4, xw_avg);
-	    xo_min = minval_double(no_in, xo);
-	    xo_max = maxval_double(no_in, xo);
+	    if(clip_method == GREAT_CIRCLE_CLIP) { /* clockwise */
+	      n0 = jo    *(nxo[no]+1) + io;
+	      n1 = (jo+1)*(nxo[no]+1) + io;
+	      n2 = (jo+1)*(nxo[no]+1) + io+1;
+	      n3 = jo    *(nxo[no]+1) + io+1;
+	      xo[0] = cart_xocn[no][n0]; yo[0] = cart_yocn[no][n0]; zo[0] = cart_zocn[no][n0]; 
+	      xo[1] = cart_xocn[no][n1]; yo[1] = cart_yocn[no][n1]; zo[1] = cart_zocn[no][n1]; 
+	      xo[2] = cart_xocn[no][n2]; yo[2] = cart_yocn[no][n2]; zo[2] = cart_zocn[no][n2]; 	      
+	      xo[3] = cart_xocn[no][n3]; yo[3] = cart_yocn[no][n3]; zo[3] = cart_zocn[no][n3];
+	    }
+	    else {	    
+	      n0 = jo    *(nxo[no]+1) + io;
+	      n1 = jo    *(nxo[no]+1) + io+1;
+	      n2 = (jo+1)*(nxo[no]+1) + io+1;
+	      n3 = (jo+1)*(nxo[no]+1) + io;
+	      xo[0] = xocn[no][n0]; yo[0] = yocn[no][n0];
+	      xo[1] = xocn[no][n1]; yo[1] = yocn[no][n1];
+	      xo[2] = xocn[no][n2]; yo[2] = yocn[no][n2];
+	      xo[3] = xocn[no][n3]; yo[3] = yocn[no][n3];
+	      yo_min = minval_double(4, yo);
+	      yo_max = maxval_double(4, yo);
+	      no_in  = fix_lon(xo, yo, 4, xw_avg);
+	      xo_min = minval_double(no_in, xo);
+	      xo_max = maxval_double(no_in, xo);
+	    }
 	    ocn_frac = omask[no][jo*nxo[no]+io];
 	    if(ocn_frac > MIN_AREA_FRAC) { /* over sea/ice */
 	      /* xo should in the same range as xa after lon_fix, so no need to
 		 consider cyclic condition
 	      */
-              if(xw_min >= xo_max || xw_max <= xo_min || yw_min >= yo_max || yw_max <= yo_min ) continue;	    
-
-	      if (  (n_out = clip_2dx2d( xw, yw, nw_in, xo, yo, no_in, x_out, y_out )) > 0) {
+	      if(clip_method == GREAT_CIRCLE_CLIP) {
+		n_out = clip_2dx2d_great_circle(xw, yw, zw, 4, xo, yo, zo, 4,
+						x_out, y_out, z_out);
+	      }
+	      else {
+		if(xw_min >= xo_max || xw_max <= xo_min || yw_min >= yo_max || yw_max <= yo_min ) continue;
+		n_out = clip_2dx2d( xw, yw, nw_in, xo, yo, no_in, x_out, y_out);
+	      }
+	      if (  n_out > 0) {
 		xarea = poly_area(x_out, y_out, n_out )*ocn_frac;
 		min_area = min(area_ocn[no][jo*nxo[no]+io], area_wav[nw][lw]);
-		if(xarea/min_area > AREA_RATIO_THRESH) {
+		if(xarea/min_area > area_ratio_thresh) {
 	    
 		  wavxocn_area[nw][no][nwxo[nw][no]] = xarea;
 		  wavxocn_io[nw][no][nwxo[nw][no]]   = io;
@@ -2889,6 +3288,7 @@ int main (int argc, char *argv[])
 	  fid = mpp_open(wav_mask_file, MPP_WRITE);
 	  mpp_def_global_att(fid, "grid_version", grid_version);
 	  mpp_def_global_att(fid, "code_version", tagname);
+	  if( clip_method == GREAT_CIRCLE_CLIP) mpp_def_global_att(fid, "great_circle_algorithm", "TRUE");
 	  mpp_def_global_att(fid, "history", history);
           	  
 
@@ -2939,6 +3339,7 @@ int main (int argc, char *argv[])
 	  fid = mpp_open(wxo_file[nfile_wxo], MPP_WRITE);
 	  mpp_def_global_att(fid, "grid_version", grid_version);
           mpp_def_global_att(fid, "code_version", tagname);
+	  if( clip_method == GREAT_CIRCLE_CLIP) mpp_def_global_att(fid, "great_circle_algorithm", "TRUE");
 	  mpp_def_global_att(fid, "history", history);
 	  dim_string = mpp_def_dim(fid, "string", STRING);
 	  dim_ncells = mpp_def_dim(fid, "ncells", nxgrid);
@@ -3079,23 +3480,47 @@ int main (int argc, char *argv[])
     double axl_area_frac_nest;
     double tiling_area;
     double tiling_area_nest;
-    double *atm_area;
     double atm_area_sum, atm_area_sum_nest;
 
     if(check) {
+      double max_ratio, cur_ratio;
+      int  max_ia, max_ja, max_ta;
+      
+      /* make sure each atmosphere grid area equal sum of the axo area and axl area (atm_xarea) */
+      max_ta = -1;
+      max_ia = -1;
+      max_ja = -1;
+      max_ratio = -1;
+
+      for(n=0; n<ntile_atm; n++) {
+	for(i=0; i<nxa[n]*nya[n]; i++) {
+	  cur_ratio = fabs(atm_xarea[n][i] - area_atm[n][i])/area_atm[n][i];
+	  if(cur_ratio > 1.e-5) {
+	    printf("at tile =%d, i=%d, j=%d, ratio=%g, area1=%g, area2=%g\n", 
+		   n, i%nxa[n], i/nxa[n], cur_ratio,  area_atm[n][i], atm_xarea[n][i] );
+	  }
+	  if(cur_ratio > max_ratio) {
+	    max_ratio = cur_ratio;
+	    max_ta = n;
+	    max_ja = i/nxa[n];
+	    max_ia = i%nxa[n];
+	  }
+	}
+      }
+
+      printf("The maximum area is at tile=%d, i=%d, j=%d, ratio=%g, area1=%g, area2=%g\n",
+	     max_ta, max_ia, max_ja, max_ratio, area_atm[max_ta][max_ja*nxa[max_ta]+max_ia],
+	     atm_xarea[max_ta][max_ja*nxa[max_ta]+max_ia]);
       /* for cubic grid, when number of model points is odd, some grid cell area will be negative,
 	 need to think about how to solve this issue in the future */
       /*      atm_area_sum = 4*M_PI*RADIUS*RADIUS; */
       atm_area_sum = 0;
       atm_area_sum_nest = 0;
       for(n=0; n<ntile_atm; n++) {
-	atm_area = (double *)malloc(nxa[n]*nya[n]*sizeof(double));
-	get_grid_area(&nxa[n], &nya[n], xatm[n], yatm[n], atm_area);
 	if( n== tile_nest )
-	  for(i=0; i<nxa[n]*nya[n]; i++) atm_area_sum_nest += atm_area[i];
+	  for(i=0; i<nxa[n]*nya[n]; i++) atm_area_sum_nest += area_atm[n][i];
 	else
-	  for(i=0; i<nxa[n]*nya[n]; i++) atm_area_sum += atm_area[i];
-	free(atm_area);
+	  for(i=0; i<nxa[n]*nya[n]; i++) atm_area_sum += area_atm[n][i];
       }
       axo_area_frac = axo_area_sum/atm_area_sum*100;
       axl_area_frac = axl_area_sum/atm_area_sum*100;
@@ -3131,6 +3556,7 @@ int main (int argc, char *argv[])
     fid = mpp_open(mosaic_file, MPP_WRITE);
     mpp_def_global_att(fid, "grid_version", grid_version);
     mpp_def_global_att(fid, "code_version", tagname);
+    if( clip_method == GREAT_CIRCLE_CLIP) mpp_def_global_att(fid, "great_circle_algorithm", "TRUE");
     mpp_def_global_att(fid, "history", history);
     dim_string = mpp_def_dim(fid, "string", STRING);
     dim_axo = mpp_def_dim(fid, "nfile_aXo", nfile_axo);
@@ -3174,10 +3600,13 @@ int main (int argc, char *argv[])
 	  1, "standard_name", "directory_storing_xgrids"); */
     dims[0] = dim_axo; dims[1] = dim_string;
     id_axo_file = mpp_def_var(fid, "aXo_file", MPP_CHAR, 2, dims, 1, "standard_name", "atmXocn_exchange_grid_file");
+
     dims[0] = dim_axl; dims[1] = dim_string;
     id_axl_file = mpp_def_var(fid, "aXl_file", MPP_CHAR, 2, dims, 1, "standard_name", "atmXlnd_exchange_grid_file");
+
     dims[0] = dim_lxo; dims[1] = dim_string;
     id_lxo_file = mpp_def_var(fid, "lXo_file", MPP_CHAR, 2, dims, 1, "standard_name", "lndXocn_exchange_grid_file");
+
     if(nfile_wxo >0) {
       dims[0] = dim_wxo; dims[1] = dim_string;
       id_wxo_file = mpp_def_var(fid, "wXo_file", MPP_CHAR, 2, dims, 1, "standard_name", "wavXocn_exchange_grid_file");
@@ -3240,6 +3669,7 @@ int main (int argc, char *argv[])
   }
   
   if(mpp_pe()== mpp_root_pe() && verbose)printf("\n***** Congratulation! You have successfully run make_coupler_mosaic\n");
+
   mpp_end();
 
   return 0;

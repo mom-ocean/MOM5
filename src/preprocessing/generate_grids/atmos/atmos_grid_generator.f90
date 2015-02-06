@@ -37,7 +37,7 @@ program grid_generator
   implicit none
 
   character(len=128), parameter :: version= '$Id: atmos_grid_generator.f90,v 10.0 2003/10/24 22:01:43 fms Exp $'
-  character(len=128), parameter :: tagname='$Name: siena_201207 $'
+  character(len=128), parameter :: tagname='$Name: tikal $'
 
   type(atmos_grid_type) :: Hgrid  
   integer               :: unit   ! output_file io unit

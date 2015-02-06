@@ -40,7 +40,7 @@ character(len=128), parameter :: version = &
 '$Id: spectral_init_cond.F90,v 19.0 2012/01/06 20:35:39 fms Exp $'
 
 character(len=128), parameter :: tagname = &
-'$Name: siena_201207 $'
+'$Name: tikal $'
 
 public :: spectral_init_cond
 

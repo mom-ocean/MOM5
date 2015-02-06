@@ -48,7 +48,7 @@ char *usage[] = {
 
 
 char grid_version[] = "0.2";
-char tagname[] = "$Name: siena_201207 $";
+char tagname[] = "$Name: tikal $";
 
 void get_file_name(char *file, char *filename)
 {
@@ -78,15 +78,23 @@ int main (int argc, char *argv[])
   int *nx, *ny;
   double **lonb, **latb, **land_area, **ocean_area, **cell_area;
   char **axl_file = NULL, **axo_file=NULL, **lxo_file=NULL;
+  char **tilename = NULL;
   char **ocn_topog_file = NULL;
   char *input_mosaic = NULL;
   char *ocean_topog = NULL;
   double sea_level = 0.;
   char mosaic_name[STRING] = "mosaic", mosaic_file[STRING];
   char griddir[STRING], solo_mosaic[STRING], filepath[STRING];
+  char solo_mosaic_full_path[STRING] = "./";
+  char solo_mosaic_dir[STRING] = "./";
+  char ocn_topog_dir[STRING] = "./";
+  char amosaic_name[STRING] = "atmos_mosaic";
+  char omosaic_name[STRING] = "ocean_mosaic";
+  char lmosaic_name[STRING] = "land_mosaic";
   char history[512];
   int  use_ocean_topog = 0;  
-
+  int  fid_solo_mosaic, tid_gridtile;
+  
   static struct option long_options[] = {
     {"input_mosaic",       required_argument, NULL, 'i'},
     {"mosaic_name",        required_argument, NULL, 'm'},
@@ -172,11 +180,12 @@ int main (int argc, char *argv[])
 	mpp_error("make_quick_mosaic: The input mosaic file location should not be current directory");
     }
   
-    sprintf(filepath, "%s/%s", griddir, solo_mosaic);
   }
 
   sprintf(filepath, "%s/%s", griddir, solo_mosaic);
+  strcpy(solo_mosaic_full_path, filepath);
   ntiles = read_mosaic_ntiles(filepath);
+  
   if(use_ocean_topog ) nfile_aXl = ntiles;
   /* copy the solo_mosaic file and grid file */
   {
@@ -187,6 +196,7 @@ int main (int argc, char *argv[])
 
     system(cmd);
     fid2 = mpp_open(filepath, MPP_READ);
+    
     vid2 = mpp_get_varid(fid2, "gridfiles");
     for(i=0; i<4; i++) {
       start[i] = 0; nread[i] = 1;
@@ -423,18 +433,37 @@ int main (int argc, char *argv[])
   axl_file = (char **)malloc(ntiles*sizeof(char *));
   axo_file = (char **)malloc(ntiles*sizeof(char *));
   lxo_file = (char **)malloc(ntiles*sizeof(char *));
+  tilename = (char **)malloc(ntiles*sizeof(char *));
+  fid_solo_mosaic = mpp_open(solo_mosaic_full_path, MPP_READ);
+  tid_gridtile = mpp_get_varid(fid_solo_mosaic, "gridtiles");
+
   for(n=0; n<ntiles; n++) {
+    size_t start[4], nread[4];
+    
     axl_file[n] = (char *)malloc(STRING*sizeof(char));
     axo_file[n] = (char *)malloc(STRING*sizeof(char));
     lxo_file[n] = (char *)malloc(STRING*sizeof(char));
+    tilename[n] = (char *)malloc(STRING*sizeof(char));
     ocn_topog_file[n] = (char *)malloc(STRING*sizeof(char));
-    sprintf(ocn_topog_file[n], "ocean_topog_tile%d.nc", n+1);
-    sprintf(axl_file[n], "atmos_mosaic_tile%dXland_mosaic_tile%d.nc", n+1, n+1);
-    sprintf(axo_file[n], "atmos_mosaic_tile%dXocean_mosaic_tile%d.nc", n+1, n+1);
-    sprintf(lxo_file[n], "land_mosaic_tile%dXocean_mosaic_tile%d.nc", n+1, n+1);
+    for(i=0; i<4; i++) {
+      start[i] = 0; nread[i] = 1;
+    }	  
+
+    start[0] = n; start[1] = 0; nread[0] = 1; nread[1] = STRING;
+    mpp_get_var_value_block(fid_solo_mosaic, tid_gridtile, start, nread, tilename[n]);
+    if(use_ocean_topog) 
+      get_file_name(ocean_topog, ocn_topog_file[n]);
+    else
+      sprintf(ocn_topog_file[n], "ocean_topog_%s.nc", tilename[n]);
+
+    sprintf(axl_file[n], "%s_%sX%s_%s.nc", amosaic_name, tilename[n], lmosaic_name, tilename[n]);
+    sprintf(axo_file[n], "%s_%sX%s_%s.nc", amosaic_name, tilename[n], omosaic_name, tilename[n]);
+    sprintf(lxo_file[n], "%s_%sX%s_%s.nc", lmosaic_name, tilename[n], omosaic_name, tilename[n]);
+    
   }
-  
-  
+
+  mpp_close(fid_solo_mosaic);
+
   for(n=0; n<ntiles; n++) {
     int *i1, *j1, *i2, *j2;
     double *area, *di, *dj;
@@ -444,11 +473,11 @@ int main (int argc, char *argv[])
     int id_xgrid_area, id_tile1_dist, id_tile2_dist;
     size_t start[4], nwrite[4];
     char contact[STRING];
-
+    
     for(i=0; i<4; i++) {
       start[i] = 0; nwrite[i] = 1;
-    }	  
-    
+    } 
+
     /* first calculate the atmXlnd exchange grid */
     i1 = (int *)malloc(nx[n]*ny[n]*sizeof(int));
     j1 = (int *)malloc(nx[n]*ny[n]*sizeof(int));
@@ -474,7 +503,7 @@ int main (int argc, char *argv[])
     }
  
     fid = mpp_open(axl_file[n], MPP_WRITE);
-    sprintf(contact, "atmos_mosaic:tile%d::land_mosaic:tile%d", n+1, n+1);
+    sprintf(contact, "atmos_mosaic:%s::land_mosaic:%s", tilename[n], tilename[n]);
     mpp_def_global_att(fid, "grid_version", grid_version);
     mpp_def_global_att(fid, "code_version", tagname);
     mpp_def_global_att(fid, "history", history);
@@ -524,7 +553,8 @@ int main (int argc, char *argv[])
       }
     }    
     fid = mpp_open(axo_file[n], MPP_WRITE);
-    sprintf(contact, "atmos_mosaic:tile%d::ocean_mosaic:tile%d", n+1, n+1);
+    
+    sprintf(contact, "atmos_mosaic:%s::ocean_mosaic:%s", tilename[n], tilename[n]);
     mpp_def_global_att(fid, "grid_version", grid_version);
     mpp_def_global_att(fid, "code_version", tagname);
     mpp_def_global_att(fid, "history", history);
@@ -562,7 +592,7 @@ int main (int argc, char *argv[])
     
     /* write out landXocean exchange grid information */
     fid = mpp_open(lxo_file[n], MPP_WRITE);
-    sprintf(contact, "land_mosaic:tile%d::ocean_mosaic:tile%d", n+1, n+1);
+    sprintf(contact, "land_mosaic:%s::ocean_mosaic:%s", tilename[n], tilename[n]);
     mpp_def_global_att(fid, "grid_version", grid_version);
     mpp_def_global_att(fid, "code_version", tagname);
     mpp_def_global_att(fid, "history", history);
@@ -606,14 +636,17 @@ int main (int argc, char *argv[])
     free(di);
     free(dj);
   }
+
   
   /*Fianlly create the coupler mosaic file mosaic_name.nc */
   {
     int dim_string, dim_axo, dim_axl, dim_lxo, dims[2];
+    int id_amosaic, id_lmosaic, id_omosaic;
     int id_amosaic_file, id_lmosaic_file, id_omosaic_file, id_otopog_file;
+    int id_amosaic_dir, id_lmosaic_dir, id_omosaic_dir, id_otopog_dir;
     int id_axo_file, id_axl_file, id_lxo_file;
     size_t start[4], nwrite[4];
-
+    
     for(i=0; i<4; i++) {
       start[i] = 0; nwrite[i] = 1;
     }	      
@@ -625,15 +658,32 @@ int main (int argc, char *argv[])
     dim_string = mpp_def_dim(fid, "string", STRING);
     dim_axo = mpp_def_dim(fid, "nfile_aXo", ntiles);
     dim_axl = mpp_def_dim(fid, "nfile_aXl", ntiles);
-    dim_lxo = mpp_def_dim(fid, "nfile_lXo", ntiles);    
+    dim_lxo = mpp_def_dim(fid, "nfile_lXo", ntiles);
+
+    id_amosaic_dir  = mpp_def_var(fid, "atm_mosaic_dir", MPP_CHAR, 1, &dim_string,
+                                  1, "standard_name", "directory_storing_atmosphere_mosaic");
     id_amosaic_file = mpp_def_var(fid, "atm_mosaic_file", MPP_CHAR, 1, &dim_string,
-				  1, "standard_name", "atmosphere_mosaic_file_name");
+                                  1, "standard_name", "atmosphere_mosaic_file_name");
+    id_amosaic      = mpp_def_var(fid, "atm_mosaic", MPP_CHAR, 1, &dim_string,
+                                  1, "standard_name", "atmosphere_mosaic_name");
+    id_lmosaic_dir  = mpp_def_var(fid, "lnd_mosaic_dir", MPP_CHAR, 1, &dim_string,
+                                  1, "standard_name", "directory_storing_land_mosaic");
     id_lmosaic_file = mpp_def_var(fid, "lnd_mosaic_file", MPP_CHAR, 1, &dim_string,
-				  1, "standard_name", "land_mosaic_file_name");
+                                  1, "standard_name", "land_mosaic_file_name");
+    id_lmosaic      = mpp_def_var(fid, "lnd_mosaic", MPP_CHAR, 1, &dim_string,
+                                  1, "standard_name", "land_mosaic_name");
+    id_omosaic_dir  = mpp_def_var(fid, "ocn_mosaic_dir", MPP_CHAR, 1, &dim_string,
+                                  1, "standard_name", "directory_storing_ocean_mosaic");
     id_omosaic_file = mpp_def_var(fid, "ocn_mosaic_file", MPP_CHAR, 1, &dim_string,
-				  1, "standard_name", "ocean_mosaic_file_name");
-    id_otopog_file  = mpp_def_var(fid, "ocn_topog_file", MPP_CHAR, 1, &dim_string,
-				  1, "standard_name", "ocean_topog_file_name");    
+                                  1, "standard_name", "ocean_mosaic_file_name");
+    id_omosaic      = mpp_def_var(fid, "ocn_mosaic", MPP_CHAR, 1, &dim_string,
+                                  1, "standard_name", "ocean_mosaic_name");
+    if(use_ocean_topog) {   
+       id_otopog_dir   = mpp_def_var(fid, "ocn_topog_dir", MPP_CHAR, 1, &dim_string,
+                                     1, "standard_name", "directory_storing_ocean_topog");
+       id_otopog_file  = mpp_def_var(fid, "ocn_topog_file", MPP_CHAR, 1, &dim_string,
+               		             1, "standard_name", "ocean_topog_file_name");
+    }    
     dims[0] = dim_axo; dims[1] = dim_string;
     id_axo_file = mpp_def_var(fid, "aXo_file", MPP_CHAR, 2, dims, 1, "standard_name", "atmXocn_exchange_grid_file");
     dims[0] = dim_axl; dims[1] = dim_string;
@@ -641,14 +691,32 @@ int main (int argc, char *argv[])
     dims[0] = dim_lxo; dims[1] = dim_string;
     id_lxo_file = mpp_def_var(fid, "lXo_file", MPP_CHAR, 2, dims, 1, "standard_name", "lndXocn_exchange_grid_file");
     mpp_end_def(fid);    
+
+    nwrite[0] = strlen(solo_mosaic_dir);
+    mpp_put_var_value_block(fid, id_amosaic_dir, start, nwrite, solo_mosaic_dir);
+    mpp_put_var_value_block(fid, id_lmosaic_dir, start, nwrite, solo_mosaic_dir);
+    mpp_put_var_value_block(fid, id_omosaic_dir, start, nwrite, solo_mosaic_dir);				  
     nwrite[0] = strlen(solo_mosaic);
     mpp_put_var_value_block(fid, id_lmosaic_file, start, nwrite, solo_mosaic);
     mpp_put_var_value_block(fid, id_amosaic_file, start, nwrite, solo_mosaic);
     mpp_put_var_value_block(fid, id_omosaic_file, start, nwrite, solo_mosaic);
+    nwrite[0] = strlen(amosaic_name);
+    mpp_put_var_value_block(fid, id_amosaic, start, nwrite, amosaic_name);
+    nwrite[0] = strlen(lmosaic_name);
+    mpp_put_var_value_block(fid, id_lmosaic, start, nwrite, lmosaic_name);
+    nwrite[0] = strlen(omosaic_name);
+    mpp_put_var_value_block(fid, id_omosaic, start, nwrite, omosaic_name);
+
     for(n=0; n<ntiles; n++) {
       start[0] = n; nwrite[0] =1;
-      nwrite[1] = strlen(ocn_topog_file[n]);
-      mpp_put_var_value_block(fid, id_otopog_file, start, nwrite, ocn_topog_file[n]);
+      start[1] = 0; nwrite[1] =1;
+      if(use_ocean_topog) {
+         nwrite[0] = strlen(ocn_topog_file[n]);
+         mpp_put_var_value_block(fid, id_otopog_file, start, nwrite, ocn_topog_file[n]);
+         nwrite[0] = strlen(ocn_topog_dir);
+         mpp_put_var_value_block(fid, id_otopog_dir, start, nwrite, ocn_topog_dir);
+      }
+      start[0] = n; nwrite[0] =1;
       nwrite[1] = strlen(axl_file[n]);
       mpp_put_var_value_block(fid, id_axl_file, start, nwrite, axl_file[n]);
       nwrite[1] = strlen(axo_file[n]);

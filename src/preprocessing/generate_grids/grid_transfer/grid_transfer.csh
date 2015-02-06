@@ -18,7 +18,7 @@
 #######################################################################
 
   set echo
-  set platform     = "gfdl_ws_64.gnu"                                # A unique identifier for your platform
+  set platform     = "ncrc.intel"                                # A unique identifier for your platform
   set npes         = 1                                      # number of processors
 
 #

@@ -111,7 +111,7 @@ use fms_io_mod,                only : get_restart_io_mode, restore_state, &
                                       register_restart_field,  &
                                       restart_file_type, save_restart, &
                                       get_mosaic_tile_file
-use constants_mod,             only : rdgas, rvgas, hlv, hls, cp_air, grav
+use constants_mod,             only : rdgas, rvgas, hlv, hls, hlf, cp_air, grav
 use cloud_rad_mod,             only : cloud_rad_init
 use diag_manager_mod,          only : register_diag_field, send_data
 use time_manager_mod,          only : time_type, get_date, get_time
@@ -190,7 +190,7 @@ private
 
 public  strat_cloud_init, strat_cloud, strat_cloud_new, strat_cloud_end,  &
         strat_cloud_sum, strat_cloud_avg, do_strat_cloud,  &
-        strat_cloud_restart
+        strat_cloud_restart, strat_cloud_time_vary
 private fill_nml_variable, strat_debug, impose_realizability, strat_alloc,&
         strat_dealloc
 
@@ -198,8 +198,8 @@ private fill_nml_variable, strat_debug, impose_realizability, strat_alloc,&
 !------------------------------------------------------------------------
 !---version number-------------------------------------------------------
 
-Character(len=128) :: Version = '$Id: strat_cloud.F90,v 19.0 2012/01/06 20:26:50 fms Exp $'
-Character(len=128) :: Tagname = '$Name: siena_201207 $'
+Character(len=128) :: Version = '$Id: strat_cloud.F90,v 20.0 2013/12/13 23:22:09 fms Exp $'
+Character(len=128) :: Tagname = '$Name: tikal $'
 
 !------------------------------------------------------------------------
 !---namelist-------------------------------------------------------------
@@ -431,15 +431,47 @@ logical,          intent(in), optional  :: do_legacy_strat_cloud
       if (trim(microphys_scheme) =='rotstayn_klein') then
         Constants%do_rk_microphys = .true.
         Constants%do_mg_microphys = .false.
+        Constants%do_mg_ncar_microphys = .false.
+        Constants%do_predicted_ice_number = .false.
       else if (trim(microphys_scheme) == 'morrison_gettelman') then
         Constants%do_rk_microphys = .false.
         Constants%do_mg_microphys = .true.
+        Constants%do_mg_ncar_microphys = .false.
+        Constants%do_predicted_ice_number = .true.
+      else if (trim(microphys_scheme) == 'mg_ncar') then
+        Constants%do_rk_microphys = .false.
+        Constants%do_mg_microphys = .false.
+        Constants%do_mg_ncar_microphys = .true.
+        Constants%do_predicted_ice_number = .true.
       else
         call error_mesg ('strat_cloud_init', &
          'invalid expression supplied for nml variable microphys_scheme', &
                                                                     FATAL)
       endif
    
+!------------------------------------------------------------------------
+!    define logicals defining macrophysics scheme which is active.
+!------------------------------------------------------------------------
+     if (trim(macrophys_scheme) == 'tiedtke') then
+       Constants%tiedtke_macrophysics = .true.
+     else
+       Constants%tiedtke_macrophysics = .false.
+     endif
+
+!------------------------------------------------------------------------
+!    define logicals defining aerosol activation scheme which is active.
+!------------------------------------------------------------------------
+     if (trim(aerosol_activation_scheme) == 'dqa') then
+       Constants%dqa_activation = .true.
+       Constants%total_activation = .false.
+     else if (trim(aerosol_activation_scheme) == 'total') then
+       Constants%dqa_activation = .false.
+       Constants%total_activation = .true.
+     else
+       call error_mesg ('strat_cloud_init',   &
+           'invalid value for aerosol_activation_scheme specified', FATAL)
+     endif
+
 !-----------------------------------------------------------------------
 !    pass values of qmin, N_land, N_ocean and as needed, do_liq_num and 
 !    do_mg_microphys to cloud_rad_mod for use there. retrieve the value of
@@ -453,12 +485,15 @@ logical,          intent(in), optional  :: do_legacy_strat_cloud
                                N_ocean_in=N_ocean,  &
                                prog_droplet_in=do_liq_num,  &
                                overlap_out=overlap)
-        else if (Constants%do_mg_microphys) then
+        else if (Constants%do_mg_microphys .or.  &
+                                     Constants%do_mg_ncar_microphys) then
           call cloud_rad_init (axes, Time, qmin_in=qmin, N_land_in=N_land,&
                                N_ocean_in=N_ocean,  &
                                prog_droplet_in=do_liq_num,  &
                                overlap_out=overlap,  &
-                               prog_ice_num_in=Constants%do_mg_microphys)
+                               qcvar_in = Nml%qcvar, &
+                          prog_ice_num_in=Constants%do_mg_microphys .or.&
+                                            Constants%do_mg_ncar_microphys)
         endif
       else
         call cloud_rad_init (axes, Time, qmin_in=qmin, N_land_in=N_land,&
@@ -785,8 +820,8 @@ end subroutine strat_cloud_init
 subroutine strat_cloud    &
          (Time, is, ie, js, je, dtcloud, pfull, phalf, radturbten2,&
           T, qv, ql, qi ,qa, omega, Mc, diff_t, LAND,              &
-          ST, SQ, SL, SI, SA, f_snow_berg, rain3d, snow3d, snowclr3d, &
-          surfrain, surfsnow, qrat, ahuco, limit_conv_cloud_frac, MASK, &
+          ST, SQ, SL, SI, SA, f_snow_berg, rain3d, snow3d, snowclr3d,   &
+          surfrain, surfsnow, qrat, ahuco, limit_conv_cloud_frac, MASK,  &
           qn, Aerosol, SN)
 
 !-------------------------------------------------------------------------
@@ -800,7 +835,7 @@ real, dimension(:,:,:), intent (in)            :: pfull, phalf, T, qv,  &
 logical, intent(in)                            :: limit_conv_cloud_frac
 real, dimension(:,:),   intent (in)            :: LAND
 real, dimension(:,:,:), intent (out)           :: ST, SQ, SL, SI, SA,  &
-                                                  rain3d, snow3d, &
+                                                  rain3d, snow3d,  &
                                                   snowclr3d, f_snow_berg
 real, dimension(:,:),   intent (out)           :: surfrain, surfsnow
 real, dimension(:,:,:), intent (in),  optional :: MASK, qn
@@ -870,6 +905,16 @@ real, dimension(:,:,:), intent (out), optional :: SN
 end subroutine strat_cloud
 
 
+subroutine strat_cloud_time_vary (dtcloud, limit_conv_cloud_frac)
+
+real, intent(in) :: dtcloud
+logical, intent(in) :: limit_conv_cloud_frac
+
+      Constants%dtcloud = dtcloud
+      Constants%inv_dtcloud = 1.0/dtcloud
+      Constants%limit_conv_cloud_frac = limit_conv_cloud_frac
+
+end subroutine strat_cloud_time_vary
 
 !#########################################################################
 
@@ -1047,7 +1092,7 @@ subroutine strat_cloud_new (Time, is, ie, js, je, dtcloud, pfull,  &
                             phalf, zhalf, zfull, radturbten2, &
                             T_in, qv_in, ql_in, qi_in, qa_in, omega, Mc, &
                             diff_t, LAND, ST_out, SQ_out, SL_out, SI_out, &
-                            SA_out, f_snow_berg, rain3d, snow3d, &
+                            SA_out, f_snow_berg, rain3d, snow3d,    &
                             snowclr3d, surfrain, &
                             surfsnow, qrat, ahuco, limit_conv_cloud_frac, &
                             Aerosol, MASK3d, qn_in, SN_out, qni_in,  &
@@ -1124,8 +1169,8 @@ real, dimension(:,:,:), intent (out), optional :: SN_out, SNi_out,  &
 !------------------------------------------------------------------------
 !  counter of columns in which mg_micro is not computed due to negative
 !  water in column (activated by setting debugo4 to .true.)
-      integer :: nrefuse
-      
+      integer :: nrefuse 
+
       outunit = stdout()
 
 !-----------------------------------------------------------------------
@@ -1143,7 +1188,8 @@ real, dimension(:,:,:), intent (out), optional :: SN_out, SNi_out,  &
           Constants%mask_present = .false.
           Constants%mask = 1.0       
         END IF
-      ELSE if (Constants%do_mg_microphys) then
+      ELSE if (Constants%do_mg_microphys .or.    &
+                                     Constants%do_mg_ncar_microphys) then
         IF ( .NOT. present(SNi_out)) THEN
           call error_mesg ('strat_cloud_new_mod', &
              'morrison gettelman microp requires progn. ice num ',  FATAL) 
@@ -1238,9 +1284,6 @@ real, dimension(:,:,:), intent (out), optional :: SN_out, SNi_out,  &
 !-----------------------------------------------------------------------
       ST_out = 0.
       SQ_out = 0.
-      Constants%dtcloud = dtcloud
-      Constants%inv_dtcloud = 1.0/dtcloud
-      Constants%limit_conv_cloud_frac = limit_conv_cloud_frac
       call mpp_clock_end (sc_init)
 
 !-----------------------------------------------------------------------
@@ -1310,23 +1353,30 @@ real, dimension(:,:,:), intent (out), optional :: SN_out, SNi_out,  &
                     Cloud_state, ST_out, SQ_out, Cloud_processes,   &
                     Particles, n_diag_4d, diag_4d, diag_id, diag_pt, otun) 
       call mpp_clock_end (sc_nccond)
-
+      
 !------------------------------------------------------------------------
 !    define the mean droplet number after this timestep's activation. note
 !    that if the cloud area has not increased during the timestep in r-k 
 !    microphysics, then droplet number does not increase.
-!    tmp5:  A_dt * (1.-qabar)   where A_dt = A*dt , A source rate
+!    delta_cf:  A_dt * (1.-qabar)   where A_dt = A*dt , A source rate
 !    Eq. 7 of Yi's 2007 paper
 !------------------------------------------------------------------------
       call mpp_clock_begin (sc_after)
       do k=1,kdim
         do j=1,jdim
           do i=1,idim
+            if (diag_id%potential_droplets > 0 .and.   &
+                      Cloud_processes%da_ls(i,j,k) <= 0.0)   &
+                           diag_4d(i,j,k,diag_pt%potential_droplets) = 0.0
+            if (diag_id%subgrid_w_variance > 0 .and.   &
+                      Cloud_processes%da_ls(i,j,k) <= 0.0)   &
+                           diag_4d(i,j,k,diag_pt%subgrid_w_variance) = 0.0
             if (Cloud_processes%da_ls(i,j,k) > 0.0 .or.  &
+                                  Constants%do_mg_ncar_microphys .or.  &
                                           Constants%do_mg_microphys) then
               Cloud_state%qn_mean(i,j,k) =   &
                     Cloud_state%qn_upd(i,j,k) +   &
-                        max(Cloud_processes%tmp5(i,j,k),0.)*  &
+                        max(Cloud_processes%delta_cf(i,j,k),0.)*  &
                            Particles%drop1(i,j,k)*1.e6/  &
                                                Atmos_state%airdens(i,j,k)
             else
@@ -1350,6 +1400,14 @@ real, dimension(:,:,:), intent (out), optional :: SN_out, SNi_out,  &
                          Cloud_state%qa_upd_0, Cloud_state%SA_0, &
                          nrefuse, isamp, jsamp, ksamp, debugo, debugo0, &
                          debugo1)    
+      if (Constants%do_mg_ncar_microphys .or.  &
+                                          Constants%do_mg_microphys) then
+        if (diag_id%qadt_limits + diag_id%qa_limits_col > 0)    &
+            diag_4d(:,:,:,diag_pt%qadt_limits) =    &
+                   (Cloud_state%SA_out(:,:,:) - &
+                            diag_4d(:,:,:,diag_pt%qadt_limits)) *  &
+                                               Constants%inv_dtcloud
+      endif
       call mpp_clock_end (sc_micro)
 
 !-----------------------------------------------------------------------
@@ -1361,7 +1419,17 @@ real, dimension(:,:,:), intent (out), optional :: SN_out, SNi_out,  &
       SA_out = Cloud_state%SA_out
       rain3d = Precip_state%rain3d
       snow3d = Precip_state%snow3d
-      snowclr3d = Precip_state%snowclr3d
+!RSH
+!  for r-k, snow in cloud is included in cloud ice. For mg and ncar,
+!  snow is not included in cloud ice, so all snow must be put into
+!  snowclr3d which for those schemes is used to hold the total 
+!  precipitating ice field.
+      if (Constants%do_mg_ncar_microphys .or.  &
+                                          Constants%do_mg_microphys) then
+        snowclr3d = Precip_state%snow3d
+      else
+        snowclr3d = Precip_state%snowclr3d
+      endif
       surfrain = Precip_state%surfrain
       surfsnow = Precip_state%surfsnow
       f_snow_berg = Cloud_processes%f_snow_berg
@@ -1379,27 +1447,244 @@ real, dimension(:,:,:), intent (out), optional :: SN_out, SNi_out,  &
 !-----------------------------------------------------------------------
 !    define some diagnostics.
 !-----------------------------------------------------------------------
-      if (diag_id%rain3d > 0) then
-        diag_4d_kp1(:,:,:,diag_pt%rain3d) = Precip_state%rain3d(:,:,:)
+      if (diag_id%SA3d + diag_id%SA2d > 0) then
+        diag_4d(:,:,:,diag_pt%SA3d) = SA_out(:,:,:)*Constants%inv_dtcloud
       endif
-      if (diag_id%snow3d > 0) then
-        diag_4d_kp1(:,:,:,diag_pt%snow3d) = Precip_state%snow3d(:,:,:)
+      if (diag_id%ST3d + diag_id%ST2d > 0) then
+        diag_4d(:,:,:,diag_pt%ST3d) = ST_out(:,:,:)*Constants%inv_dtcloud
       endif
-      if ( diag_id%debug5_3d > 0 ) then  
-        diag_4d(:,:,:,diag_pt%debug5_3d) =   &
-                                 MIN(diag_4d(:,:,:,diag_pt%debug5_3d), 1.)
+      if (diag_id%SQ3d + diag_id%SQ2d > 0) then
+        diag_4d(:,:,:,diag_pt%SQ3d) = SQ_out(:,:,:)*Constants%inv_dtcloud
+      endif
+      if (diag_id%SL3d + diag_id%SL2d > 0) then
+        diag_4d(:,:,:,diag_pt%SL3d) = SL_out(:,:,:)*Constants%inv_dtcloud
+      endif
+      if (diag_id%SI3d + diag_id%SI2d > 0) then
+        diag_4d(:,:,:,diag_pt%SI3d) = SI_out(:,:,:)*Constants%inv_dtcloud
+      endif
+      if (diag_id%SN3d + diag_id%SN2d > 0) then
+        diag_4d(:,:,:,diag_pt%SN3d) = Cloud_state%SN_out(:,:,:)*   &
+                                                    Constants%inv_dtcloud
+      endif
+      if (diag_id%SNI3d + diag_id%SNI2d > 0) then
+        diag_4d(:,:,:,diag_pt%SNI3d) = Cloud_state%SNI_out(:,:,:)*   &
+                                                    Constants%inv_dtcloud
+      endif
+        
+!-----------------------------------------------------------------------
+!    define some diagnostics.
+!-----------------------------------------------------------------------
+      if (diag_id%SA_imb + diag_id%SA_imb_col > 0) then
+        diag_4d(:,:,:,diag_pt%SA_imb) =    &
+             diag_4d(:,:,:,diag_pt%SA3d) -   (       &
+                diag_4d(:,:,:,diag_pt%qadt_lsform)   &
+             +  diag_4d(:,:,:,diag_pt%qadt_lsdiss)   &
+             +  diag_4d(:,:,:,diag_pt%qadt_rhred)    &
+             +  diag_4d(:,:,:,diag_pt%qadt_eros)     &
+             +  diag_4d(:,:,:,diag_pt%qadt_fill)     &
+             +  diag_4d(:,:,:,diag_pt%qadt_super)    &
+             +  diag_4d(:,:,:,diag_pt%qadt_destr)    &
+             +  diag_4d(:,:,:,diag_pt%qadt_limits)   &
+             +  diag_4d(:,:,:,diag_pt%qadt_ahuco)    &
+                                                          )
+      endif
+      if (diag_id%SL_imb + diag_id%SL_imb_col > 0) then
+        diag_4d(:,:,:,diag_pt%SL_imb) =  &
+             diag_4d(:,:,:,diag_pt%SL3d) -   (            &
+                diag_4d(:,:,:,diag_pt%qldt_cond )         &
+              + diag_4d(:,:,:,diag_pt%qldt_evap  )        &
+              + diag_4d(:,:,:,diag_pt%qldt_eros  )        &
+              + diag_4d(:,:,:,diag_pt%qldt_berg)          &
+              + diag_4d(:,:,:,diag_pt%qldt_freez )        &
+              + diag_4d(:,:,:,diag_pt%liq_adj    )        &
+              + diag_4d(:,:,:,diag_pt%qldt_rime  )        &
+              + diag_4d(:,:,:,diag_pt%qldt_accr)          &
+              + diag_4d(:,:,:,diag_pt%qldt_auto)          &
+              + diag_4d(:,:,:,diag_pt%qldt_fill  )        &
+              + diag_4d(:,:,:,diag_pt%qldt_destr )        &
+              + diag_4d(:,:,:,diag_pt%qldt_freez2)        &
+              + diag_4d(:,:,:,diag_pt%qldt_sedi  )        &
+              + diag_4d(:,:,:,diag_pt%qldt_accrs)         &
+              + diag_4d(:,:,:,diag_pt%qldt_bergs)         &
+              + diag_4d(:,:,:,diag_pt%qldt_HM_splinter)   &
+              - diag_4d(:,:,:,diag_pt%qidt_melt2 )        &
+              - diag_4d(:,:,:,diag_pt%qidt_accrs)         &
+              - diag_4d(:,:,:,diag_pt%qdt_cleanup_liquid) &    
+                                                             )
+      endif
+      if (diag_id%SI_imb + diag_id%SI_imb_col > 0) then
+        diag_4d(:,:,:,diag_pt%SI_imb) =     &
+             diag_4d(:,:,:,diag_pt%SI3d) -   (          &
+              - diag_4d(:,:,:,diag_pt%qldt_berg)        &
+              - diag_4d(:,:,:,diag_pt%qldt_freez )      &
+              - diag_4d(:,:,:,diag_pt%qldt_rime  )      &
+              - diag_4d(:,:,:,diag_pt%qldt_freez2)      &
+              - diag_4d(:,:,:,diag_pt%qldt_HM_splinter) &
+              + diag_4d(:,:,:,diag_pt%qidt_dep  )       &
+              + diag_4d(:,:,:,diag_pt%qidt_subl  )      &
+              + diag_4d(:,:,:,diag_pt%qidt_fall  )      &
+              + diag_4d(:,:,:,diag_pt%qidt_eros  )      &
+              + diag_4d(:,:,:,diag_pt%qidt_melt  )      &
+              + diag_4d(:,:,:,diag_pt%qidt_melt2 )      &
+              + diag_4d(:,:,:,diag_pt%qidt_fill  )      &
+              + diag_4d(:,:,:,diag_pt%qidt_destr )      &
+              + diag_4d(:,:,:,diag_pt%qidt_qvdep )      &
+              + diag_4d(:,:,:,diag_pt%qidt_auto)        &
+              + diag_4d(:,:,:,diag_pt%qidt_accr)        &
+              + diag_4d(:,:,:,diag_pt%qidt_accrs)       &
+              + diag_4d(:,:,:,diag_pt%ice_adj    )      &
+              - diag_4d(:,:,:,diag_pt%qdt_cleanup_ice)  &
+                                                          )
+      endif
+
+
+      if (diag_id%SN_imb + diag_id%SN_imb_col > 0) then
+        diag_4d(:,:,:,diag_pt%SN_imb) =  &
+             diag_4d(:,:,:,diag_pt%SN3d) -   ( &
+                diag_4d(:,:,:,diag_pt%qndt_cond  )      &
+              + diag_4d(:,:,:,diag_pt%qndt_evap  )      &
+              + diag_4d(:,:,:,diag_pt%qndt_fill  )      &
+              + diag_4d(:,:,:,diag_pt%qndt_berg  )      &
+              + diag_4d(:,:,:,diag_pt%qndt_destr )      &
+              + diag_4d(:,:,:,diag_pt%qndt_super )      &
+              + diag_4d(:,:,:,diag_pt%qndt_freez )      &
+              + diag_4d(:,:,:,diag_pt%qndt_sacws )      &
+              + diag_4d(:,:,:,diag_pt%qndt_sacws_o)     &
+              + diag_4d(:,:,:,diag_pt%qndt_eros  )      &
+              + diag_4d(:,:,:,diag_pt%qndt_pra   )      &
+              + diag_4d(:,:,:,diag_pt%qndt_auto  )      &
+              + diag_4d(:,:,:,diag_pt%qndt_nucclim)     &
+              + diag_4d(:,:,:,diag_pt%qndt_sedi )       &
+              + diag_4d(:,:,:,diag_pt%qndt_melt)        &
+              + diag_4d(:,:,:,diag_pt%qndt_ihom)        &
+              + diag_4d(:,:,:,diag_pt%qndt_size_adj)    &
+              + diag_4d(:,:,:,diag_pt%qndt_fill2)       &
+              + diag_4d(:,:,:,diag_pt%qndt_contact_frz) &
+              + diag_4d(:,:,:,diag_pt%qndt_cleanup)     &
+              + diag_4d(:,:,:,diag_pt%qndt_cleanup2)    &
+                                                            )
+      endif
+
+      if (diag_id%SNi_imb + diag_id%SNi_imb_col > 0) then
+        diag_4d(:,:,:,diag_pt%SNi_imb) =     &
+             diag_4d(:,:,:,diag_pt%SNi3d) -   ( &
+                diag_4d(:,:,:,diag_pt%qnidt_fill )     &
+              + diag_4d(:,:,:,diag_pt%qnidt_nnuccd)    &
+              + diag_4d(:,:,:,diag_pt%qnidt_nsubi)     &
+              + diag_4d(:,:,:,diag_pt%qnidt_nerosi)    &
+              + diag_4d(:,:,:,diag_pt%qnidt_nprci)     &
+              + diag_4d(:,:,:,diag_pt%qnidt_nprai)     &
+              + diag_4d(:,:,:,diag_pt%qnidt_nucclim1)  &
+              + diag_4d(:,:,:,diag_pt%qnidt_nucclim2)  &
+              + diag_4d(:,:,:,diag_pt%qnidt_sedi  )    &
+              + diag_4d(:,:,:,diag_pt%qnidt_melt  )    &
+              + diag_4d(:,:,:,diag_pt%qnidt_size_adj ) &
+              + diag_4d(:,:,:,diag_pt%qnidt_fill2  )   &
+              + diag_4d(:,:,:,diag_pt%qnidt_super )    &
+              + diag_4d(:,:,:,diag_pt%qnidt_ihom )     &
+              + diag_4d(:,:,:,diag_pt%qnidt_destr )    &
+              + diag_4d(:,:,:,diag_pt%qnidt_cleanup)   &
+              + diag_4d(:,:,:,diag_pt%qnidt_cleanup2)  &
+              + diag_4d(:,:,:,diag_pt%qnidt_nsacwi)    &
+                                                           )
+      endif
+
+      if (diag_id%SQ_imb + diag_id%SQ_imb_col > 0) then
+        diag_4d(:,:,:,diag_pt%SQ_imb) =     &
+             diag_4d(:,:,:,diag_pt%SQ3d) -   (                &
+              - diag_4d(:,:,:,diag_pt%qldt_cond  )            &
+              - diag_4d(:,:,:,diag_pt%qldt_evap  )            &
+              - diag_4d(:,:,:,diag_pt%qldt_eros  )            &
+              - diag_4d(:,:,:,diag_pt%liq_adj    )            &
+              - diag_4d(:,:,:,diag_pt%qldt_fill  )            &
+              - diag_4d(:,:,:,diag_pt%qldt_destr )            &
+              - diag_4d(:,:,:,diag_pt%qidt_dep  )             &
+              - diag_4d(:,:,:,diag_pt%qidt_subl  )            &
+              - diag_4d(:,:,:,diag_pt%qidt_eros  )            &
+              - diag_4d(:,:,:,diag_pt%qidt_fill  )            &
+              - diag_4d(:,:,:,diag_pt%qidt_destr )            &
+              - diag_4d(:,:,:,diag_pt%qidt_qvdep )            &
+              - diag_4d(:,:,:,diag_pt%ice_adj    )            &
+              + diag_4d(:,:,:,diag_pt%rain_evap  )            &
+              + diag_4d(:,:,:,diag_pt%qdt_sedi_ice2vapor)     & 
+              + diag_4d(:,:,:,diag_pt%qdt_sedi_liquid2vapor)  &  
+              + diag_4d(:,:,:,diag_pt%qdt_cleanup_ice)        &
+              + diag_4d(:,:,:,diag_pt%qdt_cleanup_liquid)     &    
+              + diag_4d(:,:,:,diag_pt%qdt_snow_sublim  )      &
+              + diag_4d(:,:,:,diag_pt%qdt_snow2vapor    )     &
+                                                                )
+      endif
+
+      if (diag_id%ST_imb + diag_id%ST_imb_col > 0) then
+        diag_4d(:,:,:,diag_pt%ST_imb) =     &
+             diag_4d(:,:,:,diag_pt%ST3d) -    (              &
+              - hlf*diag_4d(:,:,:,diag_pt%qldt_berg)         &
+              - hlf*diag_4d(:,:,:,diag_pt%qldt_freez )       &
+              - hlf*diag_4d(:,:,:,diag_pt%qldt_rime  )       &
+              - hlf*diag_4d(:,:,:,diag_pt%qldt_freez2)       &
+              - hlf*diag_4d(:,:,:,diag_pt%qldt_accrs)        &
+              - hlf*diag_4d(:,:,:,diag_pt%qldt_bergs)        &
+              - hlf*diag_4d(:,:,:,diag_pt%qldt_HM_splinter)  &
+              + hlf*diag_4d(:,:,:,diag_pt%qidt_melt  )       &
+              + hlf*diag_4d(:,:,:,diag_pt%qidt_melt2 )       &
+              + hlf*diag_4d(:,:,:,diag_pt%qidt_accrs)        &
+              + hlf*diag_4d(:,:,:,diag_pt%rain_freeze)       &
+              - hlf*diag_4d(:,:,:,diag_pt%srfrain_accrs )    &
+              - hlf*diag_4d(:,:,:,diag_pt%srfrain_freez )    &
+              - hlf*diag_4d(:,:,:,diag_pt%snow_melt)         &
+              
+              + hlv*diag_4d(:,:,:,diag_pt%qldt_cond  )           &
+              + hlv*diag_4d(:,:,:,diag_pt%qldt_evap  )           &
+              + hlv*diag_4d(:,:,:,diag_pt%qldt_eros  )           &
+              + hlv*diag_4d(:,:,:,diag_pt%liq_adj    )           &
+              + hlv*diag_4d(:,:,:,diag_pt%qldt_fill  )           &
+              + hlv*diag_4d(:,:,:,diag_pt%qldt_destr )           &
+              - hlv*diag_4d(:,:,:,diag_pt%rain_evap  )           &
+              - hlv*diag_4d(:,:,:,diag_pt%qdt_sedi_liquid2vapor) &  
+              - hlv*diag_4d(:,:,:,diag_pt%qdt_cleanup_liquid)    &      
+
+              + hls*diag_4d(:,:,:,diag_pt%qidt_dep  )          &
+              + hls*diag_4d(:,:,:,diag_pt%qidt_subl  )         &
+              + hls*diag_4d(:,:,:,diag_pt%qidt_eros  )         &
+              + hls*diag_4d(:,:,:,diag_pt%qidt_fill  )         &
+              + hls*diag_4d(:,:,:,diag_pt%qidt_destr )         &
+              + hls*diag_4d(:,:,:,diag_pt%qidt_qvdep )         &
+              + hls*diag_4d(:,:,:,diag_pt%ice_adj    )         &
+              - hls*diag_4d(:,:,:,diag_pt%qdt_sedi_ice2vapor)  & 
+              - hls*diag_4d(:,:,:,diag_pt%qdt_cleanup_ice)     &
+              - hls*diag_4d(:,:,:,diag_pt%qdt_snow_sublim  )   &
+              - hls*diag_4d(:,:,:,diag_pt%qdt_snow2vapor    )  &
+                                                              )/cp_air 
+              endif 
+
+              if (diag_id%rain3d > 0) then 
+                 diag_4d_kp1(:,:,:,diag_pt%rain3d) = Precip_state%rain3d(:,:,:) 
+              endif 
+              if (diag_id%snow3d > 0) then 
+                 diag_4d_kp1(:,:,:,diag_pt%snow3d) = Precip_state%snow3d(:,:,:) 
+              endif 
+
+      if ( diag_id%cf_ice_init > 0 ) then  
+        diag_4d(:,:,:,diag_pt%cf_ice_init) =   &
+                                MIN(diag_4d(:,:,:,diag_pt%cf_ice_init), 1.)
       end if
       if (diag_id%droplets > 0) then
         diag_4d(:,:,:,diag_pt%droplets) = N3D(:,:,:)
+      end if
+      if (diag_id%droplets_wtd > 0) then
+        diag_4d(:,:,:,diag_pt%droplets_wtd) = N3D(:,:,:)*ql_in(:,:,:)
+      end if
+      if (diag_id%ql_wt > 0) then
+        diag_4d(:,:,:,diag_pt%ql_wt) = ql_in(:,:,:)
       end if
       if (diag_id%nice > 0) then
         diag_4d(:,:,:,diag_pt%nice) = N3Di(:,:,:)
       end if
       if (diag_id%qrout > 0) then
-        diag_4d(:,:,:,diag_pt%qrout) = Precip_state%qrout3d_mg(:,:,:)
+        diag_4d(:,:,:,diag_pt%qrout) = Precip_state%lsc_rain  (:,:,:)
       end if
       if (diag_id%qsout > 0) then
-        diag_4d(:,:,:,diag_pt%qsout) = Precip_state%qsout3d_mg(:,:,:) 
+        diag_4d(:,:,:,diag_pt%qsout) = Precip_state%lsc_snow  (:,:,:) 
       end if
 
 !-------------------------------------------------------------------------
@@ -1463,12 +1748,94 @@ real, dimension(:,:,:), intent (out), optional :: SN_out, SNi_out,  &
                           + diag_4d(:,:,k,nn)*Atmos_state%deltpg(:,:,k)
         enddo
       enddo
+!------------------------------------------------------------------------
+!SPECIAL CASES not following general pattern of above:
+!rain, snow cloud ice and cloud liquid fallout -- only column integrals 
+!are valid
+!------------------------------------------------------------------------
+      if (Constants%do_mg_microphys .or.   &
+                                     Constants%do_mg_ncar_microphys) then
+        if (diag_id%cld_liq_imb + diag_id%cld_liq_imb_col > 0) then
+          diag_3d(:,:,diag_pt%cld_liq_imb) =   - ( &
+                diag_3d(:,:,diag_pt%qldt_sedi )  +   &
+                diag_3d(:,:,diag_pt%qdt_sedi_liquid2vapor)  ) 
+        endif
+        if (diag_id%cld_ice_imb + diag_id%cld_ice_imb_col > 0) then
+          diag_3d(:,:,diag_pt%cld_ice_imb) =   - ( &
+                diag_3d(:,:,diag_pt%qidt_fall )  +   &
+                diag_3d(:,:,diag_pt%qdt_sedi_ice2vapor)  ) 
+        endif
+      endif
+      IF ( diag_id%neg_rain > 0   ) &
+          diag_3d(:,:,diag_pt%neg_rain) =   &
+                          diag_4d(:,:,1,diag_pt%neg_rain) 
+      IF ( diag_id%neg_snow > 0   ) &
+          diag_3d(:,:,diag_pt%neg_snow) =   &
+                          diag_4d(:,:,1,diag_pt%neg_snow) 
+      if (diag_id%rain_imb + diag_id%rain_imb_col > 0) then
+        diag_3d(:,:,diag_pt%rain_imb) =    &
+             Precip_state%surfrain(:,:)*Constants%inv_dtcloud -   &
+                diag_3d(:,:,diag_pt%cld_liq_imb)   +  (  &
+                diag_3d(:,:,diag_pt%qldt_accr)      &
+              + diag_3d(:,:,diag_pt%qldt_auto )     &
+              + diag_3d(:,:,diag_pt%qidt_melt  )    &
+              + diag_3d(:,:,diag_pt%rain_evap)      &
+              + diag_3d(:,:,diag_pt%rain_freeze)    &
+              - diag_3d(:,:,diag_pt%srfrain_accrs)  &
+              - diag_3d(:,:,diag_pt%srfrain_freez)  &
+              + diag_3d(:,:,diag_pt%neg_rain)       &
+              - diag_3d(:,:,diag_pt%snow_melt )     &
+              + diag_3d(:,:,diag_pt%qdt_snow2vapor) &
+                                                         )
+      endif
+      if (diag_id%snow_imb + diag_id%snow_imb_col > 0) then
 
+        if (Constants%do_rk_microphys) then
+          diag_3d(:,:,diag_pt%snow_imb) =    &
+             Precip_state%surfsnow(:,:)*Constants%inv_dtcloud -    &
+               diag_3d(:,:,diag_pt%cld_ice_imb)  + (  &
+                diag_3d(:,:,diag_pt%qldt_accrs)      &
+              + diag_3d(:,:,diag_pt%qldt_bergs)      &
+              + diag_3d(:,:,diag_pt%qidt_fall)       &
+              + diag_3d(:,:,diag_pt%qidt_auto  )     &
+              + diag_3d(:,:,diag_pt%qidt_accr  )     &
+              - diag_3d(:,:,diag_pt%rain_freeze)     &
+              + diag_3d(:,:,diag_pt%srfrain_accrs)   &
+              + diag_3d(:,:,diag_pt%srfrain_freez)   &
+              + diag_3d(:,:,diag_pt%snow_melt )      &
+              + diag_3d(:,:,diag_pt%neg_snow)        &
+              + diag_3d(:,:,diag_pt%qdt_snow_sublim) &
+                                                         )
+        else
+          diag_3d(:,:,diag_pt%snow_imb) =    &
+             Precip_state%surfsnow(:,:)*Constants%inv_dtcloud -    &
+               diag_3d(:,:,diag_pt%cld_ice_imb)  + (  &
+                diag_3d(:,:,diag_pt%qldt_accrs)       &
+              + diag_3d(:,:,diag_pt%qldt_bergs)       &
+              + diag_3d(:,:,diag_pt%qidt_auto  )      &
+              + diag_3d(:,:,diag_pt%qidt_accr  )      &
+              - diag_3d(:,:,diag_pt%rain_freeze)      &
+              + diag_3d(:,:,diag_pt%srfrain_accrs)    &
+              + diag_3d(:,:,diag_pt%srfrain_freez)    &
+              + diag_3d(:,:,diag_pt%snow_melt )       &
+              + diag_3d(:,:,diag_pt%neg_snow)         &
+              + diag_3d(:,:,diag_pt%qdt_snow_sublim)  &
+                                                        )
+        endif
+      endif
 !------------------------------------------------------------------------
 !SPECIAL CASES not following general pattern of above:
 !yim: in-cloud droplet column burden
 !------------------------------------------------------------------------
-      if (diag_id%droplets_col > 0 .or. diag_id%gb_droplets_col > 0 ) then
+      IF ( diag_id%rain_mass_conv > 0   ) &
+          diag_3d(:,:,diag_pt%rain_mass_conv) =   &
+                          diag_4d(:,:,1,diag_pt%rain_mass_conv) 
+      IF ( diag_id%snow_mass_conv > 0   ) &
+          diag_3d(:,:,diag_pt%snow_mass_conv) =   &
+                          diag_4d(:,:,1,diag_pt%snow_mass_conv) 
+
+      if (diag_id%droplets_col > 0 .or. diag_id%gb_droplets_col > 0  .or. &
+                                       diag_id%droplets_col250 > 0 ) then
         if (present (qn_in)) then
           N3D_col(:,:) = 0.
           N3D_col250(:,:) = 0.
@@ -1476,14 +1843,19 @@ real, dimension(:,:,:), intent (out), optional :: SN_out, SNi_out,  &
           do k =1,kdim
             do j=1,jdim
               do i=1,idim
+! the current code:
                 qa_new = qa_in(i,j,k) + SA_out(i,j,k)
                 ql_new = ql_in(i,j,k) + SL_out(i,j,k)
                 qn_new = qn_in(i,j,k) + SN_out(i,j,k)
                 if (ql_new > qmin .and. &
                     qa_new > qmin .and. &
                     qn_new > qmin ) then      
-                  dum = qn_new*Atmos_state%airdens(i,j,k)*  &
-                                     Atmos_state%deltpg(i,j,k)*1.e-6
+!RSH 12/22/11 fix as per email from yim 11/3/11:
+!                 dum = qn_new*Atmos_state%airdens(i,j,k)*  &
+                  dum = qn_new*                             &
+!RSH 12/22/11 fix as per email from yim 11/3/11:
+!                                    Atmos_state%deltpg(i,j,k)*1.e-6
+                                Atmos_state%deltpg(i,j,k)*1.e-4
                   if (qa_new > 0.05) then !count only columns with qa > 5% 
                     N3D_col(i,j) = N3D_col(i,j) + dum /min(qa_new,1.)
                     if (T_in(i,j,k) + st_out(i,j,k)  .ge. 250.) then
@@ -1496,7 +1868,30 @@ real, dimension(:,:,:), intent (out), optional :: SN_out, SNi_out,  &
               end do
             end do
           end do
-          diag_3d(:,:,diag_pt%droplets_col_s) = N3D_col
+! end of current code
+! the legacy equivalent
+!NOTE: in addition to the error correction, the legacy code differs from 
+!  the new code in that it is appplied to input fields rather than output i
+!  fields.
+!               if (ql_in(i,j,k) > qmin .and. &
+!                   qa_in(i,j,k) > qmin .and. &
+!                   qn_in(i,j,k) > qmin ) then      
+!                 dum = qn_in(i,j,k)*Atmos_state%airdens(i,j,k)*  &
+!                                    Atmos_state%deltpg(i,j,k)*1.e-6
+!                 if (qa_new > 0.05) then !count only columns with qa > 5% 
+!                   N3D_col(i,j) = N3D_col(i,j) + dum /min(qa_in(i,j,k),1.)
+!                   if (T_in(i,j,k) + st_out(i,j,k)  .ge. 250.) then
+!                     N3D_col250(i,j)  = N3D_col250(i,j) +   &
+!                                               dum /min (qa_in(i,j,k), 1.)
+!                   endif
+!                 endif
+!                 gb_N3D_col(i,j) = gb_N3D_col(i,j) + dum
+!               endif
+!             end do
+!           end do
+!         end do
+! end of the legacy equivalent
+          diag_3d(:,:,diag_pt%droplets_col) = N3D_col
           diag_3d(:,:,diag_pt%droplets_col250) = N3D_col250
           diag_3d(:,:,diag_pt%gb_droplets_col) = gb_N3D_col
         endif
@@ -1533,6 +1928,8 @@ real, dimension(:,:,:), intent (out), optional :: SN_out, SNi_out,  &
           diag_3d(:,:,diag_pt%gb_nice_col) = gb_N3Di_col
         endif
       endif
+
+
 
 !-------------------------------------------------------------------------
 !    call strat_netcdf to output the requested netcdf diagnostics.
@@ -1950,6 +2347,7 @@ subroutine fill_nml_variable
       Nml%vfact = vfact
       Nml%cfact = cfact
       Nml%do_old_snowmelt = do_old_snowmelt
+      Nml%retain_cm3_bug  = retain_cm3_bug 
       Nml%do_pdf_clouds = do_pdf_clouds
       Nml%betaP = betaP
       Nml%iwc_crit = iwc_crit
@@ -1965,13 +2363,20 @@ subroutine fill_nml_variable
       Nml%num_mass_ratio1 = num_mass_ratio1
       Nml%num_mass_ratio2 = num_mass_ratio2
       Nml%microphys_scheme = microphys_scheme              
+      Nml%macrophys_scheme = macrophys_scheme              
+      Nml%aerosol_activation_scheme = aerosol_activation_scheme        
+      Nml%mass_cons = mass_cons
       Nml%super_ice_opt = super_ice_opt
       Nml%pdf_org = pdf_org
       Nml%do_ice_nucl_wpdf = do_ice_nucl_wpdf
+      Nml%do_hallet_mossop = do_hallet_mossop
+      Nml%activate_all_ice_always = activate_all_ice_always
       Nml%debugo = debugo
       Nml%isamp = isamp
       Nml%jsamp = jsamp
       Nml%ksamp = ksamp
+
+      Nml%qcvar = qcvar
 
 !----------------------------------------------------------------------
 
@@ -1995,127 +2400,127 @@ type(precip_state_type), intent(in) :: Precip_state
 !------------------------------------------------------------------------
 !    write numerous diagnostics to file otun to aid in debugging.
 !------------------------------------------------------------------------
-      write(otun, *) , "eee max, min ST ", MAXVAL(ST_out), MINVAL(ST_out)
-      write(otun, *) , "eee maxloc, minloc  ", MAXLOC(ST_out),   &
+      write(otun, *)  "eee max, min ST ", MAXVAL(ST_out), MINVAL(ST_out)
+      write(otun, *)  "eee maxloc, minloc  ", MAXLOC(ST_out),   &
                                                             MINLOC(ST_out)
 
       call check_nan (ST_out,'ST_out')
 
 
-      write(otun, *) , "eee max, min SQ ", MAXVAL(SQ_out), MINVAL(SQ_out)
-      write(otun, *) , "eee maxloc, minloc  ", MAXLOC(SQ_out),   &
+      write(otun, *)  "eee max, min SQ ", MAXVAL(SQ_out), MINVAL(SQ_out)
+      write(otun, *)  "eee maxloc, minloc  ", MAXLOC(SQ_out),   &
                                                             MINLOC(SQ_out)
       call check_nan (SQ_out,'SQ_out')
 
-      write(otun, *) , "eee max, min SL ", MAXVAL(Cloud_state%SL_out), &
+      write(otun, *)  "eee max, min SL ", MAXVAL(Cloud_state%SL_out), &
                                                  MINVAL(Cloud_state%SL_out)
-      write(otun, *) , "eee maxloc, minloc  ", MAXLOC(Cloud_state%SL_out),&
+      write(otun, *)  "eee maxloc, minloc  ", MAXLOC(Cloud_state%SL_out),&
                                                  MINLOC(Cloud_state%SL_out)
 
-      write(otun, *) , "eee max, min SI ", MAXVAL(Cloud_state%SI_out), &
+      write(otun, *)  "eee max, min SI ", MAXVAL(Cloud_state%SI_out), &
                                                  MINVAL(Cloud_state%SI_out)
-      write(otun, *) , "eee maxloc, minloc  ", MAXLOC(Cloud_state%SI_out),&
+      write(otun, *)  "eee maxloc, minloc  ", MAXLOC(Cloud_state%SI_out),&
                                                  MINLOC(Cloud_state%SI_out)
       call check_nan   (Cloud_state%SI_out,'SI_out')
 
-      write(otun, *) , "eee max, min SA ", MAXVAL(Cloud_state%SA_out), &
+      write(otun, *)  "eee max, min SA ", MAXVAL(Cloud_state%SA_out), &
                                                 MINVAL(Cloud_state%SA_out)
-      write(otun, *) , "eee maxloc, minloc  ", MAXLOC(Cloud_state%SA_out),&
+      write(otun, *)  "eee maxloc, minloc  ", MAXLOC(Cloud_state%SA_out),&
                                                  MINLOC(Cloud_state%SA_out)
       call check_nan   (Cloud_state%SA_out,'SA_out')
 
-      write(otun, *) , "eee max, min SN ", MAXVAL(Cloud_state%SN_out), &
+      write(otun, *)  "eee max, min SN ", MAXVAL(Cloud_state%SN_out), &
                                                 MINVAL(Cloud_state%SN_out)
-      write(otun, *) , "eee maxloc, minloc  ", &
+      write(otun, *)  "eee maxloc, minloc  ", &
                      MAXLOC(Cloud_state%SN_out), MINLOC(Cloud_state%SN_out)
       call check_nan   (Cloud_state%SN_out,'SN_out')
 
-      write(otun, *) , "eee max, min SNi ", MAXVAL(Cloud_state%SNi_out),&
+      write(otun, *)  "eee max, min SNi ", MAXVAL(Cloud_state%SNi_out),&
                                                 MINVAL(Cloud_state%SNi_out)
-      write(otun, *) , "eee maxloc, minloc  ", &
+      write(otun, *)  "eee maxloc, minloc  ", &
                    MAXLOC(Cloud_state%SNi_out), MINLOC(Cloud_state%SNi_out)
       call check_nan   (Cloud_state%SNi_out,'SNi_out')
 
-      write(otun, *) , "--"
-      write(otun, *) , "eee max, min T+ST ",  &
+      write(otun, *)  "--"
+      write(otun, *)  "eee max, min T+ST ",  &
                                  MAXVAL(Atmos_state%T_in + ST_out),  &  
                                          MINVAL(Atmos_state%T_in + ST_out)
 
-      write(otun, *) , "eee max, min qv+SQ ", &
+      write(otun, *)  "eee max, min qv+SQ ", &
                                  MAXVAL(Atmos_state%qv_in + SQ_out), &
                                         MINVAL(Atmos_state%qv_in + SQ_out)
 
-      write(otun, *) , "eee max, min ql+ SL ",   &
+      write(otun, *)  "eee max, min ql+ SL ",   &
                            MAXVAL(Cloud_state%ql_in+Cloud_state%SL_out),  &
                                MINVAL(Cloud_state%ql_in+Cloud_state%SL_out)
 
-      write(otun, *) , "eee max, min qi +SI ",  &
+      write(otun, *)  "eee max, min qi +SI ",  &
                            MAXVAL(Cloud_state%qi_in+ Cloud_state%SI_out), &
                              MINVAL(Cloud_state%qi_in + Cloud_state%SI_out)
 
-      write(otun, *) , "eee max, min qa + SA ",  &
+      write(otun, *)  "eee max, min qa + SA ",  &
                            MAXVAL(Cloud_state%qa_in+Cloud_state%SA_out),  &
                               MINVAL(Cloud_state%qa_in+Cloud_state%SA_out)
 
-      write(otun, *) , "eee max, min qn + SN ",  &
+      write(otun, *)  "eee max, min qn + SN ",  &
                          MAXVAL(Cloud_state%qn_in + Cloud_state%SN_out), &
                             MINVAL(Cloud_state%qn_in + Cloud_state%SN_out)
 
-      write(otun, *) , "eee max, min qni SNi ",   &
+      write(otun, *)  "eee max, min qni SNi ",   &
                         MAXVAL(Cloud_state%qni_in+ Cloud_state%SNi_out), &
                             MINVAL(Cloud_state%qni_in+Cloud_state%SNi_out)
 
-      write(otun, *) , "--"
-      write(otun, *) , "--"
+      write(otun, *)  "--"
+      write(otun, *)  "--"
 
-      write(otun, *) , "eee max, min rain3d ",  &
+      write(otun, *)  "eee max, min rain3d ",  &
                   MAXVAL(Precip_state%rain3d), MINVAL(Precip_state%rain3d)
-      write(otun, *) , "eee maxloc, minloc  ",  &
+      write(otun, *)  "eee maxloc, minloc  ",  &
                   MAXLOC(Precip_state%rain3d), MINLOC(Precip_state%rain3d)
       call check_nan   (Precip_state%rain3d,'rain3d')
 
-      write(otun, *) , "eee max, min snow3d ",   &
+      write(otun, *)  "eee max, min snow3d ",   &
                   MAXVAL(Precip_state%snow3d), MINVAL(Precip_state%snow3d)
-      write(otun, *) , "eee maxloc, minloc  ",  &
+      write(otun, *)  "eee maxloc, minloc  ",  &
                    MAXLOC(Precip_state%snow3d), MINLOC(Precip_state%snow3d)
       call check_nan   (Precip_state%snow3d,'snow3d')
 
-      write(otun, *) , "--"
-      write(otun, *) , "eee max, min surfrain ",   &
+      write(otun, *)  "--"
+      write(otun, *)  "eee max, min surfrain ",   &
                MAXVAL(Precip_state%surfrain), MINVAL(Precip_state%surfrain)
-      write(otun, *) , "eee maxloc, minloc  ",    &
+      write(otun, *)  "eee maxloc, minloc  ",    &
                MAXLOC(Precip_state%surfrain), MINLOC(Precip_state%surfrain)
 
-      write(otun, *) , "eee max, min surfsnow ",   &
+      write(otun, *)  "eee max, min surfsnow ",   &
                MAXVAL(Precip_state%surfsnow), MINVAL(Precip_state%surfsnow)
-      write(otun, *) , "eee maxloc, minloc  ",   &
+      write(otun, *)  "eee maxloc, minloc  ",   &
                MAXLOC(Precip_state%surfsnow), MINLOC(Precip_state%surfsnow)
-      write(otun, *) , "--"
+      write(otun, *)  "--"
 
       IF ( MAXVAL(SQ_out + Cloud_state%ql_in) .GT. 1.e-1 )  &
-                                            write(otun, *) ," MMMMM Q1 "
+                                            write(otun, *) " MMMMM Q1 "
       IF ( MAXVAL(SQ_out + Cloud_state%ql_in) .LT. 0. )   &
-                                            write(otun, *) ," MMMMM Q2 "
+                                            write(otun, *) " MMMMM Q2 "
 
       IF ( MAXVAL(Cloud_state%SI_out + Cloud_state%qi_in) .LT. 0. )  &
-                                            write(otun, *) ," MMMMM I11 "
+                                            write(otun, *) " MMMMM I11 "
       IF ( MAXVAL(Cloud_state%SL_out + Cloud_state%ql_in) .LT. 0. )   &
-                                            write(otun, *) ," MMMMM L11 "
+                                            write(otun, *) " MMMMM L11 "
 
       IF ( MAXVAL(  &
               Cloud_state%qa_in+Cloud_state%SA_out+Atmos_state%ahuco)   &
                                                .GT. 1.00000000001  ) THEN
-        write(otun, *) ," MMMMMA1 ahuco "
+        write(otun, *) " MMMMMA1 ahuco "
         maxl =  maxloc (Cloud_state%qa_in + Cloud_state%SA_out +  &
                                                         Atmos_state%ahuco) 
-        write(otun, *) ,"  maxloc(qa+SA) ",  &
+        write(otun, *) "  maxloc(qa+SA) ",  &
              maxloc (Cloud_state%qa_in + Cloud_state%SA_out +  &
                                                          Atmos_state%ahuco)
-        write(otun, *) ," qa+SA+ahuco ",    &
+        write(otun, *) " qa+SA+ahuco ",    &
                       Cloud_state%qa_in(maxl(1),maxl(2),maxl(3)) +     &
                           Cloud_state%SA_out(maxl(1),maxl(2),maxl(3)) +&
                               Atmos_state%ahuco(maxl(1),maxl(2),maxl(3))
-        write(otun, *) ," qa, ahuco, SA ",   &
+        write(otun, *) " qa, ahuco, SA ",   &
                      Cloud_state%qa_in(maxl(1),maxl(2),maxl(3)),   &
                      Atmos_state%ahuco(maxl(1),maxl(2),maxl(3)),  &
                      Cloud_state%SA_out(maxl(1),maxl(2),maxl(3)) 
@@ -2124,23 +2529,23 @@ type(precip_state_type), intent(in) :: Precip_state
 
       IF ( MINVAL(Cloud_state%qa_in+Cloud_state%SA_out) .LT. 0.  ) THEN
         minl =  minloc(Cloud_state%qa_in+Cloud_state%SA_out)
-        write(otun, *) ," MMMMMA2"
-        write(otun, *) ,"  minloc(qa+SA) ",   &
+        write(otun, *) " MMMMMA2"
+        write(otun, *) "  minloc(qa+SA) ",   &
                               minloc(Cloud_state%qa_in+Cloud_state%SA_out)
-        write(otun, *) ," qa+SA ", &
+        write(otun, *) " qa+SA ", &
                          Cloud_state%qa_in(minl(1),minl(2),minl(3)) +  &
                                 Cloud_state%SA_out(minl(1),minl(2),minl(3))
-        write(otun, *) ,"    qa, SA ",  &
+        write(otun, *) "    qa, SA ",  &
                            Cloud_state%qa_in(minl(1),minl(2),minl(3)),  &
                                 Cloud_state%SA_out(minl(1),minl(2),minl(3))
       END IF
 
       IF ( MINVAL(Cloud_state%qn_in+Cloud_state%SN_out) .LT. 0.  ) THEN
-        write(otun, *) ," MMMMMN1"
+        write(otun, *) " MMMMMN1"
         minl =  minloc(Cloud_state%qn_in+Cloud_state%SN_out)
-        write(otun, *) ,"  minloc(qn+SN) ",  &
+        write(otun, *) "  minloc(qn+SN) ",  &
                            minloc(Cloud_state%qn_in+Cloud_state%SN_out)
-        write(otun, *) ,"    qn, SN ",   &
+        write(otun, *) "    qn, SN ",   &
                           Cloud_state%qn_in(minl(1),minl(2),minl(3)),  &
                           Cloud_state%SN_out(minl(1),minl(2),minl(3)) 
       END IF
@@ -2148,40 +2553,40 @@ type(precip_state_type), intent(in) :: Precip_state
       IF ( MAXVAL(Cloud_state%qi_in +    &
                                    Cloud_state%SI_out) .GT. 1.e-2 )   then
         maxl = MAXLOC(Cloud_state%qi_in + Cloud_state%SI_out)
-        write(otun, *) ," MMMMMII"
-        write(otun, *) ,"  maxloc(qi+SI) ",    &
+        write(otun, *) " MMMMMII"
+        write(otun, *) "  maxloc(qi+SI) ",    &
                               maxloc(Cloud_state%qi_in+Cloud_state%SI_out)
-        write(otun, *) ,"  qi+SI " ,    &
+        write(otun, *) "  qi+SI " ,    &
                            Cloud_state%qi_in(maxl(1),maxl(2),maxl(3))+  &
                                 Cloud_state%SI_out(maxl(1),maxl(2),maxl(3))
-        write(otun, *) ,"  qi, SI " ,    &
+        write(otun, *) "  qi, SI " ,    &
                       Cloud_state%qi_in(maxl(1),maxl(2),maxl(3)),  &
                                Cloud_state%SI_out(maxl(1),maxl(2),maxl(3))
-        write(otun, *) ,"  T ",    &
+        write(otun, *) "  T ",    &
                      Atmos_state%T_in(maxl(1),maxl(2),maxl(3)),   &
                                Cloud_state%SI_out(maxl(1),maxl(2),maxl(3))
       END IF
 
       IF ( MAXVAL(Cloud_state%ql_in + Cloud_state%SL_out) .GT. 1.e-2 )   &
-                                               write(otun, *) ," MMMMMLL"
+                                               write(otun, *) " MMMMMLL"
       IF ( MINVAL(Cloud_state%qni_in+Cloud_state%SNi_out) .LT. -1.e-5) &
-                                                write(otun, *) ," MMMMMN2"
-      IF ( MAXVAL(ST_out) .GT. 7. ) write(otun, *) ," MMMMMT1 "
-      IF ( MINVAL(ST_out) .LT. - 7. ) write(otun, *) ," MMMMMT2 "
+                                                write(otun, *) " MMMMMN2"
+      IF ( MAXVAL(ST_out) .GT. 7. ) write(otun, *) " MMMMMT1 "
+      IF ( MINVAL(ST_out) .LT. - 7. ) write(otun, *) " MMMMMT2 "
       IF ( MAXVAL(Atmos_state%T_in+ST_out) .GT. 330. )   &
-                                            write(otun, *) ," MMMMMT3 "
+                                            write(otun, *) " MMMMMT3 "
       IF ( MINVAL(Atmos_state%T_in+ST_out) .LT. 170. )    &
-                                               write(otun, *) ," MMMMMT4 "
+                                               write(otun, *) " MMMMMT4 "
 
       IF  ( MINVAL(Precip_state%rain3d) .LT. 0. )   &
-                                                write(otun, *) ," MMMMMR1 "
+                                                write(otun, *) " MMMMMR1 "
       IF  ( MINVAL(Precip_state%snow3d) .LT. 0. )   &
-                                                write(otun, *) ," MMMMMS1 "
+                                                write(otun, *) " MMMMMS1 "
 
       IF ( MINVAL(Precip_state%surfrain) .LT. 0. )   &
-                                                write(otun, *) ," MMMMMX1 "
+                                                write(otun, *) " MMMMMX1 "
       IF ( MINVAL(Precip_state%surfsnow) .LT. 0. )   &
-                                                write(otun, *) ," MMMMMX2 "
+                                                write(otun, *) " MMMMMX2 "
 
 !-------------------------------------------------------------------------
 
@@ -2242,7 +2647,7 @@ real, dimension(idim,jdim,kdim,0:n_diag_4d), intent(inout) :: diag_4d
         elsewhere
           Cloud_state%qa_upd = Cloud_state%qa_in     
         end where
-        if (diag_id%qadt_fill > 0 ) then
+        if (diag_id%qadt_fill + diag_id%qa_fill_col > 0 ) then
           where (Cloud_state%qa_in .le. Nml%qmin)
             diag_4d(:,:,:,diag_pt%qadt_fill) =  -Cloud_state%qa_in*   &
                                                     Constants% inv_dtcloud
@@ -2257,9 +2662,9 @@ real, dimension(idim,jdim,kdim,0:n_diag_4d), intent(inout) :: diag_4d
 !    to this requirenment,
 !------------------------------------------------------------------------ 
         Atmos_state%U01 = min(Atmos_state%U01, 1.)
-        if (diag_id%qadt_rhred >0) then
+        if (diag_id%qadt_rhred + diag_id%qa_rhred_col >0) then
           where (Cloud_state%qa_upd .gt. Atmos_state%U01)
-            diag_4d(:,:,:,diag_pt%qadt_rhred) = (Cloud_state%qa_upd -  &
+            diag_4d(:,:,:,diag_pt%qadt_rhred) = -(Cloud_state%qa_upd -  &
                                 Atmos_state%U01)*Constants%inv_dtcloud
           endwhere
         end if
@@ -2288,9 +2693,14 @@ real, dimension(idim,jdim,kdim,0:n_diag_4d), intent(inout) :: diag_4d
           ql_too_small = (Cloud_state%ql_in .le. Nml%qmin .or.   &
                           Cloud_state%qa_in .le. Nml%qmin)
         endif
-        qi_too_small = (Cloud_state%qi_in .le.  Nml%qmin .or.   &
-                        Cloud_state%qa_in .le.  Nml%qmin )
-!!RSH should qi_too_small include qni .le. qmin when ice particles pred???
+        if (Constants%do_predicted_ice_number) then
+             qi_too_small = (Cloud_state%qi_in .le.  Nml%qmin .or.   &
+                          Cloud_state%qa_in .le. Nml%qmin .or.   &
+                          Cloud_state%qni_in .le. Nml%qmin)
+        else
+          qi_too_small = (Cloud_state%qi_in .le.  Nml%qmin .or.   &
+                          Cloud_state%qa_in .le. Nml%qmin)
+        endif
       else
         if ( Nml%do_liq_num) then
           ql_too_small = (Cloud_state%ql_in .le.  Nml%qmin  .or.   &
@@ -2298,8 +2708,12 @@ real, dimension(idim,jdim,kdim,0:n_diag_4d), intent(inout) :: diag_4d
         else
           ql_too_small = (Cloud_state%ql_in .le.  Nml%qmin)
         endif
-        qi_too_small = (Cloud_state%qi_in .le.  Nml%qmin )
-!!RSH should qi_too_small include qni .le. qmin when ice particles pred???
+        if (Constants%do_predicted_ice_number) then
+             qi_too_small = (Cloud_state%qi_in .le.  Nml%qmin .or.   &
+                          Cloud_state%qni_in .le. Nml%qmin)
+        else
+          qi_too_small = (Cloud_state%qi_in .le.  Nml%qmin )
+        endif
       endif
   
 !------------------------------------------------------------------------
@@ -2330,6 +2744,12 @@ real, dimension(idim,jdim,kdim,0:n_diag_4d), intent(inout) :: diag_4d
                             -1.*Cloud_state%ql_in*Constants%inv_dtcloud
         endwhere
       end if
+      if ( diag_id%qdt_liquid_init > 0 ) then
+        where (ql_too_small )
+          diag_4d(:,:,:,diag_pt%qdt_liquid_init) =   &
+                            Cloud_state%ql_in*Constants%inv_dtcloud
+        endwhere
+      end if
 
 !------------------------------------------------------------------------
 !    adjust cloud droplet numbers as needed when those fields
@@ -2354,21 +2774,22 @@ real, dimension(idim,jdim,kdim,0:n_diag_4d), intent(inout) :: diag_4d
             end do
           end do
         end do
-        if (diag_id%debug1_3d > 0)  then
+        if (diag_id%cf_liq_init   > 0)  then
           do k = 1,kdim
             do j=1,jdim
               do i = 1,idim
                 if (ql_too_small(i,j,k)) then
-                  diag_4d(i,j,k,diag_pt%debug1_3d) = 0.
+                  diag_4d(i,j,k,diag_pt%cf_liq_init  ) = 0.
                 else
-                   diag_4d(i,j,k,diag_pt%debug1_3d) =    &
+                   diag_4d(i,j,k,diag_pt%cf_liq_init  ) =    &
                                          min(Cloud_state%qa_in(i,j,k),1.)
                 endif
               end do
             end do
           end do
         endif 
-        if ( diag_id%qndt_fill  + diag_id%qn_fill_col > 0 ) then
+        if ( diag_id%qndt_fill  + diag_id%qn_fill_col + &
+                    diag_id%qldt_fill + diag_id%ql_fill_col > 0 ) then
           where (ql_too_small )
             diag_4d(:,:,:,diag_pt%qndt_fill) =    &
                            -1.*Cloud_state%qn_in*Constants%inv_dtcloud
@@ -2399,13 +2820,27 @@ real, dimension(idim,jdim,kdim,0:n_diag_4d), intent(inout) :: diag_4d
           end do
         end do
       end do
-      if (diag_id%qidt_fill > 0.) then
+      if (diag_id%qidt_fill  + diag_id%qi_fill_col > 0 ) then
         where (qi_too_small )
           diag_4d(:,:,:,diag_pt%qidt_fill) =     &
                               -1.*Cloud_state%qi_in *Constants%inv_dtcloud
         endwhere
       end if
-      if (Constants%do_mg_microphys) then
+      if (diag_id%qdt_ice_init > 0 ) then
+        where (qi_too_small )
+          diag_4d(:,:,:,diag_pt%qdt_ice_init) =     &
+                             Cloud_state%qi_in *Constants%inv_dtcloud
+        endwhere
+      end if
+      if (diag_id%cf_ice_init > 0) then
+        where (qi_too_small)
+          diag_4d(:,:,:,diag_pt%cf_ice_init) = 0.
+        elsewhere
+          diag_4d(:,:,:,diag_pt%cf_ice_init) = Cloud_state%qa_in
+        end where
+      endif
+      if (Constants%do_mg_microphys .or. &
+              Constants%do_mg_ncar_microphys) then
         if (Nml%debugo) then
           write(otun, *) " SNi 00 ",   &
                 Cloud_state%SNi_out(Nml%isamp,Nml%jsamp,NMl%ksamp)*  &
@@ -2420,15 +2855,7 @@ real, dimension(idim,jdim,kdim,0:n_diag_4d), intent(inout) :: diag_4d
           N3Di  = Cloud_state%qni_in*Atmos_state%airdens*1.e-6
         end where
 
-        if (diag_id%debug5_3d > 0) then
-          where (qi_too_small)
-            diag_4d(:,:,:,diag_pt%debug5_3d) = 0.
-          elsewhere
-            diag_4d(:,:,:,diag_pt%debug5_3d) = Cloud_state%qa_in
-          end where
-        endif
-
-        if (diag_id%qnidt_fill > 0 ) then
+        if (diag_id%qnidt_fill  + diag_id%qni_fill_col > 0 ) then
           where (qi_too_small) 
             diag_4d(:,:,:,diag_pt%qnidt_fill) =  &
                            -1.*Cloud_state%qni_in *Constants%inv_dtcloud
@@ -2450,7 +2877,8 @@ real, dimension(idim,jdim,kdim,0:n_diag_4d), intent(inout) :: diag_4d
 !    save the cloud area tendency and updated area values at this point
 !    for later use in the m-g microphysics.
 !------------------------------------------------------------------------
-      if (Constants%do_mg_microphys) then
+      if (Constants%do_mg_microphys .or. &
+              Constants%do_mg_ncar_microphys) then
         Cloud_state%qa_upd_0 = Cloud_state%qa_upd
         Cloud_state%SA_0 = Cloud_State%SA_out
       endif
@@ -2691,7 +3119,7 @@ real,dimension(:,:,:),      intent(in), optional :: qn_in, qni_in
       allocate  (Cloud_processes%dcond_ls      (idim, jdim, kdim) )
       allocate  (Cloud_processes%dcond_ls_ice  (idim, jdim, kdim) )
       allocate  (Cloud_processes%dcond_ls_tot  (idim, jdim, kdim) )
-      allocate  (Cloud_processes%tmp5          (idim, jdim, kdim) )
+      allocate  (Cloud_processes%delta_cf      (idim, jdim, kdim) )
       allocate  (Cloud_processes%f_snow_berg   (idim, jdim, kdim) )
 
       Cloud_processes%da_ls          = 0.
@@ -2700,7 +3128,7 @@ real,dimension(:,:,:),      intent(in), optional :: qn_in, qni_in
       Cloud_processes%dcond_ls       = 0.
       Cloud_processes%dcond_ls_ice   = 0.
       Cloud_processes%dcond_ls_tot   = 0.
-      Cloud_processes%tmp5           = 0.
+      Cloud_processes%delta_cf       = 0.
       Cloud_processes%f_snow_berg    = 0.
 
 !--------------------------------------------------------------------------
@@ -2820,7 +3248,7 @@ type(cloud_processes_type), intent(inout) :: Cloud_processes
       deallocate (Cloud_processes%dcond_ls    )
       deallocate (Cloud_processes%dcond_ls_ice)
       deallocate (Cloud_processes%dcond_ls_tot)
-      deallocate (Cloud_processes%tmp5        )
+      deallocate (Cloud_processes%delta_cf    )
       deallocate (Cloud_processes%f_snow_berg )
 
 !-------------------------------------------------------------------------

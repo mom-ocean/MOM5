@@ -304,7 +304,7 @@ module hgrid_mod
 
   !---------version information-------------------------------------------
   character(len=128) :: version = '$Id: hgrid.f90,v 14.0 2007/03/15 22:46:29 fms Exp $'
-  character(len=128) :: tagname = '$Name: siena_201207 $' 
+  character(len=128) :: tagname = '$Name: tikal $' 
 
   !---------public interface----------------------------------------------
   public :: generate_hgrid, hgrid_init, hgrid_end, write_hgrid_global_meta

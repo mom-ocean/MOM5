@@ -70,7 +70,7 @@ use mpp_mod, only: input_nml_file
 !-----------------------------------------------------------------------
 
  character(len=128) :: version='$Id: bgrid_sponge.F90,v 19.0 2012/01/06 19:54:03 fms Exp $'
- character(len=128) :: tagname='$Name: siena_201207 $'
+ character(len=128) :: tagname='$Name: tikal $'
  logical :: do_log  = .true.
  logical :: do_init = .true.
  integer :: id_clock

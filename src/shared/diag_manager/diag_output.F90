@@ -46,9 +46,9 @@ MODULE diag_output_mod
   LOGICAL :: module_is_initialized = .FALSE.
 
   CHARACTER(len=128), PRIVATE :: version= &
-       '$Id: diag_output.F90,v 19.0 2012/01/06 21:55:50 fms Exp $'
+       '$Id: diag_output.F90,v 20.0 2013/12/14 00:18:52 fms Exp $'
   CHARACTER(len=128), PRIVATE :: tagname= &
-       '$Name: siena_201207 $'
+       '$Name: tikal $'
 
 CONTAINS
 
@@ -145,7 +145,6 @@ CONTAINS
     LOGICAL, INTENT(in), OPTIONAL :: time_ops
 
     TYPE(domain1d)       :: Domain
-    TYPE(domain1d)       :: Edge_Domain
 
     CHARACTER(len=mxch)  :: axis_name, axis_units
     CHARACTER(len=mxchl) :: axis_long_name
@@ -279,11 +278,9 @@ CONTAINS
              IF ( ALLOCATED(pelist) ) DEALLOCATE(pelist)      
              ALLOCATE(pelist(0:ndivs-1))
              CALL mpp_get_pelist(Domain,pelist)
-             CALL mpp_define_domains((/gbegin,gend/),ndivs,Edge_Domain,&
-                  & pelist=pelist(0:ndivs-1), extent=axis_extent(0:ndivs-1))
              CALL mpp_write_meta(file_unit, Axis_types(num_axis_in_file),&
                   & axis_name, axis_units, axis_long_name, axis_cart_name,&
-                  & axis_direction, Edge_Domain,  DATA=axis_data)
+                  & axis_direction, Domain,  DATA=axis_data)
           END IF
        ELSE
           CALL mpp_write_meta(file_unit, Axis_types(num_axis_in_file), axis_name, axis_units,&
@@ -565,7 +562,13 @@ CONTAINS
 
     !---- output data ----
     IF ( Field%Domain .NE. null_domain2d ) THEN
-       CALL mpp_write(file_unit, Field%Field, Field%Domain, DATA, time, tile_count=Field%tile_count)
+       IF( Field%miss_present ) THEN
+          CALL mpp_write(file_unit, Field%Field, Field%Domain, DATA, time, &
+                      tile_count=Field%tile_count, default_data=Field%miss_pack)
+       ELSE
+          CALL mpp_write(file_unit, Field%Field, Field%Domain, DATA, time, &
+                      tile_count=Field%tile_count, default_data=CMOR_MISSING_VALUE)
+       END IF
     ELSE
        CALL mpp_write(file_unit, Field%Field, DATA, time)
     END IF

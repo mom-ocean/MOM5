@@ -1,4 +1,0 @@
-<?xml version="1.0" standalone="no"?>
-<!DOCTYPE MODULE SYSTEM 
-          "/net2/nnz/opt/tools/xmlDoc/share/xmlDoc/schema/fms.dtd">
-<MODULE NAME="check_mask_mod" DATE="0000/00/00 00:00:00" HISTORY="http://cobweb.gfdl.noaa.gov/fms-cgi-bin/viewcvs/preprocessing/generate_grids/ocean"><USE NAME="        mpp_mod"/><USE NAME="mpp_domains_mod"/><USE NAME="        fms_mod"/></MODULE>

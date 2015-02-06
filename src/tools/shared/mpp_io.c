@@ -94,9 +94,17 @@ int mpp_open(const char *file, int action) {
     files[fid].nvar = 0;
     files[fid].var = (VarType *)malloc(MAXVAR*sizeof(VarType));
   }
-    
   switch (action) {
   case MPP_WRITE:
+#ifdef use_netCDF3
+#ifdef NC_64BIT_OFFSET
+    status = nc_create(curfile, NC_64BIT_OFFSET, &ncid);
+#else
+    status = nc_create(curfile, NC_WRITE, &ncid);
+#endif
+#elif use_netCDF4
+       status = nc__create(curfile, NC_NETCDF4, 0, &blksz, &ncid);
+#else
     switch (in_format) {
       case NC_FORMAT_NETCDF4:
         status = nc__create(curfile, NC_NETCDF4, 0, &blksz, &ncid);
@@ -114,13 +122,16 @@ int mpp_open(const char *file, int action) {
         sprintf(errmsg, "mpp_io(mpp_open): Unknown netCDF format");
         mpp_error(errmsg);
     }
+#endif
     break;
   case MPP_APPEND:
     status = nc_open(curfile, NC_WRITE, &ncid);
     break;
   case MPP_READ:
     status = nc_open(curfile,NC_NOWRITE, &ncid);
+#ifndef use_netCDF3
     istat = nc_inq_format(ncid,&in_format);
+#endif
     break;
   default:
     sprintf(errmsg, "mpp_io(mpp_open): the action should be MPP_WRITE or MPP_READ when opening file %s", file);
@@ -488,8 +499,9 @@ void mpp_get_var_att_double(int fid, int vid, const char *name, double *val)
 void mpp_get_global_att(int fid, const char *name, void *val)
 {
   int status;
-  char errmsg[512];
+  char errmsg[512], attval[4096];
   nc_type type;
+  size_t attlen;
   
   if(fid<0 || fid >=nfiles) mpp_error("mpp_io(mpp_get_global_att): invalid fid number, fid should be "
 				    "a nonnegative integer that less than nfiles");
@@ -499,6 +511,7 @@ void mpp_get_global_att(int fid, const char *name, void *val)
 	    name, files[fid].name );
     netcdf_error(errmsg, status);
   }
+
   
   switch(type) {
   case NC_DOUBLE:case NC_FLOAT:
@@ -511,7 +524,15 @@ void mpp_get_global_att(int fid, const char *name, void *val)
     status = nc_get_att_short(files[fid].ncid, NC_GLOBAL, name, val);
     break;  
   case NC_CHAR:
-    status = nc_get_att_text(files[fid].ncid, NC_GLOBAL, name, val);
+    status = nc_inq_attlen(files[fid].ncid, NC_GLOBAL, name, &attlen);
+    if(status != NC_NOERR) {
+      sprintf(errmsg, "mpp_io(mpp_get_global_att): Error in getting length of global attribute %s from file %s",
+	      name, files[fid].name );
+      netcdf_error(errmsg, status);
+    }
+    status = nc_get_att_text(files[fid].ncid, NC_GLOBAL, name, attval);
+    attval[attlen] = '\0';
+    strncpy(val, attval, attlen+1);
     break;  
   default:
     sprintf(errmsg, "mpp_io(mpp_get_global_att): global attribute %s in file %s has an invalid type, "
@@ -711,6 +732,27 @@ int mpp_var_att_exist(int fid, int vid, const char *att)
   
 }; /* mpp_att_exist */
 
+/***************************************************************************
+  int mpp_global_att_exist(int fid, const char *att)
+  check  has the global attribute "att" or not.
+***************************************************************************/
+int mpp_global_att_exist(int fid, const char *att)
+{
+  int    status;
+  size_t attlen;
+  nc_type atttype;
+
+  if(fid<0 || fid >=nfiles) mpp_error("mpp_io(mpp_global_att_exist): invalid fid number, fid should be "
+				    "a nonnegative integer that less than nfiles");
+  
+  status = nc_inq_att(files[fid].ncid, NC_GLOBAL, att, &atttype, &attlen);
+  if(status == NC_NOERR) 
+    return 1;
+  else
+    return 0;
+  
+}; /* mpp_att_exist */
+
 
 /*******************************************************************************/
 /*                                                                             */
@@ -842,6 +884,8 @@ void mpp_def_var_att(int fid, int vid, const char *attname, const char *attval)
   int ncid, fldid, status;
   char errmsg[512];
   
+  if( mpp_pe() != mpp_root_pe() ) return;
+
   if(fid<0 || fid >=nfiles) mpp_error("mpp_io(mpp_def_var_att): invalid fid number, fid should be "
 				      "a nonnegative integer that less than nfiles");
   if(vid<0 || vid >=files[fid].nvar) mpp_error("mpp_io(mpp_def_var_att): invalid vid number, vid should be "
@@ -1145,4 +1189,30 @@ int mpp_var_exist(int fid, const char *field)
 
 } 
 
+
+int get_great_circle_algorithm(int fid)
+{
+  char attval[256];
+  char errmsg[512];
+  int great_circle_algorithm = 0;
+
+  if(fid<0 || fid >=nfiles) mpp_error("mpp_io(get_great_circle_algorithm): invalid fid number, fid should be "
+                                        "a nonnegative integer that less than nfiles");
+
+  if(mpp_global_att_exist(fid, "great_circle_algorithm")) {
+    mpp_get_global_att(fid, "great_circle_algorithm", attval);
+
+    if(!strcmp(attval, "TRUE"))
+      great_circle_algorithm = 1;
+    else if(!strcmp(attval, "FALSE"))
+      great_circle_algorithm = 0;
+    else {
+      sprintf(errmsg, "mpp_io: global atribute 'great_circle_algorithm' "
+	      "in file %s should have value 'TRUE' or 'FALSE'", files[fid].name);
+      mpp_error(errmsg);
+    }
+  }
+
+  return  great_circle_algorithm;
+}
 

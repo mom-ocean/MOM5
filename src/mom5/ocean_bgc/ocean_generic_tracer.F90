@@ -30,10 +30,12 @@ module ocean_generic_mod
   use generic_tracer, only: generic_tracer_coupler_get, generic_tracer_coupler_set, generic_tracer_register_diag
   use generic_tracer, only: generic_tracer_end, generic_tracer_get_list, do_generic_tracer, generic_tracer_register
   use generic_tracer, only: generic_tracer_coupler_zero, generic_tracer_vertdiff_G, generic_tracer_vertdiff_M
+  use generic_tracer, only: generic_tracer_diag
 
   use g_tracer_utils,   only: g_tracer_get_name,g_tracer_get_alias,g_tracer_set_values,g_tracer_get_common
   use g_tracer_utils,   only: g_tracer_get_next,g_tracer_type,g_tracer_is_prog,g_tracer_flux_init
   use g_tracer_utils,   only: g_tracer_send_diag,g_tracer_get_values,g_tracer_get_pointer
+  use g_tracer_utils,   only: g_tracer_set_pointer
 
   use coupler_types_mod, only: coupler_2d_bc_type
 
@@ -42,7 +44,7 @@ module ocean_generic_mod
   logical :: module_initialized = .false.
   ! identification numbers for mpp clocks
   integer :: id_clock_gt_vertdiff
-  integer :: id_clock_gt_source,id_clock_gt_btm
+  integer :: id_clock_gt_source,id_clock_gt_btm,id_clock_gt_diag
   integer :: id_clock_gt_get_vals,id_clock_gt_set_vals,id_clock_gt_sum_sfc_setval
 
   public do_generic_tracer
@@ -55,10 +57,16 @@ module ocean_generic_mod
   public ocean_generic_end
   public ocean_generic_get_field
   public ocean_generic_get_field_pointer
+  public ocean_generic_set_pointer
 
   interface ocean_generic_get_field
      module procedure ocean_generic_get_field_3D
      module procedure ocean_generic_get_field_4D
+  end interface
+
+  interface ocean_generic_set_pointer
+     module procedure ocean_generic_set_pointer_3D
+     module procedure ocean_generic_set_pointer_4D
   end interface
 
 contains
@@ -66,6 +74,9 @@ contains
 !ALL PE subroutine on Ocean!  Due to otpm design the fluxes should be initialized like this on ALL PE's!
   subroutine ocean_generic_flux_init
 
+    integer :: ind
+    character(len=fm_string_len)   :: g_tracer_name,longname, package,units,old_package
+    real :: const_init_value
     character(len=fm_string_len), parameter :: sub_name = 'ocean_generic_flux_init'
     type(g_tracer_type), pointer :: g_tracer_list,g_tracer,g_tracer_next
 
@@ -119,7 +130,7 @@ contains
     character(len=fm_string_len)   :: g_tracer_name,longname, package,units,old_package,restart_file
     type(g_tracer_type), pointer :: g_tracer_list,g_tracer,g_tracer_next
     real :: const_init_value
-    integer :: ntau, ind
+    integer :: ntau, ind, length
 
 
     if (module_initialized) return 
@@ -215,6 +226,7 @@ contains
     id_clock_gt_vertdiff         = mpp_clock_id('(Ocean generic tracer: vertdiff) '     ,grain=CLOCK_ROUTINE)
     id_clock_gt_source           = mpp_clock_id('(Ocean generic tracer: source) '       ,grain=CLOCK_ROUTINE)
     id_clock_gt_btm              = mpp_clock_id('(Ocean generic tracer: bottom up) '    ,grain=CLOCK_ROUTINE)
+    id_clock_gt_diag             = mpp_clock_id('(Ocean generic tracer: diag) '         ,grain=CLOCK_ROUTINE)
     id_clock_gt_set_vals         = mpp_clock_id('(Ocean generic tracer: set_values) '   ,grain=CLOCK_ROUTINE)
     id_clock_gt_get_vals         = mpp_clock_id('(Ocean generic tracer: get_values) '   ,grain=CLOCK_ROUTINE)
     id_clock_gt_sum_sfc_setval   = mpp_clock_id('(Ocean generic tracer: sumsfcsetv) '   ,grain=CLOCK_ROUTINE)  
@@ -287,28 +299,6 @@ contains
     call generic_tracer_get_list(g_tracer_list)
     if(.NOT. associated(g_tracer_list)) call mpp_error(FATAL, trim(sub_name)//&
          ": No tracer in the list.")
-
-    !For each tracer name get its T_prog index and set its field
-    g_tracer=>g_tracer_list  
-    call mpp_clock_begin(id_clock_gt_sum_sfc_setval)
-    do
-       if(g_tracer_is_prog(g_tracer)) then
-          call g_tracer_get_alias(g_tracer,g_tracer_name)
-          g_tracer_index = fm_get_index(trim('/ocean_mod/prog_tracers/'//g_tracer_name))
-          if (g_tracer_index .le. 0) &
-               call mpp_error(FATAL,trim(sub_name) // ' Could not get the index for '//g_tracer_name)
-
-          call g_tracer_set_values(g_tracer,g_tracer_name,'field', T_prog(g_tracer_index)%field(:,:,:,Time%taum1),&
-                                   Disd,Djsd,ntau=Time%taum1)
-       endif
-
-       !traverse the linked list till hit NULL
-       call g_tracer_get_next(g_tracer, g_tracer_next)
-       if(.NOT. associated(g_tracer_next)) exit
-       g_tracer=>g_tracer_next  
-
-    enddo
-    call mpp_clock_end(id_clock_gt_sum_sfc_setval)
 
     call generic_tracer_coupler_set(Ocean%fields,&
          ST=T_prog(indtemp)%field(:,:,1,Time%taum1),&
@@ -440,48 +430,16 @@ contains
     real, dimension(:),       Allocatable :: max_wavelength_band
     real, dimension(:,:,:),   Allocatable :: sw_pen_band
     real, dimension(:,:,:,:), Allocatable :: opacity_band
+    logical, save                         :: initialize_tau_level = .true.
 
     character(len=fm_string_len)      :: g_tracer_name
     character(len=fm_string_len), parameter :: sub_name = 'ocean_generic_column_physics'
 
-    ! Update the fields of the generic tracers from T_prog
-
-    ! Get the tracer list
-    call generic_tracer_get_list(g_tracer_list)
-    if(.NOT. associated(g_tracer_list)) call mpp_error(FATAL, trim(sub_name)//&
-         ": No tracer in the list.")
-
-    ! For each tracer name get its T_prog index and set its field
-    g_tracer=>g_tracer_list  
-    call mpp_clock_begin(id_clock_gt_set_vals)
-    do
-       call g_tracer_get_alias(g_tracer,g_tracer_name)
-       if(g_tracer_is_prog(g_tracer)) then
-          g_tracer_index = fm_get_index(trim('/ocean_mod/prog_tracers/'//g_tracer_name))
-          if (g_tracer_index .le. 0) &
-               call mpp_error(FATAL,trim(sub_name) // ' Could not get the index for '//g_tracer_name)
-
-          call g_tracer_set_values(g_tracer,g_tracer_name,'field', T_prog(g_tracer_index)%field(:,:,:,Time%taup1), &
-                                   Disd,Djsd,ntau=Time%taup1)
-          ! T_prog(n)%K33_implicit is used in vertdiff method below for calculating vertical diffusivity
-          call g_tracer_set_values(g_tracer,g_tracer_name,'tendency',T_prog(g_tracer_index)%K33_implicit,Disd,Djsd)
-
-       else
-          g_tracer_index = fm_get_index(trim('/ocean_mod/diag_tracers/'//g_tracer_name))
-          if (g_tracer_index .le. 0) &
-               call mpp_error(FATAL,trim(sub_name) // ' Could not get the index for '//g_tracer_name)
-          
-          call g_tracer_set_values(g_tracer,g_tracer_name,'field', T_diag(g_tracer_index)%field, Disd,Djsd)
-       endif
-
-       !traverse the linked list till hit NULL
-       call g_tracer_get_next(g_tracer, g_tracer_next)
-       if(.NOT. associated(g_tracer_next)) exit
-       g_tracer=>g_tracer_next  
-
-    enddo
-    call mpp_clock_end(id_clock_gt_set_vals)
-
+    !
+    !Update the fields of the generic tracers from T_prog
+    !
+    !This step is not needed any more since generic tracers %field points to and reuse the corresponding MOM arrays.
+    !
     !Update from sources
     indtemp=-1
     indsal=-1
@@ -516,7 +474,7 @@ contains
     call generic_tracer_source(T_prog(indtemp)%field(:,:,:,Time%taup1),&
          T_prog(indsal)%field(:,:,:,Time%taup1), Thickness%rho_dzt(:,:,:,Time%taup1), Thickness%dzt,&
          hblt_depth, Disd, Djsd, Time%taup1,dtts,Grid%dat, Time%model_time,&
-         nbands, max_wavelength_band, sw_pen_band, opacity_band, Velocity%current_wave_stress(:,:))
+         nbands, max_wavelength_band, sw_pen_band, opacity_band, Grid%ht, Velocity%current_wave_stress(:,:))
 
     call mpp_clock_end(id_clock_gt_source)
     deallocate(max_wavelength_band,sw_pen_band,opacity_band)
@@ -535,15 +493,23 @@ contains
     call generic_tracer_update_from_bottom(dtts, Time%taup1, Time%model_time)
     call mpp_clock_end(id_clock_gt_btm)
 
+    !
+    ! Finish up generic tracers
+    !
+    call mpp_clock_begin(id_clock_gt_diag)
+    call generic_tracer_diag(Disd, Djsd, Time%tau, Time%taup1, dtts, Time%model_time, Thickness%dzt,  &
+         Thickness%rho_dzt(:,:,:,Time%tau), Thickness%rho_dzt(:,:,:,Time%taup1))
+    call mpp_clock_end(id_clock_gt_diag)
+
     !!nnz: the following is necessary if generic tracers are allocated by MOM
     !
     !Update T_prog fields from generic tracer fields
+    !This step is not needed for %fields any more since generic tracers %field points to and reuse the corresponding MOM arrays.
     !
     !Get the tracer list
     call generic_tracer_get_list(g_tracer_list)
     if(.NOT. associated(g_tracer_list)) call mpp_error(FATAL, trim(sub_name)//&
          ": No tracer in the list.")
-    !For each tracer name get its T_prog or T_diag index and get its fields
     g_tracer=>g_tracer_list  
     call mpp_clock_begin(id_clock_gt_get_vals)
     do
@@ -553,19 +519,8 @@ contains
           if (g_tracer_index .le. 0) &
                call mpp_error(FATAL,trim(sub_name) // ' Could not get the index for '//g_tracer_name)
 
-          call g_tracer_get_values(g_tracer,g_tracer_name,'field', T_prog(g_tracer_index)%field(:,:,:,Time%taup1),&
-                                   Disd,Djsd,ntau=Time%taup1)
-
           if (_ALLOCATED(g_tracer%btf) )&
                call g_tracer_get_values(g_tracer,g_tracer_name,'btf',   T_prog(g_tracer_index)%btf,   Disd,Djsd)
-
-       else
-          g_tracer_index = fm_get_index(trim('/ocean_mod/diag_tracers/'//g_tracer_name))
-          if (g_tracer_index .le. 0) &
-               call mpp_error(FATAL,trim(sub_name) // ' Could not get the index for '//g_tracer_name)
-
-          call g_tracer_get_values(g_tracer,g_tracer_name,'field', T_diag(g_tracer_index)%field, Disd,Djsd)
-
        endif
 
        !traverse the linked list till hit NULL
@@ -607,10 +562,43 @@ contains
 
     call generic_tracer_get_list(g_tracer_list)
     call g_tracer_get_pointer(g_tracer_list,name,'field', ptr )
-
     field = ptr
     
   end subroutine ocean_generic_get_field_3D
+
+  subroutine ocean_generic_set_pointer_4d(name, member, field, ilb, jlb)
+    character(len=fm_string_len), parameter :: sub_name = 'ocean_generic_set_pointer_4d'
+    character(len=*),                       intent(in)  :: name
+    character(len=*),                       intent(in)  :: member
+    real, dimension(ilb:,jlb:,:,:), target, intent(in)  :: field
+    integer,                                intent(in)  :: ilb
+    integer,                                intent(in)  :: jlb
+    type(g_tracer_type), pointer      :: g_tracer_list
+
+    call generic_tracer_get_list(g_tracer_list)
+    if (associated(g_tracer_list)) then
+      call g_tracer_set_pointer(g_tracer_list, name, member, field, ilb, jlb)
+    else
+      call mpp_error(NOTE, trim(sub_name)// ": No generic tracer in the list. No generic tracers?")
+    endif
+  end subroutine ocean_generic_set_pointer_4d
+
+  subroutine ocean_generic_set_pointer_3d(name, member, field, ilb, jlb)
+    character(len=fm_string_len), parameter :: sub_name = 'ocean_generic_set_pointer_3d'
+    character(len=*),                     intent(in)    :: name
+    character(len=*),                     intent(in)  :: member
+    real, dimension(ilb:,jlb:,:), target, intent(in)    :: field
+    integer,                              intent(in)    :: ilb
+    integer,                              intent(in)    :: jlb
+    type(g_tracer_type), pointer      :: g_tracer_list
+
+    call generic_tracer_get_list(g_tracer_list)
+    if (associated(g_tracer_list)) then
+      call g_tracer_set_pointer(g_tracer_list, name, member, field, ilb, jlb)
+    else
+      call mpp_error(NOTE, trim(sub_name)// ": No generic tracer in the list. No generic tracers?")
+    endif
+  end subroutine ocean_generic_set_pointer_3d
 
   ! <SUBROUTINE NAME="ocean_generic_end">
   !  <OVERVIEW>

@@ -43,10 +43,12 @@ void mpp_get_global_domain2d(domain2D domain,  int *nx, int *ny);
 void mpp_get_compute_domains2d(domain2D domain, int *is, int *ie, int *js, int *je);
 void mpp_get_shift(domain2D domain, int sizex, int sizey, int *ishift, int *jshift);
 void mpp_global_field_double(domain2D domain, int sizex, int sizey, const double* ldata, double* gdata);
+void mpp_global_field_int(domain2D domain, int sizex, int sizey, const int* ldata, int* gdata);
 void mpp_global_field_double_3D(domain2D domain, int sizex, int sizey, int sizez,
 				const double* ldata, double* gdata);
 void mpp_global_field_all_double(domain2D domain, int sizex, int sizey, const double* ldata, double* gdata);
 void mpp_gather_field_int(int lsize, int *ldata, int *gdata);
 void mpp_gather_field_double(int lsize, double *ldata, double *gdata);
+void mpp_gather_field_double_root(int lsize, double *ldata, double *gdata);
 void mpp_gather_field_int_root(int lsize, int *ldata, int *gdata);
 #endif

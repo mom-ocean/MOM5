@@ -200,13 +200,16 @@
    REALTYPE                            :: Y(0:N)
 !
 ! !DEFINED PARAMETERS:
-   REALTYPE,     parameter             :: one6th=1.0/6.0
+   REALTYPE,     parameter             :: one6th=1.0d0/6.0d0
    integer,      parameter             :: itmax=100
 !
 ! !REVISION HISTORY:
 !  Original author(s): Lars Umlauf
 !
 !  $Log: adv_center.F90,v $
+!  Revision 20.0  2013/12/14 00:13:57  fms
+!  Merged revision 1.1.2.1 onto trunk
+!
 !  Revision 1.1.2.1  2012/05/15 16:01:18  smg
 !  initial cvs ci to mom5
 !  AUTHOR:Griffies

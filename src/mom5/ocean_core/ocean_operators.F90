@@ -1,15 +1,15 @@
 module ocean_operators_mod
 !   
-!<CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
+!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies
 !</CONTACT>
 !
-!<REVIEWER EMAIL="Tony.Rosati@noaa.gov"> A. Rosati
+!<REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov"> A. Rosati
 !</REVIEWER>
 !
-!<REVIEWER EMAIL="Zhi.Liang@noaa.gov"> Zhi Liang
+!<REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Zhi Liang
 !</REVIEWER>
 !
-!<REVIEWER EMAIL="Alexander.Pletzer@noaa.gov"> Alexander Pletzer
+!<REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Alexander Pletzer
 !</REVIEWER>
 !
 !<OVERVIEW>
@@ -163,10 +163,10 @@ module ocean_operators_mod
   type(ocean_domain_type), pointer    :: Dom_bt => NULL()
 
   character (len=128) :: version = &
-       '$Id: ocean_operators.F90,v 1.1.2.5 2012/06/01 20:47:08 Stephen.Griffies Exp $'
+       '$Id: ocean_operators.F90,v 20.0 2013/12/14 00:10:53 fms Exp $'
 
   character (len=128) :: tagname = &
-       '$Name: mom5_siena_08jun2012_smg $'
+       '$Name: tikal $'
 
   type(ocean_grid_type), pointer      :: Grd =>NULL()
   type(ocean_domain_type), pointer    :: Dom =>NULL()
@@ -521,7 +521,7 @@ function DIV_UD (ud, halo_in, halo_out )
     jstart = jsc - halo_out
     jend   = jec + halo_out
 
-    DIV_UD = 0.0
+    DIV_UD = 0.d0
 
     if(horz_grid == MOM_CGRID) then
 

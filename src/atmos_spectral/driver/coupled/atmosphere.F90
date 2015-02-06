@@ -40,7 +40,7 @@ character(len=128), parameter :: version = &
 '$Id: atmosphere.F90,v 17.0 2009/07/21 03:00:28 fms Exp $'
 
 character(len=128), parameter :: tagname = &
-'$Name: siena_201207 $'
+'$Name: tikal $'
 
 public :: atmosphere_init, atmosphere_down, atmosphere_up, atmosphere_end, atmosphere_domain
 public :: atmosphere_resolution, atmosphere_boundary, get_bottom_mass, get_bottom_wind, get_atmosphere_axes

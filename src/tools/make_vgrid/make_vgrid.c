@@ -109,7 +109,7 @@ char *usage[] = {
   NULL };  
 
 char grid_version[] = "0.2";
-char tagname[] = "$Name: siena_201205_z1l $";
+char tagname[] = "$Name: tikal $";
 
 int main(int argc, char* argv[])
 {

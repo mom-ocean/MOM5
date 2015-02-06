@@ -1,5 +1,5 @@
 #
-# $Id: fre-nctools.mk,v 19.0 2012/01/06 22:09:26 fms Exp $
+# $Id: fre-nctools.mk,v 20.0 2013/12/14 00:33:07 fms Exp $
 # ------------------------------------------------------------------------------
 # FMS/FRE Project: Makefile to Build Regridding Executables
 # ------------------------------------------------------------------------------
@@ -10,13 +10,15 @@
 # Copyright (C) NOAA Geophysical Fluid Dynamics Laboratory, 2009-2010
 # Designed and written by V. Balaji, Amy Langenhorst and Aleksey Yakovlev
 #
+include env.$(SITE)
 
-MPICC    := mpicc
-CC       := icc
+# MPICC and CC are defined in env.$(SITE)
+#MPICC    := mpicc
+#CC       := icc
 CFLAGS   := -O3 -g -traceback
 CFLAGS_O2:= -O2 -g -traceback
 INCLUDES := -I${NETCDF_HOME}/include -I./ -I../shared -I../../shared/mosaic
-LIBS     := -L${NETCDF_HOME}/lib/shared -L${HDF5_HOME}/lib/shared -lnetcdf -lhdf5_hl -lhdf5 -lz -limf
+CLIBS     := -L${NETCDF_HOME}/lib -L${HDF5_HOME}/lib -lnetcdf -lhdf5_hl -lhdf5 -lz -limf $(CLIBS2) $(STATIC)
 
 TARGETS  :=  make_coupler_mosaic make_coupler_mosaic_parallel
 
@@ -34,10 +36,10 @@ HEADERS = fre-nctools.mk ../shared/mpp.h  ../shared/mpp_domain.h  ../shared/mpp_
 all: $(TARGETS)
 
 make_coupler_mosaic: $(OBJECTS) mosaic_util.o mpp.o
-	$(CC) -o $@ $^ $(LIBS)
+	$(CC) -o $@ $^ $(CLIBS)
 
 make_coupler_mosaic_parallel: $(OBJECTS) mosaic_util_parallel.o mpp_parallel.o
-	$(MPICC) -o $@ $^ $(LIBS)
+	$(MPICC) -o $@ $^ $(CLIBS)
 
 mosaic_util.o: ../../shared/mosaic/mosaic_util.c $(HEADERS)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< 
