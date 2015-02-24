@@ -527,12 +527,12 @@ subroutine blob_util_init(Grid, Domain, PE_info, Blob_domain, &
   allocate(Info%minlat(isc:iec))
 
   do j=jsc,jec
-     Info%minlon(j) = minval(vert_t(1,:,:,j))
-     Info%maxlon(j) = maxval(vert_t(1,:,:,j))
+     Info%minlon(j) = minval(vert_t(1,:,isc:iec,j))
+     Info%maxlon(j) = maxval(vert_t(1,:,isc:iec,j))
   enddo
   do i=isc,iec
-     Info%minlat(i) = minval(vert_t(2,:,i,:))
-     Info%maxlat(i) = maxval(vert_t(2,:,i,:))
+     Info%minlat(i) = minval(vert_t(2,:,i,jsc:jec))
+     Info%maxlat(i) = maxval(vert_t(2,:,i,jsc:jec))
   enddo
 
 end subroutine blob_util_init
