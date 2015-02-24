@@ -1434,24 +1434,9 @@ subroutine dynamic_update(head, free, Time, Dens, Thickness,    &
            uE = uE*ubigd
            vE = vE*ubigd
 
-           ! T-grid variables
-           tbigd = 0.0
-           rhoE = 0.0
-           do mm=1,Info%tidx(0,i,j)
-              iit=i+Info%it(Info%tidx(mm,i,j))
-              jjt=j+Info%jt(Info%tidx(mm,i,j))
-              ! We do not want to consider land points for ocean only variables (such as density).
-              ! However, by not including them sum(tcoeffs(ocean_points))<1.0 if there is
-              ! a land point included.  Such an approach will give a spuriously
-              ! low value for the variable.  We thus accumulate tcoeffs and divide to make
-              ! sure the value is not spuriously low.
-              if(kmt(iit,jjt)>0) then
-                 tbigd = tbigd + tdsq_r(mm)
-                 rhoE = rhoE + model_rho(iit,jjt,kmt(iit,jjt))*tdsq_r(mm)
-              endif
-           enddo
-           tbigd = 1.0/tbigd
-           rhoE = rhoE*tbigd
+           ! Put rhoE to the model density (rather than interpolate) so 
+           ! free blobs are not prematurely created.
+           rhoE = model_rho(i,j,k)
 
            ! speed of the blob
            absv2  = vel(1)**2 + vel(2)**2 + vel(3)**2
@@ -1893,6 +1878,9 @@ subroutine dynamic_update(head, free, Time, Dens, Thickness,    &
                     endif
 
                     volume = mass*rhor
+                    ! Update rhoE before the free blob check
+                    ! to account for blobs that moved to shallower water
+                    rhoE = model_rho(i,j,k)
 
                     ! Check whether a blob that is not small has separated
                     if (rhoL < rhoE) then
@@ -3029,6 +3017,7 @@ subroutine increase_buffer(buffer, newnum)
   type(blob_buffer_type), pointer :: new_buffer
   integer :: newbuffsize, m
 
+  newbuffsize = buffer%size
   allocate(new_buffer)
   m=1
   do while (newnum>newbuffsize)

@@ -1908,7 +1908,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     ! update (udrho,vdrho) and eta_t_bar or pbot_t_bar using barotropic timesteps 
     call mpp_clock_begin(id_barotropic_update)
     call update_ocean_barotropic (Time, Dens, Thickness, Adv_vel, &
-                                  Ext_mode, patm, pme, river)
+                                  Ext_mode, patm, pme, river, use_blobs)
     call mpp_clock_end(id_barotropic_update)
 
     ! remaining time explicit contributions to rho*dz*acceleration

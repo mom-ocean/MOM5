@@ -1164,7 +1164,8 @@ subroutine init_blob_thickness(Time, Thickness, T_prog, L_system)
            ! calculation of hydrostatic pressure.  Bottom blobs only
            ! contribute to the lower half of the grid cell thickness.
            rho_dzt = Grd%datr(i,j)*this%volume*this%density
-           L_system%rho_dztlo(i,j,k) = L_system%rho_dztlo(i,j,k) + rho_dzt
+           L_system%rho_dztlo(i,j,k) = L_system%rho_dztlo(i,j,k) + rho_dzt*0.5
+           L_system%rho_dztup(i,j,k) = L_system%rho_dztup(i,j,k) + rho_dzt*0.5
 
            ! Note, we do not need to initialise the L system thickness, as this is already
            ! done in the thickness module from restarts
@@ -1747,7 +1748,8 @@ subroutine update_L_thickness(Time, Thickness, T_prog, L_system, EL_diag)
   integer :: total_blobs, dstryd_blobs, diag_dstryd_blobs
   integer :: stdoutunit
   logical :: up
-  real :: dzt, rho_dzt, th_rho_dzt, max_dzt, new_dzt
+  real :: dzt, rho_dzt, th_rho_dzt, max_dzt, max_dzt_lo, max_dzt_up 
+  real :: new_dzt, new_dzt_lo, new_dzt_up
 
   if (.not. use_this_module) return
 
@@ -1893,11 +1895,13 @@ subroutine update_L_thickness(Time, Thickness, T_prog, L_system, EL_diag)
            th_rho_dzt = rho_dzt
         endif
 
-        ! Bottom blobs only contribute to the lower half of the cell
-        new_dzt = Thickness%dztloL(i,j,k)+dzt
-        max_dzt = max_prop_thickness*Thickness%dztloT(i,j,k)
+        ! Bottom blobs now contribute to the lower and upper half of the cell
+        new_dzt_lo = Thickness%dztloL(i,j,k)+dzt*0.5
+        new_dzt_up = Thickness%dztupL(i,j,k)+dzt*0.5
+        max_dzt_lo = max_prop_thickness*Thickness%dztloT(i,j,k)
+        max_dzt_up = max_prop_thickness*Thickness%dztupT(i,j,k)
 
-        if (new_dzt > max_dzt) then
+        if ((new_dzt_lo > max_dzt_lo) .or. (new_dzt_up > max_dzt_up)) then
            EL_diag(0)%dstry(i,j,k) = EL_diag(0)%dstry(i,j,k) + this%mass
            do n=1,num_prog_tracers
               EL_diag(n)%dstry(i,j,k) = EL_diag(n)%dstry(i,j,k) + this%tracer(n)
@@ -1908,8 +1912,10 @@ subroutine update_L_thickness(Time, Thickness, T_prog, L_system, EL_diag)
            if(.not.associated(this)) exit bottcycle
            cycle bottcycle
         endif
-        Thickness%dztloL(i,j,k)         = new_dzt
-        L_system%rho_dztlo(i,j,k)       = L_system%rho_dztlo(i,j,k) + rho_dzt
+        Thickness%dztloL(i,j,k)         = new_dzt_lo
+        Thickness%dztupL(i,j,k)         = new_dzt_up
+        L_system%rho_dztlo(i,j,k)       = L_system%rho_dztlo(i,j,k) + rho_dzt*0.5
+        L_system%rho_dztup(i,j,k)       = L_system%rho_dztup(i,j,k) + rho_dzt*0.5
         Thickness%rho_dztL(i,j,k,taup1) = Thickness%rho_dztL(i,j,k,taup1) + th_rho_dzt
 
         do n=1,num_prog_tracers
@@ -2196,7 +2202,8 @@ subroutine adjust_L_thickness(Time, Thickness, T_prog, L_system)
         rho_dzt = Grd%datr(i,j)*this%volume*this%density
 
         ! Bottom blobs only contribute to the lower half of the bottom cell.
-        L_system%rho_dztlo(i,j,k) = L_system%rho_dztlo(i,j,k) + rho_dzt
+        L_system%rho_dztlo(i,j,k) = L_system%rho_dztlo(i,j,k) + rho_dzt*0.5
+        L_system%rho_dztup(i,j,k) = L_system%rho_dztup(i,j,k) + rho_dzt*0.5
 
         ! This is for thickness calculations
         if(vert_coordinate_class == DEPTH_BASED)then
@@ -2204,7 +2211,8 @@ subroutine adjust_L_thickness(Time, Thickness, T_prog, L_system)
         else
            Thickness%rho_dztL(i,j,k,taup1) = Thickness%rho_dztL(i,j,k,taup1) + rho_dzt
         endif
-        Thickness%dztloL(i,j,k) = Thickness%dztloL(i,j,k) + Grd%datr(i,j)*this%volume
+        Thickness%dztloL(i,j,k) = Thickness%dztloL(i,j,k) + Grd%datr(i,j)*this%volume*0.5
+        Thickness%dztupL(i,j,k) = Thickness%dztupL(i,j,k) + Grd%datr(i,j)*this%volume*0.5
 
         do n=1,num_prog_tracers
            T_prog(n)%sum_blob(i,j,k,taup1) = T_prog(n)%sum_blob(i,j,k,taup1) + this%tracer(n)
