@@ -1098,3 +1098,19 @@ end subroutine mpp_gsm_free
 #undef MPP_TYPE_BYTELEN_
 #define MPP_TYPE_BYTELEN_ 4
 #include <mpp_sum_mpi.h>
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                             !
+!            SCATTER AND GATHER ROUTINES: mpp_alltoall                        !
+!                                                                             !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#undef MPP_ALLTOALL_
+#undef MPP_TYPE_
+#undef MPP_TYPE_BYTELEN_
+#undef MPI_TYPE_
+#define MPP_ALLTOALL_ mpp_alltoall_int4
+#define MPP_TYPE_ integer(INT_KIND)
+#define MPP_TYPE_BYTELEN_ 4
+#define MPI_TYPE_ MPI_INTEGER4
+#include <mpp_alltoall_mpi.h>

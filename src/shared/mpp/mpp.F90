@@ -164,6 +164,7 @@ module mpp_mod
   use mpp_parameter_mod, only : MAX_EVENTS, MAX_BINS, MAX_EVENT_TYPES, MAX_CLOCKS
   use mpp_parameter_mod, only : MAXPES, EVENT_WAIT, EVENT_ALLREDUCE, EVENT_BROADCAST
   use mpp_parameter_mod, only : EVENT_RECV, EVENT_SEND, MPP_READY, MPP_WAIT
+  use mpp_parameter_mod, only : EVENT_ALLTOALL
   use mpp_parameter_mod, only : mpp_parameter_version=>version, mpp_parameter_tagname=>tagname
   use mpp_parameter_mod, only : DEFAULT_TAG
   use mpp_parameter_mod, only : COMM_TAG_1,  COMM_TAG_2,  COMM_TAG_3,  COMM_TAG_4
@@ -216,6 +217,7 @@ private
   public :: mpp_chksum, mpp_max, mpp_min, mpp_sum, mpp_transmit, mpp_send, mpp_recv
   public :: mpp_broadcast, mpp_malloc, mpp_init, mpp_exit
   public :: mpp_gather
+  public :: mpp_alltoall
 #ifdef use_MPI_GSM
   public :: mpp_gsm_malloc, mpp_gsm_free
 #endif
@@ -663,6 +665,18 @@ private
      module procedure mpp_gather_real8_1dv
   end interface
 
+
+  !#####################################################################
+  ! <interface name="mpp_alltoall">
+  !   <overview>
+  !     scatter a vector across all PEs
+  !     (e.g. transpose the vector and PE index)
+  !   </overview>
+  ! </interface>
+  interface mpp_alltoall
+     module procedure mpp_alltoall_int4
+     ! TODO: Other types, multidimensions, etc?
+  end interface
 
   !#####################################################################
 
