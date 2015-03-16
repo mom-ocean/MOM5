@@ -675,7 +675,9 @@ private
   ! </interface>
   interface mpp_alltoall
      module procedure mpp_alltoall_int4
-     ! TODO: Other types, multidimensions, etc?
+     module procedure mpp_alltoall_int8
+     module procedure mpp_alltoall_real4
+     module procedure mpp_alltoall_real8
   end interface
 
   !#####################################################################
