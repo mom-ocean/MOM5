@@ -678,6 +678,10 @@ private
      module procedure mpp_alltoall_int8
      module procedure mpp_alltoall_real4
      module procedure mpp_alltoall_real8
+     module procedure mpp_alltoall_int4_v
+     module procedure mpp_alltoall_int8_v
+     module procedure mpp_alltoall_real4_v
+     module procedure mpp_alltoall_real8_v
   end interface
 
   !#####################################################################
