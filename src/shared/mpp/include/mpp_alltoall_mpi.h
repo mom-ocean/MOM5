@@ -1,7 +1,7 @@
 subroutine MPP_ALLTOALL_(sbuf, rbuf, pelist)
 
-    MPP_TYPE_, dimension(:), intent(in) :: sbuf
-    MPP_TYPE_, dimension(:), intent(inout) :: rbuf
+    MPP_TYPE_, intent(in) :: sbuf(:)
+    MPP_TYPE_, intent(inout) :: rbuf(:)
 
     integer, intent(in), optional :: pelist(0:)
     integer :: n
@@ -31,7 +31,7 @@ subroutine MPP_ALLTOALLV_(sbuf, ssize, sdispl, rbuf, rsize, rdispl, pelist)
     MPP_TYPE_, intent(in) :: sbuf(:)
     MPP_TYPE_, intent(inout) :: rbuf(:)
 
-    ! TODO: Optional displacements; set to cumulative sums of buf_msg_len
+    ! TODO: Optionally set displacements to cumulative sums of ssize, rsize
     integer, intent(in) :: ssize(:), rsize(:)
     integer, intent(in) :: sdispl(:), rdispl(:)
 
