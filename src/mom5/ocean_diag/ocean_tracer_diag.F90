@@ -2722,7 +2722,6 @@ subroutine tracer_land_cell_check (Time, T_prog)
      enddo
   enddo
 
-  call mpp_max(num)
   if (num > 0) call mpp_error(FATAL)
 
 9100  format(/' " =>Error: Land cell at (i,j,k) = ','(',i4,',',i4,',',i4,'),',&
