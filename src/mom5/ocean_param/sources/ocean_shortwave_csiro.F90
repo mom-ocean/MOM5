@@ -134,6 +134,7 @@ real, public, allocatable, dimension(:,:) :: ssw_atten_depth  !  Attenuation dep
 public  ocean_shortwave_csiro_init
 public  sw_source_csiro
 private sw_pen
+private sw_pen_legacy
 
 logical :: use_this_module        = .false.
 logical :: read_depth             = .false.
@@ -147,9 +148,13 @@ real :: zmax_pen      = 120.0 ! maximum depth (m) of solar penetration.
                               ! below, penetration is exponentially small and so is ignored
 real :: sw_frac_top   = 0.0   ! set to 1.0 if do not have shortwave radiation inside of T_prog(index_temp)%stf.
 
+logical :: use_sw_pen_legacy = .false.  ! Older SW algorithm
+
 namelist /ocean_shortwave_csiro_nml/ use_this_module, read_depth, depth_default, &
                                zmax_pen, sw_frac_top, debug_this_module,         &
                                enforce_sw_frac, sw_pen_fixed_depths 
+
+namelist /ocean_shortwave_csiro_ofam_nml/ use_sw_pen_legacy
 
 contains
 
@@ -185,15 +190,23 @@ contains
 #ifdef INTERNAL_FILE_NML
     read (input_nml_file, nml=ocean_shortwave_csiro_nml, iostat=io_status)
     ierr = check_nml_error(io_status,'ocean_shortwave_csiro_nml')
+    read (input_nml_file, nml=ocean_shortwave_csiro_ofam_nml, iostat=io_status)
+    ierr = check_nml_error(io_status,'ocean_shortwave_csiro_ofam_nml')
 #else
     unit = open_namelist_file()
     read(unit, ocean_shortwave_csiro_nml,iostat=io_status)
     ierr = check_nml_error(io_status, 'ocean_shortwave_csiro_nml')
+    rewind(unit)
+    read(unit, ocean_shortwave_csiro_ofam_nml,iostat=io_status)
+    ierr = check_nml_error(io_status, 'ocean_shortwave_csiro_ofam_nml')
     call close_file(unit)
 #endif
-    write (stdoutunit,'(/)')
-    write(stdoutunit,ocean_shortwave_csiro_nml)    
+    write(stdoutunit,'(/)')
+    write(stdoutunit,ocean_shortwave_csiro_nml)
     write(stdlogunit,ocean_shortwave_csiro_nml)
+    write(stdoutunit,'(/)')
+    write(stdoutunit,ocean_shortwave_csiro_ofam_nml)
+    write(stdlogunit,ocean_shortwave_csiro_ofam_nml)
 
     Dom => Domain
     Grd => Grid
@@ -355,37 +368,72 @@ subroutine sw_source_csiro (Time, Thickness, T_diag, swflx, index_irr, Temp, sw_
   zt_sw=0.0
   sw_frac_zw(:,:,0) = sw_frac_top
 
-  do k=1,nk-1
+  if (use_sw_pen_legacy) then
 
-     if(sw_pen_fixed_depths) then 
+      do k=1,nk-1
 
-         if(Grd%zw(k) <= zmax_pen) then 
-             zw_sw(isc:iec,jsc:jec) = Grd%zw(k)
-             call sw_pen(zw_sw, sw_fk_zw)
-             zt_sw(isc:iec,jsc:jec) = Grd%zt(k)
-             call sw_pen(zt_sw, sw_fk_zt)
-         else
-             sw_fk_zt(:,:) = 0.0
-             sw_fk_zw(:,:) = 0.0
-         endif
+        if(sw_pen_fixed_depths) then
 
-     else 
+            if(Grd%zw(k) <= zmax_pen) then
+                zw_sw(isc:iec,jsc:jec) = Grd%zw(k)
+                call sw_pen_legacy(zw_sw, sw_fk_zw)
+                zt_sw(isc:iec,jsc:jec) = Grd%zt(k)
+                call sw_pen_legacy(zt_sw, sw_fk_zt)
+            else
+                sw_fk_zt(:,:) = 0.0
+                sw_fk_zw(:,:) = 0.0
+            endif
 
-         do j=jsc,jec
-            do i=isc,iec
-               zw_sw(i,j) = Thickness%depth_zwt(i,j,k)
-               zt_sw(i,j) = Thickness%depth_zt(i,j,k)
+        else
+
+            do j=jsc,jec
+               do i=isc,iec
+                  zw_sw(i,j) = Thickness%depth_zwt(i,j,k)
+                  zt_sw(i,j) = Thickness%depth_zt(i,j,k)
+               enddo
             enddo
-         enddo
-         call sw_pen(zw_sw, sw_fk_zw)
-         call sw_pen(zt_sw, sw_fk_zt)  
+            call sw_pen_legacy(zw_sw, sw_fk_zw)
+            call sw_pen_legacy(zt_sw, sw_fk_zt)
 
-     endif
+        endif
 
-     sw_frac_zt(:,:,k) = sw_fk_zt(:,:)
-     sw_frac_zw(:,:,k) = sw_fk_zw(:,:)
+        sw_frac_zt(:,:,k) = sw_fk_zt(:,:)
+        sw_frac_zw(:,:,k) = sw_fk_zw(:,:)
 
-  enddo
+     enddo
+  else
+     do k=1,nk-1
+
+        if(sw_pen_fixed_depths) then
+
+            if(Grd%zw(k) <= zmax_pen) then
+                zw_sw(isc:iec,jsc:jec) = Grd%zw(k)
+                call sw_pen(zw_sw, sw_fk_zw)
+                zt_sw(isc:iec,jsc:jec) = Grd%zt(k)
+                call sw_pen(zt_sw, sw_fk_zt)
+            else
+                sw_fk_zt(:,:) = 0.0
+                sw_fk_zw(:,:) = 0.0
+            endif
+
+        else
+
+            do j=jsc,jec
+               do i=isc,iec
+                  zw_sw(i,j) = Thickness%depth_zwt(i,j,k)
+                  zt_sw(i,j) = Thickness%depth_zt(i,j,k)
+               enddo
+            enddo
+            call sw_pen(zw_sw, sw_fk_zw)
+            call sw_pen(zt_sw, sw_fk_zt)
+
+        endif
+
+        sw_frac_zt(:,:,k) = sw_fk_zt(:,:)
+        sw_frac_zw(:,:,k) = sw_fk_zw(:,:)
+
+     enddo
+  end if
 
   if(enforce_sw_frac) then   
       do k=2,nk-1
@@ -559,5 +607,137 @@ subroutine sw_pen (z_sw, sw_fk)
 end subroutine sw_pen
 ! </SUBROUTINE> NAME="sw_pen"
 
+!#######################################################################
+! <SUBROUTINE NAME="sw_pen_legacy">
+!
+! <DESCRIPTION>
+!  Absorbtion of shortwave radiation in the water assumes energy partitions
+!  represented by a single exponential:
+!
+!  The exponentialsrepresents a parameterization of the
+!  attenuation coefficient for light between 300 um and 750 um in the following
+!  form:
+!
+!	E(z) = E(0) * exp(z/efold))
+!       with z < 0 the ocean depth
+!
+!  The "efold" s the efolding depth of the long and short
+!  visable and ultra violet light.
+!  efold will vary between 30 m in oligotrophic waters and 4 m in coastal
+!  regions.
+!
+!  If the thickness of the first ocean level "dzt(1)" is 50 meters,
+!  then shortwave penetration does not do much. However, for finer
+!  vertical resolution, such as dzt(1) = 10 meters commonly used
+!  in ocean climate models, the effect of shortwave heating can
+!  be significant. This can be particularly noticable in the summer
+!  hemisphere.
+!
+! </DESCRIPTION>
+!
+! <INFO>
+!
+! <NOTE>
+!  The terms contributing to sw_fk(i,j) are depth independent
+! </NOTE>
+!
+! <NOTE>
+!  Simpson and Dickey (1981) and others have argued between one and
+!  two exponentials for light between 300 um and 750 um.
+!  With vertical grid resolution of 5 meters or finer
+!  for the upper 20 meters, a second exponential will make a difference.
+! </NOTE>
+!
+! </INFO>
+!
+subroutine sw_pen_legacy (z_sw, sw_fk)
+
+  real, intent(in),    dimension(isd:,jsd:) :: z_sw     ! vertical depth
+  real, intent(inout), dimension(isd:,jsd:) :: sw_fk    ! sw fractional decay
+
+! flag for setting k of bottom of boundary layer
+  logical :: keep_going(isd:iec)
+! introducing kb as 1d vector improves vector performance
+  integer, dimension(isc:iec) :: kb
+  integer, dimension(isc:iec) :: kb_old
+
+  real    :: swmax, swmin
+  integer :: i, j, k
+
+  integer :: stdoutunit
+  stdoutunit=stdout()
+
+  call mpp_clock_begin(id_sw_pen)
+
+  if(.not. module_is_initialized ) then
+    call mpp_error(FATAL, &
+    '==>Error in ocean_shortwave_csiro_mod (sw_pen): module must be initialized')
+  endif
+
+  ! split the i,j loops to allow vectorization in j-loop
+  do j=jsc,jec
+
+     ! compute kb
+     k = 0
+     kb(:)=nk
+     keep_going(:) = .true.
+     do while (k < nk .and. any(keep_going(:)))
+        k = k+1
+        do  i=isc,iec
+           if (z_sw(i,j) <= Grd%zw(k) .and.  keep_going(i)) then
+               kb(i) = k
+               keep_going(i) = .false.
+           endif
+        enddo
+     enddo
+     do i=isc,iec
+       kb(i)=min(kb(i)+1,nk)
+     enddo
+
+     ! check with older (non-vectorized) method for kb calculation
+     if(debug_this_module) then
+         do i=isc,iec
+            kb_old(i) = ceiling(frac_index(z_sw(i,j), (/0.,Grd%zw(1:nk)/)))
+            kb_old(i) = min(kb_old(i),nk)
+         enddo
+         do i=isc,iec
+            if(kb(i) - kb_old(i) /= 0) then
+                write(stdoutunit,*) &
+                'In sw_pen, kb computed two ways: kbnew(',i+Dom%ioff,',',j+Dom%joff,')= ', kb(i), &
+                ' kbold(',i+Dom%ioff,',',j+Dom%joff,')= ',kb_old(i)
+            endif
+         enddo
+     endif
+
+     ! compute shortwave fraction based on sinle exponential
+     ! note that 0.02 and 60.0 provide a floor and ceiling which
+     ! keep sw_fk between 0.0 and 1.0.  These values are dependent
+     ! on details of the coefficients used in the exponential.
+     ! If the coefficients change, then the floor/ceiling needs
+     ! to be reevaluated. shortwave fraction set to zero for
+     ! depths greater than zmax_pen.
+     do i=isc,iec
+
+        if ( z_sw(i,j) > zmax_pen .or. Grd%tmask(i,j,kb(i)) == 0) then
+            sw_fk(i,j) = 0.0
+        else
+
+            sw_fk(i,j) =   F_vis  * exp( -z_sw(i,j)/ssw_atten_depth(i,j) )
+        endif
+
+     enddo  ! i-loop finish
+
+  enddo  ! j-loop finish
+
+  if(debug_this_module) then
+      swmax=maxval(sw_fk(isc:iec,jsc:jec))
+      call mpp_max(swmax);write(stdoutunit,*)'In ocean_shortwave_csiro (sw_pen): max sw_fk=',swmax
+      swmin=maxval(sw_fk(isc:iec,jsc:jec))
+      call mpp_min(swmin);write(stdoutunit,*)'In ocean_shortwave_csiro (sw_pen): min sw_fk=',swmin
+  endif
+  call mpp_clock_end(id_sw_pen)
+
+end subroutine sw_pen_legacy
+! </SUBROUTINE> NAME="sw_pen_legacy"
 
 end module ocean_shortwave_csiro_mod
