@@ -50,7 +50,8 @@ use fms_mod,                  only: write_version_number, open_namelist_file, cl
 use fms_mod,                  only: file_exist
 use fms_mod,                  only: open_namelist_file, check_nml_error, close_file
 use fms_mod,                  only: read_data, lowercase, FATAL, WARNING, stdout, stdlog
-use mpp_mod,                  only: input_nml_file, mpp_sum, mpp_error
+use mpp_mod,                  only: input_nml_file, mpp_sum, mpp_error, mpp_max
+use mpp_domains_mod,          only: mpp_global_sum
 use time_interp_external_mod, only: init_external_field, time_interp_external
 use time_manager_mod,         only: time_type, set_date, get_time
 use time_manager_mod,         only: operator( + ), operator( - ), operator( // )
@@ -91,7 +92,28 @@ integer, dimension(:), allocatable :: id_sponge_tend
 logical :: module_is_initialized = .false.
 logical :: use_this_module       = .false. 
 
+! Adaptive restoring
+real    :: athresh               = 0.5
+real    :: npower                = 1.0
+real    :: sdiffo                = 0.5
+real    :: lambda                = 0.0083
+real    :: taumin                = 720
+logical :: use_adaptive_restore  = .false.
+logical :: use_sponge_after_init = .false.
+logical :: use_normalising       = .false.
+logical :: use_hard_thump        = .false.
+logical :: deflate               = .false.
+real    :: deflate_fraction      = 0.6
+integer :: secs_to_restore       = 0
+integer :: days_to_restore       = 1
+integer :: secs_restore
+integer :: initial_day, initial_secs
+
 namelist /ocean_sponges_eta_nml/ use_this_module 
+namelist /ocean_sponges_eta_ofam_nml/ &
+    use_adaptive_restore, use_sponge_after_init, use_normalising, &
+    use_hard_thump, athresh, taumin, lambda, npower, days_to_restore, &
+    secs_to_restore, deflate, deflate_fraction
 
 contains
 
@@ -114,6 +136,7 @@ subroutine ocean_sponges_eta_init(Grid, Domain, Time, dtime, Ocean_options)
 
   integer :: i, j
   integer :: ioun, io_status, ierr
+  integer :: secs, days
   real    :: dtimer
 
   character(len=128) :: name
@@ -134,17 +157,26 @@ subroutine ocean_sponges_eta_init(Grid, Domain, Time, dtime, Ocean_options)
 
   ! provide for namelist over-ride of default values
 #ifdef INTERNAL_FILE_NML
-  read (input_nml_file, nml=ocean_sponges_eta_nml, iostat=io_status)
-  ierr = check_nml_error(io_status,'ocean_sponges_eta_nml')
+  read(input_nml_file, nml=ocean_sponges_eta_nml, iostat=io_status)
+  ierr = check_nml_error(io_status, 'ocean_sponges_eta_nml')
+  read(input_nml_file, nml=ocean_sponges_eta_ofam_nml, iostat=io_status)
+  ierr = check_nml_error(io_status, 'ocean_sponges_eta_ofam_nml')
 #else
   ioun =  open_namelist_file()
-  read (ioun,ocean_sponges_eta_nml,IOSTAT=io_status)
-  ierr = check_nml_error(io_status,'ocean_sponges_eta_nml')
+  read(ioun, ocean_sponges_eta_nml, IOSTAT=io_status)
+  ierr = check_nml_error(io_status, 'ocean_sponges_eta_nml')
+  rewind(ioun)
+  read(ioun, ocean_sponges_eta_ofam_nml, IOSTAT=io_status)
+  ierr = check_nml_error(io_status, 'ocean_sponges_eta_nml')
   call close_file (ioun)
 #endif
-  write (stdlogunit,ocean_sponges_eta_nml)
-  write (stdoutunit,'(/)') 
-  write (stdoutunit,ocean_sponges_eta_nml)
+  write (stdlogunit, ocean_sponges_eta_nml)
+  write (stdoutunit, '(/)')
+  write (stdoutunit, ocean_sponges_eta_nml)
+
+  write (stdlogunit, ocean_sponges_eta_ofam_nml)
+  write (stdoutunit, '(/)')
+  write (stdoutunit, ocean_sponges_eta_ofam_nml)
 
   Dom => Domain
   Grd => Grid
@@ -166,8 +198,16 @@ subroutine ocean_sponges_eta_init(Grid, Domain, Time, dtime, Ocean_options)
       return
   endif
 
+  ! Set up some initial times
+  call get_time(Time%model_time, secs, days)
+  initial_day = days
+  initial_secs = secs
 
-!read damping rates for eta
+  !read damping rates for eta
+  if (use_adaptive_restore) then
+     allocate(Sponge(1)%damp_coeff2d(isd:ied, jsd:jed))
+     Sponge(1)%damp_coeff2d(:,:) = 0.0
+  else
      name = 'INPUT/eta_sponge_coeff.nc'
      if (file_exist(name)) then
         write(stdoutunit,*) '==> Using sponge damping times specified from file ',name
@@ -200,7 +240,8 @@ subroutine ocean_sponges_eta_init(Grid, Domain, Time, dtime, Ocean_options)
               enddo
            enddo
 
-  endif  ! endif for fileexist 'INPUT/eta_sponge_coeff.nc'
+     endif  ! endif for fileexist 'INPUT/eta_sponge_coeff.nc'
+  endif
 
 
      name = 'INPUT/eta_sponge.nc'
@@ -244,6 +285,14 @@ subroutine sponge_eta_source(Time, Ext_mode)
   integer :: taum1, tau
   integer :: i, j
    
+  real    :: sdiff, sum_val, adaptive_coeff
+  integer :: secs, days, numsecs
+
+  logical :: do_adaptive_restore = .false.  ! Only restore in specified time period.
+  logical :: do_normal_restore = .false.    ! Only restore in specified time period.
+  logical, save :: first_pass = .true.
+  real, save :: num_surface_wet_cells
+
   if(.not. use_this_module) return 
 
   taum1 = Time%taum1
@@ -251,19 +300,85 @@ subroutine sponge_eta_source(Time, Ext_mode)
   wrk1_2d = 0.0
   wrk2_2d = 0.0
 
+  if (use_adaptive_restore) then
+    if (first_pass) then
+        num_surface_wet_cells = mpp_global_sum(Dom%domain2d, Grd%tmask(:,:,1))
+    end if
+
+    secs_restore = days_to_restore * 86400 + secs_to_restore
+    sdiff = 0.0
+    call get_time(Time%model_time, secs, days)
+    numsecs = (days - initial_day) * 86400 + secs - initial_secs
+
+    do_adaptive_restore = (numsecs < secs_restore)
+    do_normal_restore = (.not. do_adaptive_restore) .and. use_sponge_after_init
+  else
+    do_normal_restore = .true.
+  end if
 
   if (Sponge(1)%id > 0) then
 
     call time_interp_external(Sponge(1)%id, Time%model_time, wrk1_2d)
 
-        do j=jsc,jec
-           do i=isc,iec
-              wrk2_2d(i,j) = Sponge(1)%damp_coeff2d(i,j)*(wrk1_2d(i,j) - Ext_mode%eta_t(i,j,taum1))
-              Ext_mode%source(i,j) = Ext_mode%source(i,j) + rho0*wrk2_2d(i,j)
-           enddo
-        enddo
+    if (do_adaptive_restore) then
+        if (first_pass) then
+           if (use_hard_thump) then
+              do j = jsd, jed
+                 do i = isd, ied
+                       Ext_mode%eta_t(i, j, taum1) = wrk1_2d(i, j)
+                       Ext_mode%eta_t(i, j, tau) = wrk1_2d(i, j)
+                 end do
+              end do
+           end if
 
-  endif
+           wrk2_2d = abs(Ext_mode%eta_t(:,:,taum1) - wrk1_2d(:,:)) &
+                     * Grd%tmask(:,:,1)
+           sum_val = sum(wrk2_2d(isc:iec, jsc:jec))
+
+           call mpp_sum(sum_val)
+           sdiffo = sum_val / num_surface_wet_cells
+           write (stdout(), *) 'mean eta_diff', sdiffo
+
+           if (.not. use_normalising) then
+              sdiffo = 1.0
+           else
+             sdiffo = maxval(wrk2_2d)
+             call mpp_max(sdiffo)
+             sdiffo = 1.01 * sdiffo
+           end if
+
+           first_pass = .false.
+        end if
+
+        ! Calculate idealised forcing tendency timescale for each timestep and
+        ! array element
+        do j = jsd, jed
+           do i = isd, ied
+              sdiff = abs(Ext_mode%eta_t(i, j, taum1) - wrk1_2d(i, j))
+              sdiff = max(sdiff, 1e-9) !minimum tolerance
+              adaptive_coeff = 1. / (taumin - (lambda * real(secs_restore)) &
+                                     / (((sdiff / sdiffo)**npower) &
+                                        * log(1 - athresh)))
+              wrk2_2d(i,j) =  adaptive_coeff &
+                              * (wrk1_2d(i, j) - Ext_mode%eta_t(i, j, taum1))
+           end do
+        end do
+
+    else if (do_normal_restore) then
+        do j = jsc, jec
+           do i = isc, iec
+              wrk2_2d(i,j) = Sponge(1)%damp_coeff2d(i, j) &
+                             * (wrk1_2d(i, j) - Ext_mode%eta_t(i, j, taum1))
+           end do
+        end do
+    end if
+
+    do j = jsc, jec
+        do i = isc, iec
+            Ext_mode%source(i,j) = Ext_mode%source(i,j) + rho0 * wrk2_2d(i,j)
+        end do
+    end do
+  end if
 
   call diagnose_2d(Time, Grd, id_sponge_tend(1), wrk2_2d(:,:))
 
