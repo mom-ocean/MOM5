@@ -234,7 +234,7 @@ subroutine ocean_sponges_tracer_init(Grid, Domain, Time, T_prog, dtime, Ocean_op
         allocate(Sponge(n)%damp_coeff(isd:ied,jsd:jed,nk))
         Sponge(n)%damp_coeff=0.0
     else
-     ! read damping rates (1/sec) 
+     ! read damping rates (1/sec)
 
      name = 'INPUT/'//trim(T_prog(n)%name)//'_sponge_coeff.nc'
      if (file_exist(trim(name))) then
@@ -246,7 +246,7 @@ subroutine ocean_sponges_tracer_init(Grid, Domain, Time, T_prog, dtime, Ocean_op
 
         if(damp_coeff_3d) then
             call read_data(name,'coeff',Sponge(n)%damp_coeff,domain=Domain%domain2d,timelevel=1)
-        else 
+        else
             call read_data(name,'coeff',Sponge(n)%damp_coeff2d,domain=Domain%domain2d,timelevel=1)
             do k=1,nk
                do j=jsc,jec
@@ -260,7 +260,7 @@ subroutine ocean_sponges_tracer_init(Grid, Domain, Time, T_prog, dtime, Ocean_op
         do k=1,nk
            do j=jsc,jec
               do i=isc,iec
-                 if(Grd%tmask(i,j,k) == 0.0) then 
+                 if(Grd%tmask(i,j,k) == 0.0) then
                      Sponge(n)%damp_coeff(i,j,k) = 0.0
                  endif
               enddo
@@ -465,6 +465,8 @@ subroutine sponge_tracer_source(Time, Thickness, T_prog)
          T_prog(n)%conversion*wrk2(:,:,:))
 
   enddo
+
+  first_pass = .false.
 
   return
 
