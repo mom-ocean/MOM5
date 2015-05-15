@@ -57,9 +57,9 @@ use fms_mod,                  only: write_version_number, open_namelist_file, cl
 use fms_mod,                  only: file_exist
 use fms_mod,                  only: open_namelist_file, check_nml_error, close_file
 use fms_mod,                  only: read_data, lowercase, FATAL, WARNING, stdout, stdlog
-use mpp_mod,                  only: input_nml_file, mpp_sum, mpp_error
+use mpp_mod,                  only: input_nml_file, mpp_sum, mpp_error, mpp_max
 use time_interp_external_mod, only: init_external_field, time_interp_external
-use time_manager_mod,         only: time_type, set_date
+use time_manager_mod,         only: time_type, set_date, get_time
 use time_manager_mod,         only: operator( + ), operator( - ), operator( // )
 use time_manager_mod,         only: operator( > ), operator( == ), operator( <= )
 
@@ -103,7 +103,29 @@ logical :: module_is_initialized = .FALSE.
 logical :: damp_coeff_3d         = .false. 
 logical :: use_this_module       = .false. 
 
+! Adaptive restoring
+real    :: athresh               = 0.5
+real    :: npower                = 1.0
+real    :: lambda                = 0.0083
+real    :: taumin                = 720
+logical :: use_adaptive_restore  = .false.
+logical :: use_sponge_after_init = .false.
+logical :: use_normalising       = .false.
+logical :: use_hard_thump        = .false.
+logical :: deflate               = .false.
+real    :: deflate_fraction      = 0.6
+integer :: secs_to_restore       = 0
+integer :: days_to_restore       = 1
+integer :: secs_restore
+integer :: initial_day
+integer :: initial_secs
+real, allocatable :: sdiffo(:)
+
 namelist /ocean_sponges_tracer_nml/ use_this_module, damp_coeff_3d
+namelist /ocean_sponges_tracer_ofam_nml/ &
+    use_adaptive_restore, use_sponge_after_init, use_normalising, &
+    use_hard_thump, athresh, taumin, lambda, npower, days_to_restore, &
+    secs_to_restore, deflate, deflate_fraction
 
 contains
 
@@ -128,6 +150,7 @@ subroutine ocean_sponges_tracer_init(Grid, Domain, Time, T_prog, dtime, Ocean_op
   integer :: i, j, k, n
   integer :: ioun, io_status, ierr
   integer :: index_temp
+  integer :: secs, days
   real    :: dtimer
 
   character(len=128) :: name
@@ -153,17 +176,26 @@ subroutine ocean_sponges_tracer_init(Grid, Domain, Time, T_prog, dtime, Ocean_op
 
   ! provide for namelist over-ride of default values
 #ifdef INTERNAL_FILE_NML
-  read (input_nml_file, nml=ocean_sponges_tracer_nml, iostat=io_status)
-  ierr = check_nml_error(io_status,'ocean_sponges_tracer_nml')
+  read(input_nml_file, nml=ocean_sponges_tracer_nml, iostat=io_status)
+  ierr = check_nml_error(io_status, 'ocean_sponges_tracer_nml')
+  read(input_nml_file, nml=ocean_sponges_tracer_ofam_nml, iostat=io_status)
+  ierr = check_nml_error(io_status, 'ocean_sponges_tracer_ofam_nml')
 #else
   ioun =  open_namelist_file()
-  read (ioun,ocean_sponges_tracer_nml,IOSTAT=io_status)
-  ierr = check_nml_error(io_status,'ocean_sponges_tracer_nml')
-  call close_file (ioun)
+  read(ioun, ocean_sponges_tracer_nml, IOSTAT=io_status)
+  ierr = check_nml_error(io_status, 'ocean_sponges_tracer_nml')
+  rewind(ioun)
+  read(ioun, ocean_sponges_tracer_ofam_nml, IOSTAT=io_status)
+  ierr = check_nml_error(io_status, 'ocean_sponges_tracer_ofam_nml')
+  call close_file(ioun)
 #endif
-  write (stdlogunit,ocean_sponges_tracer_nml)
-  write (stdoutunit,'(/)') 
-  write (stdoutunit,ocean_sponges_tracer_nml)
+  write(stdlogunit, ocean_sponges_tracer_nml)
+  write(stdoutunit, '(/)')
+  write(stdoutunit, ocean_sponges_tracer_nml)
+
+  write(stdlogunit, ocean_sponges_tracer_ofam_nml)
+  write(stdoutunit, '(/)')
+  write(stdoutunit, ocean_sponges_tracer_ofam_nml)
 
   Dom => Domain
   Grd => Grid
@@ -188,20 +220,31 @@ subroutine ocean_sponges_tracer_init(Grid, Domain, Time, T_prog, dtime, Ocean_op
       return
   endif
 
+  if (use_adaptive_restore) then
+    allocate(sdiffo(num_prog_tracers))
 
-  do n=1,num_prog_tracers
+    ! Set up some initial times
+    call get_time(Time%model_time, secs, days)
+    initial_day = days
+    initial_secs = secs
+  end if
 
+  do n = 1, num_prog_tracers
+    if (use_adaptive_restore) then
+        allocate(Sponge(n)%damp_coeff(isd:ied,jsd:jed,nk))
+        Sponge(n)%damp_coeff=0.0
+    else
      ! read damping rates (1/sec) 
 
      name = 'INPUT/'//trim(T_prog(n)%name)//'_sponge_coeff.nc'
      if (file_exist(trim(name))) then
-        write(stdoutunit,*) '==> Using sponge damping times specified from file '//trim(name) 
+        write(stdoutunit,*) '==> Using sponge damping times specified from file '//trim(name)
         allocate(Sponge(n)%damp_coeff(isd:ied,jsd:jed,nk))
         allocate(Sponge(n)%damp_coeff2d(isd:ied,jsd:jed))
-        Sponge(n)%damp_coeff(:,:,:) = 0.0  
-        Sponge(n)%damp_coeff2d(:,:) = 0.0  
+        Sponge(n)%damp_coeff(:,:,:) = 0.0
+        Sponge(n)%damp_coeff2d(:,:) = 0.0
 
-        if(damp_coeff_3d) then 
+        if(damp_coeff_3d) then
             call read_data(name,'coeff',Sponge(n)%damp_coeff,domain=Domain%domain2d,timelevel=1)
         else 
             call read_data(name,'coeff',Sponge(n)%damp_coeff2d,domain=Domain%domain2d,timelevel=1)
@@ -242,19 +285,21 @@ subroutine ocean_sponges_tracer_init(Grid, Domain, Time, T_prog, dtime, Ocean_op
               enddo
            enddo
         enddo
-
-        ! read restoring data
-
-        name = 'INPUT/'//trim(T_prog(n)%name)//'_sponge.nc'
-        Sponge(n)%id = init_external_field(name,T_prog(n)%name,domain=Domain%domain2d)
-        if (Sponge(n)%id < 1) then 
-          call mpp_error(FATAL,&
-          '==>Error: in ocean_sponges_tracer_mod: damping rates are specified but sponge values are not')
-        endif 
-        write(stdoutunit,*) '==> Using sponge data specified from file '//trim(name) 
      else
         write(stdoutunit,*) '==> '//trim(name)//' not found.  Sponge not being applied '
+        cycle
      endif
+    endif
+
+    ! Read restoring data
+
+    name = 'INPUT/'//trim(T_prog(n)%name)//'_sponge.nc'
+    Sponge(n)%id = init_external_field(name,T_prog(n)%name,domain=Domain%domain2d)
+    if (Sponge(n)%id < 1) then
+      call mpp_error(FATAL,&
+      '==>Error: in ocean_sponges_tracer_mod: damping rates are specified but sponge values are not')
+    endif
+    write(stdoutunit,*) '==> Using sponge data specified from file '//trim(name)
   enddo
 
   ! register diagnostic output
@@ -295,33 +340,128 @@ subroutine sponge_tracer_source(Time, Thickness, T_prog)
   integer :: taum1, tau
   integer :: i, j, k, n
 
-  if(.not. use_this_module) return 
+  real    :: sdiff, sum_val, adaptive_coeff
+  integer :: secs, days, numsecs
+  logical :: do_adaptive_restore = .false.  ! Only restore in specified time period.
+  logical :: do_normal_restore = .false.  ! Only restore in specified time period.
+  logical, save :: first_pass = .true.
+
+  if(.not. use_this_module) return
 
   taum1 = Time%taum1
   tau   = Time%tau
-  wrk1  = 0.0 
-  wrk2  = 0.0
- 
+  wrk1  = 0.0
+
+  if (use_adaptive_restore) then
+    secs_restore = days_to_restore * 86400 + secs_to_restore
+    sdiff = 0.0
+    call get_time(Time%model_time, secs, days)
+    numsecs = (days - initial_day) * 86400 + secs - initial_secs
+
+    do_adaptive_restore = (numsecs < secs_restore)
+    do_normal_restore = (.not. do_adaptive_restore) .and. use_sponge_after_init
+  else
+    do_normal_restore = .true.
+  endif
+
   do n=1,size(T_prog(:))
 
-     if (Sponge(n)%id > 0) then
+    ! Need to reinitialise wrk2 here due to limiting of temperature.
+    wrk2  = 0.0
 
-         ! get sponge value for current time
-         call time_interp_external(Sponge(n)%id, Time%model_time, wrk1) 
+    if (Sponge(n)%id > 0) then
 
-         do k=1,nk
-            do j=jsc,jec
-               do i=isc,iec  
-                  wrk2(i,j,k) = Thickness%rho_dzt(i,j,k,tau)*Sponge(n)%damp_coeff(i,j,k)    &
-                                *(wrk1(i,j,k)-T_prog(n)%field(i,j,k,taum1))
-                  T_prog(n)%th_tendency(i,j,k) = T_prog(n)%th_tendency(i,j,k) + wrk2(i,j,k)
+        ! get sponge value for current time
+        call time_interp_external(Sponge(n)%id, Time%model_time, wrk1)
+        if (do_adaptive_restore) then
+           if (first_pass) then
+              if (use_hard_thump) then
+                 do k = 1, nk
+                    do j = jsd, jed
+                       do i = isd, ied
+                          T_prog(n)%field(i,j,k,taum1) = wrk1(i,j,k)
+                          T_prog(n)%field(i,j,k,tau) = wrk1(i,j,k)
+                       end do
+                    end do
+                 end do
+              end if
+              wrk2 = abs(T_prog(n)%field(:,:,:,taum1) - wrk1(:,:,:)) &
+                     * Grd%tmask(:,:,:)
+              sum_val = sum(wrk2(isc:iec,jsc:jec,:))
+              call mpp_sum(sum_val)
+              sdiffo(n) = sum_val / Grd%wet_t_points
+              if (.not. use_normalising) then
+                sdiffo(n) = 1.0
+              else
+                sdiffo(n) = maxval(wrk2)
+                call mpp_max(sdiffo(n))
+                sdiffo(n) = 1.01 * sdiffo(n)
+              endif
+           endif
+
+           do k = 1, nk
+             do j = jsd, jed
+               do i = isd, ied
+                 sdiff = abs(T_prog(n)%field(i,j,k,taum1) - wrk1(i,j,k))
+                 sdiff = max(sdiff, 1e-9) ! Minimum tolerance
+                 adaptive_coeff = 1.0 / (taumin - &
+                                         (lambda * real(secs_restore)) &
+                                         / (((sdiff / sdiffo(n))**npower) & 
+                                            * log(1 - athresh)))
+                 wrk2(i,j,k) = Thickness%rho_dzt(i,j,k,tau) * adaptive_coeff &
+                                  * (wrk1(i,j,k) - T_prog(n)%field(i,j,k,taum1))
                enddo
-            enddo
-         enddo
+             enddo
+           enddo
+        else if (do_normal_restore) then
+            do k = 1, nk
+                do j = jsc, jec
+                    do i = isc, iec
+                        wrk2(i,j,k) = Thickness%rho_dzt(i,j,k,tau) &
+                                     * Sponge(n)%damp_coeff(i,j,k) &
+                                     * (wrk1(i,j,k) - T_prog(n)%field(i,j,k,taum1))
+                    end do
+                end do
+             end do
+        end if
 
-     endif
+        ! MLW: What is this? It was in the auscom version of MOM.
+        !      I am putting it inside an OFAM flag just in case
+        if (do_adaptive_restore) then
+          ! Limit to -1.8 deg with 3hour restoring (got other limits here for initialising. Not sure if needed (namelist use?).
+            if (trim(T_prog(n)%name) == 'temp') then
+               do k=1,nk
+                  do j=jsc,jec
+                     do i=isc,iec  
+                        wrk2(i,j,k) = wrk2(i,j,k)+Thickness%rho_dzt(i,j,k,tau)*max(-1.8-T_prog(n)%field(i,j,k,taum1),0.0)/10600.0
+        !                wrk2(i,j,k) = wrk2(i,j,k)+Thickness%rho_dzt(i,j,k,tau)*min(43.0-T_prog(n)%field(i,j,k,taum1),0.0)/3600.0
+                     enddo
+                  enddo
+               enddo
+            endif
+            if (trim(T_prog(n)%name) == 'salt') then
+               do k=1,nk
+                  do j=jsc,jec
+                     do i=isc,iec  
+                        wrk2(i,j,k) = wrk2(i,j,k)+Thickness%rho_dzt(i,j,k,tau)*max(0.01-T_prog(n)%field(i,j,k,taum1),0.0)/3600.0
+                     enddo
+                  enddo
+               enddo
+            endif
+        end if
 
-     if (id_sponge_tend(n) > 0) call diagnose_3d(Time, Grd, id_sponge_tend(n), &
+        ! Update tendency
+        do k = 1, nk
+            do j = jsc, jec
+                do i = isc, iec
+                    T_prog(n)%th_tendency(i,j,k) = T_prog(n)%th_tendency(i,j,k) &
+                                                  + wrk2(i,j,k)
+                end do
+            end do
+         end do
+    end if
+
+    if (id_sponge_tend(n) > 0) call diagnose_3d(Time, Grd, id_sponge_tend(n), &
          T_prog(n)%conversion*wrk2(:,:,:))
 
   enddo
