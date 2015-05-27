@@ -3177,25 +3177,15 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
                ii = i + i_shift
                jj = j + j_shift
                pme(ii,jj) = 0.5*pme_taum1(ii,jj)
+#ifndef ACCESS !original GFDL case
                pme_taum1(ii,jj) = (Ice_ocean_boundary%lprec(i,j) + Ice_ocean_boundary%fprec(i,j) &
                                   - Ice_ocean_boundary%q_flux(i,j))*Grd%tmask(ii,jj,1) 
-#if defined(ACCESS)
-               ! pme is meant to include "melt", in a MOM+SIS configuration it
-               ! is added by the coupler. We add it here. 
-               melt(ii,jj) =  -Ice_ocean_boundary%salt_flux(i,j)*ice_salt_concentration_r
+#else          !for ACCESS 
+               ! pme is meant to include sea-ice "melt", in MOM+SIS configuration it is added by the coupler. 
+               ! We add it here ('cause lprec no longer includes wfimelt+wfiform after since ACCESS1.4). 
+               !!! melt(ii,jj) =  -Ice_ocean_boundary%salt_flux(i,j)*ice_salt_concentration_r
                pme_taum1(ii,jj) = (Ice_ocean_boundary%lprec(i,j) + Ice_ocean_boundary%fprec(i,j) &
-               !20130327: according to comment XXX(below), "pme" in GFDL model
-               !includes "melt",
-               !          therefore wfimelt + wfiform should be put in here in
-               !          the case that 
-               !          ice melt water flux is NOT included in lprec anymore
-               !          (since ACCESS1.4).
-               !          * however, we leave "liquid_precip" below alone. 
-               !          wfi_factor = 1 or 0,
-               !          using ice waterfluxes directly or salt flux converted
-               !          waterflux!!! 
                           +(Ice_ocean_boundary%wfimelt(i,j) +Ice_ocean_boundary%wfiform(i,j)) &
-               !20130412: allowing removal of the global water flux imbalance:
                           -Ice_ocean_boundary%q_flux(i,j))*Grd%tmask(ii,jj,1)
 #endif
                pme(ii,jj) = pme(ii,jj) + 0.5*pme_taum1(ii,jj)
@@ -3209,24 +3199,14 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
             do i = isc_bnd,iec_bnd
                ii = i + i_shift
                jj = j + j_shift
+#ifndef ACCESS  !orginal GFDL case
                pme(ii,jj) = (Ice_ocean_boundary%lprec(i,j) + Ice_ocean_boundary%fprec(i,j) &
                             -Ice_ocean_boundary%q_flux(i,j))*Grd%tmask(ii,jj,1) 
-#if defined(ACCESS)
-               ! pme in MOM includes "melt" which is added by the coupler, so add that here.
-               melt(ii,jj) =  -Ice_ocean_boundary%salt_flux(i,j)*ice_salt_concentration_r
+#else           !for ACCESS
+               ! (see comment above)
+               !!! melt(ii,jj) =  -Ice_ocean_boundary%salt_flux(i,j)*ice_salt_concentration_r
                pme(ii,jj) = (Ice_ocean_boundary%lprec(i,j) +Ice_ocean_boundary%fprec(i,j) &
-               !20130327: according to comment XXX(below), "pme" in GFDL model
-               !includes "melt",
-               !          therefore wfimelt + wfiform should be put in here in
-               !          the case that 
-               !          ice melt water flux is NOT included in lprec anymore
-               !          (since ACCESS1.4).
-               !          * however, we leave "liquid_precip" below alone. 
-               !          HERE, wfi_factor = 1 or 0, 
-               !          using ice waterfluxes directly or salt flux converted
-               !          waterflux!!! 
                        +(Ice_ocean_boundary%wfimelt(i,j) +Ice_ocean_boundary%wfiform(i,j)) &
-               !20130412: allowing removal of the global water flux imbalance:
                        -Ice_ocean_boundary%q_flux(i,j))*Grd%tmask(ii,jj,1)
 #endif
                liquid_precip(ii,jj) =  Ice_ocean_boundary%lprec(i,j)*Grd%tmask(ii,jj,1) 
@@ -3502,38 +3482,10 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
           enddo
       endif
       if(zero_net_water_coupler) then 
+      !!! 20150115: Note the "ACCESS case" has been removed here following Russ's advice!
          do j=jsc,jec
             do i=isc,iec
-#if defined(ACCESS)
-               !pme_river(i,j) = pme(i,j) + river(i,j) !cmip5 practice (with
-               !melt in pme)
-               !20130410: HERE wfi_factor = 1 or 0,
-               !takink away the "direct" icemelt/form waterfluxes or the ice
-               !saltflux converted waterflux melt: 
-               pme_river(i,j) = pme(i,j) + river(i,j) - &
-                        (Ice_ocean_boundary%wfimelt(i,j) +Ice_ocean_boundary%wfiform(i,j)) 
-                        !!! or simply, + melt || !!! check: "melt ?=?
-                        !wfimelt + wfiform
-!20100414: "melt" part here is responsible for the SSL tendency--
-!           In AusCOM case, taking "melt" off pme-river would cause SSL to
-!           decrease dramatically
-!           in the course of run. Keeping it can maintain global mean SSL!
-!-----------------------------------------------------------------------------------------------
-!20121207: this is tricky! the above note actually shows the case of p including
-!ice melt water flux 
-!           in AusCOM, therefore the pme_river is actually supposed to exclude
-!           "melt" here, same as the 
-!           "GFDL way". But it did cause trouble in SSL...... don't really
-!           understand why ......
-!
-!           Anyway, since now ice melt/form part is already excluded from
-!           "lpre", pme_river should
-!           be pme+river only. namely, the above calculation is 'logically'
-!           correct. However, it probably 
-!           causes SSL troulbe becuase the "opposite" reason. XXXXXX Revisit ...
-#else
                 pme_river(i,j) = pme(i,j) + river(i,j) - melt(i,j) - wrk1_2d(i,j)
-#endif
             enddo
          enddo
          pme_river_total = mpp_global_sum(Dom%domain2d,pme_river(:,:)*Grd%dat(:,:)*Grd%tmask(:,:,1),&
@@ -3598,8 +3550,8 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
                jj = j + j_shift
                T_prog(index_salt)%stf(ii,jj) = -Ice_ocean_boundary%salt_flux(i,j)*1000.0     -&
                                                (Ice_ocean_boundary%lprec(i,j)                +&
-#if defined(ACCESS)
-                                                ! Review/revist. 
+#if defined(ACCESS)     
+                                                !lprec no longer includes icemelt/form water fluxes!
                                                 Ice_ocean_boundary%wfimelt(i,j)              +&
                                                 Ice_ocean_boundary%wfiform(i,j)              +&
 #endif
@@ -3967,7 +3919,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
              do i=isc,iec
                 if(Grd%tmask(i,j,1) == 1.0) then 
                     ice_present = T_prog(index_temp)%field(i,j,1,tau) <= &
-                                    -0.0539*T_prog(index_salt)%field(i,j,1,tau)
+                                    -0.054*T_prog(index_salt)%field(i,j,1,tau)
 #if defined(ACCESS)
                     if (use_ioaice) then
                       ice_present = aice(i,j) >= aice_cutoff

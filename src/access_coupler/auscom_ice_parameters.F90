@@ -63,7 +63,7 @@ integer :: ksmax = 5        !deepest level of the Red Sea/Gulf Bay
 !
 integer :: sfix_hours = 12  !do s mixing every sfix_hours.
 !
-logical :: redsea_gulfbay_sfix = .true.
+logical :: redsea_gulfbay_sfix = .false.
 logical :: do_sfix_now = .true.
 logical :: chk_i2o_fields = .false.
 logical :: chk_o2i_fields = .false.
