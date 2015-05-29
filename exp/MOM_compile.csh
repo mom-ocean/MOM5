@@ -1,14 +1,14 @@
 #!/bin/csh -f
 # Minimal compile script for fully coupled model CM2M experiments
 
-set echo
 set platform      = gfortran    # A unique identifier for your platfo
                                 # This corresponds to the mkmf templates in $root/bin dir.
 set type          = MOM_solo    # Type of the experiment
 set unit_testing = 0
 set help = 0
+set debug = 0
 
-set argv = (`getopt -u -o h -l type: -l platform: -l help: -l unit_testing  --  $*`)
+set argv = (`getopt -u -o h -l type: -l platform: -l help: -l unit_testing -l debug  --  $*`)
 while ("$argv[1]" != "--")
     switch ($argv[1])
         case --type:
@@ -17,6 +17,8 @@ while ("$argv[1]" != "--")
                 set platform = $argv[2]; shift argv; breaksw
         case --unit_testing:
                 set unit_testing = 1; breaksw
+        case --debug:
+                set debug = 1; breaksw
         case --help:
                 set help = 1;  breaksw
         case -h:
@@ -27,18 +29,19 @@ end
 shift argv
 if ( $help ) then
     echo "The optional arguments are:"
-    echo "--type       followed by the type of the experiment, currently one of the following:"
-    echo "             MOM_solo : solo ocean model"
-    echo "             MOM_SIS  : ocean-seaice model"
-    echo "             CM2M     : ocean-seaice-land-atmosphere coupled climate model"
-    echo "             ESM2M    : ocean-seaice-land-atmosphere coupled climate model with biogeochemistry, EarthSystemModel"
-    echo "             ICCM     : ocean-seaice-land-atmosphere coupled model"
-    echo "             EBM      : ocean-seaice-land-atmosphere coupled model with energy balance atmosphere"
+    echo "--type       followed by the type of the model, one of the following (default is MOM_solo):"
+    echo "             MOM_solo  : solo ocean model"
+    echo "             MOM_SIS   : ocean-seaice model"
+    echo "             CM2M      : ocean-seaice-land-atmosphere coupled climate model"
+    echo "             ESM2M     : ocean-seaice-land-atmosphere coupled climate model with biogeochemistry, EarthSystemModel"
+    echo "             ICCM      : ocean-seaice-land-atmosphere coupled model"
+    echo "             EBM       : ocean-seaice-land-atmosphere coupled model with energy balance atmosphere"
+    echo "             ACCESS-CM : ocean component of ACCESS-CM model."
+    echo "             ACCESS-OM : ocean component of ACCESS-OM model."
     echo
-    echo "--platform   followed by the platform name that has a corresponfing environ file in the ../bin dir, default is ncrc.intel"
+    echo "--platform   followed by the platform name that has a corresponfing environ file in the ../bin dir, default is gfortran"
     echo
-    echo
-    exit 0
+    exit 1
 endif
 
 #
@@ -53,10 +56,10 @@ set mkmf          = $root/bin/mkmf                    # path to executable mkmf
 set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DUSE_OCEAN_BGC -DENABLE_ODA -DSPMD -DLAND_BND_TRACERS" )
 #On Altrix systems you may include "-Duse_shared_pointers -Duse_SGI_GSM" in cppDefs for perfomance.
 #These are included in the GFDL configuration of the model.
-  
+
 set static        = 0              # 1 if you want static memory allocation, 0 for dynamic
 if($static) then
-  set executable = $root/exec/$platform/${type}_static/fms_$type.x 
+  set executable = $root/exec/$platform/${type}_static/fms_$type.x
   set cppDefs = "$cppDefs -DMOM_STATIC_ARRAYS -DNI_=360 -DNJ_=200 -DNK_=50 -DNI_LOCAL_=60 -DNJ_LOCAL_=50"
 endif
 
@@ -68,8 +71,13 @@ else if( $type == ACCESS-CM ) then
     set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DACCESS -DACCESS_CM" )
 endif
 
-if ( $unit_testing ) then 
+if ( $unit_testing ) then
     set cppDefs = ( "$cppDefs -DUNIT_TESTING" )
+    setenv DEBUG true
+endif
+
+if ( $debug ) then
+    setenv DEBUG true
 endif
 
 #
@@ -88,7 +96,7 @@ set lib_include_dirs = "$root/include $code_dir/shared/include $code_dir/shared/
 
 # Build FMS.
 source ./FMS_compile.csh
-set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean"
+set includes = "-I$code_dir/shared/include -I$executable:h:h/lib_FMS -I$executable:h:h/lib_ocean"
 
 # Build the core ocean.
 cd $root/exp
@@ -149,7 +157,7 @@ if( $type == MOM_solo ) then
     set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == ACCESS-OM || $type == ACCESS-CM ) then
     set srcList = ( access_coupler )
-    set includes = "$includes -I$executable:h:h/$type/lib_ocean" 
+    set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/$type/lib_ocean" 
     set libs = "$executable:h:h/$type/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == MOM_SIS ) then
     set srcList = ( coupler )
@@ -177,6 +185,6 @@ make
 if( $status ) then
     echo "Make failed to create the $type executable"
     exit 1
-endif    
+endif
 
 exit

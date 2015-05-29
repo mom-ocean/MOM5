@@ -57,9 +57,9 @@ Find out what test cases are available for a particular `MODEL_TYPE`
 
 To run a `TEST_CASE`
                 
-    $ ./MOM_run.csh --platform PLATFORM_ID --type MODEL_TYPE  --experiment TEST_CASE
+    $ ./MOM_run.csh --platform PLATFORM_ID --type MODEL_TYPE  --experiment TEST_CASE --download_input_data
 
-If you do not have the right input data in the `WORKDIR` for the `TEST_CASE` the above command would ask you to download it and try again. You may need to specify the number of processor for the `TEST_CASE`, in that case the above command errors out with the right info. Note: The script `exp/preprocessing.csh` is called by the `MOM_run.csh` to modify the mom4p1 namelists of these old test cases to make them compatible with MOM5. The results go into `WORKDIR`.
+You may need to specify the number of processor for the `TEST_CASE`, in that case the above command errors out with the right info. Note: The script `exp/preprocessing.csh` is called by the `MOM_run.csh` to modify the mom4p1 namelists of these old test cases to make them compatible with MOM5. The results go into `WORKDIR`.
 
 ### Notes
 
@@ -75,11 +75,15 @@ If you do not have the right input data in the `WORKDIR` for the `TEST_CASE` the
 * The compile script use netcdf3 by default. If you want to use netcdf4 libraries instead you can do so by deleting the `-Duse_netCDF3` from the CPPs in compile script and then recompile.   
 
 ## How to prepare input data
-   
-The input data needed to run the selected experiments (tests) that are included in this release are available in the `data/` directory.
-   
-Note that data in `ASCII/`, `HISTORY/`, `RESTART/` directories are NOT needed for running experiments. They are the outputs of the experiments and are provided for the purpose of comparing your results with results produced at GFDL. Tools are provided so that users can create data from scratch for their own experiments. For more details refer to `src/preprocessing`.
-      
+
+The input data needed to run the selected experiments (tests) that are included in this release are available in the `data/` directory. The data should be downloaded automatically when you run the MOM_run.csh script with the --download_input_data option. Alternatively the data can be downloaded manually with the command:
+
+    $ ./data/get_exp_data.py <filename>
+
+For example, to download the data for the box_channel1 experiment one would execute:
+
+    $ ./data/get_exp_data.py box_channel1.input.tar.gz
+    $ ./data/get_exp_data.py box_channel1.output.tar.gz
 
 ## Examine the output
    
@@ -87,11 +91,11 @@ To keep the runscript simple all output files of a model run will be in the work
      
 * ascii file with `.fms.out` extension: the description of the setup of the run and verbose comments printed out during the run.
 * restart files in `RESTART` directory: the model fields necessary to initialize future runs of the model.
-* history files with `.nc.tar` extension: output of the model, both averaged over specified time intervals and snapshots.
+* history files with `.nc` or `.nc.tar` extension: output of the model, both averaged over specified time intervals and snapshots.
    
 The ascii file contains everything written to the screen during model execution. The total time for model execution as well as the times of separate modules are reported here. All `.tar` files should be decompressed for viewing. The decompress command is:
      
     tar -xvf filename.tar
      
 Users will see result files in NetCDF format. Postprocessing tools such as Ferret, ncview, grads or matlab can be used to view data in these files.
-The outputs of the selected experiments are available in the `data/` directory for the purpose of comparing your results with results produced at GFDL.
+The outputs of the selected experiments can be downloaded into the `data/` directory for the purpose of comparing your results with results produced at GFDL.

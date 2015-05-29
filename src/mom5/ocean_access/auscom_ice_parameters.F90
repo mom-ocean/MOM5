@@ -43,12 +43,27 @@ logical :: iceform_adj_salt = .false.
 !real    :: bg_diff_eq = 1.0e-6    !lowest bg_diff at equator
 !
 
+!Red Sea (2 boxes)
+integer :: irs1 = 314
+integer :: ire1 = 324
+integer :: jrs1 = 169
+integer :: jre1 = 196
+integer :: irs2 = 325
+integer :: ire2 = 331
+integer :: jrs2 = 169
+integer :: jre2 = 180
+!Gulf Bay (1 box)
+integer :: igs = 328
+integer :: ige = 345
+integer :: jgs = 189
+integer :: jge = 198
+
 !maximum depth/level
 integer :: ksmax = 5        !deepest level of the Red Sea/Gulf Bay 
 !
 integer :: sfix_hours = 12  !do s mixing every sfix_hours.
 !
-logical :: redsea_gulfbay_sfix = .true.
+logical :: redsea_gulfbay_sfix = .false.
 logical :: do_sfix_now = .true.
 logical :: chk_i2o_fields = .false.
 logical :: chk_o2i_fields = .false.
@@ -59,21 +74,25 @@ integer :: chk_fields_period =  1
 integer :: chk_fields_start_time = 0
 
 namelist /auscom_ice_nml/  dt_cpl, &
-                   tlthk0,                              & !23/04/2010
+                   tlthk0,                              & 
                    pop_icediag,                         &
-                   do_ice_once,                         & !21/07/2008
-                   kmxice,                              & !12/03/2008
-                   fixmeltT,                            & !24/04/2008  
-                   Tmelt,                               & !24/04/2008
-                   limit_srfstress,                     & !20090319
-                   Mstress,                             & !20090319
-                   use_ioaice,                          & !20090718
-                   aice_cutoff,                         & !20090718
-                   icemlt_factor,                       & !NO longer needed!
-                   frazil_factor,                       & !16/07/2008	     
-                   iceform_adj_salt,                    & !20100410
-                   sign_stflx,                          & !20100410
-                   ksmax,                               &
+                   do_ice_once,                         & 
+                   kmxice,                              & 
+                   fixmeltT,                            &   
+                   Tmelt,                               & 
+                   limit_srfstress,                     & 
+                   Mstress,                             & 
+                   use_ioaice,                          & 
+                   aice_cutoff,                         & 
+                   icemlt_factor,                       & 
+                   frazil_factor,                       & 
+                   iceform_adj_salt,                    & 
+                   sign_stflx,                          & 
+                   redsea_gulfbay_sfix,                 & 
+                   irs1, ire1, jrs1, jre1,              & 
+                   irs2, ire2, jrs2, jre2,              & 
+                   igs, ige, jgs, jge,                  & 
+                   ksmax,                               & 
                    sfix_hours,                          &
                    chk_i2o_fields,                      &
                    chk_o2i_fields,                      &

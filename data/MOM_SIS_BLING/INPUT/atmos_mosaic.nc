@@ -1,1 +1,0 @@
-../../../.git/annex/objects/Zj/Zp/WORM-s1492-m1223066095--atmos_mosaic.nc/WORM-s1492-m1223066095--atmos_mosaic.nc

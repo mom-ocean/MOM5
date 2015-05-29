@@ -331,6 +331,8 @@ use ocean_wave_mod,               only: ocean_wave_init, ocean_wave_end, ocean_w
 
 #if defined(ACCESS)
   use auscom_ice_mod, only: auscom_ice_init
+  use auscom_ice_parameters_mod,  only: redsea_gulfbay_sfix, do_sfix_now, int_sec
+  use mpp_mod,                    only: mpp_pe, mpp_root_pe
 #endif
 
 #ifdef ENABLE_ODA    
@@ -558,6 +560,9 @@ private
   integer :: id_increment_velocity
   integer :: id_salinity
   integer :: id_wave
+#if defined(ACCESS)
+  integer :: id_sfix
+#endif
 
   public ocean_model_init
   public ocean_model_end
@@ -701,6 +706,9 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     id_ocean                = mpp_clock_id( 'Ocean', flags=clock_flag_default,grain=CLOCK_COMPONENT )
     id_init                 = mpp_clock_id('(Ocean initialization) '         ,grain=CLOCK_SUBCOMPONENT)
     id_oda                  = mpp_clock_id('(Ocean ODA)'                     ,grain=CLOCK_SUBCOMPONENT)
+#if defined(ACCESS)
+    id_sfix                 = mpp_clock_id('(Red Sea/Gulf Bay salinity fix)',grain=CLOCK_MODULE)
+#endif
     id_advect               = mpp_clock_id('(Ocean advection velocity) '     ,grain=CLOCK_MODULE)
     id_density_diag         = mpp_clock_id('(Ocean density diag) '           ,grain=CLOCK_MODULE)    
     id_density              = mpp_clock_id('(Ocean update density) '         ,grain=CLOCK_MODULE)    
@@ -1409,6 +1417,11 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     integer :: num_ocn
     integer :: taum1, tau, taup1
     integer :: i, j, k, n
+#if defined(ACCESS)
+    integer :: stdoutunit
+
+    stdoutunit=stdout()
+#endif
 
     call mpp_clock_begin(id_ocean)
 
@@ -1895,7 +1908,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     ! update (udrho,vdrho) and eta_t_bar or pbot_t_bar using barotropic timesteps 
     call mpp_clock_begin(id_barotropic_update)
     call update_ocean_barotropic (Time, Dens, Thickness, Adv_vel, &
-                                  Ext_mode, patm, pme, river)
+                                  Ext_mode, patm, pme, river, use_blobs)
     call mpp_clock_end(id_barotropic_update)
 
     ! remaining time explicit contributions to rho*dz*acceleration
@@ -2026,8 +2039,22 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     call mpp_clock_end(id_oda)
 #endif
 
+#if defined(ACCESS)
+    ! Perform horizontal mixing to fix the Red Sea and Gulf Bay salinity
+    ! drift for ACCESS simulations (no SSS restoring)
+    if (redsea_gulfbay_sfix .and. do_sfix_now) then
+        call mpp_clock_begin(id_sfix)
+        if (mpp_pe() == mpp_root_pe()) then
+            write(stdoutunit,*) 'Calling redsea_gulfbay_hmix_s at runtime = ',int_sec
+        endif
+        call redsea_gulfbay_hmix_s(Time, Grid, Thickness, &
+                                   T_prog(1:num_prog_tracers), Ocean_sfc)
+        call mpp_clock_end(id_sfix)
+    endif
+#endif
+
     call update_ocean_drifters(Velocity, Adv_vel, T_prog(:), Grid, Time)
-    
+
     ! sum ocean sfc state over coupling interval
     call mpp_clock_begin(id_ocean_sfc)
     call sum_ocean_sfc(Time, Thickness, T_prog(1:num_prog_tracers), &
@@ -2049,6 +2076,145 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
   end subroutine update_ocean_model
 ! </SUBROUTINE> NAME="update_ocean_model"
+
+#if defined(ACCESS)
+  subroutine redsea_gulfbay_hmix_s(Time, Grid, Thickness, T_prog, Ocean_sfc)
+
+  use mpp_domains_mod, only : mpp_global_field, mpp_get_data_domain
+  use mpp_mod,         only : mpp_broadcast
+
+  use auscom_ice_parameters_mod, only : irs1, ire1, jrs1, jre1, irs2, ire2,jrs2, jre2, &
+                                        igs, ige, jgs, jge, ksmax
+
+  implicit none
+
+  type(ocean_time_type),         intent(in) :: Time
+  type(ocean_grid_type), target :: Grid ! domain and grid information for ocean model 
+  type(ocean_thickness_type),    intent(in) :: Thickness
+  type(ocean_prog_tracer_type),  intent(inout) :: T_prog(:)
+  type(ocean_public_type),       intent(in) :: Ocean_sfc
+
+  real, dimension(:,:,:), allocatable ::  global_tmask  ! for global mask
+  real, dimension(:,:,:), allocatable ::  global_dzt    ! for global dzt
+  real, dimension(:,:,:), allocatable ::  global_sp     ! for global salinity 
+  real, dimension(:,:)  , allocatable ::  global_dat    ! for global area 
+
+  real :: volume = 0.0
+  real :: wetvolume = 0.0
+  real :: tot_sp = 0.0
+  real :: ave_sp = 0.0
+
+  integer :: tau, taup1
+  integer :: i, j, k
+
+  integer :: nx, ny, nz
+  integer :: iisd, iied, jjsd, jjed
+
+  nx = Grid%ni
+  ny = Grid%nj
+  nz = Grid%nk
+
+  tau   = Time%tau
+  taup1 = Time%taup1
+
+  allocate (global_tmask(nx,ny,nz)) ; global_tmask=0.0
+  call mpp_global_field(Domain%domain2d, Grid%tmask, global_tmask)
+  allocate (global_dat(nx,ny))      ; global_dat=0.0
+  call mpp_global_field(Domain%domain2d, Grid%dat, global_dat)
+
+  allocate (global_dzt(nx,ny,nz))    ; global_dzt=0.0
+  call mpp_global_field(Domain%domain2d, Thickness%dzt(:,:,:), global_dzt)
+  allocate (global_sp(nx,ny,nz)) ; global_sp=0.0
+  call mpp_global_field(Domain%domain2d, T_prog(index_salt)%field(:,:,:,taup1),global_sp)
+
+  call mpp_get_data_domain(Ocean_sfc%domain, iisd, iied, jjsd, jjed)
+
+  do k = 1, ksmax
+    ! 
+    !for Red Sea
+    !
+    wetvolume = 0.0
+    tot_sp = 0.0
+    do j=jrs1,jre1
+      do i=irs1,ire1
+         if(global_tmask(i,j,k) == 1.0) then
+             volume = global_dat(i,j) * global_dzt(i,j,k)
+             wetvolume = wetvolume + volume
+             tot_sp = tot_sp + global_sp(i,j,k) * volume
+          endif
+      enddo
+    enddo
+    do j=jrs2,jre2
+      do i=irs2,ire2
+         if(global_tmask(i,j,k) == 1.0) then
+             volume = global_dat(i,j) * global_dzt(i,j,k)
+             wetvolume = wetvolume + volume
+             tot_sp = tot_sp + global_sp(i,j,k) * volume
+         endif
+      enddo
+    enddo
+    if (wetvolume /= 0.0) then
+       ave_sp = tot_sp/wetvolume
+       do j=jrs1,jre1
+         do i=irs1,ire1
+            if(global_tmask(i,j,k) == 1.0) then
+               global_sp(i,j,k) = ave_sp
+            endif
+         enddo
+       enddo
+       do j=jrs2,jre2
+         do i=irs2,ire2
+            if(global_tmask(i,j,k) == 1.0) then
+               global_sp(i,j,k) = ave_sp
+            endif
+         enddo
+       enddo
+    endif
+    ! 
+    !for Gulf Bay
+    !
+    wetvolume = 0.0
+    tot_sp = 0.0
+    do j=jgs,jge
+      do i=igs,ige
+         if(global_tmask(i,j,k) == 1.0) then
+             volume = global_dat(i,j) * global_dzt(i,j,k)
+             wetvolume = wetvolume + volume
+             tot_sp = tot_sp + global_sp(i,j,k) * volume
+          endif
+      enddo
+    enddo
+    if (wetvolume /= 0.0) then
+       ave_sp = tot_sp/wetvolume
+       do j=jgs,jge
+         do i=igs,ige
+           if(global_tmask(i,j,k) == 1.0) then
+              global_sp(i,j,k) = ave_sp
+           endif
+         enddo
+       enddo
+    endif
+
+    call mpp_broadcast(global_sp(:,:,k),nx*ny,mpp_root_pe())
+    T_prog(index_salt)%field(iisd:iied,jjsd:jjed,k,taup1) = global_sp(iisd:iied,jjsd:jjed,k)
+
+  enddo   !k=1,kdmax
+
+!  if(mpp_pe() == mpp_root_pe()) then
+!   write(115,'(10e12.5)') global_sp
+!  endif
+
+!  global_sp = 0.0
+!  call mpp_global_field(Domain%domain2d,
+!  T_prog(index_salt)%field(:,:,:,taup1),global_sp)
+!  if(mpp_pe() == mpp_root_pe()) then
+!   write(116,'(10e12.5)') global_sp
+!  endif
+
+  deallocate (global_tmask, global_dzt, global_sp, global_dat)
+
+  end subroutine redsea_gulfbay_hmix_s
+#endif
 
 !#######################################################################
 ! <SUBROUTINE NAME="get_ocean_grid_size">

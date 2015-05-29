@@ -925,7 +925,6 @@ subroutine velocity_land_cell_check(Time, Velocity)
 
   endif 
 
-  call mpp_max(num)
   if (num > 0)  then 
      call mpp_error(FATAL,'==>Error: found nonzero ocean velocity over land points. ')
   endif 
