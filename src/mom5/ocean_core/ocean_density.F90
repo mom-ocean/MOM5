@@ -1155,7 +1155,10 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
      T_diag(ind_neutralrho)%field(:,:,:) = Dens%neutralrho(:,:,:)
    endif
 
-   ! compute some density related diagnostic factors 
+   ! compute some density related diagnostic factors
+   ! initialize neutralrho_interval_r first
+   neutralrho_interval  = (neutralrho_max-neutralrho_min)/(epsln+layer_nk)
+   neutralrho_interval_r = 1.0/neutralrho_interval
    call compute_diagnostic_factors(Time, Thickness, Dens, salinity, temperature)
 
    ! compute potential density for diagnostic purposes 
@@ -1273,7 +1276,6 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
   allocate ( Dens%neutralrho_bounds(layer_nk+1))
   allocate ( neutralrho_bounds(layer_nk+1))
   neutralrho_bounds(1) = neutralrho_min
-  neutralrho_interval  = (neutralrho_max-neutralrho_min)/(epsln+layer_nk)
   do k=2,layer_nk+1
     neutralrho_bounds(k)=neutralrho_bounds(k-1)+neutralrho_interval
   enddo 
@@ -1283,7 +1285,6 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
   do k=1,layer_nk+1
     Dens%neutralrho_bounds(k) = neutralrho_bounds(k)
   enddo 
-  neutralrho_interval_r = 1.0/neutralrho_interval
 
   ! define vertical axes according to 
   ! potential temperature or conservative temperature classes
