@@ -114,12 +114,24 @@
 #include <unistd.h>
 #include <netcdf.h>
 #include <sys/resource.h>
-
 #ifndef MAX_BF
 #  define MAX_BF 100  /* maximum blocking factor */
 #endif
 #ifndef DEFAULT_BF     /* default blocking factor, if none set */
 #  define DEFAULT_BF 1
+#endif
+/* These aren't defined in netcdf.h (could only find them in libsrc4/nc4file.c*/
+#ifndef MIN_DEFLATE_LEVEL 
+#  define MIN_DEFLATE_LEVEL 0
+#endif
+#ifndef MAX_DEFLATE_LEVEL 
+#  define MAX_DEFLATE_LEVEL 9
+#endif
+#ifndef DEFAULT_DEFLATE_LEVEL 
+#  define DEFAULT_DEFLATE_LEVEL 5
+#endif
+#ifndef DEFAULT_SHUFFLE
+#  define DEFAULT_SHUFFLE 1
 #endif
 
 /* Information structure for a file */
@@ -149,7 +161,7 @@ struct fileinfo
 void usage();
 int process_file(char *, unsigned char, struct fileinfo *, char *, int *,
                  int *, int *, int*, int, int, int, unsigned char,
-                 unsigned char);
+                 unsigned char, unsigned char, int, int);
 int process_vars(struct fileinfo *, struct fileinfo *, unsigned char, int *,
                  int *, int*, int, int, int, unsigned char, unsigned char);
 int flush_decomp(struct fileinfo *, int, int, int, unsigned char);
@@ -230,6 +242,9 @@ int main(int argc, char *argv[])
    int nblocks=1; /* nblocks=nrecs/bf = number of iterations of outer loop */
    int peWidth = -1; /* Width of PE number in uncombined file extension */
    size_t blksz=65536; /* netCDF block size */
+   int retval;
+   int shuffle=DEFAULT_SHUFFLE, deflate=DEFAULT_DEFLATE_LEVEL; /* Compression parameters */
+   unsigned char compress=0;
 
    /* Check the command-line arguments */
    if (argc < 2)
@@ -299,6 +314,23 @@ int main(int argc, char *argv[])
       else if (!strcmp(argv[a], "-n4"))
 	format=(NC_NOCLOBBER | NC_NETCDF4 | NC_CLASSIC_MODEL);
       else if (!strcmp(argv[a],"-m")) missing=1;
+      else if (!strcmp(argv[a],"-z")) compress=1;
+      else if (!strcmp(argv[a],"-d"))
+        {
+         a++;
+         if (a < argc) deflate=atoi(argv[a]);
+         else
+           {
+            usage(); return(1);
+           };
+	 if ( (deflate < MIN_DEFLATE_LEVEL) || (deflate > MAX_DEFLATE_LEVEL) ) {
+	     printf("Illegal deflate level %d\n\n", deflate);
+	     usage(); return(1);
+	   }
+	 // specifying compression level implies -z option
+	 compress=1;
+        }
+      else if (!strcmp(argv[a],"-s")) shuffle=0;
       else
         {
          outputarg=a; break;
@@ -316,6 +348,10 @@ int main(int argc, char *argv[])
       if (!strcmp(strptr,".0000")) outfilename[outlen-5]='\0';
      }
 
+   if ( compress && (! format & NC_NETCDF4) ) {
+     printf("Compression specified, forcing netCDF4 format\n");
+     format=(NC_NOCLOBBER | NC_NETCDF4 | NC_CLASSIC_MODEL);
+   }
 
    /* if -x (estimate memory usage) is set, k will be automatically set to 1 */
    if (mem_dry_run) {
@@ -408,7 +444,7 @@ int main(int argc, char *argv[])
                 }
               infileerror=process_file(infilename,appendnc,ncoutfile,
                                        outfilename,&nfiles,&nrecs,&nblocks,&bf,block,f,
-                                       headerpad,verbose,missing);
+                                       headerpad,verbose,missing,compress,deflate,shuffle);
               if (infileerror) infileerrors=1;
               appendnc=1; f++;
               if (f==nfiles || a==nend)
@@ -487,7 +523,7 @@ int main(int argc, char *argv[])
                  }
                infileerror=process_file(infilename,appendnc,ncoutfile,
                                         outfilename,&nfiles,&nrecs,&nblocks,&bf,block,f,
-                                        headerpad,verbose,missing);
+                                        headerpad,verbose,missing,compress,deflate,shuffle);
                if (infileerror) infileerrors=1;
                if (a==nstart && nfiles > 0) nend=nstart+nfiles;
                appendnc=1; f++;
@@ -540,7 +576,7 @@ int main(int argc, char *argv[])
            }
            infileerror=process_file(argv[a],appendnc,ncoutfile,
                                     outfilename,&nfiles,&nrecs,&nblocks,&bf,block,f,
-                                    headerpad,verbose,missing);
+                                    headerpad,verbose,missing,compress,deflate,shuffle);
            if (infileerror) infileerrors=1;
            appendnc=1; f++;
            if (f==nfiles || a==(argc-1))
@@ -660,7 +696,11 @@ void usage()
    printf("        No output file will be created. Setting -x automatically sets\n");
    printf("        the blocking factor (-k) to 1. Any value set for -k on the\n");
    printf("        command-line will be ignored. To estimate memory usage for a\n");
-   printf("        a different blocking factor, simply multiply the estimate by k.\n\n");
+   printf("        a different blocking factor, simply multiply the estimate by k.\n");
+   printf("  -z    Enable netCDF4 compression\n");
+   printf("  -d #  Set deflate (compression) level. Valid values: %d-%d, default=%d\n", MIN_DEFLATE_LEVEL, MAX_DEFLATE_LEVEL, DEFAULT_DEFLATE_LEVEL);
+   printf("  -s    Toggle OFF shuffle option in compression\n");
+   printf("\n");
    printf("mppnccombine joins together an arbitrary number of netCDF input files, each\n");
    printf("containing parts of a decomposed domain, into a unified netCDF output file.\n");
    printf("An output file must be specified and it is assumed to be the first filename\n");
@@ -690,7 +730,7 @@ inline int min(int a, int b)
 int process_file(char *ncname, unsigned char appendnc,
                  struct fileinfo *ncoutfile, char *outncname, int *nfiles,
                  int *nrecs, int *nblocks, int *bf, int block, int f, int headerpad,
-                 unsigned char verbose, unsigned char missing)
+                 unsigned char verbose, unsigned char missing, unsigned char compress, int deflate, int shuffle)
   {
    struct fileinfo *ncinfile;  /* Information about an input netCDF file */
    int nfiles2;  /* Number of files in the decomposed domain */
@@ -846,6 +886,10 @@ int process_file(char *ncname, unsigned char appendnc,
         {
          ncvardef(ncoutfile->ncfid,ncinfile->varname[v],ncinfile->datatype[v],
                   ncinfile->varndims[v],ncinfile->vardim[v]);
+	 if (compress) {
+	   nc_def_var_chunking(ncoutfile->ncfid, v, NC_CHUNKED, NULL);
+	   nc_def_var_deflate(ncoutfile->ncfid, v, shuffle, 1, deflate);
+	 }
          for (n=0; n < ncinfile->natts[v]; n++)
            {
             ncattname(ncinfile->ncfid,v,n,attname);
