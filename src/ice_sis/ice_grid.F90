@@ -310,6 +310,12 @@ contains
     integer                             :: npes, p
     logical                             :: symmetrize, ndivx_is_even, im_is_even
 
+    ! Grid testing
+    logical :: mosaic_axes
+    integer, dimension(4) :: start, nread
+
+    mosaic_axes = .true.
+
     grid_file = 'INPUT/grid_spec.nc'
     ocean_topog = 'INPUT/topog.nc'
     outunit = stdout()
@@ -562,6 +568,24 @@ contains
        call get_grid_cell_vertices('OCN', 1, tmpx, tmpy)
        xb1d = sum(tmpx,2)/(jm+1)
        yb1d = sum(tmpy,1)/(im+1)
+       deallocate(tmpx, tmpy)
+    else if (mosaic_axes .and. grid_version == VERSION_2) then
+
+       allocate(tmpx(2*im + 1, 2), tmpy(2, 2*jm + 1))
+
+       start(:) = 1; nread(:) = 1
+ 
+       start(1) = 1; nread(1) = 2*im + 1
+       start(2) = 2; nread(2) = 2
+       call read_data(ocean_hgrid, 'x', tmpx, start, nread, no_domain=.true.)
+       xb1d(:) = tmpx(::2, 1)
+
+       ! Start at (im / 4) to ensure that dy is constant through the tripole
+       start(1) = 2*(im/4) + 1; nread(1) = 2
+       start(2) = 1; nread(2) = 2*jm + 1
+       call read_data(ocean_hgrid, 'y', tmpy, start, nread, no_domain=.true.)
+       yb1d(:) = tmpy(1, ::2)
+
        deallocate(tmpx, tmpy)
     else
        allocate ( tmpx(isc:iec+1, jm+1) )
