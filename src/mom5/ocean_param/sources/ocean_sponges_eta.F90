@@ -102,10 +102,9 @@ logical :: use_adaptive_restore  = .false.
 logical :: use_sponge_after_init = .false.
 logical :: use_normalising       = .false.
 logical :: use_hard_thump        = .false.
-logical :: deflate               = .false.
-real    :: deflate_fraction      = 0.6
-integer :: secs_to_restore       = 0
 integer :: days_to_restore       = 1
+integer :: secs_to_restore       = 0
+
 integer :: secs_restore
 integer :: initial_day, initial_secs
 
@@ -113,7 +112,7 @@ namelist /ocean_sponges_eta_nml/ use_this_module
 namelist /ocean_sponges_eta_ofam_nml/ &
     use_adaptive_restore, use_sponge_after_init, use_normalising, &
     use_hard_thump, athresh, taumin, lambda, npower, days_to_restore, &
-    secs_to_restore, deflate, deflate_fraction
+    secs_to_restore
 
 contains
 
@@ -244,17 +243,22 @@ subroutine ocean_sponges_eta_init(Grid, Domain, Time, dtime, Ocean_options)
   endif
 
 
-     name = 'INPUT/eta_sponge.nc'
-     if(file_exist(trim(name))) then
-        Sponge(1)%id = init_external_field(name,'eta_t',domain=Domain%domain2d)
+  name = 'INPUT/eta_sponge.nc'
+  if(file_exist(trim(name))) then
+     Sponge(1)%id = init_external_field(name,'eta_t',domain=Domain%domain2d)
      if (Sponge(1)%id < 1) then
-        call mpp_error(FATAL,&
-          '==>Error: in ocean_increment_eta_mod: forcing rates are specified but increment values are not')
+        if ( use_adaptive_restore ) then
+          call mpp_error(FATAL,&
+             '==>Error: in ocean_sponges_eta_mod: adaptive restoring is specified but sponge values are not')
+        else
+          call mpp_error(FATAL,&
+             '==>Error: in ocean_sponges_eta_mod: damping rates are specified but sponge values are not')
+        endif
      endif
-      write(stdoutunit,*) '==> Using increment data specified from file '//trim(name)
-     else
-      write(stdoutunit,*) '==> '//trim(name)//' not found.  Increment not being applied '
-     endif
+     write(stdoutunit,*) '==> Using increment data specified from file '//trim(name)
+  else
+     write(stdoutunit,*) '==> '//trim(name)//' not found.  Increment not being applied '
+  endif
 
   allocate (id_sponge_tend(1)) 
   id_sponge_tend = -1

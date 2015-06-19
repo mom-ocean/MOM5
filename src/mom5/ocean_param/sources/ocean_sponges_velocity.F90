@@ -109,20 +109,19 @@ logical :: use_adaptive_restore  = .false.
 logical :: use_sponge_after_init = .false.
 logical :: use_normalising       = .false.
 logical :: use_hard_thump        = .false.
-logical :: deflate               = .false.
-real    :: deflate_fraction      = 0.6
 integer :: secs_to_restore       = 0
 integer :: days_to_restore       = 1
+
 integer :: secs_restore
 integer :: days_end_restore
 integer :: secs_end_restore
 integer :: initial_day, initial_secs
 
 namelist /ocean_sponges_velocity_nml/ use_this_module, damp_coeff_3d
-namelist /ocean_sponges_velocity_OFAM_nml/ &
+namelist /ocean_sponges_velocity_ofam_nml/ &
     use_adaptive_restore, use_sponge_after_init, use_normalising, &
     use_hard_thump, athresh, taumin, lambda, npower, days_to_restore, &
-    secs_to_restore, deflate, deflate_fraction
+    secs_to_restore
 
 contains
 

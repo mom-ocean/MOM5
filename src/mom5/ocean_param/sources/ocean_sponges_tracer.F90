@@ -116,6 +116,15 @@ logical :: deflate               = .false.
 real    :: deflate_fraction      = 0.6
 integer :: secs_to_restore       = 0
 integer :: days_to_restore       = 1
+
+logical :: limit_temp            = .false.
+real    :: limit_temp_min        = -1.8
+real    :: limit_temp_restore    = 10800.
+
+logical :: limit_salt            = .false.
+real    :: limit_salt_min        = 0.01
+real    :: limit_salt_restore    = 3600.
+
 integer :: secs_restore
 integer :: initial_day
 integer :: initial_secs
@@ -125,7 +134,9 @@ namelist /ocean_sponges_tracer_nml/ use_this_module, damp_coeff_3d
 namelist /ocean_sponges_tracer_ofam_nml/ &
     use_adaptive_restore, use_sponge_after_init, use_normalising, &
     use_hard_thump, athresh, taumin, lambda, npower, days_to_restore, &
-    secs_to_restore, deflate, deflate_fraction
+    secs_to_restore, deflate, deflate_fraction, &
+    limit_temp, limit_temp_min, limit_temp_restore, &
+    limit_salt, limit_salt_min, limit_salt_restore, &
 
 contains
 
@@ -425,41 +436,49 @@ subroutine sponge_tracer_source(Time, Thickness, T_prog)
              end do
         end if
 
-        ! MLW: What is this? It was in the auscom version of MOM.
-        !      I am putting it inside an OFAM flag just in case
-        if (do_adaptive_restore) then
-          ! Limit to -1.8 deg with 3hour restoring (got other limits here for initialising. Not sure if needed (namelist use?).
-            if (trim(T_prog(n)%name) == 'temp') then
-               do k=1,nk
-                  do j=jsc,jec
-                     do i=isc,iec  
-                        wrk2(i,j,k) = wrk2(i,j,k)+Thickness%rho_dzt(i,j,k,tau)*max(-1.8-T_prog(n)%field(i,j,k,taum1),0.0)/10600.0
-        !                wrk2(i,j,k) = wrk2(i,j,k)+Thickness%rho_dzt(i,j,k,tau)*min(43.0-T_prog(n)%field(i,j,k,taum1),0.0)/3600.0
-                     enddo
-                  enddo
-               enddo
-            endif
-            if (trim(T_prog(n)%name) == 'salt') then
-               do k=1,nk
-                  do j=jsc,jec
-                     do i=isc,iec  
-                        wrk2(i,j,k) = wrk2(i,j,k)+Thickness%rho_dzt(i,j,k,tau)*max(0.01-T_prog(n)%field(i,j,k,taum1),0.0)/3600.0
-                     enddo
-                  enddo
-               enddo
-            endif
-        end if
-
-        ! Update tendency
-        do k = 1, nk
-            do j = jsc, jec
-                do i = isc, iec
-                    T_prog(n)%th_tendency(i,j,k) = T_prog(n)%th_tendency(i,j,k) &
-                                                  + wrk2(i,j,k)
-                end do
-            end do
-         end do
     end if
+
+    ! These tracer relaxation schemes were in the original OFAM and AusCOM
+    ! source code, and may be needed by other OFAM-based experiments.
+    !
+    ! For now, let's keep them in the same place, but they are now turned off
+    ! by default.  They may need to be moved or deleted in the future.
+
+    ! Limit to -1.8 deg with 3hour restoring (got other limits here for initialising. Not sure if needed (namelist use?).
+    if (limit_temp .and. trim(T_prog(n)%name) == 'temp') then
+       do k=1,nk
+          do j=jsc,jec
+             do i=isc,iec
+                wrk2(i,j,k) = wrk2(i,j,k) + Thickness%rho_dzt(i,j,k,tau) &
+                    * max(limit_temp_min - T_prog(n)%field(i,j,k,taum1), 0.0) &
+                    / limit_temp_restore
+!                wrk2(i,j,k) = wrk2(i,j,k)+Thickness%rho_dzt(i,j,k,tau)*min(43.0-T_prog(n)%field(i,j,k,taum1),0.0)/3600.0
+             enddo
+          enddo
+       enddo
+    end if
+
+    if (limit_salt .and. trim(T_prog(n)%name) == 'salt') then
+       do k=1,nk
+          do j=jsc,jec
+             do i=isc,iec
+                wrk2(i,j,k) = wrk2(i,j,k) + Thickness%rho_dzt(i,j,k,tau) &
+                    * max(limit_salt_min - T_prog(n)%field(i,j,k,taum1), 0.0) &
+                    / limit_salt_restore
+             enddo
+          enddo
+       enddo
+    end if
+
+    ! Update tendency
+    do k = 1, nk
+        do j = jsc, jec
+            do i = isc, iec
+                T_prog(n)%th_tendency(i,j,k) = T_prog(n)%th_tendency(i,j,k) &
+                                              + wrk2(i,j,k)
+            end do
+        end do
+    end do
 
     if (id_sponge_tend(n) > 0) call diagnose_3d(Time, Grd, id_sponge_tend(n), &
          T_prog(n)%conversion*wrk2(:,:,:))

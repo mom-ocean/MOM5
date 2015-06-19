@@ -209,6 +209,9 @@ real,    allocatable, dimension(:,:) :: wave_s            ! wave action at the s
 real,    allocatable, dimension(:,:) :: data       
 integer, allocatable, dimension(:,:) :: grd_kbot          ! bottom k-level 
 
+real, allocatable, dimension(:, :) :: uresidual2_2d
+real, allocatable, dimension(:, :) :: tide_speed_t
+
 ! nml variables 
 logical :: bmf_implicit             = .false. 
 logical :: debug_this_module        = .false. 
@@ -229,11 +232,8 @@ real    :: bmf_max                  = 1.0      ! max bmf (N/m^2)
 real    :: cdbot_HH                 = 1100.0   ! H0 of cdbot_roughness_uamp (m)
 real    :: cdbot_UU                 = 1.0      ! U0 of cdbot_roughness_uamp (m/s)
 
-! OFAM variables
-real, allocatable, dimension(:, :) :: uresidual2_2d
-real, allocatable, dimension(:, :) :: tide_speed_t
 logical :: read_tide_speed = .false.
-real :: uresidual2_max = 0.05
+real    :: uresidual2_max = 0.05
 
  namelist /ocean_bbc_nml/ bmf_implicit, cdbot, uresidual, cdbot_law_of_wall, law_of_wall_rough_length, &
                          cdbot_roughness_length, use_geothermal_heating, convert_geothermal,           &
