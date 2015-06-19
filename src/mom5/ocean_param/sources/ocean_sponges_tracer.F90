@@ -136,7 +136,7 @@ namelist /ocean_sponges_tracer_ofam_nml/ &
     use_hard_thump, athresh, taumin, lambda, npower, days_to_restore, &
     secs_to_restore, deflate, deflate_fraction, &
     limit_temp, limit_temp_min, limit_temp_restore, &
-    limit_salt, limit_salt_min, limit_salt_restore, &
+    limit_salt, limit_salt_min, limit_salt_restore
 
 contains
 
