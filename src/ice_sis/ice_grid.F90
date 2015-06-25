@@ -296,6 +296,7 @@ contains
     integer, dimension(2)               :: tile1, tile2
     integer, dimension(2)               :: istart1, iend1, jstart1, jend1
     integer, dimension(2)               :: istart2, iend2, jstart2, jend2
+    integer, dimension(4)               :: start, nread
     character(len=80)                   :: domainname
     character(len=128)                  :: grid_file, ocean_topog
     character(len=256)                  :: ocean_hgrid, ocean_mosaic, attvalue
@@ -309,6 +310,7 @@ contains
     integer, allocatable, dimension(:)  :: pelist, islist, ielist, jslist, jelist
     integer                             :: npes, p
     logical                             :: symmetrize, ndivx_is_even, im_is_even
+
 
     grid_file = 'INPUT/grid_spec.nc'
     ocean_topog = 'INPUT/topog.nc'
@@ -563,7 +565,31 @@ contains
        xb1d = sum(tmpx,2)/(jm+1)
        yb1d = sum(tmpy,1)/(im+1)
        deallocate(tmpx, tmpy)
+
+    else if (grid_version == VERSION_2) then
+       allocate(tmpx(2*im + 1, 2), tmpy(2, 2*jm + 1))
+
+       ! Default index span initialization
+       start(:) = 1; nread(:) = 1
+
+       ! Read x-axis along y[0]
+       start(1) = 1; nread(1) = 2*im + 1
+       start(2) = 2; nread(2) = 2
+       call read_data(ocean_hgrid, 'x', tmpx, start, nread, no_domain=.true.)
+       xb1d(:) = tmpx(::2, 1)
+
+       ! Read y-axis along x[im/4]
+       ! NOTE: At x[im/4], dy is constant for a standard global tripole grid
+       start(1) = 2*(im/4) + 1; nread(1) = 2
+       start(2) = 1; nread(2) = 2*jm + 1
+       call read_data(ocean_hgrid, 'y', tmpy, start, nread, no_domain=.true.)
+       yb1d(:) = tmpy(1, ::2)
+
+       deallocate(tmpx, tmpy)
+
     else
+       ! For non-mosaic grids, calculate the mean axis values across the grid
+
        allocate ( tmpx(isc:iec+1, jm+1) )
        call mpp_set_domain_symmetry(Domain, .TRUE.)
        call mpp_global_field(Domain, geo_lonv, tmpx, flags=YUPDATE, position=CORNER)
