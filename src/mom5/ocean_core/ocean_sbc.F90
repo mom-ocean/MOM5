@@ -835,6 +835,10 @@ logical :: avg_sfc_temp_salt_eta      = .true.
 logical :: use_full_patm_for_sea_level= .false. 
 logical :: do_bitwise_exact_sum       = .true.
 
+integer :: id_restore_mask_ofam = -1
+logical :: restore_mask_ofam = .false.
+logical :: river_temp_ofam = .false.
+
 namelist /ocean_sbc_nml/ temp_restore_tscale, salt_restore_tscale, salt_restore_under_ice, salt_restore_as_salt_flux,        &
          eta_restore_tscale, zero_net_pme_eta_restore,                                                                       & 
          rotate_winds, taux_sinx, tauy_siny, use_waterflux, waterflux_tavg, max_ice_thickness, runoffspread, calvingspread,  &
@@ -849,6 +853,8 @@ namelist /ocean_sbc_nml/ temp_restore_tscale, salt_restore_tscale, salt_restore_
          sbc_heat_fluxes_const, sbc_heat_fluxes_const_value, sbc_heat_fluxes_const_seasonal,                                 &
          use_constant_sss_for_restore, constant_sss_for_restore, use_constant_sst_for_restore, constant_sst_for_restore,     &
          use_ideal_calving, use_ideal_runoff, constant_hlf, constant_hlv, read_stokes_drift, do_langmuir
+
+namelist /ocean_sbc_ofam_nml/ restore_mask_ofam, river_temp_ofam
 
 contains
 
@@ -894,16 +900,24 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
 
 #ifdef INTERNAL_FILE_NML
   read (input_nml_file, nml=ocean_sbc_nml, iostat=io_status)
-  ierr = check_nml_error(io_status,'ocean_sbc_nml')
+  ierr = check_nml_error(io_status, 'ocean_sbc_nml')
+  read (input_nml_file, nml=ocean_sbc_ofam_nml, iostat=io_status)
+  ierr = check_nml_error(io_status, 'ocean_sbc_ofam_nml')
 #else
   ioun = open_namelist_file()
-  read  (ioun, ocean_sbc_nml,iostat=io_status)
-  ierr = check_nml_error(io_status,'ocean_sbc_nml')
+  read(ioun, ocean_sbc_nml, iostat=io_status)
+  ierr = check_nml_error(io_status, 'ocean_sbc_nml')
+  rewind(ioun)
+  read(ioun, ocean_sbc_ofam_nml, iostat=io_status)
+  ierr = check_nml_error(io_status, 'ocean_sbc_ofam_nml')
   call close_file (ioun)
 #endif
   write (stdoutunit,'(/)')
   write (stdoutunit, ocean_sbc_nml)  
   write (stdlogunit, ocean_sbc_nml)
+  write (stdoutunit,'(/)')
+  write (stdoutunit, ocean_sbc_ofam_nml)
+  write (stdlogunit, ocean_sbc_ofam_nml)
 
   if(do_bitwise_exact_sum) then
      global_sum_flag = BITWISE_EXACT_SUM
@@ -1013,12 +1027,19 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
   ! and restore_mask=1.0 in regions where restoring is applied.  Default is 
   ! to restore everywhere (restore_mask(:,:) = Grd%tmask(:,:,1)).  
   if(read_restore_mask) then 
-      call read_data('INPUT/restore_mask','restore_mask',data,Domain%domain2d)
-      do j=jsc,jec
-         do i=isc,iec
-            restore_mask(i,j) = data(i,j)
-         enddo
-      enddo
+      if (restore_mask_ofam) then
+        id_restore_mask_ofam = init_external_field('INPUT/restore_mask.nc', &
+                                                   'restore_mask', &
+                                                   domain=Domain%domain2d)
+      else
+        call read_data('INPUT/restore_mask', 'restore_mask', data, &
+                       Domain%domain2d)
+        do j = jsc, jec
+            do i = isc, iec
+                restore_mask(i,j) = data(i,j)
+            end do
+        end do
+      end if
 
       ! the following is specific to the mask used at GFDL
       if(restore_mask_gfdl) then 
@@ -3322,6 +3343,25 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
              enddo
           enddo
 
+      else if (river_temp_ofam) then
+          ! OFAM sometimes specifies the temperatures of the rivers according
+          ! to climatological SST.
+          call time_interp_external(id_restore(index_temp), Time%model_time, &
+                                    data)
+          do j = jsc, jec
+              do i = isc, iec
+                  T_prog(index_temp)%trunoff(i, j) &
+                    = max(runoff_temp_min, data(i, j))
+                  T_prog(index_temp)%tcalving(i, j) &
+                    = T_prog(index_temp)%field(i, j, 1, tau)
+                  T_prog(index_temp)%runoff_tracer_flux(i, j) &
+                    = Grd%tmask(i, j, 1) * T_prog(index_temp)%trunoff(i, j) &
+                        * runoff(i, j)
+                  T_prog(index_temp)%calving_tracer_flux(i,j) &
+                    = Grd%tmask(i, j, 1) * T_prog(index_temp)%tcalving(i, j) &
+                        * calving(i, j)
+              end do
+          end do
       else 
 
           ! for cases where the land model does not carry heat flux associated with 
@@ -3921,6 +3961,12 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
   flx_restore     = 0.0 
 
   open_ocean_mask(isd:ied,jsd:jed) = Grd%tmask(isd:ied,jsd:jed,1)
+
+  ! Update restore_mask if present
+  if (id_restore_mask_ofam > 0) then
+      call time_interp_external(id_restore_mask_ofam, Time%model_time, &
+                                restore_mask)
+  end if
 
   ! add restoring to fluxes from coupled model, or
   ! add flux correction to fluxes from coupled model.

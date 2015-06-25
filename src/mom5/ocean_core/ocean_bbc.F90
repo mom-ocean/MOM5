@@ -124,7 +124,7 @@ use constants_mod,        only: epsln, pi
 use diag_manager_mod,     only: register_diag_field, register_static_field, send_data
 use fms_mod,              only: open_namelist_file, check_nml_error, write_version_number
 use fms_mod,              only: close_file, read_data
-use mpp_mod,              only: input_nml_file, mpp_error, FATAL, WARNING, stdout, stdlog
+use mpp_mod,              only: input_nml_file, mpp_error, NOTE, FATAL, WARNING, stdout, stdlog
 use mpp_domains_mod,      only: mpp_update_domains, BGRID_NE
 
 use ocean_domains_mod,    only: get_local_indices
@@ -209,6 +209,9 @@ real,    allocatable, dimension(:,:) :: wave_s            ! wave action at the s
 real,    allocatable, dimension(:,:) :: data       
 integer, allocatable, dimension(:,:) :: grd_kbot          ! bottom k-level 
 
+real, allocatable, dimension(:, :) :: uresidual2_2d
+real, allocatable, dimension(:, :) :: tide_speed_t
+
 ! nml variables 
 logical :: bmf_implicit             = .false. 
 logical :: debug_this_module        = .false. 
@@ -229,10 +232,15 @@ real    :: bmf_max                  = 1.0      ! max bmf (N/m^2)
 real    :: cdbot_HH                 = 1100.0   ! H0 of cdbot_roughness_uamp (m)
 real    :: cdbot_UU                 = 1.0      ! U0 of cdbot_roughness_uamp (m/s)
 
+logical :: read_tide_speed = .false.
+real    :: uresidual2_max = 0.05
+
  namelist /ocean_bbc_nml/ bmf_implicit, cdbot, uresidual, cdbot_law_of_wall, law_of_wall_rough_length, &
                          cdbot_roughness_length, use_geothermal_heating, convert_geothermal,           &
                          cdbot_hi, cdbot_lo, cdbot_gamma, uvmag_max, bmf_max, debug_this_module,       &
                          cdbot_roughness_uamp, cdbot_HH, cdbot_UU, cdbot_wave
+
+ namelist /ocean_bbc_ofam_nml/ read_tide_speed, uresidual2_max
 
 contains
 
@@ -271,15 +279,23 @@ call write_version_number(version, tagname)
 #ifdef INTERNAL_FILE_NML
 read (input_nml_file, nml=ocean_bbc_nml, iostat=io_status)
 ierr = check_nml_error(io_status,'ocean_bbc_nml')
+read (input_nml_file, nml=ocean_bbc_ofam_nml, iostat=io_status)
+ierr = check_nml_error(io_status,'ocean_bbc_ofam_nml')
 #else
 ioun = open_namelist_file()
 read(ioun, ocean_bbc_nml, iostat=io_status)
 ierr = check_nml_error(io_status,'ocean_bbc_nml')
+rewind(ioun)
+read(ioun, ocean_bbc_ofam_nml, iostat=io_status)
+ierr = check_nml_error(io_status,'ocean_bbc_ofam_nml')
 call close_file(ioun)
 #endif
 write (stdoutunit,'(/)')
 write (stdoutunit, ocean_bbc_nml)
 write (stdlogunit, ocean_bbc_nml)
+write (stdoutunit,'(/)')
+write (stdoutunit, ocean_bbc_ofam_nml)
+write (stdlogunit, ocean_bbc_ofam_nml)
 
 #ifndef MOM_STATIC_ARRAYS
 call get_local_indices(Domain, isd, ied, jsd, jed, isc, iec, jsc, jec)
@@ -343,6 +359,22 @@ cdbot_lowall(:,:) = cdbot*Grd%mask(:,:,1)
 cellarea_r                 = 1.0/(epsln + Grd%tcellsurf)
 cp_r                       = 1.0/cp_ocean
 uresidual2                 = uresidual**2
+
+if (read_tide_speed) then
+    allocate(uresidual2_2d(isd:ied, jsd:jed))
+    allocate(tide_speed_t(isd:ied, jsd:jed))
+    call read_data('INPUT/tideamp.nc', 'tideamp', tide_speed_t, Domain%domain2d)
+    write (stdout(),*) '==>ocean_bbc_mod: Completed read of tide_speed.'
+    uresidual2_2d(:,:) = min(tide_speed_t(:,:)**2, uresidual2_max)
+    call mpp_update_domains(uresidual2_2d(:,:), Dom%domain2d)
+    deallocate(tide_speed_t)
+else
+   write(stdout(),'(a)') &
+      '==>Note: NOT reading tide_speed for ocean_vert_tidal_mod.'
+   call mpp_error(NOTE, &
+      '==>ocean_vert_tidal_mod: Setting tide_speed to default value.')
+endif
+
 law_of_wall_rough_length_r = 1.0/law_of_wall_rough_length
 
 if(cdbot_law_of_wall) then 
@@ -704,7 +736,14 @@ do j=jsd,jed
        kbot = grd_kbot(i,j)
        Velocity%gamma(i,j) = 0.0
        if (kbot > 0) then
-           uvmag = sqrt(uresidual2 + Velocity%u(i,j,kbot,1,tstep)**2 + Velocity%u(i,j,kbot,2,tstep)**2)
+           if (read_tide_speed) then
+               uvmag = sqrt(uresidual2_2d(i, j) &
+                            + Velocity%u(i, j, kbot, 1, taum1)**2 &
+                            + Velocity%u(i, j, kbot, 2, taum1)**2)
+           else
+               uvmag = sqrt(uresidual2 + Velocity%u(i, j, kbot, 1, tstep)**2 &
+                            + Velocity%u(i, j, kbot, 2, tstep)**2)
+           end if
            uvmag = min(uvmag,uvmag_max)
            Velocity%gamma(i,j)  = drag_coeff(i,j)*uvmag
            umag                 = abs(Velocity%u(i,j,kbot,1,tstep))
@@ -715,6 +754,9 @@ do j=jsd,jed
    enddo
 enddo
 
+if (read_tide_speed) then
+    deallocate(uresidual2_2d)
+end if
 
 ! send diagnostics 
 
