@@ -1213,8 +1213,8 @@ do n = 1, instances
    if (abiotic(n)%id_alk .gt. 0) then
       call diagnose_2d(Time, Grid, abiotic(n)%id_alk, t_prog(indsal)%field(:,:,1,taum1) * abiotic(n)%alkbar / abiotic(n)%sal_global)
    endif
-   call diagnose_2d_comp(Time, Grid, abiotic(n)%id_po4, abiotic(n)%po4(:,:))
-   call diagnose_2d_comp(Time, Grid, abiotic(n)%id_sio4, abiotic(n)%sio4(:,:))
+   call diagnose_2d_comp(Time, Grid, abiotic(n)%id_po4, abiotic(n)%po4(isc:iec,jsc:jec))
+   call diagnose_2d_comp(Time, Grid, abiotic(n)%id_sio4, abiotic(n)%sio4(isc:iec,jsc:jec))
    call diagnose_2d_comp(Time, Grid, abiotic(n)%id_frac_14catm, abiotic(n)%frac_14catm(:,:))
    call diagnose_3d_comp(Time, Grid, abiotic(n)%id_jdi14c, abiotic(n)%jdi14c(:,:,:))
 enddo
