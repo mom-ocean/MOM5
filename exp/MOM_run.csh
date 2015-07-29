@@ -277,7 +277,7 @@ if ( $npes > 1 ) then
     endif
 
     # Concatenate iceberg restarts
-    if ( -f ocean_blobs.res.nc.0000 ) then
+    if ( -f icebergs.res.nc.0000 ) then
         ncrcat icebergs.res.nc.???? icebergs.res.nc
         rm icebergs.res.nc.????
     endif
@@ -307,7 +307,6 @@ if ( $npes > 1 ) then
                 if ( $status != 0 ) then
                     echo "ERROR: in execution of mppnccombine -n4 -r on restarts"
                     echo "Command was: $mppnccombine $file:r $input_files"
-                    exit 1
                 endif
             endif
         else
