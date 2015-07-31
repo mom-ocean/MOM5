@@ -1112,7 +1112,7 @@ subroutine compute_vorticity(Time, Velocity)
                  wrk1(i,j,k) = onehalf*((Velocity%u(i,j,k,2,tau)-Velocity%u(i-1,j,k,2,tau)    )*Grd%dxtnr(i,j)   &
                                        +(Velocity%u(i,j-1,k,2,tau)-Velocity%u(i-1,j-1,k,2,tau))*Grd%dxtnr(i,j-1) &
                                        -(Velocity%u(i,j,k,1,tau)-Velocity%u(i,j-1,k,1,tau)    )*Grd%dyter(i,j)   &
-                                       -(Velocity%u(i-1,j,k,1,tau)-Velocity%u(i-1,j-1,k,1,tau))*Grd%dyter(i,j-1) &
+                                       -(Velocity%u(i-1,j,k,1,tau)-Velocity%u(i-1,j-1,k,1,tau))*Grd%dyter(i-1,j) &
                                               )
               enddo
            enddo
