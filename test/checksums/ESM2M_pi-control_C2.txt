@@ -49,113 +49,113 @@
 [chksum] checksum start bczone_radius                                0
 [chksum] start lap_viscosity                       4874860285692625725
 [chksum] start bih_viscosity                      -4663694078733119073
-[chksum] temp                                      -118284885792294590
-[chksum] salt                                      2561593808698840711
-[chksum] age_global                               -7686499863565545916
-[chksum] sio4                                      4043222490018237954
-[chksum] silg                                     -7628145889850055121
-[chksum] sidet                                     4609166926212335966
-[chksum] sdop                                     -6627546768783564374
-[chksum] sdon                                      -336874159191728145
-[chksum] psm                                      -8954909559751245821
-[chksum] po4                                      -8867450390107996486
-[chksum] plg                                       3964456668180417904
-[chksum] pdi                                       8319731364727139654
-[chksum] pdet                                     -2678162390915970347
-[chksum] o2                                       -2533653123921871278
-[chksum] nsm                                      -2910716693349375457
-[chksum] no3                                      -4630487355825639529
-[chksum] nh4                                       2888789477341978216
-[chksum] nlg                                        668366653780352501
-[chksum] nhet                                      9157719289377647727
-[chksum] ndi                                       1677878624905206257
-[chksum] ndet                                      8185226463764383455
-[chksum] lithdet                                   4169505492812502622
-[chksum] lith                                     -5974579751640056978
-[chksum] ldon                                      6726305599023576540
-[chksum] fesm                                       554474045246063061
-[chksum] felg                                      5973009529059292883
-[chksum] fedi                                      7371830987152351990
-[chksum] fedet                                    -7135523194766100151
-[chksum] fed                                       -137911525569937761
-[chksum] dic                                       5229270484481329642
-[chksum] cadet_calc                                3876234220849486898
-[chksum] cadet_arag                                6264511027719384015
-[chksum] alk                                      -6358996867813811708
-[chksum] frazil                                    6658364544319641859
-[chksum] con_temp                                 -3674951374064428382
-[chksum] irr_mem                                  -4490777112751616247
-[chksum] htotal                                    4511944607095549158
-[chksum] sidet_btf                                 2360522966003001561
-[chksum] pdet_btf                                 -4193985479844009466
-[chksum] ndet_btf                                 -3275212109453219034
-[chksum] lithdet_btf                               1026426749740011194
-[chksum] cadet_calc_btf                           -2845004543301482370
-[chksum] cadet_arag_btf                           -7227341256465253608
-[chksum] co3_ion                                   1005512704738501851
-[chksum] chl                                        471939784012866966
-[chksum] cased                                     2155648790384139865
-[chksum] ending agm_array                          -807367611809149346
+[chksum] temp                                      9125616930106936634
+[chksum] salt                                      2561682867047665680
+[chksum] age_global                               -2827628195871832242
+[chksum] sio4                                      4057509126365353739
+[chksum] silg                                      1594972790276725741
+[chksum] sidet                                     4633564557105275503
+[chksum] sdop                                     -6642765124174714280
+[chksum] sdon                                      8913218692102716699
+[chksum] psm                                        314840249578608305
+[chksum] po4                                      -8858022665447755686
+[chksum] plg                                       3974801620194500342
+[chksum] pdi                                       -837561483335064792
+[chksum] pdet                                     -2640478170578345529
+[chksum] o2                                       -2537139207329152311
+[chksum] nsm                                      -2875098306175068800
+[chksum] no3                                      -4601775826998631061
+[chksum] nh4                                       2782094797967733635
+[chksum] nlg                                      -8623037262808495798
+[chksum] nhet                                     -9147508633475135461
+[chksum] ndi                                      -7507298716660482379
+[chksum] ndet                                      8151364172498440550
+[chksum] lithdet                                   4237719468539240087
+[chksum] lith                                     -5973354649640746079
+[chksum] ldon                                     -2802980783318128041
+[chksum] fesm                                       514397097435710332
+[chksum] felg                                      5964262249966328401
+[chksum] fedi                                      7350912665204627544
+[chksum] fedet                                    -7111876017241698621
+[chksum] fed                                       -132518694880517836
+[chksum] dic                                       5229448250561036823
+[chksum] cadet_calc                                3871896922275719864
+[chksum] cadet_arag                                6513003623225161007
+[chksum] alk                                      -6358919393169714429
+[chksum] frazil                                   -8402155384315629909
+[chksum] con_temp                                 -3596212009061146977
+[chksum] irr_mem                                    253777804395313380
+[chksum] htotal                                    4516690842528982645
+[chksum] sidet_btf                                 2353120856950321237
+[chksum] pdet_btf                                 -4202721886804007755
+[chksum] ndet_btf                                 -3282003491023681449
+[chksum] lithdet_btf                               1020993406864509278
+[chksum] cadet_calc_btf                           -2857035835241138852
+[chksum] cadet_arag_btf                           -7234959307496606775
+[chksum] co3_ion                                   1003638597854513207
+[chksum] chl                                        181386680613793800
+[chksum] cased                                     2155694091188595873
+[chksum] ending agm_array                          -868601997771055042
 [chksum] ending aredi_array                        1904459692424298496
-[chksum] ending rossby_radius                     -5567881072489419546
-[chksum] ending rossby_radius_raw                  3208904569318582805
+[chksum] ending rossby_radius                     -5568528126162055139
+[chksum] ending rossby_radius_raw                  3270142069000091742
 [chksum] ending bczone_radius                                        0
-[chksum] ending bih_viscosity                     -4700125093370185334
-[chksum] ending lap_viscosity                      5001781076693875750
+[chksum] ending bih_viscosity                     -4700113308169362363
+[chksum] ending lap_viscosity                      5004100341528703895
 [chksum] thickness_sigma                           1591740993298759680
-[chksum] Zonal velocity                            3643752132706070645
-[chksum] Meridional velocity                       7580604021503855967
-[chksum] Advection of u                           -6684819275840964426
-[chksum] Advection of v                            7850033720267798719
-[chksum] eta_t                                    -5815828050176790768
-[chksum] eta_u                                     7115057914196038992
-[chksum] deta_dt                                   4229408276339380254
-[chksum] eta_t_bar                                -4224965384128035428
-[chksum] pbot_t                                   -4539977055141636486
-[chksum] pbot_u                                    7765186881630380528
+[chksum] Zonal velocity                            4345065520287126820
+[chksum] Meridional velocity                       7963876032463910806
+[chksum] Advection of u                           -1162744949866142842
+[chksum] Advection of v                            6395012116573214879
+[chksum] eta_t                                    -5796469210345658144
+[chksum] eta_u                                     7116335757387696998
+[chksum] deta_dt                                  -4794613714162083506
+[chksum] eta_t_bar                                -4228279513072551753
+[chksum] pbot_t                                   -4539998647253049566
+[chksum] pbot_u                                    7765173633703001132
 [chksum] dpbot_dt                                                    0
-[chksum] anompb                                   -4583442006070969568
+[chksum] anompb                                   -4595100822879984928
 [chksum] anompb_bar                                                  0
-[chksum] patm_t                                   -8574218911147134512
-[chksum] dpatm_dt                                  2514546637406007073
-[chksum] ps                                       -4824502101102476083
-[chksum] grad_ps_1                                -7877585771928254642
-[chksum] grad_ps_2                                -7908257676931243466
+[chksum] patm_t                                   -8621528406945468454
+[chksum] dpatm_dt                                  2524877318054026293
+[chksum] ps                                       -4833971274120102969
+[chksum] grad_ps_1                                 1237291027209246877
+[chksum] grad_ps_2                                 1244011487816684272
 [chksum] grad_anompb_1                                               0
 [chksum] grad_anompb_2                                               0
-[chksum] udrho                                    -1091803959233794989
-[chksum] vdrho                                     1566637773890231734
-[chksum] conv_rho_ud_t                            -3631563377779144506
-[chksum] source                                    1482147204516020190
-[chksum] eta smoother                               425570380062827111
+[chksum] udrho                                    -1057989233414164716
+[chksum] vdrho                                    -7613443010216808567
+[chksum] conv_rho_ud_t                            -3555728633949700615
+[chksum] source                                    2453334270036548715
+[chksum] eta smoother                              1393065625139745653
 [chksum] pbot smoother                                               0
 [chksum] eta_nonbouss                              4087388353113446913
-[chksum] forcing_u_bt                              5609872834144243966
-[chksum] forcing_v_bt                              2516610456928563303
-[chksum] Thickness%rho_dzt(taup1)                  5090802307022944597
-[chksum] Thickness%rho_dzu(taup1)                 -8508295545970500498
-[chksum] Thickness%mass_u(taup1)                   8240182343706762176
-[chksum] Thickness%rho_dzten(1)                   -3887437687002209775
-[chksum] Thickness%rho_dzten(2)                    2259102341607840233
-[chksum] Thickness%rho_dztr                       -8456718307611407102
-[chksum] Thickness%rho_dzur                        4099329939852371132
-[chksum] Thickness%rho_dzt_tendency                3190558561082160412
-[chksum] Thickness%dzt                             2503527118340045392
-[chksum] Thickness%dzten(1)                       -6510458983511970971
-[chksum] Thickness%dzten(2)                        -357936082241623161
-[chksum] Thickness%dztlo                           -592813267896062669
-[chksum] Thickness%dztup                           1128389510462814252
-[chksum] Thickness%dzt_dst                         5611112117083284688
-[chksum] Thickness%dzwt(k=0)                       7848501648759430156
-[chksum] Thickness%dzwt(k=1:nk)                   -6770198673298424415
-[chksum] Thickness%dzu                            -7332853182143717354
-[chksum] Thickness%dzwu(k=0)                      -8478791210937480883
-[chksum] Thickness%dzwu(k=1:nk)                    7215237055299741156
-[chksum] Thickness%depth_zt                        6560730167886664061
-[chksum] Thickness%geodepth_zt                      -87017438144513464
-[chksum] Thickness%depth_zu                        7334680233643025262
-[chksum] Thickness%depth_zwt                      -7886026407377897628
-[chksum] Thickness%depth_zwu                        945044213708820892
+[chksum] forcing_u_bt                             -3606929872359349231
+[chksum] forcing_v_bt                             -6736498738253498254
+[chksum] Thickness%rho_dzt(taup1)                  5090631038194361906
+[chksum] Thickness%rho_dzu(taup1)                 -8508400844013783534
+[chksum] Thickness%mass_u(taup1)                   8240168696571160920
+[chksum] Thickness%rho_dzten(1)                   -3887572934816476511
+[chksum] Thickness%rho_dzten(2)                    2259008654710475299
+[chksum] Thickness%rho_dztr                       -8456507085960165928
+[chksum] Thickness%rho_dzur                        4099461489185817821
+[chksum] Thickness%rho_dzt_tendency                -968491143224157933
+[chksum] Thickness%dzt                             2503357671577771616
+[chksum] Thickness%dzten(1)                       -6510592641851880997
+[chksum] Thickness%dzten(2)                        -358028703743745981
+[chksum] Thickness%dztlo                           -592983883290239387
+[chksum] Thickness%dztup                           1128219766260511742
+[chksum] Thickness%dzt_dst                         5610927382601017004
+[chksum] Thickness%dzwt(k=0)                       7848484878242857822
+[chksum] Thickness%dzwt(k=1:nk)                   -6770369147703981039
+[chksum] Thickness%dzu                            -7332957359514447395
+[chksum] Thickness%dzwu(k=0)                      -8478801420845178006
+[chksum] Thickness%dzwu(k=1:nk)                    7215131202834338948
+[chksum] Thickness%depth_zt                        6560534342220834032
+[chksum] Thickness%geodepth_zt                      -86639154329722701
+[chksum] Thickness%depth_zu                        7334560725161539062
+[chksum] Thickness%depth_zwt                      -7886222565846281714
+[chksum] Thickness%depth_zwu                        944923798683844341
 [chksum] Thickness%depth_st                        7847447933790767122
 [chksum] Thickness%depth_swt                      -6620759671653867777
 [chksum] Thickness%dst                             3588707580842014112
@@ -164,11 +164,11 @@
 [chksum] Thickness%dswt(k=0)                       7974749040166305792
 [chksum] Thickness%dswt(k=1:nk)                   -5680427493067990412
 [chksum] Thickness%pbot0                          -4513902442498897849
-[chksum] Thickness%mass_en(1)                     -6689065466002215316
-[chksum] Thickness%mass_en(2)                     -6430992473712975104
-[chksum] rho(taup1)                                7577313986297862961
-[chksum] pressure_at_depth                         6318042722055210637
-[chksum] denominator_r                             4386654319460152686
-[chksum] drhodT                                   -8242391126361524051
-[chksum] drhodS                                    7301412907847893916
-[chksum] drhodz_zt                                 -121786805925730300
+[chksum] Thickness%mass_en(1)                     -6689077646557878965
+[chksum] Thickness%mass_en(2)                     -6431003700518710082
+[chksum] rho(taup1)                                7577325353727927813
+[chksum] pressure_at_depth                         6318071017938680181
+[chksum] denominator_r                             4386507936046263815
+[chksum] drhodT                                   -8234087255418697468
+[chksum] drhodS                                    7301327921323529408
+[chksum] drhodz_zt                                 -710294274733007039

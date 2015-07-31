@@ -15,7 +15,7 @@ class TestBitReproducibility(ModelTestSetup):
 
     def checksums_to_dict(self, filename):
         """
-        Look at each line an make a dictionary entry.
+        Look at each line and make a dictionary entry.
         """
 
         regex = re.compile(r'\[chksum\]\s+(.*)\s+(-?[0-9]+)$')
