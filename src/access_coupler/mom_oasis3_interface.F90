@@ -89,6 +89,7 @@ use mpp_domains_mod, only: mpp_get_compute_domain, &
                            mpp_get_data_domain, &
                            mpp_get_global_domain, &
                            mpp_global_field
+use mpp_parameter_mod, only: ROOT_GLOBAL
 use ocean_types_mod, only: ice_ocean_boundary_type, &
                            ocean_public_type, &
                            ocean_domain_type
@@ -788,22 +789,25 @@ if ( write_restart ) then
 #endif
         end select
 
-    if (parallel_coupling) then
-      call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), gtmp)
-    else
-      call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), vwork)
-    endif
+        if (parallel_coupling) then
+          call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), &
+                                gtmp, flags=ROOT_GLOBAL)
+        else
+          call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), &
+                                vwork, flags=ROOT_GLOBAL)
+        end if
 
-         if (mpp_pe() == mpp_root_pe()) then
-           if (parallel_coupling) then
-             call write_nc2D(ncid, trim(fld_ice), gtmp, 2, imt_global,jmt_global, &
-                        1,ilout=il_out)
-           else
-             call write_nc2D(ncid, fld_ice, vwork, 2, imt_global,jmt_global, 1, ilout=il_out)
-           endif
-         end if
-      enddo
-   endif
+        if (mpp_pe() == mpp_root_pe()) then
+          if (parallel_coupling) then
+            call write_nc2D(ncid, trim(fld_ice), gtmp, 2, imt_global,jmt_global, &
+                            1,ilout=il_out)
+          else
+            call write_nc2D(ncid, fld_ice, vwork, 2, imt_global,jmt_global, 1, ilout=il_out)
+          end if
+        end if
+      end do
+   end if
+
    if (mpp_pe() == mpp_root_pe()) call ncheck( nf_close(ncid) )
 
 endif
