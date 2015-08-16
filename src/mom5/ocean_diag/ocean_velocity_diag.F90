@@ -127,7 +127,7 @@ integer :: id_clock_vert_dissipation
 integer :: id_pe_tot    =-1
 integer :: id_pe_tot_rel=-1
 logical :: potential_energy_first=.true.
-real, dimension(:), allocatable :: potential_0 ! gravitational potential energy (joules) at initial timestep. 
+real :: pe_tot_0  ! gravitational potential energy (joules) at initial timestep
 
 ! for kinetic energy
 integer :: id_ke_tot                    =-1
@@ -467,8 +467,6 @@ else  ! Cgrid
 
 endif 
 
-allocate (potential_0(nk))
-
 allocate (grd_area(isd:ied,jsd:jed,nk))
 allocate (mass_column(isd:ied,jsd:jed,2))
 mass_column = 0.0
@@ -585,12 +583,11 @@ subroutine potential_energy (Time, Thickness, Dens, pe_tot, pe_tot_rel, diag_fla
   logical,                    intent(in), optional :: diag_flag 
   logical,                    intent(in), optional :: write_flag 
 
-  integer :: k
+  integer :: i, j, k
   integer :: taup1
   integer :: stdoutunit 
   logical :: send_diagnostics
   logical :: write_diagnostics
-  real, dimension(nk) :: potential
 
   stdoutunit=stdout() 
   taup1 = Time%taup1
@@ -609,27 +606,27 @@ subroutine potential_energy (Time, Thickness, Dens, pe_tot, pe_tot_rel, diag_fla
     write_diagnostics = .true.
   endif 
 
-  potential(:) = 0.0
-  do k=1,nk
-     potential(k) = mpp_global_sum(Dom%domain2d,                              &
-                     Grd%dat(:,:)*Thickness%dzt(:,:,k)*Dens%rho(:,:,k,taup1)  &
-                    *Grd%tmask(:,:,k)*Thickness%depth_zt(:,:,k),global_sum_flag) 
-     potential(k) = potential(k)*grav
-  enddo
-  if(potential_energy_first) then 
-    potential_energy_first=.false.
-    do k=1,nk
-       potential_0(k) = potential(k)
-    enddo
-  endif 
+  ! Calculate total potential energy
+  pe_tot = 0.
+  do k= 1, nk
+    do j = jsc, jec
+      do i = isc, iec
+        pe_tot = pe_tot + Grd%dat(i, j) * Thickness%dzt(i, j, k) &
+                     * Dens%rho(i, j, k, taup1) * Grd%tmask(i, j, k) &
+                     * Thickness%depth_zt(i, j, k) * grav
+      end do
+    end do
+  end do
+  call mpp_sum(pe_tot)
 
-  ! computing pe_tot relative to initial time step value reduces roundoff errors
-  pe_tot     = 0.0
-  pe_tot_rel = 0.0
-  do k=1,nk
-    pe_tot     = pe_tot     + potential(k)
-    pe_tot_rel = pe_tot_rel + (potential(k)-potential_0(k))
-  enddo
+  pe_tot_rel = 0.
+  if (potential_energy_first) then
+    potential_energy_first = .false.
+    pe_tot_0 = pe_tot
+  else
+    ! computing pe_tot relative to initial time step value reduces roundoff errors
+    pe_tot_rel = pe_tot_rel + (pe_tot - pe_tot_0)
+  end if
 
   if(write_diagnostics) then 
      write(stdoutunit,'(/,1x,a,e20.12)') &
