@@ -49,10 +49,10 @@ class TestRun(ModelTestSetup):
         if os.path.exists(os.path.join(self.work_dir, key)):
             shutil.rmtree(os.path.join(self.work_dir, key))
         r, so, se = self.run(*args, **kwargs)
+        print(so)
+        print(se)
         if r != 0:
-            print(so)
-            print(se)
-            print('Run exited with error {}'.format(r))
+            print('***** Run {}.{} exited with error {} *****'.format(args[0], args[1], r))
         assert(r == 0)
         assert('NOTE: Natural end-of-script.' in so)
 
