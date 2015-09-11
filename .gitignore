@@ -7,3 +7,5 @@ exp/*.sh.o*
 exp/*.csh.o*
 exp/*.csh.e*
 src/path_names_shared
+src/shared/version/version.F90
+*.pyc
