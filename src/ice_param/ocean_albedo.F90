@@ -423,7 +423,7 @@ end where
 !------- write version number and namelist ---------
 
       if ( mpp_pe() == mpp_root_pe() ) then
-           call write_version_number(version, tagname)
+           call write_version_number()
            unit = stdlog()
            write (unit, nml=ocean_albedo_nml)
       endif

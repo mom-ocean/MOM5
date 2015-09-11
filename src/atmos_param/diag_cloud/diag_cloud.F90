@@ -3143,7 +3143,7 @@ end subroutine CLD_LAYR_MN_TEMP_DELP
 
   logunit = stdlog()
   if ( mpp_pe() == mpp_root_pe() ) then
-    call write_version_number(version, tagname)
+    call write_version_number()
     write (logunit, nml=diag_cloud_nml)
   endif     
 

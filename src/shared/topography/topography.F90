@@ -129,7 +129,7 @@ end interface
 
      if ( module_is_initialized ) return
 
-     call write_version_number (version,tagname)
+     call write_version_number()
      call read_namelist
      module_is_initialized = .TRUE.
 

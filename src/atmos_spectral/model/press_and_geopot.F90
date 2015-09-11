@@ -71,7 +71,7 @@ character(len=*), intent (in)        :: vert_difference_option_in
 
 if(module_is_initialized) return
 
-call write_version_number(version, tagname)
+call write_version_number()
 
 num_levels = size(pk_in,1)-1
 

@@ -28,7 +28,7 @@ real :: neighboring_water, total_water, ratio
 real, dimension(size(qg,1), size(qg,3)) :: dp
 
 if(.not.entry_to_logfile_done) then
-  call write_version_number(version, tagname)
+  call write_version_number()
   entry_to_logfile_done = .true.
 endif
 

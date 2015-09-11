@@ -432,7 +432,7 @@ subroutine ocean_sigma_transport_init(Grid, Domain, Time, Dens, T_prog, Ocean_op
   module_is_initialized = .TRUE.
   vert_coordinate       = ver_coordinate 
 
-  call write_version_number( version, tagname )
+  call write_version_number()
 
   ! provide for namelist over-ride of defaults 
 #ifdef INTERNAL_FILE_NML

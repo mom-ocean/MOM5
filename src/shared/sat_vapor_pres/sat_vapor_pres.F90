@@ -2220,7 +2220,7 @@ real,  intent(in),              optional :: hc
 #endif
 
 ! write version number and namelist to log file
-  call write_version_number (version, tagname)
+  call write_version_number()
   unit = stdlog()
   if (mpp_pe() == mpp_root_pe()) write (unit, nml=sat_vapor_pres_nml)
 

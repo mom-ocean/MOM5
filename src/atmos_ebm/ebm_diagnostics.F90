@@ -97,7 +97,7 @@ integer :: namelist_unit, ierr, io
 logical :: used
 
 !--- write out version information -------------------------------------
-call write_version_number (version, tagname)
+call write_version_number()
 
 call get_grid_boundaries(lonb,latb,global=.true.)
 call get_deg_lon(lon)

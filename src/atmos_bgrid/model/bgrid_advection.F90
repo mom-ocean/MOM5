@@ -1138,7 +1138,7 @@ end subroutine advect_vel
    logunit = stdlog()
 ! write version, namelist info to log file
    if (do_log) then
-      call write_version_number (version,tagname)
+      call write_version_number()
       if (mpp_pe() == mpp_root_pe()) write (logunit, nml=bgrid_advection_nml)
       do_log = .false.
    endif

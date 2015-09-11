@@ -189,7 +189,7 @@ subroutine read_soil_namelist()
 
   call read_soil_data_namelist(num_l,dz,use_single_geo,gw_option)
 
-  call write_version_number(version, tagname)
+  call write_version_number()
 #ifdef INTERNAL_FILE_NML
   read (input_nml_file, nml=soil_nml, iostat=io)
   ierr = check_nml_error(io, 'soil_nml')

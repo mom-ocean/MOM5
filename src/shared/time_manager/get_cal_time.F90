@@ -178,7 +178,7 @@ if(.not.module_is_initialized) then
   20 call close_file (namelist_unit)
 #endif
 
-  call write_version_number (version, tagname)
+  call write_version_number()
   logunit = stdlog()
   if(mpp_pe() == mpp_root_pe()) write (logunit, nml=get_cal_time_nml)
   module_is_initialized = .true.

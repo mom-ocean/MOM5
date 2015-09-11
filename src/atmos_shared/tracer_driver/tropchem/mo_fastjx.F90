@@ -420,7 +420,7 @@ module MO_FASTJX_MOD
 !----------------------------------------------------------------------
 !     output version number and tagname to logfile.
 !----------------------------------------------------------------------
-      call write_version_number (version, tagname)
+      call write_version_number()
 
 !                                                                       
 ! Defaults & constants                                                  

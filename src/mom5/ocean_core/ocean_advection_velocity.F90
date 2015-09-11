@@ -292,7 +292,7 @@ subroutine ocean_advection_velocity_init(Grid, Domain, Time, Time_steps, Thickne
     '==>Error from ocean_advection_velocity_mod: module already initialized.')
   endif 
 
-  call write_version_number( version, tagname )
+  call write_version_number()
 
   module_is_initialized = .TRUE.
 

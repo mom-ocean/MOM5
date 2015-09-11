@@ -732,7 +732,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
     write (stdlogunit, ocean_obc_nml)
 
     !--- write out version information ---------------------------------
-    call write_version_number( version, tagname )
+    call write_version_number()
 
     !--- if there is no open boundary, just return
     Obc%nobc = nobc

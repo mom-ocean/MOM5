@@ -169,7 +169,7 @@ integer :: io, nml_unit, stdlog_unit, seconds, days
 
 if(module_is_initialized) return
 
-call write_version_number(version, tagname)
+call write_version_number()
 
 #ifdef INTERNAL_FILE_NML
    read (input_nml_file, nml=idealized_moist_phys_nml, iostat=io)

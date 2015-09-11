@@ -782,7 +782,7 @@ public OSOUR, CSOUR, SS1, FLX1E1, GXCTS, FCTSG, CLDFAC, DELP2, DELP, &
 !------- write version number  ---------
 
       if ( mpp_pe() == mpp_root_pe() ) then
-           call write_version_number(version, tagname)
+           call write_version_number()
       endif
 
       module_is_initialized = .true.

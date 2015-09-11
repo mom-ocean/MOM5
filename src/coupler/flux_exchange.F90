@@ -588,7 +588,7 @@ subroutine flux_exchange_init ( Time, Atm, Land, Ice, Ocean, Ocean_state,&
 #endif
 
 !----- write namelist to logfile -----
-    call write_version_number (version, tag)
+    call write_version_number()
     if( mpp_pe() == mpp_root_pe() )write( logunit, nml=flux_exchange_nml )
 
 !----- find out number of atmospheric prognostic tracers and index of specific 

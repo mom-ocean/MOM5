@@ -82,7 +82,7 @@ contains
     !---------------------------------------------------------------------
     !    mark the module as initialized if we're able to read the tables
     !---------------------------------------------------------------------
-    call write_version_number (version, tagname)
+    call write_version_number()
     module_is_initialized = readFromFile(fileName)
     
   end subroutine beta_dist_init

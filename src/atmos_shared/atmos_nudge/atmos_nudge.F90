@@ -314,7 +314,7 @@ real :: missing_value = -1.e10
    enddo   
 10 call close_file (unit)
 #endif
-   call write_version_number (version, tagname)
+   call write_version_number()
    logunit=stdlog()
    if (mpp_pe() == mpp_root_pe()) write (logunit, nml=atmos_nudge_nml)
 

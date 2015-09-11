@@ -504,7 +504,7 @@ real :: missing_value = -999.
 !---------------------------------------------------------------------
 
   if ( mpp_pe() == mpp_root_pe() ) then
-       call write_version_number(version, tagname)
+       call write_version_number()
        unit = stdlog()
        WRITE( unit, nml = stable_bl_turb_nml ) 
   endif

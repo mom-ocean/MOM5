@@ -72,7 +72,7 @@ real, dimension(size(psg,1), size(psg,2)) :: ln_psg
     enddo
 20  call close_file (unit)
 #endif
-call write_version_number(version, tagname)
+call write_version_number()
 write (stdlog(), nml=ic_from_external_file_nml)
 
 !-------------------------------------------------------------------------------

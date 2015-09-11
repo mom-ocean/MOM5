@@ -846,7 +846,7 @@ contains
 
 !  write version and tag name to log file
    if (do_log) then
-      call write_version_number (version, tagname)
+      call write_version_number()
       do_log = .false.
    endif
 

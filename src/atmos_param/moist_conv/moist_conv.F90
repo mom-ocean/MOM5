@@ -830,7 +830,7 @@ subroutine moist_conv_init (axes, Time, tracers_in_mca)
 !---------- output namelist --------------------------------------------
 
       if ( mpp_pe() == mpp_root_pe() ) then
-           call write_version_number (version, tagname)
+           call write_version_number()
            logunit = stdlog()
            write (logunit,nml=moist_conv_nml)
       endif

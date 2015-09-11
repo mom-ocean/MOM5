@@ -373,7 +373,7 @@ public  :: iceClocka,iceClockb,iceClockc
     write (stdoutunit, ice_model_nml)
     write (stdlogunit, ice_model_nml)
 
-    call write_version_number( version, tagname )
+    call write_version_number()
 
     if (spec_ice) then
        slab_ice = .true.

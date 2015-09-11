@@ -107,7 +107,7 @@ contains
  integer :: kk
 
  if(.not.module_is_initialized) then
-   call write_version_number(version, tagname)
+   call write_version_number()
    module_is_initialized = .true.
  endif
 

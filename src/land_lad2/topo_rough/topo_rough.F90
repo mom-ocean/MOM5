@@ -105,7 +105,7 @@ subroutine topo_rough_init(time, lonb, latb, domain, id_lon,id_lat)
   logical :: used, got_stdev
 
   ! write the version and tagname to the logfile
-  call write_version_number(version, tagname)
+  call write_version_number()
 
   ! read and write (to logfile) namelist variables
 #ifdef INTERNAL_FILE_NML

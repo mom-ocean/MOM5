@@ -1379,7 +1379,7 @@ function tropchem_driver_init( r, mask, axes, Time, &
 !-----------------------------------------------------------------------
 !     ... write version number
 !-----------------------------------------------------------------------
-   call write_version_number(version, tagname)
+   call write_version_number()
     
 !-----------------------------------------------------------------------
 !     ... read namelist

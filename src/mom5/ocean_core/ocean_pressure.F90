@@ -198,7 +198,7 @@ subroutine ocean_pressure_init(Grid, Domain, Time, ver_coordinate, &
 
   module_is_initialized = .TRUE.
 
-  call write_version_number( version, tagname )
+  call write_version_number()
 
   vert_coordinate       = ver_coordinate
   vert_coordinate_class = ver_coordinate_class

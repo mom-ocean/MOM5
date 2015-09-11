@@ -987,7 +987,7 @@ subroutine ocean_barotropic_init(Grid, Domain, Time, Time_steps, Ocean_options, 
 
   if (diag_step == 0) diag_step = 1
 
-  call write_version_number( version, tagname )
+  call write_version_number()
 
 #ifdef INTERNAL_FILE_NML
   read (input_nml_file, nml=ocean_barotropic_nml, iostat=io_status)

@@ -265,7 +265,7 @@ subroutine precip_evap (pmass, tin, qin, qsat, dqsat, hlcp, &
 !---------- output namelist --------------------------------------------
 
       if ( mpp_pe() == mpp_root_pe() ) then
-           call write_version_number(version, tagname)
+           call write_version_number()
            logunit = stdlog()
            write (logunit,nml=lscale_cond_nml)
       endif

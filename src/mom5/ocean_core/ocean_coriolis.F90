@@ -148,7 +148,7 @@ subroutine ocean_coriolis_init(Grid, Domain, Time, Time_steps, Ocean_options, ho
 
   module_is_initialized = .TRUE.
 
-  call write_version_number( version, tagname )
+  call write_version_number()
 
   ! provide for namelist over-ride of defaults 
 #ifdef INTERNAL_FILE_NML

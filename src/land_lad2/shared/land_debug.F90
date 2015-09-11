@@ -81,7 +81,7 @@ subroutine land_debug_init()
   integer :: unit, ierr, io, ntiles
   integer :: max_threads
 
-  call write_version_number(version, tagname)
+  call write_version_number()
   
 #ifdef INTERNAL_FILE_NML
   read (input_nml_file, nml=land_debug_nml, iostat=io)

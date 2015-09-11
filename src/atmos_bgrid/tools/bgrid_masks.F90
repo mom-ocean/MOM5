@@ -96,7 +96,7 @@ contains
    real    :: aeta(Vgrid%nlev)
 
    if (do_log) then
-      call write_version_number (version,tagname)
+      call write_version_number()
       do_log = .false.
    endif
    logunit = stdlog()

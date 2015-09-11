@@ -243,7 +243,7 @@ real, dimension(size(eta(:))-1) :: lpfull
         Vgrid % gamma = gamma
 
 !--- write version info to logfile ---
-   call write_version_number (version, tagname)
+   call write_version_number()
 
 !--- optional output of coordinate values ----
    logunit= stdlog()

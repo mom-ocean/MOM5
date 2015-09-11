@@ -56,7 +56,7 @@ contains
   subroutine horiz_interp_bilinear_init
 
     if(module_is_initialized) return
-    call write_version_number (version, tagname)
+    call write_version_number()
     module_is_initialized = .true.
 
   end subroutine horiz_interp_bilinear_init

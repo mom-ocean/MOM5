@@ -524,7 +524,7 @@ subroutine ocean_tracer_advect_init (Grid, Domain, Time, Dens, T_prog, obc, debu
 
   have_obc = obc
 
-  call write_version_number( version, tagname )
+  call write_version_number()
 
   ! provide for namelist over-ride of defaults 
 #ifdef INTERNAL_FILE_NML

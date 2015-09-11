@@ -110,7 +110,7 @@ CONTAINS
     CHARACTER(len=128) :: emsg
 
     IF ( .NOT.module_is_initialized ) THEN
-       CALL write_version_number( version, tagname )
+       call write_version_number()
     ENDIF
 
     IF ( PRESENT(tile_count)) THEN

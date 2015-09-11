@@ -643,7 +643,7 @@ subroutine vert_turb_driver_init (lonb, latb, id, jd, kd, axes, Time, &
 
       logunit = stdlog()
       if ( mpp_pe() == mpp_root_pe() ) then
-           call write_version_number(version, tagname)
+           call write_version_number()
            write (logunit,nml=vert_turb_driver_nml)
       endif
 

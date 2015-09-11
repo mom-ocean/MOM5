@@ -145,7 +145,7 @@ subroutine column_diagnostics_init
 !---------------------------------------------------------------------
 !    write version number and namelist to logfile.
 !---------------------------------------------------------------------
-      call write_version_number (version, tag)
+      call write_version_number()
       if (mpp_pe() == mpp_root_pe())    then
                     unit = stdlog()
                     write (unit, nml=column_diagnostics_nml)

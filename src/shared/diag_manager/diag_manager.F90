@@ -2799,7 +2799,7 @@ CONTAINS
     stdout_unit = stdout()
 
     ! version number to logfile
-    CALL write_version_number(version, tagname)
+    call write_version_number()
 
     Time_zero = set_time(0,0)
     !--- initialize time_end to time_zero

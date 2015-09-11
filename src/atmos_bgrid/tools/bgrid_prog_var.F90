@@ -116,7 +116,7 @@ contains
 !-----------------------------------------------------------------------
 ! write version info to logfile
   if (do_log) then
-    call write_version_number (version,tagname)
+    call write_version_number()
     do_log = .false.
   endif
 
@@ -363,7 +363,7 @@ subroutine open_prog_var_file ( ix, jx, kx, dir )
 
 ! write version info to logfile
   if (do_log) then
-    call write_version_number (version,tagname)
+    call write_version_number()
     do_log = .false.
   endif
 

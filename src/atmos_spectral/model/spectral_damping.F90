@@ -45,7 +45,7 @@ real, dimension(0:num_fourier, 0:num_spherical) :: eigen
 
 if(module_is_initialized) return
 
-call write_version_number(version, tagname)
+call write_version_number()
 num_levels = num_levels_in
 
 call get_spec_domain(ms, me, ns, ne)

@@ -329,7 +329,7 @@ integer :: n, m, nsulfate
 
 !---- write namelist ------------------
 
-      call write_version_number (version, tagname)
+      call write_version_number()
 
 !    read namelist.
 !-----------------------------------------------------------------------
@@ -350,7 +350,7 @@ integer :: n, m, nsulfate
 !---------------------------------------------------------------------
 !    write version number and namelist to logfile.
 !---------------------------------------------------------------------
-      call write_version_number (version, tagname)
+      call write_version_number()
       logunit=stdlog()
       if (mpp_pe() == mpp_root_pe() ) &
                           write (logunit, nml=simple_sulfate_nml)
@@ -928,7 +928,7 @@ integer :: n, m, nsulfate
                    'simpleH2O2 chemical production',                         &
                    'kgH2O2/m2/s')
 
-   call write_version_number (version, tagname)
+   call write_version_number()
 
    module_is_initialized = .TRUE.
 

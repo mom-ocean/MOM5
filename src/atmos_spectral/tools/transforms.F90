@@ -235,7 +235,7 @@ if(module_is_initialized) return
 20  call close_file (namelist_unit)
 #endif
 
-call write_version_number(version, tagname)
+call write_version_number()
 if(mpp_pe() == mpp_root_pe()) write (stdlog(), nml=transforms_nml)
 
 npes = mpp_npes()

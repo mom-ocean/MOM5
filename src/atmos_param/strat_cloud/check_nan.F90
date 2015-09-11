@@ -32,7 +32,7 @@ subroutine check_nan_init
 !------------------------------------------------------------------------
 !    write version number to output file.
 !------------------------------------------------------------------------
-      call write_version_number (version, tagname)
+      call write_version_number()
 
 !------------------------------------------------------------------------
 !    declare module initialized.

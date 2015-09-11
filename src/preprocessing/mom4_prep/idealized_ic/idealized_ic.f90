@@ -424,7 +424,7 @@ contains
          'idealized_ic_mod: nml "generate_temp_ic"="generate_salt_ic"="generate_salt_ic"=false.  At least one should be true')
 
     !--- write out version information and namelist option ---------------
-    call write_version_number(version, tagname)
+    call write_version_number()
     if (mpp_pe() == mpp_root_pe()) then
        write (stdout(), nml= idealized_ic_nml)
     endif

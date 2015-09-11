@@ -3089,7 +3089,7 @@ subroutine time_manager_init ( )
 
   if (module_is_initialized) return  ! silent return if already called
 
-  call write_version_number (version, tagname)
+  call write_version_number()
   module_is_initialized = .true.
 
 end subroutine time_manager_init

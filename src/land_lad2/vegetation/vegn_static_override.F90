@@ -95,7 +95,7 @@ subroutine read_static_vegn_namelist(static_veg_used)
   ! ---- local vars
   integer :: unit, ierr, io
 
-  call write_version_number(version, tagname)
+  call write_version_number()
 
 #ifdef INTERNAL_FILE_NML
   read (input_nml_file, nml=static_veg_nml, iostat=io)

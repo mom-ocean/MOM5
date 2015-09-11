@@ -62,7 +62,7 @@ subroutine read_land_io_namelist()
   module_is_initialized = .TRUE.
 
   ! [1] print out version number
-  call write_version_number (version, tagname)
+  call write_version_number()
 
 #ifdef INTERNAL_FILE_NML
      read (input_nml_file, nml=land_io_nml, iostat=io)

@@ -281,7 +281,7 @@ contains
 
 !-----------------------------------------------------------------------
 
-     call write_version_number (version,tagname)
+     call write_version_number()
 
      logunit = stdlog()
      write (logunit,10) dt, dt/real(Dynam%nt_adv), Dynam%dt_adj

@@ -389,7 +389,7 @@ integer  unit,io,ierr,nt
 
 !--------- write namelist ------------------
 
-      call write_version_number(version, tagname)
+      call write_version_number()
       if(mpp_pe() == mpp_root_pe()) write (stdlog(), nml=mcm_moist_processes_nml)
 
 !------------ initialize various schemes ----------

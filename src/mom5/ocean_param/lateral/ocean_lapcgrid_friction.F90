@@ -410,7 +410,7 @@ subroutine ocean_lapcgrid_friction_init(Grid, Domain, Time, Ocean_options, d_tim
 
   module_is_initialized = .TRUE.
 
-  call write_version_number( version, tagname )
+  call write_version_number()
 
 #ifndef MOM_STATIC_ARRAYS
   call get_local_indices(Domain, isd, ied, jsd, jed, isc, iec, jsc, jec)

@@ -35,7 +35,7 @@ module spec_mpp_mod
       pe = mpp_pe()
       npes = mpp_npes()
 
-      call write_version_number(version, tagname)
+      call write_version_number()
 
 !grid domain: by default, 1D decomposition along Y
       layout = (/1,npes/)

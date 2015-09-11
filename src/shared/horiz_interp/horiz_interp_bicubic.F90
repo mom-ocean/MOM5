@@ -84,7 +84,7 @@ module horiz_interp_bicubic_mod
   subroutine horiz_interp_bicubic_init
 
      if(module_is_initialized) return
-     call write_version_number (version, tagname)
+     call write_version_number()
      module_is_initialized = .true.
      tpi = 2.0*PI
 

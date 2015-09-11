@@ -782,7 +782,7 @@ end subroutine fms_end
          if ( mpp_pe() /= mpp_root_pe() ) return
      endif
 
-     write (logunit,'(/,80("="),/(a))') trim(version)
+     write (logunit,'(/,80("="),/(a))') trim(MOM_VERSION)
 
  end subroutine write_version_number
 ! </SUBROUTINE>

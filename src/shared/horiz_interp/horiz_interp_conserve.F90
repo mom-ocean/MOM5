@@ -110,7 +110,7 @@ contains
   subroutine horiz_interp_conserve_init
 
     if(module_is_initialized) return
-    call write_version_number (version, tagname)
+    call write_version_number()
 
     great_circle_algorithm = get_great_circle_algorithm()
 

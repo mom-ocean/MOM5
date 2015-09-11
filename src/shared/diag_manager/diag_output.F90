@@ -88,7 +88,7 @@ CONTAINS
        CALL mpp_io_init ()
        module_is_initialized = .TRUE.
     END IF
-    CALL write_version_number( version, tagname )
+    call write_version_number()
    
     !---- set up output file ----
     SELECT CASE (FORMAT)

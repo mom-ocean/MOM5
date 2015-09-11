@@ -224,7 +224,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:) :: xbegin, xend, ybegin, yend
 
     ! Write the version and tagname to the logfile
-    CALL write_version_number(version, tagname)
+    call write_version_number()
 
     ! Verify all allocatable / pointers for diag_global_grid hare not
     ! allocated / associated.
