@@ -255,7 +255,7 @@ contains
   integer :: unit, ierr, io
 
   if(module_is_initialized) return
-  call write_version_number (version, tagname)
+  call write_version_number()
 
 #ifdef INTERNAL_FILE_NML
   read (input_nml_file, horiz_interp_nml, iostat=io)

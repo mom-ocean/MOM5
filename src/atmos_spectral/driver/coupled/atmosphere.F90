@@ -105,7 +105,7 @@ do while (ierr /= 0)
   enddo
 20 call close_file (unit)
 
-call write_version_number(version, tagname)
+call write_version_number()
 if(mpp_pe() == mpp_root_pe()) write (stdlog(), nml=atmosphere_nml)
 !-----------------------------------------------------------------------------------------
 

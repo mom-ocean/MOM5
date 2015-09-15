@@ -170,7 +170,7 @@ subroutine ocean_bih_tracer_init(Grid, Domain, Time, T_prog, Ocean_options, dtim
 
   num_prog_tracers = size(T_prog(:))
 
-  call write_version_number( version, tagname )
+  call write_version_number()
 
   ! provide for namelist over-ride of defaults 
 #ifdef INTERNAL_FILE_NML

@@ -147,7 +147,7 @@ subroutine ocean_increment_eta_init(Grid, Domain, Time)
   module_is_initialized = .TRUE.
 
 
-  call write_version_number( version, tagname )
+  call write_version_number()
 
   ! provide for namelist over-ride of default values
 #ifdef INTERNAL_FILE_NML

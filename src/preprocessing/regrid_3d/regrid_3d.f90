@@ -237,7 +237,7 @@ contains
     enddo 
  
     !--- write version information
-    call write_version_number(version, tagname)
+    call write_version_number()
 
   end subroutine regrid_3d_init
 

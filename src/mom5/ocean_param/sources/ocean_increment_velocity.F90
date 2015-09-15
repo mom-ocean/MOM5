@@ -151,7 +151,7 @@ subroutine ocean_increment_velocity_init(Grid, Domain, Time)
 
   allocate( Increment(2) )
 
-  call write_version_number( version, tagname )
+  call write_version_number()
   
   ! provide for namelist over-ride of default values
 #ifdef INTERNAL_FILE_NML

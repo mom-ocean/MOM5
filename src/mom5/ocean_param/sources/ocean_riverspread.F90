@@ -203,7 +203,7 @@ subroutine ocean_riverspread_init(Grid, Domain, Ocean_options, dtime_t)
 
   module_is_initialized = .TRUE.
 
-  call write_version_number( version, tagname )
+  call write_version_number()
 
   call get_local_indices(Domain,isd,ied,jsd,jed,isc,iec,jsc,jec)
   nk = Grid%nk

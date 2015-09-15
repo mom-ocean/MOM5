@@ -184,7 +184,7 @@ subroutine ocean_vert_pp_init (Grid, Domain, Time, Time_steps, T_prog, hor_grid)
 
   module_is_initialized = .TRUE.
 
-  call write_version_number( version, tagname )
+  call write_version_number()
 
   ! provide for namelist over-ride of defaults 
 #ifdef INTERNAL_FILE_NML

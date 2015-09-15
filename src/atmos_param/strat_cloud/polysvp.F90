@@ -54,7 +54,7 @@ SUBROUTINE polysvp_init
 !------------------------------------------------------------------------
 !    write version number to output file.
 !------------------------------------------------------------------------
-      call write_version_number (version, tagname)
+      call write_version_number()
 
 !------------------------------------------------------------------------
 !    make sure needed modules have been initialized.

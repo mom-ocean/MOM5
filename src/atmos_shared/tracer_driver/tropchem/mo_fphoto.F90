@@ -156,7 +156,7 @@
 !-------------------------------------------------------------------------
 !     write version number and tagname to stdlog.
 !-------------------------------------------------------------------------
-      call write_version_number (version, tagname)
+      call write_version_number()
 
       indexer(TAB_NDX_JO2)      = get_rxt_ndx( 'jo2' )
       indexer(TAB_NDX_JO3)      = get_rxt_ndx( 'jo3p' ) 

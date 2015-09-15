@@ -167,7 +167,7 @@ subroutine ocean_wave_init(Grid, Domain, Waves, Time, Time_steps, Ocean_options,
   
   call mpp_clock_begin(id_init)
 
-  call write_version_number( version, tagname )
+  call write_version_number()
   
 #ifdef INTERNAL_FILE_NML
   read (input_nml_file, ocean_wave_nml, iostat=io_status)

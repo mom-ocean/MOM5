@@ -683,7 +683,7 @@ subroutine ocean_blob_init (Grid, Domain, Time, T_prog, Dens, Thickness,   &
        '==>Note: Using the Lagrangian buoyancy blobs scheme.'
   Ocean_options%lagrangian_blobs = 'Did use Lagrangian blobs.'
 
-  call write_version_number( version, tagname )
+  call write_version_number()
 
   ! Register diagnostic fields
   allocate(id_tend_blob(num_prog_tracers))

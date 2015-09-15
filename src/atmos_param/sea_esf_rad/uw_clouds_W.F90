@@ -152,7 +152,7 @@ type(time_type),       intent(in) :: Time
 #endif
 
       if ( mpp_pe() == mpp_root_pe() ) then
-         call write_version_number(version, tagname)
+         call write_version_number()
          logunit = stdlog()
          write (logunit,nml=uw_clouds_W_nml)
       endif

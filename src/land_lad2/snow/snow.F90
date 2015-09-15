@@ -105,7 +105,7 @@ subroutine read_snow_namelist()
 
   call read_snow_data_namelist(num_l,dz,mc_fict)
 
-  call write_version_number(version, tagname)
+  call write_version_number()
 #ifdef INTERNAL_FILE_NML
   read (input_nml_file, nml=snow_nml, iostat=io)
   ierr = check_nml_error(io, 'snow_nml')

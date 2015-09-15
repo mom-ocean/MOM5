@@ -373,7 +373,7 @@ call get_tracer_names(MODEL_ATMOS,n,tracer_names(n),tracer_longnames(n),tracer_u
             'm/s', missing_value=-999.     )
 
  
-      call write_version_number (version, tagname)
+      call write_version_number()
 
     if ( mpp_pe() == mpp_root_pe() ) then
          logunit=stdlog()

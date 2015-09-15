@@ -287,7 +287,7 @@ real,   dimension(:,:), intent(in), optional   :: lonb
 !---------------------------------------------------------------------
 !    write version number and namelist to logfile.
 !---------------------------------------------------------------------
-      call write_version_number (version, tagname)
+      call write_version_number()
       if (mpp_pe() == mpp_root_pe() ) then
         unit = stdlog()
         write (unit, nml=astronomy_nml)

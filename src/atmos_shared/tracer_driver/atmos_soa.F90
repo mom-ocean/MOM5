@@ -126,7 +126,7 @@ character(len=7), parameter :: mod_name = 'tracers'
 !---------------------------------------------------------------------
 !    write version number and namelist to logfile.
 !---------------------------------------------------------------------
-      call write_version_number (version, tagname)
+      call write_version_number()
       logunit=stdlog()
       if (mpp_pe() == mpp_root_pe() ) &
                           write (logunit, nml=secondary_organics_nml)
@@ -171,7 +171,7 @@ character(len=7), parameter :: mod_name = 'tracers'
                       'column SOA production by C4H10 + OH',        &
                       'kg/m2/s')
 
-      call write_version_number (version, tagname)
+      call write_version_number()
 
       module_is_initialized = .TRUE.
 

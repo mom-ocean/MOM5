@@ -896,7 +896,7 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
   dtime     = dtime_t 
   horz_grid = hor_grid 
 
-  call write_version_number(version, tagname)
+  call write_version_number()
 
 #ifdef INTERNAL_FILE_NML
   read (input_nml_file, nml=ocean_sbc_nml, iostat=io_status)

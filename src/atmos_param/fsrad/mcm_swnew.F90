@@ -486,7 +486,7 @@ public mcm_swnew, mcm_swnew_init, mcm_swnew_end
 !------- write version number and namelist ---------
 
       if ( mpp_pe() == mpp_root_pe() ) then
-           call write_version_number(version, tagname)
+           call write_version_number()
       endif
 
       module_is_initialized = .true.

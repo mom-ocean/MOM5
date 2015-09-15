@@ -224,7 +224,7 @@ subroutine data_override_init(Atm_domain_in, Ocean_domain_in, Ice_domain_in, Lan
     radian_to_deg = 180./PI
     deg_to_radian = PI/180.
 
-    call write_version_number (version, tagname)
+    call write_version_number()
 
 !  Initialize user-provided data table  
     default_table%gridname = 'none'

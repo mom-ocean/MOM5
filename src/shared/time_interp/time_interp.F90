@@ -224,7 +224,7 @@ contains
    20 call close_file (namelist_unit)
 #endif
 
-   call write_version_number( version, tagname )
+   call write_version_number()
    logunit = stdlog()
    write(logunit,time_interp_nml)
 

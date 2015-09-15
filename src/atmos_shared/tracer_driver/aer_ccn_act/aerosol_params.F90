@@ -95,7 +95,7 @@ subroutine aerosol_params_init
 !-------------------------------------------------------------------------
 !    write version number to output file.
 !-------------------------------------------------------------------------
-      call write_version_number (version, tagname)
+      call write_version_number()
 
 !-------------------------------------------------------------------------
 !    declare module to be initialized.

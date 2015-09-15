@@ -111,7 +111,7 @@ integer :: unit, ierr, io, logunit
 !---------- output namelist to log-------------------------------------
 
       if ( mpp_pe() == mpp_root_pe() ) then
-           call write_version_number(version, tagname)
+           call write_version_number()
            logunit = stdlog()
            write (logunit, nml=monin_obukhov_nml)
       endif

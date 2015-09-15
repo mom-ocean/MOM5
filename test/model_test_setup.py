@@ -95,15 +95,18 @@ class ModelTestSetup(object):
 
 
     def run(self, model_type, exp, walltime='01:00:00', ncpus='32',
-            npes=None, mem='64Gb', qsub=True, valgrind=False):
+            npes=None, mem='64Gb', qsub=True, download_input_data=True,
+            valgrind=False):
         """
         ncpus is for requested cpus, npes is for how many mom uses.
         """
 
-        ret = self.download_input_data(exp)
-        if ret != 0:
-            print('Error: could not download input data.', file=sys.stderr)
-            return (ret, None, None)
+        if download_input_data:
+            ret = self.download_input_data(exp)
+            if ret != 0:
+                print('Error: could not download input data.',
+                      file=sys.stderr)
+                return (ret, None, None)
 
         os.chdir(self.exp_dir)
 
@@ -169,5 +172,4 @@ class ModelTestSetup(object):
         ret = sp.call(shlex.split(build_cmd))
 
         os.chdir(self.my_dir)
-
         return ret

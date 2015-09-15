@@ -167,7 +167,7 @@ contains
                          ' generate_wind_bc, generate_water_bc should be true')
 
     !--- write out version information and namelist option ---------------
-    call write_version_number(version, tagname)
+    call write_version_number()
     if (mpp_pe() == mpp_root_pe()) then
        write (stdout(), nml= idealized_bc_nml)
     endif

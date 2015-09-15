@@ -227,7 +227,7 @@ if(module_is_initialized) return
 20  call close_file (unit)
 #endif
 
-call write_version_number(version, tagname)
+call write_version_number()
 if(mpp_pe() == mpp_root_pe()) write (stdlog(), nml=spectral_dynamics_nml)
 call write_version_number(tracer_type_version, tracer_type_tagname)
 

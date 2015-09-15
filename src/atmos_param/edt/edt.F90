@@ -356,7 +356,7 @@ integer, dimension(3) :: full = (/1,2,3/), half = (/1,2,4/)
 !------- write version number and namelist ---------
 
    if ( mpp_pe() == mpp_root_pe() ) then
-       call write_version_number(version, tagname)
+       call write_version_number()
        logunit = stdlog()
        write (logunit, nml=edt_nml)
    endif
@@ -475,7 +475,7 @@ integer, dimension(3) :: full = (/1,2,3/), half = (/1,2,4/)
      do_print = .true.
 
      if ( mpp_pe() == mpp_root_pe() ) then
-        call write_version_number(version, tagname)
+        call write_version_number()
         write (dpu ,nml=edt_nml)
      endif
    endif     ! (num_pts > 0)

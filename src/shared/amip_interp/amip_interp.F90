@@ -771,7 +771,7 @@ endif
 #endif
 
 !  ----- write namelist/version info -----
-    call write_version_number (version, tagname)
+    call write_version_number()
 
     unit = stdlog ( )
     if (mpp_pe() == 0) then

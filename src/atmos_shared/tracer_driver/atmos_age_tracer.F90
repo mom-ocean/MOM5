@@ -237,7 +237,7 @@ real, intent(in), dimension(:,:,:), optional        :: mask
 
 !---- write namelist ------------------
 
-      call write_version_number (version, tagname)
+      call write_version_number()
 !     if ( mpp_pe() == mpp_root_pe() ) &
 !       write ( stdlog(), nml=atmos_age_tracer_nml )
  

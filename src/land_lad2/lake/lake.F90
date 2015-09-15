@@ -132,7 +132,7 @@ subroutine read_lake_namelist()
 
   call read_lake_data_namelist(num_l)
 
-  call write_version_number(version, tagname)
+  call write_version_number()
 #ifdef INTERNAL_FILE_NML
      read (input_nml_file, nml=lake_nml, iostat=io)
      ierr = check_nml_error(io, 'lake_nml')

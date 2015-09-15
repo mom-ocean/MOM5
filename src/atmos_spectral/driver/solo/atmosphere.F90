@@ -112,7 +112,7 @@ character(len=256) :: message
 
 if(module_is_initialized) return
 
-call write_version_number(version, tagname)
+call write_version_number()
 
 Time_step = Time_step_in
 call get_time(Time_step, seconds, days)

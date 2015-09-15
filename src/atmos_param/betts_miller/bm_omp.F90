@@ -1489,7 +1489,7 @@ if (k .eq. nlev) go to 11
 
 !---------- output namelist --------------------------------------------
 
-      call write_version_number( version, tagname )
+      call write_version_number()
       if ( mpp_pe() == mpp_root_pe() ) then
            logunit = stdlog()
            write (logunit,nml=bm_omp_nml)

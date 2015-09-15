@@ -488,7 +488,7 @@ subroutine xgrid_init(remap_method)
 #endif
 
 !--------- write version number and namelist ------------------
-  call write_version_number (version, tagname)
+  call write_version_number()
 
   unit = stdlog ( )
   out_unit = stdout()

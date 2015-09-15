@@ -73,7 +73,7 @@ if(.not.module_is_initialized) then
     write (stdoutunit, ice_spec_nml)
     write (stdlogunit, ice_spec_nml)
 
-   call write_version_number(version, tagname)
+   call write_version_number()
    module_is_initialized = .true.
 endif
 

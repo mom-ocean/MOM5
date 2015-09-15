@@ -641,7 +641,7 @@ endif
 
 call mpp_open(iunit,file=trim(tbl_name), form=MPP_ASCII, action=MPP_RDONLY)
 !write_version_number should precede all writes to stdlog from field_manager
-call write_version_number (version, tagname)
+call write_version_number()
 log_unit = stdlog()
 do while (.TRUE.)
    read(iunit,'(a)',end=89,err=99) record
@@ -1281,7 +1281,7 @@ character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_na
 
 integer :: unit 
 
-call write_version_number (version, tagname)
+call write_version_number()
 if ( mpp_pe() == mpp_root_pe() ) then
    unit = stdlog()
    write (unit,'(/,(a))') trim(note_header), 'Exiting field_manager, have a nice day ...'

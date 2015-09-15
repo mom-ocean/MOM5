@@ -164,7 +164,7 @@ contains
     D2R = PI/180.0
 
     !--- write out version information ---------------------------------
-    call write_version_number( version, tagname )
+    call write_version_number()
 
     !--- read the river data from river_input_file
     call read_river_src_data( )

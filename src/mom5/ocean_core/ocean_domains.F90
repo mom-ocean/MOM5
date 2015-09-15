@@ -94,7 +94,7 @@ subroutine ocean_domain_init()
   integer :: ierr,ioun,io_status,stdoutunit,stdlogunit
   stdoutunit=stdout();stdlogunit=stdlog() 
 
-  call write_version_number(version, tagname)
+  call write_version_number()
 
   ! provide for namelist over-ride
 #ifdef INTERNAL_FILE_NML

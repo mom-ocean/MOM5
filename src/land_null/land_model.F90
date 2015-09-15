@@ -197,7 +197,7 @@ subroutine land_model_init (cplr2land, land2cplr, time_init, time, dt_fast, dt_s
 
   stdoutunit = stdout()
 
-  call write_version_number (version, tagname)
+  call write_version_number()
 
   ! define the processor layout information according to the global grid size 
   call get_grid_ntiles('LND',ntiles)

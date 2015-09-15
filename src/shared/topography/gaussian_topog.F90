@@ -119,7 +119,7 @@ real, intent(out) :: zsurf(:,:)
 integer :: n
 
   if (.not.module_is_initialized) then
-     call write_version_number( version, tagname )
+     call write_version_number()
   endif
 
   if(any(shape(zsurf) /= (/size(lon(:)),size(lat(:))/))) then

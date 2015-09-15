@@ -171,7 +171,7 @@ integer :: model, num_tracers, num_prog, num_diag
   if(module_is_initialized) return
   module_is_initialized = .TRUE.
 
-  call write_version_number (version, tagname)
+  call write_version_number()
   call field_manager_init()
   TRACER_ARRAY = NOTRACER
   do model=1,NUM_MODELS 

@@ -58,7 +58,7 @@ subroutine vegn_radiation_init(rad_to_use,snow_rad_to_use)
   character(*), intent(in) :: rad_to_use
   character(*), intent(in) :: snow_rad_to_use
 
-  call write_version_number(version, tagname)
+  call write_version_number()
 
   ! convert symbolic names of radiation options into numeric IDs to
   ! speed up selection during run-time

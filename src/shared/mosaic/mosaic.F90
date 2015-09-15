@@ -61,7 +61,7 @@ subroutine mosaic_init()
   module_is_initialized = .TRUE.
 
 !--------- write version number and namelist ------------------
-!  call write_version_number (version, tagname)
+!  call write_version_number()
 
 end subroutine mosaic_init
 ! </SUBROUTINE>

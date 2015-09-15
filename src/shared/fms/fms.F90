@@ -141,7 +141,7 @@ use fms_io_mod, only : read_data, write_data, fms_io_init, fms_io_exit, field_si
                        get_mosaic_tile_file, get_global_att_value, file_exist, field_exist
 
 use memutils_mod, only: print_memuse_stats, memutils_init
-use constants_mod, only: constants_version=>version, constants_tagname=>tagname !pjp: PI not computed
+use version_mod, only: MOM_VERSION
 
 
 implicit none
@@ -274,12 +274,6 @@ integer, public :: clock_flag_default
    logical, private :: do_nml_error_init = .true.
    private  nml_error_init
 
-
-!  ---- version number -----
-
-  character(len=128) :: version = '$Id: fms.F90,v 20.0 2013/12/14 00:20:05 fms Exp $'
-  character(len=128) :: tagname = '$Name: tikal $'
-
   logical :: module_is_initialized = .FALSE.
 
 
@@ -407,7 +401,7 @@ subroutine fms_init (localcomm )
 
 !--- write version info and namelist to logfile ---
 
-    call write_version_number (version, tagname)
+    call write_version_number()
     if (mpp_pe() == mpp_root_pe()) then
       unit = stdlog()
       write (unit, nml=fms_nml)
@@ -416,8 +410,6 @@ subroutine fms_init (localcomm )
 
     call memutils_init( print_memory_usage )
     call print_memuse_stats('fms_init')
-
-    call write_version_number (constants_version,constants_tagname)
 
 end subroutine fms_init
 ! </SUBROUTINE>
@@ -756,60 +748,41 @@ end subroutine fms_end
 ! <SUBROUTINE NAME="write_version_number">
 
 !   <OVERVIEW>
-!     Prints to the log file (or a specified unit) the (cvs) version id string and
-!     (cvs) tag name.
+!     Prints to the log file (or a specified unit) the version (git hash)
 !   </OVERVIEW>
 !   <DESCRIPTION>
-!     Prints to the log file (stdlog) or a specified unit the (cvs) version id string
-!      and (cvs) tag name.
+!     Prints to the log file (stdlog) or a specified unit the version (git hash)
 !   </DESCRIPTION>
 !   <TEMPLATE>
-!    call write_version_number ( version [, tag, unit] )
+!    call write_version_number ( [unit] )
 !   </TEMPLATE>
-
-!   <IN NAME="version" TYPE="character(len=*)">
-!    string that contains routine name and version number.
-!   </IN>
-!   <IN NAME="tag" TYPE="character(len=*)">
-!    The tag/name string, this is usually the Name string
-!    returned by CVS when checking out the code.
-!   </IN>
 !   <IN NAME="unit" TYPE="integer">
 !    The Fortran unit number of an open formatted file. If this unit number 
 !    is not supplied the log file unit number is used (stdlog). 
 !   </IN>
 ! prints module version number to the log file of specified unit number
 
- subroutine write_version_number (version, tag, unit)
+ subroutine write_version_number (unit)
 
-!   in:  version = string that contains routine name and version number
-!
 !   optional in:
-!        tag = cvs tag name that code was checked out with
-!        unit    = alternate unit number to direct output  
+!        unit    = alternate unit number to direct output
 !                  (default: unit=stdlog)
 
-   character(len=*), intent(in) :: version
-   character(len=*), intent(in), optional :: tag 
-   integer,          intent(in), optional :: unit 
+   integer,          intent(in), optional :: unit
 
-   integer :: logunit 
+   integer :: logunit
 
-   if (.not.module_is_initialized) call fms_init ( )
+   if (.not.module_is_initialized) call fms_init ()
 
      logunit = stdlog()
      if (present(unit)) then
          logunit = unit
-     else    
+     else
        ! only allow stdlog messages on root pe
          if ( mpp_pe() /= mpp_root_pe() ) return
-     endif   
+     endif
 
-     if (present(tag)) then
-         write (logunit,'(/,80("="),/(a))') trim(version), trim(tag)
-     else    
-         write (logunit,'(/,80("="),/(a))') trim(version)
-     endif   
+     write (logunit,'(/,80("="),/(a))') trim(MOM_VERSION)
 
  end subroutine write_version_number
 ! </SUBROUTINE>

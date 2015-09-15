@@ -31,7 +31,7 @@ SUBROUTINE gamma_mg_init
 !-----------------------------------------------------------------------
 !    write version number to output file.
 !-----------------------------------------------------------------------
-      call write_version_number (version, tagname)
+      call write_version_number()
 
 !-----------------------------------------------------------------------
 !    be sure needed modules are initialized.
