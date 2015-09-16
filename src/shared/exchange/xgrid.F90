@@ -175,6 +175,21 @@ integer, parameter :: MAX_FIELDS         = 80
 !     information. The purpose of this namelist is to improve performance of setup_xmap when running
 !     on highr processor count and solve receiving size mismatch issue on high processor count.
 !     Try to set nsubset = mpp_npes/MPI_rank_per_node.
+!     This parameter is not used when do_alltoall and do_alltoallv are enabled.
+!   </DATA>
+!   <DATA NAME="do_alltoall" TYPE="logical" DEFAULT=".true.">
+!    Use the MPI_Alltoall collective in place of point-to-point operations
+!    during the initial exchange grid calculation.  This parameter removes any
+!    issues due to large numbers of messages (such as hangs) and shows improved
+!    performance at higher PE counts.  When enabled, the nsubset parameter is
+!    ignored.
+!   </DATA>
+!   <DATA NAME="do_alltoallv" TYPE="logical" DEFAULT=".true.">
+!    Use the MPI_Alltoall collective in place of point-to-point operations
+!    during the second exchange grid calculation.  This parameter removes any
+!    issues due to large numbers of messages (such as hangs) and shows improved
+!    performance at higher PE counts.  When enabled, the nsubset parameter is
+!    ignored.
 !   </DATA>
 logical :: make_exchange_reproduce = .false. ! exactly same on different # PEs
 logical :: xgrid_log = .false. 
@@ -183,8 +198,8 @@ logical :: debug_stocks = .false.
 logical :: xgrid_clocks_on = .false.
 logical :: monotonic_exchange = .false.
 integer :: nsubset = 0 ! 0 means mpp_npes()
-logical :: do_alltoall = .false.
-logical :: do_alltoallv = .false.
+logical :: do_alltoall = .true.
+logical :: do_alltoallv = .true.
 namelist /xgrid_nml/ make_exchange_reproduce, interp_method, debug_stocks, xgrid_log, xgrid_clocks_on, &
     monotonic_exchange, nsubset, do_alltoall, do_alltoallv
 ! </NAMELIST>
