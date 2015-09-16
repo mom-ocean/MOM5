@@ -185,7 +185,7 @@ integer, parameter :: MAX_FIELDS         = 80
 !    parameter is ignored.
 !   </DATA>
 !   <DATA NAME="do_alltoallv" TYPE="logical" DEFAULT=".true.">
-!    Use the MPI_Alltoall collective in place of variable-size point-to-point
+!    Use the MPI_Alltoallv collective in place of variable-size point-to-point
 !    operations during the initial exchange grid calculation.  This parameter
 !    removes any issues due to large numbers of messages (such as hangs) and
 !    shows improved performance at higher PE counts.  When enabled, the nsubset
