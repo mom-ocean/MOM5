@@ -178,18 +178,18 @@ integer, parameter :: MAX_FIELDS         = 80
 !     This parameter is not used when do_alltoall and do_alltoallv are enabled.
 !   </DATA>
 !   <DATA NAME="do_alltoall" TYPE="logical" DEFAULT=".true.">
-!    Use the MPI_Alltoall collective in place of point-to-point operations
-!    during the initial exchange grid calculation.  This parameter removes any
-!    issues due to large numbers of messages (such as hangs) and shows improved
-!    performance at higher PE counts.  When enabled, the nsubset parameter is
-!    ignored.
+!    Use the MPI_Alltoall collective in place of fixed-size point-to-point
+!    operations during the initial exchange grid calculation.  This parameter
+!    removes any issues due to large numbers of messages (such as hangs) and
+!    shows improved performance at higher PE counts.  When enabled, the nsubset
+!    parameter is ignored.
 !   </DATA>
 !   <DATA NAME="do_alltoallv" TYPE="logical" DEFAULT=".true.">
-!    Use the MPI_Alltoall collective in place of point-to-point operations
-!    during the second exchange grid calculation.  This parameter removes any
-!    issues due to large numbers of messages (such as hangs) and shows improved
-!    performance at higher PE counts.  When enabled, the nsubset parameter is
-!    ignored.
+!    Use the MPI_Alltoall collective in place of variable-size point-to-point
+!    operations during the initial exchange grid calculation.  This parameter
+!    removes any issues due to large numbers of messages (such as hangs) and
+!    shows improved performance at higher PE counts.  When enabled, the nsubset
+!    parameter is ignored.
 !   </DATA>
 logical :: make_exchange_reproduce = .false. ! exactly same on different # PEs
 logical :: xgrid_log = .false. 
