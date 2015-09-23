@@ -312,7 +312,7 @@ contains
         call read_data ( restart_name, 'U', u(ids:ide,jds:jde,:) , domain = fv_domain)
         call read_data ( restart_name, 'V', v(ids:ide,jds:jde,:), domain = fv_domain)
         call read_data ( restart_name, 'T', pt(ids:ide,jds:jde,:), domain = fv_domain)
-        call read_data ( restart_name, 'DELP', delp(ids:ide,jds:jde,:), domain = fv_domain)
+        call read_data ( restart_name, 'DELP', delp(ids:ide,jcs:jce,:), domain = fv_domain) !RASF Bug fix for indices
     endif ! not use_native_format
 
 #ifdef SHAVE_P
@@ -856,7 +856,7 @@ contains
 
 ! local
     integer :: iuic                 ! Unit number
-    real, allocatable :: w2d(:,:), w3d(:,:,:), latu(:), phis_alloc(:,:)
+    real, allocatable :: w2d(:,:), w3d(:,:,:), latu(:), phis_alloc(:,:), delp_alloc(:,:,:)
     real :: ginv, qmax, qmin
     real :: pfull(nlev), phalf(nlev+1)
     integer i, j, k, n
@@ -1232,7 +1232,10 @@ contains
         phis_alloc = -999.9
         phis_alloc(ids:ide,jcs:jce) = phis(ids:ide,jcs:jce)
         call mpp_write(iuic, phis_field, fv_domain, phis_alloc)
-        call mpp_write(iuic, delp_field, fv_domain, delp(ids:ide,jds:jde,:))
+        allocate (delp_alloc(ids:ide,jds:jde,nlev))
+        delp_alloc(ids:ide,jcs:jce,:) = delp(ids:ide,jcs:jce,:)   !RASF Bug fix for array bounds
+        call mpp_write(iuic, delp_field, fv_domain, delp_alloc)   !RASF Bug fix for array bounds
+        deallocate(delp_alloc)
 
 
         call mpp_close(iuic)
