@@ -2471,7 +2471,8 @@ real,  dimension(:,:,:), intent(out)  ,optional :: diffm, difft
 
       call mpp_clock_begin ( diff_down_clock )
       radturbten(is:ie,js:je,:) = radturbten(is:ie,js:je,:) - tdt(:,:,:)
-      call vert_diff_driver_down (is, js, Time_next, dt, p_half,   &
+      if ( allocated(diff_t_clubb) ) then  !RASF Bug fix. Can only pass bounds of diff_t_clubb when allocated
+         call vert_diff_driver_down (is, js, Time_next, dt, p_half,   &
                                   p_full, z_full,   &
                                   diff_m(is:ie,js:je,:),         &
                                   diff_t(is:ie,js:je,:),         &
@@ -2481,6 +2482,18 @@ real,  dimension(:,:,:), intent(out)  ,optional :: diffm, difft
                                   Surf_diff,                     &
                                   diff_t_clubb=diff_t_clubb(is:ie,js:je,:),   &   ! cjg
                                   mask=mask, kbot=kbot           )
+     else
+        call vert_diff_driver_down (is, js, Time_next, dt, p_half,   &
+                                  p_full, z_full,   &
+                                  diff_m(is:ie,js:je,:),         &
+                                  diff_t(is:ie,js:je,:),         &
+                                  um ,vm ,tm ,qm ,rm(:,:,:,1:ntp), &
+                                  dtau_du, dtau_dv, tau_x, tau_y,  &
+                                  udt, vdt, tdt, qdt, rdt,       &
+                                  Surf_diff,                     &
+                                  diff_t_clubb=diff_t_clubb,   &   ! RASF
+                                  mask=mask, kbot=kbot           )
+      endif
 
       if (id_tdt_phys_vdif_dn > 0) then
         used = send_data ( id_tdt_phys_vdif_dn, +2.0*tdt(:,:,:), &
