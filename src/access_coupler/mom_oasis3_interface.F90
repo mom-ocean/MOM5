@@ -93,6 +93,7 @@ use ocean_types_mod, only: ice_ocean_boundary_type, &
                            ocean_public_type, &
                            ocean_domain_type
 use time_manager_mod, only: time_type
+use mpp_parameter_mod, only: ROOT_GLOBAL
 
 ! Timing
 
@@ -789,9 +790,11 @@ if ( write_restart ) then
         end select
 
     if (parallel_coupling) then
-      call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), gtmp)
+      call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec),   &
+             gtmp, flags=ROOT_GLOBAL)
     else
-      call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), vwork)
+      call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec),   &
+             vwork, flags=ROOT_GLOBAL )
     endif
 
          if (mpp_pe() == mpp_root_pe()) then
