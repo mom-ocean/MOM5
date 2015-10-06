@@ -181,7 +181,7 @@ contains
     endif
     !--- write version info and namelist to logfile ----------------------
 
-    call write_version_number(version,tagname)
+    call write_version_number()
     write (stdout(), nml=atmos_grid_nml)
 
     module_is_initialized = .true.

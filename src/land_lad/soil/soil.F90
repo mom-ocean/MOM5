@@ -629,7 +629,7 @@ subroutine soil_init ( soil, gblon, gblat, garea, gfrac,  &
   call get_restart_io_mode(do_netcdf_restart)
 
   ! write version information to a log file
-  call write_version_number(version,tagname)
+  call write_version_number()
 
   !  write the namelist to a log file
   if( mpp_pe()==0 ) then

@@ -431,7 +431,7 @@ contains
 #endif
       endif
 
-      call write_version_number (version,tag)
+      call write_version_number()
       logunit = stdlog()
       if (mpp_pe() == mpp_root_pe()) write (logunit, nml=bgrid_integrals_nml)
       do_init = .false. 

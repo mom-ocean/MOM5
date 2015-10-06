@@ -94,7 +94,7 @@ contains ! -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 subroutine numerics_init()
 
   module_is_initialized =.TRUE. 
-  call write_version_number(version,tagname)
+  call write_version_number()
 
 end subroutine numerics_init
 

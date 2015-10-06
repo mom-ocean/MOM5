@@ -114,7 +114,7 @@ contains
 
 !----- write version and namelist to log file -----
 
-    call write_version_number ( version, tag )
+    call write_version_number()
 
 !---- compute physics/atmos time step in seconds ----
 

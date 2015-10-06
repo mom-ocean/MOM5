@@ -871,7 +871,7 @@ integer  i, j, k, ix, jx, kx, klzb, ktop
 
 !---------- output namelist --------------------------------------------
 
-      call write_version_number ( version, tagname )
+      call write_version_number()
       logunit = stdlog()
       if ( mpp_pe() == mpp_root_pe() ) then
            write (logunit,nml=betts_miller_nml)

@@ -229,7 +229,7 @@ if(module_is_initialized) return
 
 call write_version_number()
 if(mpp_pe() == mpp_root_pe()) write (stdlog(), nml=spectral_dynamics_nml)
-call write_version_number(tracer_type_version, tracer_type_tagname)
+call write_version_number()
 
 Time_step  = Time_step_in
 Alarm_interval = set_time(print_interval(2), print_interval(1))

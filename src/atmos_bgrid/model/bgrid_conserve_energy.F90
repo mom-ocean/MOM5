@@ -147,7 +147,7 @@ contains
  type(time_type), intent(in) :: Time
  integer,         intent(in) :: axes(3)
 
-   call write_version_number (version,tag)
+   call write_version_number()
 
    id_clock = mpp_clock_id ('BGRID: conserve_energy', &
                   flags=MPP_CLOCK_SYNC, grain=CLOCK_MODULE)
@@ -175,7 +175,7 @@ contains
 
  integer :: logunit 
  ! rewrite module name and version info to log file
-   call write_version_number (version,tag)
+   call write_version_number()
  ! write diagnostic to log file
    logunit = stdlog()
    if (mpp_pe() == mpp_root_pe()) write (logunit,*)  &

@@ -1580,7 +1580,7 @@ real :: prec_rev, ratio, q_src, ratio_q, ratio_T, en_acc, ratio_ml
 
 !---------- output namelist --------------------------------------------
 
-      call write_version_number ( version, tagname )
+      call write_version_number()
       if ( mpp_pe() == mpp_root_pe() ) then
            logunit = stdlog()
            write (logunit,nml=bm_massflux_nml)

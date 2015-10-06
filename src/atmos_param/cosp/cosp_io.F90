@@ -2055,7 +2055,7 @@ CONTAINS
 !---------------------------------------------------------------------
 !    write namelist to logfile.
 !---------------------------------------------------------------------
-     call write_version_number (versiona, tagnamea)
+     call write_version_number()
      logunit = stdlog()
      if (mpp_pe() == mpp_root_pe() )    &
                         write (logunit, nml=cosp_output)

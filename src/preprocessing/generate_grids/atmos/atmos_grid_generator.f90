@@ -71,7 +71,7 @@ program grid_generator
   endif
   !--- write version info and namelist to logfile ----------------------
   write (stdout(), nml=atmos_grid_generator_nml)
-  call write_version_number(version,tagname)
+  call write_version_number()
 
   !--- generate data ---------------------------------------------------
   call atmos_grid_init

@@ -706,7 +706,7 @@ subroutine land_properties_init ( &
      call close_file (unit)
   endif
   
-  call write_version_number( version, tagname)
+  call write_version_number()
   if (mpp_pe() == mpp_root_pe()) then
      unit = stdlog()
      write (unit, nml=land_properties_nml)

@@ -113,7 +113,7 @@ subroutine vert_diff_init (Tri_surf, idim, jdim, kdim,    &
  character(len=128) :: scheme  ! tracer diffusion scheme
  integer :: n, logunit
 
-    call write_version_number ( version, tagname )
+    call write_version_number()
 
 ! get the number of prognostic tracers
     call get_number_tracers( MODEL_ATMOS, num_prog=ntprog)

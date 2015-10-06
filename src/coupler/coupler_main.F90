@@ -830,7 +830,7 @@ contains
     endif
 
 !----- write version to logfile -------
-    call write_version_number(version, tag)
+    call write_version_number()
 
 !----- read namelist -------
 
