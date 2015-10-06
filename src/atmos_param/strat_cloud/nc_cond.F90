@@ -102,7 +102,7 @@ LOGICAL, INTENT(IN ) :: do_pdf_clouds
 !-------------------------------------------------------------------------
 !    write version and namelist to standard log.
 !-------------------------------------------------------------------------
-      call write_version_number ( version, tagname )
+      call write_version_number()
       logunit = stdlog()
       if ( mpp_pe() == mpp_root_pe() ) &
                         write ( logunit, nml=nc_cond_nml )

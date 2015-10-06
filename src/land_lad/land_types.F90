@@ -334,7 +334,7 @@ subroutine land_types_init()
 !   </PUBLICROUTINE>
 
   module_is_initialized =.TRUE. 
-  call write_version_number(version,tagname)
+  call write_version_number()
 
 end subroutine land_types_init
 ! </SUBROUTINE>

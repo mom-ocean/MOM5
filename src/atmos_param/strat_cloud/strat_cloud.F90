@@ -396,7 +396,7 @@ logical,          intent(in), optional  :: do_legacy_strat_cloud
 !----------------------------------------------------------------------- 
 !    write version and namelist to stdlog.
 !-----------------------------------------------------------------------  
-      call write_version_number(Version, Tagname)
+      call write_version_number()
       logunit = stdlog()
       if ( mpp_pe() == mpp_root_pe() )  &
                     write (logunit, nml=strat_cloud_nml)

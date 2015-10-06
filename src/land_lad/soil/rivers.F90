@@ -297,7 +297,7 @@ subroutine rivers_init &
 
   ! write the namelist to the log file
   if ( mpp_pe() == mpp_root_pe() )  then
-     call write_version_number( version, tagname)
+     call write_version_number()
      logunit = stdlog()
      write (logunit, nml=rivers_nml)
   endif

@@ -491,7 +491,7 @@ type (time_type), intent(in) :: Time_init, Time, Time_step
 !-----------------------------------------------------------------------
 !---- print version number to logfile ----
 
-   call write_version_number ( version, tagname )
+   call write_version_number()
 !  write the namelist to a log file
    if (mpp_pe() == mpp_root_pe()) then
       unit = stdlog( )

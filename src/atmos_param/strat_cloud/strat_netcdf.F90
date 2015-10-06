@@ -52,7 +52,7 @@ integer,             intent(out)   :: n_diag_4d, n_diag_4d_kp1
 !-----------------------------------------------------------------------
 !    write version info to standard log.
 !-----------------------------------------------------------------------
-      call write_version_number ( version, tagname )
+      call write_version_number()
 
 !------------------------------------------------------------------------
 !    make sure needed modules have been initialized.
