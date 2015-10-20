@@ -6,4 +6,4 @@ module load netcdf/4.3.3.1
 module load oasis/dev
 module load openmpi/1.8.4
 setenv mpirunCommand   "mpirun --mca orte_base_help_aggregate 0 -np"
-setenv VALGRIND_MPI_WRAPPERS /home/599/nah599/more_home/usr/local/lib/valgrind/libmpiwrap-amd64-linux.so
+set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DUSE_OCEAN_BGC -DENABLE_ODA -DSPMD -DLAND_BND_TRACERS" )
