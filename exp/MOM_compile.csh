@@ -87,9 +87,9 @@ source $root/bin/environs.$platform  # environment variables and loadable module
 
 #
 # compile mppnccombine.c, needed only if $npes > 1
-  if ( ! -f $mppnccombine ) then
-    cc -O -o $mppnccombine -I/usr/local/include -L/usr/local/lib $code_dir/postprocessing/mppnccombine/mppnccombine.c -lnetcdf
-  endif
+if ( ! -f $mppnccombine ) then
+    cc -O -o $mppnccombine -I/usr/local/include -L/usr/local/lib $code_dir/postprocessing/mppnccombine/mppnccombine.c -lm -lnetcdf
+endif
 
 set mkmf_lib = "$mkmf -f -m Makefile -a $code_dir -t $mkmfTemplate"
 set lib_include_dirs = "$root/include $code_dir/shared/include $code_dir/shared/mpp/include"

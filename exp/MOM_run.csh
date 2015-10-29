@@ -124,7 +124,7 @@ if( $download ) then
     cd $root/data
     ./get_exp_data.py $name.input.tar.gz
     mkdir -p $workdir
-    cp $name.input.tar.gz $workdir
+    cp archives/$name.input.tar.gz $workdir
     cd $workdir
     tar zxvf $name.input.tar.gz
 endif

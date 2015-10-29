@@ -1,0 +1,1 @@
+         setenv mpirunCommand   "mpirun -np"
