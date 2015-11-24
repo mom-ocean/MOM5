@@ -147,7 +147,7 @@ subroutine ocean_momentum_source_init(Grid, Domain, Time, Ocean_options, debug)
 
   module_is_initialized = .TRUE.
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   call get_local_indices(Domain,isd,ied,jsd,jed,isc,iec,jsc,jec)
   nk = Grid%nk

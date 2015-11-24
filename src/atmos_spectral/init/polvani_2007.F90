@@ -139,7 +139,7 @@ real :: ln_sigma_top, riter(num_iter)
     enddo
 20  call close_file (unit)
 #endif
-call write_version_number()
+call write_version_number(version, tagname)
 if(mpp_pe() == mpp_root_pe()) write (stdlog(), nml=polvani_2007_nml)
 
 call get_lon_max(lon_max)

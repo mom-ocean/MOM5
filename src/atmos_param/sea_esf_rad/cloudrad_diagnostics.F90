@@ -450,7 +450,7 @@ logical,                 intent(in)    ::   donner_meso_is_largescale_in
 !---------------------------------------------------------------------
 !    write namelist to logfile.
 !---------------------------------------------------------------------
-      call write_version_number()
+      call write_version_number(version, tagname)
       logunit = stdlog()
       if (mpp_pe() == mpp_root_pe() )    &
                        write (logunit, nml=cloudrad_diagnostics_nml)

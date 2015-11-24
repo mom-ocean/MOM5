@@ -64,7 +64,7 @@ public   surf_diff_type
 
 !-----------------------------------------------------------------------
 character(len=128) :: version = '$Id: fv_physics.F90,v 20.0 2013/12/13 23:08:17 fms Exp $'
-character(len=128) :: tag = '$Name: tikal $'
+character(len=128) :: tagname = '$Name: tikal $'
 !-----------------------------------------------------------------------
 
    real zvir, rrg, ginv
@@ -120,7 +120,7 @@ contains
 
 !----- write version to logfile --------
 
-    call write_version_number()
+    call write_version_number(version, tagname)
 
 !---------- reference profile -----------
 

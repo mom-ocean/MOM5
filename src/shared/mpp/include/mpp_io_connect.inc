@@ -1,6 +1,6 @@
 
 ! -*-f90-*-
-! $Id: mpp_io_connect.inc,v 19.0 2012/01/06 22:03:20 fms Exp $
+! $Id$
 
 ! <SUBROUTINE NAME="mpp_open">
 
@@ -176,10 +176,11 @@
 
       character(len=16)  :: act, acc, for, pos
       character(len=128) :: mesg
+      character(len=256) :: text2
       integer :: action_flag, form_flag, access_flag, threading_flag, fileset_flag, length
       integer :: nfiles, tile_id(1), io_layout(2)
       logical :: exists, on_root_pe, dist_file
-      logical :: write_on_this_pe, io_domain_exist
+      logical :: write_on_this_pe, read_on_this_pe, io_domain_exist
       integer :: ios, nc_pos     !position of .nc in file name
       type(axistype) :: unlim    !used by netCDF with mpp_append
       type(domain2d), pointer :: io_domain=>NULL()
@@ -225,20 +226,21 @@
          if(associated(io_domain)) io_domain_exist = .true.
       endif
 
-      !--- when io_domain_exist, will ignore the threading_flag and fileset_flag.
-      if(io_domain_exist .AND. PRESENT(fileset) ) then
-         call mpp_error(NOTE, "mpp_io_connect.inc(mpp_open): io_domain exists for domain "// &
-            trim(mpp_get_domain_name(domain))//", optional argument fileset will be ignored")
-      endif
-
       write_on_this_pe = .true.
-      if( threading_flag.EQ.MPP_SINGLE .AND. .NOT. on_root_pe ) write_on_this_pe = .false.
+      read_on_this_pe = .true.
+      if( threading_flag.EQ.MPP_SINGLE .AND. .NOT.on_root_pe ) then
+         write_on_this_pe = .false.
+         read_on_this_pe = .false.
+      endif
       if(form_flag == MPP_NETCDF .AND. action_flag .NE. MPP_RDONLY) then
          if(fileset_flag .EQ.MPP_SINGLE .AND.  threading_flag.EQ.MPP_MULTI) then
             call mpp_error(FATAL, "mpp_io_connect.inc(mpp_open): multiple thread and single "// &
                 "file writing/appending is not supported for netCDF file")
          endif
-         if( fileset_flag  .EQ.MPP_SINGLE .AND. .NOT. on_root_pe ) write_on_this_pe = .false.
+         if( fileset_flag.EQ.MPP_SINGLE .AND. .NOT.on_root_pe ) then
+            write_on_this_pe = .false.
+            read_on_this_pe = .false.
+         endif   
       endif   
    
       if( io_domain_exist) then
@@ -272,6 +274,7 @@
       end if
       mpp_file(unit)%valid            = .true.
       mpp_file(unit)%write_on_this_pe = write_on_this_pe
+      mpp_file(unit)%read_on_this_pe  = read_on_this_pe
       mpp_file(unit)%io_domain_exist  = io_domain_exist
       if( PRESENT(domain) ) then
          allocate(mpp_file(unit)%domain)
@@ -291,10 +294,18 @@
             fileset_flag = MPP_MULTI
             threading_flag = MPP_MULTI
             tile_id = mpp_get_tile_id(io_domain)
-            if(mpp_npes() > 10000) then 
-               write( text,'(a,i6.6)' )trim(text)//'.', tile_id(1)
-            else
-               write( text,'(a,i4.4)' )trim(text)//'.', tile_id(1)
+            text2 = trim(text)
+            if(tile_id(1) .GE. 10000) call mpp_error(FATAL, 'mpp_open: tile_id should be less than 10000 when io_domain exist')
+            write( text,'(a,i4.4)' )trim(text)//'.', tile_id(1)
+            if( action_flag == MPP_RDONLY ) then
+               inquire(file=trim(text),EXIST=exists)
+               if(.not. exists) then
+                  write( text2,'(a,i6.6)' )trim(text2)//'.', tile_id(1)
+                  inquire(file=trim(text2),EXIST=exists)
+                  if(.not.exists) call mpp_error(FATAL, 'mpp_open: neither '// &
+                                  trim(text)//' nor '//trim(text2)//' exist and io domain exist')
+                  text = trim(text2)
+               endif
             endif
          else
             fileset_flag   = MPP_SINGLE
@@ -502,7 +513,7 @@
               if( verbose )print '(a,i6,i16,i4)', 'MPP_OPEN: append to existing netCDF file: pe, ncid, time_axis_id=',&
                    pe, mpp_file(unit)%ncid, mpp_file(unit)%id
               mpp_file(unit)%format=form_flag ! need this for mpp_read
-              call mpp_read_meta(unit)
+!              call mpp_read_meta(unit)
           else if( action_flag.EQ.MPP_RDONLY )then
                inquire(file=trim(mpp_file(unit)%name),EXIST=exists)
               if (.NOT.exists) call mpp_error(FATAL,'MPP_OPEN:'&
@@ -542,7 +553,7 @@
               if( verbose )print '(a,i6,i16,i4)', 'MPP_OPEN: append to existing netCDF file: pe, ncid, time_axis_id=',&
                    pe, mpp_file(unit)%ncid, mpp_file(unit)%id
               mpp_file(unit)%format=form_flag ! need this for mpp_read
-              call mpp_read_meta(unit)
+!              call mpp_read_meta(unit)
           else if( action_flag.EQ.MPP_RDONLY )then
                inquire(file=trim(mpp_file(unit)%name),EXIST=exists)
               if (.NOT.exists) call mpp_error(FATAL,'MPP_OPEN:'&
@@ -582,7 +593,7 @@
               if( verbose )print '(a,i6,i16,i4)', 'MPP_OPEN: append to existing netCDF file: pe, ncid, time_axis_id=',&
                    pe, mpp_file(unit)%ncid, mpp_file(unit)%id
               mpp_file(unit)%format=form_flag ! need this for mpp_read
-              call mpp_read_meta(unit)
+!              call mpp_read_meta(unit)
           else if( action_flag.EQ.MPP_RDONLY )then
                inquire(file=trim(mpp_file(unit)%name),EXIST=exists)
               if (.NOT.exists) call mpp_error(FATAL,'MPP_OPEN:'&

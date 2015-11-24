@@ -40,7 +40,7 @@ contains
 subroutine vegn_photosynthesis_init(photosynthesis_to_use)
   character(*), intent(in) :: photosynthesis_to_use
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   ! convert symbolic names of photosynthesis options into numeric IDs to
   ! speed up selection during run-time

@@ -256,7 +256,7 @@ subroutine cloud_zonal_init (season)
 !---- print version number to logfile ----
 
       if ( mpp_pe() == mpp_root_pe() ) then
-           call write_version_number()
+           call write_version_number(version, tagname)
       endif
 
       module_is_initialized = .true.

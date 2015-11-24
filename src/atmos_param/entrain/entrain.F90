@@ -371,7 +371,7 @@ real                           :: dellat, dellon
 #endif
 
        if ( mpp_pe() == mpp_root_pe() ) then
-            call write_version_number()
+            call write_version_number(version, tagname)
             unit = stdlog()
             Write (unit,nml=entrain_nml)
        endif
@@ -492,7 +492,7 @@ real                           :: dellat, dellon
                                  threading='multi', form='formatted')
        do_print = .true.
        if ( mpp_pe() == mpp_root_pe() ) then
-            call write_version_number()
+            call write_version_number(version, tagname)
             Write (dpu ,nml=entrain_nml)
        endif
       endif     ! (num_pts > 0)

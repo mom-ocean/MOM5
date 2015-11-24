@@ -125,7 +125,7 @@ type(strat_constants_type), intent(in) :: Constants
 !-------------------------------------------------------------------------
 !    write version and namelist to standard log.
 !-------------------------------------------------------------------------
-      call write_version_number()
+      call write_version_number(version, tagname)
       logunit = stdlog()
       if (mpp_pe() == mpp_root_pe()) &
                                   write (logunit, nml=aerosol_cloud_nml)

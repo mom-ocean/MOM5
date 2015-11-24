@@ -673,7 +673,7 @@ type (surf_diff_type), intent(inout) :: Surf_diff
 
 !----- write version to logfile --------
 
-   call write_version_number()
+   call write_version_number(version, tagname)
 
 !---------- get local grid box edges ---------
 

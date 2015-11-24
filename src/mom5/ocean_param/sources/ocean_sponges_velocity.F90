@@ -162,7 +162,7 @@ subroutine ocean_sponges_velocity_init(Grid, Domain, Time, dtime, Ocean_options)
   allocate( Sponge_u(1) )
   allocate( Sponge_v(1) )
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   ! provide for namelist over-ride of default values
 #ifdef INTERNAL_FILE_NML

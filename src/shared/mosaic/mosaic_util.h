@@ -2,7 +2,7 @@
                       mosaic_util.h
     This header file provide some utilities routine that will be used in many tools.
     
-    contact: Zhi.Liang
+    contact: Zhi.Liang@noaa.gov
 ***********************************************************************/
 #ifndef MOSAIC_UTIL_H_
 #define MOSAIC_UTIL_H_

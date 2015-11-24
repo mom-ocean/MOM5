@@ -257,7 +257,7 @@ subroutine read_lake_data_namelist(lake_n_lev)
   integer :: i
   real    :: z
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 #ifdef INTERNAL_FILE_NML
      read (input_nml_file, nml=lake_data_nml, iostat=io)
      ierr = check_nml_error(io, 'lake_data_nml')

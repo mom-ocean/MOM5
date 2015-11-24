@@ -245,7 +245,7 @@ integer :: n, m, logunit
 
       if (module_is_initialized) return
 
-      call write_version_number()
+      call write_version_number(version, tagname)
 !-----------------------------------------------------------------------
 !    read namelist.
 !-----------------------------------------------------------------------
@@ -313,7 +313,7 @@ enddo
                              vert_interp=(/INTERP_WEIGHTED_P/) )
 
 
-     call write_version_number()
+     call write_version_number(version, tagname)
 
       module_is_initialized = .TRUE.
 

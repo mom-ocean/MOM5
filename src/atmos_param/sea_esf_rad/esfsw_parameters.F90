@@ -207,7 +207,7 @@ subroutine esfsw_parameters_init
 !    write version number and namelist to logfile also write out
 !    some key parameters obtained from an input data file.
 !---------------------------------------------------------------------
-      call write_version_number()
+      call write_version_number(version, tagname)
       logunit = stdlog()
       if (mpp_pe() == mpp_root_pe() ) then
         write (logunit,9000)     &

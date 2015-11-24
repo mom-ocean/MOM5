@@ -305,7 +305,7 @@ ierr = check_nml_error(io, 'atmosphere_nml')
 call close_file(unit)
 
 !--- write out version information
-call write_version_number()
+call write_version_number(version, tagname)
 
 
 !-----------------------------------------------------------------------------------------

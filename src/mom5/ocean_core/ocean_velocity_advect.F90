@@ -175,7 +175,7 @@ subroutine ocean_velocity_advect_init(Grid, Domain, Time, obc, hor_grid, debug)
 
   module_is_initialized = .TRUE.
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   Grd => Grid
   Dom => Domain

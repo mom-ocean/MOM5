@@ -577,7 +577,7 @@ character(len=256), parameter   :: note_header =                                
 
      if (module_is_initialized) return
 
-     call write_version_number()
+     call write_version_number(version, tagname)
 
 !-----------------------------------------------------------------------
 !    read namelist.
@@ -659,7 +659,7 @@ if (.not.(ind_co2 > 0 .and. do_co2_emissions)) then
      write (logunit,*)' not using CO2 emissions: do_co2_emissions= ',do_co2_emissions
 endif
 
-call write_version_number()
+call write_version_number(version, tagname)
 module_is_initialized = .TRUE.
 
 

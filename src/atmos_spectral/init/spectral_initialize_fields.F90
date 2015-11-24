@@ -42,7 +42,7 @@ real :: initial_perturbation   = 1.e-7
 
 integer :: ms, me, ns, ne, is, ie, js, je, num_levels
 
-call write_version_number()
+call write_version_number(version, tagname)
 
 num_levels = size(ug,3)
 call get_grid_domain(is, ie, js, je)

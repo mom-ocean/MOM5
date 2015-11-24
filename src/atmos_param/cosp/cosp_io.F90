@@ -69,8 +69,8 @@ MODULE MOD_COSP_IO
 #ifdef COSP_GFDL
 !---------------------------------------------------------------------
 !----------- version number for this module --------------------------
-character(len=128)  :: versiona =  '$Id: cosp_io.F90,v 20.0 2013/12/13 23:15:43 fms Exp $'
-character(len=128)  :: tagnamea =  '$Name: tikal $'
+character(len=128)  :: version =  '$Id: cosp_io.F90,v 20.0 2013/12/13 23:15:43 fms Exp $'
+character(len=128)  :: tagname =  '$Name: tikal $'
 #endif
 
   ! Types to be used as arrays of pointers
@@ -2055,7 +2055,7 @@ CONTAINS
 !---------------------------------------------------------------------
 !    write namelist to logfile.
 !---------------------------------------------------------------------
-     call write_version_number()
+     call write_version_number(version, tagname)
      logunit = stdlog()
      if (mpp_pe() == mpp_root_pe() )    &
                         write (logunit, nml=cosp_output)

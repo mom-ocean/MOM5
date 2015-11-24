@@ -1,20 +1,21 @@
 module tracer_manager_mod
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="William.Cooke@noaa.gov">
 !   William Cooke
 ! </CONTACT>
 
-! <REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <REVIEWER EMAIL="Matthew.Harrison@noaa.gov">
 !   Matt Harrison
 ! </REVIEWER>
 
-! <REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <REVIEWER EMAIL="Bruce.Wyman@noaa.gov">
 !   Bruce Wyman
 ! </REVIEWER>
 
-! <REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <REVIEWER EMAIL="Peter.Phillipps@noaa.gov">
 !   Peter Phillipps
 ! </REVIEWER>
 
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
 ! <OVERVIEW>
 !   Code to manage the simple addition of tracers to the FMS code.
@@ -141,8 +142,8 @@ end type inst_type
 type(tracer_type), save  :: tracers(MAX_TRACER_FIELDS)
 type(inst_type)  , save  :: instantiations(MAX_TRACER_FIELDS)
 
-character(len=128) :: version = '$Id: tracer_manager.F90,v 20.0 2013/12/14 00:28:23 fms Exp $'
-character(len=128) :: tagname = '$Name: tikal $'
+character(len=128) :: version = '$Id$'
+character(len=128) :: tagname = '$Name$'
 logical            :: module_is_initialized = .false.
 
 logical            :: verbose_local
@@ -171,7 +172,7 @@ integer :: model, num_tracers, num_prog, num_diag
   if(module_is_initialized) return
   module_is_initialized = .TRUE.
 
-  call write_version_number()
+  call write_version_number (version, tagname)
   call field_manager_init()
   TRACER_ARRAY = NOTRACER
   do model=1,NUM_MODELS 

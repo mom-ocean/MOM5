@@ -125,7 +125,7 @@ contains
   endif
 
    !--- write out version information ---------------------------------
-    call write_version_number()
+    call write_version_number(version, tagname)
 
   end subroutine compare_grid_init
 

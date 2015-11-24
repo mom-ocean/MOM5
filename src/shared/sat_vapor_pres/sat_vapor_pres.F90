@@ -71,10 +71,11 @@ module sat_vapor_pres_mod
 !
 !-----------------------------------------------------------------------
 
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="Bruce.Wyman@noaa.gov">
 !   Bruce Wyman
 ! </CONTACT>
 
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
 ! <OVERVIEW>
 !   Routines for determining the saturation vapor pressure 
@@ -491,8 +492,8 @@ private
 !-----------------------------------------------------------------------
 !  cvs version and tag name
 
- character(len=128) :: version = '$Id: sat_vapor_pres.F90,v 20.0 2013/12/14 00:27:58 fms Exp $'
- character(len=128) :: tagname = '$Name: tikal $'
+ character(len=128) :: version = '$Id$'
+ character(len=128) :: tagname = '$Name$'
 
  logical :: module_is_initialized = .false.
 
@@ -523,7 +524,7 @@ private
  logical :: construct_table_wrt_liq = .false.
  logical :: construct_table_wrt_liq_and_ice = .false.
 
- namelist /sat_vapor_pres_nml/ show_bad_value_count_by_slice, show_all_bad_values, &
+ namelist / sat_vapor_pres_nml / show_bad_value_count_by_slice, show_all_bad_values, &
                                  use_exact_qs, do_simple, &
                                  construct_table_wrt_liq, &
                                  construct_table_wrt_liq_and_ice
@@ -2220,7 +2221,7 @@ real,  intent(in),              optional :: hc
 #endif
 
 ! write version number and namelist to log file
-  call write_version_number()
+  call write_version_number (version, tagname)
   unit = stdlog()
   if (mpp_pe() == mpp_root_pe()) write (unit, nml=sat_vapor_pres_nml)
 

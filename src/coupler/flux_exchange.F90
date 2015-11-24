@@ -262,7 +262,7 @@ private
 
 !-----------------------------------------------------------------------
   character(len=128) :: version = '$Id: flux_exchange.F90,v 20.0 2013/12/13 23:27:41 fms Exp $'
-  character(len=128) :: tag = '$Name: tikal $'
+  character(len=128) :: tagname = '$Name: tikal $'
 !-----------------------------------------------------------------------
 !---- exchange grid maps -----
 
@@ -588,7 +588,7 @@ subroutine flux_exchange_init ( Time, Atm, Land, Ice, Ocean, Ocean_state,&
 #endif
 
 !----- write namelist to logfile -----
-    call write_version_number()
+    call write_version_number(version, tagname)
     if( mpp_pe() == mpp_root_pe() )write( logunit, nml=flux_exchange_nml )
 
 !----- find out number of atmospheric prognostic tracers and index of specific 

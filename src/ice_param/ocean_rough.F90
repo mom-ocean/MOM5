@@ -229,7 +229,7 @@ contains
 !------- write version number and namelist ---------
 
     if ( mpp_pe() == mpp_root_pe() ) then
-         call write_version_number()
+         call write_version_number(version, tagname)
          unit = stdlog()
          write (unit,nml=ocean_rough_nml)
          write (unit,11)

@@ -154,7 +154,7 @@ integer, dimension(3)  :: half =  (/1,2,4/)
 
 !--------- write version number and namelist ------------------
 
-      call write_version_number()
+      call write_version_number(version, tagname)
       logunit = stdlog()
       if ( mpp_pe() == mpp_root_pe() ) &
         write ( logunit, nml=cu_mo_trans_nml )

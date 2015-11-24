@@ -51,7 +51,7 @@ subroutine uptake_init(num_l_in, dz_in, zfull_in)
        dz_in(:), &  ! layer thickness
        zfull_in(:)  ! layer centers
 
-  call write_version_number()
+  call write_version_number(version, tagname)
   module_is_initialized =.TRUE.
 
   num_l = num_l_in

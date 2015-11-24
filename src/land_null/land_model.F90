@@ -53,6 +53,7 @@ use field_manager_mod,  only : MODEL_LAND
 
 use          fms_mod,  only : write_version_number, error_mesg, FATAL, mpp_npes, stdout
 use          fms_mod,  only : open_namelist_file, check_nml_error, file_exist, close_file
+use          fms_mod,  only : set_domain
 use       fms_io_mod,  only : parse_mask_table
 
 use         grid_mod,  only : get_grid_ntiles, get_grid_size, define_cube_mosaic
@@ -197,7 +198,7 @@ subroutine land_model_init (cplr2land, land2cplr, time_init, time, dt_fast, dt_s
 
   stdoutunit = stdout()
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   ! define the processor layout information according to the global grid size 
   call get_grid_ntiles('LND',ntiles)
@@ -231,6 +232,7 @@ subroutine land_model_init (cplr2land, land2cplr, time_init, time, dt_fast, dt_s
   endif
 
   land2cplr%domain = domain
+  call set_domain(domain)
 
   npes_per_tile = mpp_npes()/ntiles
   face = (mpp_pe()-mpp_root_pe())/npes_per_tile + 1

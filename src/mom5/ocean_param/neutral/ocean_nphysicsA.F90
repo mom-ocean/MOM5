@@ -563,7 +563,7 @@ subroutine ocean_nphysicsA_init(Grid, Domain, Time, Time_steps, Thickness, Dens,
 
   module_is_initialized = .TRUE.
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   num_prog_tracers = size(T_prog(:))
   dtime            = Time_steps%dtime_t

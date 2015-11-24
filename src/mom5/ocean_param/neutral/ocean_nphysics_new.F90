@@ -217,7 +217,7 @@ contains
 
     module_is_initialized = .TRUE.
 
-    call write_version_number()
+    call write_version_number(version, tagname)
 
     ! provide for namelist over-ride of default values
 #ifdef INTERNAL_FILE_NML

@@ -116,7 +116,7 @@ integer, intent(in) :: fourier_inc_in
 integer, intent(in) :: num_spherical_in
 logical, intent(in), optional :: south_to_north
 
-call write_version_number()
+call write_version_number(version, tagname)
 
 if(present(south_to_north)) then
   south_to_north_local = south_to_north

@@ -190,7 +190,7 @@ contains
    endif
 ! write version and namelist to log 
    if (do_log) then
-      call write_version_number()
+      call write_version_number(version, tagname)
       logunit=stdlog()
       if (mpp_pe() == mpp_root_pe()) write (logunit, nml=bgrid_sponge_nml)
       do_log = .false.

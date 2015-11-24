@@ -728,7 +728,7 @@ subroutine ocean_vert_mix_init (Grid, Domain, Time, Dens, Velocity, Time_steps, 
      if (trim(T_prog(n)%name) == 'salt') index_salt = n
   enddo
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
 #ifdef INTERNAL_FILE_NML
 read (input_nml_file, nml=ocean_vert_mix_nml, iostat=io_status)

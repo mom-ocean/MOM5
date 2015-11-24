@@ -47,7 +47,7 @@ subroutine fv_advection_init(nx_in, ny_in, yy_in, degrees_lon, advection_layout)
 
   if (module_is_initialized) return
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   pe   = mpp_pe()
   npes = mpp_npes()

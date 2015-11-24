@@ -391,7 +391,7 @@ subroutine ocean_thickness_init  (Time, Time_steps, Domain, Grid, Ext_mode, Thic
 
   module_is_initialized = .TRUE.
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   ! provide for namelist over-ride of defaults 
 #ifdef INTERNAL_FILE_NML

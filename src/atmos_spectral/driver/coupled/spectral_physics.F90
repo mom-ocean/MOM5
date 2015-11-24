@@ -82,7 +82,7 @@ logical :: do_donner
 
 if(module_is_initialized) return
 
-call write_version_number()
+call write_version_number(version, tagname)
 
 call fms_init
 call time_manager_init

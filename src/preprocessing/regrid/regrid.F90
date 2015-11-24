@@ -223,7 +223,7 @@ contains
     call close_file (unit)
 
     !--- write out version information ---------------------------------
-    call write_version_number()
+    call write_version_number(version, tagname)
 
     if(num_flds == 0) call error_handler('regrid: nml num_fiels = 0 should be a positive number')
     if(num_flds .gt. max_flds) call error_handler('regrid: nml num_fiels is greater than maximum'// &

@@ -324,7 +324,7 @@ type(time_type), intent(in)                 :: Time
 !    write namelist to logfile.
 !---------------------------------------------------------------------
       if ( mpp_pe() == mpp_root_pe() ) then
-        call write_version_number()
+        call write_version_number(version, tagname)
         write (unit, nml=original_fms_rad_nml)
       endif
 

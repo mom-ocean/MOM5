@@ -398,7 +398,7 @@ subroutine ocean_bihcgrid_friction_init(Grid, Domain, Time, Ocean_options, d_tim
 
   module_is_initialized = .TRUE.
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
 
   ! provide for namelist over-ride of defaults 

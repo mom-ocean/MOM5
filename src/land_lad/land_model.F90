@@ -512,7 +512,7 @@ subroutine init_land_with_area &
   module_is_initialized = .TRUE.
 
   ! write the version and tagname to the logfile
-  call write_version_number()
+  call write_version_number(version, tagname)
 
 ! initialize tracers
 #ifdef LAND_BND_TRACERS

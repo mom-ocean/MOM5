@@ -201,7 +201,7 @@ subroutine ocean_grids_init(ver_coordinate, ver_coordinate_class, hor_grid, debu
   vert_coordinate_class = ver_coordinate_class
   horz_grid             = hor_grid  
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   if (PRESENT(debug)) debug_this_module = debug
 

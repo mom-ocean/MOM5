@@ -281,7 +281,7 @@ integer :: n
 
 !---- write namelist ------------------
 
-      call write_version_number()
+      call write_version_number(version, tagname)
 
       n = get_tracer_index(MODEL_ATMOS,'sf6')
       if (n>0) then

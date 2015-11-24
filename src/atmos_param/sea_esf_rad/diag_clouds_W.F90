@@ -142,7 +142,7 @@ integer, intent(out) :: num_slingo_bands_out
 #endif
 
       if ( mpp_pe() == mpp_root_pe() ) then
-           call write_version_number()
+           call write_version_number(version, tagname)
            logunit = stdlog()
            write (logunit,nml=diag_clouds_W_nml)
       endif

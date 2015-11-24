@@ -77,7 +77,7 @@ character(len=32) :: chtmp='size(a)=      size(b)=          '
 character(len=16) :: chtmp2, chtmp3
 
 if(.not.entry_to_logfile_done) then
-  call write_version_number()
+  call write_version_number(version, tagname)
   entry_to_logfile_done = .true.
 endif
 

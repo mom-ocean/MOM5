@@ -42,7 +42,7 @@ integer, intent(in) :: previous, current, future
 real,    intent(in) :: delta_t, robert_coeff
 
 if(.not.entry_to_logfile_done) then
-  call write_version_number()
+  call write_version_number(version, tagname)
   entry_to_logfile_done = .true.
 endif
 
@@ -66,7 +66,7 @@ integer, intent(in) :: current, future
 real,    intent(in) :: robert_coeff
 
 if(.not.entry_to_logfile_done) then
-  call write_version_number()
+  call write_version_number(version, tagname)
   entry_to_logfile_done = .true.
 endif
 
@@ -85,7 +85,7 @@ integer, intent(in) :: previous, current, future
 real,    intent(in) :: delta_t, robert_coeff
 
 if(.not.entry_to_logfile_done) then
-  call write_version_number()
+  call write_version_number(version, tagname)
   entry_to_logfile_done = .true.
 endif
 
@@ -109,7 +109,7 @@ integer, intent(in) :: current, future
 real,    intent(in) :: robert_coeff
 
 if(.not.entry_to_logfile_done) then
-  call write_version_number()
+  call write_version_number(version, tagname)
   entry_to_logfile_done = .true.
 endif
 
@@ -132,7 +132,7 @@ complex, dimension(size(a,1),size(a,2),1,size(a,3)) :: a_3d
 complex, dimension(size(a,1),size(a,2),1)           :: dt_a_3d
 
 if(.not.entry_to_logfile_done) then
-  call write_version_number()
+  call write_version_number(version, tagname)
   entry_to_logfile_done = .true.
 endif
 
@@ -152,7 +152,7 @@ real,    intent(in) :: robert_coeff
 complex, dimension(size(a,1),size(a,2),1,size(a,3)) :: a_3d
 
 if(.not.entry_to_logfile_done) then
-  call write_version_number()
+  call write_version_number(version, tagname)
   entry_to_logfile_done = .true.
 endif
 
@@ -171,7 +171,7 @@ integer, intent(in) :: previous, current, future
 real,    intent(in) :: delta_t, robert_coeff
 
 if(.not.entry_to_logfile_done) then
-  call write_version_number()
+  call write_version_number(version, tagname)
   entry_to_logfile_done = .true.
 endif
 
@@ -200,7 +200,7 @@ complex, dimension(size(a,1),size(a,2),1,size(a,3)) :: a_3d
 complex, dimension(size(a,1),size(a,2),1)           :: dt_a_3d
 
 if(.not.entry_to_logfile_done) then
-  call write_version_number()
+  call write_version_number(version, tagname)
   entry_to_logfile_done = .true.
 endif
 

@@ -661,7 +661,7 @@ integer :: j
 
    logunit = stdlog()
    if (do_log) then
-      call write_version_number()
+      call write_version_number(version, tagname)
       if (mpp_pe() == mpp_root_pe()) write (logunit, nml=bgrid_horiz_diff_nml)
       do_log = .false.
    endif

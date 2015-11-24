@@ -214,7 +214,7 @@ contains
 
 !  ----- write version, namelist and tracer info to log file -----
 
-    call write_version_number()
+    call write_version_number(version, tagname)
     if (mpp_pe() == mpp_root_pe()) then
         write (logunit, nml=bgrid_core_driver_nml)
         write (logunit, '(a,i3)') 'Number of tracers =', ntrace

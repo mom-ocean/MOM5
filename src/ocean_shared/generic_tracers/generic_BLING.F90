@@ -606,7 +606,7 @@ write (stdlogunit, generic_bling_nml)
   subroutine generic_BLING_init(tracer_list)
     type(g_tracer_type), pointer :: tracer_list
 
-    call write_version_number()
+    call write_version_number(version, tagname)
 
     !Specify and initialize all parameters used by this package
     call user_add_params

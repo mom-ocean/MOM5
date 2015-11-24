@@ -1,5 +1,5 @@
 module station_data_mod 
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="Giang.Nong@gfdl.noaa.gov">
 !   Giang Nong
 ! </CONTACT>
 ! <OVERVIEW>
@@ -288,7 +288,7 @@ namelist /station_data_nml/ max_output_fields, max_stations,init_verbose
 94  continue
     call close_file(iunit)
     call check_duplicate_output_fields
-    call write_version_number()
+    call write_version_number (version, tagname)
     module_is_initialized = .true.
     return
 99  continue

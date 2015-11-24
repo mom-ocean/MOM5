@@ -65,7 +65,7 @@ subroutine vegn_dynamics_init(id_lon, id_lat, time, delta_time, soil_decomp_opti
   real           , intent(in) :: delta_time ! fast time step, s
   character(*)   , intent(in) :: soil_decomp_option
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   ! set up global variables
   dt_fast_yr = delta_time/seconds_per_year

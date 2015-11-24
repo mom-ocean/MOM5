@@ -207,7 +207,7 @@ subroutine land_data_init(layout, io_layout, time, dt_fast, dt_slow)
   integer :: io_id(1)
 
   ! write the version and tag name to the logfile
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   ! define the processor layout information according to the global grid size 
   call get_grid_ntiles('LND',ntiles)

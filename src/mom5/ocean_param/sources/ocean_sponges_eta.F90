@@ -152,7 +152,7 @@ subroutine ocean_sponges_eta_init(Grid, Domain, Time, dtime, Ocean_options)
 
   allocate( Sponge(1) )
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   ! provide for namelist over-ride of default values
 #ifdef INTERNAL_FILE_NML

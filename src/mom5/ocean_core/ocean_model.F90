@@ -771,7 +771,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
 
     call mpp_clock_begin(id_init)
-    call write_version_number()
+    call write_version_number(version, tagname)
 
     write(stdoutunit,'(/54x,a/)') '======== STARTING MOM INITIALIZATION ========'
 

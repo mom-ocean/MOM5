@@ -52,7 +52,7 @@ character(len=32) :: lvltag
 !------- write version number and namelist ---------
 
       if ( mpp_pe() == mpp_root_pe() ) then
-           call write_version_number()
+           call write_version_number(version, tagname)
       endif
    do_init = .false.
 
@@ -141,7 +141,7 @@ integer :: unit, nn, i, j
 !--- write version id to logfile ---
 if (do_init) then
    if (mpp_pe() == mpp_root_pe()) &
-   call write_version_number()
+   call write_version_number(version, tagname)
    do_init = .false.
 
 

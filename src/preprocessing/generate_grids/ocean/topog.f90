@@ -357,7 +357,7 @@ contains
 
     !--- write version info and namelist to logfile ----------------------
 
-    call write_version_number()
+    call write_version_number(version, tagname)
     write (stdout(), nml=topog_nml)
     write (stdout(), nml=obc_nml)
 

@@ -561,7 +561,7 @@ contains
 
     module_is_initialized = .TRUE.
 
-    call write_version_number()
+    call write_version_number(version, tagname)
 
 #ifdef INTERNAL_FILE_NML
 read (input_nml_file, nml=ocean_vert_tidal_test_nml, iostat=io_status)

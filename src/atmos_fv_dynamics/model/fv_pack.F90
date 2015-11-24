@@ -529,7 +529,7 @@ contains
 
      endif !}
 
-    call write_version_number()
+    call write_version_number(version, tagname)
     if ( mpp_pe() == mpp_root_pe() ) then
        log_unit = stdlog()
        write (log_unit, nml=fv_core_nml)

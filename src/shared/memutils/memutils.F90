@@ -1,5 +1,5 @@
 module memutils_mod
-!Author: Balaji (V.Balaji)
+!Author: Balaji (V.Balaji@noaa.gov)
 !Various operations for memory management
 !these currently include efficient methods for memory-to-memory copy
 !including strided data and arbitrary gather-scatter vectors

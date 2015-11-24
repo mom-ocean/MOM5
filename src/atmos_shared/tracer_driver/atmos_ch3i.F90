@@ -100,7 +100,7 @@ subroutine atmos_ch3i_init( lonb_mod, latb_mod, axes, Time, mask )
 !-----------------------------------------------------------------------
 !     ... write version number
 !-----------------------------------------------------------------------
-   call write_version_number()
+   call write_version_number(version, tagname)
 
 !-----------------------------------------------------------------------
 !     ... read namelist

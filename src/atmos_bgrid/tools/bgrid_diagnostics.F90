@@ -342,7 +342,7 @@ subroutine bgrid_diagnostics_init ( Time, Hgrid, Vgrid, Var, &
                              missing_value=-1.e30                      )
 
  !  write version (to log file) 
-    call write_version_number()
+    call write_version_number(version, tagname)
 
  ! register diagnostics for all tracers
    allocate (id_tracer(Var%ntrace))

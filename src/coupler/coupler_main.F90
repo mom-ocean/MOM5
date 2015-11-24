@@ -229,7 +229,7 @@ program coupler_main
 !-----------------------------------------------------------------------
 
   character(len=128) :: version = '$Id: coupler_main.F90,v 20.0 2013/12/13 23:27:07 fms Exp $'
-  character(len=128) :: tag = '$Name: tikal $'
+  character(len=128) :: tagname = '$Name: tikal $'
 
 !-----------------------------------------------------------------------
 !---- model defined-types ----
@@ -830,7 +830,7 @@ contains
     endif
 
 !----- write version to logfile -------
-    call write_version_number()
+    call write_version_number(version, tagname)
 
 !----- read namelist -------
 

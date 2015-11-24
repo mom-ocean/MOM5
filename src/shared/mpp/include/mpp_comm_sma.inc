@@ -1,6 +1,6 @@
 
 ! -*-f90-*-
-! $Id: mpp_comm_sma.inc,v 20.0 2013/12/14 00:24:11 fms Exp $
+! $Id$
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -339,7 +339,7 @@ end subroutine mpp_malloc
       if( .NOT.ANY(from_pe.EQ.peset(current_peset_num)%list) ) &
            call mpp_error( FATAL, 'mpp_broadcast_text: broadcasting from invalid PE.' )
 
-      if( current_clock.NE.0 )call SYSTEM_CLOCK(start_tick)
+      if( debug .and. (current_clock.NE.0) )call SYSTEM_CLOCK(start_tick)
 
       ptr = LOC(mpp_stack)
       words = size(bdata(:))*size(transfer(bdata(1),word))
@@ -365,7 +365,7 @@ end subroutine mpp_malloc
           end do
       end if
 
-      if( current_clock.NE.0 )call increment_current_clock( EVENT_BROADCAST, length )
+      if( debug .and. (current_clock.NE.0) )call increment_current_clock( EVENT_BROADCAST, length )
       return
     end subroutine mpp_broadcast_char
 

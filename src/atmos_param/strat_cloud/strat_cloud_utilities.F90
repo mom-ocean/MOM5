@@ -474,7 +474,7 @@ subroutine strat_cloud_utilities_init
 !------------------------------------------------------------------------
 !    write version number to output file.
 !------------------------------------------------------------------------
-      call write_version_number()
+      call write_version_number(version, tagname)
 
 !------------------------------------------------------------------------
 !    mark this module as initialized.

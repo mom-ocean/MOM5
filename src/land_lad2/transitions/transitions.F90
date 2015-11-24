@@ -142,7 +142,7 @@ subroutine land_transitions_init(id_lon, id_lat)
   if(module_is_initialized) return
 
   call horiz_interp_init
-  call write_version_number()
+  call write_version_number(version, tagname)
 
 #ifdef INTERNAL_FILE_NML
   read (input_nml_file, nml=landuse_nml, iostat=io)

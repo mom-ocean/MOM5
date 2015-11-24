@@ -251,7 +251,7 @@ type(domain1D) :: Domx, Domy
 
 ! write version info to logfile
      if (do_vers) then
-       call write_version_number()
+       call write_version_number(version, tagname)
        do_vers = .false.
      endif
 

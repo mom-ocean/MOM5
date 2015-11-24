@@ -141,7 +141,7 @@ integer :: ierr, io, unit, logunit
     endif
 #endif
 
-call write_version_number()
+call write_version_number(version, tagname)
 if ( mpp_pe() == mpp_root_pe() ) then
   logunit = stdlog()
   write (logunit, nml=grey_radiation_nml)
