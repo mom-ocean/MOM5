@@ -1372,7 +1372,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 ! <DESCRIPTION>
 ! Update in time the ocean model fields. 
 !   This subroutine uses the forcing in Ice_ocean_boundary to advance the
-! ocean model's state from the input value of Ocean_state (which must be for
+! ocean model state from the input value of Ocean_state (which must be for
 ! time time_start_update) for a time interval of Ocean_coupling_time_step,
 ! returning the publicly visible ocean surface properties in Ocean_sfc and
 ! storing the new ocean properties in Ocean_state.
@@ -2616,6 +2616,7 @@ subroutine mom4_get_prog_tracer_index(index, name)
   character(*), intent(in) :: name
   integer                  :: n
   
+  index = -1
   do n= 1, num_prog_tracers
      if (T_prog(n)%name == name) index = n
   enddo
@@ -2638,6 +2639,7 @@ subroutine mom4_get_diag_tracer_index(index, name)
   character(*), intent(in) :: name
   integer                  :: n
   
+  index = -1 
   do n= 1, num_diag_tracers
      if (T_diag(n)%name == name) index = n
   enddo
