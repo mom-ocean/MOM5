@@ -141,7 +141,7 @@ class ModelTestSetup(object):
         frun, run_file = tempfile.mkstemp(dir=self.exp_dir)
         os.write(frun, run_script)
         os.close(frun)
-        os.chmod(run_file, 0755)
+        os.chmod(run_file, 0o755)
 
         # Submit the experiment. This will block until it has finished.
         if qsub:
