@@ -8,7 +8,7 @@ set unit_testing = 0
 set help = 0
 set debug = 0
 
-set argv = (`getopt -u -o h -l type: -l platform: -l help: -l unit_testing -l debug  --  $*`)
+set argv = (`getopt -u -o h -l type: -l platform: -l help -l unit_testing -l debug  --  $*`)
 while ("$argv[1]" != "--")
     switch ($argv[1])
         case --type:
@@ -159,6 +159,7 @@ else if( $type == ACCESS-OM || $type == ACCESS-CM ) then
     set srcList = ( access_coupler )
     set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/$type/lib_ocean" 
     set libs = "$executable:h:h/$type/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
+    setenv OASIS true
 else if( $type == MOM_SIS ) then
     set srcList = ( coupler )
     set includes = "$includes -I$executable:h:h/lib_ice -I$executable:h:h/lib_atmos_null -I$executable:h:h/lib_land_null"
@@ -179,6 +180,9 @@ else if( $type == ICCM ) then
     set srcList = ( coupler )
     set includes = "$includes -I$executable:h:h/lib_ice -I$executable:h:h/lib_atmos_bg -I$executable:h:h/lib_atmos_phys -I$executable:h:h/lib_land_lad" 
     set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_ice/lib_ice.a $executable:h:h/lib_atmos_bg/lib_atmos_bg.a $executable:h:h/lib_atmos_phys/lib_atmos_phys.a $executable:h:h/lib_land_lad/lib_land_lad.a $executable:h:h/lib_FMS/lib_FMS.a"
+else
+    echo "Error: unsupported model type, please see model types in ./MOM_compile.sh --help"
+    exit 1
 endif
 $mkmf_exec -o "$includes" -c "$cppDefs" -l "$libs"  $srcList
 make
