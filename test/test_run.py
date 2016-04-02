@@ -10,9 +10,8 @@ import shutil
 # line type (for example):
 # $ python -c "import test_run ; tc = test_run.TestRun() ; test_run.TestRun.check_run(tc, 'MOM_SIS.om3_core3')"
 #
-# If you are in an interactive qsub job (i.e. do not want the test harness to
-# submit a job, then type:
-# $ python -c "import test_run ; tc = test_run.TestRun() ; test_run.TestRun.check_run(tc, 'om3_core3', qsub=False)"
+# If you want the test harness to submit a job to run the test, then type:
+# $ python -c "import test_run ; tc = test_run.TestRun() ; test_run.TestRun.check_run(tc, 'om3_core3', qsub=True)"
 
 tests = {'om3_core3' : (('MOM_SIS', 'om3_core3'), {'ncpus' : '32', 'npes' : '24'}),
          'om3_core1' : (('MOM_SIS', 'om3_core1'), {'ncpus' : '32', 'npes' : '24'}),
@@ -38,16 +37,13 @@ class TestRun(ModelTestSetup):
     def __init__(self):
         super(TestRun, self).__init__()
 
-    def check_run(self, key, qsub=True):
+    def check_run(self, key, qsub=False):
 
         args = tests[key][0]
         kwargs = tests[key][1]
         kwargs['qsub'] = qsub
 
         print('############ Running {}.{} ############'.format(args[0], args[1]))
-        # Clean out the work directory.
-        if os.path.exists(os.path.join(self.work_dir, key)):
-            shutil.rmtree(os.path.join(self.work_dir, key))
         r, so, se = self.run(*args, **kwargs)
         print(so)
         print(se)
