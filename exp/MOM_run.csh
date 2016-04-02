@@ -212,7 +212,7 @@ if ( $debug ) then
     set runCommand = "$mpirunCommand --debug $npes $executable >fms.out"
 endif
 
-echo "About to run the command $runCommand"
+echo "About to run experiment $name with model $type. The command is: $runCommand"
 
 if ( $valid_npes ) then
     echo "ERROR: This experiment is designed to run on $valid_npes pes. Please specify --npes  $valid_npes "
@@ -324,7 +324,7 @@ end
 unset echo
 
 echo end_of_run
-echo "NOTE: Natural end-of-script."
+echo "NOTE: Natural end-of-script for experiment $name with model $type."
 
 exit 0
 

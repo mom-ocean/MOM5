@@ -4,6 +4,7 @@ from __future__ import print_function
 from model_test_setup import ModelTestSetup
 
 import os
+import sys
 import shutil
 
 # This defines the different tests. To run an individual test on the command
@@ -43,14 +44,13 @@ class TestRun(ModelTestSetup):
         kwargs = tests[key][1]
         kwargs['qsub'] = qsub
 
-        print('############ Running {}.{} ############'.format(args[0], args[1]))
         r, so, se = self.run(*args, **kwargs)
         print(so)
         print(se)
-        if r != 0:
-            print('***** Run {}.{} exited with error {} *****'.format(args[0], args[1], r))
+        sys.stdout.flush()
+
         assert(r == 0)
-        assert('NOTE: Natural end-of-script.' in so)
+        assert('NOTE: Natural end-of-script for experiment {} with model {}.'.format(key, tests[key][0][0]) in so)
 
     def test_experiments(self):
         for k in tests.keys():
