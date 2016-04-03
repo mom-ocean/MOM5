@@ -18,4 +18,4 @@ limit stacksize unlimited
 ./MOM_run.csh --platform nci --type {type} --experiment {exp} {npes} {valgrind}
 """
 
-build_cmd = " ./MOM_compile.csh --platform {platform} --type {type} --unit_testing"
+build_cmd = " ./MOM_compile.csh --platform {platform} --type {type} {unit_testing}"
