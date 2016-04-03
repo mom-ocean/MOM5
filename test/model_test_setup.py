@@ -171,12 +171,18 @@ class ModelTestSetup(object):
         return (ret, stdout, stderr)
 
 
-    def build(self, model_type):
+    def build(self, model_type, unit_testing=True):
 
         os.chdir(self.exp_dir)
 
+        if unit_testing:
+            unit_testing = '--unit_testing'
+        else:
+            unit_testing =''
+
         platform = self.get_platform()
-        build_cmd = plat.build_cmd.format(type=model_type, platform=platform)
+        build_cmd = plat.build_cmd.format(type=model_type, platform=platform,
+                                            unit_testing=unit_testing)
         # Build the model.
         ret = sp.call(shlex.split(build_cmd))
 

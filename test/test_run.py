@@ -50,7 +50,7 @@ class TestRun(ModelTestSetup):
         sys.stdout.flush()
 
         assert(r == 0)
-        assert('NOTE: Natural end-of-script for experiment {} with model {}.'.format(key, tests[key][0][0]) in so)
+        assert('NOTE: Natural end-of-script for experiment {} with model {}'.format(key, tests[key][0][0]) in so)
 
     def test_experiments(self):
         for k in tests.keys():

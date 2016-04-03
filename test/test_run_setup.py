@@ -19,7 +19,7 @@ class TestRunSetup(ModelTestSetup):
         super(TestRunSetup, self).__init__()
 
     def check_build(self, model):
-        ret = self.build(model)
+        ret = self.build(model, unit_testing=False)
         assert(ret == 0)
 
     def check_download_data(self, experiment):

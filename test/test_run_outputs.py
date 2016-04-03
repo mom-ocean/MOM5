@@ -29,7 +29,7 @@ class TestRunOutputs(ModelTestSetup):
         with open(output_filename) as f:
             s = f.read()
 
-        assert('NOTE: Natural end-of-script for experiment {} with model {}.'.format(key, experiments[key][0][0]) in s)
+        assert('NOTE: Natural end-of-script for experiment {} with model {}'.format(key, experiments[key][0][0]) in s)
 
     def test_experiments(self):
         for k in experiments.keys():
