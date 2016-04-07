@@ -584,23 +584,19 @@ real grav2, xli, a, small
 
 !      calculate bnv,fr,g,taub,xn,yn - if n**2>0
 !      -----------------------------------------
-      small = epsilon(ulow)
+           small = epsilon(ulow)
 
-      do j=1,jdim
-        do i=1,idim
-            if (bnv2(i, j) > 0.0) then
-               bnv(i,j) = sqrt(bnv2(i,j))
-               fr (i,j) = bnv(i,j)*hprime(i,j)/(ulow(i,j) + small)
-               g(i,j) = gmax*fr(i,j)*fr(i,j)/(fr(i,j)*fr(i,j)+a*a)
-               taub(i,j) = -rho*xli*ulow(i,j)*ulow(i,j)*ulow(i,j) &
-                                / bnv(i,j)*g(i,j)
-            else
-               bnv(i,j) = 0.0
-               fr (i,j) = 0.0
-               g  (i,j) = 0.0
-            endif
-        enddo
-      enddo
+           where (bnv2(:,:) .gt. 0.0) 
+             bnv(:,:) = sqrt(bnv2(:,:))
+             fr (:,:) = bnv(:,:)*hprime(:,:)/(ulow(:,:) + small)
+             g  (:,:) = gmax*fr(:,:)*fr(:,:)/(fr(:,:)*fr(:,:)+a*a)
+             taub(:,:) = -rho*xli*ulow(:,:)*ulow(:,:)*ulow(:,:) &
+     &                 / bnv(:,:)*g(:,:)
+           elsewhere
+             bnv(:,:) = 0.0
+             fr (:,:) = 0.0
+             g  (:,:) = 0.0
+           endwhere
 
 end subroutine mgwd_base_flux
 
