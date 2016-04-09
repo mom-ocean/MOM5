@@ -20,17 +20,16 @@ CC = mpicc
 REPRO =
 VERBOSE =
 OPT = on
-OASIS = 
 
 MAKEFLAGS += --jobs=4
 
-INCLUDE   = -I$(NETCDF_ROOT)/include 
+INCLUDE   = -I$(NETCDF_ROOT)/include
 
 ifneq ($(OASIS),)
 INCLUDE  += -I$(OASIS_ROOT)/include/psmile.MPI1 \
 			-I$(OASIS_ROOT)/include/pio \
 			-I$(OASIS_ROOT)/include/mct
-endif                
+endif
 
 FPPFLAGS := -fpp -Wp,-w $(INCLUDE)
 FFLAGS := -fno-alias -safe-cray-ptr -fpe0 -ftz -assume byterecl -i4 -r8 -traceback -nowarn -check noarg_temp_created -assume nobuffered_io -convert big_endian -grecord-gcc-switches -align all

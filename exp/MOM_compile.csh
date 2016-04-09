@@ -7,8 +7,9 @@ set type          = MOM_solo    # Type of the experiment
 set unit_testing = 0
 set help = 0
 set debug = 0
+set use_netcdf4 = 0
 
-set argv = (`getopt -u -o h -l type: -l platform: -l help: -l unit_testing -l debug  --  $*`)
+set argv = (`getopt -u -o h -l type: -l platform: -l help -l unit_testing -l debug  --  $*`)
 while ("$argv[1]" != "--")
     switch ($argv[1])
         case --type:
@@ -19,6 +20,8 @@ while ("$argv[1]" != "--")
                 set unit_testing = 1; breaksw
         case --debug:
                 set debug = 1; breaksw
+        case --use_netcdf4:
+                set use_netcdf4 = 1; breaksw
         case --help:
                 set help = 1;  breaksw
         case -h:
@@ -40,6 +43,8 @@ if ( $help ) then
     echo "             ACCESS-OM : ocean component of ACCESS-OM model."
     echo
     echo "--platform   followed by the platform name that has a corresponfing environ file in the ../bin dir, default is gfortran"
+    echo
+    echo "--use_netcdf4  use NetCDF4, the default is NetCDF4. Warning: many of the standard experiments don't work with NetCDF4."
     echo
     exit 1
 endif
@@ -66,9 +71,9 @@ endif
 if ( $type == EBM ) then
     set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DLAND_BND_TRACERS -DOVERLOAD_C8 -DOVERLOAD_C4 -DOVERLOAD_R4" )
 else if( $type == ACCESS-OM ) then
-    set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DACCESS" )
+    set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DACCESS" )
 else if( $type == ACCESS-CM ) then
-    set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DACCESS -DACCESS_CM" )
+    set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DACCESS -DACCESS_CM" )
 endif
 
 if ( $unit_testing ) then
@@ -78,6 +83,11 @@ endif
 
 if ( $debug ) then
     setenv DEBUG true
+endif
+
+if ( $use_netcdf4 ) then
+    set cppDefs = `echo $cppDefs | sed -e 's/-Duse_netCDF3//g'`
+    set cppDefs = "$cppDefs -Duse_netCDF4"
 endif
 
 #
@@ -159,6 +169,7 @@ else if( $type == ACCESS-OM || $type == ACCESS-CM ) then
     set srcList = ( access_coupler )
     set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/$type/lib_ocean" 
     set libs = "$executable:h:h/$type/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
+    setenv OASIS true
 else if( $type == MOM_SIS ) then
     set srcList = ( coupler )
     set includes = "$includes -I$executable:h:h/lib_ice -I$executable:h:h/lib_atmos_null -I$executable:h:h/lib_land_null"
@@ -179,6 +190,9 @@ else if( $type == ICCM ) then
     set srcList = ( coupler )
     set includes = "$includes -I$executable:h:h/lib_ice -I$executable:h:h/lib_atmos_bg -I$executable:h:h/lib_atmos_phys -I$executable:h:h/lib_land_lad" 
     set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_ice/lib_ice.a $executable:h:h/lib_atmos_bg/lib_atmos_bg.a $executable:h:h/lib_atmos_phys/lib_atmos_phys.a $executable:h:h/lib_land_lad/lib_land_lad.a $executable:h:h/lib_FMS/lib_FMS.a"
+else
+    echo "Error: unsupported model type, please see model types in ./MOM_compile.sh --help"
+    exit 1
 endif
 $mkmf_exec -o "$includes" -c "$cppDefs" -l "$libs"  $srcList
 make
