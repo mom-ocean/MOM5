@@ -47,7 +47,7 @@ public   surf_diff_type
 
 !-----------------------------------------------------------------------
 character(len=128) :: version = '$Id: bgrid_physics.F90,v 19.0.2.1 2013/12/18 23:34:26 Niki.Zadeh Exp $'
-character(len=128) :: tag = '$Name:  $'
+character(len=128) :: tagname = '$Name:  $'
 !-----------------------------------------------------------------------
 
 real, allocatable, dimension(:,:,:) :: u_dt, v_dt

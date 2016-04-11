@@ -51,7 +51,7 @@ namelist /bgrid_cold_start_nml/ nlon, nlat, nlev, pref, tref, &
 !-----------------------------------------------------------------------
 
 character(len=128) :: version = '$Id: bgrid_cold_start.F90,v 19.0 2012/01/06 19:54:36 fms Exp $'
-character(len=128) :: tag = '$Name: tikal $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 !-----------------------------------------------------------------------
 
