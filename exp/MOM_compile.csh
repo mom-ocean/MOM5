@@ -9,7 +9,7 @@ set help = 0
 set debug = 0
 set use_netcdf4 = 0
 
-set argv = (`getopt -u -o h -l type: -l platform: -l help -l unit_testing -l debug  --  $*`)
+set argv = (`getopt -u -o h -l type: -l platform: -l help -l unit_testing -l debug -l use_netcdf4 --  $*`)
 while ("$argv[1]" != "--")
     switch ($argv[1])
         case --type:
