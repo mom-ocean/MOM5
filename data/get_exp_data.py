@@ -9,23 +9,6 @@ import argparse
 import tempfile
 import subprocess as sp
 
-base_url = 'https://climate-cms.nci.org.au/repository/entry/{}/Data+Repository/Other+Data+at+NCI/MOM+Test+Data/'
-
-def get_file_list(verbose=False):
-
-    tmp_f = tempfile.NamedTemporaryFile()
-
-    out = sp.check_output(['wget', '-O', tmp_f.name, base_url.format('show')],
-                          stderr=sp.STDOUT)
-    if verbose:
-        print(out, file=sys.stderr)
-
-    filenames = re.findall('MOM Test Data/(.+?\.tar\.gz)', tmp_f.read())
-    tmp_f.close()
-    assert(filenames != [])
-
-    return filenames
-
 def main():
 
     parser = argparse.ArgumentParser()
@@ -33,14 +16,24 @@ def main():
                         Name of the file to get.""")
     parser.add_argument('--list', action='store_true', default=False,
                         help="List all available files.")
+    parser.add_argument('--sources', default='./data_sources.txt',
+                        help='File specifying the source of each data file.')
     parser.add_argument('--verbose', action='store_true', default=False,
                         help='Verbose output')
 
     args = parser.parse_args()
 
+    src_dict = {}
+
+    # Read in the sources and convert to a dictionary.
+    with open(args.sources) as sf:
+        for line in sf:
+            filename = (line.split(',')[0]).strip()
+            url = (line.split(',')[1]).strip()
+            src_dict[filename] = url
+
     if args.list:
-        available_files = get_file_list(args.verbose)
-        print('\n'.join(available_files))
+        print('\n'.join(src_dict.keys()))
         return 0
 
     if args.filename is None:
@@ -51,7 +44,6 @@ def main():
     my_dir = os.path.dirname(os.path.realpath(__file__))
     dest_dir = os.path.join(my_dir, 'archives')
     dest = os.path.join(dest_dir, args.filename)
-    src = base_url.format('get') + args.filename
 
     if not os.path.exists(dest_dir):
         os.mkdir(dest_dir)
@@ -60,7 +52,7 @@ def main():
         print('Error: destination {} already exists.'.format(dest))
         return 1
 
-    ret = sp.call(['wget', '-P', dest_dir, src])
+    ret = sp.call(['wget', '-P', dest_dir, src_dict[args.filename]])
     if ret != 0:
         print('Error: wget of {} failed. Does it exist?'.format(args.filename),
               file=sys.stderr)
