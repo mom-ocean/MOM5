@@ -16,7 +16,7 @@ def main():
                         Name of the file to get.""")
     parser.add_argument('--list', action='store_true', default=False,
                         help="List all available files.")
-    parser.add_argument('--sources', default='./data_sources.txt',
+    parser.add_argument('--sources', default=None,
                         help='File specifying the source of each data file.')
     parser.add_argument('--verbose', action='store_true', default=False,
                         help='Verbose output')
@@ -24,6 +24,10 @@ def main():
     args = parser.parse_args()
 
     src_dict = {}
+
+    if args.sources is None:
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        args.sources = os.path.join(dir_path, 'data_sources.txt')
 
     # Read in the sources and convert to a dictionary.
     with open(args.sources) as sf:
