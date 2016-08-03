@@ -56,7 +56,7 @@ def main():
         print('Error: destination {} already exists.'.format(dest))
         return 1
 
-    ret = sp.call(['wget', '-P', dest_dir, src_dict[args.filename]])
+    ret = sp.call(['wget', '--quiet', '-P', dest_dir, src_dict[args.filename]])
     if ret != 0:
         print('Error: wget of {} failed. Does it exist?'.format(args.filename),
               file=sys.stderr)
