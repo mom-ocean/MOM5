@@ -154,7 +154,7 @@ subroutine ocean_nphysics_init(Grid, Domain, Time, Time_steps, Thickness, Dens, 
 
   module_is_initialized = .TRUE.
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   Dom => Domain
   Grd => Grid

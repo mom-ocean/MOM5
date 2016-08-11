@@ -107,7 +107,7 @@ real, allocatable, dimension(:,:) :: perturbation
     enddo
 20  call close_file (unit)
 #endif
-call write_version_number()
+call write_version_number(version, tagname)
 if(mpp_pe() == mpp_root_pe()) write (stdlog(), nml=jablonowski_2006_nml)
 
 call compute_vert_coord(vert_coord_option, scale_heights, surf_res, exponent, p_press, p_sigma, sea_level_press, pk, bk)

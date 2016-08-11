@@ -107,7 +107,7 @@ contains
     endif
 
     !--- write version information
-    call write_version_number()
+    call write_version_number(version, tagname)
 
   end subroutine grid_transfer_init
 

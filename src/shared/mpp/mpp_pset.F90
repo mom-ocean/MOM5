@@ -1,7 +1,7 @@
 ! module within MPP for handling PSETs:
 ! PSET: Persistent Shared-memory Execution Thread
 !
-! AUTHOR: V. Balaji (v.balaji)
+! AUTHOR: V. Balaji (v.balaji@noaa.gov)
 ! DATE: 2006-01-15
 #include <fms_platform.h>
 #ifdef test_mpp_pset

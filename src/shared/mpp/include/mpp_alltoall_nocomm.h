@@ -1,7 +1,8 @@
-subroutine MPP_ALLTOALL_(sbuf, rbuf, pelist)
+subroutine MPP_ALLTOALL_(sbuf, scount, rbuf, rcount, pelist)
 
     MPP_TYPE_, dimension(:), intent(in) :: sbuf
     MPP_TYPE_, dimension(:), intent(inout) :: rbuf
+    integer,   intent(in) :: scount, rcount
 
     integer, intent(in), optional :: pelist(0:)
 

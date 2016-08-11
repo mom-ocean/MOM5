@@ -1,9 +1,10 @@
                       module astronomy_mod
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="Fei.Liu@noaa.gov">
 !  fil
 ! </CONTACT>
 ! <REVIEWER EMAIL="">
 ! </REVIEWER>
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 ! <OVERVIEW>
 !    astronomy_mod provides astronomical variables for use
 !    by other modules within fms. the only currently used interface is 
@@ -45,8 +46,8 @@ private
 !---------------------------------------------------------------------
 !----------- version number for this module --------------------------
 
-character(len=128)  :: version =  '$Id: astronomy.F90,v 20.0 2013/12/14 00:18:17 fms Exp $'
-character(len=128)  :: tagname =  '$Name: tikal $'
+character(len=128)  :: version =  '$Id$'
+character(len=128)  :: tagname =  '$Name$'
 
 
 !---------------------------------------------------------------------
@@ -287,7 +288,7 @@ real,   dimension(:,:), intent(in), optional   :: lonb
 !---------------------------------------------------------------------
 !    write version number and namelist to logfile.
 !---------------------------------------------------------------------
-      call write_version_number()
+      call write_version_number (version, tagname)
       if (mpp_pe() == mpp_root_pe() ) then
         unit = stdlog()
         write (unit, nml=astronomy_nml)
@@ -2988,9 +2989,9 @@ subroutine astronomy_end
 !----------------------------------------------------------------------
 !    check if the module has been initialized.
 !----------------------------------------------------------------------
-      if (.not. module_is_initialized)   &
-                call error_mesg ( 'astronomy_mod',  &
-                         ' module has not been initialized', FATAL)
+      if (.not. module_is_initialized)  return 
+!                call error_mesg ( 'astronomy_mod',  &
+!                         ' module has not been initialized', FATAL)
 
 !----------------------------------------------------------------------
 !    deallocate module variables.
@@ -3152,7 +3153,7 @@ real, intent(in) :: ang
 !    its square (r_inv_squared) to the calling routine.
 !--------------------------------------------------------------------
       rad_per       = per*deg_to_rad
-      r             = (1 - ecc**2)/(1. + ecc*cos(ang - rad_per))
+      r             = (1. - ecc**2)/(1. + ecc*cos(ang - rad_per))
       r_inv_squared = r**(-2)
 
 

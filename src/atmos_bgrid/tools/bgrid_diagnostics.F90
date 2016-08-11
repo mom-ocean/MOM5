@@ -66,7 +66,7 @@ real, pointer, dimension(:,:) :: zsurfg
 !-----------------------------------------------------------------------
 
  character(len=128) :: version = '$Id: bgrid_diagnostics.F90,v 19.0 2012/01/06 19:54:38 fms Exp $'
- character(len=128) :: tag = '$Name: tikal $'
+ character(len=128) :: tagname = '$Name: tikal $'
 
 !-----------------------------------------------------------------------
 
@@ -342,7 +342,7 @@ subroutine bgrid_diagnostics_init ( Time, Hgrid, Vgrid, Var, &
                              missing_value=-1.e30                      )
 
  !  write version (to log file) 
-    call write_version_number()
+    call write_version_number(version, tagname)
 
  ! register diagnostics for all tracers
    allocate (id_tracer(Var%ntrace))

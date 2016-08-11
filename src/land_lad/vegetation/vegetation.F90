@@ -247,7 +247,7 @@ subroutine vegetation_init &
   call get_restart_io_mode(do_netcdf_restart)
 
 ! write version and tag information to logfile
-  call write_version_number() 
+  call write_version_number(version, tagname) 
   !  write the namelist to a log file
   if( mpp_pe()==0 ) then
      unit = stdlog( )

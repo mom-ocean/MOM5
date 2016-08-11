@@ -571,7 +571,7 @@ subroutine ocean_vert_kpp_test_init (Grid, Domain, Time, Time_steps, Dens, T_pro
   inv_rho_cp = 1.0/rho_cp 
   horz_grid  = hor_grid
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   ! provide for namelist over-ride of defaults 
 #ifdef INTERNAL_FILE_NML

@@ -119,7 +119,7 @@ contains
 
 !----- write version and namelist to log file -----
 
-    call write_version_number()
+    call write_version_number(version, tagname)
     if ( mpp_pe() == mpp_root_pe() ) then
        log_unit = stdlog()
        write (log_unit, nml=atmosphere_nml)

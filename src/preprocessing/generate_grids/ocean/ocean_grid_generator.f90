@@ -95,7 +95,7 @@ program ocean_grid_generator
      call mpp_error(FATAL,'ocean_grid_generator: file input.nml does not exist')
   endif
 
-  call write_version_number()
+  call write_version_number(version, tagname)
   if (mpp_pe() == mpp_root_pe()) write(stdout(), nml=ocean_grid_generator_nml)
 
   !--- generate data ---------------------------------------------------

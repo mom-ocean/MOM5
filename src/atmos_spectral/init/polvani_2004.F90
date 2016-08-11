@@ -102,7 +102,7 @@ do while (ierr /= 0)
   ierr = check_nml_error (io, 'polvani_2004_nml')
 enddo
 20 call close_file (unit)
-call write_version_number()
+call write_version_number(version, tagname)
 if(mpp_pe() == mpp_root_pe()) write (stdlog(), nml=polvani_2004_nml)
 
 T_standard(1) = 288.15

@@ -120,7 +120,7 @@ integer :: m,n
 
 if(module_is_initialized) return
 
-call write_version_number()
+call write_version_number(version, tagname)
 
 call get_spec_domain(ms, me, ns, ne)
 

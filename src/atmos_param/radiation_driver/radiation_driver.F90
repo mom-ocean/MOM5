@@ -1212,7 +1212,7 @@ integer,                         intent(out) :: ncol
 !---------------------------------------------------------------------
 !    write version number and namelist to logfile.
 !---------------------------------------------------------------------
-      call write_version_number()
+      call write_version_number(version, tagname)
       logunit = stdlog()
       if (mpp_pe() == mpp_root_pe() ) &
            write (logunit, nml=radiation_driver_nml)

@@ -34,8 +34,8 @@ private
 !----------- ****** VERSION NUMBER ******* ---------------------------
 
 
-character(len=128)  :: version =  '$Id: column_diagnostics.F90,v 20.0 2013/12/14 00:18:24 fms Exp $'
-character(len=128)  :: tag     =  '$Name: tikal $'
+character(len=128)  :: version =  '$Id$'
+character(len=128)  :: tag     =  '$Name$'
 
 
 
@@ -145,7 +145,7 @@ subroutine column_diagnostics_init
 !---------------------------------------------------------------------
 !    write version number and namelist to logfile.
 !---------------------------------------------------------------------
-      call write_version_number()
+      call write_version_number (version, tag)
       if (mpp_pe() == mpp_root_pe())    then
                     unit = stdlog()
                     write (unit, nml=column_diagnostics_nml)

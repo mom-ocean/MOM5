@@ -56,7 +56,7 @@ public  atmosphere,      &
 !-----------------------------------------------------------------------
 
 character(len=128) :: version = '$Id: atmosphere.F90,v 14.0 2007/03/15 21:56:36 fms Exp $'
-character(len=128) :: tag = '$Name: tikal $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 !-----------------------------------------------------------------------
 !---- namelist (saved in file input.nml) ----
@@ -136,7 +136,7 @@ contains
 
 !----- write version and namelist to log file -----
 
-    call write_version_number()
+    call write_version_number(version, tagname)
     if ( mpp_pe() == mpp_root_pe() ) write (stdlog(), nml=atmosphere_nml)
 
 !---- compute physics/atmos time step in seconds ----

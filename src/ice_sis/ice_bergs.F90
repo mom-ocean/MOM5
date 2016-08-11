@@ -2579,7 +2579,7 @@ integer :: stdlogunit, stderrunit
   if (really_debug) debug=.true. ! One implies the other...
 
 ! Log version and parameters
-  call write_version_number()
+  call write_version_number(version, tagname)
   write (stdlogunit, icebergs_nml)
 
   if( reproduce_siena ) then

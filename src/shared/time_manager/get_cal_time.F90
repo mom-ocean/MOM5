@@ -1,6 +1,6 @@
 module get_cal_time_mod
 
-!   <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+!   <CONTACT EMAIL="fms@gfdl.noaa.gov">
 !     fms
 !   </CONTACT>
 !   <OVERVIEW>
@@ -36,11 +36,11 @@ logical :: module_is_initialized=.false. ! This module is initialized on
 
 logical :: allow_calendar_conversion=.true.
 
-namelist /get_cal_time_nml/ allow_calendar_conversion
+namelist / get_cal_time_nml / allow_calendar_conversion
 ! </NAMELIST>
 
-character(len=128) :: version='$Id: get_cal_time.F90,v 20.0 2013/12/14 00:28:11 fms Exp $'
-character(len=128) :: tagname='$Name: tikal $'
+character(len=128) :: version='$Id$'
+character(len=128) :: tagname='$Name$'
 
 contains
 !------------------------------------------------------------------------
@@ -178,7 +178,7 @@ if(.not.module_is_initialized) then
   20 call close_file (namelist_unit)
 #endif
 
-  call write_version_number()
+  call write_version_number (version, tagname)
   logunit = stdlog()
   if(mpp_pe() == mpp_root_pe()) write (logunit, nml=get_cal_time_nml)
   module_is_initialized = .true.

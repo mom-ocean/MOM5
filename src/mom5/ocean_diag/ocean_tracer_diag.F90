@@ -427,7 +427,7 @@ contains
     num_prog_tracers = size(T_prog,1)
     num_diag_tracers = size(T_diag,1)
 
-    call write_version_number()
+    call write_version_number(version, tagname)
 
 #ifdef INTERNAL_FILE_NML
 read (input_nml_file, nml=ocean_tracer_diag_nml, iostat=io_status)

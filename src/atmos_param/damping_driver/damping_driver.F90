@@ -348,7 +348,7 @@ contains
    endif
 #endif
 
-   call write_version_number()
+   call write_version_number(version, tagname)
    logunit = stdlog()
    if(mpp_pe() == mpp_root_pe() ) then
         write (logunit,nml=damping_driver_nml)

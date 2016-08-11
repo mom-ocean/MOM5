@@ -257,7 +257,7 @@ contains
     module_is_initialized = .TRUE.
     vert_coordinate = ver_coordinate
 
-    call write_version_number()
+    call write_version_number(version, tagname)
 
 #ifdef INTERNAL_FILE_NML
     read (input_nml_file, nml=ocean_shortwave_jerlov_nml, iostat=io_status)

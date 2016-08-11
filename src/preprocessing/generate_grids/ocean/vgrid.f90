@@ -183,7 +183,7 @@ contains
 
     !--- write version info and namelist to logfile ----------------------
 
-    call write_version_number()
+    call write_version_number(version, tagname)
     if (mpp_pe() == mpp_root_pe()) then
        write (stdout(), nml=vgrid_nml)
     endif

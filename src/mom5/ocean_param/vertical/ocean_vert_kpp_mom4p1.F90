@@ -562,7 +562,7 @@ subroutine ocean_vert_kpp_mom4p1_init (Grid, Domain, Time, Time_steps, Dens, T_p
   rho_cp     = rho0*cp_ocean 
   inv_rho_cp = 1.0/rho_cp 
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   ! provide for namelist over-ride of defaults 
 #ifdef INTERNAL_FILE_NML

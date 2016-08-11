@@ -38,7 +38,7 @@ real, dimension(0:num_fourier*fourier_inc) :: b
 real, dimension(n_lat) :: cos_lat
 
 if(.not.entry_to_logfile_done) then
-  call write_version_number()
+  call write_version_number(version, tagname)
   entry_to_logfile_done=.true.
 endif
 
@@ -105,7 +105,7 @@ integer :: i, iter, j, n, nprec
 real :: pp, p1, p2, p3, z, z1
 
 if(.not.entry_to_logfile_done) then
-  call write_version_number()
+  call write_version_number(version, tagname)
   entry_to_logfile_done=.true.
 endif
 

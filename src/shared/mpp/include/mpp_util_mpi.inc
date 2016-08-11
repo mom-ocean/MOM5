@@ -1,5 +1,5 @@
 ! -*-f90-*-
-! $Id: mpp_util_mpi.inc,v 20.0 2013/12/14 00:27:37 fms Exp $
+! $Id$
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                             !
@@ -29,7 +29,7 @@ subroutine mpp_error_basic( errortype, errormsg )
      text = 'WARNING: non-existent errortype (must be NOTE|WARNING|FATAL)'
   end select
 
-  if( npes.GT.1 )write( text,'(a,i5)' )trim(text)//' from PE', pe   !this is the mpp part
+  if( npes.GT.1 )write( text,'(a,i6)' )trim(text)//' from PE', pe   !this is the mpp part
   if( PRESENT(errormsg) )text = trim(text)//': '//trim(errormsg)
 
   out_unit = stdout()
@@ -144,7 +144,7 @@ subroutine mpp_sync( pelist, do_self )
 
   n = get_peset(pelist); if( peset(n)%count.EQ.1 )return
 
-  if( current_clock.NE.0 )call SYSTEM_CLOCK(start_tick)
+  if( debug .and. (current_clock.NE.0) )call SYSTEM_CLOCK(start_tick)
 #ifdef use_MPI_SMA
   if( n.EQ.world_peset_num )then
      call SHMEM_BARRIER_ALL() !special call is faster
@@ -155,7 +155,7 @@ subroutine mpp_sync( pelist, do_self )
   call MPI_BARRIER( peset(n)%id, error )
 #endif
 
-  if( current_clock.NE.0 )call increment_current_clock(EVENT_WAIT)
+  if( debug .and. (current_clock.NE.0) )call increment_current_clock(EVENT_WAIT)
 
   return
 end subroutine mpp_sync
@@ -173,7 +173,7 @@ subroutine mpp_sync_self( pelist, check, request, msg_size, msg_type)
 
   integer                       :: i, m, n, stride, my_check, rsize
 
-  if( current_clock.NE.0 )call SYSTEM_CLOCK(start_tick)
+  if( debug .and. (current_clock.NE.0) )call SYSTEM_CLOCK(start_tick)
   my_check = EVENT_SEND
   if(present(check)) my_check = check
   if( my_check .NE. EVENT_SEND .AND. my_check .NE. EVENT_RECV ) then
@@ -230,7 +230,7 @@ subroutine mpp_sync_self( pelist, check, request, msg_size, msg_type)
         cur_recv_request = 0
      end select 
   endif
-  if( current_clock.NE.0 )call increment_current_clock(EVENT_WAIT)
+  if( debug .and. (current_clock.NE.0) )call increment_current_clock(EVENT_WAIT)
   return
 end subroutine mpp_sync_self
 

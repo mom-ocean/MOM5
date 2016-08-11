@@ -67,7 +67,7 @@ contains ! ###################################################################
 subroutine vegn_harvesting_init
   integer :: unit, ierr, io
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
 #ifdef INTERNAL_FILE_NML
   read (input_nml_file, nml=harvesting_nml, iostat=io)

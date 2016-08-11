@@ -1,9 +1,10 @@
 module time_manager_mod
 
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="fms@gfdl.noaa.gov">
 !   fms
 ! </CONTACT>
 
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
 ! <OVERVIEW>
 !   A software package that provides a set of simple interfaces for
@@ -179,8 +180,8 @@ end interface
 
 !======================================================================
 
-character(len=128) :: version='$Id: time_manager.F90,v 20.0 2013/12/14 00:28:14 fms Exp $'
-character(len=128) :: tagname='$Name: tikal $'
+character(len=128) :: version='$Id$'
+character(len=128) :: tagname='$Name$'
 logical :: module_is_initialized = .false.
 
 !======================================================================
@@ -3089,7 +3090,7 @@ subroutine time_manager_init ( )
 
   if (module_is_initialized) return  ! silent return if already called
 
-  call write_version_number()
+  call write_version_number (version, tagname)
   module_is_initialized = .true.
 
 end subroutine time_manager_init

@@ -336,7 +336,7 @@ contains
 !========Option for deep convection=======================================
     end if
 #endif
-    call write_version_number()
+    call write_version_number(version, tagname)
     logunit = stdlog()
     WRITE( logunit, nml = uw_closure_nml )
     WRITE( logunit, nml = uw_conv_nml )

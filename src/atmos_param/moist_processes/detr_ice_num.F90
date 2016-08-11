@@ -73,7 +73,7 @@ SUBROUTINE detr_ice_num_init
 
 !--------- write version and namelist to standard log ------------
 
-        call write_version_number()
+        call write_version_number(version, tagname)
         logunit = stdlog()
         if ( mpp_pe() == mpp_root_pe() ) &
                       write ( logunit, nml=detr_ice_num_nml )

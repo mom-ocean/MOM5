@@ -1,7 +1,9 @@
-subroutine MPP_ALLTOALL_(sbuf, rbuf, pelist)
+subroutine MPP_ALLTOALL_(sbuf, scount, rbuf, rcount, pelist)
 
     MPP_TYPE_, intent(in) :: sbuf(:)
     MPP_TYPE_, intent(inout) :: rbuf(:)
+    integer,   intent(in) :: scount, rcount
+   
 
     integer, intent(in), optional :: pelist(0:)
     integer :: n
@@ -17,7 +19,7 @@ subroutine MPP_ALLTOALL_(sbuf, rbuf, pelist)
     if (verbose) call mpp_error(NOTE, 'MPP_ALLTOALL_: using MPI_Alltoall...')
 
     ! TODO: Message lengths greater than 1
-    call MPI_Alltoall(sbuf, 1, MPI_TYPE_, rbuf, 1, MPI_TYPE_, &
+    call MPI_Alltoall(sbuf, scount, MPI_TYPE_, rbuf, rcount, MPI_TYPE_, &
                       peset(n)%id, error)
 
     if (current_clock .NE. 0) &

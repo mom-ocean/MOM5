@@ -736,7 +736,7 @@ subroutine surface_flux_init
 #endif
 
   ! write version number
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   unit = stdlog()
   if ( mpp_pe() == mpp_root_pe() )  write (unit, nml=surface_flux_nml)

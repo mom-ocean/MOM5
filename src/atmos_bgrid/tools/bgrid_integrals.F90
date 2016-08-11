@@ -119,7 +119,7 @@ end interface
    logical :: do_decomp_check = .true.
 
    character(len=128) :: version = '$Id: bgrid_integrals.F90,v 19.0 2012/01/06 19:55:13 fms Exp $'
-   character(len=128) :: tag = '$Name: tikal $'
+   character(len=128) :: tagname = '$Name: tikal $'
 
    character(len=256) :: frmat   ! format used for standard intergals
 
@@ -431,7 +431,7 @@ contains
 #endif
       endif
 
-      call write_version_number()
+      call write_version_number(version, tagname)
       logunit = stdlog()
       if (mpp_pe() == mpp_root_pe()) write (logunit, nml=bgrid_integrals_nml)
       do_init = .false. 

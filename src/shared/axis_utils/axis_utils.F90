@@ -1,8 +1,8 @@
 module axis_utils_mod
   !
-  !<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">M.J. Harrison</CONTACT>
+  !<CONTACT EMAIL="Matthew.Harrison@noaa.gov">M.J. Harrison</CONTACT>
   !
-  !<REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov">Bruce Wyman</REVIEWER>
+  !<REVIEWER EMAIL="Bruce.Wyman@noaa.gov">Bruce Wyman</REVIEWER>
   !
 
   !<OVERVIEW>
@@ -27,9 +27,9 @@ module axis_utils_mod
   use mpp_io_mod, only: axistype, atttype, default_axis, default_att,         &
                         mpp_get_atts, mpp_get_axis_data, mpp_modify_meta,     &
                         mpp_get_att_name, mpp_get_att_type, mpp_get_att_char, &
-                        mpp_get_att_length
+                        mpp_get_att_length, mpp_get_axis_bounds
   use mpp_mod,    only: mpp_error, FATAL, stdout
-  use fms_mod,    only: lowercase, string_array_index  
+  use fms_mod,    only: lowercase, string_array_index, fms_error_handler
 
   implicit none
 
@@ -43,8 +43,8 @@ module axis_utils_mod
   integer, parameter :: maxatts = 100
   real, parameter    :: epsln= 1.e-10
   real, parameter    :: fp5 = 0.5, f360 = 360.0
-  character(len=256) :: version = '$Id: axis_utils.F90,v 20.0 2013/12/14 00:18:21 fms Exp $'
-  character(len=256) :: tagname = '$Name: tikal $'   
+  character(len=256) :: version = '$Id$'
+  character(len=256) :: tagname = '$Name$'   
 
   interface interp_1d
      module procedure interp_1d_1d
@@ -125,52 +125,39 @@ contains
   end subroutine get_axis_cart
 
 
-  subroutine get_axis_bounds(axis,axis_bound,axes)
+  subroutine get_axis_bounds(axis,axis_bound,axes,bnd_name,err_msg)
 
     type(axistype), intent(in) :: axis
     type(axistype), intent(inout) :: axis_bound
     type(axistype), intent(in), dimension(:) :: axes
+    character(len=*), intent(out), optional :: bnd_name, err_msg
 
-    type(atttype), dimension(:), allocatable :: att
     real, dimension(:), allocatable :: data, tmp
 
     integer :: i, len
-    character(len=128) :: bounds_name = 'none', name, units
+    character(len=128) :: name, units
     character(len=256) :: longname
     character(len=1) :: cartesian
+    logical :: bounds_found
 
+    if(present(err_msg)) then
+      err_msg = ''
+    endif
     axis_bound = default_axis
-    allocate(att(maxatts))
-    att = default_att
-    call mpp_get_atts(axis,atts=att)
+    call mpp_get_atts(axis,units=units,longname=longname,&
+            cartesian=cartesian, len=len)
+    if(len .LE. 0) return
+    allocate(data(len+1))
 
-    do i=1,maxatts
-       if (mpp_get_att_type(att(i)) == NF_CHAR) then
-          !            if (str_contains(att(i)%name,'bounds') .or. str_contains(att(i)%name,'edge')) then
-          if (string_array_index('bounds',(/mpp_get_att_name(att(i))/)) .or. &
-              string_array_index('edge',(/mpp_get_att_name(att(i))/))) then
-             bounds_name = mpp_get_att_char(att(i))
-          endif
-       endif
-    enddo
+    bounds_found = mpp_get_axis_bounds(axis, data, name=name)
+    longname = trim(longname)//' bounds'
 
-    if (trim(bounds_name) /= 'none') then
-       do i=1,size(axes(:))
-          call mpp_get_atts(axes(i),name=name)
-          if (lowercase(trim(name)) == lowercase(trim(bounds_name))) then
-             axis_bound = axes(i)
-          endif
-       enddo
-       call mpp_get_atts(axis_bound,len=len)
-       if (len < 1) call mpp_error(FATAL,'error locating boundary axis for '//bounds_name)
-    else
-       call mpp_get_atts(axis,name=name,units=units,longname=longname,&
-            cartesian=cartesian,len=len)
+    if(.not.bounds_found .and. len>1 ) then
+       ! The following calculation can not be done for len=1
+       call mpp_get_atts(axis,name=name)
        name = trim(name)//'_bounds'
-       longname = trim(longname)//' bounds'
        allocate(tmp(len))
        call mpp_get_axis_data(axis,tmp)
-       allocate(data(len+1))
        do i=2,len
           data(i)= tmp(i-1)+fp5*(tmp(i)-tmp(i-1))
        enddo
@@ -180,11 +167,13 @@ contains
        if (data(1) == 0.0) then
           if (abs(data(len+1)-360.) > epsln) data(len+1)=360.0
        endif
-       call mpp_modify_meta(axis_bound,name=name,units=units,longname=&
-            longname,cartesian=cartesian,data=data)
-       deallocate(tmp)
-       deallocate(data)
     endif
+    if(bounds_found .OR. len>1) then
+       call mpp_modify_meta(axis_bound,name=name,units=units,longname=&
+                 longname,cartesian=cartesian,data=data)
+    endif
+    if(allocated(tmp)) deallocate(tmp)
+    deallocate(data)
 
     return
   end subroutine get_axis_bounds
@@ -621,7 +610,7 @@ contains
        h   = grid1(khi)-grid1(klo)
        a   = (grid1(khi) - grid2(k))/h
        b   = (grid2(k) - grid1(klo))/h
-       data2(k) = a*data1(klo) + b*data1(khi)+ ((a**3-a)*y2(klo) + (b**3-b)*y2(khi))*(h**2)/6
+       data2(k) = a*data1(klo) + b*data1(khi)+ ((a**3-a)*y2(klo) + (b**3-b)*y2(khi))*(h**2)/6.
     enddo
 
   end subroutine interp_1d_cubic_spline

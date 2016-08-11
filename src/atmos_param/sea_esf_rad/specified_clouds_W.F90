@@ -170,7 +170,7 @@ real, dimension(:,:), intent(in) :: lonb, latb
 !------- write version number and namelist ---------
 
       if ( mpp_pe() == mpp_root_pe() ) then
-        call write_version_number()
+        call write_version_number(version, tagname)
         logunit = stdlog()
         write (logunit,nml=specified_clouds_W_nml)
       endif

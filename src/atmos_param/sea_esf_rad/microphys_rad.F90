@@ -544,7 +544,7 @@ real, dimension(:,:),    intent(in)    ::  lonb, latb
 !---------------------------------------------------------------------
 !    write namelist and version number to logfile.
 !---------------------------------------------------------------------
-      call write_version_number()
+      call write_version_number(version, tagname)
       logunit = stdlog()
       if (mpp_pe() == mpp_root_pe() )    &
                       write (logunit, nml=microphys_rad_nml)

@@ -1026,7 +1026,7 @@ endif
 
 module_is_initialized = .true.
 
-call write_version_number()
+call write_version_number(version, tagname)
 
 end subroutine interpolator_init
 

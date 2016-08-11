@@ -56,7 +56,7 @@ real :: total_degrees
 
 if(module_is_initialized) return
 
-call write_version_number()
+call write_version_number(version, tagname)
 
 if(mod(num_lon_in,2) .ne. 0) then
   write(chtmp,'(i8)') num_lon_in

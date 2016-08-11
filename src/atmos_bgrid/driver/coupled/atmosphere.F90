@@ -65,7 +65,7 @@ public  surf_diff_type,      get_stock_pe
 !-----------------------------------------------------------------------
 
 character(len=128) :: version = '$Id: atmosphere.F90,v 19.0 2012/01/06 19:52:46 fms Exp $'
-character(len=128) :: tag = '$Name: tikal $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 !-----------------------------------------------------------------------
 !---- namelist (saved in file input.nml) ----
@@ -248,7 +248,7 @@ contains
 
 !----- write version and namelist to log file -----
 
-    call write_version_number()
+    call write_version_number(version, tagname)
     logunit = stdlog()
     if ( mpp_pe() == mpp_root_pe() ) write (logunit, nml=atmosphere_nml)
 

@@ -92,7 +92,7 @@ integer :: unit, ierr, io
     enddo
 20  call close_file (unit)
 #endif
-call write_version_number()
+call write_version_number(version, tagname)
 if(mpp_pe() == mpp_root_pe()) write (stdlog(), nml=spectral_init_cond_nml)
 
 call compute_vert_coord(vert_coord_option, scale_heights, surf_res, exponent, p_press, p_sigma, reference_sea_level_press, pk,bk)

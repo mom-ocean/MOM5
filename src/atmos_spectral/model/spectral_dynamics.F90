@@ -227,9 +227,9 @@ if(module_is_initialized) return
 20  call close_file (unit)
 #endif
 
-call write_version_number()
+call write_version_number(version, tagname)
 if(mpp_pe() == mpp_root_pe()) write (stdlog(), nml=spectral_dynamics_nml)
-call write_version_number()
+call write_version_number(version, tagname)
 
 Time_step  = Time_step_in
 Alarm_interval = set_time(print_interval(2), print_interval(1))

@@ -98,7 +98,7 @@ subroutine tile_diag_init()
   if (module_is_initialized) return
 
   module_is_initialized = .true.
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   ! initialize diag selectors
   call tile_selectors_init()

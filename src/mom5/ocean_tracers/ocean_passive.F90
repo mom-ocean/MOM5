@@ -433,7 +433,7 @@ subroutine ocean_passive_init(Domain, Grid, Ocean_options, debug)
   Dom => Domain
   Grd => Grid
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   ! provide for namelist override of defaults
 #ifdef INTERNAL_FILE_NML

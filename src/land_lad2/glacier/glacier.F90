@@ -101,7 +101,7 @@ subroutine read_glac_namelist()
 
   call read_glac_data_namelist(num_l, dz)
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 #ifdef INTERNAL_FILE_NML
      read (input_nml_file, nml=glac_nml, iostat=io)
      ierr = check_nml_error(io, 'glac_nml')

@@ -345,7 +345,7 @@ logical,     intent(in) :: do_pdf_clouds
 !-----------------------------------------------------------------------
 !    write version number to output file.
 !-----------------------------------------------------------------------
-      call write_version_number()
+      call write_version_number(version, tagname)
 
 !-----------------------------------------------------------------------
 !    make sure needed modules have been initialized.

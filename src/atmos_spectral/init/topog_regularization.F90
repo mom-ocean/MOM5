@@ -275,7 +275,7 @@ integer :: m, i, j
 real,    allocatable, dimension(:,:,:) :: legendre_global, legendre
 logical, allocatable, dimension(:,:) :: ocean_mask_global
 
-call write_version_number()
+call write_version_number(version, tagname)
 
 if(.not.transforms_are_initialized()) then
   call error_mesg('topog_regularization_init','Transforms are not initialized',FATAL)

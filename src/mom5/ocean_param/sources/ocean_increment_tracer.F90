@@ -154,7 +154,7 @@ subroutine ocean_increment_tracer_init(Grid, Domain, Time, T_prog)
 
   allocate( Increment(num_prog_tracers) )
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   ! provide for namelist over-ride of default values
 #ifdef INTERNAL_FILE_NML

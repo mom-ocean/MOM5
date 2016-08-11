@@ -853,7 +853,7 @@ contains
 
     stdoutunit=stdout();stdlogunit=stdlog()
 
-    call write_version_number()
+    call write_version_number(version, tagname)
 
     ! provide for namelist over-ride of defaults 
 #ifdef INTERNAL_FILE_NML

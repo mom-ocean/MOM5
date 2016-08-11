@@ -44,7 +44,7 @@ use       mpp_domains_mod, only: mpp_global_sum, BITWISE_EXACT_SUM
 !------------------------------------------------------------------
 ! private module data
  character(len=128) :: version = '$Id: bgrid_conserve_energy.F90,v 19.0 2012/01/06 19:53:25 fms Exp $'
- character(len=128) :: tag = '$Name: tikal $'
+ character(len=128) :: tagname = '$Name: tikal $'
 
 ! saves the total correction for the entire run
  real :: total_correction
@@ -147,7 +147,7 @@ contains
  type(time_type), intent(in) :: Time
  integer,         intent(in) :: axes(3)
 
-   call write_version_number()
+   call write_version_number(version, tagname)
 
    id_clock = mpp_clock_id ('BGRID: conserve_energy', &
                   flags=MPP_CLOCK_SYNC, grain=CLOCK_MODULE)
@@ -175,7 +175,7 @@ contains
 
  integer :: logunit 
  ! rewrite module name and version info to log file
-   call write_version_number()
+   call write_version_number(version, tagname)
  ! write diagnostic to log file
    logunit = stdlog()
    if (mpp_pe() == mpp_root_pe()) write (logunit,*)  &

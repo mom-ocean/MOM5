@@ -84,7 +84,7 @@ end subroutine vert_adjust
 
 subroutine vert_adjust_init
 
-   call write_version_number()
+   call write_version_number(version, tagname)
 
    id_clock = mpp_clock_id ('BGRID: vert_adjust', flags=MPP_CLOCK_SYNC, &
                                                   grain=CLOCK_MODULE)

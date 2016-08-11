@@ -1,12 +1,13 @@
 module tridiagonal_mod
 
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="Isaac.Held@noaa.gov">
 !    Isaac Held 
 ! </CONTACT>
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="Bruce.Wyman@noaa.gov">
 !    Bruce Wyman
 ! </CONTACT>
 
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
 ! <OVERVIEW>
 !   Solves the tridiagonal system of equations.
@@ -120,7 +121,7 @@ if(present(a)) then
   a(:,:,size(x,3)) = 0.0
 
   do  k= 2,size(x,3)
-    g(:,:,k) = 1/(b(:,:,k)+c(:,:,k)*e(:,:,k-1))
+    g(:,:,k) = 1.0/(b(:,:,k)+c(:,:,k)*e(:,:,k-1))
     e(:,:,k) = - a(:,:,k)*g(:,:,k)
   end do
   cc = c

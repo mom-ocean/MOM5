@@ -271,7 +271,7 @@ subroutine land_model_init &
   module_is_initialized = .TRUE.
 
   ! [1] print out version number
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   ! initialize land model clocks
   landClock      = mpp_clock_id('Land'               ,CLOCK_FLAG_DEFAULT,CLOCK_COMPONENT)

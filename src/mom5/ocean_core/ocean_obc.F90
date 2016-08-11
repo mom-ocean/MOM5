@@ -42,7 +42,9 @@ module ocean_obc_mod
   use mpp_domains_mod,          only: mpp_set_compute_domain, mpp_set_data_domain, mpp_set_global_domain
   use mpp_domains_mod,          only: BGRID_NE, mpp_define_domains
 
-  use mpp_mod,                  only: input_nml_file, mpp_error, mpp_pe
+  use mpp_mod,                  only: input_nml_file, mpp_error, mpp_pe, mpp_npes
+  use mpp_mod,                  only: mpp_set_current_pelist, mpp_get_current_pelist
+  use mpp_mod,                  only: mpp_declare_pelist
   use mpp_mod,                  only: CLOCK_MODULE
   use mpp_mod,                  only: mpp_clock_id, mpp_clock_begin, mpp_clock_end
   use time_interp_external_mod, only: time_interp_external, init_external_field, get_external_field_size
@@ -694,11 +696,15 @@ contains
     integer :: irig_n, ilef_n , jbou_n
     integer :: jlow_w, jup_w, ibou_w
     integer :: jlow_e, jup_e, ibou_e
-    integer :: pe
+    integer :: npes, pe, nlist, list, ntotal, sindex, eindex
     character(len=5)     :: pe_name
     
-  integer :: stdoutunit,stdlogunit 
-  stdoutunit=stdout();stdlogunit=stdlog() 
+    !--- some local variables ------------------------------------------
+    integer, allocatable :: isl(:), iel(:), jsl(:), jel(:), istart(:), iend(:), pelist(:)
+    logical, allocatable :: on_bound(:)
+
+    integer :: stdoutunit,stdlogunit
+    stdoutunit=stdout();stdlogunit=stdlog()
 
     if ( module_is_initialized ) then 
        call mpp_error(FATAL, '==>Error in ocean_obc_mod (ocean_obc_init): module already initialized')
@@ -732,7 +738,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
     write (stdlogunit, ocean_obc_nml)
 
     !--- write out version information ---------------------------------
-    call write_version_number()
+    call write_version_number(version, tagname)
 
     !--- if there is no open boundary, just return
     Obc%nobc = nobc
@@ -765,6 +771,10 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
     enddo
 
     !--- get the domain decomposition -----------------------------------
+    npes = mpp_npes()
+    allocate(isl(0:npes-1), iel(0:npes-1), jsl(0:npes-1), jel(0:npes-1) )
+    call mpp_get_compute_domains(Domain%domain2d, xbegin=isl, xend=iel, ybegin=jsl, yend=jel)
+
     call get_local_indices(Domain, isd, ied, jsd, jed, isc, iec, jsc, jec)
     call get_domain_offsets(Domain, ioff, joff)
     do m = 1, nobc
@@ -805,6 +815,10 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
     Obc%bound%report   = .FALSE.
     Obc%bound%obc_relax_eta = .false.
     Obc%bound%obc_relax_eta_profile = .false.
+
+    allocate(istart(0:npes-1), iend(0:npes-1), on_bound(0:npes-1) )
+    allocate(pelist(0:npes-1) )
+    call mpp_get_current_pelist(pelist)
 
     write(pe_name,'(a,i4.4)' )'.', mpp_pe()   
 
@@ -1084,6 +1098,48 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
                   call mpp_error(FATAL, "ocean_obc_mod: end of tracerdata < end of boundary")
              endif
           end if
+
+          ! Boundary pelist generation
+          !--- loop over pelist to figure out the boundary index on each pe.
+          on_bound = .false.
+          do pe = 0, npes-1
+             if (is(m) .ge. isl(pe) .and. is(m) .le. iel(pe)) then
+                istart(pe) = max(js(m),jsl(pe)); iend(pe) = min(je(m),jel(pe))
+                if(iend(pe) .GE. istart(pe) ) then
+                   on_bound(pe) = .true.
+                   if (debug_this_module .or. Obc%bound(m)%report) then
+                      write(obc_out_unit(m),'(a,11i5)') &
+                       'PE_1 ',pe,is(m),isl(pe),is(m),iel(pe),istart(pe),iend(pe),js(m),jsl(pe),je(m),jel(pe)
+                   end if
+                end if
+             end if
+          end do
+          nlist = count(on_bound)
+          allocate( Obc%bound(m)%start(nlist), obc%bound(m)%end(nlist)    )
+          allocate( Obc%bound(m)%pelist(nlist) )
+          list = 0
+          ntotal = 0
+          Obc%bound(m)%index = -1
+          sindex = 100000; eindex = -100000
+          do n = 0, npes-1
+             if(on_bound(n)) then
+                list = list+1
+                Obc%bound(m)%pelist(list) = pelist(n)
+                if(Obc%bound(m)%on_bound) then
+                   Obc%bound(m)%start(list)  = istart(n)
+                   Obc%bound(m)%end(list)    = iend(n)
+                   sindex                    = min(sindex, istart(n))
+                   eindex                    = max(eindex, iend(n))
+                   ntotal                    = ntotal + iend(n) - istart(n) + 1
+                   if( mpp_pe() == pelist(n)) then
+                     Obc%bound(m)%index = list
+                        if (debug_this_module .or. Obc%bound(m)%report) &
+                     write(obc_out_unit(m),'(a,9i6)') &
+                       'PE_2 ',n,list,Obc%bound(m)%start(list),Obc%bound(m)%end(list),sindex,eindex,ntotal,pelist(n),mpp_pe()
+                   end if
+                end if
+             end if
+          end do
        else    ! north or south direction
           allocate(Obc%bound(m)%mask(isd:ied))
           Obc%bound(m)%mask = .FALSE.
@@ -1177,6 +1233,37 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
                   call mpp_error(FATAL, "ocean_obc_mod: end of tracerdata < end of boundary")
              endif
           endif
+
+          ! Boundary pelist generation
+          !--- loop over pelist to figure out the boundary index on each pe.
+          on_bound = .false.
+          do pe = 0, npes-1
+             if (js(m) .ge. jsl(pe) .and. js(m) .le. jel(pe)) then
+                istart(pe) = max(is(m),isl(pe)); iend(pe)  = min(ie(m),iel(pe))
+                if(iend(pe) .GE. istart(pe) ) on_bound(pe)    = .true.
+             end if
+          end do
+          nlist = count(on_bound)
+          allocate( Obc%bound(m)%start(nlist), obc%bound(m)%end(nlist)    )
+          allocate( Obc%bound(m)%pelist(nlist) )
+          list = 0
+          ntotal = 0
+          Obc%bound(m)%index = -1
+          sindex = 100000; eindex = -100000
+          do n = 0, npes-1
+             if(on_bound(n)) then
+                list = list+1
+                Obc%bound(m)%pelist(list)  = pelist(n)
+                if(Obc%bound(m)%on_bound) then
+                   Obc%bound(m)%start(list)  = istart(n)
+                   Obc%bound(m)%end(list)    = iend(n)
+                   sindex                     = min(sindex, istart(n))
+                   eindex                     = max(eindex, iend(n))
+                   ntotal                     = ntotal + iend(n) - istart(n) + 1
+                   if( mpp_pe() == pelist(n)) Obc%bound(m)%index = list
+                end if
+             end if
+          end do
        endif
 ! Check if region of enhancement is at one task
        if ((Obc%bound(m)%obc_enhance_visc_back/=NONE  .or.   &
@@ -1691,6 +1778,10 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
     integer :: m, n, taum1, tau, taup1, unit, ierr, io_status
     integer :: is, ie, js, je
     integer :: is_u, ie_u, js_u, je_u
+
+    ! Subcommunicator management
+    integer :: npes
+    integer, allocatable :: pelist(:)
     
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -1765,9 +1856,20 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
     write(stdoutunit,*) '-----------------------------------------------------------------'
     write(stdoutunit,*) 'The following setup for time interpolation of OBC data has been found:'
 
+    ! Save ocean communicator state
+    npes = mpp_npes()
+    allocate(pelist(0:npes-1))
+    call mpp_get_current_pelist(pelist)
+
+    ! Enable the boundary communicators
+    do m = 1, nobc
+       call mpp_declare_pelist(Obc%bound(m)%pelist)
+    enddo
+
     allocate(Obc%tracer(nobc,nt))
     do m = 1, nobc
        if (Obc%bound(m)%on_bound) then
+          call mpp_set_current_pelist(Obc%bound(m)%pelist)
           !         data needed for tracer
           allocate(Obc%bound(m)%obc_relax_tracer(nt)) 
           allocate(Obc%bound(m)%obc_flow_relax(nt)) 
@@ -1895,6 +1997,7 @@ ierr = check_nml_error(io_status,'ocean_obc_nml')
              endif
           enddo
        endif
+       call mpp_set_current_pelist(pelist)
     enddo
 
 !  Set tracer poutside the boundaries to defined values to avoid artificial diffusion   

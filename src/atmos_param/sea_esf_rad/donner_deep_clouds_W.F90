@@ -141,7 +141,7 @@ type(time_type),       intent(in)      :: Time
 #endif
 
       if ( mpp_pe() == mpp_root_pe() ) then
-         call write_version_number()
+         call write_version_number(version, tagname)
          logunit = stdlog()
          write (logunit,nml=donner_deep_clouds_W_nml)
       endif

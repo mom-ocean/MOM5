@@ -51,7 +51,7 @@ namelist /bgrid_cold_start_nml/ nlon, nlat, nlev, pref, tref, &
 !-----------------------------------------------------------------------
 
 character(len=128) :: version = '$Id: bgrid_cold_start.F90,v 19.0 2012/01/06 19:54:36 fms Exp $'
-character(len=128) :: tag = '$Name: tikal $'
+character(len=128) :: tagname = '$Name: tikal $'
 
 !-----------------------------------------------------------------------
 
@@ -83,7 +83,7 @@ ierr = check_nml_error(io,'bgrid_cold_start_nml')
 
 !-------- write version and namelist to log file --------
 
-   call write_version_number()
+   call write_version_number(version, tagname)
    logunit = stdlog()
    if (mpp_pe() == mpp_root_pe()) write (logunit, nml=bgrid_cold_start_nml)
 

@@ -1,6 +1,6 @@
 
 ! -*-f90-*-
-! $Id: mpp_comm_mpi.inc,v 20.0 2013/12/14 00:24:07 fms Exp $
+! $Id$
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -392,7 +392,7 @@ end subroutine mpp_gsm_free
       if( .NOT.ANY(from_pe.EQ.peset(current_peset_num)%list) ) &
            call mpp_error( FATAL, 'mpp_broadcast_text: broadcasting from invalid PE.' )
 
-      if( current_clock.NE.0 )call SYSTEM_CLOCK(start_tick)
+      if( debug .and. (current_clock.NE.0) )call SYSTEM_CLOCK(start_tick)
  ! find the rank of from_pe in the pelist.     
       do i = 1, mpp_npes()
          if(peset(n)%list(i) == from_pe) then
@@ -402,7 +402,7 @@ end subroutine mpp_gsm_free
       enddo
       lptr = LOC (data)
       if( mpp_npes().GT.1 ) call MPI_BCAST( data, length*size(data(:)), MPI_CHARACTER, from_rank, peset(n)%id, error )
-      if( current_clock.NE.0 )call increment_current_clock( EVENT_BROADCAST, length )
+      if( debug .and. (current_clock.NE.0) )call increment_current_clock( EVENT_BROADCAST, length )
       return
     end subroutine mpp_broadcast_char
 

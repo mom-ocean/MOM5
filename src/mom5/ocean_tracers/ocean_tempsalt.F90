@@ -326,7 +326,7 @@ subroutine ocean_tempsalt_init(Domain, Grid, Ocean_options, itemp, isalt, debug)
   Dom => Domain
   Grd => Grid
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   ! provide for namelist override of defaults
 #ifdef INTERNAL_FILE_NML

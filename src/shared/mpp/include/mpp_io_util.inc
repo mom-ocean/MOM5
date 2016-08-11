@@ -1,6 +1,6 @@
 
 ! -*-f90-*-
-! $Id: mpp_io_util.inc,v 20.0 2013/12/14 00:26:40 fms Exp $
+! $Id$
 
 
   !#####################################################################
@@ -148,11 +148,13 @@
    end subroutine mpp_get_field_atts
 
   !#####################################################################
-   subroutine mpp_get_axis_atts( axis, name, units, longname, cartesian, calendar, sense, len, natts, atts )
+   subroutine mpp_get_axis_atts( axis, name, units, longname, cartesian, &
+                                 calendar, sense, len, natts, atts, compressed )
 
      type(axistype), intent(in) :: axis
      character(len=*), intent(out) , optional :: name, units
-     character(len=*), intent(out), optional :: longname, cartesian,calendar
+     character(len=*), intent(out), optional :: longname, cartesian
+     character(len=*), intent(out), optional :: compressed, calendar
      integer,intent(out), optional :: sense, len , natts
      type(atttype), intent(inout), optional, dimension(:) :: atts
 
@@ -162,6 +164,7 @@
      if (PRESENT(units)) units = axis%units
      if (PRESENT(longname)) longname = axis%longname
      if (PRESENT(cartesian)) cartesian = axis%cartesian
+     if (PRESENT(compressed)) compressed = axis%compressed
      if (PRESENT(calendar)) calendar = axis%calendar
      if (PRESENT(sense)) sense = axis%sense
      if (PRESENT(len)) len = axis%len
@@ -249,6 +252,34 @@
    end subroutine mpp_get_axes
 
   !#####################################################################
+   function mpp_get_dimension_length(unit, dimname, found)
+     integer,           intent(in)  :: unit
+     character(len=*),  intent(in)  :: dimname
+     logical, optional, intent(out) :: found
+     integer                        :: mpp_get_dimension_length
+     logical                        :: found_dim
+     integer                        :: i
+
+
+     if( .NOT.module_is_initialized ) &
+       call mpp_error( FATAL, 'mpp_get_dimension_length: must first call mpp_io_init.' )
+     if( .NOT.mpp_file(unit)%opened )&
+       call mpp_error( FATAL, 'mpp_get_dimension_length: invalid unit number, file '//trim(mpp_file(unit)%name))
+     found_dim = .false.
+     mpp_get_dimension_length = -1
+     do i = 1, mpp_file(unit)%ndim
+        if(trim(dimname) == trim(mpp_file(unit)%Axis(i)%name)) then
+          mpp_get_dimension_length = mpp_file(unit)%Axis(i)%len
+          found_dim = .true.
+          exit
+        endif
+     enddo
+
+     if(present(found)) found = found_dim
+
+   end function mpp_get_dimension_length
+
+   !#####################################################################
     subroutine mpp_get_time_axis( unit, time_axis )
       integer, intent(in) :: unit
       type(axistype), intent(inout) :: time_axis
@@ -265,7 +296,7 @@
   !####################################################################
   function mpp_get_default_calendar( )
      character(len=len(default_axis%calendar)) :: mpp_get_default_calendar
-    
+
      mpp_get_default_calendar = default_axis%calendar
 
   end function mpp_get_default_calendar
@@ -410,6 +441,25 @@
      return
    end function mpp_get_axis_length
 
+  !#####################################################################
+  function mpp_get_axis_bounds(axis, data, name)
+     type(axistype), intent(in) :: axis
+     real, dimension(:), intent(out) :: data
+     character(len=*), optional, intent(out) :: name
+     logical                         :: mpp_get_axis_bounds
+
+     if (size(data(:)).lt.axis%len+1)&
+          call mpp_error(FATAL,'MPP_GET_AXIS_BOUNDS: data array not large enough, axis '//trim(axis%name))
+     if (.NOT.ASSOCIATED(axis%data_bounds)) then
+        mpp_get_axis_bounds = .false.
+     else
+        mpp_get_axis_bounds = .true.
+        data(1:axis%len+1) = axis%data_bounds(:)
+     endif
+     if(present(name)) name = trim(axis%name_bounds)
+
+     return
+  end function mpp_get_axis_bounds
 
   !#####################################################################
    subroutine mpp_get_axis_data( axis, data )
@@ -426,7 +476,7 @@
      else
         data(1:axis%len) = axis%data
      endif
- 
+
      return
    end subroutine mpp_get_axis_data
 
@@ -589,7 +639,7 @@
         v%min = f%att(imissing)%fatt(1)*f%scale + f%add
      else if (ifill>0) then
      !z1l ifdef is added in to be able to compile without using use_netCDF.
-#ifdef use_netCDF  
+#ifdef use_netCDF
         ! define min and max according to _FillValue
         if(f%att(ifill)%fatt(1)>0) then
             ! if _FillValue is positive, then it defines valid maximum
@@ -675,7 +725,7 @@
    function mpp_get_att_name(att)
       type(atttype),    intent(in) :: att
       character(len=len(att%name)) :: mpp_get_att_name
-     
+
       mpp_get_att_name = att%name
       return
 
@@ -687,7 +737,7 @@
    function mpp_get_att_type(att)
       type(atttype), intent(in) :: att
       integer                   :: mpp_get_att_type
-     
+
       mpp_get_att_type = att%type
       return
 
@@ -699,7 +749,7 @@
    function mpp_get_att_length(att)
       type(atttype), intent(in) :: att
       integer                   :: mpp_get_att_length
-     
+
       mpp_get_att_length = att%len
 
       return
@@ -712,7 +762,7 @@
    function mpp_get_att_char(att)
       type(atttype), intent(in) :: att
       character(len=att%len)    :: mpp_get_att_char
-     
+
       mpp_get_att_char = att%catt
       return
 
@@ -724,7 +774,7 @@
    function mpp_get_att_real(att)
       type(atttype), intent(in)          :: att
       real, dimension(size(att%fatt(:))) :: mpp_get_att_real
-     
+
       mpp_get_att_real = att%fatt
       return
 
@@ -756,7 +806,7 @@
    ! return the  file name of corresponding unit
    function mpp_get_file_name(unit)
       integer,                  intent(in) :: unit
-      character(len=len(mpp_file(1)%name)) :: mpp_get_file_name      
+      character(len=len(mpp_file(1)%name)) :: mpp_get_file_name
 
       mpp_get_file_name = mpp_file(unit)%name
       return
@@ -767,7 +817,7 @@
    ! return if certain file with unit is opened or not
    function mpp_file_is_opened(unit)
       integer,  intent(in) :: unit
-      logical              :: mpp_file_is_opened      
+      logical              :: mpp_file_is_opened
 
       mpp_file_is_opened = mpp_file(unit)%opened
       return
@@ -777,9 +827,9 @@
    !####################################################################
    ! return the attribute value of given field name
    subroutine mpp_get_field_att_text(unit, fieldname, attname, attvalue)
-     integer,           intent(in) :: unit  
+     integer,           intent(in) :: unit
      character(len=*),  intent(in) :: fieldname, attname
-     character(len=*), intent(out) :: attvalue 
+     character(len=*), intent(out) :: attvalue
      logical                       :: found_field,  found_att
      integer                       :: i, j, length
 
@@ -820,15 +870,69 @@
       mpp_io_clock_on = io_clocks_on
       return
 
-   end function mpp_io_clock_on   
+   end function mpp_io_clock_on
 
 
    function mpp_attribute_exist(field,name)
-      integer                      :: mpp_attribute_exist
+      logical                      :: mpp_attribute_exist
       type(fieldtype),  intent(in) :: field ! The field that you are searching for the attribute.
       character(len=*), intent(in) :: name ! name of the attributes
 
-      mpp_attribute_exist = mpp_find_att(field%Att(:),name)
-      
+      if(field%natt > 0) then
+         mpp_attribute_exist = ( mpp_find_att(field%Att(:),name) > 0 )
+      else
+         mpp_attribute_exist = .false.
+      endif
+
    end function mpp_attribute_exist
-   
+
+!#######################################################################
+subroutine mpp_dist_io_pelist(ssize,pelist)
+  integer,              intent(in)  :: ssize   ! Stripe size for dist read
+  integer, allocatable, intent(out) :: pelist(:)
+  integer :: i, lsize, ioroot
+  logical :: is_ioroot=.false.
+
+  ! Did you make a mistake?
+  if(ssize < 1) call mpp_error(FATAL,'mpp_dist_io_pelist: I/O stripe size < 1')
+
+  is_ioroot = mpp_is_dist_ioroot(ssize,ioroot=ioroot,lsize=lsize)
+
+  ! Did I make a mistake?
+  if(lsize < 1) call mpp_error(FATAL,'mpp_dist_io_pelist: size of pelist < 1')
+
+  allocate(pelist(lsize))
+  do i=1,lsize
+    pelist(i) = ioroot + i - 1
+  enddo
+end subroutine mpp_dist_io_pelist
+
+!#######################################################################
+logical function mpp_is_dist_ioroot(ssize,ioroot,lsize)
+  integer, intent(in)  :: ssize   ! Dist io set size
+  integer, intent(out), optional :: ioroot, lsize
+  integer :: pe, npes, mypos, maxpe, d_ioroot, d_lsize, last_ioroot
+  integer :: rootpe
+
+  if(ssize < 1) call mpp_error(FATAL,'mpp_is_dist_ioroot: I/O stripe size < 1')
+
+  mpp_is_dist_ioroot = .false.
+  rootpe = mpp_root_pe()
+  d_lsize = ssize
+  pe = mpp_pe()
+  mypos = modulo(pe-rootpe,ssize)  ! Which PE am I in the io group?
+  d_ioroot = pe - mypos            ! What is the io root for the group?
+  npes = mpp_npes()
+  maxpe = min(d_ioroot+ssize,npes+rootpe) - 1  ! Handle end case
+  d_lsize = maxpe - d_ioroot + 1
+  if(mod(npes,ssize) == 1)then  ! Ensure there are no sets with 1 member
+    last_ioroot = (npes-1) - ssize
+    if(pe >= last_ioroot) then
+       d_ioroot = last_ioroot
+       d_lsize = ssize + 1
+    endif
+  endif
+  if(pe == d_ioroot) mpp_is_dist_ioroot = .true.
+  if(PRESENT(ioroot)) ioroot = d_ioroot
+  if(PRESENT(lsize)) lsize = d_lsize
+end function mpp_is_dist_ioroot

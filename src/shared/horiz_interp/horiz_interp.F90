@@ -24,9 +24,10 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module horiz_interp_mod
 
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Zhi Liang </CONTACT>
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Bruce Wyman </CONTACT>
+! <CONTACT EMAIL="Zhi.Liang@noaa.gov"> Zhi Liang </CONTACT>
+! <CONTACT EMAIL="Bruce.Wyman@noaa.gov"> Bruce Wyman </CONTACT>
 
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
 ! <OVERVIEW>
 !   Performs spatial interpolation between grids.
@@ -235,8 +236,8 @@ use horiz_interp_spherical_mod, only: horiz_interp_spherical_new, horiz_interp_s
  namelist /horiz_interp_nml/ reproduce_siena
 
 !-----------------------------------------------------------------------
- character(len=128) :: version = '$Id: horiz_interp.F90,v 20.0 2013/12/14 00:20:17 fms Exp $'
- character(len=128) :: tagname = '$Name: tikal $'
+ character(len=128) :: version = '$Id$'
+ character(len=128) :: tagname = '$Name$'
  logical            :: module_is_initialized = .FALSE.
 !-----------------------------------------------------------------------
 
@@ -255,7 +256,7 @@ contains
   integer :: unit, ierr, io
 
   if(module_is_initialized) return
-  call write_version_number()
+  call write_version_number (version, tagname)
 
 #ifdef INTERNAL_FILE_NML
   read (input_nml_file, horiz_interp_nml, iostat=io)
@@ -277,13 +278,9 @@ contains
   endif
 
   if( reproduce_siena ) then
-     if( mpp_pe() == mpp_root_pe() ) then
-        call mpp_error(WARNING, "horiz_interp_mod: You have overridden the default value of reproduce_siena " // &
-                             "and set it to .true. in horiz_interp_nml. This is a temporary workaround to " // &
-                             "allow for consistency in continuing experiments.  Please use the default " //&
-                             "value (.false.) as this option will be removed in a future release. ")
-     endif
-     call set_reproduce_siena_true( )
+     call mpp_error(FATAL, "horiz_interp_mod: You have overridden the default value of reproduce_siena " // &
+                           "and set it to .true. in horiz_interp_nml. This is a temporary workaround to " // &
+                           "allow for consistency in continuing experiments. Please remove this namelist " )
   endif
 
   call horiz_interp_conserve_init
@@ -720,7 +717,8 @@ contains
 
 !<PUBLICROUTINE INTERFACE="horiz_interp"> 
  subroutine horiz_interp_base_2d ( Interp, data_in, data_out, verbose, &
-                                   mask_in, mask_out, missing_value, missing_permit, err_msg )
+                                   mask_in, mask_out, missing_value, missing_permit, &
+                                   err_msg, new_missing_handle )
 !</PUBLICROUTINE>
 !-----------------------------------------------------------------------
    type (horiz_interp_type), intent(in) :: Interp
@@ -732,6 +730,7 @@ contains
       real, intent(in),                   optional :: missing_value
       integer, intent(in),                optional :: missing_permit
    character(len=*), intent(out),         optional :: err_msg
+      logical, intent(in),                optional :: new_missing_handle
 !-----------------------------------------------------------------------
    if(present(err_msg)) err_msg = ''
    if(.not.Interp%I_am_initialized) then
@@ -743,7 +742,7 @@ contains
       call horiz_interp_conserve(Interp,data_in, data_out, verbose, mask_in, mask_out)
    case(BILINEAR)
       call horiz_interp_bilinear(Interp,data_in, data_out, verbose, mask_in, mask_out, &
-                             missing_value, missing_permit )
+                             missing_value, missing_permit, new_missing_handle )
    case(BICUBIC)
       call horiz_interp_bicubic(Interp,data_in, data_out, verbose, mask_in, mask_out, &
                              missing_value, missing_permit )

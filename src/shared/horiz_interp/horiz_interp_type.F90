@@ -23,8 +23,9 @@
 !!                                                                   !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module horiz_interp_type_mod
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Zhi Liang </CONTACT>
+! <CONTACT EMAIL="Zhi.Liang@noaa.gov"> Zhi Liang </CONTACT>
 
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
 ! <OVERVIEW>
 !     define derived data type that contains indices and weights used for subsequent 
@@ -146,7 +147,7 @@ contains
          miss = miss + buffer_int(1)
          npts = npts + buffer_int(2)
       enddo         
-      if(npts == 0) then
+      if(npts == 0.) then
          print*, 'Warning: no points is valid'
       else
          avg = dsum/real(npts)

@@ -2,7 +2,7 @@
 
 module time_interp_external_mod
 !
-!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">M.J. Harrison</CONTACT>
+!<CONTACT EMAIL="Matthew.Harrison@noaa.gov">M.J. Harrison</CONTACT>
 !
 !<REVIEWER EMAIL="hsimmons@iarc.uaf.edu">Harper Simmons</REVIEWER>
 !
@@ -50,8 +50,8 @@ module time_interp_external_mod
   private
 
   character(len=128), private :: version= &
-   'CVS $Id: time_interp_external.F90,v 20.0 2013/12/14 00:28:08 fms Exp $'
-  character(len=128), private :: tagname='Tag $Name: tikal $'
+   'CVS $Id$'
+  character(len=128), private :: tagname='Tag $Name$'
 
   integer, parameter, public  :: NO_REGION=0, INSIDE_REGION=1, OUTSIDE_REGION=2
   integer, parameter, private :: modulo_year= 0001

@@ -42,7 +42,7 @@ real, dimension(size(field,1), size(field,2)) :: vert_integral
 integer ::  k, num_levels
 
 if(.not.entry_to_logfile_done) then
-  call write_version_number()
+  call write_version_number(version, tagname)
   entry_to_logfile_done=.true.
 endif
 

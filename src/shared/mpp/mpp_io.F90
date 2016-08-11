@@ -19,10 +19,12 @@
 !           675 Mass Ave, Cambridge, MA 02139, USA.  
 !-----------------------------------------------------------------------
 
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="vb@gfdl.noaa.gov">
 !   V. Balaji
 ! </CONTACT>
 
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
+! <RCSLOG SRC="http://www.gfdl.noaa.gov/~vb/changes_mpp_io.html"/>
 
 ! <OVERVIEW>
 !   <TT>mpp_io_mod</TT>, is a set of simple calls for parallel I/O on
@@ -317,15 +319,18 @@ use mpp_mod,            only : mpp_error, FATAL, WARNING, NOTE, stdin, stdout, s
 use mpp_mod,            only : mpp_pe, mpp_root_pe, mpp_npes, lowercase, mpp_transmit, mpp_sync_self
 use mpp_mod,            only : mpp_init, mpp_sync, mpp_clock_id, mpp_clock_begin, mpp_clock_end
 use mpp_mod,            only : MPP_CLOCK_SYNC, MPP_CLOCK_DETAILED, CLOCK_ROUTINE
-use mpp_mod,            only : input_nml_file
+use mpp_mod,            only : input_nml_file, mpp_gather, mpp_broadcast
+use mpp_mod,            only : mpp_send, mpp_recv, mpp_sync_self, EVENT_RECV, COMM_TAG_1
 use mpp_domains_mod,    only : domain1d, domain2d, NULL_DOMAIN1D, mpp_domains_init
 use mpp_domains_mod,    only : mpp_get_global_domain, mpp_get_compute_domain
-use mpp_domains_mod,    only :  mpp_get_data_domain, mpp_get_memory_domain
+use mpp_domains_mod,    only : mpp_get_data_domain, mpp_get_memory_domain, mpp_get_pelist
 use mpp_domains_mod,    only : mpp_update_domains, mpp_global_field, mpp_domain_is_symmetry
 use mpp_domains_mod,    only : operator( .NE. ), mpp_get_domain_shift
 use mpp_domains_mod,    only : mpp_get_io_domain, mpp_domain_is_tile_root_pe, mpp_get_domain_tile_root_pe
 use mpp_domains_mod,    only : mpp_get_tile_id, mpp_get_tile_npes, mpp_get_io_domain_layout
 use mpp_domains_mod,    only : mpp_get_domain_name, mpp_get_domain_npes
+use mpp_parameter_mod,  only : MPP_FILL_DOUBLE,MPP_FILL_INT
+use mpp_mod,            only : mpp_chksum
 
 implicit none
 private
@@ -353,18 +358,20 @@ private
   public :: mpp_io_set_stack_size, mpp_get_field_index, mpp_get_axis_index
   public :: mpp_get_field_name, mpp_get_att_value, mpp_get_att_length
   public :: mpp_get_att_type, mpp_get_att_name, mpp_get_att_real, mpp_get_att_char
-  public :: mpp_get_att_real_scalar, mpp_get_axis_length
+  public :: mpp_get_att_real_scalar, mpp_get_axis_length, mpp_is_dist_ioroot
   public :: mpp_get_file_name, mpp_file_is_opened, mpp_attribute_exist 
   public :: mpp_io_clock_on, mpp_get_time_axis, mpp_get_default_calendar
+  public :: mpp_get_dimension_length, mpp_get_axis_bounds
 
   !--- public interface from mpp_io_misc.h ----------------------
   public :: mpp_io_init, mpp_io_exit, netcdf_err, mpp_flush
 
   !--- public interface from mpp_io_write.h ---------------------
-  public :: mpp_write, mpp_write_meta, mpp_copy_meta, mpp_modify_meta, mpp_write_axis_data
+  public :: mpp_write, mpp_write_meta, mpp_copy_meta, mpp_modify_meta, mpp_write_axis_data, mpp_def_dim
 
   !--- public interface from mpp_io_read.h ---------------------
   public :: mpp_read, mpp_read_meta, mpp_get_tavg_info
+  public :: mpp_read_compressed, mpp_write_compressed, mpp_read_distributed_ascii, mpp_write_unlimited_axis
 
   !--- public interface from mpp_io_switch.h ---------------------
   public :: mpp_open, mpp_close
@@ -384,6 +391,7 @@ type :: atttype
   type :: axistype
      private
      character(len=128) :: name
+     character(len=128) :: name_bounds
      character(len=128) :: units
      character(len=256) :: longname
      character(len=8)   :: cartesian
@@ -392,6 +400,8 @@ type :: atttype
      integer            :: sense, len          !+/-1, depth or height?
      type(domain1D)     :: domain              !if pointer is associated, it is a distributed data axis
      real, pointer      :: data(:) =>NULL()    !axis values (not used if time axis)
+     real, pointer      :: data_bounds(:) =>NULL()    !axis bounds values
+     integer, pointer   :: idata(:) =>NULL()   !compressed axis valuesi
      integer            :: id, did, type, natt !id is the "variable ID", did is the "dimension ID": 
                                                !netCDF requires 2 IDs for axes
      integer            :: shift               !normally is 0. when domain is symmetry, its value maybe 1.
@@ -432,6 +442,7 @@ type :: atttype
      real(DOUBLE_KIND)  :: time
      logical            :: valid
      logical            :: write_on_this_pe   ! indicate if will write out from this pe
+     logical            :: read_on_this_pe    ! indicate if will read from this pe
      logical            :: io_domain_exist    ! indicate if io_domain exist or not.
      integer            :: id       !variable ID of time axis associated with file (only one time axis per file)
      integer            :: recdimid !dim ID of time axis associated with file (only one time axis per file)
@@ -546,14 +557,93 @@ type :: atttype
   interface mpp_read
      module procedure mpp_read_2ddecomp_r2d
      module procedure mpp_read_2ddecomp_r3d
+     module procedure mpp_read_2ddecomp_r4d
      module procedure mpp_read_r0D
      module procedure mpp_read_r1D
      module procedure mpp_read_r2D
      module procedure mpp_read_r3D
+     module procedure mpp_read_r4D
      module procedure mpp_read_text
      module procedure mpp_read_region_r2D
      module procedure mpp_read_region_r3D
   end interface
+
+!***********************************************************************
+!
+!      public interfaces from mpp_io_read_distributed_ascii.inc
+!
+!***********************************************************************
+! <INTERFACE NAME="mpp_read_distributed_ascii">
+!   <OVERVIEW>
+!     Read from an opened, ascii file, translating data to the desired format
+!   </OVERVIEW>
+!   <DESCRIPTION>
+!     These routines are part of the mpp_read family. It is intended to 
+!     provide a general purpose, distributed, list directed read
+!  </DESCRIPTION>
+!   <TEMPLATE>
+!     call mpp_read_distributed_ascii(unit,fmt,ssize,data,iostat)
+!   </TEMPLATE>
+!  <IN NAME="unit"></IN>
+!  <IN NAME="fmt"></IN>
+!  <IN NAME="ssize"></IN>
+!  <INOUT NAME="data"></IN>
+!  <OUT NAME="iostat">
+!  </IN>
+!  <NOTE>
+!     <TT>mpp_read_distributed_ascii</TT>
+!     The stripe size must be greater than or equal to 1. The stripe
+!     size does not have to be a common denominator of the number of
+!     MPI ranks.
+!  </NOTE>
+! </INTERFACE>
+  interface mpp_read_distributed_ascii
+     module procedure mpp_read_distributed_ascii_r1d
+     module procedure mpp_read_distributed_ascii_i1d
+     module procedure mpp_read_distributed_ascii_a1d
+  end interface
+
+
+!***********************************************************************
+!
+!      public interfaces from mpp_io_read_compressed.h
+!
+!***********************************************************************
+! <INTERFACE NAME="mpp_read_compressed">
+!   <OVERVIEW>
+!     Read from an opened, sparse data, compressed file (e.g. land_model)
+!   </OVERVIEW>
+!   <DESCRIPTION>
+!     These routines are similar to mpp_read except that they are designed
+!     to handle sparse, compressed vectors of data such as from the
+!     land model. Currently, the sparse vector may vary in z. Hence
+!     the need for the rank 2 treatment.
+!  </DESCRIPTION>
+!   <TEMPLATE>
+!     call mpp_read_compressed( unit, field, domain, data, time_index )
+!   </TEMPLATE>
+!  <IN NAME="unit"></IN>
+!  <IN NAME="field"></IN>
+!  <IN NAME="domain"></IN>
+!  <INOUT NAME="data"></INOUT>
+!  <IN NAME="time_index">
+!     time_index is an optional argument. It is to be omitted if the
+!     field was defined not to be a function of time. Results are
+!     unpredictable if the argument is supplied for a time- independent
+!     field, or omitted for a time-dependent field.
+!  </IN>
+!  <NOTE>
+!     <TT>mpp_read_meta</TT> must be called prior to calling 
+!     <TT>mpp_read_compressed.</TT>
+!     Since in general, the vector is distributed across the io-domain
+!     The read expects the io_domain to be defined.
+!  </NOTE>
+! </INTERFACE>
+  interface mpp_read_compressed
+     module procedure mpp_read_compressed_r1d
+     module procedure mpp_read_compressed_r2d
+  end interface mpp_read_compressed
+
 
 !***********************************************************************
 !
@@ -669,7 +759,9 @@ type :: atttype
      module procedure mpp_write_meta_var
      module procedure mpp_write_meta_scalar_r
      module procedure mpp_write_meta_scalar_i
-     module procedure mpp_write_meta_axis
+     module procedure mpp_write_meta_axis_r1d
+     module procedure mpp_write_meta_axis_i1d
+     module procedure mpp_write_meta_axis_unlimited
      module procedure mpp_write_meta_field
      module procedure mpp_write_meta_global
      module procedure mpp_write_meta_global_scalar_r
@@ -781,6 +873,109 @@ type :: atttype
      module procedure mpp_write_axis
   end interface
 
+
+!***********************************************************************
+! <INTERFACE NAME="mpp_write_compressed">
+!   <OVERVIEW>
+!     Write to an opened, sparse data, compressed file (e.g. land_model)
+!   </OVERVIEW>
+!   <DESCRIPTION>
+!     These routines are similar to mpp_write except that they are 
+!     designed to handle sparse, compressed vectors of data such 
+!     as from the land model. Currently, the sparse vector may vary in z.
+!     Hence the need for the rank 2 treatment.
+!  </DESCRIPTION>
+!   <TEMPLATE>
+!     call mpp_write(unit, field, domain, data, nelems_io, tstamp, default_data )
+!   </TEMPLATE>
+!  <IN NAME="unit"></IN>
+!  <IN NAME="field"></IN>
+!  <IN NAME="domain"></IN>
+!  <INOUT NAME="data"></INOUT>
+!  <IN NAME="nelems_io">
+!    <TT>nelems</TT> is a vector containing the number of elements expected
+!    from each member of the io_domain. It MUST have the same order as
+!    the io_domain pelist.
+!  </IN>
+!  <IN NAME="tstamp">
+!    <TT>tstamp</TT> is an optional argument. It is to
+!    be omitted if the field was defined not to be a function of time.
+!    Results are unpredictable if the argument is supplied for a time-
+!    independent field, or omitted for a time-dependent field. Repeated
+!    writes of a time-independent field are also not recommended. One
+!    time level of one field is written per call. tstamp must be an 8-byte
+!    real, even if the default real type is 4-byte.
+!  </IN>
+!  <IN NAME="default_data"></IN>
+!  <NOTE>
+!     <TT>mpp_write_meta</TT> must be called prior to calling 
+!     <TT>mpp_write_compressed.</TT>
+!     Since in general, the vector is distributed across the io-domain
+!     The write expects the io_domain to be defined.
+!  </NOTE>
+! </INTERFACE>
+  interface mpp_write_compressed
+     module procedure mpp_write_compressed_r1d
+     module procedure mpp_write_compressed_r2d
+  end interface mpp_write_compressed
+
+!***********************************************************************
+! <INTERFACE NAME="mpp_write_unlimited_axis">
+!   <OVERVIEW>
+!     Write to an opened file along the unlimited axis (e.g. icebergs)
+!   </OVERVIEW>
+!   <DESCRIPTION>
+!     These routines are similar to mpp_write except that they are 
+!     designed to handle data written along the unlimited axis that
+!     is not time (e.g. icebergs).
+!  </DESCRIPTION>
+!   <TEMPLATE>
+!     call mpp_write(unit, field, domain, data, nelems_io)
+!   </TEMPLATE>
+!  <IN NAME="unit"></IN>
+!  <IN NAME="field"></IN>
+!  <IN NAME="domain"></IN>
+!  <INOUT NAME="data"></INOUT>
+!  <IN NAME="nelems">
+!    <TT>nelems</TT> is a vector containing the number of elements expected
+!    from each member of the io_domain. It MUST have the same order as
+!    the io_domain pelist.
+!  </IN>
+!  <NOTE>
+!     <TT>mpp_write_meta</TT> must be called prior to calling 
+!     <TT>mpp_write_unlimited_axis.</TT>
+!     Since in general, the vector is distributed across the io-domain
+!     The write expects the io_domain to be defined.
+!  </NOTE>
+! </INTERFACE>
+  interface mpp_write_unlimited_axis
+     module procedure mpp_write_unlimited_axis_r1d
+  end interface mpp_write_unlimited_axis
+
+
+!***********************************************************************
+! <INTERFACE NAME="mpp_def_dim">
+!   <OVERVIEW>
+!     Define an dimension variable
+!   </OVERVIEW>
+!   <DESCRIPTION>
+!     Similar to the mpp_write_meta routines, but simply defines the
+!     a dimension variable with the optional attributes
+!  </DESCRIPTION>
+!   <TEMPLATE>
+!     call mpp_def_dim( unit, name, dsize, longname, data )
+!   </TEMPLATE>
+!  <IN NAME="unit"></IN>
+!  <IN NAME="name"></IN>
+!  <IN NAME="dsize"></IN>
+!  <IN NAME="data"></INOUT>
+! </INTERFACE>
+  interface mpp_def_dim
+     module procedure mpp_def_dim_nodata
+     module procedure mpp_def_dim_int
+     module procedure mpp_def_dim_real
+  end interface mpp_def_dim
+
 !***********************************************************************
 !
 !            module variables
@@ -820,9 +1015,9 @@ type :: atttype
   integer :: pack_size ! = 1 when compiling with -r8 and = 2 when compiling with -r4.
 
   character(len=128) :: version= &
-       '$Id: mpp_io.F90,v 20.0 2013/12/14 00:23:45 fms Exp $'
+       '$Id$'
   character(len=128) :: tagname= &
-       '$Name: tikal $'
+       '$Name$'
 
 contains
 

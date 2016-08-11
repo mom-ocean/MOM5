@@ -1,10 +1,11 @@
 
 module time_interp_mod
 
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="Bruce.Wyman@noaa.gov">
 !   Bruce Wyman
 ! </CONTACT>
 
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
 ! <OVERVIEW>
 !   Computes a weight and dates/indices for linearly interpolating between two dates.
@@ -195,13 +196,13 @@ integer, public, parameter :: NONE=0, YEAR=1, MONTH=2, DAY=3
    integer :: yrmod, momod, dymod
    logical :: mod_leapyear
 
-   character(len=128) :: version='$Id: time_interp.F90,v 20.0 2013/12/14 00:28:05 fms Exp $'
-   character(len=128) :: tagname='$Name: tikal $'
+   character(len=128) :: version='$Id$'
+   character(len=128) :: tagname='$Name$'
 
    logical :: module_is_initialized=.FALSE.
    logical :: perthlike_behavior=.FALSE.
 
-   namelist /time_interp_nml/ perthlike_behavior
+   namelist / time_interp_nml / perthlike_behavior
 
 contains
 
@@ -224,7 +225,7 @@ contains
    20 call close_file (namelist_unit)
 #endif
 
-   call write_version_number()
+   call write_version_number( version, tagname )
    logunit = stdlog()
    write(logunit,time_interp_nml)
 
@@ -910,7 +911,7 @@ end module time_interp_mod
 
  integer :: nmin, nmax
 
- namelist /test_time_interp_nml/ timelist_len
+ namelist / test_time_interp_nml / timelist_len
 
  call fms_init
  outunit = stdout()

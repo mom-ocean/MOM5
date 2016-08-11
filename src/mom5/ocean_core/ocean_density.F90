@@ -800,7 +800,7 @@ contains
        if (T_prog(n)%longname == 'Preformed Salinity')       salt_variable = PREFORMED_SALT
     enddo
 
-    call write_version_number()
+    call write_version_number(version, tagname)
 
     ! provide for namelist override of defaults
 #ifdef INTERNAL_FILE_NML

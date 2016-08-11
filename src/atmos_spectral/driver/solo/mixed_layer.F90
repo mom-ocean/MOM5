@@ -131,7 +131,7 @@ character(32) :: tr_name
 
 if(module_is_initialized) return
 
-call write_version_number()
+call write_version_number(version, tagname)
 
 unit = open_namelist_file ()
 ierr=1

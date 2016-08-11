@@ -149,7 +149,7 @@ contains
 #endif
 
 !--- write version and namelist info to logfile --------------------
-    call write_version_number()
+    call write_version_number(version, tagname)
     unit=stdlog()
     write (unit, river_physics_nml)  
 

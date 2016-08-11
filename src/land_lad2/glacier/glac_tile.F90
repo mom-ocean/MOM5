@@ -229,7 +229,7 @@ subroutine read_glac_data_namelist(glac_n_lev, glac_dz)
   integer :: i
   real    :: z
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 #ifdef INTERNAL_FILE_NML
      read (input_nml_file, nml=glac_data_nml, iostat=io)
      ierr = check_nml_error(io, 'glac_data_nml')

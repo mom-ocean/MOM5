@@ -150,7 +150,7 @@
       enddo
 20    call close_file (unit)
 
-      call write_version_number()
+      call write_version_number(version, tagname)
       if(mpp_pe() == mpp_root_pe()) write (stdlog(),nml=mcm_mca_lsc_nml)
 
 !  ix and kx stay fixed througout run

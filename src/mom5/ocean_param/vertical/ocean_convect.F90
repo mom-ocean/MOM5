@@ -220,7 +220,7 @@ subroutine ocean_convect_init (Grid, Domain, Time, Dens, T_prog, Ocean_options, 
 
   module_is_initialized = .TRUE.
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   num_prog_tracers = size(T_prog(:))
 

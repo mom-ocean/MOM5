@@ -252,7 +252,7 @@ subroutine ocean_vert_chen_init (Grid, Domain, Time, Time_steps, T_prog, hor_gri
   endif 
   module_is_initialized = .TRUE.
 
-  call write_version_number()
+  call write_version_number(version, tagname)
 
   ! provide for namelist over-ride of defaults 
 #ifdef INTERNAL_FILE_NML

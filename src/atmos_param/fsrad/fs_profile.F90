@@ -291,7 +291,7 @@ CONTAINS
 !------- write version number and namelist ---------
 
       if ( mpp_pe() == mpp_root_pe() ) then
-           call write_version_number()
+           call write_version_number(version, tagname)
       endif
 
       module_is_initialized = .true.

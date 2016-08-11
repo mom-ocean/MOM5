@@ -251,7 +251,7 @@ logical  :: do_ras_tracer = .false.
 ! --- Write namelist
 !---------------------------------------------------------------------
 
-  call write_version_number()
+  call write_version_number(version, tagname)
        logunit = stdlog()
        WRITE( logunit, nml = ras_nml ) 
 

@@ -90,7 +90,7 @@ temp_ice_freeze = t_freeze
 !------- write version number and namelist ---------
 
       if ( mpp_pe() == mpp_root_pe() ) then
-           call write_version_number()
+           call write_version_number(version, tagname)
            unit = stdlog()
            write (unit, nml=ice_albedo_nml)
       endif

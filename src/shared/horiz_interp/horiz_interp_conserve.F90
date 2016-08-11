@@ -1,8 +1,9 @@
 module horiz_interp_conserve_mod
 
-  ! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Bruce Wyman </CONTACT>
-  ! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Zhi Liang </CONTACT>
+  ! <CONTACT EMAIL="Bruce.Wyman@noaa.gov"> Bruce Wyman </CONTACT>
+  ! <CONTACT EMAIL="Zhi.Liang@noaa.gov"> Zhi Liang </CONTACT>
 
+  ! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
   ! <OVERVIEW>
   !   Performs spatial interpolation between grids using conservative interpolation
@@ -90,8 +91,8 @@ module horiz_interp_conserve_mod
 
   integer :: pe, root_pe
   !-----------------------------------------------------------------------
-  character(len=128) :: version = '$Id: horiz_interp_conserve.F90,v 20.0 2013/12/14 00:20:25 fms Exp $'
-  character(len=128) :: tagname = '$Name: tikal $'
+  character(len=128) :: version = '$Id$'
+  character(len=128) :: tagname = '$Name$'
   logical            :: module_is_initialized = .FALSE.
 
   logical         :: great_circle_algorithm = .false.
@@ -110,7 +111,7 @@ contains
   subroutine horiz_interp_conserve_init
 
     if(module_is_initialized) return
-    call write_version_number()
+    call write_version_number (version, tagname)
 
     great_circle_algorithm = get_great_circle_algorithm()
 
@@ -350,7 +351,7 @@ contains
     nlon_in  = size(lon_in(:)) - 1;  nlat_in  = size(lat_in(:)) - 1
     nlon_out = size(lon_out,1) - 1;  nlat_out = size(lon_out,2) - 1
 
-    mask_src = 1
+    mask_src = 1.
     if(present(mask_in)) then
        if( (size(mask_in,1) .NE. nlon_in) .OR.  (size(mask_in,2) .NE. nlat_in)) call mpp_error(FATAL, &
          'horiz_interp_conserve_mod: size mismatch between mask_in and lon_in/lat_in')
@@ -388,7 +389,7 @@ contains
     Interp%j_dst = j_dst(1:nxgrid)+1
 
     ! sum over exchange grid area to get destination grid area
-    dst_area = 0
+    dst_area = 0.
     do i = 1, nxgrid
        dst_area(Interp%i_dst(i), Interp%j_dst(i)) = dst_area(Interp%i_dst(i), Interp%j_dst(i)) + xgrid_area(i)       
     end do    
@@ -440,7 +441,7 @@ contains
     nlon_in  = size(lon_in,1)   - 1;  nlat_in  = size(lon_in,2)   - 1
     nlon_out = size(lon_out(:)) - 1;  nlat_out = size(lat_out(:)) - 1
 
-    mask_src = 1
+    mask_src = 1.
     if(present(mask_in)) then
        if( (size(mask_in,1) .NE. nlon_in) .OR.  (size(mask_in,2) .NE. nlat_in)) call mpp_error(FATAL, &
          'horiz_interp_conserve_mod: size mismatch between mask_in and lon_in/lat_in')
@@ -478,7 +479,7 @@ contains
     Interp%j_dst = j_dst(1:nxgrid)+1
 
     ! sum over exchange grid area to get destination grid area
-    dst_area = 0
+    dst_area = 0.
     do i = 1, nxgrid
        dst_area(Interp%i_dst(i), Interp%j_dst(i)) = dst_area(Interp%i_dst(i), Interp%j_dst(i)) + xgrid_area(i)       
     end do    
@@ -531,7 +532,7 @@ contains
     nlon_in  = size(lon_in,1)  - 1;  nlat_in  = size(lon_in,2)  - 1
     nlon_out = size(lon_out,1) - 1;  nlat_out = size(lon_out,2) - 1
 
-    mask_src = 1
+    mask_src = 1.
     if(present(mask_in)) then
        if( (size(mask_in,1) .NE. nlon_in) .OR.  (size(mask_in,2) .NE. nlat_in)) call mpp_error(FATAL, &
          'horiz_interp_conserve_mod: size mismatch between mask_in and lon_in/lat_in')
@@ -563,7 +564,7 @@ contains
     Interp%j_dst = j_dst(1:nxgrid)+1
 
     ! sum over exchange grid area to get destination grid area
-    dst_area = 0
+    dst_area = 0.
     do i = 1, nxgrid
        dst_area(Interp%i_dst(i), Interp%j_dst(i)) = dst_area(Interp%i_dst(i), Interp%j_dst(i)) + xgrid_area(i)       
     end do    

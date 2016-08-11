@@ -67,7 +67,7 @@ real, dimension(lat_max) :: lat
 real, dimension(num_levels_in)   :: p_full, ln_p_full
 real, dimension(num_levels_in+1) :: p_half, ln_p_half
 
-call write_version_number()
+call write_version_number(version, tagname)
 
 call get_deg_lon(lon)
 call get_deg_lat(lat)

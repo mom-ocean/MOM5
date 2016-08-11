@@ -52,7 +52,7 @@ integer :: n, i, j, L, m, k
 !        PROGRAM IS TERMINATED.
 
 if(.not.entry_to_logfile_done) then
-  call write_version_number()
+  call write_version_number(version, tagname)
   entry_to_logfile_done = .true.
 endif
 

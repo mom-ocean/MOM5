@@ -1,10 +1,11 @@
 
 module fms_mod
 
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="Bruce.Wyman@noaa.gov">
 !   Bruce Wyman
 ! </CONTACT>
 
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
 ! <OVERVIEW>
 !   The fms module provides routines that are commonly used
@@ -21,10 +22,12 @@ module fms_mod
 !     These include namelist files, restart files, and 32-bit IEEE
 !     data files. There also is a matching interface to close the files.
 !     If other file types are needed the <TT>mpp_open</TT> and <TT>mpp_close</TT>
+!     interfaces in module <LINK SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/shared/mpp/mpp_io.html">mpp_io</LINK> must be used.<BR/>
 !    3. Read and write distributed data to simple native unformatted files.
 !     This type of file (called a restart file) is used to checkpoint
 !     model integrations for a subsequent restart of the run.<BR/>
 !    4. For convenience there are several routines published from
+!     the <LINK SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/shared/mpp/mpp.html">mpp</LINK> module. These are routines for getting processor
 !     numbers, commonly used I/O unit numbers, error handling, and timing sections of code.
 ! </DESCRIPTION>
 
@@ -134,14 +137,15 @@ use       mpp_io_mod, only:  mpp_io_init, mpp_open, mpp_close,         &
                        MPP_SINGLE, MPP_MULTI, MPP_DELETE, mpp_io_exit, &
                        fieldtype, mpp_get_atts, mpp_get_info, mpp_get_fields
 
-use fms_io_mod, only : read_data, write_data, fms_io_init, fms_io_exit, field_size, &
+use fms_io_mod, only : fms_io_init, fms_io_exit, field_size, &
+                       read_data, write_data, read_compressed, read_distributed, &
                        open_namelist_file, open_restart_file, open_ieee32_file, close_file, &
                        set_domain, get_domain_decomp, nullify_domain, &
                        open_file, open_direct_file, string, get_mosaic_tile_grid, &
                        get_mosaic_tile_file, get_global_att_value, file_exist, field_exist
 
 use memutils_mod, only: print_memuse_stats, memutils_init
-use version_mod, only: MOM_VERSION
+use constants_mod, only: constants_version=>version, constants_tagname=>tagname !pjp: PI not computed
 
 
 implicit none
@@ -156,7 +160,7 @@ public :: open_namelist_file, open_restart_file, &
           open_file, open_direct_file
 
 ! routines for reading/writing distributed data
-public :: set_domain, read_data, write_data
+public :: set_domain, read_data, write_data, read_compressed, read_distributed
 public :: get_domain_decomp, field_size, nullify_domain
 public :: get_global_att_value
 
@@ -221,6 +225,7 @@ integer, public :: clock_flag_default
 !     module: mpp_clock_id, mpp_clock_begin, and mpp_clock_end.
 !     The fms module makes these routines public.
 !     A list of timed code sections will be printed to STDOUT.
+!     See the <LINK SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/shared/mpp/mpp.html">MPP</LINK>
 !     module for more details.
 !   </DATA>
 !   <DATA NAME="clock_flags"  TYPE="character"  DEFAULT="'NONE'">
@@ -230,6 +235,7 @@ integer, public :: clock_flag_default
 !     DETAILED also turns on detailed message-passing performance diagnosis.
 !     Both SYNC and DETAILED will  work correctly on innermost clock nest
 !     and distort outer clocks, and possibly the overall code time.
+!     See the <LINK SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/shared/mpp/mpp.html">MPP</LINK>
 !     module for more details.
 !   </DATA>
 !   <DATA NAME="read_all_pe"  TYPE="logical"  DEFAULT="true">
@@ -273,6 +279,12 @@ integer, public :: clock_flag_default
    integer, private :: num_nml_error_codes, nml_error_codes(20)
    logical, private :: do_nml_error_init = .true.
    private  nml_error_init
+
+
+!  ---- version number -----
+
+  character(len=128) :: version = '$Id$'
+  character(len=128) :: tagname = '$Name$'
 
   logical :: module_is_initialized = .FALSE.
 
@@ -401,7 +413,7 @@ subroutine fms_init (localcomm )
 
 !--- write version info and namelist to logfile ---
 
-    call write_version_number()
+    call write_version_number (version, tagname)
     if (mpp_pe() == mpp_root_pe()) then
       unit = stdlog()
       write (unit, nml=fms_nml)
@@ -410,6 +422,8 @@ subroutine fms_init (localcomm )
 
     call memutils_init( print_memory_usage )
     call print_memuse_stats('fms_init')
+
+    call write_version_number (constants_version,constants_tagname)
 
 end subroutine fms_init
 ! </SUBROUTINE>
@@ -748,41 +762,60 @@ end subroutine fms_end
 ! <SUBROUTINE NAME="write_version_number">
 
 !   <OVERVIEW>
-!     Prints to the log file (or a specified unit) the version (git hash)
+!     Prints to the log file (or a specified unit) the (cvs) version id string and
+!     (cvs) tag name.
 !   </OVERVIEW>
 !   <DESCRIPTION>
-!     Prints to the log file (stdlog) or a specified unit the version (git hash)
+!     Prints to the log file (stdlog) or a specified unit the (cvs) version id string
+!      and (cvs) tag name.
 !   </DESCRIPTION>
 !   <TEMPLATE>
-!    call write_version_number ( [unit] )
+!    call write_version_number ( version [, tag, unit] )
 !   </TEMPLATE>
+
+!   <IN NAME="version" TYPE="character(len=*)">
+!    string that contains routine name and version number.
+!   </IN>
+!   <IN NAME="tag" TYPE="character(len=*)">
+!    The tag/name string, this is usually the Name string
+!    returned by CVS when checking out the code.
+!   </IN>
 !   <IN NAME="unit" TYPE="integer">
 !    The Fortran unit number of an open formatted file. If this unit number 
 !    is not supplied the log file unit number is used (stdlog). 
 !   </IN>
 ! prints module version number to the log file of specified unit number
 
- subroutine write_version_number (unit)
+ subroutine write_version_number (version, tag, unit)
 
+!   in:  version = string that contains routine name and version number
+!
 !   optional in:
-!        unit    = alternate unit number to direct output
+!        tag = cvs tag name that code was checked out with
+!        unit    = alternate unit number to direct output  
 !                  (default: unit=stdlog)
 
-   integer,          intent(in), optional :: unit
+   character(len=*), intent(in) :: version
+   character(len=*), intent(in), optional :: tag 
+   integer,          intent(in), optional :: unit 
 
-   integer :: logunit
+   integer :: logunit 
 
-   if (.not.module_is_initialized) call fms_init ()
+   if (.not.module_is_initialized) call fms_init ( )
 
      logunit = stdlog()
      if (present(unit)) then
          logunit = unit
-     else
+     else    
        ! only allow stdlog messages on root pe
          if ( mpp_pe() /= mpp_root_pe() ) return
-     endif
+     endif   
 
-     write (logunit,'(/,80("="),/(a))') trim(MOM_VERSION)
+     if (present(tag)) then
+         write (logunit,'(/,80("="),/(a))') trim(version), trim(tag)
+     else    
+         write (logunit,'(/,80("="),/(a))') trim(version)
+     endif   
 
  end subroutine write_version_number
 ! </SUBROUTINE>

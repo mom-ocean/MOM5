@@ -110,7 +110,7 @@ SUBROUTINE rotstayn_klein_microp_init
 !-------------------------------------------------------------------------
 !    write version and namelist to standard log.
 !-------------------------------------------------------------------------
-      call write_version_number()
+      call write_version_number(version, tagname)
       logunit = stdlog()
       if ( mpp_pe() == mpp_root_pe() ) &
                          write (logunit, nml=rotstayn_klein_mp_nml)
