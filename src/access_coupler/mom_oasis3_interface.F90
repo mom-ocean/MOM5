@@ -93,7 +93,6 @@ use ocean_types_mod, only: ice_ocean_boundary_type, &
                            ocean_public_type, &
                            ocean_domain_type
 use time_manager_mod, only: time_type
-use mpp_parameter_mod, only: ROOT_GLOBAL
 
 ! Timing
 
@@ -414,8 +413,8 @@ endif
     il_paral ( clim_strategy ) = clim_serial
     il_paral ( clim_offset   ) = 0
     il_paral ( clim_length   ) = imt_global * jmt_global
-    send_before_ocean_update = .false.
-    send_after_ocean_update = .true.
+!    send_before_ocean_update = .false.
+!    send_after_ocean_update = .true.
   else !if( parallel_coupling .and. mpp_pe() < pe_layout(1) ) then
 
   il_paral ( clim_strategy ) = clim_Box
@@ -424,8 +423,13 @@ endif
   il_paral ( clim_SizeX    ) = iiec-iisc+1
   il_paral ( clim_SizeY    ) = jjec-jjsc+1
   il_paral ( clim_LdX      ) = ieg-isg+1
-    send_before_ocean_update = .false.
-    send_after_ocean_update = .true.
+!configure in input.nml for cice to do into_ocn (put) at step 0 then from_ocn (get) at step 1
+!    send_before_ocean_update = .false.
+!    send_after_ocean_update = .true.
+
+!configure in input.nml for cice to (get) from_ocn then (put) into_ocn at the same time step
+!      send_before_ocean_update=.true.
+!      send_after_ocean_update=.false.
   
   endif
 
@@ -790,11 +794,9 @@ if ( write_restart ) then
         end select
 
     if (parallel_coupling) then
-      call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec),   &
-             gtmp, flags=ROOT_GLOBAL)
+      call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), gtmp)
     else
-      call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec),   &
-             vwork, flags=ROOT_GLOBAL )
+      call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), vwork)
     endif
 
          if (mpp_pe() == mpp_root_pe()) then

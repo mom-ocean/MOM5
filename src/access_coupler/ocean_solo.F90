@@ -426,8 +426,11 @@ program main
 
 #ifdef ACCESS
      do_sfix_now = .false.
-     int_sec = (nc-1) * num_cpld_calls
-     if (mod((nc-1)*num_cpld_calls,sfix_hours*3600) == 0 .and. nc /= 1) do_sfix_now = .true.
+     !write(stdoutunit,*) 'XXX: in ocean_solo, dt_cpld = ', dt_cpld
+     int_sec = (nc-1) * dt_cpld
+     !write(stdoutunit,*) 'XXX: in ocean_solo, nc, int_sec, sfix_hours = ',nc, int_sec, sfix_hours
+     !if (mod(int_sec,sfix_hours*3600) == 0 .and. nc /= 1) do_sfix_now = .true.
+     if (mod(int_sec,sfix_hours*3600) == 0 ) do_sfix_now = .true.
 #endif
 
      call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
@@ -594,23 +597,26 @@ subroutine external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nsteps, dt
 
     rtimestep = (nsteps-1) * dt_cpld   ! runtime in this run segment!
     stimestep = rtimestep
-    call from_coupler( rtimestep, Ocean_sfc, Ice_ocean_boundary )
+    !call from_coupler( rtimestep, Ocean_sfc, Ice_ocean_boundary )
     call into_coupler( stimestep, Ocean_sfc, before_ocean_update = .true.)
 end subroutine external_coupler_sbc_before
 
 subroutine external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nsteps, dt_cpld )
     !Perform transfers after ocean time stepping
 
-    use mom_oasis3_interface_mod, only : into_coupler
+    use mom_oasis3_interface_mod, only : from_coupler, into_coupler
 
     implicit none
     type (ice_ocean_boundary_type) :: Ice_ocean_boundary
     type (ocean_public_type)         :: Ocean_sfc
     integer                        :: nsteps, dt_cpld
 
+    integer                        :: rtimestep ! Receive timestep
     integer                        :: stimestep ! Send timestep
 
-    stimestep = nsteps * dt_cpld   ! runtime in this run segment!
+    rtimestep = (nsteps-1) * dt_cpld   ! runtime in this run segment!
+    call from_coupler( rtimestep, Ocean_sfc, Ice_ocean_boundary )
+    stimestep = rtimestep ! nsteps * dt_cpld   ! runtime in this run segment!
     if (stimestep < num_cpld_calls*dt_cpld) call into_coupler(stimestep, Ocean_sfc, before_ocean_update = .false.)
 end subroutine external_coupler_sbc_after
 
