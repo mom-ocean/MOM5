@@ -288,7 +288,8 @@ integer :: i, j
 do j = jjsc, jjec
 do i = iisc, iiec
 
-  Ocean_sfc%frazil(i,j) = QICE(i,j) * frazil_factor * rho_cp / float(ATIME)
+  !Ocean_sfc%frazil(i,j) = QICE(i,j) * frazil_factor * rho_cp / float(ATIME)
+  Ocean_sfc%frazil(i,j) = QICE(i,j) * frazil_factor * rho_cp / dt_ocean
   ! here ATIME can be accumulated time (seconds) in a coupling interval 
   ! or just the ocean time step, depending how often the ice_formation_new
   ! is called  (21/07/2008, E. Hunke suggested POP calls ice_foramtion
