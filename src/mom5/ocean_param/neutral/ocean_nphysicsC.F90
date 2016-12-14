@@ -282,6 +282,8 @@ use ocean_nphysics_util_mod, only: transport_on_nrho_gm, transport_on_rho_gm, tr
 use ocean_nphysics_util_mod, only: cabbeling_thermob_tendency
 use ocean_nphysics_util_mod, only: compute_eta_tend_gm90
 use ocean_nphysics_util_mod, only: watermass_diag_init, watermass_diag_ndiffuse, watermass_diag_sdiffuse
+use ocean_nphysics_new_mod,  only: neutral_slopes=>gradrho
+use ocean_nphysics_new_mod,  only: neutral_slopes=>calc_neutral_slope_vector
 use ocean_operators_mod,     only: FAX, FAY, FMX, FMY, BDX_ET, BDY_NT
 use ocean_parameters_mod,    only: missing_value, onehalf, onefourth, oneeigth, DEPTH_BASED
 use ocean_parameters_mod,    only: rho0r, rho0, grav
@@ -1507,8 +1509,6 @@ subroutine nphysicsC (Time, Thickness, Dens, rho, T_prog, &
      drhodS(:,:,:) = Dens%drhodS(:,:,:)
   endif 
 
-
-
   call tracer_derivs(Time, taum1, dtime, drhodT, drhodS, T_prog, Dens, dzwtr, &
                      dTdx, dTdy, dTdz, dSdx, dSdy, dSdz, drhodzb, drhodzh) 
 
@@ -2727,6 +2727,7 @@ subroutine compute_psi_bvp(Time, Dens, Thickness, T_prog)
 
   if(diag_advect_transport) then 
      call compute_advect_transport(Time, Dens, Thickness)
+     call compute_hrm_transport(Time, Dens, Thickness)
   endif 
 
 
@@ -3835,6 +3836,177 @@ subroutine invtri_bvp (mask, a, b, c, r, upsilon)
 end subroutine invtri_bvp
 ! </SUBROUTINE> NAME="invtri_bvp">
 
+!#######################################################################
+! <SUBROUTINE NAME="compute_hrm_transport">
+!
+! <DESCRIPTION>
+! Diagnose advective mass transport from GM. 
+!
+! This routine is a diagnostic routine since generically we use the 
+! skewsion approach for the GM scheme. However, it could form the 
+! basis for an advective implementation of GM, which remains to be done.
+!
+! Comments on the diagnostic scheme:
+! 
+! 0/ algorithm based on a similar approach used for submeso parameterization.  
+!
+! 1/ psiy(k) is centred at bottom of tracer cell at zonal face.
+!    so -(psiy(i,j,k-1)-psiy(i,j,k)) gives zonal transport through 
+!    tracer cell k.  
+!
+! 2/ psix(k) is centred at bottom of tracer cell at meridional face.
+!    so (psix(i,j,k-1)-psix(i,j,k)) gives meridional transport through 
+!    tracer cell k.  
+!
+! 3/ compute vertical component from convergence of horizontal, just
+! as for the vertical velocity component for the Eulerian transport.
+! 
+! 4/ wrho_bt_gm(:,:,k=0) = 0.0 by definition
+! it should be diagnosed to have zero at the ocean bottom; we should
+! check that this is indeed the case to verify the diagnostic algorithm.
+!
+! 5/ expand the BDX_ET and BDY_NT operators for efficiency.  
+!
+! </DESCRIPTION>
+!
+subroutine compute_hrm_transport(Time, Dens, Thickness)
+
+  type(ocean_time_type),      intent(in) :: Time
+  type(ocean_density_type),   intent(in) :: Dens
+  type(ocean_thickness_type), intent(in) :: Thickness
+
+  real    :: active_cells
+  real    :: deriv_x, deriv_y
+  real    :: divergence
+  integer :: i, j, k, kp1
+  integer :: tau
+  integer :: num_smooth
+
+  integer :: stdoutunit 
+  stdoutunit=stdout() 
+
+  tau = Time%tau
+
+  ! Calculate density gradients
+  call gradrho()
+
+  ! Calculate neutral slopes
+  call calc_neutral_slope_vector()
+
+  uhrho_et_gm(:,:,:) = 0.0
+  vhrho_nt_gm(:,:,:) = 0.0
+  wrho_bt_gm(:,:,:)  = 0.0
+
+  wrk1_v(:,:,:,:) = 0.0 ! (rho*psix,rho*psiy) = 0.0
+  if(vert_coordinate_class==DEPTH_BASED) then 
+      do k=1,nk
+         do j=jsc,jec
+            do i=isc,iec
+               wrk1_v(i,j,k,1) = onehalf*rho0*(psix(i,j,k,1)+psix(i,j,k,0))
+               wrk1_v(i,j,k,2) = onehalf*rho0*(psiy(i,j,k,1)+psiy(i,j,k,0))
+            enddo
+         enddo
+      enddo
+  else 
+      do k=1,nk
+         do j=jsc,jec
+            do i=isc,iec
+               wrk1_v(i,j,k,1) = onehalf*Dens%rho(i,j,k,tau)*(psix(i,j,k,1)+psix(i,j,k,0))
+               wrk1_v(i,j,k,2) = onehalf*Dens%rho(i,j,k,tau)*(psiy(i,j,k,1)+psiy(i,j,k,0))
+            enddo
+         enddo
+      enddo
+  endif
+
+  ! take vertical derivatives to compute zonal and meridional fluxes. 
+  ! note that psi(k=0) = 0.0 
+  do k=1,1
+     do j=jsc,jec
+        do i=isc,iec
+           uhrho_et_gm(i,j,k) =  wrk1_v(i,j,k,2)
+           vhrho_nt_gm(i,j,k) = -wrk1_v(i,j,k,1)
+        enddo
+     enddo
+  enddo
+  do k=2,nk
+     do j=jsc,jec
+        do i=isc,iec
+           uhrho_et_gm(i,j,k) = -(wrk1_v(i,j,k-1,2)-wrk1_v(i,j,k,2))
+           vhrho_nt_gm(i,j,k) =  (wrk1_v(i,j,k-1,1)-wrk1_v(i,j,k,1))
+        enddo
+     enddo
+  enddo
+
+  ! update domains as per C-grid fluxes 
+  call mpp_update_domains(uhrho_et_gm(:,:,:), vhrho_nt_gm(:,:,:),&
+                          Dom_flux%domain2d, gridtype=CGRID_NE)
+
+
+  ! send diagnostics 
+  if (id_u_et_gm > 0) then
+      wrk1 = 0.0 
+      do k=1,nk
+         do j=jsd,jed
+            do i=isd,ied
+               wrk1(i,j,k) = Grd%tmask(i,j,k)*uhrho_et_gm(i,j,k) &
+                             /(epsln+Thickness%rho_dzt(i,j,k,tau))
+            enddo
+         enddo
+      enddo
+      call diagnose_3d(Time, Grd, id_u_et_gm, wrk1(:,:,:))
+  endif
+  if (id_v_nt_gm > 0) then
+      wrk1 = 0.0 
+      do k=1,nk
+         do j=jsd,jed
+            do i=isd,ied
+               wrk1(i,j,k) = Grd%tmask(i,j,k)*vhrho_nt_gm(i,j,k) &
+                             /(epsln+Thickness%rho_dzt(i,j,k,tau))
+            enddo
+         enddo
+      enddo
+      call diagnose_3d(Time, Grd, id_v_nt_gm, wrk1(:,:,:))
+  endif
+  if (id_w_bt_gm > 0) then
+      wrk1 = 0.0 
+      do k=1,nk
+         kp1 = min(k+1,nk)
+         do j=jsd,jed
+            do i=isd,ied
+               wrk1(i,j,k) = Grd%tmask(i,j,k)*Grd%tmask(i,j,kp1)*Thickness%dzt(i,j,k)*wrho_bt_gm(i,j,k) &
+                             /(epsln+Thickness%rho_dzt(i,j,k,tau))
+            enddo
+         enddo
+      enddo
+      call diagnose_3d(Time, Grd, id_w_bt_gm, wrk1(:,:,:))
+  endif
+  call diagnose_3d(Time, Grd, id_uhrho_et_gm, uhrho_et_gm(:,:,:))
+  call diagnose_3d(Time, Grd, id_vhrho_nt_gm, vhrho_nt_gm(:,:,:))
+
+  ! diagnose advective mass transports from GM through cell faces.
+  ! to compute overturning streamfunction in Ferret using these diagnostics,
+  ! do so just like the Eulerian overturning.
+  if (id_tx_trans_gm_adv > 0 .or. id_ty_trans_gm_adv > 0 .or. id_tz_trans_gm_adv > 0) then
+
+     wrk1_v = 0.0
+     wrk1   = 0.0
+     do k=1,nk
+        do j=jsc,jec
+           do i=isc,iec
+              wrk1_v(i,j,k,1) = uhrho_et_gm(i,j,k)*Grd%dyte(i,j)
+              wrk1_v(i,j,k,2) = vhrho_nt_gm(i,j,k)*Grd%dxtn(i,j)
+              wrk1(i,j,k)     = wrho_bt_gm(i,j,k)*Grd%dat(i,j)
+           enddo
+        enddo
+     enddo
+     call diagnose_3d(Time, Grd, id_tx_trans_gm_adv, wrk1_v(:,:,:,1))
+     call diagnose_3d(Time, Grd, id_ty_trans_gm_adv, wrk1_v(:,:,:,2))
+     call diagnose_3d(Time, Grd, id_tz_trans_gm_adv, wrk1(:,:,:))
+
+  endif
+
+end subroutine compute_advect_transport
+! </SUBROUTINE> NAME="compute_advect_transport"
 
 
 !#######################################################################
