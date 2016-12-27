@@ -3109,7 +3109,7 @@ write (stdlogunit, generic_bling_nml)
             grid_tmask(i,j,1)
        sc_no_term = sqrt(660.0 / (sc_o2 + epsln)) 
      
-       o2_alpha(i,j) = o2_saturation       * sc_no_term * bling%Rho_0
+       o2_alpha(i,j) = o2_saturation       * sc_no_term
        o2_csurf(i,j) = o2_field(i,j,1,tau) * sc_no_term * bling%Rho_0 !nnz: MOM has rho(i,j,1,tau)
 
     enddo; enddo
