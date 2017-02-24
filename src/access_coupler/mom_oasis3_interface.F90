@@ -89,6 +89,7 @@ use mpp_domains_mod, only: mpp_get_compute_domain, &
                            mpp_get_data_domain, &
                            mpp_get_global_domain, &
                            mpp_global_field
+use mpp_parameter_mod, only: GLOBAL_ROOT_ONLY, XUPDATE, YUPDATE
 use ocean_types_mod, only: ice_ocean_boundary_type, &
                            ocean_public_type, &
                            ocean_domain_type
@@ -794,9 +795,9 @@ if ( write_restart ) then
         end select
 
     if (parallel_coupling) then
-      call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), gtmp)
+      call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), gtmp, flags=GLOBAL_ROOT_ONLY+XUPDATE+YUPDATE)
     else
-      call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), vwork)
+      call mpp_global_field(Ocean_sfc%domain, vtmp(iisc:iiec,jjsc:jjec), vwork, flags=GLOBAL_ROOT_ONLY+XUPDATE+YUPDATE)
     endif
 
          if (mpp_pe() == mpp_root_pe()) then
