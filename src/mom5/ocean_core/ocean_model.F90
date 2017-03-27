@@ -2114,6 +2114,10 @@ subroutine ocean_model_data2D_get(OS,Ocean, name, array2D,isc,jsc)
       array2D(isc:iec,jsc:jec) = T_prog(index_temp)%tcalving(Domain%isc:Domain%iec,Domain%jsc:Domain%jec)
   case('btfHeat')
       array2D(isc:iec,jsc:jec) = T_prog(index_temp)%conversion * T_prog(index_temp)%btf(Domain%isc:Domain%iec,Domain%jsc:Domain%jec)
+   case('cos_rot')
+      array2D(isc:iec,jsc:jec) = Grid%cos_rot(Domain%isc:Domain%iec,Domain%jsc:Domain%jec)
+   case('sin_rot')
+      array2D(isc:iec,jsc:jec) = Grid%sin_rot(Domain%isc:Domain%iec,Domain%jsc:Domain%jec)
   case default
       call mpp_error(FATAL,'get_ocean_grid_data2D: unknown argument name='//name)
   end select
