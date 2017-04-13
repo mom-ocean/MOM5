@@ -15,8 +15,6 @@ file(GLOB_RECURSE MOM5_SOLO_SOURCE LIST_DIRECTORIES false
 # Remove these from previous list
 list(REMOVE_ITEM MOM5_SOURCE ${MOM5_SOLO_SOURCE})
 
-message(${OCEANSHARED_SOURCE})
-
 add_library(ocean ${MOM5_SOURCE} ${OCEANSHARED_SOURCE})
 target_include_directories(ocean PRIVATE
   $<TARGET_FILE_DIR:FMS> ${MOM5_DIR}/ocean_core ${MOM5_DIR}/ocean_param/gotm-4.0/include ${FMS_DIR}/include/ ${SRC_DIR}/ocean_shared)
