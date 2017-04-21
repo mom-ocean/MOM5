@@ -1,9 +1,7 @@
 source /etc/profile.d/nf_csh_modules
 module purge
-module load intel-fc/16.0.2.181
-module load intel-cc/16.0.2.181
+module load intel-fc/17.0.1.132
+module load intel-cc/17.0.1.132
 module load netcdf/4.3.3.1
-module use /projects/v45/modules
-module load oasis/dev
 module load openmpi/1.10.2
 setenv mpirunCommand   "mpirun --mca orte_base_help_aggregate 0 -np"

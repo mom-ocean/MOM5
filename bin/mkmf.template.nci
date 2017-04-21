@@ -25,10 +25,10 @@ MAKEFLAGS += --jobs=4
 
 INCLUDE   = -I$(NETCDF_ROOT)/include
 
-ifneq ($(OASIS),)
-INCLUDE  += -I$(OASIS_ROOT)/include/psmile.MPI1 \
-			-I$(OASIS_ROOT)/include/pio \
-			-I$(OASIS_ROOT)/include/mct
+ifneq ($(OASIS_ROOT),)
+INCLUDE  += -I$(OASIS_ROOT)/Linux/build/lib/psmile.MPI1 \
+            -I$(OASIS_ROOT)/Linux/build/lib/pio \
+            -I$(OASIS_ROOT)/Linux/build/lib/mct
 endif
 
 FPPFLAGS := -fpp -Wp,-w $(INCLUDE)
@@ -66,8 +66,8 @@ endif
 
 LIBS := -L$(NETCDF_ROOT)/lib -lnetcdf -lnetcdff \
 
-ifneq ($(OASIS),)
-LIBS += -L$(OASIS_ROOT)/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip
+ifneq ($(OASIS_ROOT),)
+LIBS += -L$(OASIS_ROOT)/Linux/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip
 endif
 
 LDFLAGS += $(LIBS)
