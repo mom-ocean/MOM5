@@ -1,0 +1,57 @@
+"prog_tracers","ocean_mod","temp"
+horizontal-advection-scheme = mdppm
+vertical-advection-scheme = mdppm
+restart_file = ocean_temp_salt.res.nc
+ppm_hlimiter=2
+ppm_vlimiter=2
+/
+
+"prog_tracers","ocean_mod","salt"
+
+horizontal-advection-scheme = mdppm
+vertical-advection-scheme = mdppm
+restart_file = ocean_temp_salt.res.nc
+ppm_hlimiter=2
+ppm_vlimiter=2
+/
+
+
+"tracer_packages","ocean_mod","ocean_age_tracer"
+
+names = global
+horizontal-advection-scheme = mdppm
+vertical-advection-scheme = mdppm
+restart_file = ocean_age.res.nc
+min_tracer_limit=0.0
+ppm_hlimiter=2
+ppm_vlimiter=2
+/
+
+
+"namelists","ocean_mod","ocean_age_tracer/global"
+
+slat = -90.0
+nlat =  90.0
+wlon =   0.0
+elon = 360.0
+/
+
+#"tracer_packages","ocean_mod","generic_gen"
+#const_init_tracer = .false.
+#restart_file = generic_gen_res.nc
+#horizontal-advection-scheme = mdppm
+#vertical-advection-scheme = mdppm
+#ppm_hlimiter=2
+#ppm_vlimiter=2
+#/
+#
+#"namelists", "ocean_mod", "generic_gen"
+#
+#/
+#
+
+
+
+
+
+

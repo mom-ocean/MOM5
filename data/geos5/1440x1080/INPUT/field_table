@@ -1,0 +1,210 @@
+"prog_tracers","ocean_mod","temp"
+horizontal-advection-scheme = mdppm
+vertical-advection-scheme = mdppm
+restart_file  = ocean_temp_salt.res.nc
+ppm_hlimiter = 3
+ppm_vlimiter = 3
+/
+"prog_tracers","ocean_mod","salt"
+horizontal-advection-scheme = mdppm
+vertical-advection-scheme = mdppm
+restart_file  = ocean_temp_salt.res.nc
+ppm_hlimiter = 3
+ppm_vlimiter = 3
+/
+"tracer_packages","ocean_mod","ocean_age_tracer"
+names = global
+const_init_tracer=.true.
+horizontal-advection-scheme = mdppm
+vertical-advection-scheme = mdppm
+ppm_hlimiter = 3
+ppm_vlimiter = 3
+restart_file = ocean_age.res.nc
+min_tracer_limit=0.0
+/
+"namelists","ocean_mod","ocean_age_tracer/global"
+slat = -90.0
+nlat =  90.0
+wlon =   0.0
+elon = 360.0
+/
+
+"rayleigh_damp_table","ocean_mod","rayleigh_damp_table"
+"rayleigh_damp_table","torres_001","itable=250,jtable=455,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","torres_002","itable=250,jtable=456,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","torres_003","itable=250,jtable=457,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","torres_004","itable=250,jtable=458,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","torres_005","itable=250,jtable=459,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","torres_006","itable=250,jtable=460,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","torres_007","itable=249,jtable=455,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","torres_008","itable=249,jtable=456,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","torres_009","itable=249,jtable=457,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","torres_010","itable=249,jtable=458,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","torres_011","itable=249,jtable=459,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","torres_012","itable=249,jtable=460,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","torres_013","itable=251,jtable=455,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","torres_014","itable=251,jtable=456,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","torres_015","itable=251,jtable=457,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","torres_016","itable=251,jtable=458,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","torres_017","itable=251,jtable=459,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","torres_018","itable=251,jtable=460,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","torres_019","itable=248,jtable=452,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_021","itable=248,jtable=453,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_022","itable=248,jtable=454,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_023","itable=248,jtable=455,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_024","itable=248,jtable=456,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_025","itable=248,jtable=457,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_026","itable=248,jtable=458,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_027","itable=248,jtable=459,ktable_1=1,ktable_2=6,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_028","itable=248,jtable=460,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_029","itable=252,jtable=451,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_030","itable=252,jtable=452,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_031","itable=252,jtable=453,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_032","itable=252,jtable=454,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_033","itable=252,jtable=455,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_034","itable=252,jtable=456,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_035","itable=252,jtable=457,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_036","itable=252,jtable=458,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_037","itable=252,jtable=459,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_038","itable=252,jtable=460,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","torres_039","itable=247,jtable=453,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_040","itable=247,jtable=454,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_041","itable=247,jtable=455,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_042","itable=247,jtable=456,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_043","itable=247,jtable=457,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_044","itable=247,jtable=458,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_045","itable=247,jtable=459,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_046","itable=247,jtable=460,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_047","itable=253,jtable=449,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_048","itable=253,jtable=450,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_049","itable=253,jtable=451,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_050","itable=253,jtable=452,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_051","itable=253,jtable=453,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_052","itable=253,jtable=454,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_053","itable=253,jtable=455,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_054","itable=253,jtable=456,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_055","itable=253,jtable=457,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_056","itable=253,jtable=458,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_057","itable=253,jtable=459,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_058","itable=253,jtable=460,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","torres_059","itable=253,jtable=461,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","malacca_001","itable=91,jtable=503,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","malacca_002","itable=91,jtable=504,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","malacca_003","itable=91,jtable=505,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","malacca_004","itable=96,jtable=498,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","malacca_005","itable=97,jtable=498,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","malacca_006","itable=98,jtable=498,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","malacca_007","itable=98,jtable=499,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","malacca_008","itable=98,jtable=500,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","malacca_009","itable=98,jtable=501,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","malacca_010","itable=92,jtable=502,ktable_1=1,ktable_2=5,rayleigh_damp_table=10800.0"
+"rayleigh_damp_table","malacca_011","itable=92,jtable=503,ktable_1=1,ktable_2=5,rayleigh_damp_table=10800.0"
+"rayleigh_damp_table","malacca_012","itable=92,jtable=504,ktable_1=1,ktable_2=5,rayleigh_damp_table=10800.0"
+"rayleigh_damp_table","malacca_013","itable=96,jtable=499,ktable_1=1,ktable_2=5,rayleigh_damp_table=10800.0"
+"rayleigh_damp_table","malacca_014","itable=97,jtable=499,ktable_1=1,ktable_2=5,rayleigh_damp_table=10800.0"
+"rayleigh_damp_table","malacca_015","itable=97,jtable=500,ktable_1=1,ktable_2=5,rayleigh_damp_table=10800.0"
+"rayleigh_damp_table","malacca_016","itable=97,jtable=501,ktable_1=1,ktable_2=5,rayleigh_damp_table=10800.0"
+"rayleigh_damp_table","malacca_017","itable=93,jtable=502,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","malacca_018","itable=93,jtable=503,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","malacca_019","itable=93,jtable=504,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","malacca_020","itable=95,jtable=500,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","malacca_021","itable=96,jtable=500,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","malacca_022","itable=96,jtable=501,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","malacca_023","itable=96,jtable=502,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","malacca_024","itable=96,jtable=503,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","malacca_025","itable=94,jtable=501,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","malacca_026","itable=95,jtable=501,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","malacca_027","itable=94,jtable=502,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","malacca_028","itable=95,jtable=502,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","malacca_029","itable=94,jtable=503,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","malacca_030","itable=95,jtable=503,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","karimat_001","itable=106,jtable=484,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","karimat_002","itable=106,jtable=485,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","karimat_003","itable=107,jtable=484,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","karimat_004","itable=107,jtable=485,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","karimat_005","itable=107,jtable=486,ktable_1=1,ktable_2=5,rayleigh_damp_table=2700.0"
+"rayleigh_damp_table","karimat_006","itable=108,jtable=484,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","karimat_007","itable=108,jtable=485,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","karimat_008","itable=108,jtable=486,ktable_1=1,ktable_2=5,rayleigh_damp_table=2700.0"
+"rayleigh_damp_table","karimat_009","itable=108,jtable=487,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","karimat_010","itable=108,jtable=488,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","karimat_011","itable=109,jtable=484,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","karimat_012","itable=109,jtable=485,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","karimat_013","itable=109,jtable=486,ktable_1=1,ktable_2=5,rayleigh_damp_table=2700.0"
+"rayleigh_damp_table","karimat_014","itable=109,jtable=487,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","karimat_015","itable=109,jtable=488,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","karimat_016","itable=110,jtable=484,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","karimat_017","itable=110,jtable=485,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","karimat_018","itable=110,jtable=486,ktable_1=1,ktable_2=5,rayleigh_damp_table=2700.0"
+"rayleigh_damp_table","karimat_019","itable=110,jtable=487,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","karimat_020","itable=110,jtable=488,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","karimat_021","itable=111,jtable=484,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","karimat_022","itable=111,jtable=488,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","karimat_023","itable=112,jtable=484,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","karimat_024","itable=112,jtable=488,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","karimat_025","itable=113,jtable=484,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","karimat_026","itable=113,jtable=488,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","karimat_027","itable=114,jtable=484,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","karimat_028","itable=114,jtable=485,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","karimat_029","itable=114,jtable=486,ktable_1=1,ktable_2=5,rayleigh_damp_table=2700.0"
+"rayleigh_damp_table","karimat_030","itable=114,jtable=487,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","karimat_031","itable=114,jtable=488,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","karimat_032","itable=115,jtable=485,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","karimat_033","itable=115,jtable=486,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","karimat_034","itable=115,jtable=487,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","karimat_035","itable=116,jtable=486,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","sunda_001","itable=101,jtable=473,ktable_1=1,ktable_2=5,rayleigh_damp_table=10800.0"
+"rayleigh_damp_table","sunda_002","itable=101,jtable=474,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","sunda_003","itable=102,jtable=473,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","sunda_004","itable=102,jtable=474,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","sunda_005","itable=103,jtable=474,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","sunda_006","itable=104,jtable=474,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","sunda_007","itable=104,jtable=475,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","sunda_008","itable=104,jtable=476,ktable_1=1,ktable_2=6,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","sunda_009","itable=104,jtable=477,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","sunda_010","itable=104,jtable=478,ktable_1=1,ktable_2=5,rayleigh_damp_table=10800.0"
+"rayleigh_damp_table","sunda_011","itable=105,jtable=474,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","sunda_012","itable=105,jtable=475,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","sunda_013","itable=105,jtable=476,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","sunda_014","itable=105,jtable=477,ktable_1=1,ktable_2=5,rayleigh_damp_table=10800.0"
+"rayleigh_damp_table","sunda_015","itable=106,jtable=474,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","sunda_016","itable=106,jtable=475,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","sunda_017","itable=106,jtable=476,ktable_1=1,ktable_2=5,rayleigh_damp_table=10800.0"
+"rayleigh_damp_table","sunda_018","itable=107,jtable=474,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","sunda_019","itable=107,jtable=475,ktable_1=1,ktable_2=5,rayleigh_damp_table=10800.0"
+"rayleigh_damp_table","sape_001","itable=157,jtable=462,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","sape_001","itable=157,jtable=463,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","sape_002","itable=157,jtable=464,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","sape_004","itable=158,jtable=464,ktable_1=1,ktable_2=5,rayleigh_damp_table=1800.0"
+"rayleigh_damp_table","sanberd_001","itable=175,jtable=549,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","sanberd_002","itable=176,jtable=548,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","sanberd_003","itable=176,jtable=549,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","sanberd_004","itable=177,jtable=549,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","sanberd_005","itable=177,jtable=550,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","sanberd_006","itable=178,jtable=549,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","surigao_001","itable=181,jtable=538,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","surigao_002","itable=182,jtable=538,ktable_1=1,ktable_2=5,rayleigh_damp_table=3600.0"
+"rayleigh_damp_table","surigao_003","itable=182,jtable=539,ktable_1=1,ktable_2=5,rayleigh_damp_table=5400.0"
+"rayleigh_damp_table","surigao_004","itable=182,jtable=540,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","surigao_005","itable=183,jtable=538,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","surigao_006","itable=183,jtable=539,ktable_1=1,ktable_2=5,rayleigh_damp_table=7200.0"
+"rayleigh_damp_table","surigao_007","itable=183,jtable=540,ktable_1=1,ktable_2=5,rayleigh_damp_table=9000.0"
+"rayleigh_damp_table","gibraltar_001","itable=1097,jtable=652,ktable_1=1,ktable_2=20,rayleigh_damp_table=7200.0"/
+
+
+#"riverspread","ocean_mod","riverspread"
+#"riverspread", "Uruguay", "iloc=887,jloc=349,is=887,ie=890,js=348,je=351"/
+
+#
+#"tracer_packages","ocean_mod","generic_gen"
+#const_init_tracer = .true.
+#restart_file = generic_gen_res.nc
+#horizontal-advection-scheme = mdppm
+#vertical-advection-scheme = mdppm
+#ppm_hlimiter=2
+#ppm_vlimiter=2
+#/
+#
+#"namelists", "ocean_mod", "generic_gen"
+#
+#/
