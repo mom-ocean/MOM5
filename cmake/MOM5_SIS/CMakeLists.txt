@@ -1,11 +1,8 @@
-set(MOM5_DIR "${SRC_DIR}/mom5")
-set(FMS_DIR "${SRC_DIR}/shared")
+# Coupled model driver
+file(GLOB_RECURSE MOM5_SIS_SOURCE LIST_DIRECTORIES false
+  ${SRC_DIR}/coupler/*.[fF]90)
 
-# MOM5 ocean only
-file(GLOB_RECURSE MOM5_SOLO_SOURCE LIST_DIRECTORIES false
-  ${MOM5_DIR}/drivers/*.[fF]90)
-
-add_executable(MOM5_SIS ${MOM5_SOLO_SOURCE} ${MOM5_SOURCE} ${OCEANSHARED_SOURCE})
+add_executable(MOM5_SIS ${MOM5_SIS_SOURCE})
 
 target_include_directories(MOM5_SIS PRIVATE
 $<TARGET_FILE_DIR:FMS>
