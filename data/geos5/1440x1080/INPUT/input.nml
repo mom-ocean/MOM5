@@ -375,7 +375,7 @@
 /
 
  &ocean_sbc_nml
-      rotate_winds=.true.
+      rotate_winds=.false.
       use_waterflux=.true.
       land_model_heat_fluxes=.false.
       temp_restore_tscale=-10.
