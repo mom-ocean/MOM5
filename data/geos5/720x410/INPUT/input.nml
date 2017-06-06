@@ -244,7 +244,7 @@
 /
 
  &ocean_model_nml
-      layout = 30,10,
+      layout = 36,10,
       io_layout=1,1,
       dt_ocean = 450,
       time_tendency='twolevel'

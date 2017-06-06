@@ -12,7 +12,7 @@ CM2.1p1
 #"land_daily",    24,  "hours",  1, "days", "time",
 #"land_instant",   1,  "months", 1, "days", "time",
 #"land_month",     1,  "months", 1, "days", "time",
-"ocean_month",     1,  "months", 1, "days", "time",
+"ocean_month",     -1,  "months", 1, "days", "time",
 #"ocean_daily",    24,  "hours",  1, "days", "time",
 #"ocean_month",    1,  "months", 1, "days", "time",
 ##"ocean_topaz_month", 1,  "months", 1, "days", "time",
