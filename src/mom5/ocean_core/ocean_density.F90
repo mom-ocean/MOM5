@@ -218,7 +218,12 @@ module ocean_density_mod
 !  and temperature. 
 !  Default eos_linear=.false.
 !  </DATA>
-!
+!  <DATA NAME="neutral_rho_equal_theta" TYPE="logical">
+!  Set to true to use temperature instead of neutral density as the
+!  binning variable for water-mass diagnostics.
+!  Default neutral_rho_equal_theta=.false.
+!  </DATA>
+
 !  <DATA NAME="alpha_linear_eos" TYPE="real">
 !  Constant "thermal expansion coefficient" for linear EOS 
 !  rho = rho0 - alpha_linear_eos*theta + beta_linear_eos*salinity
@@ -611,6 +616,9 @@ logical :: eos_linear=.false.
 real    :: alpha_linear_eos=0.255
 real    :: beta_linear_eos =0.0
 
+! for water-mass transformation theta
+logical :: neutral_rho_equal_theta = .false.
+
 ! for teos10 or preteos10 eos
 logical :: eos_preteos10 = .false.
 logical :: eos_teos10    = .false.
@@ -700,6 +708,7 @@ logical :: do_bitwise_exact_sum  = .false.
 namelist /ocean_density_nml/ s_test, t_test, p_test, press_standard,                  &
                              sn_test, tn_test,                                        &
                              eos_linear, alpha_linear_eos, beta_linear_eos,           & 
+                             neutral_rho_equal_theta,                                 &
                              eos_preteos10, eos_teos10,                               &
                              potrho_press, potrho_min, potrho_max,                    &
                              neutralrho_min, neutralrho_max,                          &
@@ -2604,6 +2613,14 @@ end subroutine update_ocean_density
               enddo
            enddo
         enddo
+    elseif(neutral_rho_equal_theta) then
+        do k=1,nk
+           do j=jsd,jed
+              do i=isd,ied
+                 neutral_density_field(i,j,k) = theta(i,j,k)
+              enddo
+           enddo
+        enddo
     else
          neutral_density_field = potential_density(salinity,theta,potrho_press)
     endif 
@@ -2641,6 +2658,10 @@ end subroutine update_ocean_density
     if(eos_linear) then
 
         neutral_density_point = rho0 - alpha_linear_eos*theta + beta_linear_eos*salinity
+
+    elseif(neutral_rho_equal_theta) then
+
+        neutral_density_point = theta
 
     else
 
