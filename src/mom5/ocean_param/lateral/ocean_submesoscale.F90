@@ -335,6 +335,7 @@ integer, dimension(:), allocatable :: id_zflux_submeso       ! k-directed flux
 integer, dimension(:), allocatable :: id_xflux_submeso_int_z ! vertically integrated i-flux
 integer, dimension(:), allocatable :: id_yflux_submeso_int_z ! vertically integrated j-flux
 integer, dimension(:), allocatable :: id_submeso             ! tendency from streamfunction portion of submesoscale param 
+integer, dimension(:), allocatable :: id_submeso_on_nrho     ! tendency from streamfunction portion of submesoscale param binned to neutral density
 
 integer, dimension(:), allocatable :: id_xflux_subdiff       ! i-directed horz diffusive flux 
 integer, dimension(:), allocatable :: id_yflux_subdiff       ! j-directed horz diffusive flux 
@@ -1019,6 +1020,7 @@ contains
     allocate (id_xflux_submeso_int_z(num_prog_tracers))
     allocate (id_yflux_submeso_int_z(num_prog_tracers))
     allocate (id_submeso(num_prog_tracers))
+    allocate (id_submeso_on_nrho(num_prog_tracers))
 
     allocate (id_xflux_subdiff(num_prog_tracers))
     allocate (id_yflux_subdiff(num_prog_tracers))
@@ -1061,6 +1063,12 @@ contains
                 'rho*dzt*cp*submesoscale tendency (heating)',            &
                 trim(T_prog(n)%flux_units), missing_value=missing_value, &
                 range=(/-1.e10,1.e10/))
+           id_submeso_on_nrho(n) = register_diag_field ('ocean_model',   &
+                trim(T_prog(n)%name)//'_submeso_on_nrho',                &
+                Dens%neutralrho_axes(1:3), Time%model_time,              &
+                'rho*dzt*cp*submesoscale tendency (heating) binned to neutral density',&
+                trim(T_prog(n)%flux_units), missing_value=missing_value, &
+                range=(/-1.e20,1.e20/))
 
            id_xflux_subdiff(n) = register_diag_field ('ocean_model', &
                 trim(T_prog(n)%name)//'_xflux_subdiff',              &
@@ -1127,6 +1135,12 @@ contains
                 'rho*dzt*submesoscale tendency for '//trim(T_prog(n)%name), &
                 trim(T_prog(n)%flux_units), missing_value=missing_value,    &
                 range=(/-1.e10,1.e10/))
+           id_submeso_on_nrho(n) = register_diag_field ('ocean_model',      &
+                trim(T_prog(n)%name)//'_submeso_on_nrho',                   &
+                Dens%neutralrho_axes(1:3), Time%model_time,                 &
+                'rho*dzt*submesoscale tendency for '//trim(T_prog(n)%name)//' binned to neutral density', &
+                trim(T_prog(n)%flux_units), missing_value=missing_value,    &
+                range=(/-1.e20,1.e20/))
 
 
            id_xflux_subdiff(n) = register_diag_field ('ocean_model',          &
@@ -1237,9 +1251,9 @@ end subroutine ocean_submesoscale_init
       call compute_submeso_skewsion(Thickness, Dens, Time, T_prog)
   elseif(submeso_advect_flux) then
       if(submeso_advect_upwind) then  
-         call compute_submeso_upwind(Time, T_prog)
+         call compute_submeso_upwind(Time, Dens, T_prog)
       elseif(submeso_advect_sweby) then 
-         call compute_submeso_sweby(Thickness, Time, T_prog)
+         call compute_submeso_sweby(Thickness, Time, Dens, T_prog)
       endif 
   endif
   call watermass_diag(Time, T_prog, Dens)
@@ -2366,6 +2380,9 @@ subroutine compute_submeso_skewsion(Thickness, Dens, Time, T_prog)
      if(id_submeso(n) > 0) then
         call diagnose_3d(Time, Grd, id_submeso(n), T_prog(n)%wrk1(:,:,:)*T_prog(n)%conversion)
      endif
+     if(id_submeso_on_nrho(n) > 0) then
+        call diagnose_3d_rho(Time, Dens, id_submeso_on_nrho(n), T_prog(n)%wrk1*T_prog(n)%conversion)
+     endif
 
   enddo ! enddo for n=1,num_prog_tracers
 
@@ -2814,9 +2831,10 @@ end subroutine compute_flux_z
 !
 ! </DESCRIPTION>
 !
-subroutine compute_submeso_upwind(Time, T_prog)
+subroutine compute_submeso_upwind(Time, Dens, T_prog)
 
   type(ocean_time_type),        intent(in)    :: Time
+  type(ocean_density_type),     intent(in)    :: Dens
   type(ocean_prog_tracer_type), intent(inout) :: T_prog(:)
 
   real,dimension(isc:iec,jsc:jec) :: ft1
@@ -2946,6 +2964,9 @@ subroutine compute_submeso_upwind(Time, T_prog)
      if(id_submeso(n) > 0) then 
         call diagnose_3d(Time, Grd, id_submeso(n), -advect_tendency(:,:,:)*T_prog(n)%conversion)
      endif
+     if(id_submeso_on_nrho(n) > 0) then
+        call diagnose_3d_rho(Time, Dens, id_submeso_on_nrho(n), -advect_tendency*T_prog(n)%conversion)
+     endif
 
 
   enddo ! end of tracer n-loop
@@ -2968,10 +2989,11 @@ end subroutine compute_submeso_upwind
 !
 ! </DESCRIPTION>
 !
-subroutine compute_submeso_sweby(Thickness, Time, T_prog)
+subroutine compute_submeso_sweby(Thickness, Time, Dens, T_prog)
 
   type(ocean_thickness_type),   intent(in)    :: Thickness
   type(ocean_time_type),        intent(in)    :: Time
+  type(ocean_density_type),     intent(in)    :: Dens
   type(ocean_prog_tracer_type), intent(inout) :: T_prog(:)
 
   real,dimension(isc:iec,jsc:jec) :: ftp
@@ -3261,6 +3283,10 @@ subroutine compute_submeso_sweby(Thickness, Time, T_prog)
      
      if(id_submeso(n) > 0) then
         call diagnose_3d(Time, Grd, id_submeso(n), T_prog(n)%wrk1(:,:,:)*T_prog(n)%conversion)
+     endif
+
+     if(id_submeso_on_nrho(n) > 0) then
+        call diagnose_3d_rho(Time, Dens, id_submeso_on_nrho(n), T_prog(n)%wrk1*T_prog(n)%conversion)
      endif
 
 

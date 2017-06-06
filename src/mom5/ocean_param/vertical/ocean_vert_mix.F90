@@ -649,7 +649,9 @@ integer, dimension(:), allocatable :: id_vdiffuse
 integer, dimension(:), allocatable :: id_vdiffuse_impl
 integer, dimension(:), allocatable :: id_vdiffuse_k33
 integer, dimension(:), allocatable :: id_vdiffuse_diff_cbt
+integer, dimension(:), allocatable :: id_vdiffuse_diff_cbt_on_nrho
 integer, dimension(:), allocatable :: id_vdiffuse_sbc
+integer, dimension(:), allocatable :: id_vdiffuse_sbc_on_nrho
 integer, dimension(:), allocatable :: id_vdiffuse_bbc
 integer, dimension(:), allocatable :: id_vdiffuse_diss
 
@@ -932,7 +934,9 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
   allocate( id_vdiffuse_impl(num_prog_tracers) )
   allocate( id_vdiffuse_k33(num_prog_tracers) )
   allocate( id_vdiffuse_diff_cbt(num_prog_tracers) )
+  allocate( id_vdiffuse_diff_cbt_on_nrho(num_prog_tracers) )
   allocate( id_vdiffuse_sbc(num_prog_tracers) )
+  allocate( id_vdiffuse_sbc_on_nrho(num_prog_tracers) )
   allocate( id_vdiffuse_bbc(num_prog_tracers) )
   allocate( id_vdiffuse_diss(num_prog_tracers) )
   id_zflux_diff       =-1
@@ -940,7 +944,9 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
   id_vdiffuse_impl    =-1
   id_vdiffuse_k33     =-1
   id_vdiffuse_diff_cbt=-1
+  id_vdiffuse_diff_cbt_on_nrho=-1
   id_vdiffuse_sbc     =-1
+  id_vdiffuse_sbc_on_nrho=-1
   id_vdiffuse_bbc     =-1
   id_vdiffuse_diss    =-1
 
@@ -966,10 +972,18 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
          id_vdiffuse_diff_cbt(n) = register_diag_field ('ocean_model',               &
               trim(T_prog(n)%name)//'_vdiffuse_diff_cbt', Grd%tracer_axes(1:3),      &
               Time%model_time, 'vert diffusion of heat due to diff_cbt', 'Watts/m^2',&
+              missing_value=missing_value, range=(/-1.e16,1.e16/))
+         id_vdiffuse_diff_cbt_on_nrho(n) = register_diag_field ('ocean_model',               &
+              trim(T_prog(n)%name)//'_vdiffuse_diff_cbt_on_nrho', Dens%neutralrho_axes(1:3),      &
+              Time%model_time, 'vert diffusion of heat due to diff_cbt binned to neutral density', 'Watts/m^2',&
               missing_value=missing_value, range=(/-1.e16,1.e16/)) 
          id_vdiffuse_sbc(n) = register_diag_field ('ocean_model',                        &
               trim(T_prog(n)%name)//'_vdiffuse_sbc', Grd%tracer_axes(1:3),               &
               Time%model_time, 'vert diffusion of heat due to surface flux', 'Watts/m^2',&
+              missing_value=missing_value, range=(/-1.e16,1.e16/))
+         id_vdiffuse_sbc_on_nrho(n) = register_diag_field ('ocean_model',                        &
+              trim(T_prog(n)%name)//'_vdiffuse_sbc_on_nrho', Dens%neutralrho_axes(1:3),               &
+              Time%model_time, 'vert diffusion of heat due to surface flux binned to neutral density', 'Watts/m^2',&
               missing_value=missing_value, range=(/-1.e16,1.e16/)) 
          id_vdiffuse_bbc(n) = register_diag_field ('ocean_model',                       &
               trim(T_prog(n)%name)//'_vdiffuse_bbc', Grd%tracer_axes(1:3),              &
@@ -1000,10 +1014,18 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
          trim(T_prog(n)%name)//'_vdiffuse_diff_cbt', Grd%tracer_axes(1:3), Time%model_time,   &
               'vert diffusion due to diff_cbt for '//trim(T_prog(n)%longname),                &
               trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1e20,1e20/))         
+         id_vdiffuse_diff_cbt_on_nrho(n) = register_diag_field ('ocean_model',                        &
+         trim(T_prog(n)%name)//'_vdiffuse_diff_cbt_on_nrho', Dens%neutralrho_axes(1:3), Time%model_time,   &
+              'vert diffusion due to diff_cbt for '//trim(T_prog(n)%longname)//' binned to neutral density',&
+              trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1e20,1e20/))
          id_vdiffuse_sbc(n) = register_diag_field ('ocean_model',                     &
          trim(T_prog(n)%name)//'_vdiffuse_sbc', Grd%tracer_axes(1:3), Time%model_time,&
               'vert diffusion due to surface flux for '//trim(T_prog(n)%longname),    &
               trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1e20,1e20/))         
+         id_vdiffuse_sbc_on_nrho(n) = register_diag_field ('ocean_model',                     &
+         trim(T_prog(n)%name)//'_vdiffuse_sbc_on_nrho', Dens%neutralrho_axes(1:3), Time%model_time,&
+              'vert diffusion due to surface flux for '//trim(T_prog(n)%longname)//' binned to neutral density',&
+              trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1e20,1e20/))
          id_vdiffuse_bbc(n) = register_diag_field ('ocean_model',                     &
          trim(T_prog(n)%name)//'_vdiffuse_bbc', Grd%tracer_axes(1:3), Time%model_time,&
               'vert diffusion due to bottom flux for '//trim(T_prog(n)%longname),     &
@@ -3239,7 +3261,7 @@ subroutine vert_diffuse_implicit(diff_cbt, index_salt, Time, Thickness, Dens, T_
      endif
 
      ! diagnose some pieces of implicit vertical diffusion 
-     call vert_diffuse_implicit_diag(Time, Thickness, T_prog, diff_cbt, wrk1_vmix, n)
+     call vert_diffuse_implicit_diag(Time, Thickness, Dens, T_prog, diff_cbt, wrk1_vmix, n)
 
   enddo  ! enddo for num_prog_tracers 
 
@@ -4697,10 +4719,11 @@ end subroutine watermass_diag
 !
 ! </DESCRIPTION>
 !
-subroutine vert_diffuse_implicit_diag(Time, Thickness, T_prog, diff_cbt, work, n)
+subroutine vert_diffuse_implicit_diag(Time, Thickness, Dens, T_prog, diff_cbt, work, n)
 
   type(ocean_time_type),          intent(in) :: Time  
   type(ocean_thickness_type),     intent(in) :: Thickness
+  type(ocean_density_type),       intent(in) :: Dens
   type(ocean_prog_tracer_type),   intent(in) :: T_prog(:)
   real, dimension(isd:,jsd:,:,:), intent(in) :: diff_cbt
   real, dimension(isd:,jsd:,:),   intent(in) :: work
@@ -4753,7 +4776,7 @@ subroutine vert_diffuse_implicit_diag(Time, Thickness, T_prog, diff_cbt, work, n
 
 
   ! impacts from surface boundary fluxes 
-  if(id_vdiffuse_sbc(n) > 0) then 
+  if(id_vdiffuse_sbc(n) > 0 .or. id_vdiffuse_sbc_on_nrho(n) > 0) then
       wrk1_2d(:,:) = 0.0
       wrk2_2d(:,:) = 0.0
       wrk1(:,:,:)  = 0.0
@@ -4764,7 +4787,12 @@ subroutine vert_diffuse_implicit_diag(Time, Thickness, T_prog, diff_cbt, work, n
             wrk1(i,j,k)  = Grd%tmask(i,j,1)*(wrk1_2d(i,j)-wrk2_2d(i,j))
          enddo
       enddo
-      call diagnose_3d(Time, Grd, id_vdiffuse_sbc(n), wrk1(:,:,:)*T_prog(n)%conversion)
+      if (id_vdiffuse_sbc(n) > 0) then
+         call diagnose_3d(Time, Grd, id_vdiffuse_sbc(n), wrk1(:,:,:)*T_prog(n)%conversion)
+      endif
+      if (id_vdiffuse_sbc_on_nrho(n) > 0) then
+         call diagnose_3d_rho(Time, Dens, id_vdiffuse_sbc_on_nrho(n), wrk1*T_prog(n)%conversion)
+      endif
   endif
 
   ! impacts from bottom boundary fluxes 
@@ -4784,7 +4812,7 @@ subroutine vert_diffuse_implicit_diag(Time, Thickness, T_prog, diff_cbt, work, n
 
 
   ! impacts from diff_cbt 
-  if(id_vdiffuse_diff_cbt(n) > 0) then 
+  if(id_vdiffuse_diff_cbt(n) > 0 .or. id_vdiffuse_diff_cbt_on_nrho(n) > 0) then
       wrk1_2d(:,:) = 0.0
       wrk2_2d(:,:) = 0.0
       wrk1(:,:,:)  = 0.0
@@ -4801,8 +4829,13 @@ subroutine vert_diffuse_implicit_diag(Time, Thickness, T_prog, diff_cbt, work, n
             enddo
          enddo
       enddo
-      call diagnose_3d(Time, Grd, id_vdiffuse_diff_cbt(n), wrk1(:,:,:)*T_prog(n)%conversion)
-  endif
+      if (id_vdiffuse_diff_cbt(n) > 0) then
+         call diagnose_3d(Time, Grd, id_vdiffuse_diff_cbt(n), wrk1(:,:,:)*T_prog(n)%conversion)
+      endif
+      if (id_vdiffuse_diff_cbt_on_nrho(n) > 0) then
+         call diagnose_3d_rho(Time, Dens, id_vdiffuse_diff_cbt_on_nrho(n), wrk1*T_prog(n)%conversion)
+      endif
+   endif
 
   ! impacts from K33 
   if(id_vdiffuse_k33(n) > 0) then 

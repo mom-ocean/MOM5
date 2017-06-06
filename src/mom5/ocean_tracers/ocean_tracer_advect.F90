@@ -373,6 +373,7 @@ integer  :: id_tform_salt_advect
 integer  :: id_tform_salt_advect_on_nrho
 
 integer, dimension(:), allocatable :: id_tracer_advection
+integer, dimension(:), allocatable :: id_tracer_advection_on_nrho
 integer, dimension(:), allocatable :: id_tracer2_advection
 integer, dimension(:), allocatable :: id_tracer_adv_diss
 
@@ -739,7 +740,7 @@ subroutine ocean_tracer_advect_init (Grid, Domain, Time, Dens, T_prog, obc, debu
   allocate( sm(isd:ied,jsd:jed,nk) )
   sm(:,:,:)            = 0.0
 
-  call advection_diag_init(Time, T_prog(:))
+  call advection_diag_init(Time, Dens, T_prog(:))
   call watermass_diag_init(Time, Dens)
 
   ! initialize clock ids 
@@ -762,9 +763,10 @@ end subroutine ocean_tracer_advect_init
 ! Initialize the main tracer advection diagnostics. 
 ! </DESCRIPTION>
 !
-subroutine advection_diag_init (Time, T_prog)
+subroutine advection_diag_init (Time, Dens, T_prog)
 
   type(ocean_time_type),        intent(in)  :: Time
+  type(ocean_density_type),     intent(in)  :: Dens
   type(ocean_prog_tracer_type), intent(in)  :: T_prog(:)
 
   integer :: n  
@@ -772,6 +774,7 @@ subroutine advection_diag_init (Time, T_prog)
   stdoutunit=stdout()
 
   allocate (id_tracer_advection(num_prog_tracers))
+  allocate (id_tracer_advection_on_nrho(num_prog_tracers))
   allocate (id_tracer2_advection(num_prog_tracers))
   allocate (id_tracer_adv_diss(num_prog_tracers))
   allocate (id_sweby_advect(num_prog_tracers))
@@ -788,6 +791,7 @@ subroutine advection_diag_init (Time, T_prog)
   allocate (id_yflux_adv_int_z(num_prog_tracers))
 
   id_tracer_advection =-1
+  id_tracer_advection_on_nrho =-1
   id_tracer2_advection=-1
   id_tracer_adv_diss  =-1
   id_sweby_advect     =-1
@@ -808,6 +812,9 @@ subroutine advection_diag_init (Time, T_prog)
     if(n==index_temp) then 
       id_tracer_advection(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_advection', &
                    Grd%tracer_axes(1:3), Time%model_time, 'cp*rho*dzt*advection tendency',             &
+                   trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1.e18,1.e18/))
+      id_tracer_advection_on_nrho(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_advection_on_nrho', &
+                   Dens%neutralrho_axes(1:3), Time%model_time, 'cp*rho*dzt*advection tendency binned to neutral density',&
                    trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1.e18,1.e18/))
       id_tracer2_advection(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_sq_advection', &
                    Grd%tracer_axes(1:3), Time%model_time, 'rho*dzt*advection tendency for (cp*temp)^2',    &
@@ -863,6 +870,9 @@ subroutine advection_diag_init (Time, T_prog)
 
       id_tracer_advection(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_advection', &
                    Grd%tracer_axes(1:3), Time%model_time, 'rho*dzt*advection tendency',         &
+                   'kg/(sec*m^2)', missing_value=missing_value, range=(/-1.e18,1.e18/))
+      id_tracer_advection_on_nrho(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_advection_on_nrho', &
+                   Dens%neutralrho_axes(1:3), Time%model_time, 'rho*dzt*advection tendency binned to neutral density',&
                    'kg/(sec*m^2)', missing_value=missing_value, range=(/-1.e18,1.e18/))
       id_tracer2_advection(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_sq_advection',    &
                    Grd%tracer_axes(1:3), Time%model_time, 'rho*dzt*advection tendency for tracer sqrd',&
@@ -2162,6 +2172,9 @@ subroutine vert_advect_tracer(Time, Adv_vel, Dens, Thickness, T_prog, Tracer, nt
 
       if(id_tracer_advection(ntracer) > 0) then 
          call diagnose_3d(Time, Grd, id_tracer_advection(ntracer), Tracer%conversion*advect_tendency(:,:,:))
+      endif
+      if(id_tracer_advection_on_nrho(ntracer) > 0) then
+         call diagnose_3d_rho(Time, Dens, id_tracer_advection_on_nrho(ntracer), Tracer%conversion*advect_tendency)
       endif
 
       ! for watermass_diag 
