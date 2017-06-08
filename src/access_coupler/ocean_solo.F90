@@ -187,7 +187,7 @@ program main
   integer :: isc,iec,jsc,jec
   integer :: unit, io_status, ierr
 
-  integer :: flags=0, override_clock
+  integer :: flags=0, override_clock, coupler_init_clock
   integer :: nfields 
   
   character(len=256) :: version = ''
@@ -412,7 +412,10 @@ program main
   Ice_ocean_boundary%wnd             = 0.0
 #endif
 
+  coupler_init_clock = mpp_clock_id('OASIS init', grain=CLOCK_COMPONENT)
+  call mpp_clock_begin(coupler_init_clock)
   call external_coupler_sbc_init(Ocean_sfc%domain, dt_cpld, Run_len)
+  call mpp_clock_end(coupler_init_clock)
 
   ! loop over the coupled calls 
   do nc=1, num_cpld_calls
