@@ -399,7 +399,6 @@ if (mpp_pe() == mpp_root_pe() .or. parallel_coupling) then
   write(chout,'(I6.6)'), il_out
   choceout='oceout'//trim(chout)
   open(il_out,file=choceout,form='formatted')
-  print *, 'MOM: (init_cpl), my_task opened log file: ', mpp_pe(), trim(choceout)
 endif
 
 
