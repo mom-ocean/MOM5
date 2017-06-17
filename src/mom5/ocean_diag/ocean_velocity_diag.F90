@@ -52,8 +52,8 @@ module ocean_velocity_diag_mod
 
 #include <fms_platform.h>
 
-use constants_mod,    only: epsln, c2dbars
-use diag_manager_mod, only: register_diag_field, need_data, send_data
+use constants_mod,    only: epsln, c2dbars, omega 
+use diag_manager_mod, only: register_diag_field, register_static_field, need_data, send_data
 use fms_mod,          only: open_namelist_file, check_nml_error, close_file, write_version_number
 use fms_mod,          only: FATAL, stdout, stdlog
 use mpp_domains_mod,  only: mpp_global_sum, mpp_update_domains
@@ -80,11 +80,11 @@ use ocean_types_mod,           only: ocean_time_type, ocean_time_steps_type, oce
 use ocean_types_mod,           only: ocean_adv_vel_type, ocean_external_mode_type
 use ocean_types_mod,           only: ocean_velocity_type, ocean_density_type
 use ocean_types_mod,           only: ocean_lagrangian_type
-use ocean_util_mod,            only: write_timestamp, matrix, diagnose_3d, diagnose_3d_u, diagnose_3d_en
+use ocean_util_mod,            only: write_timestamp, matrix, diagnose_2d, diagnose_3d, diagnose_3d_u, diagnose_3d_en
 use ocean_util_mod,            only: write_chksum_3d, write_chksum_2d
 use ocean_velocity_advect_mod, only: horz_advection_of_velocity, vert_advection_of_velocity
 use ocean_vert_mix_mod,        only: vert_friction_bgrid, vert_friction_cgrid
-use ocean_workspace_mod,       only: wrk1, wrk2, wrk3
+use ocean_workspace_mod,       only: wrk1, wrk2, wrk3, wrk4, wrk5, wrk6 
 use ocean_workspace_mod,       only: wrk1_v2d, wrk2_v2d  
 use ocean_workspace_mod,       only: wrk1_2d, wrk2_2d, wrk3_2d
 use ocean_workspace_mod,       only: wrk1_v, wrk2_v, wrk3_v
@@ -115,6 +115,9 @@ integer :: horz_grid
 real, dimension(:,:,:), allocatable :: grd_area
 real, dimension(:,:,:), allocatable :: mass_column
 
+! Coriolis parameter on T-point 
+real, dimension(:,:), allocatable :: coriolis_t
+
 logical :: used
 
 integer :: id_clock_energy_analysis
@@ -126,6 +129,7 @@ integer :: id_clock_vert_dissipation
 ! for potential energy 
 integer :: id_pe_tot    =-1
 integer :: id_pe_tot_rel=-1
+integer :: id_coriolis_t=-1
 logical :: potential_energy_first=.true.
 real :: pe_tot_0  ! gravitational potential energy (joules) at initial timestep
 
@@ -159,6 +163,17 @@ integer :: id_topostrophy=-1
 
 ! for vorticity
 integer :: id_vorticity_z =-1
+
+! for potential vorticity
+integer :: id_n2_pv     =-1
+integer :: id_pg_pv     =-1
+integer :: id_vert_pv   =-1
+integer :: id_pg_pvf    =-1
+integer :: id_vert_pvf  =-1
+integer :: id_bc_pvf    =-1
+integer :: id_pvf       =-1
+integer :: id_ri_balance=-1
+logical :: diagnose_pv = .false.
 
 ! pressure conversion diagnostics written in energy analysis subroutine
 real :: press_int      ! integrated power from u_int dot grad(p) 
@@ -206,6 +221,7 @@ private compute_topostrophy
 private compute_vorticity
 private stokes_coriolis_force
 private diagnose_kinetic_energy_maps
+private diagnose_potential_vorticity 
 
 integer :: global_sum_flag
 integer :: diag_step         = -1
@@ -383,6 +399,47 @@ id_pe_tot_rel = register_diag_field ('ocean_model', 'pe_tot_rel', Time%model_tim
                 'global potential energy - initial global potential energy', '10^15 Joules',&
                 missing_value=missing_value, range=(/0.0,1e20/))
 
+! Coriolis on T-point 
+id_coriolis_t = register_static_field ('ocean_model', 'coriolis_t', Grd%tracer_axes(1:2), &
+                                       'Coriolis parameter on T-cell', '1/s',             &
+                                       missing_value=missing_value, range=(/-10.0,10.0/))
+allocate (coriolis_t(isd:ied,jsd:jed))
+do j=jsc,jec
+   do i=isc,iec
+      coriolis_t(i,j) = 2.0*omega*sin(Grd%phit(i,j))*Grd%tmask(i,j,1) 
+   enddo
+enddo
+call diagnose_2d(Time, Grd, id_coriolis_t, coriolis_t(:,:))
+
+! Ertel PV and its pieces
+id_n2_pv = register_diag_field ('ocean_model', 'n2_pv', Grd%tracer_axes(1:3), Time%model_time,&
+  'squared BV frequency for planetary geostrophic PV: N^2', '1/sec^2',                        &
+  missing_value=missing_value, range=(/-1e6,1e6/))
+id_pg_pv = register_diag_field ('ocean_model', 'pg_pv', Grd%tracer_axes(1:3), Time%model_time,&
+  'planetary geostrophic PV: f*N^2', '1/sec^3', missing_value=missing_value, range=(/-1e6,1e6/))
+id_vert_pv = register_diag_field ('ocean_model', 'vert_pv', Grd%tracer_axes(1:3), Time%model_time,&
+  'vertical piece of Ertel PV: (f+zeta)*N^2', '1/sec^3', missing_value=missing_value, range=(/-1e6,1e6/))
+id_pg_pvf = register_diag_field ('ocean_model', 'pg_pvf', Grd%tracer_axes(1:3), Time%model_time,&
+  'planetary geostrophic PV times f: (f*N)^2', '1/sec^4', missing_value=missing_value, range=(/-1e6,1e6/))
+id_vert_pvf = register_diag_field ('ocean_model', 'vert_pvf', Grd%tracer_axes(1:3), Time%model_time,&
+  'vertical piece of Ertel PV times f: f*(f+zeta)*N^2', '1/sec^4',                                  &
+  missing_value=missing_value, range=(/-1e6,1e6/))
+id_bc_pvf = register_diag_field ('ocean_model', 'bc_pvf', Grd%tracer_axes(1:3), Time%model_time,&
+  'baroclinic component of balanced Ertel PV times f: -|\nabla buoy|^2', '1/sec^4',             &
+  missing_value=missing_value, range=(/-1e6,1e6/))
+id_pvf = register_diag_field ('ocean_model', 'pvf', Grd%tracer_axes(1:3), Time%model_time,&
+  'Ertel PV times f', '1/sec^4', missing_value=missing_value, range=(/-1e6,1e6/))
+id_ri_balance = register_diag_field ('ocean_model', 'ri_balance', Grd%tracer_axes(1:3), Time%model_time,&
+  'Balanced Richardson number', 'dimensionless', missing_value=missing_value, range=(/-1e6,1e6/))
+if (id_pg_pv > 0)      diagnose_pv = .true.
+if (id_vert_pv > 0)    diagnose_pv = .true.
+if (id_pg_pvf > 0)     diagnose_pv = .true.
+if (id_vert_pvf > 0)   diagnose_pv = .true.
+if (id_bc_pvf > 0)     diagnose_pv = .true.
+if (id_pvf > 0)        diagnose_pv = .true.
+if (id_ri_balance > 0) diagnose_pv = .true.
+
+
 if(horz_grid == MOM_BGRID) then 
    id_u_dot_grad_pint_xy = register_diag_field ('ocean_model', 'u_dot_grad_pint_xy', &
         Grd%vel_axes_uv(1:3), Time%model_time,                                       &
@@ -466,6 +523,7 @@ else  ! Cgrid
    if(id_kinetic_energy_tropic > 0) compute_kinetic_energy_maps = .true.
 
 endif 
+
 
 allocate (grd_area(isd:ied,jsd:jed,nk))
 allocate (mass_column(isd:ied,jsd:jed,2))
@@ -559,6 +617,9 @@ subroutine ocean_velocity_diagnostics(Time, Thickness, Dens, Ext_mode, Velocity)
   ! diagnostic kinetic energy maps
   call diagnose_kinetic_energy_maps(Time, Thickness, Velocity, Ext_mode)
 
+  ! diagnostic potential vorticity and terms 
+  call diagnose_potential_vorticity(Time, Velocity, Dens)
+  
 end subroutine ocean_velocity_diagnostics
 ! </SUBROUTINE>  NAME="ocean_velocity_diagnostics"
 
@@ -1135,6 +1196,125 @@ subroutine compute_vorticity(Time, Velocity)
 
 end subroutine compute_vorticity
 ! </SUBROUTINE> NAME="compute_vorticity"
+
+
+!#######################################################################
+! <SUBROUTINE NAME="diagnose_potential_vorticity">
+!
+! <DESCRIPTION>
+! Diagnose pieces to the Ertel potential vorticity, and f * PV.
+!
+! Motivated in part by the discussion of submeso instabilities in 
+! Thomas, Taylor, Ferrari, and Joyce, DSR (2013), page 96-110.
+!
+! --Assume the Boussinesq form.
+!
+! --Compute relative vorticity from the full horizontal velocity. 
+!   Differences betwen the full relative vorticity and the geostrophic
+!   relative vorticity are small for much of the ocean. We prefer to use
+!   the full velocity rather than geostrophic velocity, since the diagnosis
+!   of the geostrophic relative vorticity requires the Laplacian of pressure,
+!   which can be noisy and cumbersome. It is far simpler to just make use
+!   of the prognostic u,v fields.
+!
+! --In contrast, we assume the baroclinic portion of the PV takes on
+!   the geostrophically balanced form.  Doing so simplifies the calculation
+!   and should be sufficient for many purposes. This assumption is made by 
+!   Thomas et al.  But it is an assumption that may need to be revisited
+!   if detailed studies are made in the boundary layers, where geostrophy
+!   is not well maintained.  
+!
+! Note: only coded for the B-grid form of relative vorticity.
+! 
+!   Stephen.Griffies
+!
+! </DESCRIPTION>
+!
+subroutine diagnose_potential_vorticity(Time, Velocity, Dens)
+
+  type(ocean_time_type),      intent(in)  :: Time
+  type(ocean_velocity_type),  intent(in)  :: Velocity
+  type(ocean_density_type),   intent(in)  :: Dens
+
+  real    :: grav_rho0r_sq 
+  integer :: i, j, k
+  integer :: tau
+  
+  if(.not. diagnose_pv) return
+
+  tau = Time%tau
+  grav_rho0r_sq = grav_rho0r*grav_rho0r
+
+  wrk1(:,:,:)  = 0.0 
+  wrk2(:,:,:)  = 0.0 
+  wrk3(:,:,:)  = 0.0 
+  wrk4(:,:,:)  = 0.0
+  wrk5(:,:,:)  = 0.0
+  wrk6(:,:,:)  = 0.0
+
+
+  ! planetary geostrophic PV 
+  do k=1,nk
+     do j=jsc,jec
+        do i=isc,iec
+           wrk1(i,j,k) = -grav_rho0r*Dens%drhodz_zt(i,j,k) ! N^2
+           wrk2(i,j,k) = wrk1(i,j,k)*coriolis_t(i,j)       ! f*N^2
+           wrk3(i,j,k) = wrk2(i,j,k)*coriolis_t(i,j)       ! (f*N)^2 
+        enddo
+     enddo
+  enddo
+  if(id_n2_pv  > 0) call diagnose_3d(Time, Grd, id_n2_pv,  wrk1(:,:,:))
+  if(id_pg_pv  > 0) call diagnose_3d(Time, Grd, id_pg_pv,  wrk2(:,:,:))
+  if(id_pg_pvf > 0) call diagnose_3d(Time, Grd, id_pg_pvf, wrk3(:,:,:))
+ 
+
+  ! contribution from absolute vorticity 
+  if(id_vert_pv > 0 .or. id_vert_pvf > 0 .or. id_pvf > 0) then
+     do k=1,nk
+        do j=jsc,jec
+           do i=isc,iec
+              wrk4(i,j,k) = onehalf*((Velocity%u(i,j,k,2,tau)-Velocity%u(i-1,j,k,2,tau)    )*Grd%dxtnr(i,j)   &
+                                    +(Velocity%u(i,j-1,k,2,tau)-Velocity%u(i-1,j-1,k,2,tau))*Grd%dxtnr(i,j-1) &
+                                    -(Velocity%u(i,j,k,1,tau)-Velocity%u(i,j-1,k,1,tau)    )*Grd%dyter(i,j)   &
+                                    -(Velocity%u(i-1,j,k,1,tau)-Velocity%u(i-1,j-1,k,1,tau))*Grd%dyter(i-1,j) &
+                                           )
+              wrk5(i,j,k) = (coriolis_t(i,j) + wrk4(i,j,k))*wrk1(i,j,k)  ! (f + zeta)*N^2
+              wrk6(i,j,k) = coriolis_t(i,j)*wrk5(i,j,k)                  ! f*(f + zeta)*N^2
+           enddo
+        enddo
+     enddo
+     if(id_vert_pv  > 0) call diagnose_3d(Time, Grd, id_vert_pv,  wrk5(:,:,:))
+     if(id_vert_pvf > 0) call diagnose_3d(Time, Grd, id_vert_pvf, wrk6(:,:,:))
+  endif        
+
+  
+  ! contribution from baroclinicity and total contribution 
+  if(id_bc_pvf > 0 .or. id_pvf > 0 .or. id_ri_balance > 0) then
+     wrk1(:,:,:) = 0.0 
+     wrk2(:,:,:) = 0.0 
+     wrk4(:,:,:) = 0.0 
+     do k=1,nk
+        do j=jsc,jec
+           do i=isc,iec
+              wrk1(i,j,k) = grav_rho0r_sq *                                &
+                            (Dens%drhodx_zt(i,j,k)*Dens%drhodx_zt(i,j,k) + &
+                             Dens%drhody_zt(i,j,k)*Dens%drhody_zt(i,j,k)   &
+                            )
+              wrk2(i,j,k) =  wrk6(i,j,k) - wrk1(i,j,k)        ! PV*f = f*(f + zeta)*N^2 - |nabla b|^2 
+              wrk4(i,j,k) =  wrk3(i,j,k)/(wrk1(i,j,k)+epsln)  ! Ri_b = (f*N)^2/|nabla b|^2 
+           enddo
+        enddo
+     enddo
+     if(id_bc_pvf     > 0) call diagnose_3d(Time, Grd, id_bc_pvf,    -wrk1(:,:,:))
+     if(id_pvf        > 0) call diagnose_3d(Time, Grd, id_pvf,        wrk2(:,:,:))
+     if(id_ri_balance > 0) call diagnose_3d(Time, Grd, id_ri_balance, wrk4(:,:,:))
+  endif 
+
+
+end subroutine diagnose_potential_vorticity
+! </SUBROUTINE> NAME="diagnose_potential_vorticity"
+
+
 
 
 !#######################################################################

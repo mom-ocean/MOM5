@@ -286,13 +286,14 @@ module ocean_density_mod
 !  </DATA>
 !
 !  <DATA NAME="epsln_drhodz" UNITS="kg/m4" TYPE="real">
-!  To normalize the inverse vertical derivative of neutral density 
-!  for computing the buoyancy frequency. Default epsln_drhodz=1e-10.
+!  To normalize the inverse vertical derivative of
+!  locally referenced potential density for computing the
+!  buoyancy frequency. Default epsln_drhodz=1e-10.
 !  </DATA>
 !
 !  <DATA NAME="epsln_drhodz_diag" UNITS="kg/m4" TYPE="real">
-!  To normalize the inverse vertical derivative of neutral density 
-!  for computing neutral_rho and wdian diagnostics. 
+!  To normalize the inverse vertical derivative of locally referenced
+!  potential density for computing neutral_rho and wdian diagnostics. 
 !  Default epsln_drhodz_diag=1e-10.
 !  </DATA>
 !
@@ -504,6 +505,8 @@ integer :: id_pot_rho_wt     =-1
 integer :: id_rho_average    =-1
 integer :: id_mass_level     =-1
 integer :: id_volume_level   =-1
+integer :: id_drhodx_zt      =-1  
+integer :: id_drhody_zt      =-1  
 integer :: id_drhodz_zt      =-1  
 integer :: id_drhodz_wt      =-1  
 integer :: id_drhodz_diag    =-1  
@@ -559,6 +562,7 @@ public calc_cabbeling_thermobaricity
 public buoyfreq2
 public compute_buoyfreq
 
+private compute_drhodxy
 private ocean_density_chksum
 private cabbeling_thermobaricity
 private compute_diagnostic_factors
@@ -961,6 +965,8 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
     allocate(Dens%drhodP(isd:ied,jsd:jed,nk))
     allocate(Dens%drhodz_wt(isd:ied,jsd:jed,nk))
     allocate(Dens%drhodz_zt(isd:ied,jsd:jed,nk))
+    allocate(Dens%drhodx_zt(isd:ied,jsd:jed,nk))
+    allocate(Dens%drhody_zt(isd:ied,jsd:jed,nk))
     allocate(Dens%drhodz_diag(isd:ied,jsd:jed,nk))
     allocate(Dens%watermass_factor(isd:ied,jsd:jed,nk))
     allocate(Dens%stratification_factor(isd:ied,jsd:jed,nk))
@@ -988,6 +994,8 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
     Dens%drhodP(:,:,:)           = 0.0
     Dens%drhodz_wt(:,:,:)        = Grid%tmask(:,:,:)*epsln_drhodz
     Dens%drhodz_zt(:,:,:)        = Grid%tmask(:,:,:)*epsln_drhodz
+    Dens%drhodx_zt(:,:,:)        = 0.0
+    Dens%drhody_zt(:,:,:)        = 0.0
     Dens%drhodz_diag(:,:,:)      = Grid%tmask(:,:,:)*epsln_drhodz_diag
     Dens%dTdz_zt(:,:,:)          = 0.0
     Dens%dSdz_zt(:,:,:)          = 0.0
@@ -1482,9 +1490,17 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
                     Grd%tracer_axes_wt(1:3), Time%model_time,               &
                     'Squared buoyancy frequency at T-cell bottom', '1/s^2', &
                     missing_value=missing_value, range=(/-1e6,1e6/))
-  id_drhodz_zt = register_diag_field ('ocean_model','drhodz_zt',  &
-                    Grd%tracer_axes(1:3), Time%model_time,        &
-                    'd(neutral rho)/dz at T-point', 'kg/m^4',     &
+  id_drhodz_zt = register_diag_field ('ocean_model','drhodz_zt',&
+                    Grd%tracer_axes(1:3), Time%model_time,      &
+                    'd(neutral rho)/dz at T-point', 'kg/m^4',   &
+                    missing_value=missing_value, range=(/-1e6,1e6/))
+  id_drhodx_zt = register_diag_field ('ocean_model','drhodx_zt',     &
+                    Grd%tracer_axes(1:3), Time%model_time,           &
+                    'd(neutral rho)/dx at nominal T-point', 'kg/m^4',&
+                    missing_value=missing_value, range=(/-1e6,1e6/))
+  id_drhody_zt = register_diag_field ('ocean_model','drhody_zt',     &
+                    Grd%tracer_axes(1:3), Time%model_time,           &
+                    'd(neutral rho)/dy at nominal T-point', 'kg/m^4',&
                     missing_value=missing_value, range=(/-1e6,1e6/))
   id_drhodz_diag = register_diag_field ('ocean_model','drhodz_diag',     &
                     Grd%tracer_axes(1:3), Time%model_time,               &
@@ -2214,6 +2230,7 @@ end subroutine ocean_density_diag
   endif
 
   call compute_density_diagnostics(Time, Thickness, Temp, Ext_mode, Dens, use_blobs)
+  call compute_drhodxy(Time, Dens%rho_salinity(:,:,:,tau), Temp%field(:,:,:,tau), Dens)   
 
 end subroutine update_ocean_density
 ! </SUBROUTINE> NAME="update_ocean_density"
@@ -4525,7 +4542,7 @@ subroutine compute_buoyfreq(Time, Thickness, salinity, theta, Dens, use_blobs)
      enddo
   endif
 
-  ! vertical derivative of neutral density.
+  ! vertical derivative of locally referenced potential density.
   ! vanishes at the bottom of a column.
   do k=1,nk-1
      kp1=k+1
@@ -4741,7 +4758,8 @@ function buoyfreq2(Time, Thickness, Dens, salinity, theta, rho, use_blobs)
      enddo
   endif
 
-  ! vertical derivative of neutral density at the bottom of a cell.
+  ! vertical derivative of locally referenced potential density
+  ! at the bottom of a cell.
   ! N**2==0 at the bottom of a column.
   do k=1,nk-1
      do j=jsd,jed
@@ -4753,6 +4771,81 @@ function buoyfreq2(Time, Thickness, Dens, salinity, theta, rho, use_blobs)
 
 end function buoyfreq2
 ! </FUNCTION>  NAME="buoyfreq2"
+
+
+
+!#######################################################################
+! <SUBROUTINE NAME="compute_drhodxy">
+! <DESCRIPTION>
+!
+! Diagnose horiz derivatives of locally referenced potential density.
+! For use in diagnosing balanced Ertel PV.  
+!
+! For simplicity, do no spatial averaging. Hence, the placement
+! of the derivative is at the cell face, not cell center. But to 
+! simplify matters, we consider the derivs to be at the cell center,
+! which simplifies how we take |grad b| for the PV calculation, meaning
+! there will be no averaging operations. This assumption may need to
+! be revisited.  
+!
+! Author: Stephen.Griffies
+!
+! </DESCRIPTION>
+!
+subroutine compute_drhodxy(Time, salinity, theta, Dens)
+
+  type(ocean_time_type),        intent(in)    :: Time
+  real, dimension(isd:,jsd:,:), intent(in)    :: salinity
+  real, dimension(isd:,jsd:,:), intent(in)    :: theta
+  type(ocean_density_type),     intent(inout) :: Dens
+
+  integer   :: i,j,k
+  real      :: tmp1,tmp2
+
+  if (.not. module_is_initialized) then 
+      call mpp_error(FATAL, &
+      '==>Error from ocean_density (compute_drhodxy): module needs initialization')
+  endif
+
+  wrk1(:,:,:) = 0.0
+  wrk2(:,:,:) = 0.0
+
+  ! x-derivative 
+  do k=1,nk
+     do j=jsd,jed
+        do i=isd,iec
+           tmp1 = (theta(i+1,j,k)   -theta(i,j,k)   )*Dens%drhodT(i,j,k)
+           tmp2 = (salinity(i+1,j,k)-salinity(i,j,k))*Dens%drhodS(i,j,k)
+           wrk1(i,j,k)           = Grd%tmask(i+1,j,k)*(tmp1+tmp2)*Grd%dxter(i,j)
+           Dens%drhodx_zt(i,j,k) = wrk1(i,j,k)
+        enddo
+     enddo
+  enddo
+  
+  ! y-derivative 
+  do k=1,nk
+     do j=jsd,jec
+        do i=isd,ied
+           tmp1 = (theta(i,j+1,k)   -theta(i,j,k)   )*Dens%drhodT(i,j,k)
+           tmp2 = (salinity(i,j+1,k)-salinity(i,j,k))*Dens%drhodS(i,j,k)
+           wrk2(i,j,k)           = Grd%tmask(i,j+1,k)*(tmp1+tmp2)*Grd%dytnr(i,j)
+           Dens%drhody_zt(i,j,k) = wrk2(i,j,k)
+        enddo
+     enddo
+  enddo
+  
+  if(id_drhodx_zt > 0) then 
+     call diagnose_3d(Time, Grd, id_drhodx_zt, wrk1(:,:,:))
+  endif
+  if(id_drhody_zt > 0) then 
+     call diagnose_3d(Time, Grd, id_drhody_zt, wrk2(:,:,:))
+  endif
+
+
+
+end subroutine compute_drhodxy
+! </SUBROUTINE>  NAME="compute_drhodxy"
+
 
 
 end module ocean_density_mod
