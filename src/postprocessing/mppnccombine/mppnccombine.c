@@ -331,6 +331,11 @@ int main(int argc, char *argv[])
 	 compress=1;
         }
       else if (!strcmp(argv[a],"-s")) shuffle=0;
+      else if (argv[a][0] == '-')
+	{
+	  printf("Illegal option %s\n\n", argv[a]);
+	  usage(); return(1);
+	}
       else
         {
          outputarg=a; break;
