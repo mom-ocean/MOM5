@@ -456,7 +456,7 @@ if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling )) then
   !        field; here no decomposition for all ports.
   !
 
-  call prism_def_partition_proto (id_partition, il_paral, ierr)
+  call prism_def_partition_proto (id_partition, il_paral, ierr, imt_global*jmt_global)
 
   !
 
