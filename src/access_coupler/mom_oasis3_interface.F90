@@ -678,8 +678,10 @@ do jf =  1, num_fields_in
   case('lprec')
      Ice_ocean_boundary%lprec(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('salt_flx')
-     Ice_ocean_boundary%salt_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
-  case('calving') ! 
+     ! MOM expects a -ve flux for incoming salt while CICE uses +ve flux for
+     ! salt coming from ice to ocean. Reverse the sign here.
+     Ice_ocean_boundary%salt_flux(iisc:iiec,jjsc:jjec) =  -vwork(iisc:iiec,jjsc:jjec)
+  case('calving')
      Ice_ocean_boundary%calving(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('sw_vdir')
      Ice_ocean_boundary%sw_flux_vis_dir(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
