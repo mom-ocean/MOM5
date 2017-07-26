@@ -678,8 +678,14 @@ do jf =  1, num_fields_in
   case('lprec')
      Ice_ocean_boundary%lprec(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('salt_flx')
-     ! MOM expects a -ve flux for incoming salt while CICE uses +ve flux for
-     ! salt coming from ice to ocean. Reverse the sign here.
+     ! Sign conventions for Ice_ocean_boundary%salt_flux according to component model:
+     !  - For MOM, if Ice_ocean_boundary%salt_flux < 0 then there is a transfer
+     !    of salt from ice to liquid.
+     !  - For CICE, if Ice_ocean_boundary%salt_flux < 0 then there is a
+     !    transfer of salt from liquid to ice.
+     ! We change the sign on vwork to accord with the MOM sign convention when
+     ! filling Ice_ocean_boundary%salt_flux, since Ice_ocean_boundary%salt_flux is
+     ! used in MOM to fill its local salt flux array.
      Ice_ocean_boundary%salt_flux(iisc:iiec,jjsc:jjec) =  -vwork(iisc:iiec,jjsc:jjec)
   case('calving')
      Ice_ocean_boundary%calving(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
