@@ -3184,16 +3184,6 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
      enddo
   enddo
 
-#if defined(ACCESS)
-      do j = jsc_bnd,jec_bnd
-         do i = isc_bnd,iec_bnd
-            ii = i + i_shift
-            jj = j + j_shift
-            melt(ii,jj) = Ice_ocean_boundary%wfimelt(i,j) + Ice_ocean_boundary%wfiform(i,j)
-         enddo
-      enddo
-#endif
-
   ! start of long if-block for use_waterflux true or false. 
   if (use_waterflux) then
 
@@ -3209,9 +3199,12 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
                pme(ii,jj) = 0.5*pme_taum1(ii,jj)
 #if defined(ACCESS)
                ! PME is meant to include "melt", in a MOM+SIS configuration it
-               ! is added by the coupler. We add it here.
+               ! is added by the coupler. In ACCESS we add it here. Also note
+               ! wfimelt and wfiform are total liquid flux coming from the ice.
+               ! This includes melt, evaporation and precip from/through ice.
                pme_taum1(ii,jj) = (Ice_ocean_boundary%lprec(i,j) + Ice_ocean_boundary%fprec(i,j) &
-                          + melt(ii, jj) - Ice_ocean_boundary%q_flux(i,j))*Grd%tmask(ii,jj,1)
+                          + Ice_ocean_boundary%wfimelt(i,j) + Ice_ocean_boundary%wfiform(i,j) &
+                          - Ice_ocean_boundary%q_flux(i,j))*Grd%tmask(ii,jj,1)
 #else
                pme_taum1(ii,jj) = (Ice_ocean_boundary%lprec(i,j) + Ice_ocean_boundary%fprec(i,j) &
                                   - Ice_ocean_boundary%q_flux(i,j))*Grd%tmask(ii,jj,1) 
@@ -3231,7 +3224,8 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
                ! PME is meant to include "melt", in a MOM+SIS configuration it
                ! is added by the coupler. We add it here.
                pme(ii,jj) = (Ice_ocean_boundary%lprec(i,j) + Ice_ocean_boundary%fprec(i,j) &
-                       + melt(ii, jj) - Ice_ocean_boundary%q_flux(i,j))*Grd%tmask(ii,jj,1)
+                          + Ice_ocean_boundary%wfimelt(i,j) + Ice_ocean_boundary%wfiform(i,j) &
+                          - Ice_ocean_boundary%q_flux(i,j))*Grd%tmask(ii,jj,1)
 #else
                pme(ii,jj) = (Ice_ocean_boundary%lprec(i,j) + Ice_ocean_boundary%fprec(i,j) &
                             -Ice_ocean_boundary%q_flux(i,j))*Grd%tmask(ii,jj,1) 
@@ -3501,14 +3495,13 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
       ! The minus sign arises since the ice model produces a 
       ! salt_flux > 0 when there is salt added to the ice model,
       ! and hence taken away from the ocean model.  
+      melt = 0.0
       do j = jsc_bnd,jec_bnd
          do i = isc_bnd,iec_bnd
             ii = i + i_shift
             jj = j + j_shift      
             T_prog(index_salt)%stf(ii,jj) = -Ice_ocean_boundary%salt_flux(i,j)*1000.0
-#if !defined(ACCESS)
             melt(ii,jj)                   = -Ice_ocean_boundary%salt_flux(i,j)*ice_salt_concentration_r
-#endif
          enddo
       enddo
 
@@ -3531,11 +3524,7 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
       if(zero_net_water_coupler) then 
          do j=jsc,jec
             do i=isc,iec
-#if defined(ACCESS)
-               pme_river(i,j) = pme(i,j) + river(i,j) - melt(i, j)
-#else
                pme_river(i,j) = pme(i,j) + river(i,j) - melt(i,j) - wrk1_2d(i,j)
-#endif
             enddo
          enddo
          pme_river_total = mpp_global_sum(Dom%domain2d,pme_river(:,:)*Grd%dat(:,:)*Grd%tmask(:,:,1),&
