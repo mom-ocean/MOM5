@@ -3524,13 +3524,7 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
       if(zero_net_water_coupler) then 
          do j=jsc,jec
             do i=isc,iec
-#if defined(ACCESS)
-               pme_river(i,j) = pme(i,j) + river(i,j) - &
-                                (Ice_ocean_boundary%wfimelt(i,j) + &
-                                 Ice_ocean_boundary%wfiform(i,j))
-#else
                pme_river(i,j) = pme(i,j) + river(i,j) - melt(i,j) - wrk1_2d(i,j)
-#endif
             enddo
          enddo
          pme_river_total = mpp_global_sum(Dom%domain2d,pme_river(:,:)*Grd%dat(:,:)*Grd%tmask(:,:,1),&
