@@ -608,8 +608,11 @@ private
   integer :: temp_variable=0 
 
   ! index for temperature (degC) and salinity (psu or g/kg) 
-  integer :: index_temp=-1    
-  integer :: index_salt=-1    
+  integer :: index_temp =-1    
+  integer :: index_salt =-1
+
+  ! index for FAFMIP redistributed heat tracer (degC) 
+  integer :: index_redist_heat=-1
 
   ! domain layout for parallel processors. for npe=1, layout(2)=(/1,1/)
   integer :: layout(2)=(/1,1/) 
@@ -1311,7 +1314,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     call ocean_sbc_init(Grid, Domain, Time, T_prog(:), T_diag(:), Ocean, Dens, &
                         time_tendency, dtime_t, horz_grid)
     call ocean_bbc_init(Grid, Domain, Time, T_prog(:), Velocity, Ocean_options, vert_coordinate_type, horz_grid)
-    call ocean_shortwave_init(Grid, Domain, Time, Dens, vert_coordinate, Ocean_options)
+    call ocean_shortwave_init(Grid, Domain, Time, Dens, T_prog(:), vert_coordinate, Ocean_options)
     call ocean_sponges_tracer_init(Grid, Domain, Time, T_prog(:), dtime_t, Ocean_options)
     call ocean_sponges_velocity_init(Grid, Domain, Time, dtime_u, Ocean_options)
     call ocean_sponges_eta_init(Grid, Domain, Time, dtime_t, Ocean_options)
@@ -1349,10 +1352,12 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
     call ocean_drifters_init(Domain, Grid, Time, T_prog(:), Velocity, Adv_vel)
     
-    ! set index_temp and index_salt for this module 
+    ! set index_temp and index_salt for this module
+    ! also set index_redist_heat for FAFMIP redistributed heat tracer 
     do n= 1, num_prog_tracers
-       if (T_prog(n)%name == 'temp') index_temp = n
-       if (T_prog(n)%name == 'salt') index_salt = n
+       if (T_prog(n)%name == 'temp')        index_temp        = n
+       if (T_prog(n)%name == 'salt')        index_salt        = n
+       if (T_prog(n)%name == 'redist_heat') index_redist_heat = n
     enddo
 
     ! re-initialize tempsalt according to idealized profile 
@@ -1605,8 +1610,8 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
              enddo
           enddo
        else
-        ! compute the sw penetration
-         call sw_source(Time, Thickness, Dens, T_diag(:), swflx, swflx_vis, &
+         ! compute the sw penetration
+         call sw_source(Time, Thickness, Dens, T_prog(:), T_diag(:), swflx, swflx_vis, &
                         T_prog(index_temp), sw_frac_zt, opacity)
        endif
        call mpp_clock_end(id_sw)
@@ -2511,6 +2516,7 @@ end subroutine ocean_model_data1D_get
     write (stdoutunit,'(2x,a)')             Ocean_options%ocean_sponges_eta
     write (stdoutunit,'(2x,a)')             Ocean_options%ocean_sponges_tracer
     write (stdoutunit,'(2x,a)')             Ocean_options%ocean_sponges_velocity
+    write (stdoutunit,'(2x,a)')             Ocean_options%fafmip_heat
     write (stdoutunit,'(2x,a/)')   '===================================================='   
 
     return

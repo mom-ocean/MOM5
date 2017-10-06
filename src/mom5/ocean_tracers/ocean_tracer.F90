@@ -249,12 +249,14 @@ real    :: dtts     = 0.0
 real    :: dtuv     = 0.0
 real    :: cp_oceanr
 
-integer :: index_temp      =-1
-integer :: index_salt      =-1  
-integer :: index_frazil    =-1  
-integer :: index_temp_sq   =-1
-integer :: index_salt_sq   =-1  
-integer :: index_diag_temp =-1
+integer :: index_temp        =-1
+integer :: index_salt        =-1  
+integer :: index_frazil      =-1  
+integer :: index_temp_sq     =-1
+integer :: index_salt_sq     =-1  
+integer :: index_diag_temp   =-1
+integer :: index_added_heat  =-1
+integer :: index_redist_heat =-1
 
 ! for obc 
 logical :: have_obc=.false.
@@ -1530,10 +1532,12 @@ function ocean_prog_tracer_init (Grid, Thickness, Ocean_options, Domain, Time, T
     endif  ! endif for use_blobs 
 
 
-    if (T_prog(n)%name == 'temp')    index_temp    = n
-    if (T_prog(n)%name == 'salt')    index_salt    = n
-    if (T_prog(n)%name == 'temp_sq') index_temp_sq = n
-    if (T_prog(n)%name == 'salt_sq') index_salt_sq = n
+    if (T_prog(n)%name == 'temp')        index_temp        = n
+    if (T_prog(n)%name == 'salt')        index_salt        = n
+    if (T_prog(n)%name == 'temp_sq')     index_temp_sq     = n
+    if (T_prog(n)%name == 'salt_sq')     index_salt_sq     = n
+    if (T_prog(n)%name == 'redist_heat') index_redist_heat = n
+    if (T_prog(n)%name == 'added_heat')  index_added_heat  = n
     if (T_prog(n)%longname == 'Conservative temperature') prog_temp_variable=CONSERVATIVE_TEMP
     if (T_prog(n)%longname == 'Potential temperature')    prog_temp_variable=POTENTIAL_TEMP
 
@@ -2400,6 +2404,10 @@ subroutine update_ocean_tracer (Time, Dens, Adv_vel, Thickness, pme, diff_cbt, &
          call tracer_min_max(Time, Thickness, T_prog(index_temp))
          call tracer_prog_chksum(Time, T_prog(index_salt), taup1)
          call tracer_min_max(Time, Thickness, T_prog(index_salt))
+   	 call tracer_prog_chksum(Time, T_prog(index_added_heat), taup1)
+         call tracer_min_max(Time, Thickness, T_prog(index_added_heat))
+	 call tracer_prog_chksum(Time, T_prog(index_redist_heat), taup1)
+         call tracer_min_max(Time, Thickness, T_prog(index_redist_heat))
      endif
 
      if(have_obc) then

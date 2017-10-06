@@ -64,6 +64,11 @@ module ocean_tempsalt_mod
 !  anomaly. Default teos10=.false. 
 !  </DATA>
 !
+!  <DATA NAME="do_fafmip_heat"  TYPE="logical">
+!  Set to true to initialize the CMIP6/FAFMIP heat fields.  
+!  Default do_fafmip_heat=.false. 
+!  </DATA>
+!
 !  <DATA NAME="temperature_variable" TYPE="character">
 !  For choosing the temperature variable used in the model.
 !  Choices are 'conservative_temp' and 'potential_temp'.
@@ -270,7 +275,8 @@ real :: s_max_limit=42.0
 logical :: debug_this_module     = .false.
 logical :: pottemp_2nd_iteration = .true.    
 logical :: pottemp_equal_contemp = .false.
-logical :: teos10 = .false.
+logical :: teos10                = .false.
+logical :: do_fafmip_heat        = .false.
 
 character(len=32) :: temperature_variable='conservative_temp'  ! "conservative_temp" or "potential_temp"          
 
@@ -280,7 +286,7 @@ namelist /ocean_tempsalt_nml/ debug_this_module, temperature_variable, pottemp_2
                               t_min_limit, t_max_limit, s_min_limit, s_max_limit,                 &
                               reinit_ts_with_ideal, reinit_ts_with_ideal_efold,                   &
                               reinit_ts_with_ideal_tvalue, reinit_ts_with_ideal_svalue,           &
-                              teos10
+                              teos10, do_fafmip_heat 
                 
 contains
 
@@ -292,20 +298,23 @@ contains
 ! Initialize the temperature/salinity module.
 ! </DESCRIPTION>
 !
-subroutine ocean_tempsalt_init(Domain, Grid, Ocean_options, itemp, isalt, debug)
+subroutine ocean_tempsalt_init(Domain, Grid, Ocean_options, itemp, isalt, i_redist_heat, debug)
 
   type(ocean_domain_type),    intent(in), target   :: Domain
   type(ocean_grid_type),      intent(in), target   :: Grid
   type(ocean_options_type),   intent(inout)        :: Ocean_options
   integer,                    intent(inout)        :: itemp
   integer,                    intent(inout)        :: isalt
+  integer,                    intent(inout)        :: i_redist_heat
   logical,                    intent(in), optional :: debug
 
   integer           :: ioun, io_status, ierr
-  integer           :: index_temp      =-1
-  integer           :: index_salt      =-1  
-  integer           :: index_diag_temp =-1
-  integer           :: index_Fdelta    =-1  
+  integer           :: index_temp       =-1
+  integer           :: index_salt       =-1  
+  integer           :: index_diag_temp  =-1
+  integer           :: index_Fdelta     =-1
+  integer           :: index_added_heat =-1
+  integer           :: index_redist_heat=-1
   character(len=32) :: longname_temperature 
   real              :: test_value, diff_test
 
@@ -447,6 +456,36 @@ subroutine ocean_tempsalt_init(Domain, Grid, Ocean_options, itemp, isalt, debug)
            min_range=-10.0, max_range=500.0, const_init_tracer=.true.,const_init_value=0.0,  &
            restart_file='ocean_con_temp.res.nc' )
   endif
+
+  i_redist_heat = -1   
+  if(do_fafmip_heat) then
+    Ocean_options%fafmip_heat = 'Included the two CMIP6/FAFMIP prognostic temperature tracers.'
+    write(stdoutunit,'(a)') '==>Note from ocean_tempsalt_mod: Initializing FAFMIP temperature fields.' 
+
+    index_added_heat = otpm_set_prog_tracer('added_heat', 'required',                        &
+         caller='ocean_tempsalt_mod/ocean_tempsalt_init',                                    &
+         longname='added_heat', units='deg_C',                                               &
+         conversion=cp_ocean, offset=kelvin, min_tracer=t_min, max_tracer=t_max,             &
+         min_range=-10.0, max_range=500.0, flux_units='Watts/m^2', min_flux_range=-1.0e+16,  &
+         max_flux_range=1.0e+16, min_tracer_limit=t_min_limit, max_tracer_limit=t_max_limit, &
+         psom_limit=.false.,ppm_hlimiter=2,ppm_vlimiter=2,mdt_scheme=1,                      &
+         restart_file='ocean_added_heat.res.nc' )
+
+    index_redist_heat = otpm_set_prog_tracer('redist_heat', 'required',                      &
+         caller='ocean_tempsalt_mod/ocean_tempsalt_init',                                    &
+         longname='redist_heat', units='deg_C',                                              &
+         conversion=cp_ocean, offset=kelvin, min_tracer=t_min, max_tracer=t_max,             &
+         min_range=-10.0, max_range=500.0, flux_units='Watts/m^2', min_flux_range=-1.0e+16,  &
+         max_flux_range=1.0e+16, min_tracer_limit=t_min_limit, max_tracer_limit=t_max_limit, &
+         psom_limit=.false.,ppm_hlimiter=2,ppm_vlimiter=2,mdt_scheme=1,                      &
+         restart_file='ocean_redist_heat.res.nc' )
+    i_redist_heat = index_redist_heat
+
+  else
+    Ocean_options%fafmip_heat = 'Did NOT include CMIP6/FAFMIP prognostic temperature tracers.'
+    write(stdoutunit,'(a)') '==>Note from ocean_tempsalt_mod: NOT Initializing FAFMIP temperature fields.' 
+  endif 
+
 
   if(reinit_ts_with_ideal) then 
       write(stdoutunit,'(a)') '==>Note: reinitializing ocean_tempsalt with ideal internally generated profile.'
@@ -600,7 +639,7 @@ subroutine ocean_tempsalt_init(Domain, Grid, Ocean_options, itemp, isalt, debug)
   id_clock_c2p_2  = mpp_clock_id('(Ocean CT2PT: 2) '  ,grain=CLOCK_MODULE)
   id_clock_c2p_3  = mpp_clock_id('(Ocean CT2PT: 3) '  ,grain=CLOCK_MODULE)
 
-
+  
 end subroutine ocean_tempsalt_init
 ! </SUBROUTINE> NAME="ocean_tempsalt_init"
 

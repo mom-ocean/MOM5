@@ -118,6 +118,7 @@ module ocean_types_mod
      character(len=72)  :: ocean_sponges_tracer
      character(len=72)  :: ocean_sponges_velocity
      character(len=72)  :: ocean_ideal_surf_wave
+     character(len=72)  :: fafmip_heat
   end type ocean_options_type
 
 
@@ -472,9 +473,9 @@ module ocean_types_mod
      integer :: sfc_flux_id=-1         ! index for time_interp_external
      integer :: horz_advect_scheme=-1  ! id for horizontal advection scheme
      integer :: vert_advect_scheme=-1  ! id for vertical advection scheme
-     integer :: ppm_hlimiter=1          ! Limiter for use with PPM in horizontal
-     integer :: ppm_vlimiter=1          ! Limiter for use with PPM in vertical
-     integer :: mdt_scheme=4            ! Version of Multi-Dim. Modified Daru & Tenaud (MDMDT)
+     integer :: ppm_hlimiter=1         ! Limiter for use with PPM in horizontal
+     integer :: ppm_vlimiter=1         ! Limiter for use with PPM in vertical
+     integer :: mdt_scheme=4           ! Version of Multi-Dim. Modified Daru & Tenaud (MDMDT)
 
      type(obc_flux), _ALLOCATABLE, dimension(:) :: otf   _NULL ! flux through open boundaries, allocate nobc
 
@@ -491,12 +492,12 @@ module ocean_types_mod
      real, dimension(isd:ied,jsd:jed)      :: tpme             ! tracer concentration in precip-evap
      real, dimension(isd:ied,jsd:jed)      :: triver           ! tracer concentration in river(=runoff+calving) water  
      real, dimension(isd:ied,jsd:jed)      :: trunoff          ! tracer concentration in liquid runoff from land  
-     real, dimension(isd:ied,jsd:jed)      :: tcalving       ! tracer concentration in frozen runoff from land (e.g., calving ice)
-     real, dimension(isd:ied,jsd:jed) :: runoff_tracer_flux  ! tracer flux in liquid runoff (e.g., kg*degC/(m^2 s) for temp)  
-     real, dimension(isd:ied,jsd:jed) :: calving_tracer_flux ! tracer flux in solid  runoff (e.g., kg*psu/(m^2 s)  for salinity)
-     real, dimension(isd:ied,jsd:jed) :: riverdiffuse        ! sets where to enhance diff_cbt according to rivers
-     real, dimension(isd:ied,jsd:jed) :: eta_smooth          ! tendency [tracer*(kg/m^3)*(m/s)] from eta_t smoother  
-     real, dimension(isd:ied,jsd:jed) :: pbot_smooth         ! tendency [tracer*(kg/m^3)*(m/s)] from pbot_t smoother 
+     real, dimension(isd:ied,jsd:jed)      :: tcalving         ! tracer concentration in frozen runoff from land (e.g., calving ice)
+     real, dimension(isd:ied,jsd:jed)      :: runoff_tracer_flux  ! tracer flux in liquid runoff (e.g., kg*degC/(m^2 s) for temp)  
+     real, dimension(isd:ied,jsd:jed)      :: calving_tracer_flux ! tracer flux in solid  runoff (e.g., kg*psu/(m^2 s)  for salinity)
+     real, dimension(isd:ied,jsd:jed)      :: riverdiffuse        ! sets where to enhance diff_cbt according to rivers
+     real, dimension(isd:ied,jsd:jed)      :: eta_smooth          ! tendency [tracer*(kg/m^3)*(m/s)] from eta_t smoother  
+     real, dimension(isd:ied,jsd:jed)      :: pbot_smooth         ! tendency [tracer*(kg/m^3)*(m/s)] from pbot_t smoother 
 
      ! variables for prather second order moment advection
      logical :: psom_limit                             ! controls whether a limiter is placed on the prather flux
@@ -979,13 +980,13 @@ module ocean_types_mod
      real, _ALLOCATABLE, dimension(:)       :: potrho_bounds         _NULL ! bounds for potrho classes 
      real, _ALLOCATABLE, dimension(:)       :: neutralrho_ref        _NULL ! partition vertical into neutral density classes 
      real, _ALLOCATABLE, dimension(:)       :: neutralrho_bounds     _NULL ! bounds for neutral density classes 
-     integer, dimension(3)                  :: potrho_axes             ! axis ids for diagnosing potential density 
+     integer, dimension(3)                  :: potrho_axes                 ! axis ids for diagnosing potential density 
      integer, dimension(3)                  :: potrho_axes_flux_x          ! axis ids for diagnosing x-flux
      integer, dimension(3)                  :: potrho_axes_flux_y          ! axis ids for diagnosing y-flux
-     integer, dimension(3)                  :: neutralrho_axes         ! axis ids for diagnosing neutral density 
+     integer, dimension(3)                  :: neutralrho_axes             ! axis ids for diagnosing neutral density 
      integer, dimension(3)                  :: neutralrho_axes_flux_x      ! axis ids for diagnosing x-flux 
      integer, dimension(3)                  :: neutralrho_axes_flux_y      ! axis ids for diagnosing y-flux 
-     integer, dimension(3)                  :: theta_axes              ! axis ids for potential temperature 
+     integer, dimension(3)                  :: theta_axes                  ! axis ids for potential temperature 
      integer, dimension(3)                  :: theta_axes_flux_x           ! axis ids for diagnosing x-flux 
      integer, dimension(3)                  :: theta_axes_flux_y           ! axis ids for diagnosing y-flux 
   end type ocean_density_type

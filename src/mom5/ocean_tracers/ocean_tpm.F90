@@ -229,6 +229,7 @@ use ocean_generic_mod, only: ocean_generic_flux_init
 
 use ocean_frazil_mod,     only: ocean_frazil_init
 use ocean_tempsalt_mod,   only: ocean_tempsalt_init
+!use ocean_tempsalt_mod,   only: ocean_fafmip_heat_init
 use ocean_passive_mod,    only: ocean_passive_init
 
 use transport_matrix_mod, only: do_transport_matrix
@@ -1325,6 +1326,7 @@ subroutine ocean_tpm_init(Domain, Grid, Time, Time_steps, &
 
 integer :: index_temp=-1
 integer :: index_salt=-1
+integer :: index_redist_heat=-1
 
 !
 !-----------------------------------------------------------------------
@@ -1347,10 +1349,10 @@ integer :: index_salt=-1
 !       Call subroutines to perform initialization operations
 !
 
-call ocean_tempsalt_init (Domain, Grid, Ocean_options, index_temp, index_salt, debug)  
+call ocean_tempsalt_init (Domain, Grid, Ocean_options, index_temp, index_salt, index_redist_heat, debug)  
 
 call ocean_frazil_init (Domain, Grid, Time, Time_steps, Ocean_options, &
-                        index_temp, index_salt, debug)  
+                        index_temp, index_salt, index_redist_heat, debug)  
 
 call ocean_passive_init (Domain, Grid, Ocean_options, debug)  
 
