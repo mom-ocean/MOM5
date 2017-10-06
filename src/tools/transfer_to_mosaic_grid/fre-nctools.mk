@@ -11,14 +11,19 @@
 # Designed and written by V. Balaji, Amy Langenhorst and Aleksey Yakovlev
 #
 # MPICC and CC are defined in env.$(SITE)
-include ./env.$(SITE)
+#include ./env.$(SITE)
 
-#MPICC    := mpicc
-#CC       := icc
+include $(ESMADIR)/Config/ESMA_base.mk  # Generic stuff
+include $(ESMADIR)/Config/ESMA_arch.mk  # System dependencies
+include $(ESMADIR)/Config/GMAO_base.mk  # System dependencies
+include       ../../../MOM_arch.mk  # arch dependent flags 
+
+MPICC    := mpicc
+CC       := icc
 CFLAGS   := -O3 -g -traceback
 CFLAGS_O2:= -O2 -g -traceback
-INCLUDES := -I${NETCDF_HOME}/include -I./ -I../shared -I../../shared/mosaic
-CLIBS     := -L${NETCDF_HOME}/lib -L${HDF5_HOME}/lib -lnetcdf -lhdf5_hl -lhdf5 -lz -limf $(CLIBS2) $(STATIC)
+INCLUDES := -I${INC_NETCDF} -I./ -I../shared -I../../shared/mosaic
+CLIBS     := -L${LIB_NETCDF} -L${LIB_HDF5} -lnetcdf -lhdf5_hl -lhdf5 -lz -limf -lsvml $(CLIBS2) $(STATIC)
 
 TARGETS  := transfer_to_mosaic_grid
 
@@ -36,7 +41,7 @@ HEADERS = fre-nctools.mk ../shared/mpp.h  ../shared/mpp_domain.h  ../shared/mpp_
 all: $(TARGETS)
 
 transfer_to_mosaic_grid: $(OBJECTS) mosaic_util.o mpp.o
-	$(CC) -o $@ $^ $(CLIBS)
+	$(MPICC) -o $@ $^ $(CLIBS)
 
 mosaic_util.o: ../../shared/mosaic/mosaic_util.c $(HEADERS)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< 

@@ -13,14 +13,19 @@
 #
 # Designed and written by V. Balaji, Amy Langenhorst and Aleksey Yakovlev
 #
-include env.$(SITE)
+#include env.$(SITE)
 
-#MPICC    := mpicc
-#CC       := icc
+include $(ESMADIR)/Config/ESMA_base.mk  # Generic stuff
+include $(ESMADIR)/Config/ESMA_arch.mk  # System dependencies
+include $(ESMADIR)/Config/GMAO_base.mk  # System dependencies
+include       ../../../MOM_arch.mk  # arch dependent flags 
+
+MPICC    := mpicc
+CC       := icc
 CFLAGS   := -O3 -traceback
 CFLAGS_O2:= -O2 -traceback
-INCLUDES := -I${NETCDF_HOME}/include -I./ -I../shared -I../../shared/mosaic
-CLIBS     := -L${NETCDF_HOME}/lib -L${HDF5_HOME}/lib -lnetcdf -lhdf5_hl -lhdf5 -lz -limf $(CLIBS2) $(STATIC)
+INCLUDES := -I${INC_NETCDF} -I./ -I../shared -I../../shared/mosaic
+CLIBS     := -L${LIB_NETCDF} -L${LIB_HDF5} -lnetcdf -lhdf5_hl -lhdf5 -lz -limf -lsvml $(CLIBS2) $(STATIC)
 
 TARGETS  := make_topog make_topog_parallel
 
@@ -38,7 +43,7 @@ HEADERS = fre-nctools.mk ../shared/mpp.h  ../shared/mpp_domain.h  ../shared/mpp_
 all: $(TARGETS)
 
 make_topog: $(OBJECTS) mosaic_util.o mpp.o
-	$(CC) -o $@ $^ $(CLIBS)
+	$(MPICC) -o $@ $^ $(CLIBS)
 
 make_topog_parallel: $(OBJECTS) mosaic_util_parallel.o mpp_parallel.o
 	$(MPICC) -o $@ $^ $(CLIBS)
