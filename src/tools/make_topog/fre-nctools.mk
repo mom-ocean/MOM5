@@ -22,8 +22,12 @@ include       ../../../MOM_arch.mk  # arch dependent flags
 
 MPICC    := mpicc
 CC       := icc
-CFLAGS   := -O3 -traceback
-CFLAGS_O2:= -O2 -traceback
+#CFLAGS   := -O3 -traceback
+#CFLAGS_O2:= -O2 -traceback
+
+CFLAGS   := -O3
+CFLAGS_O2:= -O2
+
 INCLUDES := -I${INC_NETCDF} -I./ -I../shared -I../../shared/mosaic
 CLIBS     := -L${LIB_NETCDF} -L${LIB_HDF5} -lnetcdf -lhdf5_hl -lhdf5 -lz -limf -lsvml $(CLIBS2) $(STATIC)
 
@@ -78,7 +82,7 @@ tool_util.o: ../shared/tool_util.c $(HEADERS)
 	$(CC) $(CFLAGS) $(INCLUDES) -o $@ -c $< 
 
 create_xgrid.o: ../../shared/mosaic/create_xgrid.c $(HEADERS)
-	$(CC) $(CFLAGS_O2) $(INCLUDES) -c $< 
+	$(CC) $(CFLAGS_O2) $(INCLUDES) -DMAXXGRID=2e6 -c $< 
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c $<
