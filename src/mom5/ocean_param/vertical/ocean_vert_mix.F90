@@ -648,6 +648,7 @@ integer, dimension(:), allocatable :: id_zflux_diff
 integer, dimension(:), allocatable :: id_vdiffuse
 integer, dimension(:), allocatable :: id_vdiffuse_impl
 integer, dimension(:), allocatable :: id_vdiffuse_k33
+integer, dimension(:), allocatable :: id_vdiffuse_k33_on_nrho
 integer, dimension(:), allocatable :: id_vdiffuse_diff_cbt
 integer, dimension(:), allocatable :: id_vdiffuse_diff_cbt_on_nrho
 integer, dimension(:), allocatable :: id_vdiffuse_sbc
@@ -933,6 +934,7 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
   allocate( id_vdiffuse(num_prog_tracers) )
   allocate( id_vdiffuse_impl(num_prog_tracers) )
   allocate( id_vdiffuse_k33(num_prog_tracers) )
+  allocate( id_vdiffuse_k33_on_nrho(num_prog_tracers) )
   allocate( id_vdiffuse_diff_cbt(num_prog_tracers) )
   allocate( id_vdiffuse_diff_cbt_on_nrho(num_prog_tracers) )
   allocate( id_vdiffuse_sbc(num_prog_tracers) )
@@ -943,6 +945,7 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
   id_vdiffuse         =-1
   id_vdiffuse_impl    =-1
   id_vdiffuse_k33     =-1
+  id_vdiffuse_k33_on_nrho     =-1
   id_vdiffuse_diff_cbt=-1
   id_vdiffuse_diff_cbt_on_nrho=-1
   id_vdiffuse_sbc     =-1
@@ -968,6 +971,10 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
          id_vdiffuse_k33(n) = register_diag_field ('ocean_model',                                      &
               trim(T_prog(n)%name)//'_vdiffuse_k33', Grd%tracer_axes(1:3),                             &
               Time%model_time, 'vert diffusion of heat due to K33 from neutral diffusion', 'Watts/m^2',&
+              missing_value=missing_value, range=(/-1.e16,1.e16/)) 
+         id_vdiffuse_k33_on_nrho(n) = register_diag_field ('ocean_model',                              &
+              trim(T_prog(n)%name)//'_vdiffuse_k33_on_nrho', Dens%neutralrho_axes(1:3),                &
+              Time%model_time, 'vert diffusion of heat due to K33 from neutral diffusion binned to neutral density', 'Watts/m^2',&
               missing_value=missing_value, range=(/-1.e16,1.e16/)) 
          id_vdiffuse_diff_cbt(n) = register_diag_field ('ocean_model',               &
               trim(T_prog(n)%name)//'_vdiffuse_diff_cbt', Grd%tracer_axes(1:3),      &
@@ -1009,6 +1016,10 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
          id_vdiffuse_k33(n) = register_diag_field ('ocean_model',                                &
          trim(T_prog(n)%name)//'_vdiffuse_k33', Grd%tracer_axes(1:3), Time%model_time,           &
               'vert diffusion due to K33 from neutral diffusion for '//trim(T_prog(n)%longname), &
+              trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1e20,1e20/))         
+         id_vdiffuse_k33_on_nrho(n) = register_diag_field ('ocean_model',                              &
+              trim(T_prog(n)%name)//'_vdiffuse_k33_on_nrho', Dens%neutralrho_axes(1:3),                     &
+              Time%model_time, 'vert diffusion due to K33 from neutral diffusion '//trim(T_prog(n)%longname)//' binned to neutral density',&
               trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1e20,1e20/))         
          id_vdiffuse_diff_cbt(n) = register_diag_field ('ocean_model',                        &
          trim(T_prog(n)%name)//'_vdiffuse_diff_cbt', Grd%tracer_axes(1:3), Time%model_time,   &
@@ -4838,7 +4849,7 @@ subroutine vert_diffuse_implicit_diag(Time, Thickness, Dens, T_prog, diff_cbt, w
    endif
 
   ! impacts from K33 
-  if(id_vdiffuse_k33(n) > 0) then 
+  if(id_vdiffuse_k33(n) > 0 .or. id_vdiffuse_k33_on_nrho(n) > 0) then 
       wrk1_2d(:,:) = 0.0
       wrk2_2d(:,:) = 0.0
       wrk1(:,:,:)  = 0.0
@@ -4855,7 +4866,12 @@ subroutine vert_diffuse_implicit_diag(Time, Thickness, Dens, T_prog, diff_cbt, w
             enddo
          enddo
       enddo
-      call diagnose_3d(Time, Grd, id_vdiffuse_k33(n), wrk1(:,:,:)*T_prog(n)%conversion)
+      if (id_vdiffuse_k33(n) > 0) then
+         call diagnose_3d(Time, Grd, id_vdiffuse_k33(n), wrk1(:,:,:)*T_prog(n)%conversion)
+      endif
+      if (id_vdiffuse_k33_on_nrho(n) > 0) then
+         call diagnose_3d_rho(Time, Dens, id_vdiffuse_k33_on_nrho(n), wrk1*T_prog(n)%conversion)
+      endif      
   endif
 
 
