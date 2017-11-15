@@ -394,19 +394,23 @@ endif
   enddo
 
 !DHB
-if (mpp_pe() == mpp_root_pe() .or. parallel_coupling) then
-  il_out = 85 + mpp_pe()
-  write(chout,'(I6.6)'), il_out
-  choceout='oceout'//trim(chout)
-  open(il_out,file=choceout,form='formatted')
-endif
+#if defined(DEBUG)
+    if (mpp_pe() == mpp_root_pe() .or. parallel_coupling) then
+      il_out = 85 + mpp_pe()
+      write(chout,'(I6.6)'), il_out
+      choceout='oceout'//trim(chout)
+      open(il_out,file=choceout,form='formatted')
+    endif
+#endif
 
 
-    !write(il_out, *) "compute domain:",mpp_pe(), iisc, iiec, jjsc, jjec 
-    !write(il_out, *) "data domain:",mpp_pe(), iisd, iied, jjsd, jjed 
-    !write(il_out, *) "global domain:",mpp_pe(), isg, ieg, jsg, jeg 
-    !write(il_out, *) "global layout nx x ny:",pe_layout(1), pe_layout(2) 
-    !flush(il_out)
+#if defined(DEBUG)
+    write(il_out, *) "compute domain:",mpp_pe(), iisc, iiec, jjsc, jjec 
+    write(il_out, *) "data domain:",mpp_pe(), iisd, iied, jjsd, jjed 
+    write(il_out, *) "global domain:",mpp_pe(), isg, ieg, jsg, jeg 
+    write(il_out, *) "global layout nx x ny:",pe_layout(1), pe_layout(2) 
+    flush(il_out)
+#endif
 
   il_paral (:) = 0
   if (.not. parallel_coupling) then 
@@ -526,7 +530,9 @@ if ( (.not. before_ocean_update) .and. (.not. send_after_ocean_update) ) return
       if (currstep == 1) then
         call create_ncfile(trim(fname),ncid,imt_global,jmt_global,ll=1,ilout=il_out)
       endif
+#if defined(DEBUG)
       write(il_out,*) 'opening file at nstep = ', trim(fname), step
+#endif
       call ncheck( nf_open(trim(fname),nf_write,ncid) )
       call write_nc_1Dtime(real(step),currstep,'time',ncid)
     endif
@@ -643,7 +649,9 @@ real :: frac_vis_dir=0.5*0.43, frac_vis_dif=0.5*0.43,             &
       if (currstep == 1) then
         call create_ncfile(trim(fname),ncid,imt_global,jmt_global,ll=1,ilout=il_out)
       endif
+#if defined(DEBUG)
       write(il_out,*) 'opening file at nstep = ', trim(fname), step
+#endif
       call ncheck( nf_open(trim(fname),nf_write,ncid) )
       call write_nc_1Dtime(real(step),currstep,'time',ncid)
     endif

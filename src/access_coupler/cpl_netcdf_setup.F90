@@ -38,10 +38,12 @@ subroutine create_ncfile(ncfile, ncid, ii, jj, kk, ll, ilout)
     character(len=*), intent(in) :: ncfile  
     integer, intent(out) :: ncid
 
+#if defined(DEBUG)
     if (present(ilout)) then 
       write(ilout,*) 'creating a new netcdf file: ',ncfile
       write(ilout,*) '    with nx, ny = ', ii, jj
     endif
+#endif
 
     !create a new NetCDF and define the grid:
     call ncheck(nf_create(trim(ncfile),nf_write,ncid), "Creating: "//trim(ncfile))
@@ -112,7 +114,9 @@ subroutine write_nc2D(ncid, vname, vin, prcn, nx, ny, istep, ilout)
     integer :: varid, ncstatus 
     real*4, dimension(nx,ny) :: vtmp   !single precision
 
+#if defined(DEBUG)
     if (present(ilout)) write(ilout,*) 'write_nc2D: handling var *** ',vname, ' rec: ', istep
+#endif
 
     ncstatus=nf_inq_varid(ncid,vname,varid)
     if (ncstatus/=nf_noerr) then
@@ -125,9 +129,13 @@ subroutine write_nc2D(ncid, vname, vin, prcn, nx, ny, istep, ilout)
                 (/pLonDimId, pLatDimId, timeDimId/),varid), 'Defining double '//trim(vname)//' in write_nc2D')
       endif
       call ncheck(nf_enddef(ncid))
+#if defined(DEBUG)
       if (present(ilout)) write(ilout,*) 'write_nc2D: defined new var ***', vname 
+#endif
     else
+#if defined(DEBUG)
       if (present(ilout)) write(ilout,*) 'write_nc2D: found   old var ***', vname
+#endif
     end if
 
     select case(prcn)
