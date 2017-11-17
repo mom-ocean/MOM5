@@ -150,6 +150,7 @@ program main
   use ocean_model_mod,          only: ocean_model_init , update_ocean_model, ocean_model_end
   use ocean_model_mod,          only: ocean_model_restart, ocean_public_type, ocean_state_type
   use ocean_types_mod,          only: ice_ocean_boundary_type
+  use ocean_util_mod,           only: write_chksum_2d
 
 #ifdef ACCESS
   use auscom_ice_parameters_mod, only: redsea_gulfbay_sfix, do_sfix_now, sfix_hours, int_sec
@@ -187,7 +188,7 @@ program main
   integer :: isc,iec,jsc,jec
   integer :: unit, io_status, ierr
 
-  integer :: flags=0, override_clock
+  integer :: flags=0, override_clock, coupler_init_clock
   integer :: nfields 
   
   character(len=256) :: version = ''
@@ -206,12 +207,14 @@ program main
   integer :: mpi_comm_mom
   integer ::  stdoutunit,stdlogunit
   logical :: external_initialization
+  logical :: debug_this_module
 
   namelist /ocean_solo_nml/ date_init, calendar, years, months, days, hours, minutes, seconds, dt_cpld, &
-                            n_mask, layout_mask, mask_list, restart_interval
+                            n_mask, layout_mask, mask_list, restart_interval, debug_this_module
 
     ! Initialise floating point exception error handler.
     !call fpe_err_handler_init()
+  debug_this_module = .false.
 
   call external_coupler_mpi_init(mpi_comm_mom, external_initialization)
 
@@ -412,17 +415,22 @@ program main
   Ice_ocean_boundary%wnd             = 0.0
 #endif
 
+  coupler_init_clock = mpp_clock_id('OASIS init', grain=CLOCK_COMPONENT)
+  call mpp_clock_begin(coupler_init_clock)
   call external_coupler_sbc_init(Ocean_sfc%domain, dt_cpld, Run_len)
+  call mpp_clock_end(coupler_init_clock)
 
-  ! loop over the coupled calls 
+  ! loop over the coupled calls
   do nc=1, num_cpld_calls
      call mpp_clock_begin(override_clock)
-
      call ice_ocn_bnd_from_data(Ice_ocean_boundary)
-
      call mpp_clock_end(override_clock)
 
      call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
+
+     if (debug_this_module) then
+        call write_boundary_chksums(Ice_ocean_boundary)
+     endif
 
 #ifdef ACCESS
      do_sfix_now = .false.
@@ -641,5 +649,35 @@ subroutine external_coupler_mpi_exit(mom_local_communicator, external_initializa
     call MPI_FINALIZE(ierr)
     return
 end subroutine external_coupler_mpi_exit
+
+
+subroutine write_boundary_chksums(Ice_ocean_boundary)
+    type(ice_ocean_boundary_type), intent(in) :: Ice_ocean_boundary
+
+    call write_chksum_2d('Ice_ocean_boundary%u_flux', Ice_ocean_boundary%u_flux)
+    call write_chksum_2d('Ice_ocean_boundary%v_flux', Ice_ocean_boundary%v_flux)
+    call write_chksum_2d('Ice_ocean_boundary%t_flux', Ice_ocean_boundary%t_flux)
+    call write_chksum_2d('Ice_ocean_boundary%q_flux', Ice_ocean_boundary%q_flux)
+    call write_chksum_2d('Ice_ocean_boundary%salt_flux', Ice_ocean_boundary%salt_flux)
+    call write_chksum_2d('Ice_ocean_boundary%lw_flux', Ice_ocean_boundary%lw_flux)
+    call write_chksum_2d('Ice_ocean_boundary%sw_flux_vis_dir', Ice_ocean_boundary%sw_flux_vis_dir)
+    call write_chksum_2d('Ice_ocean_boundary%sw_flux_vis_dif', Ice_ocean_boundary%sw_flux_vis_dif)
+    call write_chksum_2d('Ice_ocean_boundary%sw_flux_nir_dir', Ice_ocean_boundary%sw_flux_nir_dir)
+    call write_chksum_2d('Ice_ocean_boundary%sw_flux_nir_dif', Ice_ocean_boundary%sw_flux_nir_dif)
+    call write_chksum_2d('Ice_ocean_boundary%lprec', Ice_ocean_boundary%lprec)
+    call write_chksum_2d('Ice_ocean_boundary%fprec', Ice_ocean_boundary%fprec)
+    call write_chksum_2d('Ice_ocean_boundary%runoff', Ice_ocean_boundary%runoff)
+    call write_chksum_2d('Ice_ocean_boundary%calving', Ice_ocean_boundary%calving)
+    call write_chksum_2d('Ice_ocean_boundary%p', Ice_ocean_boundary%p)
+    call write_chksum_2d('Ice_ocean_boundary%aice', Ice_ocean_boundary%aice)
+    call write_chksum_2d('Ice_ocean_boundary%mh_flux', Ice_ocean_boundary%mh_flux)
+    call write_chksum_2d('Ice_ocean_boundary%wfimelt', Ice_ocean_boundary%wfimelt)
+    call write_chksum_2d('Ice_ocean_boundary%wfiform', Ice_ocean_boundary%wfiform)
+#if defined ACCESS_CM
+    call write_chksum_2d('Ice_ocean_boundary%co2', Ice_ocean_boundary%co2)
+    call write_chksum_2d('Ice_ocean_boundary%wnd', Ice_ocean_boundary%wnd)
+#endif
+
+end subroutine write_boundary_chksums
 
 end program main

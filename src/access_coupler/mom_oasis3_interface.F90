@@ -399,7 +399,6 @@ if (mpp_pe() == mpp_root_pe() .or. parallel_coupling) then
   write(chout,'(I6.6)'), il_out
   choceout='oceout'//trim(chout)
   open(il_out,file=choceout,form='formatted')
-  print *, 'MOM: (init_cpl), my_task opened log file: ', mpp_pe(), trim(choceout)
 endif
 
 
@@ -457,7 +456,7 @@ if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling )) then
   !        field; here no decomposition for all ports.
   !
 
-  call prism_def_partition_proto (id_partition, il_paral, ierr)
+  call prism_def_partition_proto (id_partition, il_paral, ierr, imt_global*jmt_global)
 
   !
 
@@ -679,8 +678,16 @@ do jf =  1, num_fields_in
   case('lprec')
      Ice_ocean_boundary%lprec(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('salt_flx')
-     Ice_ocean_boundary%salt_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
-  case('calving') ! 
+     ! Sign conventions for Ice_ocean_boundary%salt_flux according to component model:
+     !  - For MOM, if Ice_ocean_boundary%salt_flux < 0 then there is a transfer
+     !    of salt from ice to liquid.
+     !  - For CICE, if Ice_ocean_boundary%salt_flux < 0 then there is a
+     !    transfer of salt from liquid to ice.
+     ! We change the sign on vwork to accord with the MOM sign convention when
+     ! filling Ice_ocean_boundary%salt_flux, since Ice_ocean_boundary%salt_flux is
+     ! used in MOM to fill its local salt flux array.
+     Ice_ocean_boundary%salt_flux(iisc:iiec,jjsc:jjec) =  -vwork(iisc:iiec,jjsc:jjec)
+  case('calving')
      Ice_ocean_boundary%calving(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('sw_vdir')
      Ice_ocean_boundary%sw_flux_vis_dir(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)

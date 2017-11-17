@@ -425,6 +425,8 @@ module ocean_types_mod
      real, dimension(isd:ied,jsd:jed,nk)   :: drhodP               ! partial rho wrt pressure (kg/(m^3 Pa)
      real, dimension(isd:ied,jsd:jed,nk)   :: drhodz_wt            ! d(neutral density)/dz (kg/m^4) at W-point
      real, dimension(isd:ied,jsd:jed,nk)   :: drhodz_zt            ! d(neutral density)/dz (kg/m^4) at T-point
+     real, dimension(isd:ied,jsd:jed,nk)   :: drhodx_zt            ! d(neutral density)/dx (kg/m^4) at T-point
+     real, dimension(isd:ied,jsd:jed,nk)   :: drhody_zt            ! d(neutral density)/dy (kg/m^4) at T-point
      real, dimension(isd:ied,jsd:jed,nk)   :: drhodz_diag          ! regularized drhodz_zt for diagnostics 
      real, dimension(isd:ied,jsd:jed,nk)   :: dTdz_zt              ! partial theta wrt z  (C/m) at T-point
      real, dimension(isd:ied,jsd:jed,nk)   :: dSdz_zt              ! partial salinity wrt z  (psu/m) at T-point
@@ -961,6 +963,8 @@ module ocean_types_mod
      real, _ALLOCATABLE, dimension(:,:,:)   :: drhodP            _NULL ! partial rho wrt pressure (kg/(m3 Pa)
      real, _ALLOCATABLE, dimension(:,:,:)   :: drhodz_wt         _NULL ! d(neutral rho)/dz (kg/m^4) at W-point
      real, _ALLOCATABLE, dimension(:,:,:)   :: drhodz_zt         _NULL ! d(neutral rho)/dz (kg/m^4) at T-point
+     real, _ALLOCATABLE, dimension(:,:,:)   :: drhodx_zt         _NULL ! d(neutral rho)/dx (kg/m^4) at T-point
+     real, _ALLOCATABLE, dimension(:,:,:)   :: drhody_zt         _NULL ! d(neutral rho)/dy (kg/m^4) at T-point
      real, _ALLOCATABLE, dimension(:,:,:)   :: drhodz_diag       _NULL ! regularized drhodz_zt for diagnostics 
      real, _ALLOCATABLE, dimension(:,:,:)   :: dTdz_zt           _NULL ! partial theta wrt z  (C/m) at T-point
      real, _ALLOCATABLE, dimension(:,:,:)   :: dSdz_zt           _NULL ! partial salinity wrt z  (psu/m) at T-point

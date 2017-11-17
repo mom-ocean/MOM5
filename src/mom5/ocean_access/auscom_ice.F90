@@ -22,11 +22,13 @@ use ocean_types_mod, only: ocean_prog_tracer_type, &
                            ocean_time_type, &
                            ocean_time_steps_type
 
-use constants_mod, only: rho_cp &  !(J/m^3/deg C) rho_cp == rho0*cp_ocean
-                        ,rho0r  &  !(m^3/kg)  rho0r == 1.0/rho0
+! --- fix mom5/cice energy leaking (Fabio Dias - Russ Fiedler, 29/6/2017)
+use constants_mod, only: rho0r  &  !(m^3/kg)  rho0r == 1.0/rho0
                         ,rho0   &  ! 1.035e3 kg/m^3 (rho_sw)
-                        ,hlf    &  ! 3.34e5  J/kg
-                        ,cp_ocean  ! 3989.24495292815 J/kg/deg
+                        ,hlf      ! 3.34e5  J/kg
+
+use ocean_parameters_mod,     only: rho_cp, cp_ocean ! from ocean_parameters
+! - end fix.
 
 #if defined(UNIT_TESTING)
 use dump_field, only: dump_field_2d, dump_field_close
@@ -101,7 +103,7 @@ type(ocean_Thickness_type), intent(in),target      :: Thickness
 type(ocean_diag_tracer_type), intent(inout),target :: Frazil
 !
 !
-real :: cp_over_lhfusion = rho_cp/hlf/1000.0
+real :: cp_over_lhfusion
        !cp_over_lhfusion = rho_sw*cp_sw/(latent_heat_fusion*rho_fw)
        !   (/deg C)        (J/m^3/deg C)      (J/kg)     (1000kg/m^3)
 real :: epsilon = 1.0e-20       !as in POP
@@ -114,6 +116,9 @@ real, pointer :: PTR_TEMP(:,:),PTR_SALT(:,:),PTR_THICK(:,:), PTR_FRAZIL(:,:)
 real, dimension(:,:),allocatable ::  POTICE, TEMP_BEFORE
 
 taup1=Time%taup1
+
+! fix auscom now calculating cp_over_lhfusion:
+cp_over_lhfusion = rho_cp/hlf/1000.0
 
 num_prog_tracers = size(T_prog)
 do i=1, num_prog_tracers
