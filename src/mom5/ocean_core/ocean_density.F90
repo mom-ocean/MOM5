@@ -2622,19 +2622,19 @@ end subroutine update_ocean_density
       '==>Error in ocean_density_mod (neutral_density_field): module must be initialized')
     endif 
 
-    if(eos_linear) then
-        do k=1,nk
-           do j=jsd,jed
-              do i=isd,ied
-                 neutral_density_field(i,j,k) = rho0 - alpha_linear_eos*theta(i,j,k) + beta_linear_eos*salinity(i,j,k)
-              enddo
-           enddo
-        enddo
-    elseif(neutral_rho_equal_theta) then
+    if(neutral_rho_equal_theta) then
         do k=1,nk
            do j=jsd,jed
               do i=isd,ied
                  neutral_density_field(i,j,k) = theta(i,j,k)
+              enddo
+           enddo
+        enddo
+    elseif(eos_linear) then
+        do k=1,nk
+           do j=jsd,jed
+              do i=isd,ied
+                 neutral_density_field(i,j,k) = rho0 - alpha_linear_eos*theta(i,j,k) + beta_linear_eos*salinity(i,j,k)
               enddo
            enddo
         enddo
@@ -2672,13 +2672,13 @@ end subroutine update_ocean_density
       '==>Error in ocean_density_mod (neutral_density_point): module must be initialized')
     endif 
 
-    if(eos_linear) then
-
-        neutral_density_point = rho0 - alpha_linear_eos*theta + beta_linear_eos*salinity
-
-    elseif(neutral_rho_equal_theta) then
+    if(neutral_rho_equal_theta) then
 
         neutral_density_point = theta
+
+    elseif(eos_linear) then
+
+        neutral_density_point = rho0 - alpha_linear_eos*theta + beta_linear_eos*salinity
 
     else
 
