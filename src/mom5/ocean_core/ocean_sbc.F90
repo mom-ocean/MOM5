@@ -4071,7 +4071,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
                     tmp_delta_salinity = data(i,j) - T_prog(index_salt)%field(i,j,1,taum1)
                     ! Only limit salinity restoring within specified salinity tolerances
                     if (T_prog(index_salt)%field(i,j,1,taum1) > salinity_restore_limit_lower &
-                         .or.  T_prog(index_salt)%field(i,j,1,taum1) < salinity_restore_limit_upper ) then
+                         .and.  T_prog(index_salt)%field(i,j,1,taum1) < salinity_restore_limit_upper ) then
                        tmp_delta_salinity = sign(1.0,tmp_delta_salinity) &
                             *min(abs(tmp_delta_salinity),max_delta_salinity_restore)
                     end if
