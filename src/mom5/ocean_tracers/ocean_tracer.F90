@@ -311,6 +311,7 @@ logical :: compute_watermass_diag = .false.
 ! for diagnostics 
 logical :: used
 integer, allocatable, dimension(:) :: id_eta_smooth
+integer, allocatable, dimension(:) :: id_eta_smooth_on_nrho
 integer, allocatable, dimension(:) :: id_pbot_smooth
 integer, allocatable, dimension(:) :: id_prog
 integer, allocatable, dimension(:) :: id_progT
@@ -324,6 +325,7 @@ integer, allocatable, dimension(:) :: id_tendency_conc
 integer, allocatable, dimension(:) :: id_tendency_concL
 integer, allocatable, dimension(:) :: id_tendency_concT
 integer, allocatable, dimension(:) :: id_tendency
+integer, allocatable, dimension(:) :: id_tendency_on_nrho
 integer, allocatable, dimension(:) :: id_tendencyL
 integer, allocatable, dimension(:) :: id_tendencyT
 integer, allocatable, dimension(:) :: id_tendency_expl
@@ -434,6 +436,8 @@ integer  :: idwdian_salt_pbl_pme_pr
 integer  :: idwdian_salt_pbl_pme_pr_on_nrho
 integer  :: idtform_salt_pbl_pme_pr
 integer  :: idtform_salt_pbl_pme_pr_on_nrho
+
+integer  :: id_frazil_on_nrho
 
 integer  :: id_neut_rho_frazil
 integer  :: id_wdian_rho_frazil
@@ -754,6 +758,7 @@ function ocean_prog_tracer_init (Grid, Thickness, Ocean_options, Domain, Time, T
   ! allocate arrays based on the number of prognostic tracers
   allocate( T_prog            (num_prog_tracers) )
   allocate( id_eta_smooth     (num_prog_tracers) )
+  allocate( id_eta_smooth_on_nrho(num_prog_tracers) )
   allocate( id_pbot_smooth    (num_prog_tracers) )
   allocate( id_prog           (num_prog_tracers) )
   allocate( id_prog_explicit  (num_prog_tracers) )
@@ -762,6 +767,7 @@ function ocean_prog_tracer_init (Grid, Thickness, Ocean_options, Domain, Time, T
   allocate( id_prog_on_depth  (num_prog_tracers) )
   allocate( id_tendency_conc  (num_prog_tracers) )
   allocate( id_tendency       (num_prog_tracers) )
+  allocate( id_tendency_on_nrho(num_prog_tracers) )
   allocate( id_tendency_expl  (num_prog_tracers) )
   allocate( id_surf_tracer    (num_prog_tracers) )
   allocate( id_surf_tracer_sq (num_prog_tracers) )
@@ -787,6 +793,7 @@ function ocean_prog_tracer_init (Grid, Thickness, Ocean_options, Domain, Time, T
   allocate( id_tracer_type      (num_prog+num_diag) )
 
   id_eta_smooth(:)     = -1
+  id_eta_smooth_on_nrho(:)= -1
   id_pbot_smooth(:)    = -1
   id_prog(:)           = -1
   id_prog_explicit(:)  = -1
@@ -795,6 +802,7 @@ function ocean_prog_tracer_init (Grid, Thickness, Ocean_options, Domain, Time, T
   id_prog_on_depth(:)  = -1
   id_tendency_conc(:)  = -1
   id_tendency(:)       = -1
+  id_tendency_on_nrho(:)= -1
   id_tendency_expl(:)  = -1
   id_surf_tracer(:)    = -1
   id_surf_tracer_sq(:) = -1
@@ -2334,6 +2342,16 @@ subroutine update_ocean_tracer (Time, Dens, Adv_vel, Thickness, pme, diff_cbt, &
         if (id_eta_smooth(n)> 0) then
            call diagnose_2d(Time, Grd, id_eta_smooth(n), T_prog(n)%eta_smooth(:,:)*T_prog(n)%conversion)
         endif
+        if (id_eta_smooth_on_nrho(n)> 0) then
+           wrk1(:,:,:) = 0.0
+           k=1
+           do j=jsc,jec
+              do i=isc,iec
+                 wrk1(i,j,k) = T_prog(n)%eta_smooth(i,j)*T_prog(n)%conversion
+              enddo
+           enddo
+           call diagnose_3d_rho(Time, Dens, id_eta_smooth_on_nrho(n), wrk1)
+        end if
         if (id_pbot_smooth(n)> 0) then
            call diagnose_2d(Time, Grd, id_pbot_smooth(n), T_prog(n)%pbot_smooth(:,:)*T_prog(n)%conversion)
         endif
@@ -2482,7 +2500,7 @@ subroutine update_ocean_tracer (Time, Dens, Adv_vel, Thickness, pme, diff_cbt, &
 
 
   ! send some tracer diagnostics at time tau 
-  call send_tracer_diagnostics(Time, T_prog, T_diag, Thickness, use_blobs)
+  call send_tracer_diagnostics(Time, T_prog, T_diag, Thickness, Dens, use_blobs)
 
   ! compute watermass diagnostics 
   call watermass_diag(Time, T_prog, T_diag, Dens, Thickness, pme)
@@ -3060,11 +3078,12 @@ end subroutine inflow_nboundary_init
 ! Hence, this routine is called from ocean_model.F90.
 ! </DESCRIPTION>
 !
-subroutine ocean_tracer_diagnostics_init(Time, Dens, T_diag, ver_coordinate_class)
+subroutine ocean_tracer_diagnostics_init(Time, Dens, T_diag, T_prog, ver_coordinate_class)
 
   type(ocean_time_type),        intent(in) :: Time
   type(ocean_density_type),     intent(in) :: Dens
   type(ocean_diag_tracer_type), intent(in) :: T_diag(:)
+  type(ocean_prog_tracer_type), intent(in) :: T_prog(:)
   integer,                      intent(in) :: ver_coordinate_class
   
   integer :: n
@@ -3084,6 +3103,19 @@ subroutine ocean_tracer_diagnostics_init(Time, Dens, T_diag, ver_coordinate_clas
 
   do n=1,num_diag_tracers
      if (T_diag(n)%name == 'frazil') index_frazil = n
+  enddo
+
+  do n=1,num_prog_tracers
+
+     ! Neutral density binning of heat budget diagnostics
+     id_tendency_on_nrho(n) = register_diag_field ('ocean_model',            &
+          trim(T_prog(n)%name)//'_tendency_on_nrho', Dens%neutralrho_axes(1:3),   &
+          Time%model_time, 'time tendency for tracer '//trim(T_prog(n)%longname)//" binned to neutral density", &
+          trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1.e20,1.e20/))
+     id_eta_smooth_on_nrho(n) = register_diag_field ('ocean_model',                    &
+          trim(T_prog(n)%name)//'_eta_smooth_on_nrho', Dens%neutralrho_axes(1:3),           &
+          Time%model_time, 'surface smoother for ' // trim(T_prog(n)%longname)//" binned to neutral density", &
+          trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1.e20,1.e20/))
   enddo
 
   ! time tendency 
@@ -3323,7 +3355,11 @@ subroutine ocean_tracer_diagnostics_init(Time, Dens, T_diag, ver_coordinate_clas
    'kg/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
   if(id_tform_salt_smooth_on_nrho > 0) compute_watermass_diag=.true.
 
-
+  ! contribution of frazil to heat budget binned on neutral density
+  id_frazil_on_nrho = register_diag_field ('ocean_model', 'frazil_on_nrho', Dens%neutralrho_axes(1:3), &
+       Time%model_time, 'ocn frazil heat flux over time step binned to neutral density', 'W/m^2',&
+       missing_value=missing_value, range=(/-1.e20,1.e20/))
+  if(id_frazil_on_nrho > 0) compute_watermass_diag=.true.
 
   ! contributions from frazil formation 
   id_neut_rho_frazil = register_diag_field ('ocean_model', 'neut_rho_frazil',&
@@ -3718,12 +3754,13 @@ end subroutine ocean_tracer_diagnostics_init
 ! 
 ! </DESCRIPTION>
 !
-subroutine send_tracer_diagnostics(Time, T_prog, T_diag, Thickness, use_blobs)
+subroutine send_tracer_diagnostics(Time, T_prog, T_diag, Thickness, Dens, use_blobs)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_prog_tracer_type),   intent(inout) :: T_prog(:)
   type(ocean_diag_tracer_type),   intent(in)    :: T_diag(:)
   type(ocean_thickness_type),     intent(in)    :: Thickness
+  type(ocean_density_type),       intent(in)    :: Dens
   logical,                        intent(in)    :: use_blobs 
 
   integer :: i,j,k,kbot,n
@@ -3815,7 +3852,7 @@ subroutine send_tracer_diagnostics(Time, T_prog, T_diag, Thickness, use_blobs)
      endif
 
      ! time tendency for tracer mass per horizontal area 
-     if (id_tendency(n) > 0) then
+     if (id_tendency(n) > 0 .or. id_tendency_on_nrho(n) > 0) then
          wrk1(:,:,:) = 0.0
          do k=1,nk
             do j=jsc,jec
@@ -3827,7 +3864,12 @@ subroutine send_tracer_diagnostics(Time, T_prog, T_diag, Thickness, use_blobs)
                enddo
             enddo
          enddo
-         call diagnose_3d(Time, Grd, id_tendency(n),wrk1(:,:,:))
+         if (id_tendency(n) > 0) then
+            call diagnose_3d(Time, Grd, id_tendency(n),wrk1(:,:,:))
+         endif
+         if (id_tendency_on_nrho(n) > 0) then
+            call diagnose_3d_rho(Time, Dens, id_tendency_on_nrho(n),wrk1)
+         endif
      endif
 
      ! time tendency for tracer concentration 
@@ -4590,7 +4632,8 @@ subroutine watermass_diag(Time, T_prog, T_diag, Dens, Thickness, pme)
       if (id_neut_rho_frazil  > 0 .or. id_neut_rho_frazil_on_nrho  > 0 .or.  &
           id_wdian_rho_frazil > 0 .or. id_wdian_rho_frazil_on_nrho > 0 .or.  &
           id_tform_rho_frazil > 0 .or. id_tform_rho_frazil_on_nrho > 0 .or.  &
-          id_eta_tend_frazil  > 0 .or. id_eta_tend_frazil_glob     > 0) then
+          id_eta_tend_frazil  > 0 .or. id_eta_tend_frazil_glob     > 0 .or.  &
+          id_frazil_on_nrho   > 0) then
 
           wrk1(:,:,:) = 0.0
           wrk2(:,:,:) = 0.0
@@ -4615,6 +4658,7 @@ subroutine watermass_diag(Time, T_prog, T_diag, Dens, Thickness, pme)
           call diagnose_3d_rho(Time, Dens, id_neut_rho_frazil_on_nrho, wrk2)
           call diagnose_3d_rho(Time, Dens, id_wdian_rho_frazil_on_nrho, wrk3)
           call diagnose_3d_rho(Time, Dens, id_tform_rho_frazil_on_nrho, wrk4)
+          call diagnose_3d_rho(Time, Dens, id_frazil_on_nrho, T_diag(index_frazil)%field*dtimer)
           if(id_eta_tend_frazil > 0 .or. id_eta_tend_frazil_glob > 0) then
               eta_tend(:,:) = 0.0
               do k=1,nk

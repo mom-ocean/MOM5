@@ -76,6 +76,7 @@ real    :: cellarea_r
 ! for diagnostics 
 integer :: id_sw_frac       =-1
 integer :: id_sw_heat       =-1
+integer :: id_sw_heat_on_nrho=-1
 integer :: id_irradiance    =-1
 
 integer :: id_neut_rho_sw          =-1
@@ -385,7 +386,12 @@ subroutine watermass_diag_init(Time, Dens)
   integer :: stdoutunit
   stdoutunit=stdout()
   compute_watermass_diag = .false. 
-  
+
+  id_sw_heat_on_nrho = register_diag_field ('ocean_model', 'sw_heat_on_nrho',   &
+       Dens%neutralrho_axes(1:3), Time%model_time, 'penetrative shortwave heating binned to neutral density', &
+       'W/m^2', missing_value=-1e10, range=(/-1.e20,1.e20/))
+  if(id_sw_heat_on_nrho > 0) compute_watermass_diag = .true.
+
   id_neut_rho_sw = register_diag_field ('ocean_model', 'neut_rho_sw',&
     Grd%tracer_axes(1:3), Time%model_time,                           &
     'update of locally ref potrho from shortwave penetration',       &
@@ -495,6 +501,7 @@ subroutine watermass_diag(Time, Temp, Dens)
   call diagnose_3d_rho(Time, Dens, id_neut_rho_sw_on_nrho, wrk2)
   call diagnose_3d_rho(Time, Dens, id_wdian_rho_sw_on_nrho, wrk3)
   call diagnose_3d_rho(Time, Dens, id_tform_rho_sw_on_nrho, wrk4)
+  call diagnose_3d_rho(Time, Dens, id_sw_heat_on_nrho, Temp%wrk1)
 
   if(id_eta_tend_sw_pen > 0 .or. id_eta_tend_sw_pen_glob > 0) then
       eta_tend(:,:) = 0.0

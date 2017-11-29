@@ -1267,7 +1267,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     call calculate_rhoT(Time, Dens, Thickness)
 
     ! initialize diagnostics inside ocean_tracer module, which require density to already be initialized 
-    call ocean_tracer_diagnostics_init(Time, Dens, T_diag, vert_coordinate_class)  
+    call ocean_tracer_diagnostics_init(Time, Dens, T_diag, T_prog, vert_coordinate_class)
 
     call ocean_thickness_init_adjust(Grid, Time, Dens, Ext_mode, Thickness)
 

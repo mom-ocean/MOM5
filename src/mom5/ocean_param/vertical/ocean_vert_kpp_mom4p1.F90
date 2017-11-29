@@ -431,6 +431,7 @@ logical :: compute_watermass_diag = .false.
 
 ! for diagnostics 
 integer, dimension(:), allocatable :: id_nonlocal(:)
+integer, dimension(:), allocatable :: id_nonlocal_on_nrho(:)
 integer, dimension(:), allocatable :: id_ghats(:)
 integer, dimension(:), allocatable :: id_wsfc(:)
 integer, dimension(:), allocatable :: id_wbot(:)
@@ -846,16 +847,22 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
   ! register diagnostics 
 
   allocate(id_nonlocal(num_prog_tracers))
+  allocate(id_nonlocal_on_nrho(num_prog_tracers))
   allocate(id_ghats(2))
   allocate(id_wsfc(num_prog_tracers))
   allocate(id_wbot(num_prog_tracers))
   id_nonlocal=-1
+  id_nonlocal_on_nrho=-1
   do n = 1, num_prog_tracers
      if(n==index_temp) then
         id_nonlocal(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_nonlocal_KPP', &
                      Grd%tracer_axes(1:3), Time%model_time,                                         &
                      'cp*rho*dzt*nonlocal tendency from KPP', trim(T_prog(n)%flux_units),           &
                      missing_value=missing_value, range=(/-1.e10,1.e10/))
+        id_nonlocal_on_nrho(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_nonlocal_KPP_on_nrho', &
+                     Dens%neutralrho_axes(1:3), Time%model_time,                                         &
+                     'cp*rho*dzt*nonlocal tendency from KPP binned to neutral density', trim(T_prog(n)%flux_units), &
+                     missing_value=missing_value, range=(/-1.e20,1.e20/))
         id_wsfc(n)   = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_wsfc_KPP',       &
                      Grd%tracer_axes(1:2), Time%model_time,                                         &
                      'cp*rho*dzt*surface tendency from KPP', trim(T_prog(n)%flux_units),            &
@@ -865,6 +872,10 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
                      Grd%tracer_axes(1:3), Time%model_time,                                         &
                      'rho*dzt*nonlocal tendency from KPP', trim(T_prog(n)%flux_units),              &
                      missing_value=missing_value, range=(/-1.e10,1.e10/))
+        id_nonlocal_on_nrho(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_nonlocal_KPP_on_nrho', &
+                     Dens%neutralrho_axes(1:3), Time%model_time,                                         &
+                     'rho*dzt*nonlocal tendency from KPP binned to neutral density', trim(T_prog(n)%flux_units),              &
+                     missing_value=missing_value, range=(/-1.e20,1.e20/))
         id_wsfc(n)   =  register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_wsfc_KPP',      &
                      Grd%tracer_axes(1:2), Time%model_time,                                         &
                      'rho*dzt*surface tendency from KPP', trim(T_prog(n)%flux_units),               &
@@ -1500,6 +1511,9 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
 
               if (id_nonlocal(n) > 0) then 
                  call diagnose_3d(Time, Grd, id_nonlocal(n),T_prog(n)%conversion*T_prog(n)%wrk1(:,:,:))
+              endif
+              if (id_nonlocal_on_nrho(n) > 0) then
+                 call diagnose_3d_rho(Time, Dens, id_nonlocal_on_nrho(n),T_prog(n)%conversion*T_prog(n)%wrk1)
               endif
 
            enddo   ! enddo for n-loop 

@@ -514,6 +514,7 @@ integer, allocatable, dimension(:) :: id_stf_total
 integer, allocatable, dimension(:) :: id_stf_runoff
 integer, allocatable, dimension(:) :: id_stf_calving
 integer, allocatable, dimension(:) :: id_stf_pme
+integer, allocatable, dimension(:) :: id_stf_pme_on_nrho
 integer, allocatable, dimension(:) :: id_stf_prec
 integer, allocatable, dimension(:) :: id_stf_evap
 integer, allocatable, dimension(:) :: id_trunoff
@@ -1512,6 +1513,7 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
   allocate( id_stf_runoff            (num_prog_tracers) )
   allocate( id_stf_calving           (num_prog_tracers) )
   allocate( id_stf_pme               (num_prog_tracers) )
+  allocate( id_stf_pme_on_nrho       (num_prog_tracers) )
   allocate( id_stf_prec              (num_prog_tracers) )
   allocate( id_stf_evap              (num_prog_tracers) )
   allocate( id_trunoff               (num_prog_tracers) )
@@ -1535,6 +1537,7 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
   id_stf_runoff            (:)  = -1
   id_stf_calving           (:)  = -1
   id_stf_pme               (:)  = -1
+  id_stf_pme_on_nrho       (:)  = -1
   id_stf_prec              (:)  = -1
   id_stf_evap              (:)  = -1
   id_trunoff               (:)  = -1
@@ -2187,6 +2190,10 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
               Grd%tracer_axes(1:2),                                                                          &
               Time%model_time, 'heat flux (relative to 0C) from pme transfer of water across ocean surface', &
               'Watts/m^2' , missing_value=missing_value,range=(/-1.e4,1.e4/))            
+         id_stf_pme_on_nrho(n) = register_diag_field('ocean_model','sfc_hflux_pme_on_nrho',                                  &
+              Dens%neutralrho_axes(1:3),                                                                      &
+              Time%model_time, 'heat flux (relative to 0C) from pme transfer of water across ocean surface binned to neutral density', &
+              'Watts/m^2' , missing_value=missing_value,range=(/-1.e20,1.e20/))
          id_stf_prec(n) = register_diag_field('ocean_model','sfc_hflux_from_water_prec',      &
               Grd%tracer_axes(1:2),                                                           &
               Time%model_time, 'heat flux from precip transfer of water across ocean surface',&
@@ -2301,6 +2308,13 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
               Time%model_time, trim(name),                 &
               'kg/(m^2*sec)' ,                             &
               missing_value=missing_value,range=(/-1.e4,1.e4/))            
+         name = 'sfc_'//trim(T_prog(n)%name)//'_flux_pme_on_nrho'
+         id_stf_pme_on_nrho(n) = register_diag_field('ocean_model',&
+              trim(name),                                  &
+              Dens%neutralrho_axes(1:3),                    &
+              Time%model_time, trim(name),                 &
+              'kg/(m^2*sec)' ,                             &
+              missing_value=missing_value,range=(/-1.e20,1.e20/))
          name = 'sfc_'//trim(T_prog(n)%name)//'_flux_prec'
          id_stf_prec(n) = register_diag_field('ocean_model',&
               trim(name),                                   & 
@@ -2428,6 +2442,13 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
               Time%model_time, trim(name),                 &
               'kg/(m^2*sec)' ,                             &
               missing_value=missing_value,range=(/-1.e4,1.e4/))            
+         name = 'sfc_'//trim(T_prog(n)%name)//'_flux_pme_on_nrho'
+         id_stf_pme_on_nrho(n) = register_diag_field('ocean_model',&
+              trim(name),                                  &
+              Dens%neutralrho_axes(1:3),                    &
+              Time%model_time, trim(name),                 &
+              'kg/(m^2*sec)' ,                             &
+              missing_value=missing_value,range=(/-1.e20,1.e20/))
          name = 'sfc_'//trim(T_prog(n)%name)//'_flux_prec'
          id_stf_prec(n) = register_diag_field('ocean_model',&
               trim(name),                                   &
@@ -4216,6 +4237,18 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
   if (id_stf_pme(index_temp) > 0) then
      call diagnose_2d(Time, Grd, id_stf_pme(index_temp),       &
              pme(:,:)*T_prog(index_temp)%tpme(:,:)*T_prog(index_temp)%conversion)
+  endif
+  ! heat input from net pme relative to 0 degrees C (W/m2) binned to
+  ! neutral density
+  if (id_stf_pme_on_nrho(index_temp) > 0) then
+      wrk1(:,:,:)      = 0.0
+      k=1
+      do j=jsc,jec
+         do i=isc,iec
+            wrk1(i,j,k) = pme(i,j)*T_prog(index_temp)%tpme(i,j)*T_prog(index_temp)%conversion
+         enddo
+      enddo
+      call diagnose_3d_rho(Time, Dens, id_stf_pme_on_nrho(index_temp), wrk1)
   endif
   ! total heat flux from net pme (Watts)
   if(id_total_ocean_stf_pme(index_temp) > 0) then 

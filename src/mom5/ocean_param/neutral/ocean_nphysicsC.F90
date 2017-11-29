@@ -292,6 +292,7 @@ use ocean_types_mod,         only: ocean_time_type, ocean_time_steps_type
 use ocean_types_mod,         only: tracer_2d_type, tracer_3d_0_nk_type, tracer_3d_1_nk_type 
 use ocean_util_mod,          only: write_note, write_line, write_warning
 use ocean_util_mod,          only: diagnose_2d, diagnose_3d
+use ocean_tracer_util_mod,   only: diagnose_3d_rho
 use ocean_workspace_mod,     only: wrk1_2d, wrk1_v2d, wrk2_v2d
 use ocean_workspace_mod,     only: wrk1, wrk2, wrk3, wrk4
 use ocean_workspace_mod,     only: wrk1_v, wrk2_v, wrk3_v, wrk4_v
@@ -378,6 +379,8 @@ integer :: id_eta_tend_ndiff_flx_glob =-1
 integer, dimension(:), allocatable  :: id_neutral_physics_ndiffuse ! tendency from neutral diffusion 
 integer, dimension(:), allocatable  :: id_neutral_physics_gm       ! tendency from GM 
 integer, dimension(:), allocatable  :: id_k33_implicit          ! K33 handled implicitly in time 
+integer, dimension(:), allocatable  :: id_neutral_physics_ndiffuse_on_nrho ! tendency from neutral diffusion 
+integer, dimension(:), allocatable  :: id_neutral_physics_gm_on_nrho       ! tendency from GM 
 integer, dimension(:), allocatable  :: id_flux_x_ndiffuse       ! i-directed tracer flux from neutral diffuse
 integer, dimension(:), allocatable  :: id_flux_y_ndiffuse       ! j-directed tracer flux from neutral diffuse 
 integer, dimension(:), allocatable  :: id_flux_z_ndiffuse       ! k-directed tracer flux from neutral diffuse 
@@ -1132,9 +1135,13 @@ subroutine ocean_nphysicsC_init(Grid, Domain, Time, Time_steps, Thickness, Dens,
   allocate (id_k33_implicit(num_prog_tracers))
   allocate (id_neutral_physics_ndiffuse(num_prog_tracers))
   allocate (id_neutral_physics_gm(num_prog_tracers))
+  allocate (id_neutral_physics_ndiffuse_on_nrho(num_prog_tracers))
+  allocate (id_neutral_physics_gm_on_nrho(num_prog_tracers))
   id_k33_implicit             = -1
   id_neutral_physics_ndiffuse = -1
   id_neutral_physics_gm       = -1
+  id_neutral_physics_ndiffuse_on_nrho = -1
+  id_neutral_physics_gm_on_nrho       = -1
   do n=1,num_prog_tracers
      id_k33_implicit(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_k33_implicit', &
                           Grd%tracer_axes_wt(1:3), Time%model_time,                                  &
@@ -1148,12 +1155,24 @@ subroutine ocean_nphysicsC_init(Grid, Domain, Time, Time_steps, Thickness, Dens,
                                'rho*dzt*cp*explicit neutral diffusion tendency (heating)',&
                                trim(T_prog(n)%flux_units), missing_value=missing_value,   &
                                range=(/-1.e10,1.e10/))
+       id_neutral_physics_ndiffuse_on_nrho(n) = register_diag_field ('ocean_model',       &
+                               'neutral_diffusion_on_nrho_'//trim(T_prog(n)%name),        &
+                               Dens%neutralrho_axes(1:3), Time%model_time,                &
+                               'rho*dzt*cp*explicit neutral diffusion tendency (heating) binned to neutral density',&
+                               trim(T_prog(n)%flux_units), missing_value=missing_value,   &
+                               range=(/-1.e20,1.e20/))
        id_neutral_physics_gm(n) = register_diag_field ('ocean_model',                   &
                                'neutral_gm_'//trim(T_prog(n)%name),                     &
                                Grd%tracer_axes(1:3), Time%model_time,                   &
                                'rho*dzt*cp*GM stirring (heating)',                      &
                                trim(T_prog(n)%flux_units), missing_value=missing_value, &
                                range=(/-1.e10,1.e10/))
+       id_neutral_physics_gm_on_nrho(n) = register_diag_field ('ocean_model',       &
+                               'neutral_gm_on_nrho_'//trim(T_prog(n)%name),        &
+                               Dens%neutralrho_axes(1:3), Time%model_time,                &
+                               'rho*dzt*cp*GM stirring (heating) binned to neutral density',&
+                               trim(T_prog(n)%flux_units), missing_value=missing_value,   &
+                               range=(/-1.e20,1.e20/))
      else 
        id_neutral_physics_ndiffuse(n) = register_diag_field ('ocean_model',                             &
                                'neutral_diffusion_'//trim(T_prog(n)%name),                              &
@@ -1161,12 +1180,24 @@ subroutine ocean_nphysicsC_init(Grid, Domain, Time, Time_steps, Thickness, Dens,
                                'rho*dzt*explicit neutral diffusion tendency for '//trim(T_prog(n)%name),&
                                trim(T_prog(n)%flux_units), missing_value=missing_value,                 &
                                range=(/-1.e10,1.e10/))
+       id_neutral_physics_ndiffuse_on_nrho(n) = register_diag_field ('ocean_model',       &
+                               'neutral_diffusion_on_nrho_'//trim(T_prog(n)%name),        &
+                               Dens%neutralrho_axes(1:3), Time%model_time,                &
+                               'rho*dzt*explicit neutral diffusion tendency binned to neutral density for '//trim(T_prog(n)%name),&
+                               trim(T_prog(n)%flux_units), missing_value=missing_value,   &
+                               range=(/-1.e20,1.e20/))
        id_neutral_physics_gm(n) = register_diag_field ('ocean_model',                    &
                                'neutral_gm_'//trim(T_prog(n)%name),                      &
                                Grd%tracer_axes(1:3), Time%model_time,                    &
                                'rho*dzt*GM stirring tendency for '//trim(T_prog(n)%name),&
                                trim(T_prog(n)%flux_units), missing_value=missing_value,  &
                                range=(/-1.e10,1.e10/))
+       id_neutral_physics_gm_on_nrho(n) = register_diag_field ('ocean_model',       &
+                               'neutral_gm_on_nrho_'//trim(T_prog(n)%name),        &
+                               Dens%neutralrho_axes(1:3), Time%model_time,                &
+                               'rho*dzt*GM stirring tendency binned to neutral density for '//trim(T_prog(n)%name),&
+                               trim(T_prog(n)%flux_units), missing_value=missing_value,   &
+                               range=(/-1.e20,1.e20/))
      endif 
   enddo 
 
@@ -1853,6 +1884,9 @@ subroutine compute_ndiffusion(Time, Thickness, Dens, T_prog)
      if(id_neutral_physics_ndiffuse(n) > 0) then 
         call diagnose_3d(Time, Grd, id_neutral_physics_ndiffuse(n), T_prog(n)%wrk1(:,:,:)*T_prog(n)%conversion)
      endif
+     if(id_neutral_physics_ndiffuse_on_nrho(n) > 0) then 
+        call diagnose_3d_rho(Time, Dens, id_neutral_physics_ndiffuse_on_nrho(n), T_prog(n)%wrk1*T_prog(n)%conversion)
+     endif
 
      ! send fluxes to diag_manager 
      ! minus sign is due to a MOM-convention for physics fluxes  
@@ -1998,6 +2032,9 @@ subroutine compute_gmskewsion(Time, Thickness, Dens, T_prog)
 
      if(id_neutral_physics_gm(n) > 0) then 
         call diagnose_3d(Time, Grd, id_neutral_physics_gm(n), T_prog(n)%wrk1(:,:,:)*T_prog(n)%conversion)
+     endif
+     if(id_neutral_physics_gm_on_nrho(n) > 0) then 
+        call diagnose_3d_rho(Time, Dens, id_neutral_physics_gm(n), T_prog(n)%wrk1*T_prog(n)%conversion)
      endif
 
      ! send fluxes to diag_manager 
