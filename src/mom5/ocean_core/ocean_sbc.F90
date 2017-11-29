@@ -157,6 +157,20 @@ module ocean_sbc_mod
 !  delta salinity; will instead compute an unbounded restoring flux.  
 !  Default max_delta_salinity_restore=-0.50.
 !  </DATA> 
+!  <DATA NAME="salinity_restore_limit_lower" UNITS="ppt" TYPE="real">
+!  Define a lower absolute salinity below which max_delta_salinity_restore
+!  is ignored. In some coastal regions with high freshwater runoff salinity
+!  can drop below zero. Set this limit to a positive value below which
+!  restoring will be more aggressive.
+!  Default max_delta_salinity_restore=0.0.
+!  </DATA> 
+!  <DATA NAME="salinity_restore_limit_upper" UNITS="ppt" TYPE="real">
+!  Define an upper absolute salinity above which max_delta_salinity_restore
+!  is ignored. In some enclosed coastal regions with low runoff and high
+!  evaporation salinity can reach physically unrealistic levels. Set this
+!  limit to a positive value above which restoring will be more aggressive.
+!  Default max_delta_salinity_restore=100.0.
+!  </DATA> 
 !
 !  <DATA NAME="read_restore_mask" TYPE="logical">
 !  For reading in a mask that selects regions of the domain 
@@ -820,6 +834,8 @@ real    :: eta_restore_tscale             = -30.
 real    :: max_ice_thickness              = 5.0 
 real    :: salinity_ref                   = 35.0
 real    :: max_delta_salinity_restore     = -0.5
+real    :: salinity_restore_limit_lower   = 0.0
+real    :: salinity_restore_limit_upper   = 100.0
 real    :: temp_damp_factor                    ! kg/(m^2*sec)
 real    :: salt_damp_factor                    ! kg/(m^2*sec)
 real    :: eta_damp_factor                     ! 1/sec
@@ -849,6 +865,7 @@ namelist /ocean_sbc_nml/ temp_restore_tscale, salt_restore_tscale, salt_restore_
          convert_river_to_pme, zero_heat_fluxes, zero_surface_stress, avg_sfc_velocity, avg_sfc_temp_salt_eta,               &
          ice_salt_concentration, runoff_salinity, runoff_temp_min, read_restore_mask, restore_mask_gfdl,                     &
          land_model_heat_fluxes, use_full_patm_for_sea_level, max_delta_salinity_restore, do_flux_correction,                &
+         salinity_restore_limit_lower, salinity_restore_limit_upper,                                                          &
          temp_correction_scale, salt_correction_scale, tau_x_correction_scale, tau_y_correction_scale, do_bitwise_exact_sum, &
          sbc_heat_fluxes_const, sbc_heat_fluxes_const_value, sbc_heat_fluxes_const_seasonal,                                 &
          use_constant_sss_for_restore, constant_sss_for_restore, use_constant_sst_for_restore, constant_sst_for_restore,     &
@@ -4052,8 +4069,12 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
               do j=jsc,jec
                  do i=isc,iec
                     tmp_delta_salinity = data(i,j) - T_prog(index_salt)%field(i,j,1,taum1)
-                    tmp_delta_salinity = sign(1.0,tmp_delta_salinity) &
-                                        *min(abs(tmp_delta_salinity),max_delta_salinity_restore)
+                    ! Only limit salinity restoring within specified salinity tolerances
+                    if (T_prog(index_salt)%field(i,j,1,taum1) > salinity_restore_limit_lower &
+                         .or.  T_prog(index_salt)%field(i,j,1,taum1) < salinity_restore_limit_upper ) then
+                       tmp_delta_salinity = sign(1.0,tmp_delta_salinity) &
+                            *min(abs(tmp_delta_salinity),max_delta_salinity_restore)
+                    end if
                     flx_restore(i,j) = salt_damp_factor*open_ocean_mask(i,j)*restore_mask(i,j) &
                                        *tmp_delta_salinity
                  enddo
