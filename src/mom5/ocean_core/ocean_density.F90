@@ -218,7 +218,6 @@ module ocean_density_mod
 !  and temperature. 
 !  Default eos_linear=.false.
 !  </DATA>
-!
 !  <DATA NAME="alpha_linear_eos" TYPE="real">
 !  Constant "thermal expansion coefficient" for linear EOS 
 !  rho = rho0 - alpha_linear_eos*theta + beta_linear_eos*salinity
@@ -256,6 +255,11 @@ module ocean_density_mod
 !  we only have the neutral_density_potrho option to choose from
 !  at this time.  
 !  Default neutral_density_potrho=.true.
+!  </DATA>
+!  <DATA NAME="neutral_density_theta" TYPE="logical">
+!  Set to true to use temperature instead of neutral density as the
+!  binning variable for water-mass diagnostics.
+!  Default neutral_density_theta=.false.
 !  </DATA>
 !  <DATA NAME="neutralrho_min" UNITS="kg/m^3" TYPE="real">
 !  Minimum neutral density used to partition vertical according 
@@ -618,9 +622,6 @@ logical :: eos_linear=.false.
 real    :: alpha_linear_eos=0.255
 real    :: beta_linear_eos =0.0
 
-! for water-mass transformation theta
-logical :: neutral_rho_equal_theta = .false.
-
 ! for teos10 or preteos10 eos
 logical :: eos_preteos10 = .false.
 logical :: eos_teos10    = .false.
@@ -657,6 +658,7 @@ real :: potrho_max   = 1038.0  ! (kg/m^3)
 ! rational polynomial approximation to neutral density
 logical :: neutral_density_omega  = .false.
 logical :: neutral_density_potrho = .true.
+logical :: neutral_density_theta  = .false.
 real    :: neutralrho_min = 1020.0  ! (kg/m^3)         
 real    :: neutralrho_max = 1030.0  ! (kg/m^3)           
 
@@ -709,8 +711,7 @@ logical :: do_bitwise_exact_sum  = .false.
 
 namelist /ocean_density_nml/ s_test, t_test, p_test, press_standard,                  &
                              sn_test, tn_test,                                        &
-                             eos_linear, alpha_linear_eos, beta_linear_eos,           &
-                             neutral_rho_equal_theta,                                 &
+                             eos_linear, alpha_linear_eos, beta_linear_eos,           & 
                              eos_preteos10, eos_teos10,                               &
                              potrho_press, potrho_min, potrho_max,                    &
                              neutralrho_min, neutralrho_max,                          &
@@ -723,6 +724,7 @@ namelist /ocean_density_nml/ s_test, t_test, p_test, press_standard,            
                              grad_nrho_lrpotrho_compute, grad_nrho_lrpotrho_max,      &
                              grad_nrho_lrpotrho_min,                                  &
                              neutral_density_omega, neutral_density_potrho,           &
+                             neutral_density_theta,                                   &
                              smooth_stratification_factor, update_diagnostic_factors, &
                              smax_diag, smax_min_in_column 
 contains
@@ -935,13 +937,18 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
         ' ==> Note: Computing diagnostic neutral_rho as potential density referenced to pressure potrho_press.'
         neutral_rho_method = neutral_rho_method + 1 
     endif 
+    if(neutral_density_theta) then 
+        write (stdoutunit,'(/1x,a)') &
+        ' ==> Note: Computing diagnostic neutral_rho as conservative temperature.'
+        neutral_rho_method = neutral_rho_method + 1 
+    endif
     if(neutral_rho_method==0) then 
       call mpp_error(FATAL, &
-       '==>Error in ocean_density_mod: set one of the options "neutral_density_omega" or "neutral_density_potrho" true.')
+       '==>Error in ocean_density_mod: set one of the options "neutral_density_omega" or "neutral_density_potrho" or "neutral_density_theta" true.')
     endif   
     if(neutral_rho_method > 1) then 
       call mpp_error(FATAL, &
-       '==>Error in ocean_density_mod: set only **one** of the options "neutral_density_omega" or "neutral_density_potrho" true.')
+       '==>Error in ocean_density_mod: set only **one** of the options "neutral_density_omega" or "neutral_density_potrho" or "neutral_density_theta" true.')
     endif   
 
     if(drhodz_diag_stable) then
@@ -1438,6 +1445,10 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
   elseif(neutral_density_potrho) then 
       id_neutral_rho = register_diag_field ('ocean_model', 'neutral_rho', Grd%tracer_axes(1:3),   &
                        Time%model_time, 'potential density estimate of neutral density', 'kg/m^3',&
+                       missing_value=missing_value, range=(/-10.0,1e5/))    
+  elseif(neutral_density_theta) then 
+      id_neutral_rho = register_diag_field ('ocean_model', 'neutral_rho', Grd%tracer_axes(1:3),   &
+                       Time%model_time, 'conservative temperature is neutral density', 'degC',&
                        missing_value=missing_value, range=(/-10.0,1e5/))    
   endif 
 
@@ -2641,7 +2652,7 @@ end subroutine update_ocean_density
       '==>Error in ocean_density_mod (neutral_density_field): module must be initialized')
     endif 
 
-    if(neutral_rho_equal_theta) then
+    if(neutral_density_theta) then
         do k=1,nk
            do j=jsd,jed
               do i=isd,ied
@@ -2691,7 +2702,7 @@ end subroutine update_ocean_density
       '==>Error in ocean_density_mod (neutral_density_point): module must be initialized')
     endif 
 
-    if(neutral_rho_equal_theta) then
+    if(neutral_density_theta) then
 
         neutral_density_point = theta
 
