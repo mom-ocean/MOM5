@@ -194,6 +194,7 @@ real    :: small=1.e-20
 
 integer :: index_temp=-1
 integer :: index_salt=-1
+integer :: index_redist_heat=-1
 
 integer :: bbc_geothermal 
 integer :: stdoutunit,stdlogunit 
@@ -307,10 +308,11 @@ Grd => Grid
 horz_grid = hor_grid
 
 num_prog_tracers = size(T_prog(:))
-index_temp=-1;index_salt=-1
+index_temp=-1;index_salt=-1;index_redist_heat=-1
 do n=1,num_prog_tracers
-   if (T_prog(n)%name == 'temp') index_temp = n
-   if (T_prog(n)%name == 'salt') index_salt = n
+   if (T_prog(n)%name == 'temp')        index_temp = n
+   if (T_prog(n)%name == 'salt')        index_salt = n
+   if (T_prog(n)%name == 'redist_heat') index_redist_heat = n
 enddo
 
 do n=1, num_prog_tracers
@@ -668,6 +670,13 @@ if (use_geothermal_heating) then
           T_prog(index_temp)%btf(i,j) = -geo_heat(i,j)
        enddo
     enddo
+    if(index_redist_heat > 0) then 
+      do j=jsc,jec
+         do i=isc,iec
+            T_prog(index_redist_heat)%btf(i,j) = -geo_heat(i,j)
+         enddo
+      enddo
+    endif   
 endif
 
 
