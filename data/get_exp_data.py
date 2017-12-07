@@ -33,8 +33,8 @@ def main():
     with open(args.sources) as sf:
         for line in sf:
             filename = (line.split(',')[0]).strip()
-            url = (line.split(',')[1]).strip()
-            src_dict[filename] = url
+            urls = [l.strip() for l in line.split(',')[1:]]
+            src_dict[filename] = urls
 
     if args.list:
         print('\n'.join(src_dict.keys()))
@@ -56,9 +56,16 @@ def main():
         print('Error: destination {} already exists.'.format(dest))
         return 1
 
-    ret = sp.call(['wget', '--quiet', '-O',
-                    os.path.join(dest_dir, args.filename), src_dict[args.filename]])
-    if ret != 0:
+    # Possibly try multiple sources to get file. 
+    downloaded = False
+    for url in src_dict[args.filename]:
+        ret = sp.call(['wget', '--quiet', '-O',
+                        os.path.join(dest_dir, args.filename), url])
+        if ret == 0:
+            downloaded = True
+            break
+
+    if not downloaded:
         print('Error: wget of {} failed. Does it exist?'.format(args.filename),
               file=sys.stderr)
         parser.print_help()
