@@ -8,6 +8,25 @@ import re
 import argparse
 import tempfile
 import subprocess as sp
+import shutil
+
+def get_local_path(url):
+    """
+    Convert the url to a local file path if it exists.
+
+    Return whether or not this is a local path and it's value.
+    """
+
+    prefix = url[:7]
+    path = url[7:]
+
+    if prefix == 'file://':
+        if os.path.exists(path):
+            return True, path
+        else:
+            return True, None
+
+    return False, None
 
 def main():
 
@@ -27,7 +46,7 @@ def main():
 
     if args.sources is None:
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        args.sources = os.path.join(dir_path, 'data_sources.txt')
+        args.sources = os.path.join(dir_path, 'data_sources.csv')
 
     # Read in the sources and convert to a dictionary.
     with open(args.sources) as sf:
@@ -57,15 +76,20 @@ def main():
         return 1
 
     # Possibly try multiple sources to get file. 
-    downloaded = False
+    ret = 0
     for url in src_dict[args.filename]:
-        ret = sp.call(['wget', '--quiet', '-O',
-                        os.path.join(dest_dir, args.filename), url])
-        if ret == 0:
-            downloaded = True
-            break
+        is_local_path, local_path = get_local_path(url)
 
-    if not downloaded:
+        if local_path is not None:
+            shutil.copy(local_path, dest_dir)
+            break
+        elif not is_local_path:
+            ret = sp.call(['wget', '--quiet', '-O',
+                            os.path.join(dest_dir, args.filename), url])
+            if ret == 0:
+                break
+
+    if not os.path.exists(os.path.join(dest_dir, args.filename)) or ret != 0:
         print('Error: wget of {} failed. Does it exist?'.format(args.filename),
               file=sys.stderr)
         parser.print_help()
