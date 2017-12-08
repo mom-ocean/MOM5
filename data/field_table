@@ -1,0 +1,146 @@
+# specific humidity for moist runs
+ "TRACER", "atmos_mod", "sphum" 
+           "longname",     "specific humidity"
+           "units",        "kg/kg" /
+##	   "profile_type", "fixed", "surface_value=3.e-6" /
+# prognostic cloud scheme tracers
+  "TRACER", "atmos_mod", "liq_wat"
+            "longname",     "cloud liquid specific humidity"
+            "units",        "kg/kg" /
+  "TRACER", "atmos_mod", "ice_wat"
+            "longname",     "cloud ice water specific humidity"
+            "units",        "kg/kg" /
+  "TRACER", "atmos_mod", "cld_amt"
+            "longname",     "cloud fraction"
+            "units",        "none" /
+# sphum must be present on land as well
+ "TRACER", "land_mod",     "sphum"
+           "longname",     "specific humidity"
+           "units",        "kg/kg" /
+# test tracer for radon
+#
+# "TRACER", "atmos_mod", "radon"
+#           "longname",     "radon test tracer"
+#           "units",        "kg/kg" /      
+###.................................................
+#"diag_tracers","ocean_mod","frazil"
+#restart_file  = ocean_frazil.res.nc
+#/
+#"diag_tracers","ocean_mod","frazil_redist"
+#restart_file  = ocean_frazil_redist.res.nc
+#/
+### MDPPM for T,S
+"prog_tracers","ocean_mod","temp"
+horizontal-advection-scheme = mdppm
+vertical-advection-scheme = mdppm
+restart_file  = ocean_temp_salt.res.nc
+ppm_hlimiter=2
+ppm_vlimiter=2
+/
+"prog_tracers","ocean_mod","salt"
+horizontal-advection-scheme = mdppm
+vertical-advection-scheme = mdppm
+restart_file  = ocean_temp_salt.res.nc
+ppm_hlimiter=2
+ppm_vlimiter=2
+/
+### Additional Tracers for FAF-HEAT
+"prog_tracers","ocean_mod","added_heat"
+horizontal-advection-scheme = mdppm
+vertical-advection-scheme = mdppm
+restart_file  = ocean_added_heat.res.nc
+ppm_hlimiter=2
+ppm_vlimiter=2
+/
+"prog_tracers","ocean_mod","redist_heat"
+horizontal-advection-scheme = mdppm
+vertical-advection-scheme = mdppm
+restart_file  = ocean_redist_heat.res.nc
+ppm_hlimiter=2
+ppm_vlimiter=2
+/
+"xland_mix","ocean_mod","xland_mix"
+"xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=146,jxland_2=146,kxland_1=1,kxland_2=28,vxland=0.55e6"
+"xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=147,jxland_2=147,kxland_1=1,kxland_2=28,vxland=0.55e6"
+"xland","Black-Med","ixland_1=305,ixland_2=309,jxland_1=151,jxland_2=152,kxland_1=1,kxland_2=6,vxland=0.01e6"
+"xland","Black-Med","ixland_1=306,ixland_2=309,jxland_1=151,jxland_2=153,kxland_1=1,kxland_2=6,vxland=0.01e6"
+"xland","Red Sea","ixland_1=322,ixland_2=324,jxland_1=123,jxland_2=120,kxland_1=1,kxland_2=20,vxland=0.18e6"
+"xland","Red Sea","ixland_1=323,ixland_2=324,jxland_1=123,jxland_2=119,kxland_1=1,kxland_2=20,vxland=0.18e6"
+"xland","Baltic","ixland_1=290,ixland_2=291,jxland_1=168,jxland_2=166,kxland_1=1,kxland_2=2,vxland=0.015e6"
+"xland","Baltic","ixland_1=290,ixland_2=291,jxland_1=167,jxland_2=165,kxland_1=1,kxland_2=2,vxland=0.015e6"
+"xland","NEBaltic","ixland_1=300,ixland_2=302,jxland_1=174,jxland_2=174,kxland_1=1,kxland_2=6,vxland=0.003e6"
+"xland","NEBaltic","ixland_1=301,ixland_2=303,jxland_1=174,jxland_2=174,kxland_1=1,kxland_2=6,vxland=0.003e6"
+"xland","Hudson","ixland_1=211,ixland_2=212,jxland_1=173,jxland_2=171,kxland_1=1,kxland_2=12,vxland=0.45e6"
+"xland","Hudson","ixland_1=211,ixland_2=212,jxland_1=172,jxland_2=170,kxland_1=1,kxland_2=12,vxland=0.45e6"
+"xland","Boothia-Fox","ixland_1=199,ixland_2=203,jxland_1=188,jxland_2=187,kxland_1=1,kxland_2=4,vxland=0.035e6"
+"xland","Boothia-Fox","ixland_1=198,ixland_2=202,jxland_1=188,jxland_2=187,kxland_1=1,kxland_2=4,vxland=0.035e6"
+"xland","Persian Gulf","ixland_1=336,ixland_2=338,jxland_1=137,jxland_2=136,kxland_1=1,kxland_2=4,vxland=0.05e6"
+"xland","Persian Gulf","ixland_1=336,ixland_2=338,jxland_1=136,jxland_2=135,kxland_1=1,kxland_2=4,vxland=0.05e6"/
+"xland_insert","ocean_mod","xland_insert"
+"xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=146,jxland_2=146,kxland_1=1,kxland_2=18,tauxland=86400.0"
+"xland","Gibraltar","ixland_1=274,ixland_2=276,jxland_1=147,jxland_2=147,kxland_1=1,kxland_2=18,tauxland=86400.0"
+"xland","Black-Med","ixland_1=305,ixland_2=309,jxland_1=151,jxland_2=152,kxland_1=1,kxland_2=6,tauxland=86400.0"
+"xland","Black-Med","ixland_1=306,ixland_2=309,jxland_1=151,jxland_2=153,kxland_1=1,kxland_2=6,tauxland=86400.0"
+"xland","Red Sea","ixland_1=322,ixland_2=324,jxland_1=123,jxland_2=120,kxland_1=1,kxland_2=20,tauxland=86400.0"
+"xland","Red Sea","ixland_1=323,ixland_2=324,jxland_1=123,jxland_2=119,kxland_1=1,kxland_2=20,tauxland=86400.0"
+"xland","Baltic","ixland_1=290,ixland_2=291,jxland_1=168,jxland_2=166,kxland_1=1,kxland_2=2,tauxland=86400.0"
+"xland","Baltic","ixland_1=290,ixland_2=291,jxland_1=167,jxland_2=165,kxland_1=1,kxland_2=2,tauxland=86400.0"
+"xland","NEBaltic","ixland_1=300,ixland_2=302,jxland_1=174,jxland_2=174,kxland_1=1,kxland_2=6,tauxland=86400.0"
+"xland","NEBaltic","ixland_1=301,ixland_2=303,jxland_1=174,jxland_2=174,kxland_1=1,kxland_2=6,tauxland=86400.0"
+"xland","Hudson","ixland_1=211,ixland_2=212,jxland_1=173,jxland_2=171,kxland_1=1,kxland_2=12,tauxland=86400.0"
+"xland","Hudson","ixland_1=211,ixland_2=212,jxland_1=172,jxland_2=170,kxland_1=1,kxland_2=12,tauxland=86400.0"
+"xland","Boothia-Fox","ixland_1=199,ixland_2=203,jxland_1=188,jxland_2=187,kxland_1=1,kxland_2=4,tauxland=86400.0"
+"xland","Boothia-Fox","ixland_1=198,ixland_2=202,jxland_1=188,jxland_2=187,kxland_1=1,kxland_2=4,tauxland=86400.0"
+"xland","Persian Gulf","ixland_1=336,ixland_2=338,jxland_1=137,jxland_2=136,kxland_1=1,kxland_2=4,tauxland=86400.0"
+"xland","Persian Gulf","ixland_1=336,ixland_2=338,jxland_1=136,jxland_2=135,kxland_1=1,kxland_2=4,tauxland=86400.0"/
+"diff_cbt_enhance","ocean_mod","diff_cbt_enhance"
+"diffcbt","Gibraltar","itable=274,jtable=146,ktable_1=1,ktable_2=18,diff_cbt_table=0.01"
+"diffcbt","Gibraltar","itable=276,jtable=146,ktable_1=1,ktable_2=18,diff_cbt_table=0.01"
+"diffcbt","Gibraltar","itable=274,jtable=147,ktable_1=1,ktable_2=18,diff_cbt_table=0.01"
+"diffcbt","Gibraltar","itable=276,jtable=147,ktable_1=1,ktable_2=18,diff_cbt_table=0.01"
+"diffcbt","Black-Med","itable=305,jtable=151,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"
+"diffcbt","Black-Med","itable=309,jtable=152,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"
+"diffcbt","Black-Med","itable=306,jtable=151,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"
+"diffcbt","Black-Med","itable=309,jtable=153,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"
+"diffcbt","Red Sea","itable=322,jtable=123,ktable_1=1,ktable_2=20,diff_cbt_table=0.01"
+"diffcbt","Red Sea","itable=324,jtable=120,ktable_1=1,ktable_2=20,diff_cbt_table=0.01"
+"diffcbt","Red Sea","itable=323,jtable=123,ktable_1=1,ktable_2=20,diff_cbt_table=0.01"
+"diffcbt","Red Sea","itable=324,jtable=119,ktable_1=1,ktable_2=20,diff_cbt_table=0.01"
+"diffcbt","Baltic","itable=290,jtable=168,ktable_1=1,ktable_2=2,diff_cbt_table=0.01"
+"diffcbt","Baltic","itable=291,jtable=166,ktable_1=1,ktable_2=2,diff_cbt_table=0.01"
+"diffcbt","Baltic","itable=290,jtable=167,ktable_1=1,ktable_2=2,diff_cbt_table=0.01"
+"diffcbt","Baltic","itable=291,jtable=165,ktable_1=1,ktable_2=2,diff_cbt_table=0.01"
+"diffcbt","NEBaltic","itable=300,jtable=174,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"
+"diffcbt","NEBaltic","itable=302,jtable=174,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"
+"diffcbt","NEBaltic","itable=301,jtable=174,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"
+"diffcbt","NEBaltic","itable=303,jtable=174,ktable_1=1,ktable_2=6,diff_cbt_table=0.01"
+"diffcbt","Hudson","itable=211,jtable=173,ktable_1=1,ktable_2=12,diff_cbt_table=0.01"
+"diffcbt","Hudson","itable=212,jtable=171,ktable_1=1,ktable_2=12,diff_cbt_table=0.01"
+"diffcbt","Hudson","itable=211,jtable=172,ktable_1=1,ktable_2=12,diff_cbt_table=0.01"
+"diffcbt","Hudson","itable=212,jtable=170,ktable_1=1,ktable_2=12,diff_cbt_table=0.01"
+"diffcbt","Boothia-Fox","itable=199,jtable=188,ktable_1=1,ktable_2=4,diff_cbt_table=0.01"
+"diffcbt","Boothia-Fox","itable=203,jtable=187,ktable_1=1,ktable_2=4,diff_cbt_table=0.01"
+"diffcbt","Boothia-Fox","itable=198,jtable=188,ktable_1=1,ktable_2=4,diff_cbt_table=0.01"
+"diffcbt","Boothia-Fox","itable=202,jtable=187,ktable_1=1,ktable_2=4,diff_cbt_table=0.01"
+"diffcbt","Persian Gulf","itable=336,jtable=137,ktable_1=1,ktable_2=4,diff_cbt_table=0.01"
+"diffcbt","Persian Gulf","itable=338,jtable=136,ktable_1=1,ktable_2=4,diff_cbt_table=0.01"
+"diffcbt","Persian Gulf","itable=336,jtable=136,ktable_1=1,ktable_2=4,diff_cbt_table=0.01"
+"diffcbt","Persian Gulf","itable=338,jtable=135,ktable_1=1,ktable_2=4,diff_cbt_table=0.01"/
+### MDPPM for Age
+"tracer_packages","ocean_mod","ocean_age_tracer"
+names = global
+horizontal-advection-scheme = mdppm
+vertical-advection-scheme = mdppm
+restart_file = ocean_age.res.nc
+const_init_tracer = f
+const_init_value = 0.0
+ppm_hlimiter=2
+ppm_vlimiter=2
+min_tracer_limit=0.0
+/
+"namelists","ocean_mod","ocean_age_tracer/global"
+slat = -90.0
+nlat =  90.0
+wlon =   0.0
+elon = 360.0
+/
