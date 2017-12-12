@@ -1,36 +1,36 @@
-CM2.1p1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/CM2.1p1.input.tar.gz
-CM2.1p1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/CM2.1p1.output.tar.gz
-CM2M_coarse_BLING.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/CM2M_coarse_BLING.input.tar.gz
-CM2M_coarse_BLING.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/CM2M_coarse_BLING.output.tar.gz
-ESM2M_pi-control_C2.input.tar.gz, https://s3-us-west-2.amazonaws.com/mom5/4dc08e007b6920911634f766da7d36c6--ESM2M_pi-control_C2.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/4dc08e007b6920911634f766da7d36c6--ESM2M_pi-control_C2.input.tar.gz
-ICCMp1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/ICCMp1.input.tar.gz
-MOM5_SIS_COBALT.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/MOM5_SIS_COBALT.input.tar.gz
-MOM_SIS_BLING.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/MOM_SIS_BLING.input.tar.gz
-MOM_SIS_BLING.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/MOM_SIS_BLING.output.tar.gz
-MOM_SIS_TOPAZ.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/MOM_SIS_TOPAZ.input.tar.gz
-atlantic1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/atlantic1.input.tar.gz
-baltic1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/baltic1.input.tar.gz
-baltic1_withMask.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/baltic1_withMask.input.tar.gz
-bowl1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/bowl1.input.tar.gz
-bowl1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/bowl1.output.tar.gz
-box1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/box1.input.tar.gz
-box1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/box1.output.tar.gz
-box_channel1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/box_channel1.input.tar.gz
-box_channel1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/box_channel1.output.tar.gz
-dome1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/dome1.input.tar.gz
-dome1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/dome1.output.tar.gz
-dome_bates_blobs_mosaics.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/dome_bates_blobs_mosaics.input.tar.gz
-global_0.25_degree_NYF.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/global_0.25_degree_NYF.input.tar.gz
-gyre1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/gyre1.input.tar.gz
-gyre1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/gyre1.output.tar.gz
-iom1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/iom1.input.tar.gz
-iom1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/iom1.output.tar.gz
-mk3p51.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/mk3p51.input.tar.gz
-mk3p51.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/mk3p51.output.tar.gz
-mom4p1_ebm1.input.tar.gz, https://s3-us-west-2.amazonaws.com/mom5/521e418ac4988e8a424903ed4d219339--mom4p1_ebm1.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/521e418ac4988e8a424903ed4d219339--mom4p1_ebm1.tar.gz
-om3_core1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/om3_core1.input.tar.gz
-om3_core3.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/om3_core3.input.tar.gz
-symmetric_box1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/symmetric_box1.input.tar.gz
-symmetric_box1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/symmetric_box1.output.tar.gz
-torus1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/torus1.input.tar.gz
-torus1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/torus1.output.tar.gz
+CM2.1p1.input.tar.gz, /g/data1/ua8/mom/test_data/CM2.1p1.input.tar.gz, file:///g/data1/ua8/mom/test_data/CM2.1p1.input.tar.gz,  http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/CM2.1p1.input.tar.gz
+CM2.1p1.output.tar.gz, /g/data1/ua8/mom/test_data/CM2.1p1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/CM2.1p1.output.tar.gz
+CM2M_coarse_BLING.input.tar.gz, /g/data1/ua8/mom/test_data/CM2M_coarse_BLING.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/CM2M_coarse_BLING.input.tar.gz
+CM2M_coarse_BLING.output.tar.gz, /g/data1/ua8/mom/test_data/CM2M_coarse_BLING.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/CM2M_coarse_BLING.output.tar.gz
+ESM2M_pi-control_C2.input.tar.gz, /g/data1/ua8/mom/test_data/ESM2M_pi-control_C2.input.tar.gz, https://s3-us-west-2.amazonaws.com/mom5/4dc08e007b6920911634f766da7d36c6--ESM2M_pi-control_C2.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/4dc08e007b6920911634f766da7d36c6--ESM2M_pi-control_C2.input.tar.gz
+ICCMp1.input.tar.gz, /g/data1/ua8/mom/test_data/ICCMp1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/ICCMp1.input.tar.gz
+MOM5_SIS_COBALT.input.tar.gz, /g/data1/ua8/mom/test_data/MOM5_SIS_COBALT.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/MOM5_SIS_COBALT.input.tar.gz
+MOM_SIS_BLING.input.tar.gz, /g/data1/ua8/mom/test_data/MOM_SIS_BLING.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/MOM_SIS_BLING.input.tar.gz
+MOM_SIS_BLING.output.tar.gz, /g/data1/ua8/mom/test_data/MOM_SIS_BLING.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/MOM_SIS_BLING.output.tar.gz
+MOM_SIS_TOPAZ.input.tar.gz, /g/data1/ua8/mom/test_data/MOM_SIS_TOPAZ.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/MOM_SIS_TOPAZ.input.tar.gz
+atlantic1.input.tar.gz, /g/data1/ua8/mom/test_data/atlantic1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/atlantic1.input.tar.gz
+baltic1.input.tar.gz, /g/data1/ua8/mom/test_data/baltic1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/baltic1.input.tar.gz
+baltic1_withMask.input.tar.gz, /g/data1/ua8/mom/test_data/baltic1_withMask.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/baltic1_withMask.input.tar.gz
+bowl1.input.tar.gz, /g/data1/ua8/mom/test_data/bowl1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/bowl1.input.tar.gz
+bowl1.output.tar.gz, /g/data1/ua8/mom/test_data/bowl1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/bowl1.output.tar.gz
+box1.input.tar.gz, /g/data1/ua8/mom/test_data/box1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/box1.input.tar.gz
+box1.output.tar.gz, /g/data1/ua8/mom/test_data/box1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/box1.output.tar.gz
+box_channel1.input.tar.gz, /g/data1/ua8/mom/test_data/box_channel1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/box_channel1.input.tar.gz
+box_channel1.output.tar.gz, /g/data1/ua8/mom/test_data/box_channel1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/box_channel1.output.tar.gz
+dome1.input.tar.gz, /g/data1/ua8/mom/test_data/dome1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/dome1.input.tar.gz
+dome1.output.tar.gz, /g/data1/ua8/mom/test_data/dome1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/dome1.output.tar.gz
+dome_bates_blobs_mosaics.input.tar.gz, /g/data1/ua8/mom/test_data/dome_bates_blobs_mosaics.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/dome_bates_blobs_mosaics.input.tar.gz
+global_0.25_degree_NYF.input.tar.gz, /g/data1/ua8/mom/test_data/global_0.25_degree_NYF.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/global_0.25_degree_NYF.input.tar.gz
+gyre1.input.tar.gz, /g/data1/ua8/mom/test_data/gyre1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/gyre1.input.tar.gz
+gyre1.output.tar.gz, /g/data1/ua8/mom/test_data/gyre1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/gyre1.output.tar.gz
+iom1.input.tar.gz, /g/data1/ua8/mom/test_data/iom1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/iom1.input.tar.gz
+iom1.output.tar.gz, /g/data1/ua8/mom/test_data/iom1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/iom1.output.tar.gz
+mk3p51.input.tar.gz, /g/data1/ua8/mom/test_data/mk3p51.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/mk3p51.input.tar.gz
+mk3p51.output.tar.gz, /g/data1/ua8/mom/test_data/mk3p51.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/mk3p51.output.tar.gz
+mom4p1_ebm1.input.tar.gz, /g/data1/ua8/mom/test_data/mom4p1_ebm1.input.tar.gz, https://s3-us-west-2.amazonaws.com/mom5/521e418ac4988e8a424903ed4d219339--mom4p1_ebm1.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/521e418ac4988e8a424903ed4d219339--mom4p1_ebm1.tar.gz
+om3_core1.input.tar.gz, /g/data1/ua8/mom/test_data/om3_core1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/om3_core1.input.tar.gz
+om3_core3.input.tar.gz, /g/data1/ua8/mom/test_data/om3_core3.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/om3_core3.input.tar.gz
+symmetric_box1.input.tar.gz, /g/data1/ua8/mom/test_data/symmetric_box1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/symmetric_box1.input.tar.gz
+symmetric_box1.output.tar.gz, /g/data1/ua8/mom/test_data/symmetric_box1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/symmetric_box1.output.tar.gz
+torus1.input.tar.gz, /g/data1/ua8/mom/test_data/torus1.input.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/torus1.input.tar.gz
+torus1.output.tar.gz, /g/data1/ua8/mom/test_data/torus1.output.tar.gz, http://portal.sf.utas.edu.au/thredds/fileServer/momtest/test_data/torus1.output.tar.gz
