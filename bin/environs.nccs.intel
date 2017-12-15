@@ -1,0 +1,13 @@
+	 module purge
+         source $MODULESHOME/init/csh
+         module load comp/intel-15.0.2.164
+         module load mpi/sgi-mpt-2.14
+         module load lib/mkl-15.0.2.164
+	 module load other/comp/gcc-4.6.3-sp1
+	 module load other/SIVO-PyD/spd_1.20.0_gcc-4.6.3-sp1_mkl-15.0.0.090
+	 module load other/git
+
+	 setenv FMS_ARCHIVE /archive/fms
+         setenv PATH ${PATH}:.
+         setenv mpirunCommand   "mpiexec_mpt -np"
+

@@ -1,6 +1,7 @@
 *~
 exec/
 work/
+workdir/
 bin/mppnccombine.gfortran
 *.d
 *.o
