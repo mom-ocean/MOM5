@@ -4343,13 +4343,15 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
           ! ocean_ice_salt_limit. If zero_net_salt_restore=.true. then the mismatch will be
           ! spread globally by the following block of code.
 
-          do j=jsc,jec
-             do i=isc,iec
-                if (T_prog(index_salt)%stf(i,j) < 0.0 .and. T_prog(index_salt)%field(i,j,1,taum1) < ocean_ice_salt_limit * 1000.0) then
-                     flx_restore(i,j) = flx_restore(i,j) - T_prog(index_salt)%stf(i,j)
-                endif
+          if( ocean_ice_salt_limit > 0.0 ) then
+             do j=jsc,jec
+                do i=isc,iec
+                   if (T_prog(index_salt)%stf(i,j) < 0.0 .and. T_prog(index_salt)%field(i,j,1,taum1) < ocean_ice_salt_limit * 1000.0) then
+                        flx_restore(i,j) = flx_restore(i,j) - T_prog(index_salt)%stf(i,j)
+                   endif
+                enddo
              enddo
-          enddo
+          endif
 
           ! produce a zero area average so there is no net input
           ! of salt to the ocean associated with the restoring 
