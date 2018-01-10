@@ -337,6 +337,14 @@ module ocean_sbc_mod
 !  as that is the value used in the GFDL coupled climate model. 
 !  </DATA> 
 !
+!  <DATA NAME="ocean_ice_salt_limit" UNITS="kg salt / kg ice" TYPE="real">
+!  The minimum salt concentration of water forming sea ice.  This shouldbe at least that used by the ice model
+!  otherwise it is possible to extract more salt than physically exists.
+!  Default is ocean_ice_salt_limit=0.0 in order to reproduce older results.
+!  It is suggested that ocean_ice_salt_limit > ice_salt_concentration +  0.001 to prevent dropping below
+!  ice_salt_concentration by mistake.
+!  </DATA>
+!
 !  <DATA NAME="runoff_salinity" UNITS="g salt / kg runoff water (ppt)" TYPE="real">
 !  The salinity of river runoff water. Default is runoff_salinity=0.0.
 !  </DATA> 
@@ -831,6 +839,7 @@ real    :: constant_sss_for_restore       = 35.0
 real    :: constant_sst_for_restore       = 12.0
 real    :: sbc_heat_fluxes_const_value    = 0.0    ! W/m2
 real    :: ice_salt_concentration         = 0.005  ! kg/kg
+real    :: ocean_ice_salt_limit           = 0.0    ! kg/kg
 real    :: runoff_salinity                = 0.0    ! psu
 real    :: runoff_temp_min                = 0.0    ! degC
 real    :: temp_restore_tscale            = -30.
@@ -868,7 +877,7 @@ namelist /ocean_sbc_nml/ temp_restore_tscale, salt_restore_tscale, salt_restore_
          zero_net_salt_correction, zero_net_water_correction,                                                                &
          debug_water_fluxes, zero_water_fluxes, zero_calving_fluxes, zero_pme_fluxes, zero_runoff_fluxes, zero_river_fluxes, &
          convert_river_to_pme, zero_heat_fluxes, zero_surface_stress, avg_sfc_velocity, avg_sfc_temp_salt_eta,               &
-         ice_salt_concentration, runoff_salinity, runoff_temp_min, read_restore_mask, restore_mask_gfdl,                     &
+         ice_salt_concentration, ocean_ice_salt_limit, runoff_salinity, runoff_temp_min, read_restore_mask, restore_mask_gfdl,&
          land_model_heat_fluxes, use_full_patm_for_sea_level, max_delta_salinity_restore, do_flux_correction,                &
          salinity_restore_limit_lower, salinity_restore_limit_upper,                                                          &
          temp_correction_scale, salt_correction_scale, tau_x_correction_scale, tau_y_correction_scale, do_bitwise_exact_sum, &
@@ -4328,6 +4337,20 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
                                        *tmp_delta_salinity
                  enddo
               enddo
+          endif
+
+          ! Restrict outgoing salt flux (ice being formed) in cases where salinity falls below
+          ! ocean_ice_salt_limit. If zero_net_salt_restore=.true. then the mismatch will be
+          ! spread globally by the following block of code.
+
+          if( ocean_ice_salt_limit > 0.0 ) then
+             do j=jsc,jec
+                do i=isc,iec
+                   if (T_prog(index_salt)%stf(i,j) < 0.0 .and. T_prog(index_salt)%field(i,j,1,taum1) < ocean_ice_salt_limit * 1000.0) then
+                        flx_restore(i,j) = flx_restore(i,j) - T_prog(index_salt)%stf(i,j)
+                   endif
+                enddo
+             enddo
           endif
 
           ! produce a zero area average so there is no net input
