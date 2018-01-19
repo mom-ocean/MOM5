@@ -31,16 +31,6 @@
             do_area_weighted_flux=.false.
 /
 
- &fms_io_nml
-         threading_read='multi'
-         threading_write='single'
-         fileset_write='single'
-/
-
- &fms_nml
-       clock_grain='LOOP'
-/
-
  &generic_tracer_nml
         do_generic_tracer=.false.
         do_generic_CFC=.false.
