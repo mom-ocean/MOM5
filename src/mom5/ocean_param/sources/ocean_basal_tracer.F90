@@ -12,20 +12,24 @@ module ocean_basal_tracer_mod
 !</OVERVIEW>
 !
 !<DESCRIPTION>
-! This module applies a 3D fresh water melt flux, presumably from basal 
-! melting (but the source of the FW doesn't matter). The code is based
-! on ocean_basal_tracer.F90. The basal meltwater input file is from 
+! This module applies a 3D fresh water flux, presumably from basal 
+! melting (but the source of the FW is arbitrary). The code is based
+! on ocean_sponges_tracer.F90. The basal meltwater input file is from 
 ! Merino et al., 2018: https://doi.org/10.1016/j.ocemod.2017.12.006
-! It applies water to the salt tracer (maybe temp to). The water
+! It should apply to both salt and temp tracers. The water
 ! can occur at any location and with any distribution in the domain.  
 !
 ! The user is responsible for providing (and registering) the data on
-! the model grid.
+! the model grid. Check the land/sea mask in your input file.
 !</DESCRIPTION>
 !
-!<NAMELIST NAME="ocean_basal_fw_nml">
+!<NAMELIST NAME="ocean_basal_tracer_nml">
 !  <DATA NAME="use_this_module" TYPE="logical">
 !  For using this module.  Default use_this_module=.false.
+!  </DATA> 
+!  <DATA NAME="test_nml" TYPE="logical">
+!  Testing input.nml vars for this moduile.  Default test_nml=.false.
+!  Still need to test this.
 !  </DATA> 
 !</NAMELIST>
 !
@@ -122,7 +126,8 @@ contains
 ! <SUBROUTINE NAME="ocean_basal_tracer_init">
 !
 ! <DESCRIPTION>
-! This subroutine is intended to be used to initialize the tracer basal.
+! This subroutine is intended to be used to initialize addition of basal melt
+! water fluxes from an input file. 
 ! Everything in this subroutine is a user prototype, and should be replacable.
 ! </DESCRIPTION>
 !
@@ -166,24 +171,15 @@ subroutine ocean_basal_tracer_init(Grid, Domain, Time, T_prog, dtime, Ocean_opti
 #ifdef INTERNAL_FILE_NML
   read(input_nml_file, nml=ocean_basal_tracer_nml, iostat=io_status)
   ierr = check_nml_error(io_status, 'ocean_basal_tracer_nml')
-  read(input_nml_file, nml=ocean_basal_tracer_ofam_nml, iostat=io_status)
-  ierr = check_nml_error(io_status, 'ocean_basal_tracer_ofam_nml')
 #else
   ioun =  open_namelist_file()
   read(ioun, ocean_basal_tracer_nml, IOSTAT=io_status)
   ierr = check_nml_error(io_status, 'ocean_basal_tracer_nml')
-  rewind(ioun)
-  read(ioun, ocean_basal_tracer_ofam_nml, IOSTAT=io_status)
-  ierr = check_nml_error(io_status, 'ocean_basal_tracer_ofam_nml')
   call close_file(ioun)
 #endif
   write(stdlogunit, ocean_basal_tracer_nml)
   write(stdoutunit, '(/)')
   write(stdoutunit, ocean_basal_tracer_nml)
-
-  write(stdlogunit, ocean_basal_tracer_ofam_nml)
-  write(stdoutunit, '(/)')
-  write(stdoutunit, ocean_basal_tracer_ofam_nml)
 
   Dom => Domain
   Grd => Grid
@@ -258,21 +254,21 @@ subroutine ocean_basal_tracer_init(Grid, Domain, Time, T_prog, dtime, Ocean_opti
         ! modify damping rates to allow restoring to be solved implicitly
         ! note: test values between zero and 4.0e-8 revert to damping rates defined above
 
-        do k=1,nk
-           do j=jsc,jec
-              do i=isc,iec
-                 if (dtime*Sponge(n)%damp_coeff(i,j,k) > 4.0e-8) then
-                     if (dtime*Sponge(n)%damp_coeff(i,j,k) > 37.0) then
-                         Sponge(n)%damp_coeff(i,j,k) = dtimer
-                     else
-                         Sponge(n)%damp_coeff(i,j,k) = (1.0 - exp(-dtime*Sponge(n)%damp_coeff(i,j,k))) * dtimer
-                     endif
-                 else if (dtime*Sponge(n)%damp_coeff(i,j,k) <= 0.0) then
-                     Sponge(n)%damp_coeff(i,j,k) = 0.0
-                 endif
-              enddo
-           enddo
-        enddo
+        !do k=1,nk
+        !   do j=jsc,jec
+        !      do i=isc,iec
+        !         if (dtime*Sponge(n)%damp_coeff(i,j,k) > 4.0e-8) then
+        !             if (dtime*Sponge(n)%damp_coeff(i,j,k) > 37.0) then
+        !                 Sponge(n)%damp_coeff(i,j,k) = dtimer
+        !             else
+        !                 Sponge(n)%damp_coeff(i,j,k) = (1.0 - exp(-dtime*Sponge(n)%damp_coeff(i,j,k))) * dtimer
+        !             endif
+        !         else if (dtime*Sponge(n)%damp_coeff(i,j,k) <= 0.0) then
+        !             Sponge(n)%damp_coeff(i,j,k) = 0.0
+        !         endif
+        !      enddo
+        !   enddo
+        !enddo
      else
         write(stdoutunit,*) '==> '//trim(name)//' not found.  Sponge not being applied '
         cycle
