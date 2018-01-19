@@ -116,6 +116,7 @@ module ocean_types_mod
      character(len=72)  :: passive_tracers
      character(len=72)  :: ocean_sponges_eta
      character(len=72)  :: ocean_sponges_tracer
+     character(len=72)  :: ocean_basal_tracer
      character(len=72)  :: ocean_sponges_velocity
      character(len=72)  :: ocean_ideal_surf_wave
   end type ocean_options_type

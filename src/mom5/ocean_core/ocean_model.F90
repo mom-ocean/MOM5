@@ -287,6 +287,7 @@ use ocean_sigma_transport_mod,    only: ocean_sigma_transport_init, sigma_transp
 use ocean_sigma_transport_mod,    only: ocean_sigma_transport_restart
 use ocean_sponges_eta_mod,        only: ocean_sponges_eta_init, sponge_eta_source
 use ocean_sponges_tracer_mod,     only: ocean_sponges_tracer_init, sponge_tracer_source
+use ocean_basal_tracer_mod,       only: ocean_basal_tracer_init, basal_tracer_source
 use ocean_sponges_velocity_mod,   only: ocean_sponges_velocity_init, sponge_velocity_source
 use ocean_submesoscale_mod,       only: ocean_submesoscale_init, submeso_restrat
 use ocean_tempsalt_mod,           only: ocean_tempsalt_ideal_reinit
