@@ -83,6 +83,7 @@ integer :: num_prog_tracers      = 0
 logical :: module_is_initialized = .FALSE.
 logical :: damp_coeff_3d         = .false. 
 logical :: use_this_module       = .false. 
+logical :: test_nml              = .false. 
 
 ! Adaptive restoring
 real    :: athresh               = 0.5
@@ -111,7 +112,7 @@ integer :: initial_day
 integer :: initial_secs
 real, allocatable :: sdiffo(:)
 
-namelist /ocean_basal_tracer_nml/ use_this_module, damp_coeff_3d
+namelist /ocean_basal_tracer_nml/ use_this_module, test_nml, damp_coeff_3d
 namelist /ocean_basal_tracer_ofam_nml/ &
     use_adaptive_restore, use_basal_after_init, use_normalising, &
     use_hard_thump, athresh, taumin, lambda, npower, days_to_restore, &
