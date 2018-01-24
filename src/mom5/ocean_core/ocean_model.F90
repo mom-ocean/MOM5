@@ -720,7 +720,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     id_sw                   = mpp_clock_id('(Ocean shortwave) '              ,grain=CLOCK_MODULE)
     id_sponges_eta          = mpp_clock_id('(Ocean sponges_eta) '            ,grain=CLOCK_MODULE)
     id_sponges_tracer       = mpp_clock_id('(Ocean sponges_tracer) '         ,grain=CLOCK_MODULE)
-    id_basal_tracer         = mpp_clock_id('(Ocean basal_tracer) '         ,grain=CLOCK_MODULE)
+    id_basal_tracer         = mpp_clock_id('(Ocean basal_tracer) '           ,grain=CLOCK_MODULE)
     id_sponges_velocity     = mpp_clock_id('(Ocean sponges_velocity) '       ,grain=CLOCK_MODULE)
     id_xlandinsert          = mpp_clock_id('(Ocean xlandinsert) '            ,grain=CLOCK_MODULE)
     id_xlandmix             = mpp_clock_id('(Ocean xlandmix) '               ,grain=CLOCK_MODULE)
@@ -1636,12 +1636,12 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
        ! add sponges to T_prog%th_tendency 
        call mpp_clock_begin(id_sponges_tracer)
-       call basal_tracer_source(Time, Thickness, T_prog(1:num_prog_tracers)) 
+       call sponge_tracer_source(Time, Thickness, T_prog(1:num_prog_tracers)) 
        call mpp_clock_end(id_sponges_tracer)
        
        ! add basal to T_prog%th_tendency 
        call mpp_clock_begin(id_basal_tracer)
-       call sponge_tracer_source(Time, Thickness, T_prog(1:num_prog_tracers)) 
+       !call basal_tracer_source(Time, Thickness, T_prog(1:num_prog_tracers)) 
        call mpp_clock_end(id_basal_tracer)
 
 

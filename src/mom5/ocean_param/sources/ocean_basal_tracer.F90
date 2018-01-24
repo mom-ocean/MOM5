@@ -65,7 +65,7 @@ type ocean_basal_type
 end type ocean_basal_type
 
 
-type(ocean_basal_type), allocatable, dimension(:) :: Sponge
+type(ocean_basal_type), allocatable, dimension(:) :: Basal
 type(ocean_domain_type), pointer :: Dom => NULL()
 type(ocean_grid_type),   pointer :: Grd => NULL()
 
@@ -78,6 +78,7 @@ character (len=128) :: tagname = '$Name: tikal $'
 ! for diagnostics 
 logical :: used
 integer, dimension(:), allocatable :: id_basal_tend
+integer :: id_basal_fwflx        =-1
 
 integer :: num_prog_tracers      = 0
 logical :: module_is_initialized = .FALSE.
@@ -113,12 +114,6 @@ integer :: initial_secs
 real, allocatable :: sdiffo(:)
 
 namelist /ocean_basal_tracer_nml/ use_this_module, test_nml, damp_coeff_3d
-namelist /ocean_basal_tracer_ofam_nml/ &
-    use_adaptive_restore, use_basal_after_init, use_normalising, &
-    use_hard_thump, athresh, taumin, lambda, npower, days_to_restore, &
-    secs_to_restore, deflate, deflate_fraction, &
-    limit_temp, limit_temp_min, limit_temp_restore, &
-    limit_salt, limit_salt_min, limit_salt_restore
 
 contains
 
@@ -159,12 +154,10 @@ subroutine ocean_basal_tracer_init(Grid, Domain, Time, T_prog, dtime, Ocean_opti
 
   module_is_initialized = .TRUE.
 
-  num_prog_tracers = size(T_prog(:))
-  do n=1,num_prog_tracers
-     if (trim(T_prog(n)%name) == 'temp') index_temp = n
-  enddo
+  !num_prog_tracers = size(T_prog(:))
+  num_prog_tracers = 1
 
-  allocate( Sponge(num_prog_tracers) )
+  allocate( Basal(num_prog_tracers) )
 
   call write_version_number(version, tagname)
 
@@ -191,7 +184,7 @@ subroutine ocean_basal_tracer_init(Grid, Domain, Time, T_prog, dtime, Ocean_opti
 #endif
 
   do n=1,num_prog_tracers
-     Sponge(n)%id = -1
+     Basal(n)%id = -1
   enddo
 
   dtimer = 1.0/dtime
@@ -205,104 +198,37 @@ subroutine ocean_basal_tracer_init(Grid, Domain, Time, T_prog, dtime, Ocean_opti
       return
   endif
 
-  if (use_adaptive_restore) then
-    allocate(sdiffo(num_prog_tracers))
-
-    ! Set up some initial times
-    call get_time(Time%model_time, secs, days)
-    initial_day = days
-    initial_secs = secs
-  end if
-
   do n = 1, num_prog_tracers
-    if (use_adaptive_restore) then
-        allocate(Sponge(n)%damp_coeff(isd:ied,jsd:jed,nk))
-        Sponge(n)%damp_coeff=0.0
-    else
-     ! read damping rates (1/sec)
-
-     name = 'INPUT/'//trim(T_prog(n)%name)//'_basal_coeff.nc'
-     if (file_exist(trim(name))) then
-        write(stdoutunit,*) '==> Using basal damping times specified from file '//trim(name)
-        allocate(Sponge(n)%damp_coeff(isd:ied,jsd:jed,nk))
-        allocate(Sponge(n)%damp_coeff2d(isd:ied,jsd:jed))
-        Sponge(n)%damp_coeff(:,:,:) = 0.0
-        Sponge(n)%damp_coeff2d(:,:) = 0.0
-
-        if(damp_coeff_3d) then
-            call read_data(name,'coeff',Sponge(n)%damp_coeff,domain=Domain%domain2d,timelevel=1)
-        else
-            call read_data(name,'coeff',Sponge(n)%damp_coeff2d,domain=Domain%domain2d,timelevel=1)
-            do k=1,nk
-               do j=jsc,jec
-                  do i=isc,iec
-                     Sponge(n)%damp_coeff(i,j,k) = Sponge(n)%damp_coeff2d(i,j)
-                  enddo
-               enddo
-            enddo
-        endif
-
-        do k=1,nk
-           do j=jsc,jec
-              do i=isc,iec
-                 if(Grd%tmask(i,j,k) == 0.0) then
-                     Sponge(n)%damp_coeff(i,j,k) = 0.0
-                 endif
-              enddo
-           enddo
-        enddo
-
-        ! modify damping rates to allow restoring to be solved implicitly
-        ! note: test values between zero and 4.0e-8 revert to damping rates defined above
-
-        !do k=1,nk
-        !   do j=jsc,jec
-        !      do i=isc,iec
-        !         if (dtime*Sponge(n)%damp_coeff(i,j,k) > 4.0e-8) then
-        !             if (dtime*Sponge(n)%damp_coeff(i,j,k) > 37.0) then
-        !                 Sponge(n)%damp_coeff(i,j,k) = dtimer
-        !             else
-        !                 Sponge(n)%damp_coeff(i,j,k) = (1.0 - exp(-dtime*Sponge(n)%damp_coeff(i,j,k))) * dtimer
-        !             endif
-        !         else if (dtime*Sponge(n)%damp_coeff(i,j,k) <= 0.0) then
-        !             Sponge(n)%damp_coeff(i,j,k) = 0.0
-        !         endif
-        !      enddo
-        !   enddo
-        !enddo
-     else
-        write(stdoutunit,*) '==> '//trim(name)//' not found.  Sponge not being applied '
-        cycle
-     endif
-    endif
-
-    ! Read restoring data
-
-    name = 'INPUT/'//trim(T_prog(n)%name)//'_basal.nc'
-    Sponge(n)%id = init_external_field(name,T_prog(n)%name,domain=Domain%domain2d)
-    if (Sponge(n)%id < 1) then
+    ! Read basal fw flux  data
+    name = 'INPUT/basal_fw.nc'
+    Basal(n)%id = init_external_field(name,'basal_fw',domain=Domain%domain2d)
+    if (Basal(n)%id < 1) then
       call mpp_error(FATAL,&
-      '==>Error: in ocean_basal_tracer_mod: damping rates are specified but basal values are not')
+      '==>Error: in ocean_basal_tracer_mod:  basal fw values are not specified')
     endif
-    write(stdoutunit,*) '==> Using basal data specified from file '//trim(name)
+    write(stdoutunit,*) '==> Using basal freshwater flux data specified from file '//trim(name)
   enddo
 
-  ! register diagnostic output
+  ! register diagnostic outputs
+  id_basal_fwflx = register_diag_field('ocean_model','basal_fwflx', Grd%tracer_axes(1:3),&
+       Time%model_time, 'mass flux of liquid basal meltwater entering ocean ',    &
+       '(kg/m^3)*(m/sec)', missing_value=missing_value,range=(/-1e6,1e6/),     &
+       standard_name='water_flux_into_sea_water_from_basal_melting')
+  
   allocate (id_basal_tend(num_prog_tracers))
   id_basal_tend = -1
 
   do n=1,num_prog_tracers
-     if(n==index_temp) then
-        id_basal_tend(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_basal_tend',&
-                   Grd%tracer_axes(1:3), Time%model_time, 'rho*dzt*cp*heating due to basal',        &
-                   trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1.e10,1.e10/))
-     else
-        id_basal_tend(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_basal_tend',&
-                   Grd%tracer_axes(1:3), Time%model_time, 'rho*dzt*tendency due to basal',          &
-                   trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1.e10,1.e10/))
-     endif
+     id_basal_tend(n) = register_diag_field ('ocean_model', 'basal_fw_tend',&
+               Grd%tracer_axes(1:3), Time%model_time, 'rho*dzt*tendency due to basal freshwater flux',          &
+               trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1.e10,1.e10/))
   enddo
-
+  
+  !try to write out basal fwflx data to output for test
+  ! get sponge value for current time
+  wrk1=0.0
+  call time_interp_external(Basal(1)%id, Time%model_time, wrk1)
+  call diagnose_3d(Time, Grd, id_basal_fwflx,wrk1(:,:,:))
 
 end subroutine ocean_basal_tracer_init
 ! </SUBROUTINE> NAME="ocean_basal_tracer_init"
@@ -354,10 +280,10 @@ subroutine basal_tracer_source(Time, Thickness, T_prog)
     ! Need to reinitialise wrk2 here due to limiting of temperature.
     wrk2  = 0.0
 
-    if (Sponge(n)%id > 0) then
+    if (Basal(n)%id > 0) then
 
         ! get basal value for current time
-        call time_interp_external(Sponge(n)%id, Time%model_time, wrk1)
+        call time_interp_external(Basal(n)%id, Time%model_time, wrk1)
         if (do_adaptive_restore) then
            if (first_pass) then
               if (use_hard_thump) then
@@ -403,7 +329,7 @@ subroutine basal_tracer_source(Time, Thickness, T_prog)
                 do j = jsc, jec
                     do i = isc, iec
                         wrk2(i,j,k) = Thickness%rho_dzt(i,j,k,tau) &
-                                     * Sponge(n)%damp_coeff(i,j,k) &
+                                     * Basal(n)%damp_coeff(i,j,k) &
                                      * (wrk1(i,j,k) - T_prog(n)%field(i,j,k,taum1))
                     end do
                 end do
