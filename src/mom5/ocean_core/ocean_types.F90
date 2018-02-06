@@ -423,6 +423,9 @@ module ocean_types_mod
      real, dimension(isd:ied,jsd:jed,nk)   :: pressure_at_depth    ! hydrostatic pressure (including patm)
      real, dimension(isd:ied,jsd:jed,nk)   :: drhodT               ! partial rho wrt theta (kg/(m^3 C)
      real, dimension(isd:ied,jsd:jed,nk)   :: drhodS               ! partial rho wrt salinity (kg/(m^3 psu)
+     real, dimension(isd:ied,jsd:jed,nk)   :: dpotrhodT            ! partial potrho wrt theta (kg/(m^3 C)
+     real, dimension(isd:ied,jsd:jed,nk)   :: dpotrhodS            ! partial potrho wrt salinity (kg/(m^3 psu)
+     real, dimension(isd:ied,jsd:jed,nk)   :: dpotrhodP            ! partial potrho wrt pressure (kg/(m^3 psu)
      real, dimension(isd:ied,jsd:jed,nk)   :: drhodP               ! partial rho wrt pressure (kg/(m^3 Pa)
      real, dimension(isd:ied,jsd:jed,nk)   :: drhodz_wt            ! d(neutral density)/dz (kg/m^4) at W-point
      real, dimension(isd:ied,jsd:jed,nk)   :: drhodz_zt            ! d(neutral density)/dz (kg/m^4) at T-point
@@ -492,12 +495,12 @@ module ocean_types_mod
      real, dimension(isd:ied,jsd:jed)      :: tpme             ! tracer concentration in precip-evap
      real, dimension(isd:ied,jsd:jed)      :: triver           ! tracer concentration in river(=runoff+calving) water  
      real, dimension(isd:ied,jsd:jed)      :: trunoff          ! tracer concentration in liquid runoff from land  
-     real, dimension(isd:ied,jsd:jed)      :: tcalving         ! tracer concentration in frozen runoff from land (e.g., calving ice)
-     real, dimension(isd:ied,jsd:jed)      :: runoff_tracer_flux  ! tracer flux in liquid runoff (e.g., kg*degC/(m^2 s) for temp)  
-     real, dimension(isd:ied,jsd:jed)      :: calving_tracer_flux ! tracer flux in solid  runoff (e.g., kg*psu/(m^2 s)  for salinity)
-     real, dimension(isd:ied,jsd:jed)      :: riverdiffuse        ! sets where to enhance diff_cbt according to rivers
-     real, dimension(isd:ied,jsd:jed)      :: eta_smooth          ! tendency [tracer*(kg/m^3)*(m/s)] from eta_t smoother  
-     real, dimension(isd:ied,jsd:jed)      :: pbot_smooth         ! tendency [tracer*(kg/m^3)*(m/s)] from pbot_t smoother 
+     real, dimension(isd:ied,jsd:jed)      :: tcalving       ! tracer concentration in frozen runoff from land (e.g., calving ice)
+     real, dimension(isd:ied,jsd:jed) :: runoff_tracer_flux  ! tracer flux in liquid runoff (e.g., kg*degC/(m^2 s) for temp)  
+     real, dimension(isd:ied,jsd:jed) :: calving_tracer_flux ! tracer flux in solid  runoff (e.g., kg*psu/(m^2 s)  for salinity)
+     real, dimension(isd:ied,jsd:jed) :: riverdiffuse        ! sets where to enhance diff_cbt according to rivers
+     real, dimension(isd:ied,jsd:jed) :: eta_smooth          ! tendency [tracer*(kg/m^3)*(m/s)] from eta_t smoother  
+     real, dimension(isd:ied,jsd:jed) :: pbot_smooth         ! tendency [tracer*(kg/m^3)*(m/s)] from pbot_t smoother 
 
      ! variables for prather second order moment advection
      logical :: psom_limit                             ! controls whether a limiter is placed on the prather flux
@@ -961,6 +964,9 @@ module ocean_types_mod
      real, _ALLOCATABLE, dimension(:,:,:)   :: pressure_at_depth _NULL ! hydrostatic pressure (including patm)
      real, _ALLOCATABLE, dimension(:,:,:)   :: drhodT            _NULL ! partial rho wrt theta (kg/(m^3 C)
      real, _ALLOCATABLE, dimension(:,:,:)   :: drhodS            _NULL ! partial rho wrt salinity (kg/(m3 psu)
+     real, _ALLOCATABLE, dimension(:,:,:)   :: dpotrhodT         _NULL ! partial potrho wrt theta (kg/(m^3 C)
+     real, _ALLOCATABLE, dimension(:,:,:)   :: dpotrhodS         _NULL ! partial potrho wrt salinity (kg/(m3 psu)
+     real, _ALLOCATABLE, dimension(:,:,:)   :: dpotrhodP         _NULL ! partial potrho wrt pressure (kg/(m3 psu)
      real, _ALLOCATABLE, dimension(:,:,:)   :: drhodP            _NULL ! partial rho wrt pressure (kg/(m3 Pa)
      real, _ALLOCATABLE, dimension(:,:,:)   :: drhodz_wt         _NULL ! d(neutral rho)/dz (kg/m^4) at W-point
      real, _ALLOCATABLE, dimension(:,:,:)   :: drhodz_zt         _NULL ! d(neutral rho)/dz (kg/m^4) at T-point
@@ -980,13 +986,13 @@ module ocean_types_mod
      real, _ALLOCATABLE, dimension(:)       :: potrho_bounds         _NULL ! bounds for potrho classes 
      real, _ALLOCATABLE, dimension(:)       :: neutralrho_ref        _NULL ! partition vertical into neutral density classes 
      real, _ALLOCATABLE, dimension(:)       :: neutralrho_bounds     _NULL ! bounds for neutral density classes 
-     integer, dimension(3)                  :: potrho_axes                 ! axis ids for diagnosing potential density 
+     integer, dimension(3)                  :: potrho_axes             ! axis ids for diagnosing potential density 
      integer, dimension(3)                  :: potrho_axes_flux_x          ! axis ids for diagnosing x-flux
      integer, dimension(3)                  :: potrho_axes_flux_y          ! axis ids for diagnosing y-flux
-     integer, dimension(3)                  :: neutralrho_axes             ! axis ids for diagnosing neutral density 
+     integer, dimension(3)                  :: neutralrho_axes         ! axis ids for diagnosing neutral density 
      integer, dimension(3)                  :: neutralrho_axes_flux_x      ! axis ids for diagnosing x-flux 
      integer, dimension(3)                  :: neutralrho_axes_flux_y      ! axis ids for diagnosing y-flux 
-     integer, dimension(3)                  :: theta_axes                  ! axis ids for potential temperature 
+     integer, dimension(3)                  :: theta_axes              ! axis ids for potential temperature 
      integer, dimension(3)                  :: theta_axes_flux_x           ! axis ids for diagnosing x-flux 
      integer, dimension(3)                  :: theta_axes_flux_y           ! axis ids for diagnosing y-flux 
   end type ocean_density_type

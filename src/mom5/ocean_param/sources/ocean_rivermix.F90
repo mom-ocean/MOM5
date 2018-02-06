@@ -183,6 +183,7 @@ integer :: id_eta_tend_calvingmix_glob =-1
 
 integer :: id_neut_rho_rivermix   =-1
 integer :: id_neut_rho_runoffmix  =-1
+integer :: id_pot_rho_runoffmix   =-1
 integer :: id_neut_rho_calvingmix =-1
 
 integer :: id_neut_rho_rivermix_on_nrho   =-1
@@ -1263,6 +1264,12 @@ subroutine watermass_diag_init(Time, Dens)
     'update of locally ref potrho from runoffmix scheme',                          &
     '(kg/m^3)/sec', missing_value=missing_value, range=(/-1e20,1e20/))
   if(id_neut_rho_runoffmix > 0) compute_watermass_diag = .true. 
+
+  id_pot_rho_runoffmix = register_diag_field ('ocean_model', 'pot_rho_runoffmix',&
+    Grd%tracer_axes(1:3), Time%model_time,                                       &
+    'update of depth ref potrho from runoffmix scheme',                          &
+    '(kg/m^3)/sec', missing_value=missing_value, range=(/-1e20,1e20/))
+  if(id_pot_rho_runoffmix > 0) compute_watermass_diag = .true. 
 
   id_neut_rho_runoffmix_on_nrho = register_diag_field ('ocean_model',                   &
    'neut_rho_runoffmix_on_nrho',Dens%neutralrho_axes(1:3), Time%model_time,             &
@@ -2359,6 +2366,7 @@ subroutine watermass_diag_runoff(Time, Dens, T_prog, runoff, &
   call diagnose_3d_rho(Time, Dens, id_wdian_rho_runoffmix_on_nrho, wrk3)
   call diagnose_3d_rho(Time, Dens, id_tform_rho_runoffmix_on_nrho, wrk4)
 
+
   if(id_eta_tend_runoffmix > 0 .or. id_eta_tend_runoffmix_glob > 0) then
       eta_tend(:,:) = 0.0
       do k=1,nk
@@ -2372,7 +2380,22 @@ subroutine watermass_diag_runoff(Time, Dens, T_prog, runoff, &
       call diagnose_sum(Time, Grd, Dom, id_eta_tend_runoffmix_glob, eta_tend, cellarea_r)
   endif
 
-
+  
+  ! flux-form contributions to material time derivative and dianeutral transport
+  if(id_pot_rho_runoffmix > 0) then 
+     wrk1(:,:,:) = 0.0
+     wrk2(:,:,:) = 0.0
+     do k=1,nk
+        do j=jsc,jec
+           do i=isc,iec
+              wrk1(i,j,k) = Grd%tmask(i,j,k)*(Dens%dpotrhodT(i,j,k)*temp_wrk(i,j,k)+Dens%dpotrhodS(i,j,k)*salt_wrk(i,j,k))
+              wrk2(i,j,k) = wrk1(i,j,k)*Dens%rho_dztr_tau(i,j,k)
+           enddo
+        enddo
+     enddo
+     call diagnose_3d(Time, Grd, id_pot_rho_runoffmix, wrk2(:,:,:))
+  endif
+  
   !-----------------------------------------------------------------------------
   ! advective-form material time derivative and associated dianeutral transport 
   !
