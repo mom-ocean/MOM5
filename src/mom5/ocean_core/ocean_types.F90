@@ -1234,6 +1234,9 @@ module ocean_types_mod
 #if defined(ACCESS_CM)
      real, pointer, dimension(:,:) :: co2              =>NULL() ! co2
      real, pointer, dimension(:,:) :: wnd              =>NULL() ! wind speed
+     !20171024: 2 more added (due to land ice discharge into ocean)
+     real, pointer, dimension(:,:) :: licefw           =>null() ! waterflux into ocean (kg/m2/s) off Antarctica and Greenland
+     real, pointer, dimension(:,:) :: liceht           =>null() ! heatflux due to land ice melt (W/m2)
 #endif
 #endif
      integer :: xtype                                          ! REGRID, REDIST or DIRECT

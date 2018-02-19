@@ -89,7 +89,6 @@ use mpp_domains_mod, only: mpp_get_compute_domain, &
                            mpp_get_data_domain, &
                            mpp_get_global_domain, &
                            mpp_global_field
-use mpp_parameter_mod, only: GLOBAL_ROOT_ONLY, XUPDATE, YUPDATE
 use ocean_types_mod, only: ice_ocean_boundary_type, &
                            ocean_public_type, &
                            ocean_domain_type
@@ -144,7 +143,7 @@ integer iisc,iiec,jjsc,jjec
 integer iisd,iied,jjsd,jjed
 
 #if defined(ACCESS_CM)
-integer, parameter :: max_fields_in=22
+integer, parameter :: max_fields_in=24          !20171024
 integer, parameter :: max_fields_out=10
 #else
 integer, parameter :: max_fields_in=20
@@ -346,6 +345,9 @@ endif
 #if defined(ACCESS_CM)
   mom_name_read(21)='co2_io'  !
   mom_name_read(22)='wnd_io'  !
+  !20171024: 2 more i2o fields due to land ice discharge into ocean
+  mom_name_read(23)='licefw' !water flux (kg/m^2/s)
+  mom_name_read(24)='liceht' !heat flux (W/m^2)
 #endif
 
   !ocn ==> ice
@@ -428,8 +430,8 @@ endif
   il_paral ( clim_SizeY    ) = jjec-jjsc+1
   il_paral ( clim_LdX      ) = ieg-isg+1
 !configure in input.nml for cice to do into_ocn (put) at step 0 then from_ocn (get) at step 1
-!    send_before_ocean_update = .false.
-!    send_after_ocean_update = .true.
+    send_before_ocean_update = .false.
+    send_after_ocean_update = .true.
 
 !configure in input.nml for cice to (get) from_ocn then (put) into_ocn at the same time step
 !      send_before_ocean_update=.true.
@@ -740,6 +742,11 @@ do jf =  1, num_fields_in
      Ice_ocean_boundary%co2(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('wnd_io')
      Ice_ocean_boundary%wnd(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+  !20171024: 2 more i2o fields: water and heat fluxes due to land ice discharge into ocean 
+  case('licefw')
+     Ice_ocean_boundary%licefw(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+  case('liceht')
+     Ice_ocean_boundary%liceht(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
 #endif
   case DEFAULT
 ! Probable error. Leave as warning for the moment. RASF

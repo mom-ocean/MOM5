@@ -852,7 +852,9 @@ subroutine vert_mix_gotm_bgrid (Time, Thickness, Velocity, T_prog, Dens, visc_cb
                    nuh(k)  = diff_cbt_gotm(i,j,m)
                    NN1d(k) = wrk1_v(i,j,m,1)
                    SS1d(k) = wrk1_v(i,j,m,2)
-                   dz(k)   = Thickness%dzt(i,j,m)
+                   !As Per Russ Fiedler, bug fixing:
+                   !dz(k)   = Thickness%dzt(i,j,m) 
+                   dz(k+1)   = Thickness%dzt(i,j,m) 
                 enddo
                 ! surface and bottom conditions
                 NN1d(0)  = NN1d(1)
@@ -863,8 +865,9 @@ subroutine vert_mix_gotm_bgrid (Time, Thickness, Velocity, T_prog, Dens, visc_cb
                 nuh(kb)  = nuh(kb-1)
                 NN1d(kb) = NN1d(kb-1)
                 SS1d(kb) = 0.0
-                dz(kb)   = dz(kb-1)
-
+                !bug fixing:
+                !dz(kb)   = dz(kb-1)    !removed.
+                dz(0) = 0.0             !added.
                 ! invoke GOTM
                 call do_turbulence(kb, dtime, depth, u_taus, u_taub, &
                                    z0s, z0b, dz(0:kb), NN1d(0:kb), SS1d(0:kb))

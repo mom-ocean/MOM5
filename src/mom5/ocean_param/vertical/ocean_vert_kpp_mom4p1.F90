@@ -243,14 +243,16 @@ module ocean_vert_kpp_mom4p1_mod
 !
 !</NAMELIST>
 
-use constants_mod,    only: epsln
+use constants_mod,    only: epsln, PI
 use diag_manager_mod, only: register_diag_field, register_static_field
 use fms_mod,          only: FATAL, NOTE, WARNING, stdout, stdlog
 use fms_mod,          only: write_version_number, open_namelist_file, check_nml_error, close_file
 use fms_mod,          only: read_data
 use mpp_domains_mod,  only: mpp_update_domains, NUPDATE, EUPDATE
 use mpp_mod,          only: input_nml_file, mpp_error
-
+!dhb599s
+use mpp_mod,         only: mpp_pe, mpp_root_pe
+!dhb599e
 use ocean_density_mod,     only: density, density_delta_z, density_delta_sfc
 use ocean_domains_mod,     only: get_local_indices
 use ocean_parameters_mod,  only: grav, cp_ocean, missing_value, von_karman 
@@ -259,6 +261,9 @@ use ocean_types_mod,       only: ocean_grid_type, ocean_domain_type
 use ocean_types_mod,       only: ocean_prog_tracer_type, ocean_diag_tracer_type
 use ocean_types_mod,       only: ocean_velocity_type, ocean_density_type
 use ocean_types_mod,       only: ocean_time_type, ocean_time_steps_type, ocean_thickness_type
+!dhb599:
+use ocean_types_mod,       only: ice_ocean_boundary_type
+!
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4, wrk5
 use ocean_util_mod,        only: diagnose_2d, diagnose_3d, diagnose_sum
 use ocean_tracer_util_mod, only: diagnose_3d_rho
@@ -319,6 +324,9 @@ real, private, dimension(isd:ied,jsd:jed,nk)    :: rit         ! Richardson numb
 real, private, dimension(isd:ied,jsd:jed,nk)    :: ghats       ! nonlocal transport (s/m^2)
 real, private, dimension(isd:ied,jsd:jed)       :: hblt        ! boundary layer depth with tmask 
 real, private, dimension(isd:ied,jsd:jed)       :: hbl         ! boundary layer depth
+!dhb599"
+real, private, dimension(isd:ied,jsd:jed)       :: langmuirfactor !langmuir enhancement factor 
+!
 
 #else
 
@@ -357,6 +365,9 @@ real, private, dimension(:,:,:), allocatable :: rit         ! Richardson number 
 real, private, dimension(:,:,:), allocatable :: ghats       ! nonlocal transport (s/m^2)
 real, private, dimension(:,:),   allocatable :: hblt        ! boundary layer depth with tmask 
 real, private, dimension(:,:),   allocatable :: hbl         ! boundary layer depth
+!dhb599"
+real, private, dimension(:,:),   allocatable :: langmuirfactor !langmuir enhancement factor from cvmix
+!
 
 #endif
 
@@ -442,6 +453,9 @@ integer  :: id_diff_cbt_kpp_s =-1
 integer  :: id_diff_cbt_conv  =-1
 integer  :: id_hblt           =-1
 integer  :: id_ws             =-1
+!dhb599:
+integer  :: id_langmuirfactor =-1
+!
 
 integer  :: id_neut_rho_kpp_nloc          =-1
 integer  :: id_pot_rho_kpp_nloc           =-1
@@ -732,6 +746,9 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
   allocate (rit(isd:ied,jsd:jed,nk))
   allocate (hblt(isd:ied,jsd:jed))
   allocate (hbl(isd:ied,jsd:jed))
+!dhb599:
+  allocate (langmuirfactor(isd:ied,jsd:jed))
+!
   do n=1,num_prog_tracers 
     allocate( wsfc(n)%wsfc(isd:ied,jsd:jed) )
   enddo
@@ -770,6 +787,9 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
   rit(:,:,:)       = 0.0
   hblt(:,:)        = 0.0
   hbl(:,:)         = 0.0
+!dhb599
+  langmuirfactor(:,:) = 1.0
+!
   sw_frac_hbl(:,:) = 0.0
   Ustk2(:,:)       = 0.0
 
@@ -913,6 +933,12 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
        Time%model_time, 'T-cell boundary layer depth from KPP', 'm',       &
        missing_value = missing_value, range=(/-1.e5,1.e6/),                &
        standard_name='ocean_mixed_layer_thickness_defined_by_mixing_scheme')
+!dhb599
+  id_langmuirfactor = register_diag_field('ocean_model','langmuirfactor',Grd%tracer_axes(1:2), &
+       Time%model_time, 'T-cell KPP mixing Langmuir enhancement factor ', 'none',       &
+       missing_value = missing_value, range=(/1.0,5.0/),                &
+       standard_name='ocean_vertical_mixing_langmuir_factor_for_KPP_scheme')
+!
 
   id_ws = register_diag_field('ocean_model','wscale',Grd%tracer_axes(1:3), &
        Time%model_time, 'wscale from KPP', 'm',                            &
@@ -959,7 +985,8 @@ end subroutine ocean_vert_kpp_mom4p1_init
 !
 subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag, Dens, &
                                 swflx, sw_frac_zt, pme, river, visc_cbu, diff_cbt,      &
-                                diff_cbt_conv, hblt_depth, do_wave)
+                                hblt_depth, Ice_ocean_boundary, do_wave)
+                                ! diff_cbt_conv has been removed from the interface
 
   real,                            intent(in)    :: aidif
   type(ocean_time_type),           intent(in)    :: Time
@@ -975,7 +1002,9 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
   real, dimension(isd:,jsd:),      intent(inout) :: hblt_depth
   real, dimension(isd:,jsd:,:),    intent(inout) :: visc_cbu
   real, dimension(isd:,jsd:,:,:),  intent(inout) :: diff_cbt
-  real, dimension(isd:,jsd:,:),    intent(inout) :: diff_cbt_conv
+  ! This was removed
+  ! real, dimension(isd:,jsd:,:),    intent(inout) :: diff_cbt_conv
+  type(ice_ocean_boundary_type),   intent(in)	 :: Ice_ocean_boundary
   logical,                         intent(in)    :: do_wave
 
 
@@ -1196,6 +1225,7 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
 !     internal wave activity, static instability, and local shear 
 !     instability.
 !-----------------------------------------------------------------------
+      ! How does this work if diff_cbt_conv it is not passed into the routine?
       call ri_iwmix(visc_cbu, diff_cbt, diff_cbt_conv)
 
 
@@ -1224,13 +1254,16 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
 !     boundary layer mixing coefficients: diagnose new b.l. depth
 !-----------------------------------------------------------------------
 
-      call bldepth(Thickness, sw_frac_zt, do_wave) 
+      call bldepth(Thickness, sw_frac_zt, Ice_ocean_boundary, do_wave) 
  
 !-----------------------------------------------------------------------
 !     boundary layer diffusivities
 !-----------------------------------------------------------------------
 
-      call blmix_kpp(Thickness, diff_cbt, visc_cbu, do_wave)
+!      call blmix_kpp(Thickness, diff_cbt, visc_cbu, do_wave)
+!dhb599:
+      call blmix_kpp(Thickness, diff_cbt, visc_cbu, Ice_ocean_boundary, do_wave)
+!
       call diagnose_3d(Time, Grd, id_ws, wrk1(:,:,:))
 
 !-----------------------------------------------------------------------
@@ -1539,6 +1572,9 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
        call diagnose_3d(Time, Grd, id_diff_cbt_kpp_s, diff_cbt(:,:,:,2))
        call diagnose_3d(Time, Grd, id_diff_cbt_conv,  diff_cbt_conv(:,:,:))
        call diagnose_2d(Time, Grd, id_hblt, hblt(:,:))
+!dhb599:
+       call diagnose_2d(Time, Grd, id_langmuirfactor, langmuirfactor(:,:)) 
+!
 
 end subroutine vert_mix_kpp_mom4p1
 ! </SUBROUTINE> NAME="vert_mix_kpp_mom4p1"
@@ -1591,9 +1627,16 @@ end subroutine vert_mix_kpp_mom4p1
 !      integer kbl(ij_bounds)     ! index of first grid level below hbl         <BR/>
 ! </DESCRIPTION>
 !
-subroutine bldepth(Thickness, sw_frac_zt, do_wave)
+
+!subroutine bldepth(Thickness, sw_frac_zt, do_wave)
+!dhb599:
+subroutine bldepth(Thickness, sw_frac_zt, Ice_ocean_boundary, do_wave)
+!
 
   type(ocean_thickness_type),   intent(in) :: Thickness
+!dbh599:
+  type(ice_ocean_boundary_type), intent(in) :: Ice_ocean_boundary
+!
   real, dimension(isd:,jsd:,:), intent(in) :: sw_frac_zt   !3-D array of shortwave fract
   logical, intent(in)                      :: do_wave
 
@@ -1638,6 +1681,17 @@ subroutine bldepth(Thickness, sw_frac_zt, do_wave)
         enddo
       enddo
 
+!dhb599s: check u10:
+        if(mpp_pe() .eq. 20) then
+	  write(100+mpp_pe(),*)'isc, iec, jsc, jec = ',isc,iec,jsc,jec
+	  write(100+mpp_pe(),*)'checking: wnd(isc:iec,jsc:jec) = '
+	  write(100+mpp_pe(),'(10e12.4)')Ice_ocean_boundary%wnd(isc:iec,jsc:jec)
+        endif
+!XXX it appears that wnd is not defined at i=isd, ied, j=jsd, jed !       
+!        write(100+mpp_pe(),*)'isd, ied, jsd, jed = ',isd,ied,jsd,jed
+!        write(100+mpp_pe(),*)'checking: wnd(isd:ied,jsd:jed) = '
+!        write(100+mpp_pe(),'(10e12.4)')Ice_ocean_boundary%wnd(isd:ied,jsd:jed)
+!dhb599e
 
       ! Following Large etal (1994), do linear interpolation to find hbl
       if (linear_hbl) then
@@ -1662,8 +1716,11 @@ subroutine bldepth(Thickness, sw_frac_zt, do_wave)
 
         ! compute velocity scales at sigma, for hbl = zt(kl):
         iwscale_use_hbl_eq_zt=1
-        call wscale (iwscale_use_hbl_eq_zt, Thickness%depth_zt(:,:,kl), do_wave)
-
+!        call wscale (iwscale_use_hbl_eq_zt, Thickness%depth_zt(:,:,kl), do_wave)
+!dhb599:
+        call wscale (iwscale_use_hbl_eq_zt, Thickness%depth_zt(:,:,kl), Ice_ocean_boundary%wnd(:,:), do_wave)
+        call wscale (iwscale_use_hbl_eq_zt, Thickness%depth_zt(:,:,kl), Ice_ocean_boundary%wnd(isc:iec,jsc:jec), do_wave)
+!
         do j=jsc,jec
           do i=isc,iec
 
@@ -1764,7 +1821,12 @@ subroutine bldepth(Thickness, sw_frac_zt, do_wave)
           
           !  compute velocity scales at sigma, for hbl = zt(kl):
           iwscale_use_hbl_eq_zt=1
-          call wscale (iwscale_use_hbl_eq_zt, Thickness%depth_zt(:,:,kl), do_wave)
+!          call wscale (iwscale_use_hbl_eq_zt, Thickness%depth_zt(:,:,kl), do_wave)
+!dhb599:
+
+!           call wscale (iwscale_use_hbl_eq_zt, Thickness%depth_zt(:,:,kl), Ice_ocean_boundary%wnd(:,:), do_wave)
+        call wscale (iwscale_use_hbl_eq_zt, Thickness%depth_zt(:,:,kl), Ice_ocean_boundary%wnd(isc:iec,jsc:jec), do_wave)
+!
 
           do j=jsc,jec
             do i=isc,iec
@@ -2018,14 +2080,28 @@ end subroutine bldepth
 ! Speed gain was observed at the SX-6.
 ! Later compiler versions may do better.
 !
-subroutine wscale(iwscale_use_hbl_eq_zt, zt_kl, do_wave)
+!subroutine wscale(iwscale_use_hbl_eq_zt, zt_kl, do_wave)
 
+!dhb599:
+subroutine wscale(iwscale_use_hbl_eq_zt, zt_kl, u10_2d, do_wave)
+!
+!  real, dimension(isd:,jsd:), intent(in) :: u10_2d
+!dhb599:
+  real, dimension(isc:,jsc:), intent(in) :: u10_2d
+! 
   integer,                    intent(in) :: iwscale_use_hbl_eq_zt
-  real, dimension(isd:,jsd:), intent(in) :: zt_kl
+!  real, dimension(isd:,jsd:), intent(in) :: zt_kl
+!dhb599:
+  real, dimension(isc:,jsc:), intent(in) :: zt_kl
+!
   logical,                    intent(in) :: do_wave
 
   real                :: zdiff, udiff, zfrac, ufrac, fzfrac
-  real                :: wam, wbm, was, wbs, u3, langmuirfactor, Cw_smyth
+!  real                :: wam, wbm, was, wbs, u3, langmuirfactor, Cw_smyth
+!dhb599: langmuirfactor is now defined as 2D variable (see above), 
+!	 so use "s_langmuirfactor" for the scale variable here. 
+  real                :: wam, wbm, was, wbs, u3, s_langmuirfactor, Cw_smyth
+!
   real                :: zehat           ! = zeta *  ustar**3
   integer             :: iz, izp1, ju, jup1
   integer             :: i, j
@@ -2124,13 +2200,31 @@ subroutine wscale(iwscale_use_hbl_eq_zt, zt_kl, do_wave)
       if (do_wave .and. do_langmuir) then
          do j=jsc,jec
             do i=isc,iec
-               Cw_smyth=Cw_0*(ustar(i,j)*ustar(i,j)*ustar(i,j)/(ustar(i,j)*ustar(i,j)*ustar(i,j) &
-                    + Wstfac*von_karman*bfsfc(i,j)*hbl(i,j) + epsln))**l_smyth
-               langmuirfactor=sqrt(1+Cw_smyth*Ustk2(i,j)/(ustar(i,j)*ustar(i,j) + epsln))
-               langmuirfactor = max(1.0, langmuirfactor)
-               langmuirfactor = min(LTmax, langmuirfactor)
-               ws(i,j)=ws(i,j)*langmuirfactor
-               wm(i,j)=wm(i,j)*langmuirfactor
+
+             !  Cw_smyth=Cw_0*(ustar(i,j)*ustar(i,j)*ustar(i,j)/(ustar(i,j)*ustar(i,j)*ustar(i,j) &
+             !       + Wstfac*von_karman*bfsfc(i,j)*hbl(i,j) + epsln))**l_smyth
+             !!  langmuirfactor=sqrt(1+Cw_smyth*Ustk2(i,j)/(ustar(i,j)*ustar(i,j) + epsln))
+             !!  langmuirfactor = max(1.0, langmuirfactor)
+             !!  langmuirfactor = min(LTmax, langmuirfactor)
+             !!  ws(i,j)=ws(i,j)*langmuirfactor
+             !!  wm(i,j)=wm(i,j)*langmuirfactor
+	     !dhb599: langmuirfactor is defined as 2D for diagnosed output......
+	     !  langmuirfactor(i,j)=sqrt(1+Cw_smyth*Ustk2(i,j)/(ustar(i,j)*ustar(i,j) + epsln))
+             !  s_langmuirfactor = max(1.0, langmuirfactor(i,j))
+             !  s_langmuirfactor = min(LTmax, langmuirfactor(i,j))
+             !  ws(i,j)=ws(i,j)*s_langmuirfactor
+             !  wm(i,j)=wm(i,j)*s_langmuirfactor
+
+!!!June 2017, dhb599: spo suggests to adopt the CVMIX approach for Langmuir enhancement factor (Qing Li et al (2017))
+                !XXX
+                !write(stdout(),'(a,2i4,3e15.8)')'DHB599: i,j, u10_2d, ustar, hbl = ', i, j, u10_2d(i,j), ustar(i,j), hbl(i,j)
+                !
+               langmuirfactor(i,j) = cvmix_kpp_efactor_model(u10_2d(i,j), ustar(i,j), hbl(i,j))
+               s_langmuirfactor = max(1.0, langmuirfactor(i,j))
+               s_langmuirfactor = min(LTmax, langmuirfactor(i,j))
+               ws(i,j)=ws(i,j)*s_langmuirfactor
+               wm(i,j)=wm(i,j)*s_langmuirfactor
+!!!
             enddo
          enddo
       endif
@@ -2138,7 +2232,124 @@ subroutine wscale(iwscale_use_hbl_eq_zt, zt_kl, do_wave)
 end subroutine wscale
 ! </SUBROUTINE> NAME="wscale"
 
+!#######################################################################
+! <FUNCTION NAME="cvmix_kpp_efactor_model">
+!
+! <DESCRIPTION>
+! Compute "langmuir factor" using 10m wind speed following paper of Qing Li et al (2017)
+! "Statistical models of global Langmuir mixing" 
+! Code is adopted from cvmix package
 
+function cvmix_kpp_efactor_model(u10, s_ustar, s_hbl)!!! gravity)
+
+! This function returns the enhancement factor, given the 10-meter
+! wind (m/s), friction velocity (m/s) and the boundary layer depth (m).
+!
+
+! Input
+    real, intent(in) :: &
+        ! 10 meter wind (m/s)
+        u10, &
+        ! water-side surface friction velocity (m/s)
+        s_ustar, &
+        ! boundary layer depth (m)
+        s_hbl
+!    real, intent(in) :: gravity
+! Local variables
+    ! parameters
+    real, parameter :: &
+        ! ratio of U19.5 to U10 (Holthuijsen, 2007)
+        u19p5_to_u10 = 1.075, &
+        ! ratio of mean frequency to peak frequency for
+        ! Pierson-Moskowitz spectrum (Webb, 2011)
+        fm_to_fp = 1.296, &
+        ! ratio of surface Stokes drift to U10
+        us_to_u10 = 0.0162, &
+        ! loss ratio of Stokes transport
+        r_loss = 0.667
+
+    real :: us, hm0, fm, fp, vstokes, kphil, kstar
+    real :: z0, z0i, r1, r2, r3, r4, tmp, us_sl, lasl_sqr_i
+    real :: cvmix_kpp_efactor_model
+
+        !XXX
+        if(u10 .gt. 100.0) write(stdout(),*)'DHB599: u10, ustar, hbl = ', u10, s_ustar, s_hbl
+   if (u10 .gt. 0.0 .and. s_ustar .gt. 0.0) then
+      ! surface Stokes drift
+        !XXX
+        !write(stdout(),*)'DHB599: pi, us_to_u10, u10 = ', pi, us_to_u10, u10
+      us = us_to_u10*u10
+        !XXX
+        !write(stdout(),*)'DHB599: us = ', us
+      !
+      ! significant wave height from Pierson-Moskowitz
+      ! spectrum (Bouws, 1998)
+      hm0 = 0.0246*u10**2
+        !XXX write(stdout(),*)'DHB599: hm0 = ', hm0
+      !
+      ! peak frequency (PM, Bouws, 1998)
+        !XXX
+        !write(stdout(),*)'DHB599: u19p5_to_u10, u10, grav = ',u19p5_to_u10, u10, grav
+      tmp = 2.0*PI*u19p5_to_u10*u10
+        !XXX
+        !write(stdout(),*)'DHB599: grav, tmp = ',grav, tmp
+      fp = 0.877*grav/tmp
+        !XXX
+        !write(stdout(),*)'DHB599: fp = ',fp 
+      !
+      ! mean frequency
+        !XXX
+        !write(stdout(),*)'DHB599: fm_to_fp, fp = ',fm_to_fp, fp
+      fm = fm_to_fp*fp
+        !XXX 
+        !write(stdout(),*)'DHB599: fm = ',fm
+      !
+      ! total Stokes transport (a factor r_loss is applied to account
+      !  for the effect of directional spreading, multidirectional waves
+      !  and the use of PM peak frequency and PM significant wave height
+      !  on estimating the Stokes transport)
+        !!! XXXX
+        !write(stdout(),*)'DHB599: pi, grav, u10, us, hm0, tmp, fp, fm = '
+        !write(stdout(),'(8e12.5)') pi, grav, u10, us, hm0, tmp, fp, fm
+        !!! XXXX 
+      vstokes = 0.125*PI*r_loss*fm*hm0**2
+        !write(stdout(),*)'DHB vstokes = ',vstokes
+      !
+      ! the general peak wavenumber for Phillips' spectrum
+      ! (Breivik et al., 2016) with correction of directional spreading
+      kphil = 0.176*us/vstokes
+      !
+      ! surface layer averaged Stokes dirft with Stokes drift profile
+      ! estimated from Phillips' spectrum (Breivik et al., 2016)
+      ! the directional spreading effect from Webb and Fox-Kemper, 2015
+      ! is also included
+      kstar = kphil*2.56
+      ! surface layer
+      z0 = 0.2*abs(s_hbl)
+      z0i = 1.0/z0
+      ! term 1 to 4
+      r1 = (0.151/kphil*z0i-0.84) &
+            *(1.0-exp(-2.0*kphil*z0))
+      r2 = -(0.84+0.0591/kphil*z0i) &
+             *sqrt(2.0*PI*kphil*z0) &
+             *erfc(sqrt(2.0*kphil*z0))
+      r3 = (0.0632/kstar*z0i+0.125) &
+            *(1.0-exp(-2.0*kstar*z0))
+      r4 = (0.125+0.0946/kstar*z0i) &
+             *sqrt(2.0*PI*kstar*z0) &
+             *erfc(sqrt(2.0*kstar*z0))
+      us_sl = us*(0.715+r1+r2+r3+r4)
+      !
+      ! enhancement factor (Li et al., 2016)
+      lasl_sqr_i = us_sl/s_ustar
+      cvmix_kpp_efactor_model = sqrt(1.0 &
+                 +1.0/1.5**2*lasl_sqr_i &
+                 +1.0/5.4**4*lasl_sqr_i**2)
+    else
+      cvmix_kpp_efactor_model = 1.0
+    endif
+
+end function cvmix_kpp_efactor_model
 
 !#######################################################################
 ! <SUBROUTINE NAME="ri_iwmix">
@@ -2440,8 +2651,11 @@ end subroutine ddmix
 !
 ! </DESCRIPTION>
 !
-subroutine blmix_kpp(Thickness, diff_cbt, visc_cbu, do_wave)
-
+!subroutine blmix_kpp(Thickness, diff_cbt, visc_cbu, Ice_ocean_boundary, do_wave)
+!dhb599:
+subroutine blmix_kpp(Thickness, diff_cbt, visc_cbu, Ice_ocean_boundary, do_wave)
+  type(ice_ocean_boundary_type),  intent(in)    :: Ice_ocean_boundary
+!
   type(ocean_thickness_type),     intent(in)    :: Thickness
   real, dimension(isd:,jsd:,:,:), intent(inout) :: diff_cbt
   real, dimension(isd:,jsd:,:) ,  intent(inout) :: visc_cbu
@@ -2469,7 +2683,10 @@ subroutine blmix_kpp(Thickness, diff_cbt, visc_cbu, do_wave)
         iwscale_use_hbl_eq_zt = 0
         zt_kl_dummy(:,:)      = 0.0
 
-        call wscale (iwscale_use_hbl_eq_zt, zt_kl_dummy, do_wave)
+!        call wscale (iwscale_use_hbl_eq_zt, zt_kl_dummy, do_wave)
+!dhb599:
+        call wscale (iwscale_use_hbl_eq_zt, zt_kl_dummy, Ice_ocean_boundary%wnd(:,:), do_wave)
+!
 
       do j=jsc,jec
         do i = isc,iec 
@@ -2540,8 +2757,10 @@ subroutine blmix_kpp(Thickness, diff_cbt, visc_cbu, do_wave)
           iwscale_use_hbl_eq_zt = 0
           zt_kl_dummy(:,:)      = 0.0
 
-          call wscale(iwscale_use_hbl_eq_zt, zt_kl_dummy, do_wave)
-
+!          call wscale(iwscale_use_hbl_eq_zt, zt_kl_dummy, do_wave)
+!dhb599
+          call wscale (iwscale_use_hbl_eq_zt, zt_kl_dummy, Ice_ocean_boundary%wnd(:,:), do_wave)
+!
 !-----------------------------------------------------------------------
 !         compute the dimensionless shape functions at the interfaces
 !         eqn. (11)
@@ -2579,7 +2798,9 @@ subroutine blmix_kpp(Thickness, diff_cbt, visc_cbu, do_wave)
 !             To include Langmuir turbulence effects, multiply ghats
 !             by a factor of Lgam (McWilliam & Sullivan 2001)
 !-----------------------------------------------------------------------
-              if (do_wave .and. do_langmuir) then
+!              if (do_wave .and. do_langmuir) then
+!dhb599: new scheme langmuirfactor is now calculated in wscale ...........
+              if (.false.) then
                  ghats(i,j,ki) = Lgam * (1.-stable(i,j)) * cg    &
                         / (ws(i,j) * hbl(i,j) + epsln)
               else
@@ -2608,7 +2829,10 @@ subroutine blmix_kpp(Thickness, diff_cbt, visc_cbu, do_wave)
       iwscale_use_hbl_eq_zt = 0
       zt_kl_dummy(:,:)      = 0.0
 
-      call wscale(iwscale_use_hbl_eq_zt, zt_kl_dummy, do_wave)
+!      call wscale(iwscale_use_hbl_eq_zt, zt_kl_dummy, do_wave)
+!dhb599:
+      call wscale (iwscale_use_hbl_eq_zt, zt_kl_dummy, Ice_ocean_boundary%wnd(:,:), do_wave)
+!
 
       do j=jsc,jec
         do i = isc,iec

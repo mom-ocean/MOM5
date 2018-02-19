@@ -653,7 +653,9 @@ private
                              baroclinic_split, barotropic_split, surface_height_split,           &
                              layout, io_layout, debug, vertical_coordinate, dt_ocean, cmip_units,&
                              horizontal_grid, use_blobs, use_velocity_override, mask_table,      &
-                             introduce_blobs, beta_txty, beta_tf, beta_qf, beta_lwsw
+!dhb599 added do_wave        introduce_blobs, beta_txty, beta_tf, beta_qf, beta_lwsw
+                             introduce_blobs, beta_txty, beta_tf, beta_qf, beta_lwsw, do_wave
+
 
 contains
 
@@ -1621,7 +1623,9 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
        call mpp_clock_begin(id_vmix)    
        call vert_mix_coeff(Time, Thickness, Velocity, T_prog(1:num_prog_tracers),&
             T_diag(1:num_diag_tracers), Dens, swflx, sw_frac_zt, pme,            &
-            river, visc_cbu, visc_cbt, diff_cbt, surf_blthick, do_wave)
+!dhb599:            river, visc_cbu, visc_cbt, diff_cbt, surf_blthick, do_wave)
+            river, visc_cbu, visc_cbt, diff_cbt, surf_blthick, Ice_ocean_boundary, do_wave)
+
        call mpp_clock_end(id_vmix)
 
        ! compute ocean tendencies from tracer packages
