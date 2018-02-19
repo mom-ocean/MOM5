@@ -203,8 +203,10 @@ module flux_exchange_mod
 
   use sat_vapor_pres_mod, only: compute_qs
 
-  use      constants_mod, only: rdgas, rvgas, cp_air, stefan, WTMAIR, HLV, HLF, Radius, PI, CP_OCEAN, &
+!!  use      constants_mod, only: rdgas, rvgas, cp_air, stefan, WTMAIR, HLV, HLF, Radius, PI, CP_OCEAN, &
+  use  constants_mod, only: rdgas, rvgas, cp_air, stefan, WTMAIR, HLV, HLF, Radius, PI, &
                                 WTMCO2, WTMC
+  use ocean_parameters_mod, only: cp_ocean
 
 !Balaji
 !utilities stuff into use fms_mod

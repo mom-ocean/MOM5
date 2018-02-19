@@ -81,6 +81,8 @@ use fms_mod,          only: write_version_number, open_namelist_file, check_nml_
 use fms_io_mod,       only: register_restart_field, save_restart, restore_state
 use fms_io_mod,       only: restart_file_type
 use mpp_domains_mod,  only: mpp_update_domains, NUPDATE, EUPDATE
+!dhb599s
+use mpp_mod,          only: mpp_pe, mpp_root_pe
 use mpp_mod,          only: input_nml_file, mpp_error
 
 use ocean_density_mod,         only: density, density_delta_z, density_delta_sfc
@@ -317,16 +319,29 @@ ierr = check_nml_error(io_status,'ocean_vert_chen_nml')
 
   riu(:,:,:)    = 0.0
   rit(:,:,:)    = 0.0
+  !ars599 11072017 debug
+  kbl(:,:)      = 1
+  hbl(:,:)      = 5.0
   id_restart = register_restart_field(Che_restart, 'kraus.res.nc', 'kbl',kbl, &
                domain=Dom%domain2d)
   id_restart = register_restart_field(Che_restart, 'kraus.res.nc', 'hbl',hbl, &
                domain=Dom%domain2d)
   if(file_exist('INPUT/kraus.res.nc')) then
       call restore_state(Che_restart)
+
+!dhb599:
+      call mpp_update_domains(kbl,Dom%domain2d)
       write(stdoutunit,*)' ' 
+      write(stdoutunit,*) 'From ocean_vert_chen: reading kbl from kraus.res.nc'
+      call write_timestamp(Time%model_time)
+      call write_chksum_2d('kbl', kbl(COMP)*Grd%tmask(COMP,1))
+
+!dhb599: 
+      call mpp_update_domains(hbl,Dom%domain2d)
       write(stdoutunit,*) 'From ocean_vert_chen: reading hbl from kraus.res.nc'
       call write_timestamp(Time%model_time)
       call write_chksum_2d('hbl', hbl(COMP)*Grd%tmask(COMP,1))
+
   else
       hbl(:,:) = hbl_init*Grd%tmask(:,:,1)
       kbl(:,:)=1
@@ -653,6 +668,12 @@ subroutine kraus_turner(Time, Velocity, T_prog, Dens, swflx, pme, mixmask)
       tke(i,j)=Grd%tmask(i,j,1)*(wind_mixing(i,j)+hbl(i,j)*bulk_tke(i,j)+pen_ke)
     enddo
   enddo
+  !ars599 11072017
+  !write(mpp_pe()+100,*) 'Output jsd, jed, isd, ied, taum1 =', jsd, jed, isd, ied, taum1
+  !write(mpp_pe()+100,*) ' kbl'
+  !write(mpp_pe()+100,'(10I10)') kbl(isd:ied,jsd:jed)
+  !write(mpp_pe()+100,*) ' Dens%rho_salinityi kbl=1'
+  !write(mpp_pe()+100,'(10E12.4)')  Dens%rho_salinity(isd:ied,jsd:jed,1,taum1)
   do j=jsd,jed
     do i=isd,ied
       if(kbl(i,j) > 0) then
@@ -719,7 +740,9 @@ subroutine kraus_turner(Time, Velocity, T_prog, Dens, swflx, pme, mixmask)
     do i=isc,iec
       kbl_m1=max(1,kbl(i,j)-1)
       shallow=max(hbl(i,j),Grd%zt(1))-Grd%zt(kbl_m1)
-      mixmask(i,j,kbl(i,j))=shallow/(Grd%zt(kbl(i,j))-Grd%zt(kbl_m1)+ epsln)
+      !mixmask(i,j,kbl(i,j))=shallow/(Grd%zt(kbl(i,j))-Grd%zt(kbl_m1)+ epsln)
+      !dhb599: try to avoid "floating invalid" here:
+      mixmask(i,j,kbl(i,j))=shallow/(Grd%zt(kbl(i,j))-Grd%zt(kbl_m1)+ 1.0e-10)
     enddo
   enddo
 

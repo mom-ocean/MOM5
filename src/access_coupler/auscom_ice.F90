@@ -22,11 +22,16 @@ use ocean_types_mod, only: ocean_prog_tracer_type, &
                            ocean_time_type, &
                            ocean_time_steps_type
 
-use constants_mod, only: rho_cp &  !(J/m^3/deg C) rho_cp == rho0*cp_ocean
-                        ,rho0r  &  !(m^3/kg)  rho0r == 1.0/rho0
+!!use constants_mod, only: rho_cp &  !(J/m^3/deg C) rho_cp == rho0*cp_ocean
+!!                        ,rho0r  &  !(m^3/kg)  rho0r == 1.0/rho0
+!!                        ,rho0   &  ! 1.035e3 kg/m^3 (rho_sw)
+!!                        ,hlf    &  ! 3.34e5  J/kg
+!!                        ,cp_ocean  ! 3989.24495292815 J/kg/deg
+use constants_mod, only: rho0r  &  !(m^3/kg)  rho0r == 1.0/rho0
                         ,rho0   &  ! 1.035e3 kg/m^3 (rho_sw)
                         ,hlf    &  ! 3.34e5  J/kg
-                        ,cp_ocean  ! 3989.24495292815 J/kg/deg
+
+use ocean_parameters_mod: rho_cp, cp_ocean  !!!cp_ocean=3992.10322329649d0
 
 #if defined(UNIT_TESTING)
 use dump_field, only: dump_field_2d, dump_field_close
