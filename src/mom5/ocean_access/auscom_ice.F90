@@ -26,7 +26,6 @@ use ocean_types_mod, only: ocean_prog_tracer_type, &
 use constants_mod, only: rho0r  &  !(m^3/kg)  rho0r == 1.0/rho0
                         ,rho0   &  ! 1.035e3 kg/m^3 (rho_sw)
                         ,hlf      ! 3.34e5  J/kg
-
 use ocean_parameters_mod,     only: rho_cp, cp_ocean ! from ocean_parameters
 ! - end fix.
 
