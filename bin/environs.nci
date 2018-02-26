@@ -1,9 +1,9 @@
 source /etc/profile.d/nf_csh_modules
-if ( -f ../../../modules.nci ) then
-    echo "Loading common modules via modules.nci"
-    source ../../../modules.nci
+if ( -f ../../../environs.access-om2.nci ) then
+    echo "Loading common modules via environs.access-om2.nci"
+    source ../../../environs.access-om2.nci
 else
-    echo "WARNING: modules.nci not found. Module versions might differ between model components."
+    echo "WARNING: environs.access-om2.nci not found. Module versions might differ between model components."
     module purge
     module load intel-fc/17.0.1.132
     module load intel-cc/17.0.1.132
