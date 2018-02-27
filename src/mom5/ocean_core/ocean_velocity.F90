@@ -852,7 +852,7 @@ end subroutine ocean_velocity_init
        enddo
     enddo
     max_dt_for_cgint = nint(max_dt_for_cgint)
-    max_dt_for_cgint = max_dt_for_cgint + 0.001*mpp_pe() ! to separate redundancies
+    max_dt_for_cgint = max_dt_for_cgint + 1.e-12*mpp_pe() ! to separate redundancies
     max_dt_for_cgint0 = max_dt_for_cgint
     call mpp_min (max_dt_for_cgint)
 
