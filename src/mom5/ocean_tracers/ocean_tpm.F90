@@ -237,6 +237,10 @@ use transport_matrix_mod, only: transport_matrix_init
 use transport_matrix_mod, only: transport_matrix_start
 use transport_matrix_mod, only: transport_matrix_store_implicit
 
+#if defined(ACCESS_CM)
+use csiro_bgc_mod 
+#endif
+
 !
 !       force all variables to be "typed"
 !
@@ -570,7 +574,11 @@ end subroutine do_time_calc  !}
 !       calculations
 ! </DESCRIPTION>
 
+#if defined(ACCESS_CM)
+subroutine ocean_tpm_bbc(Domain, Grid, Time, T_prog)  !{
+#else
 subroutine ocean_tpm_bbc(Domain, Grid, T_prog)  !{
+#endif
 
 !
 !-----------------------------------------------------------------------
@@ -580,6 +588,9 @@ subroutine ocean_tpm_bbc(Domain, Grid, T_prog)  !{
 
 type(ocean_domain_type), intent(in)                             :: Domain
 type(ocean_grid_type), intent(in)                               :: Grid
+#if defined(ACCESS_CM)
+type(ocean_time_type), intent(in)                               :: Time
+#endif
 type(ocean_prog_tracer_type), dimension(:), intent(inout)       :: T_prog
 
 !
@@ -606,6 +617,12 @@ if (do_ocean_bgc_restore) then  !{
 endif  !}
 
 #endif 
+
+#if defined(ACCESS_CM)
+if (do_csiro_bgc) then  !{
+  call csiro_bgc_bbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, T_prog, Grid, Time)
+endif  !}
+#endif
 
 return
 
@@ -728,6 +745,13 @@ endif  !}
 if (do_generic_tracer) call ocean_generic_end
 
 #endif 
+
+#if defined(ACCESS_CM)
+if (do_csiro_bgc) then  !{
+  call csiro_bgc_end(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Time%taup1,          &
+                           Thickness, T_prog, grid)
+endif  !}
+#endif
 
 return
 
@@ -1199,6 +1223,23 @@ end subroutine ocean_tpm_sfc_end  !}
 ! </DESCRIPTION>
 !
 
+#if defined(ACCESS_CM)
+subroutine ocean_tpm_sbc(Domain, Grid, T_prog, Time, Ice_ocean_boundary_fluxes, &
+     runoff, aice, atm_co2, wnd, Ocean_sfc, isc_bnd, iec_bnd, jsc_bnd, jec_bnd, &
+     use_waterflux, salt_restore_as_salt_flux)  !{
+
+use coupler_types_mod, only: coupler_2d_bc_type
+
+implicit none
+
+type(ocean_public_type), intent(inout)                          :: Ocean_sfc
+type(ocean_domain_type), intent(in)                             :: Domain
+real, intent(in), dimension(Domain%isd:Domain%ied,Domain%jsd:Domain%jed), optional :: aice
+real, intent(in), dimension(Domain%isd:Domain%ied,Domain%jsd:Domain%jed), optional :: atm_co2
+real, intent(in), dimension(Domain%isd:Domain%ied,Domain%jsd:Domain%jed), optional :: wnd
+logical, intent(in) :: use_waterflux, salt_restore_as_salt_flux
+
+#else
 subroutine ocean_tpm_sbc(Domain, Grid, T_prog, Time, Ice_ocean_boundary_fluxes, &
      runoff, isc_bnd, iec_bnd, jsc_bnd, jec_bnd)  !{
 
@@ -1206,13 +1247,15 @@ use coupler_types_mod, only: coupler_2d_bc_type
 
 implicit none
 
+type(ocean_domain_type), intent(in)                             :: Domain
+#endif
+
 !
 !-----------------------------------------------------------------------
 !       Arguments
 !-----------------------------------------------------------------------
 !
 
-type(ocean_domain_type), intent(in)                             :: Domain
 type(ocean_grid_type), intent(in)                               :: Grid
 type(ocean_prog_tracer_type), dimension(:), intent(inout)       :: T_prog
 type(ocean_time_type), intent(in)                               :: Time
@@ -1289,8 +1332,14 @@ if (do_ocean_ibgc) then  !{
                            Grid, Time, Ice_ocean_boundary_fluxes)
 endif  !}
 
-
 #endif 
+
+#if defined(ACCESS_CM)
+if (do_csiro_bgc) then  !{
+  call csiro_bgc_sbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Domain%isd, Domain%ied, Domain%jsd, Domain%jed,  &
+  T_prog, aice, atm_co2, wnd, Ocean_sfc, Grid, Time, use_waterflux, salt_restore_as_salt_flux)
+endif  !}
+#endif
 
 return
 
@@ -1380,6 +1429,10 @@ call ocean_ibgc_init
 
 call ocean_generic_init(Domain,Grid,Time)
 
+#endif 
+
+#if defined(ACCESS_CM)
+call csiro_bgc_init
 #endif 
 
 call transport_matrix_init
@@ -1473,10 +1526,21 @@ end subroutine ocean_tpm_flux_init  !}
 ! </DESCRIPTION>
 !
 
+#if defined(ACCESS_CM)
+subroutine ocean_tpm_source(isd, ied, jsd, jed, Domain, Grid, T_prog, T_diag, &
+     Time, Thickness, Dens, hblt_depth, dtts, swflx, sw_frac_zt)
+
+implicit none
+
+real, intent(in), dimension(isd:ied,jsd:jed)                    :: swflx ! short wave radiation flux (W/m^2)
+real, intent(in), dimension(isd:,jsd:,:)                        :: sw_frac_zt ! short wave radiation fraction
+
+#else
 subroutine ocean_tpm_source(isd, ied, jsd, jed, Domain, Grid, T_prog, T_diag,   &
      Time, Thickness, Dens, hblt_depth, dtts)
 
 implicit none
+#endif
 
 !
 !-----------------------------------------------------------------------
@@ -1554,6 +1618,14 @@ if (do_ocmip2_he) then
 endif
 
 #endif 
+
+#if defined(ACCESS_CM)
+if (do_csiro_bgc) then
+  call csiro_bgc_source(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, &
+    Domain%isd, Domain%ied, Domain%jsd, Domain%jed,                   &
+    T_prog, grid, Time, dtts, Thickness, Dens, swflx, sw_frac_zt)
+endif
+#endif
 
 if (do_ocean_residency) then  !{        ! must come last
   call ocean_residency_source(Domain%isc, Domain%iec, Domain%jsc, Domain%jec,           &
@@ -1689,6 +1761,12 @@ endif  !}
 
 #endif 
 
+#if defined(ACCESS_CM)
+if (do_csiro_bgc) then  !{
+  call csiro_bgc_start(Time, Domain, Grid)
+endif  !}
+#endif
+
 if (do_transport_matrix) then  !{
   call transport_matrix_start(Time, T_prog, Domain%isd, Domain%ied, Domain%jsd,         &
                               Domain%jed, Grid%nk, Grid%tracer_axes)
@@ -1791,6 +1869,12 @@ if (do_generic_tracer) then
 endif
 
 #endif 
+
+#if defined(ACCESS_CM)
+if (do_csiro_bgc) then  !{
+  call csiro_bgc_tracer(domain%isc, domain%iec, domain%jsc, domain%jec, t_prog, grid, time, dtts)
+endif  !}
+#endif
 
 if (do_transport_matrix) then !{
   call transport_matrix_store_implicit(Time, T_prog, Domain%isd, Domain%ied, Domain%jsd, Domain%jed,    &
