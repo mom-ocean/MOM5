@@ -1,13 +1,7 @@
 source /etc/profile.d/nf_csh_modules
-if ( -f ../../../environs.access-om2.nci ) then
-    echo "Loading common modules via environs.access-om2.nci"
-    source ../../../environs.access-om2.nci
-else
-    echo "WARNING: environs.access-om2.nci not found. Module versions might differ between model components."
-    module purge
-    module load intel-fc/17.0.1.132
-    module load intel-cc/17.0.1.132
-    module load netcdf/4.2.1.1
-    module load openmpi/1.10.2
-endif
+module purge
+module load intel-fc/17.0.1.132
+module load intel-cc/17.0.1.132
+module load netcdf/4.2.1.1
+module load openmpi/1.10.2
 setenv mpirunCommand   "mpirun --mca orte_base_help_aggregate 0 -np"
