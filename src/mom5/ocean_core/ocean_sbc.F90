@@ -487,6 +487,10 @@ use ocean_workspace_mod,      only: wrk1_2d, wrk2_2d, wrk3_2d, wrk1
 use ocean_util_mod,           only: diagnose_2d, diagnose_2d_u, diagnose_3d_u, diagnose_sum
 use ocean_tracer_util_mod,    only: diagnose_3d_rho
 
+#if defined(ACCESS_CM)
+use csiro_bgc_mod,            only: csiro_bgc_virtual_fluxes, do_csiro_bgc
+#endif
+
 implicit none
 
 private
@@ -623,6 +627,11 @@ integer :: id_restore_mask   =-1
 #if defined(ACCESS)
 integer :: id_wfimelt        =-1
 integer :: id_wfiform        =-1
+#endif
+#if defined(ACCESS_CM)
+integer :: id_aice               =-1
+integer :: id_atm_co2            =-1
+integer :: id_wnd                =-1
 #endif
 
 
@@ -1838,6 +1847,23 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
        Time%model_time, 'longwave flux into ocean (<0 cools ocean)', 'W/m^2' ,  &
        missing_value=missing_value,range=(/-1.e10,1.e10/),                      &
        standard_name='surface_net_downward_longwave_flux' )   
+
+#if defined(ACCESS_CM)
+  id_aice = register_diag_field('ocean_model','aice', Grd%tracer_axes(1:2),&
+       Time%model_time, 'fraction of surface area covered with ice', 'm^2/m^2' ,  &
+       missing_value=missing_value,range=(/-1.e1,1.e1/),                      &
+       standard_name='areal_ice_concentration' )
+
+  id_atm_co2 = register_diag_field('ocean_model','atm_co2', Grd%tracer_axes(1:2),&
+       Time%model_time, 'Atmospheric CO2 content', 'ppm' ,  &
+       missing_value=missing_value,range=(/-1.e1,1.e4/),                      &
+       standard_name='atmospheric_co2' )
+
+  id_wnd = register_diag_field('ocean_model','wnd', Grd%tracer_axes(1:2),&
+       Time%model_time, 'Wind speed', 'm/s' ,  &
+       missing_value=missing_value,range=(/-1.e3,1.e3/),                      &
+       standard_name='wind_speed' )
+#endif
 
   id_sens_heat = register_diag_field('ocean_model','sens_heat', Grd%tracer_axes(1:2),&
        Time%model_time, 'sensible heat into ocean (<0 cools ocean)', 'W/m^2' ,      &
@@ -3130,9 +3156,28 @@ end subroutine ocean_sfc_end
 ! </DESCRIPTION>
 !
 
+#if defined(ACCESS)
+#if defined(ACCESS_CM)
+subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_prog, Velocity, &
+                         pme, melt, river, runoff, calving, upme, uriver, swflx, swflx_vis, patm, aice, atm_co2, wnd, Ocean_sfc)
+
+  real, dimension(isd:,jsd:),    intent(inout)    :: aice 
+  type(ocean_public_type),       intent(inout)    :: Ocean_sfc
+  real, dimension(isd:,jsd:),    intent(inout), optional :: atm_co2
+  real, dimension(isd:,jsd:),    intent(inout), optional :: wnd
+#else
+subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_prog, Velocity, &
+                         pme, melt, river, runoff, calving, upme, uriver, swflx, swflx_vis, patm, aice)
+
+  real, dimension(isd:,jsd:),    intent(inout)    :: aice 
+#endif
+
+#else
+
 subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_prog, Velocity, &
                          pme, melt, river, runoff, calving, upme, uriver, swflx, swflx_vis, patm)
 
+#endif
 
   type(ocean_time_type),          intent(in)    :: Time 
   type(ice_ocean_boundary_type),  intent(in)    :: Ice_ocean_boundary
@@ -4165,16 +4210,38 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
 
   !--------compute surface tracer fluxes from tracer packages------------------- 
   !
+#if defined(ACCESS_CM)
+  ! pass ice cover, atmosphereic co2 and wind speed from ice_ocean_boundary%...  to ocean model variables.  mac, may13.
+  aice(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)               &
+    *(Ice_ocean_boundary%aice(isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
+  atm_co2(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)               &
+    *(Ice_ocean_boundary%co2(isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
+  wnd(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)               &
+    *(Ice_ocean_boundary%wnd(isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
+
+
+  ! pass ice cover, co2 and wind speed to be available for csiro_bgc_sbc.  mac, may13.
+  ! pass salt_restore_as_salt_flux to allow correct application of virtual fluxes in BGC.  mac, dec12.
+  call ocean_tpm_sbc(Dom, Grd, T_prog(:), Time, Ice_ocean_boundary%fluxes, runoff, &
+                     aice, atm_co2, wnd, Ocean_sfc, &
+                     isc_bnd, iec_bnd, jsc_bnd, jec_bnd, use_waterflux, salt_restore_as_salt_flux)
+#else
   call ocean_tpm_sbc(Dom, Grd, T_prog(:), Time, Ice_ocean_boundary%fluxes, runoff, &
                      isc_bnd, iec_bnd, jsc_bnd, jec_bnd)
-
-
+#endif
   !--------send diagnostics------------------- 
   !
+#if defined(ACCESS_CM)
+  call ocean_sbc_diag (Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_boundary,   &
+                      pme, runoff, calving, river, melt, liquid_precip, frozen_precip,&
+                      evaporation, sensible, longwave, latent, swflx, swflx_vis, &
+                      aice, atm_co2, wnd)
+#else
   call ocean_sbc_diag (Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_boundary,        &
                       pme, runoff, calving, river, alphasfc, betasfc, alphasfc2, betasfc2, &
                       melt, liquid_precip, frozen_precip, evaporation, sensible, longwave, &
                       latent, swflx, swflx_vis)
+#endif
 
 #if defined(ACCESS)
   do j = jsc_bnd,jec_bnd
@@ -4418,6 +4485,13 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
                 T_prog(index_salt)%stf(i,j) = T_prog(index_salt)%stf(i,j) + flx_restore(i,j)
              enddo
           enddo
+
+#if defined(ACCESS_CM)
+          ! if salt fluxes are used to restore salinity, then virtual fluxes are needed for csiro BGC tracers. mac, dec12.
+          if (do_csiro_bgc) then
+            call csiro_bgc_virtual_fluxes(isc, iec, jsc, jec, isd, ied, jsd, jed, flx_restore, T_prog)
+          endif
+#endif
 
       endif  ! endif for if (use_waterflux .and. .not. salt_restore_as_salt_flux) then
 
@@ -4938,10 +5012,19 @@ end subroutine flux_adjust
 ! Compute and send diagnostics from get_ocean_sbc. 
 ! </DESCRIPTION>
 !
+#if defined(ACCESS_CM)
+subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_boundary, &
+                      pme, runoff, calving, river, melt, liquid_precip, frozen_precip, &
+                      evaporation, sensible, longwave, latent, swflx, swflx_vis,       &
+                      aice, atm_co2, wnd)
+
+  real, dimension(isd:,jsd:),     intent(in) :: aice, atm_co2, wnd
+#else
 subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_boundary,     &
                       pme, runoff, calving, river, alphasfc, betasfc, alphasfc2, betasfc2, &
                       melt, liquid_precip,  frozen_precip, evaporation, sensible, longwave,&
                       latent, swflx, swflx_vis)
+#endif
 
   type(ocean_time_type),          intent(in) :: Time 
   type(ocean_velocity_type),      intent(in) :: Velocity
@@ -5715,6 +5798,20 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
       total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
       used = send_data (id_total_ocean_wfiform, total_stuff*1e-15, Time%model_time)
   endif
+#endif
+#if defined(ACCESS_CM)
+  ! ice concentration (m2/m2), mac aug12.
+  if (id_aice > 0) used = send_data(id_aice, aice(:,:),    &
+                 Time%model_time, rmask=Grd%tmask(:,:,1),  &
+                 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+
+  if (id_atm_co2 > 0) used = send_data(id_atm_co2, atm_co2(:,:),    &
+                 Time%model_time, rmask=Grd%tmask(:,:,1),  &
+                 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+
+  if (id_wnd > 0) used = send_data(id_wnd, wnd(:,:),    &
+                 Time%model_time, rmask=Grd%tmask(:,:,1),  &
+                 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
 #endif
 
 
