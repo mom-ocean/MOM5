@@ -80,6 +80,7 @@ integer :: id_sw_heat_on_nrho=-1
 integer :: id_irradiance    =-1
 
 integer :: id_neut_rho_sw          =-1
+integer :: id_pot_rho_sw           =-1
 integer :: id_wdian_rho_sw         =-1
 integer :: id_tform_rho_sw         =-1
 integer :: id_neut_rho_sw_on_nrho  =-1
@@ -122,13 +123,13 @@ contains
 ! </DESCRIPTION>
   subroutine ocean_shortwave_init(Grid, Domain, Time, Dens, T_prog, vert_coordinate, Ocean_options)
 
-    type(ocean_grid_type),        intent(in), target :: Grid
-    type(ocean_domain_type),      intent(in), target :: Domain
-    type(ocean_time_type),        intent(in)         :: Time 
-    type(ocean_density_type),     intent(in)         :: Dens
-    type(ocean_prog_tracer_type), intent(in)         :: T_prog(:)
-    integer,                      intent(in)         :: vert_coordinate
-    type(ocean_options_type),     intent(inout)      :: Ocean_options
+    type(ocean_grid_type),    intent(in), target :: Grid
+    type(ocean_domain_type),  intent(in), target :: Domain
+    type(ocean_time_type),    intent(in)         :: Time 
+    type(ocean_density_type), intent(in)         :: Dens
+    type(ocean_prog_tracer_type), intent(in)     :: T_prog(:)
+    integer,                  intent(in)         :: vert_coordinate
+    type(ocean_options_type), intent(inout)      :: Ocean_options
 
     integer :: unit, io_status, ierr
     integer :: num_schemes=0
@@ -197,7 +198,7 @@ contains
       '==>shortwave_mod: choose only ONE of the shortwave schemes: GFDL, CSIRO, JERLOV, or External.')
     endif
 
-    ! to determine index for FAFMIP temperature tracer     
+    ! to determine index for FAFMIP temperature tracer
     num_prog_tracers = size(T_prog(:))
     do n=1,num_prog_tracers
        if (T_prog(n)%name == 'redist_heat') index_redist_heat = n
@@ -424,6 +425,12 @@ subroutine watermass_diag_init(Time, Dens)
     '(kg/m^3)/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
   if(id_neut_rho_sw > 0) compute_watermass_diag = .true. 
 
+  id_pot_rho_sw = register_diag_field ('ocean_model', 'pot_rho_sw',&
+    Grd%tracer_axes(1:3), Time%model_time,                         &
+    'update of depth ref potrho from shortwave penetration',       &
+    '(kg/m^3)/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
+  if(id_pot_rho_sw > 0) compute_watermass_diag = .true. 
+
   id_neut_rho_sw_on_nrho = register_diag_field ('ocean_model',                            &
    'neut_rho_sw_on_nrho', Dens%neutralrho_axes(1:3), Time%model_time,                     &
    'update of locally ref potrho from shortwave penetration binned to neutral rho layers',&
@@ -541,6 +548,21 @@ subroutine watermass_diag(Time, Temp, Dens)
       call diagnose_2d(Time, Grd, id_eta_tend_sw_pen, eta_tend(:,:))
       call diagnose_sum(Time, Grd, Dom, id_eta_tend_sw_pen_glob, eta_tend, cellarea_r)
   endif
+
+  if(id_pot_rho_sw > 0) then 
+     wrk1(:,:,:) = 0.0
+     wrk2(:,:,:) = 0.0
+     do k=1,nk
+        do j=jsc,jec
+           do i=isc,iec
+              wrk1(i,j,k) = Grd%tmask(i,j,k)*Dens%dpotrhodT(i,j,k)*cp_r*Temp%wrk1(i,j,k)
+              wrk2(i,j,k) = wrk1(i,j,k)*Dens%rho_dztr_tau(i,j,k)
+           enddo
+        enddo
+     enddo
+     call diagnose_3d(Time, Grd, id_pot_rho_sw, wrk2(:,:,:))
+  endif
+   
 
 end subroutine watermass_diag
 ! </SUBROUTINE>  NAME="watermass_diag"
