@@ -125,7 +125,7 @@ program main
 !     </PRE>
 !   </NOTE>
 !
-  use constants_mod,            only: constants_init
+  use constants_mod,            only: constants_init, SECONDS_PER_HOUR
   use data_override_mod,        only: data_override_init, data_override
   use diag_manager_mod,         only: diag_manager_init, diag_manager_end
   use field_manager_mod,        only: field_manager_init
@@ -172,6 +172,8 @@ program main
   type(time_type) :: Time_restart_init
   type(time_type) :: Time_restart
   type(time_type) :: Time_restart_current
+  type(time_type) :: Time_last_sfix 
+  type(time_type) :: Time_sfix 
 
   character(len=17) :: calendar = 'julian'
 
@@ -307,6 +309,7 @@ program main
   num_cpld_calls    = Run_len / Time_step_coupled
   Time = Time_start
   Time_last_sfix = Time_start
+  Time_sfix = set_time(seconds=int(sfix_hours*SECONDS_PER_HOUR))
 
   Time_restart_init = set_date(date_restart(1), date_restart(2), date_restart(3),  &
                                date_restart(4), date_restart(5), date_restart(6) )
@@ -434,7 +437,7 @@ program main
      endif
 
 #ifdef ACCESS
-     if ((Time - Time_last_sfix) >= sfix_hours*SECONDS_PER_HOUR) then
+     if ((Time - Time_last_sfix) >= Time_sfix) then
         do_sfix_now = .true.
         Time_last_sfix = Time
      else
