@@ -125,7 +125,7 @@ program main
 !     </PRE>
 !   </NOTE>
 !
-  use constants_mod,            only: constants_init
+  use constants_mod,            only: constants_init, SECONDS_PER_HOUR
   use data_override_mod,        only: data_override_init, data_override
   use diag_manager_mod,         only: diag_manager_init, diag_manager_end
   use field_manager_mod,        only: field_manager_init
@@ -172,6 +172,10 @@ program main
   type(time_type) :: Time_restart_init
   type(time_type) :: Time_restart
   type(time_type) :: Time_restart_current
+#ifdef ACCESS
+  type(time_type) :: Time_last_sfix 
+  type(time_type) :: Time_sfix 
+#endif
 
   character(len=17) :: calendar = 'julian'
 
@@ -306,6 +310,10 @@ program main
   Time_step_coupled = set_time(dt_cpld, 0)
   num_cpld_calls    = Run_len / Time_step_coupled
   Time = Time_start
+#ifdef ACCESS
+  Time_last_sfix = Time_start
+  Time_sfix = set_time(seconds=int(sfix_hours*SECONDS_PER_HOUR))
+#endif
 
   Time_restart_init = set_date(date_restart(1), date_restart(2), date_restart(3),  &
                                date_restart(4), date_restart(5), date_restart(6) )
@@ -433,9 +441,12 @@ program main
      endif
 
 #ifdef ACCESS
-     do_sfix_now = .false.
-     int_sec = (nc-1) * num_cpld_calls
-     if (mod((nc-1)*num_cpld_calls,sfix_hours*3600) == 0 .and. nc /= 1) do_sfix_now = .true.
+     if ((Time - Time_last_sfix) >= Time_sfix) then
+        do_sfix_now = .true.
+        Time_last_sfix = Time
+     else
+        do_sfix_now = .false.
+     end if
 #endif
 
      call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)

@@ -218,7 +218,7 @@ use mpp_mod,                  only: mpp_clock_id, mpp_clock_begin, mpp_clock_end
 use mpp_mod,                  only: CLOCK_COMPONENT, CLOCK_SUBCOMPONENT, CLOCK_MODULE, CLOCK_ROUTINE
 use stock_constants_mod,      only: ISTOCK_WATER, ISTOCK_HEAT, ISTOCK_SALT
 use time_interp_external_mod, only: time_interp_external_init
-use time_manager_mod,         only: JULIAN, get_date, get_time
+use time_manager_mod,         only: JULIAN, get_date, get_time, print_time
 use time_manager_mod,         only: time_type, operator( /= ), operator( < ), operator ( / )
 use time_manager_mod,         only: set_time, operator(-), operator( + ), operator( == )
 use time_manager_mod,         only: operator(*)
@@ -331,7 +331,7 @@ use ocean_wave_mod,               only: ocean_wave_init, ocean_wave_end, ocean_w
 
 #if defined(ACCESS)
   use auscom_ice_mod, only: auscom_ice_init
-  use auscom_ice_parameters_mod,  only: redsea_gulfbay_sfix, do_sfix_now, int_sec
+  use auscom_ice_parameters_mod,  only: redsea_gulfbay_sfix, do_sfix_now
   use mpp_mod,                    only: mpp_pe, mpp_root_pe
 #endif
 
@@ -2050,7 +2050,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     if (redsea_gulfbay_sfix .and. do_sfix_now) then
         call mpp_clock_begin(id_sfix)
         if (mpp_pe() == mpp_root_pe()) then
-            write(stdoutunit,*) 'Calling redsea_gulfbay_hmix_s at runtime = ',int_sec
+            call print_time(time_start_update, 'Calling redsea_gulfbay_hmix_s at runtime = ')
         endif
         call redsea_gulfbay_hmix_s(Time, Grid, Thickness, &
                                    T_prog(1:num_prog_tracers), Ocean_sfc)
