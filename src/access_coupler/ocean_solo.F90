@@ -172,8 +172,10 @@ program main
   type(time_type) :: Time_restart_init
   type(time_type) :: Time_restart
   type(time_type) :: Time_restart_current
+#ifdef ACCESS
   type(time_type) :: Time_last_sfix 
   type(time_type) :: Time_sfix 
+#endif
 
   character(len=17) :: calendar = 'julian'
 
@@ -308,8 +310,10 @@ program main
   Time_step_coupled = set_time(dt_cpld, 0)
   num_cpld_calls    = Run_len / Time_step_coupled
   Time = Time_start
+#ifdef ACCESS
   Time_last_sfix = Time_start
   Time_sfix = set_time(seconds=int(sfix_hours*SECONDS_PER_HOUR))
+#endif
 
   Time_restart_init = set_date(date_restart(1), date_restart(2), date_restart(3),  &
                                date_restart(4), date_restart(5), date_restart(6) )
