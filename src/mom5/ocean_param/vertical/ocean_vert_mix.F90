@@ -252,9 +252,9 @@ use ocean_types_mod,           only: ocean_grid_type, ocean_domain_type, ocean_t
 use ocean_types_mod,           only: ocean_time_type, ocean_time_steps_type, ocean_options_type
 use ocean_types_mod,           only: ocean_velocity_type, ocean_adv_vel_type, ocean_density_type
 use ocean_types_mod,           only: ocean_prog_tracer_type, ocean_diag_tracer_type
-!dhb599:
+#ifdef ACCESS_CM
 use ocean_types_mod,           only: ice_ocean_boundary_type
-!
+#endif
 use ocean_util_mod,            only: invtri, invtri_bmf, write_timestamp
 use ocean_util_mod,            only: write_chksum_3d, diagnose_2d, diagnose_3d, diagnose_3d_u, diagnose_2d_u, diagnose_sum, diagnose_2d_en
 use ocean_tracer_util_mod,     only: diagnose_3d_rho
@@ -2890,10 +2890,16 @@ end subroutine watermass_diag_init
 !
 subroutine vert_mix_coeff(Time, Thickness, Velocity, T_prog,   &
                           T_diag, Dens, swflx, sw_frac_zt, pme,&
-                          river, visc_cbu, visc_cbt, diff_cbt, &
-                          hblt_depth, Ice_ocean_boundary, do_wave)
+                          river, visc_cbu, visc_cbt, diff_cbt, hblt_depth, &
+#ifndef ACCESS_CM
+                          do_wave)
+#else
+                          Ice_ocean_boundary, do_wave)
 
   type(ice_ocean_boundary_type),  intent(in)    :: Ice_ocean_boundary
+
+#endif
+
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_thickness_type),     intent(in)    :: Thickness
   type(ocean_velocity_type),      intent(in)    :: Velocity
@@ -2947,8 +2953,11 @@ subroutine vert_mix_coeff(Time, Thickness, Velocity, T_prog,   &
   elseif(MIX_SCHEME == VERTMIX_KPP_MOM4P1) then 
     call mpp_clock_begin(id_clock_vert_kpp_mom4p1)
     call vert_mix_kpp_mom4p1(aidif, Time, Thickness, Velocity, T_prog, T_diag, Dens, &
-         swflx, sw_frac_zt, pme, river, visc_cbu, diff_cbt, &
-         hblt_depth, Ice_ocean_boundary, do_wave)
+         swflx, sw_frac_zt, pme, river, visc_cbu, diff_cbt, hblt_depth, &
+#ifdef ACCESS_CM
+         Ice_ocean_boundary, &
+#endif
+         do_wave)
 
     ! since this scheme is frozen, we do not compute visc_cbt. 
     ! for vertical reynolds diagnostics, we set  

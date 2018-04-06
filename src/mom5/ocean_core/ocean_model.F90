@@ -653,7 +653,6 @@ private
                              baroclinic_split, barotropic_split, surface_height_split,           &
                              layout, io_layout, debug, vertical_coordinate, dt_ocean, cmip_units,&
                              horizontal_grid, use_blobs, use_velocity_override, mask_table,      &
-!dhb599 added do_wave        introduce_blobs, beta_txty, beta_tf, beta_qf, beta_lwsw
                              introduce_blobs, beta_txty, beta_tf, beta_qf, beta_lwsw, do_wave
 
 
@@ -667,7 +666,7 @@ contains
 ! Initialize the ocean model. 
 ! Arguments: 
 !  Ocean (inout)  - A structure containing various publicly visible ocean
-!                    surface properties after initialization.
+!                    surface properties after initialization.ACCESS_CM/g
 !  OS    (pointer)- A structure whose internal contents are private
 !                    to ocean_model_mod that may be used to contain all
 !                    information about the ocean's interior state.
@@ -1623,8 +1622,11 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
        call mpp_clock_begin(id_vmix)    
        call vert_mix_coeff(Time, Thickness, Velocity, T_prog(1:num_prog_tracers),&
             T_diag(1:num_diag_tracers), Dens, swflx, sw_frac_zt, pme,            &
-!dhb599:            river, visc_cbu, visc_cbt, diff_cbt, surf_blthick, do_wave)
-            river, visc_cbu, visc_cbt, diff_cbt, surf_blthick, Ice_ocean_boundary, do_wave)
+            river, visc_cbu, visc_cbt, diff_cbt, surf_blthick, & 
+#ifdef ACCESS_CM
+            Ice_ocean_boundary, &
+#endif
+            do_wave)
 
        call mpp_clock_end(id_vmix)
 

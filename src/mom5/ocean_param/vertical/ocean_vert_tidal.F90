@@ -327,8 +327,9 @@ use fms_mod,           only: write_version_number, open_namelist_file, close_fil
 use fms_mod,           only: stdout, stdlog, read_data, NOTE, FATAL, WARNING
 use mpp_domains_mod,   only: mpp_update_domains
 use mpp_mod,           only: input_nml_file, mpp_error
-!dhb599
+#ifdef ACCESS_CM
 use mpp_mod,           only: mpp_pe, mpp_root_pe
+#endif
 
 use ocean_domains_mod,    only: get_local_indices
 use ocean_operators_mod,  only: LAP_T
@@ -407,10 +408,11 @@ real, private, dimension(:,:,:), allocatable :: diff_wave           ! diffusivit
 real, private, dimension(:,:,:), allocatable :: diff_leewave        ! diffusivity (m^2/sec) from leewave mixing scheme 
 real, private, dimension(:,:),   allocatable :: tmask_deep          ! nonzero for points deeper than shelf_depth_cutoff
 
+#ifdef ACCESS_CM
 !dhb599 20110802: variable bg_diff (latitude-dependent background_diffusivity) added:
 real, private, dimension(:,:),   allocatable :: bg_diff
 real, private :: bgdiff_max, bgdiff_min, coef_a, coef_b  !temporary use 
-!real, private :: pipi = 3.1415926  
+#endif
 
 type(ocean_domain_type), pointer :: Dom => NULL()
 type(ocean_grid_type),   pointer :: Grd => NULL()
@@ -514,9 +516,10 @@ namelist /ocean_vert_tidal_nml/ use_this_module, use_legacy_methods, debug_this_
                                 use_leewave_dissipation, read_leewave_dissipation,              &
                                 drag_dissipation_use_cdbot               
 
-!dhb599 20110803: new control nml parameters:
+#ifdef ACCESS_CM
 real :: lat_low_bgdiff = 20.
 real :: bg_diff_eq = 1.0e-6
+#endif
 
 namelist /bg_diff_lat_dependence_nml/ lat_low_bgdiff, bg_diff_eq
 
@@ -561,15 +564,16 @@ contains
 #ifdef INTERNAL_FILE_NML
     read (input_nml_file, nml=ocean_vert_tidal_nml, iostat=io_status)
     ierr = check_nml_error(io_status,'ocean_vert_tidal_nml')
-    !dhb599
+#ifdef ACCESS_CM
     read (input_nml_file, nml=bg_diff_lat_dependence_nml, iostat=io_status)
     ierr = check_nml_error(io_status,'bg_diff_lat_dependence_nml')
+#endif
 #else
     unit = open_namelist_file()
     read(unit, ocean_vert_tidal_nml,iostat=io_status)
     ierr = check_nml_error(io_status, 'ocean_vert_tidal_nml')
     call close_file(unit)
-    !dhb599
+#ifdef ACCESS_CM
     unit = open_namelist_file()
     read(unit, bg_diff_lat_dependence_nml,iostat=io_status)
     write (stdoutunit,'(/)')
@@ -577,6 +581,7 @@ contains
     write(stdlogunit,bg_diff_lat_dependence_nml)
     ierr = check_nml_error(io_status, 'bg_diff_lat_dependence_nml')
     call close_file(unit)
+#endif
 #endif
     write (stdoutunit,'(/)')
     write (stdoutunit,ocean_vert_tidal_nml)    
@@ -625,9 +630,9 @@ contains
     allocate (diff_leewave(isd:ied,jsd:jed,nk))
     allocate (tmask_deep(isd:ied,jsd:jed))
 
-!dhb599 20110802: 
+#ifdef ACCESS_CM
     allocate (bg_diff(isd:ied,jsd:jed))
-!
+#endif
     mix_efficiency  = 0.0
     bvfreq_bottom   = 0.0
     bvfreq          = 0.0
@@ -815,6 +820,7 @@ contains
        enddo
     endif
 
+#ifdef ACCESS_CM
 !---------------------------------------------------------------------------------------
 ! ars599+dhb599 20110802: calculate the latitude-dependent bg_diff 
 !-----------------------------------------------------------------
@@ -853,6 +859,7 @@ contains
        endif
     enddo
     !!!
+#endif
 !---------------------------------------------------------------------------------------
 
     ! compute efolding depth scale for use in Lee etal scheme. 
@@ -1109,12 +1116,13 @@ end subroutine ocean_vert_tidal_init
      kp1 = min(k+1,nk)
      do j=jsc,jec
         do i=isc,iec
-!          diff_cbt(i,j,k,1) = Grd%tmask(i,j,kp1)*(diff_cbt(i,j,k,1) + background_diffusivity)
-!          diff_cbt(i,j,k,2) = Grd%tmask(i,j,kp1)*(diff_cbt(i,j,k,2) + background_diffusivity)
-!dhb599 20110802:
+#ifndef ACCESS_CM
+          diff_cbt(i,j,k,1) = Grd%tmask(i,j,kp1)*(diff_cbt(i,j,k,1) + background_diffusivity)
+          diff_cbt(i,j,k,2) = Grd%tmask(i,j,kp1)*(diff_cbt(i,j,k,2) + background_diffusivity)
+#else
           diff_cbt(i,j,k,1) = Grd%tmask(i,j,kp1)*(diff_cbt(i,j,k,1) + bg_diff(i,j))
           diff_cbt(i,j,k,2) = Grd%tmask(i,j,kp1)*(diff_cbt(i,j,k,2) + bg_diff(i,j))
-!
+#endif
           visc_cbt(i,j,k)   = Grd%tmask(i,j,kp1)*(visc_cbt(i,j,k)   + background_viscosity)
           visc_cbu(i,j,k)   = Grd%umask(i,j,kp1)*(visc_cbu(i,j,k)   + background_viscosity)
         enddo
