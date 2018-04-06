@@ -169,7 +169,7 @@ else if( $type == ACCESS-OM ) then
     set libs = "$executable:h:h/$type/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
     setenv OASIS true
 else if( $type == ACCESS-CM ) then
-#    set srcList = ( access_coupler )
+    set srcList = ( access_coupler )
     set includes = "$includes -I$executable:h:h/$type/lib_ocean" 
     set libs = "$executable:h:h/$type/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
     setenv OASIS true
