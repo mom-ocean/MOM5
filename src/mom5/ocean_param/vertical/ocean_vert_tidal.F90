@@ -519,9 +519,8 @@ namelist /ocean_vert_tidal_nml/ use_this_module, use_legacy_methods, debug_this_
 #ifdef ACCESS_CM
 real :: lat_low_bgdiff = 20.
 real :: bg_diff_eq = 1.0e-6
-#endif
-
 namelist /bg_diff_lat_dependence_nml/ lat_low_bgdiff, bg_diff_eq
+#endif
 
 contains
 
