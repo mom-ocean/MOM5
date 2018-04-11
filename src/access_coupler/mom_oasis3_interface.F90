@@ -89,6 +89,7 @@ use mpp_domains_mod, only: mpp_get_compute_domain, &
                            mpp_get_data_domain, &
                            mpp_get_global_domain, &
                            mpp_global_field
+use mpp_parameter_mod, only: GLOBAL_ROOT_ONLY, XUPDATE, YUPDATE
 use ocean_types_mod, only: ice_ocean_boundary_type, &
                            ocean_public_type, &
                            ocean_domain_type
