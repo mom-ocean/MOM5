@@ -2953,11 +2953,13 @@ subroutine vert_mix_coeff(Time, Thickness, Velocity, T_prog,   &
   elseif(MIX_SCHEME == VERTMIX_KPP_MOM4P1) then 
     call mpp_clock_begin(id_clock_vert_kpp_mom4p1)
     call vert_mix_kpp_mom4p1(aidif, Time, Thickness, Velocity, T_prog, T_diag, Dens, &
-         swflx, sw_frac_zt, pme, river, visc_cbu, diff_cbt, hblt_depth, &
-#ifdef ACCESS_CM
+         swflx, sw_frac_zt, pme, river, visc_cbu, diff_cbt,  &
+#ifndef ACCESS_CM
+         diff_cbt_conv, &
+#else
          Ice_ocean_boundary, &
 #endif
-         do_wave)
+         hblt_depth, do_wave)
 
     ! since this scheme is frozen, we do not compute visc_cbt. 
     ! for vertical reynolds diagnostics, we set  

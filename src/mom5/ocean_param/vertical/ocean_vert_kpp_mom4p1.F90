@@ -989,13 +989,12 @@ end subroutine ocean_vert_kpp_mom4p1_init
 !
 subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag, Dens, &
                                 swflx, sw_frac_zt, pme, river, visc_cbu, diff_cbt,      &
-                                hblt_depth, &
-#ifdef ACCESS_CM
-                                Ice_ocean_boundary, &
-#else
+#ifndef ACCESS_CM
                                 diff_cbt_conv, &
+#else
+                                Ice_ocean_boundary, &
 #endif
-                                do_wave)
+                                hblt_depth, do_wave)
 
   real,                            intent(in)    :: aidif
   type(ocean_time_type),           intent(in)    :: Time
@@ -1013,8 +1012,9 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
   real, dimension(isd:,jsd:,:,:),  intent(inout) :: diff_cbt
 #ifndef ACCESS_CM
   real, dimension(isd:,jsd:,:),    intent(inout) :: diff_cbt_conv
-#endif
+#else
   type(ice_ocean_boundary_type),   intent(in)	 :: Ice_ocean_boundary
+#endif
   logical,                         intent(in)    :: do_wave
 
 
