@@ -2821,13 +2821,16 @@ subroutine blmix_kpp(Thickness, diff_cbt, visc_cbu, Ice_ocean_boundary, do_wave)
 !-----------------------------------------------------------------------
 
 ! In ACCESS_CM new scheme langmuirfactor is now calculated in wscale
+! remove if/else
 #ifndef ACCESS_CM
               if (do_wave .and. do_langmuir) then
                  ghats(i,j,ki) = Lgam * (1.-stable(i,j)) * cg    &
                         / (ws(i,j) * hbl(i,j) + epsln)
               else
+#endif
                  ghats(i,j,ki) = (1.-stable(i,j)) * cg    &
                         / (ws(i,j) * hbl(i,j) + epsln)
+#ifndef ACCESS_CM
               endif
 #endif
             endif
