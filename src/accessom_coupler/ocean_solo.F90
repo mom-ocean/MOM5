@@ -160,21 +160,25 @@ program main
 
   implicit none
 
-  type (ocean_public_type)               :: Ocean_sfc          
+  type (ocean_public_type)               :: Ocean_sfc
   type (ocean_state_type),       pointer :: Ocean_state
-  type(ice_ocean_boundary_type), target  :: Ice_ocean_boundary 
+  type(ice_ocean_boundary_type), target  :: Ice_ocean_boundary
   type(accessom2_type) :: accessom2
 
-  ! define some time types 
+  ! define some time types
   type(time_type) :: Time_init    ! initial time for experiment
   type(time_type) :: Time_start   ! start time for experiment
   type(time_type) :: Time_end     ! end time for experiment (as determined by dtts)
-  type(time_type) :: Run_len      ! length of experiment 
-  type(time_type) :: Time        
+  type(time_type) :: Run_len      ! length of experiment
+  type(time_type) :: Time
   type(time_type) :: Time_step_coupled
   type(time_type) :: Time_restart_init
   type(time_type) :: Time_restart
   type(time_type) :: Time_restart_current
+#ifdef ACCESS
+  type(time_type) :: Time_last_sfix 
+  type(time_type) :: Time_sfix 
+#endif
 
   character(len=17) :: calendar = 'julian'
 
@@ -355,6 +359,10 @@ program main
   Time_step_coupled = set_time(dt_cpld, 0)
   num_cpld_calls    = Run_len / Time_step_coupled
   Time = Time_start
+#ifdef ACCESS
+  Time_last_sfix = Time_start
+  Time_sfix = set_time(seconds=int(sfix_hours*SECONDS_PER_HOUR))
+#endif
 
   Time_restart_init = set_date(date_restart(1), date_restart(2), date_restart(3),  &
                                date_restart(4), date_restart(5), date_restart(6) )
@@ -482,9 +490,12 @@ program main
      endif
 
 #ifdef ACCESS
-     do_sfix_now = .false.
-     int_sec = (nc-1) * num_cpld_calls
-     if (mod((nc-1)*num_cpld_calls,sfix_hours*3600) == 0 .and. nc /= 1) do_sfix_now = .true.
+     if ((Time - Time_last_sfix) >= Time_sfix) then
+        do_sfix_now = .true.
+        Time_last_sfix = Time
+     else
+        do_sfix_now = .false.
+     end if
 #endif
 
      call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
