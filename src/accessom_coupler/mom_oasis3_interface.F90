@@ -93,7 +93,7 @@ use mpp_parameter_mod, only: GLOBAL_ROOT_ONLY, XUPDATE, YUPDATE
 use ocean_types_mod, only: ice_ocean_boundary_type, &
                            ocean_public_type, &
                            ocean_domain_type
-use time_manager_mod, only: time_type
+use time_manager_mod, only: time_type, get_time
 
 ! Timing
 
@@ -252,6 +252,7 @@ integer,optional         :: dt_cpld
 integer, dimension(5) :: il_paral
 integer, dimension(2) :: var_num_dims ! see below
 integer, dimension(4) :: var_shape  ! see below
+integer :: run_len_seconds
 
 !integer isg,ieg,jsg,jeg
 integer :: jcol, irow
@@ -490,7 +491,13 @@ if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling )) then
   !
   !  PRISM end of declaration phase
   !
-  call prism_enddef_proto (ierr)
+  if (present(run_len)) then
+    call get_time(run_len, run_len_seconds)
+    call prism_enddef_proto (ierr, runtime=run_len_seconds)
+  else
+    call prism_enddef_proto (ierr)
+  endif
+
   if (ierr /= PRISM_Ok) then
     call mpp_error(FATAL,'coupler_init: *** problem with prism_enddef_proto! ***' )
   endif
