@@ -57,44 +57,6 @@ program main
 !
 ! <NAMELIST NAME="ocean_solo_nml">
 !
-!   <DATA NAME="date_init"  TYPE="integer, dimension(6)"  DEFAULT="0">
-!     The date that the current integration starts with. If the restart file
-!      ocean_solo.res is present, date_init will be taken from there.
-!   </DATA>
-!   <DATA NAME="calendar"  TYPE="character(maxlen=17)"  DEFAULT="''">
-!     The calendar type used by the current integration. Valid values are consistent 
-!     with the time_manager module: 'julian', 'gregorian', 'noleap', or 'thirty_day'. 
-!     The value 'no_calendar' can not be used because the time_manager's date 
-!     function are used.
-!     
-!   </DATA>
-!   <DATA NAME="years "  TYPE="integer"  DEFAULT="0">
-!     The number of years that the current integration will be run for. 
-!   </DATA>
-!   <DATA NAME="months "  TYPE="integer"  DEFAULT="0">
-!     The number of months that the current integration will be run for. 
-!   </DATA>
-!   <DATA NAME="days "  TYPE="integer"  DEFAULT="0">
-!     The number of days that the current integration will be run for. 
-!   </DATA>
-!   <DATA NAME="hours"  TYPE="integer"  DEFAULT="0">
-!     The number of hours that the current integration will be run for. 
-!   </DATA>
-!   <DATA NAME="minutes "  TYPE="integer"  DEFAULT="0">
-!     The number of minutes that the current integration will be run for. 
-!   </DATA>
-!   <DATA NAME="seconds"  TYPE="integer"  DEFAULT="0">
-!     The number of seconds that the current integration will be run for. 
-!   </DATA>
-!   <DATA NAME="dt_cpld"  TYPE="integer"  DEFAULT="0">
-!     Time step in seconds for coupling between ocean and atmospheric models: 
-!     must be an integral multiple of dt_ocean. This is the "slow" timestep.
-!     Note that for an ocean_solo model, the coupling to an "atmosphere" is the coupling 
-!     to some data files.  In this case, dt_cpld represents the time which data is updated.
-!     For example, if data is "daily", then dt_cpld=86400 should be chosen.  
-!     If data is fixed, then dt_cpld of any integer of dt_ocean is fine, with
-!     dt_cpld=86400 the default. 
-!   </DATA>
 !  <DATA NAME="n_mask" TYPE="integer">
 !    number of region to be masked out. Its value should be less than MAX_PES.
 !  </DATA>
@@ -115,16 +77,7 @@ program main
 !
 ! </NAMELIST>
 !
-!   <NOTE>
-!     <PRE>
-!     1.The actual run length will be the sum of months, 
-!       days, hours, minutes, and seconds. A run length of zero
-!       is not a valid option. 
-!     2.The run length must be an integral multiple of the coupling 
-!       timestep dt_cpld. 
-!     </PRE>
-!   </NOTE>
-!
+
   use constants_mod,            only: constants_init, SECONDS_PER_HOUR
   use data_override_mod,        only: data_override_init, data_override
   use diag_manager_mod,         only: diag_manager_init, diag_manager_end
@@ -182,7 +135,6 @@ program main
 
   character(len=17) :: calendar = 'julian'
 
-  integer :: dt_cpld  = 86400
   integer :: num_cpld_calls  = 0
   integer :: nc
   integer :: calendar_type=-1
@@ -192,6 +144,8 @@ program main
   integer :: years=0, months=0, days=0, hours=0, minutes=0, seconds=0
   integer, dimension(1) :: calendar_type_array, years_array, months_array, \
                            days_array, hours_array, minutes_array, seconds_array
+  integer :: dt_cpld  = 86400
+  integer, dimension(1) :: dt_cpld_array
   integer :: yy, mm, dd, hh, mimi, ss
 
   integer :: isc,iec,jsc,jec
@@ -219,8 +173,7 @@ program main
   logical :: debug_this_module
   character(len=1024) :: accessom2_config_dir = '../'
 
-  namelist /ocean_solo_nml/ date_init, calendar, years, months, days, hours, minutes, seconds, dt_cpld, &
-                            n_mask, layout_mask, mask_list, restart_interval, &
+  namelist /ocean_solo_nml/ n_mask, layout_mask, mask_list, restart_interval, &
                             debug_this_module, accessom2_config_dir
 
     ! Initialise floating point exception error handler.
@@ -288,6 +241,8 @@ program main
 
       ! Set start date
       date_init(:) = accessom2%get_cur_exp_date_array()
+      ! Set timestep
+      dt_cpld_array(1) = accessom2%get_ice_ocean_timestep()
       ! Set runtime
       years_array(1) = 0
       months_array(1) = 0
@@ -297,8 +252,9 @@ program main
       seconds_array(1) = accessom2%get_total_runtime_in_seconds()
   endif
 
-  ! Broadcast calendar, start date and runtime information
+  ! Broadcast calendar, start date, runtime and timestepping information
   call mpp_broadcast(calendar_type_array, 1, mpp_root_pe())
+  call mpp_broadcast(dt_cpld_array, 1, mpp_root_pe())
   call mpp_broadcast(date_init, 6, mpp_root_pe())
   call mpp_broadcast(years_array, 1, mpp_root_pe())
   call mpp_broadcast(months_array, 1, mpp_root_pe())
@@ -306,6 +262,7 @@ program main
   call mpp_broadcast(hours_array, 1, mpp_root_pe())
   call mpp_broadcast(minutes_array, 1, mpp_root_pe())
   call mpp_broadcast(seconds_array, 1, mpp_root_pe())
+  dt_cpld = dt_cpld_array(1)
   years = years_array(1)
   months = months_array(1)
   days = days_array(1)
