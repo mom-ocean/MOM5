@@ -237,7 +237,8 @@ mom4_comm = mom4_local_comm
 end subroutine mom_prism_init
 
 !-----------------------------------------------------------------------------------
-subroutine coupler_init(Dom, Time, Time_step_coupled, Run_len, dt_cpld)
+subroutine coupler_init(Dom, Time, Time_step_coupled, dt_cpld, Run_len, &
+                        coupling_field_timesteps)
 
 ! In this routine we set up all our arrays and determine which fields are to be passed to and fro.
 ! Determine the style of coupling
@@ -246,8 +247,9 @@ subroutine coupler_init(Dom, Time, Time_step_coupled, Run_len, dt_cpld)
 ! use them for initialising.
 
 type(domain2d)  :: Dom  
-type(time_type),optional :: Time, Time_step_coupled, Run_len
 integer,optional         :: dt_cpld
+type(time_type),optional :: Time, Time_step_coupled, Run_len
+integer, dimension(:), intent(in), optional :: coupling_field_timesteps
 
 integer, dimension(5) :: il_paral
 integer, dimension(2) :: var_num_dims ! see below
@@ -493,7 +495,8 @@ if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling )) then
   !
   if (present(run_len)) then
     call get_time(run_len, run_len_seconds)
-    call prism_enddef_proto (ierr, runtime=run_len_seconds)
+    call prism_enddef_proto (ierr, runtime=run_len_seconds, &
+                             coupling_field_timesteps=coupling_field_timesteps)
   else
     call prism_enddef_proto (ierr)
   endif

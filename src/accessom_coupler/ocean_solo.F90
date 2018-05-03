@@ -142,10 +142,7 @@ program main
   integer :: date_init(6)=0, date(6)
   integer :: date_restart(6)
   integer :: years=0, months=0, days=0, hours=0, minutes=0, seconds=0
-  integer, dimension(1) :: calendar_type_array, years_array, months_array, \
-                           days_array, hours_array, minutes_array, seconds_array
   integer :: dt_cpld  = 86400
-  integer, dimension(1) :: dt_cpld_array
   integer :: yy, mm, dd, hh, mimi, ss
 
   integer :: isc,iec,jsc,jec
@@ -225,50 +222,32 @@ program main
      'ocean_solo: ocean_solo_nml entry calendar must be one of GREGORIAN|JULIAN|NOLEAP|THIRTY_DAY|NO_CALENDAR.' )
   end select
 
+  ! Initialise libaccessom2
+  call accessom2%init('mom5xx', config_dir=trim(accessom2_config_dir))
+
+  ! Tell libaccessom2 about any global configs/state
+
   ! Synchronise accessom2 'state' (i.e. configuration) between all models.
-  if ( mpp_pe() == mpp_root_pe() ) then
-      call accessom2%init('mom5xx', config_dir=trim(accessom2_config_dir))
-      call accessom2%sync_config(atm_intercomm, -1, -1)
+  call accessom2%sync_config(atm_intercomm, -1, -1)
 
-      ! Set calendar
-      if (index(accessom2%get_calendar_type(), 'noleap') > 0) then
-          calendar_type_array(1) = NOLEAP
-      elseif (index(accessom2%get_calendar_type(), 'gregorian') > 0) then
-          calendar_type_array(1) = GREGORIAN
-      else
-        call mpp_error(FATAL, 'ocean_solo: unsupported calendar type')
-      endif
-
-      ! Set start date
-      date_init(:) = accessom2%get_cur_exp_date_array()
-      ! Set timestep
-      dt_cpld_array(1) = accessom2%get_ice_ocean_timestep()
-      ! Set runtime
-      years_array(1) = 0
-      months_array(1) = 0
-      days_array(1) = 0
-      hours_array(1) = 0
-      minutes_array(1) = 0
-      seconds_array(1) = accessom2%get_total_runtime_in_seconds()
+  ! Use accessom2 configuration to set calendar
+  if (index(accessom2%get_calendar_type(), 'noleap') > 0) then
+      calendar_type = NOLEAP
+  elseif (index(accessom2%get_calendar_type(), 'gregorian') > 0) then
+      calendar_type = GREGORIAN
+  else
+    call mpp_error(FATAL, 'ocean_solo: unsupported calendar type')
   endif
 
-  ! Broadcast calendar, start date, runtime and timestepping information
-  call mpp_broadcast(calendar_type_array, 1, mpp_root_pe())
-  call mpp_broadcast(dt_cpld_array, 1, mpp_root_pe())
-  call mpp_broadcast(date_init, 6, mpp_root_pe())
-  call mpp_broadcast(years_array, 1, mpp_root_pe())
-  call mpp_broadcast(months_array, 1, mpp_root_pe())
-  call mpp_broadcast(days_array, 1, mpp_root_pe())
-  call mpp_broadcast(hours_array, 1, mpp_root_pe())
-  call mpp_broadcast(minutes_array, 1, mpp_root_pe())
-  call mpp_broadcast(seconds_array, 1, mpp_root_pe())
-  dt_cpld = dt_cpld_array(1)
-  years = years_array(1)
-  months = months_array(1)
-  days = days_array(1)
-  hours = hours_array(1)
-  minutes = minutes_array(1)
-  seconds = seconds_array(1)
+  ! Use accessom2 configuration to initial date and runtime
+  date_init(:) = accessom2%get_cur_exp_date_array()
+  dt_cpld = accessom2%get_ice_ocean_timestep()
+  years = 0
+  months = 0
+  days = 0
+  hours = 0
+  minutes = 0
+  seconds = accessom2%get_total_runtime_in_seconds()
 
   ! get ocean_solo restart : this can override settings from namelist
   if (file_exist('INPUT/ocean_solo.res')) then
@@ -431,7 +410,8 @@ program main
 
   coupler_init_clock = mpp_clock_id('OASIS init', grain=CLOCK_COMPONENT)
   call mpp_clock_begin(coupler_init_clock)
-  call external_coupler_sbc_init(Ocean_sfc%domain, dt_cpld, Run_len)
+  call external_coupler_sbc_init(Ocean_sfc%domain, dt_cpld, Run_len, &
+                                 accessom2%get_coupling_field_timesteps())
   call mpp_clock_end(coupler_init_clock)
 
   ! loop over the coupled calls
@@ -440,7 +420,7 @@ program main
      call ice_ocn_bnd_from_data(Ice_ocean_boundary)
      call mpp_clock_end(override_clock)
 
-     call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
+     call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld)
 
      if (debug_this_module) then
         call write_boundary_chksums(Ice_ocean_boundary)
@@ -496,9 +476,7 @@ program main
 
   call fms_end
 
-  if ( mpp_pe() == mpp_root_pe() ) then
-      call accessom2%deinit()
-  endif
+  call accessom2%deinit()
 
   call external_coupler_mpi_exit(mpi_comm_mom, external_initialization)
 
@@ -608,7 +586,8 @@ subroutine external_coupler_mpi_init(mom_local_communicator, &
     external_initialization = .true.
 end subroutine external_coupler_mpi_init
 
-subroutine external_coupler_sbc_init(Dom, dt_cpld, Run_len)
+subroutine external_coupler_sbc_init(Dom, dt_cpld, Run_len, &
+                                     coupling_field_timesteps)
     ! Call to routine initializing arrays etc for transferring via coupler
     ! Perform sanity checks and make sure all inputs are compatible
     use mom_oasis3_interface_mod, only : coupler_init
@@ -616,7 +595,10 @@ subroutine external_coupler_sbc_init(Dom, dt_cpld, Run_len)
     type(domain2d) :: Dom
     integer :: dt_cpld
     type(time_type) :: Run_len
-    call coupler_init(Dom, dt_cpld=dt_cpld, Run_len=Run_len)
+    integer, dimension(:), intent(in) :: coupling_field_timesteps
+
+    call coupler_init(Dom, dt_cpld=dt_cpld, Run_len=Run_len, &
+                      coupling_field_timesteps=coupling_field_timesteps)
 end  subroutine external_coupler_sbc_init
 
 subroutine external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nsteps, dt_cpld )
