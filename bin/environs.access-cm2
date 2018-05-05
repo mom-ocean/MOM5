@@ -5,6 +5,7 @@ module load intel-cc/14.3.174
 module load intel-mkl/14.3.174
 module load openmpi/1.8.2
 module load netcdf/4.3.2
+module load oasis3-mct-local/ompi185
 
 # Use prebuild Oasis3-mct library for ACCESS-CM2/nci 
-setenv OASIS_ROOT /short/p66/hxy599/ACCESS/submodels/oasis3-mct_local/Linux-182
+# setenv OASIS_ROOT /short/p66/hxy599/ACCESS/submodels/oasis3-mct_local/Linux-182
