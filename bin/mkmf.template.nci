@@ -1,39 +1,24 @@
-# Template for the NCI (nf.nci.org.au) machines. Uses intel compiler and OpenMPI.
-# typical use with mkmf
-# mkmf -t template.ifc -c"-Duse_libMPI -Duse_netCDF" path_names /usr/local/include
-############
-# commands #
-############
-ifeq ($(VTRACE), yes)
-    FC = mpifort-vt
-    LD = mpifort-vt
-else
-    FC = mpifort
-    LD = mpifort
-endif
+FC = mpif90
+LD = mpif90
 
 CC = mpicc
 
 #########
 # flags #
 #########
-REPRO =
-VERBOSE =
-OPT = on
 
 MAKEFLAGS += --jobs=4
 
-INCLUDE   = -I$(NETCDF_ROOT)/include
-
-ifneq ($(OASIS_ROOT),)
-INCLUDE  += -I$(OASIS_ROOT)/Linux/build/lib/psmile.MPI1 \
-            -I$(OASIS_ROOT)/Linux/build/lib/pio \
-            -I$(OASIS_ROOT)/Linux/build/lib/mct
-endif
+# Not required with modules
+#INCLUDE   = -I$(NETCDF_ROOT)/include \
+#			-I$(OASIS_ROOT)/include/psmile.MPI1 \
+#			-I$(OASIS_ROOT)/include/pio \
+#			-I$(OASIS_ROOT)/include/mct
+INCLUDE = 
 
 FPPFLAGS := -fpp -Wp,-w $(INCLUDE)
-FFLAGS := -fno-alias -safe-cray-ptr -fpe0 -ftz -assume byterecl -i4 -r8 -traceback -nowarn -check noarg_temp_created -assume nobuffered_io -convert big_endian -grecord-gcc-switches -align all
-FFLAGS_OPT = -O2 -debug minimal -xHost
+FFLAGS := -fno-alias -safe-cray-ptr -fpe0 -ftz -assume byterecl -i4 -r8 -traceback -nowarn -check noarg_temp_created -assume buffered_io -convert big_endian
+FFLAGS_OPT = -O3 -debug minimal -xHost
 FFLAGS_DEBUG = -g -O0 -debug all -check -check noarg_temp_created -check nopointer -warn -warn noerrors -ftrapuv
 FFLAGS_REPRO = -O2 -debug minimal -no-vec -fp-model precise
 FFLAGS_VERBOSE = -v -V -what
@@ -53,7 +38,9 @@ endif
 ifneq ($(DEBUG),)
 CFLAGS += $(CFLAGS_DEBUG)
 FFLAGS += $(FFLAGS_DEBUG)
-else
+endif
+
+ifneq ($(OPT),)
 CFLAGS += $(CFLAGS_OPT)
 FFLAGS += $(FFLAGS_OPT)
 endif
@@ -64,11 +51,8 @@ FFLAGS += $(FFLAGS_VERBOSE)
 LDFLAGS += $(LDFLAGS_VERBOSE)
 endif
 
-LIBS := -L$(NETCDF_ROOT)/lib -lnetcdf -lnetcdff \
-
-ifneq ($(OASIS_ROOT),)
-LIBS += -L$(OASIS_ROOT)/Linux/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip
-endif
+LIBS :=  -lnetcdf -lnetcdff \
+	      -lpsmile.MPI1 -lmct -lmpeu -lscrip
 
 LDFLAGS += $(LIBS)
 
