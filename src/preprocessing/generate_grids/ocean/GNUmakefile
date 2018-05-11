@@ -59,7 +59,7 @@ FREAL = $(FREAL8)
 THIS_GFDL_FMS = GFDL_fms_r8
 
 ocean_grid_generator : $(DEPS) $(OBJS)
-	$(FC) -o ocean_grid_generator $(F90FLAGS) $(OBJS) $(ESMALIB)/libGFDL_fms.a $(LIB_NETCDF)
+	$(FC) -o ocean_grid_generator $(F90FLAGS) $(OBJS) $(LIB_GFDL_FMS) $(LIB_NETCDF)
 
 
 # Make sure dep files are not remade during cleaning
