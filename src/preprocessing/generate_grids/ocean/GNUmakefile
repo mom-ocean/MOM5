@@ -56,6 +56,7 @@ USER_CDEFS  = $(USER_FDEFS)
 USER_FFLAGS += $(FREAL8) 
 
 FREAL = $(FREAL8)
+THIS_GFDL_FMS = GFDL_fms_r8
 
 ocean_grid_generator : $(DEPS) $(OBJS)
 	$(FC) -o ocean_grid_generator $(F90FLAGS) $(OBJS) $(ESMALIB)/libGFDL_fms.a $(LIB_NETCDF)

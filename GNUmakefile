@@ -94,6 +94,7 @@ USER_CDEFS  = $(USER_FDEFS)
 USER_FFLAGS += $(FREAL8) 
 
 FREAL = $(FREAL8)
+THIS_GFDL_FMS = GFDL_fms_r8
 
 ifneq ( $(wildcard ../mom4_odas_iau.F90), $(null) ) 
     FOPT += -fpe0
