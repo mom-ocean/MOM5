@@ -2491,6 +2491,7 @@ end subroutine ocean_model_data1D_get
     write (stdoutunit,'(2x,a)')             Ocean_options%bryan_lewis_mix
     write (stdoutunit,'(2x,a)')             Ocean_options%hwf_mix
     write (stdoutunit,'(2x,a)')             Ocean_options%tanh_diff_cbt
+    write (stdoutunit,'(2x,a)')             Ocean_options%j09_diff_cbt
     write (stdoutunit,'(2x,a)')             Ocean_options%horz_bih_tracer
     write (stdoutunit,'(2x,a)')             Ocean_options%horz_lap_tracer
     write (stdoutunit,'(2x,a)')             Ocean_options%horz_lap_friction
