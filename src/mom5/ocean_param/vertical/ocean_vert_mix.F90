@@ -308,7 +308,7 @@ private vert_friction_init
 private bryan_lewis_init
 private diff_cbt_tanh_init
 private hwf_init
-private j09_init
+private diff_cbt_j09_init
 private diff_cbt_table_init
 private invcosh
 private vmix_min_dissipation
@@ -1617,14 +1617,14 @@ end subroutine diff_cbt_tanh_init
 ! Initialize the j09 background diffusivity.
 ! </DESCRIPTION>
 !
-subroutine diff_cbtj09h_init(Time, Ocean_options)
+subroutine diff_cbt_j09_init(Time, Ocean_options)
   type(ocean_time_type),    intent(in)    :: Time
   type(ocean_options_type), intent(inout) :: Ocean_options
 
   real    :: j09_a, j09_b
   integer :: i,j,k
 
-  if(diff_cbt_j09) then
+  if(j09_diffusivity) then
      Ocean_options%j09_diff_cbt = 'Used j09 background vertical diffusivity.'
   else
      Ocean_options%j09_diff_cbt = 'Did NOT use j09 background vertical diffusivity.'
@@ -1662,7 +1662,7 @@ subroutine diff_cbtj09h_init(Time, Ocean_options)
                        'm^2/s',missing_value=missing_value, range=(/-1.0e-6,1e-4/))
   call diagnose_3d(Time, Grd, id_diff_cbt_j09, wrk1(:,:,:))
 
-end subroutine diff_cbt_tanh_init
+end subroutine diff_cbt_j09_init
 ! </SUBROUTINE> NAME="diff_cbt_tanh_init"
 
 !#######################################################################
