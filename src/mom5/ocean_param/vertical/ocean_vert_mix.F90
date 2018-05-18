@@ -1657,7 +1657,7 @@ subroutine diff_cbt_j09_init(Time, Ocean_options)
 
   ! register and send static tanh diffusivity
   id_diff_cbt_j09 = -1
-  id_diff_cbt_j09 = register_static_field ('ocean_model', 'diff_cbt_tanh',          &
+  id_diff_cbt_j09 = register_static_field ('ocean_model', 'diff_cbt_j09',          &
                        Grd%tracer_axes(1:3), 'Jochum 2009 background vertical diffusivity', &
                        'm^2/s',missing_value=missing_value, range=(/-1.0e-6,1e-4/))
   call diagnose_3d(Time, Grd, id_diff_cbt_j09, wrk1(:,:,:))
