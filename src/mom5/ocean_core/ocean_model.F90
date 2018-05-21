@@ -333,6 +333,8 @@ use ocean_wave_mod,               only: ocean_wave_init, ocean_wave_end, ocean_w
   use auscom_ice_mod, only: auscom_ice_init
   use auscom_ice_parameters_mod,  only: redsea_gulfbay_sfix, do_sfix_now
   use mpp_mod,                    only: mpp_pe, mpp_root_pe
+#else
+  use sat_vapor_pres_mod,         only: sat_vapor_pres_init
 #endif
 
 #ifdef ENABLE_ODA    
@@ -1340,6 +1342,8 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
     call ocean_wave_init(Grid, Domain, Waves, Time, Time_steps, Ocean_options, debug)
 #if defined(ACCESS)
     call auscom_ice_init(Ocean%domain, Time_steps)
+#else
+    call sat_vapor_pres_init()
 #endif
 
 #ifdef ENABLE_ODA    
