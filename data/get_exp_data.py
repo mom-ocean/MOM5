@@ -78,6 +78,10 @@ def main():
     # Possibly try multiple sources to get file. 
     ret = 0
     for url in src_dict[args.filename]:
+        # Convert local paths to URLs
+        if os.path.isfile(url):
+            url = 'file://' + url
+
         is_local_path, local_path = get_local_path(url)
 
         if local_path is not None:
