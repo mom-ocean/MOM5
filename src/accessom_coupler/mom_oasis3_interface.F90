@@ -104,6 +104,8 @@ use time_manager_mod, only: time_type, get_time
   use auscom_ice_mod, only : il_out 
   use cpl_netcdf_setup_mod
 
+  use simple_timer_mod, only : simple_timer_type => simple_timer
+
 implicit none
 
 public :: mom_prism_init, mom_prism_terminate, coupler_init, from_coupler, into_coupler, &
@@ -630,7 +632,7 @@ return
 end subroutine into_coupler
 
 !-----------------------------------------------------------------------------------
-subroutine from_coupler(step,Ocean_sfc,Ice_ocean_boundary, Time)
+subroutine from_coupler(step,Ocean_sfc,Ice_ocean_boundary, ice_recv_timer, Time)
 
 ! This is all highly user dependent. 
 
@@ -640,6 +642,7 @@ implicit none
 
 type (ocean_public_type) :: Ocean_sfc
 type (ice_ocean_boundary_type) :: Ice_ocean_boundary
+type(simple_timer_type), intent(inout) :: ice_recv_timer
 type (time_type),optional         :: Time
 
 real, dimension(isg:ieg,jsg:jeg) :: gtmp
@@ -669,8 +672,12 @@ real :: frac_vis_dir=0.5*0.43, frac_vis_dif=0.5*0.43,             &
   endif
 
      call mpp_clock_begin(id_oasis_recv)
-do jf =  1, num_fields_in
-     if(jf .ne. 1) call mpp_clock_begin(id_oasis_recv1)
+
+    do jf =  1, num_fields_in
+        if (jf == 2) then
+            call mpp_clock_begin(id_oasis_recv1)
+            call ice_recv_timer%start()
+        endif
 
   !if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling .and. mpp_pe() < pe_layout(1))) then
   if (mpp_pe() == mpp_root_pe() .or. (parallel_coupling )) then
@@ -764,8 +771,9 @@ do jf =  1, num_fields_in
         endif
       endif
 
-     if(jf .ne. 1) call mpp_clock_end(id_oasis_recv1)
 enddo    !jf
+     call ice_recv_timer%stop()
+     call mpp_clock_end(id_oasis_recv1)
      call mpp_clock_end(id_oasis_recv)
 
   if (chk_i2o_fields .and. (mod(step, chk_fields_period) == 0) .and. (step >= chk_fields_start_time) .and. (mpp_pe() == mpp_root_pe())) then

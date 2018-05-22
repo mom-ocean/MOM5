@@ -110,6 +110,8 @@ program main
   use auscom_ice_parameters_mod, only: redsea_gulfbay_sfix, do_sfix_now, sfix_hours, int_sec
   use accessom2_mod, only : accessom2_type => accessom2
   use coupler_mod, only : coupler_type => coupler
+  use simple_timer_mod, only : simple_timer_type => simple_timer
+  use logger_mod, only : logger_type => logger
 #endif
 
   implicit none
@@ -119,6 +121,8 @@ program main
   type(ice_ocean_boundary_type), target  :: Ice_ocean_boundary
   type(accessom2_type) :: accessom2
   type(coupler_type) :: coupler
+  type(logger_type) :: logger
+  type(simple_timer_type) :: ocean_step_timer, ice_wait_timer, ice_recv_timer
 
   ! define some time types
   type(time_type) :: Time_init    ! initial time for experiment
@@ -423,6 +427,12 @@ program main
   Ice_ocean_boundary% wfiform        = 0.0
   Ice_ocean_boundary%wnd             = 0.0
 
+  ! Initialise simple timers and a logger
+  call logger%init('mom', logfiledir='./', loglevel=accessom2%log_level)
+  call ocean_step_timer%init('ocean_step', logger)
+  call ice_wait_timer%init('ice_wait', logger)
+  call ice_recv_timer%init('ice_recv', logger)
+
   coupler_init_clock = mpp_clock_id('OASIS init', grain=CLOCK_COMPONENT)
   call mpp_clock_begin(coupler_init_clock)
   call external_coupler_sbc_init(Ocean_sfc%domain, dt_cpld, Run_len, &
@@ -431,11 +441,15 @@ program main
 
   ! loop over the coupled calls
   do nc=1, num_cpld_calls
+
      call mpp_clock_begin(override_clock)
      call ice_ocn_bnd_from_data(Ice_ocean_boundary)
      call mpp_clock_end(override_clock)
 
-     call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld)
+     call ice_wait_timer%start()
+     call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, &
+                                      dt_cpld, ice_recv_timer)
+     call ice_wait_timer%stop()
 
      if (debug_this_module) then
         call write_boundary_chksums(Ice_ocean_boundary)
@@ -452,7 +466,9 @@ program main
     end if
 #endif
 
+     call ocean_step_timer%start()
      call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
+     call ocean_step_timer%stop()
 
      Time = Time + Time_step_coupled
      if ( mpp_pe() == mpp_root_pe() ) then
@@ -471,10 +487,15 @@ program main
      end if
 
      call external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
-
   enddo
 
   call external_coupler_restart( dt_cpld, num_cpld_calls, Ocean_sfc)
+
+  ! Print out timing stats.
+  call ocean_step_timer%write_stats()
+  call ice_wait_timer%write_stats()
+  call ice_recv_timer%write_stats()
+  call logger%deinit()
 
   ! close some of the main components 
   call ocean_model_end(Ocean_sfc, Ocean_state, Time)
@@ -600,7 +621,7 @@ subroutine external_coupler_sbc_init(Dom, dt_cpld, Run_len, &
                       coupling_field_timesteps=coupling_field_timesteps)
 end  subroutine external_coupler_sbc_init
 
-subroutine external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nsteps, dt_cpld )
+subroutine external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nsteps, dt_cpld, ice_recv_timer)
     ! Perform transfers before ocean time stepping
     ! May need special tratment on first call.
 
@@ -610,13 +631,14 @@ subroutine external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nsteps, dt
     type (ice_ocean_boundary_type), intent(INOUT) :: Ice_ocean_boundary
     type (ocean_public_type) , intent(INOUT)        :: Ocean_sfc
     integer , intent(IN)                       :: nsteps, dt_cpld
+    type(simple_timer_type), intent(inout) :: ice_recv_timer
 
     integer                        :: rtimestep ! Receive timestep
     integer                        :: stimestep ! Send timestep
 
     rtimestep = (nsteps-1) * dt_cpld   ! runtime in this run segment!
     stimestep = rtimestep
-    call from_coupler( rtimestep, Ocean_sfc, Ice_ocean_boundary )
+    call from_coupler( rtimestep, Ocean_sfc, Ice_ocean_boundary, ice_recv_timer)
     call into_coupler( stimestep, Ocean_sfc, before_ocean_update = .true.)
 end subroutine external_coupler_sbc_before
 
