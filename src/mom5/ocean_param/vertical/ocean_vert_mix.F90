@@ -190,6 +190,23 @@ module ocean_vert_mix_mod
 !  When use bryan_lewis_lat_depend=.false., these are the values used globally. 
 !  </DATA> 
 !
+!  <DATA NAME="j09_diffusivity" TYPE="logical">
+!  2D background diffusivity which gets smaller in equatorial region.
+!  Ref: Jochum, M., 2009: 
+!      Impact of latitudinal variations in vertical diffusivity on climate simulations.
+!  This scheme should NOT be used if Bryan-Lewis, HWF or tanh profile is used.  
+!  Default j09_diffusivity=.false. 
+!  </DATA> 
+!  </DATA>
+!  <DATA NAME="j09_bgmin, j09_bgmax, j09_lat" UNITS="dimensionless" TYPE="real">
+!  Parameters setting the Jochum vertical vertical diffusivity profile.
+!                bg_diff = j09_a * cos (lat) + j09_b for lat <= j09_lat
+! where
+!                j09_a and j09_b define a cosine profile from the equator to j09_lat
+!                j09_bgmin is background diffusivity at the equator
+!                j09_bgmax is background diffusivity >= j09_lat
+!  </DATA>
+!
 !  <DATA NAME="use_diff_cbt_table" TYPE="logical">
 !  If .true., then read in a table that specifies (i,j,ktop-->kbottom) 
 !  and the diffusivity. This method is useful when aiming to mix vertically
@@ -291,6 +308,7 @@ private vert_friction_init
 private bryan_lewis_init
 private diff_cbt_tanh_init
 private hwf_init
+private diff_cbt_j09_init
 private diff_cbt_table_init
 private invcosh
 private vmix_min_dissipation
@@ -374,6 +392,12 @@ real    :: diff_cbt_tanh_min=2e-5
 real    :: diff_cbt_tanh_zmid=150.0
 real    :: diff_cbt_tanh_zwid=30.0
 
+! horizontal variation for j09 background vertical diffusivity
+logical :: j09_diffusivity=.false.
+real    :: j09_bgmin=1.e-6
+real    :: j09_bgmax=1.e-5
+real    :: j09_lat=20.0
+
 ! for OBC 
 logical :: have_obc=.false.   
 
@@ -445,6 +469,7 @@ integer :: id_diff_bryan_lewis_00   =-1
 integer :: id_diff_bryan_lewis_90   =-1
 integer :: id_hwf_diffusivity       =-1
 integer :: id_diff_cbt_tanh         =-1
+integer :: id_diff_cbt_j09         =-1
 integer :: id_diff_cbt_table        =-1
 integer :: id_diff_cbt_back         =-1
 integer :: id_vmix_min_diss         =-1
@@ -692,6 +717,7 @@ namelist /ocean_vert_mix_nml/ debug_this_module, vert_mix_scheme, verbose_init, 
  vert_visc_back, visc_cbu_back_max, visc_cbu_back_min, visc_cbu_back_zmid, visc_cbu_back_zwid,                      &
  hwf_diffusivity, hwf_depth_transition, hwf_min_diffusivity, hwf_30_diffusivity, hwf_N0_2Omega, hwf_diffusivity_3d, &
  diff_cbt_tanh, diff_cbt_tanh_max, diff_cbt_tanh_min, diff_cbt_tanh_zmid, diff_cbt_tanh_zwid,                       &
+ j09_diffusivity, j09_bgmin, j09_bgmax, j09_lat,                                                                    &
  quebec_2009_10_bug, vmix_rescale_nonbouss,                                                                         &
  vmix_set_min_dissipation, vmix_min_diss_const, vmix_min_diss_bvfreq_scale, vmix_min_diss_flux_ri_max,              &
  smooth_rho_N2, num_121_passes
@@ -841,6 +867,9 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
 
   ! initialize static tanh background diffusivity and add to diff_cbt_back
   call diff_cbt_tanh_init(Time, Ocean_options)
+
+  ! initialize static j09 cosine background diffusivity and add to diff_cbt_back
+  call diff_cbt_j09_init(Time, Ocean_options)
 
   ! initialize module used to compute diffusivity based on tidal dissipation
   call ocean_vert_tidal_init(Grid, Domain, Time, T_prog, Velocity, Ocean_options, dtime_t, vert_mix_scheme, horz_grid)
@@ -1581,6 +1610,60 @@ subroutine diff_cbt_tanh_init(Time, Ocean_options)
 end subroutine diff_cbt_tanh_init
 ! </SUBROUTINE> NAME="diff_cbt_tanh_init"
 
+!#######################################################################
+! <SUBROUTINE NAME="diff_cbt_j09_init">
+!
+! <DESCRIPTION>
+! Initialize the j09 background diffusivity.
+! </DESCRIPTION>
+!
+subroutine diff_cbt_j09_init(Time, Ocean_options)
+  type(ocean_time_type),    intent(in)    :: Time
+  type(ocean_options_type), intent(inout) :: Ocean_options
+
+  real    :: j09_a, j09_b
+  integer :: i,j,k
+
+  if(j09_diffusivity) then
+     Ocean_options%j09_diff_cbt = 'Used j09 background vertical diffusivity.'
+  else
+     Ocean_options%j09_diff_cbt = 'Did NOT use j09 background vertical diffusivity.'
+     return 
+  endif 
+
+  if(bryan_lewis_diffusivity .or. hwf_diffusivity .or. diff_cbt_tanh) then
+    call mpp_error(WARNING,&
+    '==>Warning from ocean_vert_mix_mod: Enabling j09 diff_cbt on top of either Bryan-Lewis  HWF or tanh. Not recommended.')
+  endif 
+  
+  ! static background vertical diffusivity 
+  j09_a =  (j09_bgmax - j09_bgmin)/(cos(j09_lat*deg_to_rad) - 1.)
+  j09_b = j09_bgmin - j09_a
+  
+
+  ! compute j09 diffusivity and add to background diffusivity 
+
+  wrk1 = j09_bgmax*Grd%tmask
+  do k=1,nk
+     do j=jsc,jec
+        do i=isc,iec
+           if(abs(Grd%yt(i,j)) <= j09_lat) then
+              wrk1(i,j,k) = (j09_a * cos(Grd%yt(i,j)*deg_to_rad) + j09_b)*Grd%tmask(i,j,k)
+           endif
+           diff_cbt_back(i,j,k) = diff_cbt_back(i,j,k) +  wrk1(i,j,k)
+        enddo
+     enddo
+  enddo
+
+  ! register and send static tanh diffusivity
+  id_diff_cbt_j09 = -1
+  id_diff_cbt_j09 = register_static_field ('ocean_model', 'diff_cbt_j09',          &
+                       Grd%tracer_axes(1:3), 'Jochum 2009 background vertical diffusivity', &
+                       'm^2/s',missing_value=missing_value, range=(/-1.0e-6,1e-4/))
+  call diagnose_3d(Time, Grd, id_diff_cbt_j09, wrk1(:,:,:))
+
+end subroutine diff_cbt_j09_init
+! </SUBROUTINE> NAME="diff_cbt_tanh_init"
 
 !#######################################################################
 ! <SUBROUTINE NAME="vert_friction_init">
