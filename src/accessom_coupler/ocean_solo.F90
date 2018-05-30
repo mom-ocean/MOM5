@@ -169,6 +169,7 @@ program main
   logical :: external_initialization
   logical :: debug_this_module
   character(len=1024) :: accessom2_config_dir = '../'
+  integer, dimension(6) :: date_array
 
   namelist /ocean_solo_nml/ n_mask, layout_mask, mask_list, restart_interval, &
                             debug_this_module, accessom2_config_dir
@@ -476,7 +477,11 @@ program main
 
   call fms_end
 
-  call accessom2%deinit()
+  ! Allow libaccessom2 to check that all models are synchronised at the end of
+  ! the run.
+  call get_date(Time, date_array(1), date_array(2), date_array(3), &
+                date_array(4), date_array(5), date_array(6))
+  call accessom2%deinit(cur_date_array=date_array)
 
   call external_coupler_mpi_exit(mpi_comm_mom, external_initialization)
 
