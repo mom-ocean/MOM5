@@ -218,12 +218,7 @@ module ocean_density_mod
 !  and temperature. 
 !  Default eos_linear=.false.
 !  </DATA>
-!  <DATA NAME="neutral_rho_equal_theta" TYPE="logical">
-!  Set to true to use temperature instead of neutral density as the
-!  binning variable for water-mass diagnostics.
-!  Default neutral_rho_equal_theta=.false.
-!  </DATA>
-
+!
 !  <DATA NAME="alpha_linear_eos" TYPE="real">
 !  Constant "thermal expansion coefficient" for linear EOS 
 !  rho = rho0 - alpha_linear_eos*theta + beta_linear_eos*salinity
@@ -489,6 +484,9 @@ logical :: used
 integer :: id_eos_salinity   =-1
 integer :: id_drhodtheta     =-1
 integer :: id_drhodsalt      =-1
+integer :: id_dpotrhodtheta  =-1
+integer :: id_dpotrhodsalt   =-1
+integer :: id_dpotrhodpress  =-1
 integer :: id_drhodpress     =-1
 integer :: id_thermal_expand =-1
 integer :: id_haline_contract=-1
@@ -711,7 +709,7 @@ logical :: do_bitwise_exact_sum  = .false.
 
 namelist /ocean_density_nml/ s_test, t_test, p_test, press_standard,                  &
                              sn_test, tn_test,                                        &
-                             eos_linear, alpha_linear_eos, beta_linear_eos,           & 
+                             eos_linear, alpha_linear_eos, beta_linear_eos,           &
                              neutral_rho_equal_theta,                                 &
                              eos_preteos10, eos_teos10,                               &
                              potrho_press, potrho_min, potrho_max,                    &
@@ -970,6 +968,9 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
     allocate(Dens%neutralrho(isd:ied,jsd:jed,nk))
     allocate(Dens%pressure_at_depth(isd:ied,jsd:jed,nk))
     allocate(Dens%drhodT(isd:ied,jsd:jed,nk))
+    allocate(Dens%dpotrhodT(isd:ied,jsd:jed,nk))
+    allocate(Dens%dpotrhodS(isd:ied,jsd:jed,nk))
+    allocate(Dens%dpotrhodP(isd:ied,jsd:jed,nk))
     allocate(Dens%drhodS(isd:ied,jsd:jed,nk))
     allocate(Dens%drhodP(isd:ied,jsd:jed,nk))
     allocate(Dens%drhodz_wt(isd:ied,jsd:jed,nk))
@@ -999,6 +1000,9 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
     Dens%rho_salinity(:,:,:,2)   = Grid%tmask(:,:,:)*35 
     Dens%rho_salinity(:,:,:,3)   = Grid%tmask(:,:,:)*35 
     Dens%drhodT(:,:,:)           = 0.0
+    Dens%dpotrhodT(:,:,:)        = 0.0
+    Dens%dpotrhodS(:,:,:)        = 0.0
+    Dens%dpotrhodP(:,:,:)        = 0.0
     Dens%drhodS(:,:,:)           = 0.0
     Dens%drhodP(:,:,:)           = 0.0
     Dens%drhodz_wt(:,:,:)        = Grid%tmask(:,:,:)*epsln_drhodz
@@ -1477,6 +1481,15 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
                   missing_value=-1e10, range=(/-1e10,1e10/))
   id_drhodsalt   = register_diag_field ('ocean_model', 'drhodsalinity', Grd%tracer_axes(1:3), &
                    Time%model_time, 'd(rho)/d(salinity)', 'kg/m^3/psu',                       &
+                   missing_value=missing_value, range=(/-1e9,1e9/))
+  id_dpotrhodtheta = register_diag_field ('ocean_model', 'dpotrhodtheta', Grd%tracer_axes(1:3), &
+                  Time%model_time, 'd(potrho)/d(theta)', 'kg/m^3/C',                            &
+                  missing_value=-1e10, range=(/-1e10,1e10/))
+  id_dpotrhodsalt   = register_diag_field ('ocean_model', 'dpotrhodsalt', Grd%tracer_axes(1:3), & 
+                   Time%model_time, 'd(potrho)/d(salinity)', 'kg/m^3/psu',                      &
+                   missing_value=missing_value, range=(/-1e9,1e9/))
+  id_dpotrhodpress  = register_diag_field ('ocean_model', 'dpotrhodpress', Grd%tracer_axes(1:3), &
+                   Time%model_time, 'd(potrho)/d(press)', 'kg/m^3/psu',                          &
                    missing_value=missing_value, range=(/-1e9,1e9/))
   id_drhodpress  = register_diag_field ('ocean_model', 'drhodpress', Grd%tracer_axes(1:3), &
                    Time%model_time, 'd(rho)/d(press)', '(kg/m^3)/dbar',                    &
@@ -2229,6 +2242,12 @@ end subroutine ocean_density_diag
   call density_derivs(Dens%rho(:,:,:,tau), Dens%rho_salinity(:,:,:,tau),    &
                       Temp%field(:,:,:,tau), Dens%pressure_at_depth(:,:,:), &
                       Time, Dens%drhodT(:,:,:), Dens%drhodS(:,:,:), Dens%drhodP(:,:,:)) 
+
+  ! compute dpotrhodT and dpotrhodS
+  ! do so with tau values for salinity, temperature, and pressure
+  call density_derivs_potrho(Time, Dens%potrho(:,:,:), Dens%rho_salinity(:,:,:,tau),&
+                             Temp%field(:,:,:,tau), Dens%dpotrhodT(:,:,:),          &
+                             Dens%dpotrhodS(:,:,:), Dens%dpotrhodP(:,:,:))
 
   ! compute buoyancy frequency for diagnostic purposes 
   if (use_blobs) then
@@ -3724,6 +3743,160 @@ end subroutine compute_density_diagnostics
 
   end subroutine density_derivs_field
 ! </SUBROUTINE> NAME="density_derivs_field"
+
+!#######################################################################
+! <SUBROUTINE NAME="density_derivs_pothro">
+!
+! <DESCRIPTION>
+! Compute partial derivative of density with respect to
+! temperature and with respect to salinity.  Use potrho_press
+! reference depth for potential density rather than neutral.
+!
+! These coefficients are useful for certain diagnostics, such as APE
+! calculations.
+!
+! The algorithm is identical to density_derivs_field, only here we set
+! the pressure to a constant reference pressure value, potrho_press.
+!
+! Pressure here is
+! sea pressure = absolute press - press_standard (dbars)
+!
+! </DESCRIPTION>
+!
+  subroutine density_derivs_potrho (Time, rho, salinity, theta, &
+             density_theta, density_salinity, density_press)
+
+    type(ocean_time_type),        intent(in)    :: Time
+    real, dimension(isd:,jsd:,:), intent(in)    :: rho
+    real, dimension(isd:,jsd:,:), intent(in)    :: salinity
+    real, dimension(isd:,jsd:,:), intent(in)    :: theta
+    real, dimension(isd:,jsd:,:), intent(inout) :: density_theta
+    real, dimension(isd:,jsd:,:), intent(inout) :: density_salinity
+    real, dimension(isd:,jsd:,:), intent(inout) :: density_press
+    real, dimension(isd:ied,jsd:jed,nk)         :: pressure
+
+    integer :: i, j, k
+    real :: t1, t2, s1, sp5, p1, p1t1
+    real :: dnum_dtheta,    dden_dtheta
+    real :: dnum_dsalinity, dden_dsalinity
+    real :: dnum_dpress, dden_dpress
+
+    if ( .not. module_is_initialized ) then
+      call mpp_error(FATAL, &
+      '==>Error in ocean_density_mod (density_derivs_field): module must be initialized')
+    endif
+
+    pressure(:,:,:) = Grd%tmask(:,:,:)*potrho_press
+
+    if(eos_linear) then
+
+        do k=1,nk
+           do j=jsd,jed
+              do i=isd,ied
+                 density_theta(i,j,k)    = -alpha_linear_eos
+                 density_salinity(i,j,k) =  beta_linear_eos
+                 density_press(i,j,k)    =  0.0
+              enddo
+           enddo
+        enddo
+
+    elseif(eos_preteos10) then
+
+        do k=1,nk
+           do j=jsd,jed
+              do i=isd,ied
+
+                 t1  = theta(i,j,k)
+                 t2  = t1*t1
+                 s1  = salinity(i,j,k)
+                 sp5 = sqrt(s1)
+
+                 p1   = pressure(i,j,k) - press_standard
+                 p1t1 = p1*t1
+
+                 dnum_dtheta = a1 + t1*(two_a2 + three_a3*t1) &
+                      + a5*s1                                 &
+                      + p1t1*(two_a8 + two_a11*p1)
+                 dden_dtheta = b1 + t1*(two_b2 + t1*(three_b3 + four_b4*t1)) &
+                      + s1*(b6 + t1*(three_b7*t1 + two_b9*sp5))              &
+                      + p1*p1*(three_b11*t2 + b12*p1)
+
+                 dnum_dsalinity = a4 + a5*t1 + two_a6*s1 + a9*p1
+                 dden_dsalinity = b5 + t1*(b6 + b7*t2) + sp5*(onep5_b8 + onep5_b9*t2)
+
+                 dnum_dpress = a7 + a9*s1 + two_a10*p1 + t2*(a8 + two_a11*p1)
+                 dden_dpress = b10 + p1*t1*(two_b11*t2 + three_b12*p1)
+
+                 density_theta(i,j,k)    = denominator_r(i,j,k)*(dnum_dtheta    - rho(i,j,k)*dden_dtheta)
+                 density_salinity(i,j,k) = denominator_r(i,j,k)*(dnum_dsalinity - rho(i,j,k)*dden_dsalinity)
+                 density_press(i,j,k)    = denominator_r(i,j,k)*(dnum_dpress    - rho(i,j,k)*dden_dpress)
+
+              enddo
+           enddo
+        enddo
+
+    else  ! eos_teos10
+
+        do k=1,nk
+           do j=jsd,jed
+              do i=isd,ied
+
+                 t1  = theta(i,j,k)
+                 t2  = t1*t1
+                 s1  = salinity(i,j,k)
+                 sp5 = sqrt(s1)
+
+                 p1   = pressure(i,j,k) - press_standard
+                 p1t1 = p1*t1
+
+                 dnum_dtheta = v02 + t1*(two_v03 + three_v04*t1)     &
+                      + s1*((v06+two_v07*t1)                         &
+                      +     sp5*(v09 + t1*(two_v10 + three_v11*t1))) &
+                      + p1*((v13 + two_v14*t1) + s1*v16              &
+                      +     p1*(v18+two_v19*t1))
+
+                 dden_dtheta = v22 + t1*(two_v23 +t1*(three_v24+four_v25*t1))       &
+                      + s1*(v27 + t1*(two_v28 + t1*(three_v29  + four_v30*t1))      &
+                      +     sp5*(v32+t1*(two_v33 + t1*(three_v34 +four_v35*t1))))   &
+                      + p1*((v38 + t1*(two_v39 + three_v40*t1))                     &
+                      +     s1*v42                                                  &
+                      +     p1*((v44 + two_v45*t1 + v46*s1)                         &
+                      +     p1*v48))
+
+                 dnum_dsalinity =                                    &
+                      + (v05 + t1*(v06 + v07*t1)                     &
+                      + 1.5*sp5*(v08 + t1*(v09 + t1*(v10 + v11*t1))))&
+                      + p1*((v15 + v16*t1) &
+                      +      p1*v20)
+
+                 dden_dsalinity =                                                 &
+                      (v26 + t1*(v27 + t1*(v28 + t1*(v29 + v30*t1))) + two_v36*s1 &
+                      + 1.5*sp5*(v31 + t1*(v32 + t1*(v33 + t1*(v34 + v35*t1)))))  &
+                      + p1*( v41 + v42*t1 + p1*t1*v46 )
+
+                 dnum_dpress = v12 + t1*(v13 + v14*t1) + s1*(v15 + v16*t1)    &
+                      + p1*(two_v17 + t1*(two_v18 + two_v19*t1) + two_v20*s1)
+                 dden_dpress = (v37 + t1*(v38 + t1*(v39 + v40*t1))            &
+                      + s1*(v41 + v42*t1)                                     &
+                      + p1*(two_v43 + t1*(two_v44 + two_v45*t1 + two_v46*s1)  &
+                      + p1*(three_v47 + three_v48*t1)))
+
+                 density_theta(i,j,k)    = denominator_r(i,j,k)*(dnum_dtheta    - rho(i,j,k)*dden_dtheta)
+                 density_salinity(i,j,k) = denominator_r(i,j,k)*(dnum_dsalinity - rho(i,j,k)*dden_dsalinity)
+                 density_press(i,j,k)    = denominator_r(i,j,k)*(dnum_dpress    - rho(i,j,k)*dden_dpress)*c2dbars
+
+              enddo
+           enddo
+        enddo
+
+    endif
+
+    call diagnose_3d(Time, Grd, id_dpotrhodtheta, density_theta(:,:,:))
+    call diagnose_3d(Time, Grd, id_dpotrhodsalt, density_salinity(:,:,:))
+    call diagnose_3d(Time, Grd, id_dpotrhodpress, density_press(:,:,:))
+
+  end subroutine density_derivs_potrho
+! </SUBROUTINE> NAME="density_derivs_potrho"
 
 
 !#######################################################################

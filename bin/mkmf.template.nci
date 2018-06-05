@@ -25,6 +25,12 @@ MAKEFLAGS += --jobs=4
 
 INCLUDE   = -I$(NETCDF_ROOT)/include
 
+ifneq ($(LIBACCESSOM2_ROOT),)
+INCLUDE  += -I$(LIBACCESSOM2_ROOT)/build/oasis3-mct-prefix/src/oasis3-mct/Linux/build/lib/psmile.MPI1 \
+            -I$(LIBACCESSOM2_ROOT)/build/oasis3-mct-prefix/src/oasis3-mct/Linux/build/lib/mct \
+            -I$(LIBACCESSOM2_ROOT)/build/include
+endif
+
 ifneq ($(OASIS_ROOT),)
 INCLUDE  += -I$(OASIS_ROOT)/Linux/build/lib/psmile.MPI1 \
             -I$(OASIS_ROOT)/Linux/build/lib/pio \
@@ -68,6 +74,10 @@ LIBS := -L$(NETCDF_ROOT)/lib -lnetcdf -lnetcdff \
 
 ifneq ($(OASIS_ROOT),)
 LIBS += -L$(OASIS_ROOT)/Linux/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip
+endif
+
+ifneq ($(LIBACCESSOM2_ROOT),)
+LIBS += -L$(LIBACCESSOM2_ROOT)/build/lib -laccessom2
 endif
 
 LDFLAGS += $(LIBS)

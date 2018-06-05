@@ -287,6 +287,7 @@ integer :: id_eta_tend_subdiff_tend     =-1
 integer :: id_eta_tend_subdiff_tend_glob=-1
 
 integer :: id_neut_rho_submeso          =-1
+integer :: id_pot_rho_submeso           =-1
 integer :: id_neut_rho_submeso_on_nrho  =-1
 integer :: id_wdian_rho_submeso         =-1
 integer :: id_wdian_rho_submeso_on_nrho =-1
@@ -3780,6 +3781,12 @@ subroutine watermass_diag_init(Time, Dens)
     '(kg/m^3)/sec', missing_value=missing_value, range=(/-1.e10,1.e10/))
   if(id_neut_rho_submeso > 0) compute_watermass_diag = .true.
 
+  id_pot_rho_submeso = register_diag_field ('ocean_model', 'pot_rho_submeso',&
+    Grd%tracer_axes(1:3), Time%model_time,                                   &
+    'update of depth referenced potential density from submeso param',       &
+    '(kg/m^3)/sec', missing_value=missing_value, range=(/-1.e10,1.e10/))
+  if(id_pot_rho_submeso > 0) compute_watermass_diag = .true.
+
   id_wdian_rho_submeso = register_diag_field ('ocean_model', 'wdian_rho_submeso',&
     Grd%tracer_axes(1:3), Time%model_time,                                       &
     'dianeutral mass transport due to submeso closure',                          &
@@ -4112,6 +4119,7 @@ subroutine watermass_diag(Time, T_prog, Dens)
   call diagnose_3d_rho(Time, Dens, id_wdian_rho_submeso_on_nrho, wrk3)
   call diagnose_3d_rho(Time, Dens, id_tform_rho_submeso_on_nrho, wrk4)
 
+
   ! sea level tendency 
   if(id_eta_tend_submeso_tend > 0 .or. id_eta_tend_submeso_tend_glob > 0) then
       eta_tend(:,:) = 0.0
@@ -4126,6 +4134,23 @@ subroutine watermass_diag(Time, T_prog, Dens)
       call diagnose_sum(Time, Grd, Dom, id_eta_tend_submeso_tend_glob, eta_tend, cellarea_r)
   endif
 
+
+  ! potential rho related diagnostics
+  if(id_pot_rho_submeso > 0) then 
+     wrk1(:,:,:) = 0.0
+     wrk2(:,:,:) = 0.0
+     do k=1,nk
+        do j=jsc,jec
+           do i=isc,iec
+              wrk1(i,j,k) = Dens%dpotrhodT(i,j,k)*T_prog(index_temp)%wrk1(i,j,k) &
+                           +Dens%dpotrhodS(i,j,k)*T_prog(index_salt)%wrk1(i,j,k)
+              wrk2(i,j,k) = wrk1(i,j,k)*Dens%rho_dztr_tau(i,j,k)
+           enddo
+        enddo
+     enddo
+     call diagnose_3d(Time, Grd, id_pot_rho_submeso, wrk2(:,:,:))
+  endif
+  
 
   ! temp related diagnostics 
   wrk1(:,:,:) = 0.0

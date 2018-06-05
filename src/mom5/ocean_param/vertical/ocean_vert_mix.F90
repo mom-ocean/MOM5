@@ -190,6 +190,23 @@ module ocean_vert_mix_mod
 !  When use bryan_lewis_lat_depend=.false., these are the values used globally. 
 !  </DATA> 
 !
+!  <DATA NAME="j09_diffusivity" TYPE="logical">
+!  2D background diffusivity which gets smaller in equatorial region.
+!  Ref: Jochum, M., 2009: 
+!      Impact of latitudinal variations in vertical diffusivity on climate simulations.
+!  This scheme should NOT be used if Bryan-Lewis, HWF or tanh profile is used.  
+!  Default j09_diffusivity=.false. 
+!  </DATA> 
+!  </DATA>
+!  <DATA NAME="j09_bgmin, j09_bgmax, j09_lat" UNITS="dimensionless" TYPE="real">
+!  Parameters setting the Jochum vertical vertical diffusivity profile.
+!                bg_diff = j09_a * cos (lat) + j09_b for lat <= j09_lat
+! where
+!                j09_a and j09_b define a cosine profile from the equator to j09_lat
+!                j09_bgmin is background diffusivity at the equator
+!                j09_bgmax is background diffusivity >= j09_lat
+!  </DATA>
+!
 !  <DATA NAME="use_diff_cbt_table" TYPE="logical">
 !  If .true., then read in a table that specifies (i,j,ktop-->kbottom) 
 !  and the diffusivity. This method is useful when aiming to mix vertically
@@ -291,6 +308,7 @@ private vert_friction_init
 private bryan_lewis_init
 private diff_cbt_tanh_init
 private hwf_init
+private diff_cbt_j09_init
 private diff_cbt_table_init
 private invcosh
 private vmix_min_dissipation
@@ -298,6 +316,8 @@ private watermass_diag_init
 private watermass_diag
 private vert_diffuse_implicit_diag
 private vert_diffuse_watermass_diag
+private watermass_potrho_diag
+private vert_diffuse_watermass_potrho_diag
 
 
 ! scheme used to compute the vertical diffusivity and vertical viscosity
@@ -339,8 +359,9 @@ real    :: cellarea_r
 ! for determining how to incorporate the background diffusivity
 logical :: vert_diff_back_via_max=.true.
 
-! internally set for computing watermass diagnostics 
-logical :: compute_watermass_diag=.false.
+! internally set for computing watermass diagnostics
+logical :: compute_watermass_diag       =.false.
+logical :: compute_watermass_potrho_diag=.false.
 
 ! for Bryan-Lewis background vertical diffusivity profile 
 logical :: use_explicit_vert_diffuse=.true.             ! to use time-explicit vertical tracer diffusion 
@@ -371,6 +392,12 @@ real    :: diff_cbt_tanh_min=2e-5
 real    :: diff_cbt_tanh_zmid=150.0
 real    :: diff_cbt_tanh_zwid=30.0
 
+! horizontal variation for j09 background vertical diffusivity
+logical :: j09_diffusivity=.false.
+real    :: j09_bgmin=1.e-6
+real    :: j09_bgmax=1.e-5
+real    :: j09_lat=20.0
+
 ! for OBC 
 logical :: have_obc=.false.   
 
@@ -395,6 +422,7 @@ real, dimension(:,:,:), allocatable :: wrk2_vmix
 real, dimension(:,:,:), allocatable :: diff_cbt_wave
 real, dimension(:,:,:), allocatable :: diff_cbt_leewave
 real, dimension(:,:,:), allocatable :: diff_cbt_drag
+real, dimension(:,:,:), allocatable :: diff_cbt_conv
 
 ! for background diffusivity that gets smaller in equatorial region
 logical :: hwf_diffusivity      = .false.
@@ -441,6 +469,7 @@ integer :: id_diff_bryan_lewis_00   =-1
 integer :: id_diff_bryan_lewis_90   =-1
 integer :: id_hwf_diffusivity       =-1
 integer :: id_diff_cbt_tanh         =-1
+integer :: id_diff_cbt_j09         =-1
 integer :: id_diff_cbt_table        =-1
 integer :: id_diff_cbt_back         =-1
 integer :: id_vmix_min_diss         =-1
@@ -471,6 +500,7 @@ integer :: id_eta_tend_k33_tend      =-1
 integer :: id_eta_tend_k33_tend_glob =-1
 
 integer :: id_neut_rho_k33          =-1
+integer :: id_pot_rho_k33           =-1
 integer :: id_wdian_rho_k33         =-1
 integer :: id_tform_rho_k33         =-1
 integer :: id_neut_rho_k33_on_nrho  =-1
@@ -492,6 +522,8 @@ integer :: id_wdian_salt_k33_on_nrho =-1
 integer :: id_tform_salt_k33_on_nrho =-1
 
 integer :: id_neut_rho_diff_cbt          =-1
+integer :: id_pot_rho_diff_cbt           =-1
+integer :: id_pot_rho_diff_cbt_conv      =-1
 integer :: id_wdian_rho_diff_cbt         =-1
 integer :: id_tform_rho_diff_cbt         =-1
 integer :: id_neut_rho_diff_cbt_on_nrho  =-1
@@ -619,6 +651,9 @@ integer :: id_tform_salt_diff_back_on_nrho =-1
 integer  :: id_neut_rho_sbc              =-1
 integer  :: id_neut_rho_sbc_temp         =-1
 integer  :: id_neut_rho_sbc_salt         =-1
+integer  :: id_pot_rho_sbc               =-1
+integer  :: id_pot_rho_sbc_temp          =-1
+integer  :: id_pot_rho_sbc_salt          =-1
 integer  :: id_neut_rho_sbc_on_nrho      =-1
 integer  :: id_neut_rho_sbc_temp_on_nrho =-1
 integer  :: id_neut_rho_sbc_salt_on_nrho =-1
@@ -638,6 +673,7 @@ integer  :: id_tform_rho_sbc_temp_on_nrho =-1
 integer  :: id_tform_rho_sbc_salt_on_nrho =-1
 
 integer  :: id_neut_rho_bbc_temp          =-1
+integer  :: id_pot_rho_bbc_temp           =-1
 integer  :: id_wdian_rho_bbc_temp         =-1
 integer  :: id_tform_rho_bbc_temp         =-1
 integer  :: id_neut_rho_bbc_temp_on_nrho  =-1
@@ -651,6 +687,7 @@ integer, dimension(:), allocatable :: id_vdiffuse_k33
 integer, dimension(:), allocatable :: id_vdiffuse_k33_on_nrho
 integer, dimension(:), allocatable :: id_vdiffuse_diff_cbt
 integer, dimension(:), allocatable :: id_vdiffuse_diff_cbt_on_nrho
+integer, dimension(:), allocatable :: id_vdiffuse_diff_cbt_conv
 integer, dimension(:), allocatable :: id_vdiffuse_sbc
 integer, dimension(:), allocatable :: id_vdiffuse_sbc_on_nrho
 integer, dimension(:), allocatable :: id_vdiffuse_bbc
@@ -680,6 +717,7 @@ namelist /ocean_vert_mix_nml/ debug_this_module, vert_mix_scheme, verbose_init, 
  vert_visc_back, visc_cbu_back_max, visc_cbu_back_min, visc_cbu_back_zmid, visc_cbu_back_zwid,                      &
  hwf_diffusivity, hwf_depth_transition, hwf_min_diffusivity, hwf_30_diffusivity, hwf_N0_2Omega, hwf_diffusivity_3d, &
  diff_cbt_tanh, diff_cbt_tanh_max, diff_cbt_tanh_min, diff_cbt_tanh_zmid, diff_cbt_tanh_zwid,                       &
+ j09_diffusivity, j09_bgmin, j09_bgmax, j09_lat,                                                                    &
  quebec_2009_10_bug, vmix_rescale_nonbouss,                                                                         &
  vmix_set_min_dissipation, vmix_min_diss_const, vmix_min_diss_bvfreq_scale, vmix_min_diss_flux_ri_max,              &
  smooth_rho_N2, num_121_passes
@@ -798,9 +836,11 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
   allocate (diff_cbt_wave(isd:ied,jsd:jed,nk))
   allocate (diff_cbt_leewave(isd:ied,jsd:jed,nk))
   allocate (diff_cbt_drag(isd:ied,jsd:jed,nk))
+  allocate (diff_cbt_conv(isd:ied,jsd:jed,nk))
   diff_cbt_wave(:,:,:)    = 0.0 
   diff_cbt_leewave(:,:,:) = 0.0 
   diff_cbt_drag(:,:,:)    = 0.0 
+  diff_cbt_conv(:,:,:)    = 0.0 
 
   ! initialize clock ids 
   id_clock_vert_const       = mpp_clock_id('(Ocean vmix: constant)'        ,grain=CLOCK_ROUTINE)
@@ -827,6 +867,9 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
 
   ! initialize static tanh background diffusivity and add to diff_cbt_back
   call diff_cbt_tanh_init(Time, Ocean_options)
+
+  ! initialize static j09 cosine background diffusivity and add to diff_cbt_back
+  call diff_cbt_j09_init(Time, Ocean_options)
 
   ! initialize module used to compute diffusivity based on tidal dissipation
   call ocean_vert_tidal_init(Grid, Domain, Time, T_prog, Velocity, Ocean_options, dtime_t, vert_mix_scheme, horz_grid)
@@ -937,6 +980,7 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
   allocate( id_vdiffuse_k33_on_nrho(num_prog_tracers) )
   allocate( id_vdiffuse_diff_cbt(num_prog_tracers) )
   allocate( id_vdiffuse_diff_cbt_on_nrho(num_prog_tracers) )
+  allocate( id_vdiffuse_diff_cbt_conv(num_prog_tracers) )
   allocate( id_vdiffuse_sbc(num_prog_tracers) )
   allocate( id_vdiffuse_sbc_on_nrho(num_prog_tracers) )
   allocate( id_vdiffuse_bbc(num_prog_tracers) )
@@ -948,6 +992,7 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
   id_vdiffuse_k33_on_nrho     =-1
   id_vdiffuse_diff_cbt=-1
   id_vdiffuse_diff_cbt_on_nrho=-1
+  id_vdiffuse_diff_cbt_conv=-1
   id_vdiffuse_sbc     =-1
   id_vdiffuse_sbc_on_nrho=-1
   id_vdiffuse_bbc     =-1
@@ -979,6 +1024,10 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
          id_vdiffuse_diff_cbt(n) = register_diag_field ('ocean_model',               &
               trim(T_prog(n)%name)//'_vdiffuse_diff_cbt', Grd%tracer_axes(1:3),      &
               Time%model_time, 'vert diffusion of heat due to diff_cbt', 'Watts/m^2',&
+              missing_value=missing_value, range=(/-1.e16,1.e16/)) 
+         id_vdiffuse_diff_cbt_conv(n) = register_diag_field ('ocean_model',               &
+              trim(T_prog(n)%name)//'_vdiffuse_diff_cbt_conv', Grd%tracer_axes(1:3),      &
+              Time%model_time, 'vert diffusion of heat due to diff_cbt_conv','Watts/m^2', &
               missing_value=missing_value, range=(/-1.e16,1.e16/))
          id_vdiffuse_diff_cbt_on_nrho(n) = register_diag_field ('ocean_model',               &
               trim(T_prog(n)%name)//'_vdiffuse_diff_cbt_on_nrho', Dens%neutralrho_axes(1:3),      &
@@ -1016,7 +1065,7 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
          id_vdiffuse_k33(n) = register_diag_field ('ocean_model',                                &
          trim(T_prog(n)%name)//'_vdiffuse_k33', Grd%tracer_axes(1:3), Time%model_time,           &
               'vert diffusion due to K33 from neutral diffusion for '//trim(T_prog(n)%longname), &
-              trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1e20,1e20/))         
+              trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1e20,1e20/))        
          id_vdiffuse_k33_on_nrho(n) = register_diag_field ('ocean_model',                              &
               trim(T_prog(n)%name)//'_vdiffuse_k33_on_nrho', Dens%neutralrho_axes(1:3),                     &
               Time%model_time, 'vert diffusion due to K33 from neutral diffusion '//trim(T_prog(n)%longname)//' binned to neutral density',&
@@ -1024,11 +1073,15 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
          id_vdiffuse_diff_cbt(n) = register_diag_field ('ocean_model',                        &
          trim(T_prog(n)%name)//'_vdiffuse_diff_cbt', Grd%tracer_axes(1:3), Time%model_time,   &
               'vert diffusion due to diff_cbt for '//trim(T_prog(n)%longname),                &
-              trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1e20,1e20/))         
+              trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1e20,1e20/))
          id_vdiffuse_diff_cbt_on_nrho(n) = register_diag_field ('ocean_model',                        &
          trim(T_prog(n)%name)//'_vdiffuse_diff_cbt_on_nrho', Dens%neutralrho_axes(1:3), Time%model_time,   &
               'vert diffusion due to diff_cbt for '//trim(T_prog(n)%longname)//' binned to neutral density',&
               trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1e20,1e20/))
+         id_vdiffuse_diff_cbt_conv(n) = register_diag_field ('ocean_model',                     &
+         trim(T_prog(n)%name)//'_vdiffuse_diff_cbt_conv', Grd%tracer_axes(1:3),Time%model_time, &
+              'vert diffusion due to diff_cbt_conv for '//trim(T_prog(n)%longname),             &
+              trim(T_prog(n)%flux_units), missing_value=missing_value,range=(/-1e20,1e20/))
          id_vdiffuse_sbc(n) = register_diag_field ('ocean_model',                     &
          trim(T_prog(n)%name)//'_vdiffuse_sbc', Grd%tracer_axes(1:3), Time%model_time,&
               'vert diffusion due to surface flux for '//trim(T_prog(n)%longname),    &
@@ -1557,6 +1610,60 @@ subroutine diff_cbt_tanh_init(Time, Ocean_options)
 end subroutine diff_cbt_tanh_init
 ! </SUBROUTINE> NAME="diff_cbt_tanh_init"
 
+!#######################################################################
+! <SUBROUTINE NAME="diff_cbt_j09_init">
+!
+! <DESCRIPTION>
+! Initialize the j09 background diffusivity.
+! </DESCRIPTION>
+!
+subroutine diff_cbt_j09_init(Time, Ocean_options)
+  type(ocean_time_type),    intent(in)    :: Time
+  type(ocean_options_type), intent(inout) :: Ocean_options
+
+  real    :: j09_a, j09_b
+  integer :: i,j,k
+
+  if(j09_diffusivity) then
+     Ocean_options%j09_diff_cbt = 'Used j09 background vertical diffusivity.'
+  else
+     Ocean_options%j09_diff_cbt = 'Did NOT use j09 background vertical diffusivity.'
+     return 
+  endif 
+
+  if(bryan_lewis_diffusivity .or. hwf_diffusivity .or. diff_cbt_tanh) then
+    call mpp_error(WARNING,&
+    '==>Warning from ocean_vert_mix_mod: Enabling j09 diff_cbt on top of either Bryan-Lewis  HWF or tanh. Not recommended.')
+  endif 
+  
+  ! static background vertical diffusivity 
+  j09_a =  (j09_bgmax - j09_bgmin)/(cos(j09_lat*deg_to_rad) - 1.)
+  j09_b = j09_bgmin - j09_a
+  
+
+  ! compute j09 diffusivity and add to background diffusivity 
+
+  wrk1 = j09_bgmax*Grd%tmask
+  do k=1,nk
+     do j=jsc,jec
+        do i=isc,iec
+           if(abs(Grd%yt(i,j)) <= j09_lat) then
+              wrk1(i,j,k) = (j09_a * cos(Grd%yt(i,j)*deg_to_rad) + j09_b)*Grd%tmask(i,j,k)
+           endif
+           diff_cbt_back(i,j,k) = diff_cbt_back(i,j,k) +  wrk1(i,j,k)
+        enddo
+     enddo
+  enddo
+
+  ! register and send static tanh diffusivity
+  id_diff_cbt_j09 = -1
+  id_diff_cbt_j09 = register_static_field ('ocean_model', 'diff_cbt_j09',          &
+                       Grd%tracer_axes(1:3), 'Jochum 2009 background vertical diffusivity', &
+                       'm^2/s',missing_value=missing_value, range=(/-1.0e-6,1e-4/))
+  call diagnose_3d(Time, Grd, id_diff_cbt_j09, wrk1(:,:,:))
+
+end subroutine diff_cbt_j09_init
+! </SUBROUTINE> NAME="diff_cbt_tanh_init"
 
 !#######################################################################
 ! <SUBROUTINE NAME="vert_friction_init">
@@ -1711,8 +1818,9 @@ subroutine watermass_diag_init(Time, Dens)
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
-  compute_watermass_diag = .false. 
-
+  compute_watermass_diag        = .false. 
+  compute_watermass_potrho_diag = .false.
+  
   !-----------------------------------------------------
   ! vertical diffusion on temp, salt, and rho 
 
@@ -1784,6 +1892,20 @@ subroutine watermass_diag_init(Time, Dens)
    'vertical diffusion of locally ref potrho from diff_cbt',&
    '(kg/m^3)/sec',missing_value=missing_value, range=(/-1e20,1e20/))
   if(id_neut_rho_diff_cbt > 0) compute_watermass_diag = .true. 
+
+  id_pot_rho_diff_cbt = register_diag_field ('ocean_model', &
+   'pot_rho_diff_cbt',                                      &
+    Grd%tracer_axes(1:3), Time%model_time,                  &
+   'vertical diffusion of depth ref potrho from diff_cbt',&
+   '(kg/m^3)/sec',missing_value=missing_value, range=(/-1e20,1e20/))
+  if(id_pot_rho_diff_cbt > 0) compute_watermass_potrho_diag = .true. 
+
+  id_pot_rho_diff_cbt_conv = register_diag_field ('ocean_model',     &
+   'pot_rho_diff_cbt_conv',                                          &
+    Grd%tracer_axes(1:3), Time%model_time,                           &
+   'vertical diffusion of depth ref potrho from convective diff_cbt',&
+   '(kg/m^3)/sec',missing_value=missing_value, range=(/-1e20,1e20/))
+  if(id_pot_rho_diff_cbt_conv > 0) compute_watermass_potrho_diag = .true. 
 
   id_wdian_rho_diff_cbt = register_diag_field ('ocean_model', 'wdian_rho_diff_cbt',&
     Grd%tracer_axes(1:3), Time%model_time,                                         &
@@ -1907,6 +2029,13 @@ subroutine watermass_diag_init(Time, Dens)
    'tendency of locally ref potrho from K33impl',      &
    '(kg/m^3)/sec',missing_value=missing_value, range=(/-1e20,1e20/))
   if(id_neut_rho_k33 > 0) compute_watermass_diag = .true. 
+
+  id_pot_rho_k33 = register_diag_field ('ocean_model',&
+   'pot_rho_k33',                                     &
+   Grd%tracer_axes(1:3), Time%model_time,             &
+   'tendency of depth ref potrho from K33impl',       &
+   '(kg/m^3)/sec',missing_value=missing_value, range=(/-1e20,1e20/))
+  if(id_pot_rho_k33 > 0) compute_watermass_potrho_diag = .true. 
 
   id_wdian_rho_k33 = register_diag_field ('ocean_model', 'wdian_rho_k33',&
    Grd%tracer_axes(1:3), Time%model_time,                                &
@@ -2568,6 +2697,12 @@ subroutine watermass_diag_init(Time, Dens)
         '(kg/m^3)/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
   if(id_neut_rho_sbc > 0) compute_watermass_diag = .true. 
 
+  id_pot_rho_sbc = register_diag_field ('ocean_model',                 & 
+        'pot_rho_sbc', Grd%tracer_axes(1:3), Time%model_time,          &
+        'update of depth ref potrho due to surface temp and salt flux',&
+        '(kg/m^3)/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
+  if(id_pot_rho_sbc > 0) compute_watermass_potrho_diag = .true. 
+
   id_wdian_rho_sbc = register_diag_field ('ocean_model',              & 
         'wdian_rho_sbc', Grd%tracer_axes(1:3), Time%model_time,       &
         'dianeutral mass transport due to surface temp and salt flux',&
@@ -2606,6 +2741,12 @@ subroutine watermass_diag_init(Time, Dens)
         'update of local ref potrho due to surface temp flux',     &
         '(kg/m^3)/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
   if(id_neut_rho_sbc_temp > 0) compute_watermass_diag = .true. 
+
+  id_pot_rho_sbc_temp = register_diag_field ('ocean_model',        & 
+        'pot_rho_sbc_temp', Grd%tracer_axes(1:3), Time%model_time, &
+        'update of depth ref potrho due to surface temp flux',     &
+        '(kg/m^3)/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
+  if(id_pot_rho_sbc_temp > 0) compute_watermass_potrho_diag = .true. 
 
   id_neut_rho_sbc_temp_on_nrho = register_diag_field ('ocean_model',                            & 
         'neut_rho_sbc_temp_on_nrho', Dens%neutralrho_axes(1:3), Time%model_time,                &
@@ -2647,6 +2788,12 @@ subroutine watermass_diag_init(Time, Dens)
         '(kg/m^3)/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
   if(id_neut_rho_sbc_salt > 0) compute_watermass_diag = .true. 
 
+  id_pot_rho_sbc_salt = register_diag_field ('ocean_model',        & 
+        'pot_rho_sbc_salt', Grd%tracer_axes(1:3), Time%model_time, &
+        'update of depth ref potrho due to surface salt flux',     &
+        '(kg/m^3)/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
+  if(id_pot_rho_sbc_salt > 0) compute_watermass_potrho_diag = .true. 
+
   id_neut_rho_sbc_salt_on_nrho = register_diag_field ('ocean_model',                            & 
         'neut_rho_sbc_salt_on_nrho', Dens%neutralrho_axes(1:3), Time%model_time,                &
         'update of local ref potrho due to surface salt flux binned to neutral density classes',&
@@ -2686,6 +2833,12 @@ subroutine watermass_diag_init(Time, Dens)
         'update of local ref potrho due to bottom geothermal heat flux',&
         '(kg/m^3)/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
   if(id_neut_rho_bbc_temp > 0) compute_watermass_diag = .true. 
+
+  id_pot_rho_bbc_temp = register_diag_field ('ocean_model',             & 
+        'pot_rho_bbc_temp', Grd%tracer_axes(1:3), Time%model_time,      &
+        'update of depth ref potrho due to bottom geothermal heat flux',&
+        '(kg/m^3)/sec', missing_value=missing_value, range=(/-1.e20,1.e20/))
+  if(id_pot_rho_bbc_temp > 0) compute_watermass_potrho_diag = .true. 
 
   id_wdian_rho_bbc_temp = register_diag_field ('ocean_model',          & 
         'wdian_rho_bbc_temp', Grd%tracer_axes(1:3), Time%model_time,   &
@@ -2817,7 +2970,8 @@ end subroutine watermass_diag_init
 !
 subroutine vert_mix_coeff(Time, Thickness, Velocity, T_prog,   &
                           T_diag, Dens, swflx, sw_frac_zt, pme,&
-                          river, visc_cbu, visc_cbt, diff_cbt, hblt_depth, do_wave)
+                          river, visc_cbu, visc_cbt, diff_cbt, &
+                          hblt_depth, do_wave)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_thickness_type),     intent(in)    :: Thickness
@@ -2846,10 +3000,11 @@ subroutine vert_mix_coeff(Time, Thickness, Velocity, T_prog,   &
   do k=1,nk
      do j=jsd,jed
         do i=isd,ied
-           diff_cbt(i,j,k,1) = 0.0
-           diff_cbt(i,j,k,2) = 0.0
-           visc_cbu(i,j,k)   = 0.0
-           visc_cbt(i,j,k)   = 0.0
+           diff_cbt(i,j,k,1)    = 0.0
+           diff_cbt(i,j,k,2)    = 0.0
+           diff_cbt_conv(i,j,k) = 0.0
+           visc_cbu(i,j,k)      = 0.0
+           visc_cbt(i,j,k)      = 0.0
         enddo
      enddo
   enddo
@@ -2870,8 +3025,9 @@ subroutine vert_mix_coeff(Time, Thickness, Velocity, T_prog,   &
 
   elseif(MIX_SCHEME == VERTMIX_KPP_MOM4P1) then 
     call mpp_clock_begin(id_clock_vert_kpp_mom4p1)
-    call vert_mix_kpp_mom4p1(aidif, Time, Thickness, Velocity, T_prog, T_diag, Dens, &
-                      swflx, sw_frac_zt, pme, river, visc_cbu, diff_cbt, hblt_depth, do_wave)
+    call vert_mix_kpp_mom4p1(aidif, Time, Thickness, Velocity, T_prog, T_diag, Dens,    &
+                      swflx, sw_frac_zt, pme, river, visc_cbu, diff_cbt, diff_cbt_conv, & 
+                      hblt_depth, do_wave)
     ! since this scheme is frozen, we do not compute visc_cbt. 
     ! for vertical reynolds diagnostics, we set  
     visc_cbt = visc_cbu
@@ -3227,6 +3383,7 @@ subroutine vert_diffuse_implicit(diff_cbt, index_salt, Time, Thickness, Dens, T_
   ! watermass diagnostic calls prior to updating the taup1 temp and salinity values 
   call mpp_clock_begin(id_clock_watermass_diag)
   call watermass_diag(Time, T_prog, Dens, Thickness, diff_cbt)
+  call watermass_potrho_diag(Time, T_prog, Dens, Thickness, diff_cbt)
   call mpp_clock_end(id_clock_watermass_diag)
 
 
@@ -3278,6 +3435,10 @@ subroutine vert_diffuse_implicit(diff_cbt, index_salt, Time, Thickness, Dens, T_
 
   ! diagnose some pieces of implicit vertical diffusion 
   call vert_diffuse_watermass_diag(Time, Thickness, Dens, T_prog, diff_cbt)
+
+  ! diagnose some pieces of implicit vertical diffusion 
+  call vert_diffuse_watermass_potrho_diag(Time, Thickness, Dens, T_prog, &
+                                          diff_cbt, diff_cbt_conv)
 
 end subroutine vert_diffuse_implicit
 ! </SUBROUTINE> NAME="vert_diffuse_implicit"
@@ -4703,6 +4864,266 @@ end subroutine watermass_diag
 
 
 !#######################################################################
+! <SUBROUTINE NAME="watermass_potrho_diag">
+!
+! <DESCRIPTION>
+! APE diagnostic using depth referenced potential density rather
+! than locally referenced.
+!
+! Diagnose watermass transformation diagnostics for 
+! --sbc
+! --bbc
+! --vmix = diff_cbt + K33-implicit neutral diffusion
+! Estimations of the contributions from diff_cbt alone, and 
+! from K33-implicit alone, are computed in vert_diffuse_watermass_diag.
+!
+! The diagnostic for vdiffuse computes all processes in one 
+! invtri call, which is actually how the model prognostically
+! updates tracers from vertical diffusion.  
+! 
+! The sum of the sbc + bbc + vmix should equal to the 
+! full vdiffuse diagnostic, so that, for example, 
+!
+! neut_rho_vdiffuse = neut_rho_sbc + neut_rho_bbc + neut_rho_vmix 
+!
+! Additionally, we should have 
+!
+! neut_rho_vmix = neut_rho_diff_cbt + neut_rho_k33
+!
+! with the terms neut_rho_diff_cbt and neut_rho_k33 computed 
+! in routine vert_diffuse_watermass_diag.
+!
+! watermass_diag is called prior to implicit update of the tracer
+! fields, so that the initial taup1 value contains only explicit 
+! in-time tendencies. The incremental tendencies are diagnosed
+! in this routine by various calls to invtri using same methods 
+! as for the prognostic calculation. 
+! 
+! This routine requires the logical compute_watermass_potrho_diag=.true.,
+! which is determined inside watermass_diag_init.  
+!
+! </DESCRIPTION>
+!
+subroutine watermass_potrho_diag(Time, T_prog, Dens, Thickness, diff_cbt)
+
+  type(ocean_time_type),          intent(in) :: Time
+  type(ocean_prog_tracer_type),   intent(in) :: T_prog(:)
+  type(ocean_density_type),       intent(in) :: Dens
+  type(ocean_thickness_type),     intent(in) :: Thickness
+  real, dimension(isd:,jsd:,:,:), intent(in) :: diff_cbt
+
+  integer :: i,j,k,taup1
+
+  if (.not.module_is_initialized) then 
+    call mpp_error(FATAL, &
+    '==>Error from ocean_vert_mix (watermass_diag): module needs initialization')
+  endif 
+
+  if(.not. compute_watermass_potrho_diag) return
+
+  taup1 = Time%taup1
+
+
+  !-------------------------------------------------------------------------------------
+  ! compute temp and salinity tendencies due to bottom boundary fluxes.
+
+  ! for holding the pre-implicit time step version of temp and salt.
+  wrk2_v(:,:,:,:) = 0.0
+  do k=1,nk
+     do j=jsc,jec
+        do i=isc,iec
+           wrk2_v(i,j,k,1) = T_prog(index_temp)%field(i,j,k,taup1)
+           wrk2_v(i,j,k,2) = T_prog(index_salt)%field(i,j,k,taup1)
+        enddo
+     enddo
+  enddo
+
+  ! for holding the time-tendencies 
+  wrk1_v(:,:,:,:) = 0.0
+
+  ! save temp prior to implicit time update
+  wrk2_vmix(:,:,:) = 0.0 
+  do k=1,nk
+     do j=jsc,jec
+        do i=isc,iec
+           wrk2_vmix(i,j,k) = wrk2_v(i,j,k,1)
+        enddo
+     enddo
+  enddo
+
+  ! bottom temp flux 
+  do j=jsc,jec
+     do i=isc,iec
+        wrk2_2d(i,j) = T_prog(index_temp)%btf(i,j)
+     enddo
+  enddo
+
+  ! no diffusivity or surface flux for this diagnostic calculation 
+  wrk2(:,:,:)  = 0.0
+  wrk1_2d(:,:) = 0.0
+  call invtri (wrk2_vmix(:,:,:), wrk1_2d(:,:),     & 
+       wrk2_2d(:,:), wrk2(:,:,:), dtime_t, Grd%kmt,&
+       Grd%tmask, Thickness%rho_dzt(:,:,:,taup1), Thickness%dzwt, aidif, nk)  
+
+  ! fill the tendency array and update temp
+  do k=1,nk
+     do j=jsc,jec
+        do i=isc,iec  
+           wrk1_v(i,j,k,1) = dtime_tr*Thickness%rho_dzt(i,j,k,taup1) &
+                             *Dens%dpotrhodT(i,j,k)*(wrk2_vmix(i,j,k)-wrk2_v(i,j,k,1))
+           wrk2_v(i,j,k,1) = wrk2_vmix(i,j,k)
+        enddo
+     enddo
+  enddo
+
+  if(id_pot_rho_bbc_temp > 0) then  
+     wrk1(:,:,:) = 0.0
+     wrk2(:,:,:) = 0.0
+     do k=1,nk
+        do j=jsc,jec
+           do i=isc,iec  
+              wrk1(i,j,k) = wrk1_v(i,j,k,1)
+              wrk2(i,j,k) = wrk1(i,j,k)*Dens%rho_dztr_tau(i,j,k)
+           enddo
+        enddo
+     enddo
+     call diagnose_3d(Time, Grd, id_pot_rho_bbc_temp, wrk2(:,:,:))
+  endif
+  
+  
+  !-----------------------------------------------------------------------
+  ! compute temp and salinity tendencies due to surface boundary fluxes.
+
+  ! we already have the pre-implicit time step version of temp and salt
+  ! held in k=1 from the previous step based on the bbc calculation.  
+
+  ! for holding time tendencies of temp and salinity 
+  wrk1_v(:,:,:,:) = 0.0
+
+  ! save temp prior to implicit time update
+  wrk2_vmix(:,:,:) = 0.0 
+  do k=1,nk
+     do j=jsc,jec
+        do i=isc,iec
+           wrk2_vmix(i,j,k) = wrk2_v(i,j,k,1)
+        enddo
+     enddo
+  enddo
+
+  ! surface temp flux 
+  do j=jsc,jec
+     do i=isc,iec
+        wrk1_2d(i,j) = T_prog(index_temp)%stf(i,j)
+     enddo
+  enddo
+
+  ! no diffusivity or bottom flux for this diagnostic calculation 
+  wrk2_2d(:,:) = 0.0
+  wrk2(:,:,:)  = 0.0 
+  call invtri (wrk2_vmix(:,:,:), wrk1_2d(:,:),     & 
+       wrk2_2d(:,:), wrk2(:,:,:), dtime_t, Grd%kmt,&
+       Grd%tmask, Thickness%rho_dzt(:,:,:,taup1), Thickness%dzwt, aidif, nk)  
+
+  ! fill the tendency array for temp update, and increment the value for temp
+  do k=1,nk
+     do j=jsc,jec
+        do i=isc,iec  
+           wrk1_v(i,j,k,1) = dtime_tr*Thickness%rho_dzt(i,j,k,taup1) &
+                             *Dens%dpotrhodT(i,j,k)*(wrk2_vmix(i,j,k)-wrk2_v(i,j,k,1))
+           wrk2_v(i,j,k,1) = wrk2_vmix(i,j,k)
+        enddo
+     enddo
+  enddo
+
+  ! save salinity prior to implicit time update
+  wrk2_vmix(:,:,:) = 0.0 
+  do k=1,nk
+     do j=jsc,jec
+        do i=isc,iec
+           wrk2_vmix(i,j,k) = wrk2_v(i,j,k,2)
+        enddo
+     enddo
+  enddo
+
+  ! surface salt flux 
+  do j=jsc,jec
+     do i=isc,iec
+        wrk1_2d(i,j) = T_prog(index_salt)%stf(i,j)
+     enddo
+  enddo
+
+  ! no diffusivity or bottom flux for this diagnostic calculation 
+  wrk2_2d(:,:) = 0.0
+  wrk2(:,:,:)  = 0.0
+  call invtri (wrk2_vmix(:,:,:), wrk1_2d(:,:),     & 
+       wrk2_2d(:,:), wrk2(:,:,:), dtime_t, Grd%kmt,&
+       Grd%tmask, Thickness%rho_dzt(:,:,:,taup1), Thickness%dzwt, aidif, nk)  
+
+  ! fill the tendency array for salinity update, and increment the value for salinity 
+  do k=1,nk
+     do j=jsc,jec
+        do i=isc,iec  
+           wrk1_v(i,j,k,2) = dtime_tr*Thickness%rho_dzt(i,j,k,taup1) &
+                             *Dens%dpotrhodS(i,j,k)*(wrk2_vmix(i,j,k)-wrk2_v(i,j,k,2))
+           wrk2_v(i,j,k,2) = wrk2_vmix(i,j,k)
+        enddo
+     enddo
+  enddo
+
+  ! diagnose effects from surface temperature flux 
+  if(id_pot_rho_sbc_temp  > 0 ) then 
+      wrk1(:,:,:) = 0.0
+      wrk2(:,:,:) = 0.0
+      do k=1,nk
+         do j=jsc,jec
+            do i=isc,iec  
+               wrk1(i,j,k) = wrk1_v(i,j,k,1)
+               wrk2(i,j,k) = wrk1(i,j,k)*Dens%rho_dztr_tau(i,j,k)
+            enddo
+         enddo
+      enddo
+      call diagnose_3d(Time, Grd, id_pot_rho_sbc_temp, wrk2(:,:,:))
+  endif
+
+
+  ! diagnose effects from surface salt flux 
+  if(id_pot_rho_sbc_salt  > 0 ) then 
+      wrk1(:,:,:) = 0.0
+      wrk2(:,:,:) = 0.0
+      do k=1,nk
+         do j=jsc,jec
+            do i=isc,iec  
+               wrk1(i,j,k) = wrk1_v(i,j,k,2)
+               wrk2(i,j,k) = wrk1(i,j,k)*Dens%rho_dztr_tau(i,j,k)
+            enddo
+         enddo
+      enddo
+      call diagnose_3d(Time, Grd, id_pot_rho_sbc_salt, wrk2(:,:,:))
+  endif ! endif for rho_sbc_salt diagnostics 
+
+
+  ! diagnose effects from surface temp plus salt flux 
+  if(id_pot_rho_sbc  > 0 ) then 
+      wrk1(:,:,:) = 0.0
+      wrk2(:,:,:) = 0.0
+      do k=1,nk
+         do j=jsc,jec
+            do i=isc,iec  
+               wrk1(i,j,k) = wrk1_v(i,j,k,1) + wrk1_v(i,j,k,2)
+               wrk2(i,j,k) = wrk1(i,j,k)*Dens%rho_dztr_tau(i,j,k)
+            enddo
+         enddo
+      enddo
+      call diagnose_3d(Time, Grd, id_pot_rho_sbc, wrk2(:,:,:))
+  endif ! endif for rho_sbc diagnostics 
+
+
+end subroutine watermass_potrho_diag
+! </SUBROUTINE>  NAME="watermass_potrho_diag"
+
+
+
+!#######################################################################
 ! <SUBROUTINE NAME="vert_diffuse_implicit_diag">
 !
 ! <DESCRIPTION>
@@ -4847,6 +5268,27 @@ subroutine vert_diffuse_implicit_diag(Time, Thickness, Dens, T_prog, diff_cbt, w
          call diagnose_3d_rho(Time, Dens, id_vdiffuse_diff_cbt_on_nrho(n), wrk1*T_prog(n)%conversion)
       endif
    endif
+
+  ! impacts from diff_cbt_conv
+  if(id_vdiffuse_diff_cbt_conv(n) > 0) then
+      wrk1_2d(:,:) = 0.0
+      wrk2_2d(:,:) = 0.0
+      wrk1(:,:,:)  = 0.0
+      do k=1,nk
+         kp = min(k+1,nk)
+         do j=jsc,jec
+            do i=isc,iec
+               diffusivity  = rho0*diff_cbt_conv(i,j,k)
+               wrk2_2d(i,j) = diffusivity*Grd%tmask(i,j,kp)*                    &
+                    (T_prog(n)%field(i,j,k,taup1)-T_prog(n)%field(i,j,kp,taup1))&
+                    /Thickness%dzwt(i,j,k)
+               wrk1(i,j,k)  = wrk1_2d(i,j)-wrk2_2d(i,j)
+               wrk1_2d(i,j) = wrk2_2d(i,j)
+            enddo
+         enddo
+      enddo
+      call diagnose_3d(Time, Grd, id_vdiffuse_diff_cbt_conv(n),wrk1(:,:,:)*T_prog(n)%conversion)
+  endif
 
   ! impacts from K33 
   if(id_vdiffuse_k33(n) > 0 .or. id_vdiffuse_k33_on_nrho(n) > 0) then 
@@ -5740,6 +6182,240 @@ subroutine vert_diffuse_watermass_diag(Time, Thickness, Dens, T_prog, diff_cbt)
 
 end subroutine vert_diffuse_watermass_diag
 ! </SUBROUTINE> NAME="vert_diffuse_watermass_diag"
+
+
+
+!#######################################################################
+! <SUBROUTINE NAME="vert_diffuse_watermass_potrho_diag">
+!
+! <DESCRIPTION>
+! Modifications for APE diagnostics.
+!
+! Diagnose contributions from time-implicit vertical diffusion
+! acting on watermasses from diff_cbt, diff_cbt_conv, and k33
+! using depth referenced potential density rather than
+! locally referenced potential density.
+!
+! We perform the diagnostics using the taup1 value of the tracer 
+! concentration, obtained after performing the invtri step.  
+! The diagnosed fluxes are diagnosed as if we are performing an explicit-time
+! update, but using the taup1 values of the tracer concentrations.  
+!
+! This diagnostic suffers from time truncation errors relative to the 
+! prognostic calculation, since the prognostic time update is performed using
+! an invtri calculation.  However, the errors are small.  The alternative 
+! method, which is to separate the combined invtri step into individual 
+! physical mixing processes is not an option, since this step is not equivalent
+! algorithmically to the single invtri mixing step used in the prognostic algorithm. 
+! It is for this reason that we perform the diagnostic step using this 
+! "explicit flux computed with time-implicit computed concentration" approach.  
+!
+! </DESCRIPTION>
+!
+subroutine vert_diffuse_watermass_potrho_diag(Time, Thickness, Dens, T_prog, &
+                                              diff_cbt, diff_cbt_conv)
+
+  type(ocean_time_type),          intent(in) :: Time  
+  type(ocean_thickness_type),     intent(in) :: Thickness
+  type(ocean_density_type),       intent(in) :: Dens
+  type(ocean_prog_tracer_type),   intent(in) :: T_prog(:)
+  real, dimension(isd:,jsd:,:,:), intent(in) :: diff_cbt
+  real, dimension(isd:,jsd:,:),   intent(in) :: diff_cbt_conv
+
+  integer :: taup1, tau
+  integer :: i, j, k, kp, nmix
+
+  real,  dimension(isd:ied,jsd:jed) :: eta_tend
+  real :: diffusivity 
+
+  if(.not. compute_watermass_potrho_diag) return
+
+  tau   = Time%tau
+  taup1 = Time%taup1
+
+  ! effects from vertical diffusion using full and convective diffusivity 
+
+
+  ! Do the depth referenced potrho calculations first for 
+  ! pot_rho_diff_cbt pot_rho_diff_cbt_conv and pot_rho_k33 (what is k33?)
+
+  if(id_pot_rho_diff_cbt_conv > 0) then
+
+     ! for holding the time tendencies
+     wrk1_v(:,:,:,:) = 0.0
+  
+     ! convective temperature  ... issue with wrk1_v dimensions? 
+     wrk1_2d(:,:) = 0.0
+     wrk2_2d(:,:) = 0.0
+     do k=1,nk
+        kp = min(k+1,nk)
+        do j=jsc,jec
+           do i=isc,iec
+              diffusivity  = rho0*Grd%tmask(i,j,kp)*diff_cbt_conv(i,j,k) 
+              wrk2_2d(i,j) = diffusivity*Grd%tmask(i,j,kp)*                                      &
+                   (T_prog(index_temp)%field(i,j,k,taup1)-T_prog(index_temp)%field(i,j,kp,taup1))&
+                   /Thickness%dzwt(i,j,k)
+              wrk1_v(i,j,k,1) = Dens%dpotrhodT(i,j,k)*(wrk1_2d(i,j)-wrk2_2d(i,j))
+              wrk1_2d(i,j)    = wrk2_2d(i,j)
+           enddo
+        enddo
+     enddo
+
+     ! convective salinity
+     wrk1_2d(:,:) = 0.0
+     wrk2_2d(:,:) = 0.0
+     do k=1,nk
+        kp = min(k+1,nk)
+        do j=jsc,jec
+           do i=isc,iec
+              diffusivity  = rho0*Grd%tmask(i,j,kp)*diff_cbt_conv(i,j,k) 
+              wrk2_2d(i,j) = diffusivity*Grd%tmask(i,j,kp)*                                      &
+                   (T_prog(index_salt)%field(i,j,k,taup1)-T_prog(index_salt)%field(i,j,kp,taup1))&
+                   /Thickness%dzwt(i,j,k)
+              wrk1_v(i,j,k,2) = Dens%dpotrhodS(i,j,k)*(wrk1_2d(i,j)-wrk2_2d(i,j))
+              wrk1_2d(i,j)    = wrk2_2d(i,j)
+           enddo
+        enddo
+     enddo
+
+
+     ! fill diagnostic arrays for full contribution on potrho 
+     wrk1(:,:,:) = 0.0
+     wrk2(:,:,:) = 0.0
+     do k=1,nk
+        do j=jsc,jec
+           do i=isc,iec
+              wrk1(i,j,k) = Grd%tmask(i,j,k)*(wrk1_v(i,j,k,1) + wrk1_v(i,j,k,2))
+              wrk2(i,j,k) = wrk1(i,j,k)*Dens%rho_dztr_tau(i,j,k)
+           enddo
+        enddo
+     enddo
+     call diagnose_3d(Time, Grd, id_pot_rho_diff_cbt_conv, wrk2(:,:,:))
+
+  endif ! endif for id_pot_rho_diff_cbt_conv
+  
+
+  if(id_pot_rho_diff_cbt > 0) then   
+
+     ! for holding time tendencies
+     wrk1_v(:,:,:,:) = 0.0
+  
+     ! total temperature  ... issue with wrk1_v dimensions? 
+     nmix=1
+     wrk1_2d(:,:) = 0.0
+     wrk2_2d(:,:) = 0.0
+     do k=1,nk
+        kp = min(k+1,nk)
+        do j=jsc,jec
+           do i=isc,iec
+              diffusivity  = rho0*Grd%tmask(i,j,kp)*diff_cbt(i,j,k,nmix) 
+              wrk2_2d(i,j) = diffusivity*Grd%tmask(i,j,kp)*                                      &
+                   (T_prog(index_temp)%field(i,j,k,taup1)-T_prog(index_temp)%field(i,j,kp,taup1))&
+                   /Thickness%dzwt(i,j,k)
+              wrk1_v(i,j,k,1) = Dens%dpotrhodT(i,j,k)*(wrk1_2d(i,j)-wrk2_2d(i,j))
+              wrk1_2d(i,j)    = wrk2_2d(i,j)
+           enddo
+        enddo
+     enddo
+
+     ! total salinity
+     nmix=2
+     wrk1_2d(:,:) = 0.0
+     wrk2_2d(:,:) = 0.0
+     do k=1,nk
+        kp = min(k+1,nk)
+        do j=jsc,jec
+           do i=isc,iec
+              diffusivity  = rho0*Grd%tmask(i,j,kp)*diff_cbt(i,j,k,nmix) 
+              wrk2_2d(i,j) = diffusivity*Grd%tmask(i,j,kp)*                                      &
+                   (T_prog(index_salt)%field(i,j,k,taup1)-T_prog(index_salt)%field(i,j,kp,taup1))&
+                   /Thickness%dzwt(i,j,k)
+              wrk1_v(i,j,k,2) = Dens%dpotrhodS(i,j,k)*(wrk1_2d(i,j)-wrk2_2d(i,j))
+              wrk1_2d(i,j)    = wrk2_2d(i,j)
+           enddo
+        enddo
+     enddo
+
+
+     ! fill diagnostic arrays for full contribution on potrho 
+     wrk1(:,:,:) = 0.0
+     wrk2(:,:,:) = 0.0
+     do k=1,nk
+        do j=jsc,jec
+           do i=isc,iec
+              wrk1(i,j,k) = Grd%tmask(i,j,k)*(wrk1_v(i,j,k,1) + wrk1_v(i,j,k,2))
+              wrk2(i,j,k) = wrk1(i,j,k)*Dens%rho_dztr_tau(i,j,k)
+           enddo
+        enddo
+     enddo
+     call diagnose_3d(Time, Grd, id_pot_rho_diff_cbt, wrk2(:,:,:))
+
+  endif ! endif for id_pot_rho_diff_cbt
+
+  
+  !-------------------------------------------------------------------------------------
+  ! Effects from time-implicit piece of K33.
+  ! This diagnostic is an approximation to the prognostic calculation. 
+
+  if(id_pot_rho_k33 > 0) then 
+  
+     ! for holding the time tendencies
+     wrk1_v(:,:,:,:) = 0.0
+
+     ! temperature   
+     nmix=1
+     wrk1_2d(:,:) = 0.0
+     wrk2_2d(:,:) = 0.0
+     do k=1,nk
+        kp = min(k+1,nk)
+        do j=jsc,jec
+           do i=isc,iec
+              diffusivity  = T_prog(index_temp)%K33_implicit(i,j,k) 
+              wrk2_2d(i,j) = diffusivity*Grd%tmask(i,j,kp)*                                      &
+                   (T_prog(index_temp)%field(i,j,k,taup1)-T_prog(index_temp)%field(i,j,kp,taup1))&
+                   /Thickness%dzwt(i,j,k)
+              wrk1_v(i,j,k,1) = Dens%dpotrhodT(i,j,k)*(wrk1_2d(i,j)-wrk2_2d(i,j))
+              wrk1_2d(i,j)    = wrk2_2d(i,j)
+           enddo
+        enddo
+     enddo
+
+     ! salinity
+     nmix=2
+     wrk1_2d(:,:) = 0.0
+     wrk2_2d(:,:) = 0.0
+     do k=1,nk
+        kp = min(k+1,nk)
+        do j=jsc,jec
+           do i=isc,iec
+              diffusivity  = T_prog(index_salt)%K33_implicit(i,j,k) 
+              wrk2_2d(i,j) = diffusivity*Grd%tmask(i,j,kp)*                                      &
+                   (T_prog(index_salt)%field(i,j,k,taup1)-T_prog(index_salt)%field(i,j,kp,taup1))&
+                   /Thickness%dzwt(i,j,k)
+              wrk1_v(i,j,k,2) = Dens%dpotrhodS(i,j,k)*(wrk1_2d(i,j)-wrk2_2d(i,j))
+              wrk1_2d(i,j)    = wrk2_2d(i,j)
+           enddo
+        enddo
+     enddo
+
+     ! fill diagnostic arrays for impacts on rho 
+     wrk1(:,:,:) = 0.0
+     wrk2(:,:,:) = 0.0
+     do k=1,nk
+        do j=jsc,jec
+           do i=isc,iec
+              wrk1(i,j,k) = wrk1_v(i,j,k,1) + wrk1_v(i,j,k,2)
+              wrk2(i,j,k) = wrk1(i,j,k)*Dens%rho_dztr_tau(i,j,k)
+           enddo
+        enddo
+     enddo
+     call diagnose_3d(Time, Grd, id_pot_rho_k33, wrk2(:,:,:))
+
+  endif ! endif for id_pot_rho_k33
+  
+
+end subroutine vert_diffuse_watermass_potrho_diag
+! </SUBROUTINE> NAME="vert_diffuse_watermass_potrho_diag"
 
 
 

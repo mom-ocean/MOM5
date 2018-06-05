@@ -352,6 +352,7 @@ real, parameter :: a6=37.0/60.0, b6=-2.0/15.0, c6=1.0/60.0
 logical :: used
 
 integer  :: id_neut_rho_advect
+integer  :: id_pot_rho_advect
 integer  :: id_neut_rho_advect_on_nrho
 integer  :: id_wdian_rho_advect
 integer  :: id_wdian_rho_advect_on_nrho
@@ -952,6 +953,11 @@ subroutine watermass_diag_init (Time, Dens)
      Grd%tracer_axes(1:3), Time%model_time, 'advection tendency for neutral rho',&
     '(kg/m^3)/sec', missing_value=missing_value, range=(/-1e20,1e20/))
   if(id_neut_rho_advect > 0) compute_watermass_diag = .true. 
+
+  id_pot_rho_advect = register_diag_field ('ocean_model', 'pot_rho_advect',        &
+     Grd%tracer_axes(1:3), Time%model_time, 'advection tendency for potential rho',&
+    '(kg/m^3)/sec', missing_value=missing_value, range=(/-1e20,1e20/))
+  if(id_pot_rho_advect > 0) compute_watermass_diag = .true. 
 
   id_wdian_rho_advect = register_diag_field ('ocean_model', 'wdian_rho_advect',&
     Grd%tracer_axes(1:3), Time%model_time,                                     &
@@ -7423,7 +7429,11 @@ subroutine watermass_diag(Time, Dens)
 
   if(.not. compute_watermass_diag) return 
 
-  tau = Time%tau
+  tau         = Time%tau
+  wrk1(:,:,:) = 0.0
+  wrk2(:,:,:) = 0.0
+  wrk3(:,:,:) = 0.0
+  wrk4(:,:,:) = 0.0
 
 
   ! both temperature and salinity contributions 
@@ -7444,6 +7454,7 @@ subroutine watermass_diag(Time, Dens)
   call diagnose_3d_rho(Time, Dens, id_neut_rho_advect_on_nrho, wrk2)
   call diagnose_3d_rho(Time, Dens, id_wdian_rho_advect_on_nrho, wrk3)
   call diagnose_3d_rho(Time, Dens, id_tform_rho_advect_on_nrho, wrk4)
+
 
   ! temperature contributions 
   do k=1,nk
@@ -7481,6 +7492,23 @@ subroutine watermass_diag(Time, Dens)
   call diagnose_3d_rho(Time, Dens, id_wdian_salt_advect_on_nrho, wrk3)
   call diagnose_3d_rho(Time, Dens, id_tform_salt_advect_on_nrho, wrk4)
 
+  
+  if(id_pot_rho_advect > 0) then 
+     wrk1(:,:,:) = 0.0
+     wrk2(:,:,:) = 0.0
+     
+     do k=1,nk
+        do j=jsc,jec
+           do i=isc,iec
+              wrk1(i,j,k) = neutral_temp_advect(i,j,k)*Dens%dpotrhodT(i,j,k) &
+                          + neutral_salt_advect(i,j,k)*Dens%dpotrhodS(i,j,k)
+              wrk2(i,j,k) = wrk1(i,j,k)*Dens%rho_dztr_tau(i,j,k) 
+           enddo
+        enddo
+     enddo
+     call diagnose_3d(Time, Grd, id_pot_rho_advect, wrk2(:,:,:))
+  endif
+  
 end subroutine watermass_diag
 ! </SUBROUTINE> NAME="watermass_diag"
 
