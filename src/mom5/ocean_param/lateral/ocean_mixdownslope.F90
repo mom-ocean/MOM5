@@ -188,6 +188,7 @@ integer :: id_tform_salt_mixdown_on_nrho =-1
 
 
 integer, dimension(:), allocatable :: id_mixdownslope 
+integer, dimension(:), allocatable :: id_mixdownslope_on_nrho 
 
 
 character(len=128) :: version=&
@@ -534,6 +535,8 @@ ierr = check_nml_error(io_status,'ocean_mixdownslope_nml')
 
 
   allocate (id_mixdownslope(num_prog_tracers))
+  allocate (id_mixdownslope_on_nrho(num_prog_tracers))
+  id_mixdownslope_on_nrho = -1
   id_mixdownslope = -1
 
   do n=1,num_prog_tracers
@@ -543,11 +546,21 @@ ierr = check_nml_error(io_status,'ocean_mixdownslope_nml')
               Grd%tracer_axes(1:3), Time%model_time,              &
               'cp*mixdownslope*rho*dzt*temp',                     &
               'Watt/m^2', missing_value=missing_value, range=(/-1.e9,1.e9/))
+         id_mixdownslope_on_nrho(n) = register_diag_field ('ocean_model', &
+              'mixdownslope_'//trim(T_prog(n)%name)//'_on_nrho',          &
+              Dens%neutralrho_axes(1:3), Time%model_time,              &
+              'cp*mixdownslope*rho*dzt*temp binned to neutral density',  &
+              'Watt/m^2', missing_value=missing_value, range=(/-1.e20,1.e20/))
      else
          id_mixdownslope(n) = register_diag_field ('ocean_model', 'mixdownslope_'//trim(T_prog(n)%name), &
               Grd%tracer_axes(1:3), Time%model_time,                                                     &
               'mixdownslope*rho*dzt*tracer for '//trim(T_prog(n)%name),                                  &
               trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1.e9,1.e9/))
+         id_mixdownslope_on_nrho(n) = register_diag_field ('ocean_model', &
+              'mixdownslope_'//trim(T_prog(n)%name)//'_on_nrho',          &
+              Dens%neutralrho_axes(1:3), Time%model_time,                                               &
+              'mixdownslope*rho*dzt*tracer for '//trim(T_prog(n)%name)//' binned to neutral density',  &
+              trim(T_prog(n)%flux_units), missing_value=missing_value, range=(/-1.e20,1.e20/))
      endif
   enddo
 
@@ -894,7 +907,7 @@ subroutine mixdownslope (Time, Thickness, T_prog, Dens, index_temp, index_salt)
         enddo
      enddo
 
-     if(id_mixdownslope(nt) > 0) then
+     if(id_mixdownslope(nt) > 0 .or. id_mixdownslope_on_nrho(nt) > 0) then
          wrk1(:,:,:) = 0.0
          do k=1,nk
             do j=jsc,jec   
@@ -903,7 +916,12 @@ subroutine mixdownslope (Time, Thickness, T_prog, Dens, index_temp, index_salt)
                enddo
             enddo
          enddo
-         call diagnose_3d(Time, Grd, id_mixdownslope(nt), wrk1(:,:,:))
+         if (id_mixdownslope(nt) > 0) then
+            call diagnose_3d(Time, Grd, id_mixdownslope(nt), wrk1(:,:,:))
+         endif
+         if (id_mixdownslope_on_nrho(nt) > 0) then
+            call diagnose_3d_rho(Time, Dens, id_mixdownslope_on_nrho(nt), wrk1)
+         endif
      endif
 
      if(nt==index_temp) then 

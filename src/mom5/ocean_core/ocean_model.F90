@@ -671,13 +671,17 @@ contains
 !                    information about the ocean's interior state.
 !  Time_init (in) - The start time for the coupled model's calendar.
 !  Time_in   (in) - The time at which to initialize the ocean model.
+!  ocean_timestep (in) - Ocean model time step in seconds. If present
+!                        replaces dt_ocean set in ocean_model_nml
 ! </DESCRIPTION>
 !
-subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)   
+subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
+                            ocean_timestep)
     type(ocean_public_type), intent(inout)  :: Ocean
     type(ocean_state_type),  pointer        :: Ocean_state
     type(time_type),         intent(in)     :: Time_init
-    type(time_type),         intent(in)     :: Time_in 
+    type(time_type),         intent(in)     :: Time_in
+    integer, optional,       intent(in)     :: ocean_timestep
     
     type(time_type) :: Time_step_ocean
     integer :: secs, days, secs0, days0 
@@ -882,6 +886,18 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
       call mpp_error(FATAL,&
       '==>Error from ocean_model_mod: time_tendency must be "twolevel" or "threelevel".')
     endif 
+
+    ! If the timestep has been passed in then use it to over-ride the namelist
+    ! setting. This is useful for coupled model setups -- for example it allows
+    ! them to avoid setting the timestep in multiple places.
+    if (present(ocean_timestep)) then
+        if (dt_ocean /= -1) then
+            call mpp_error(FATAL, '==>Error from ocean_model_mod: conflicting '// &
+                           'values for dt_ocean, passed as an argument and in '// &
+                           'ocean_model_nml.')
+        endif
+        dt_ocean = ocean_timestep
+    endif
 
     if(dt_ocean .lt. 0.0) call mpp_error(FATAL,&
       '==>Error from ocean_model_mod: dt_ocean must be set to a positive integer in ocean_model_nml.')

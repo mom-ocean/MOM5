@@ -353,7 +353,8 @@ program main
            'program ocean_solo: when no region is masked out, layout_mask need not be set' )
   end if
 
-  call ocean_model_init(Ocean_sfc, Ocean_state, Time_init, Time)
+  call ocean_model_init(Ocean_sfc, Ocean_state, Time_init, Time, &
+                        accessom2%get_ice_ocean_timestep())
 
   call data_override_init(Ocean_domain_in = Ocean_sfc%domain)
 

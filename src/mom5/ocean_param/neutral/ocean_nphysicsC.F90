@@ -2034,7 +2034,7 @@ subroutine compute_gmskewsion(Time, Thickness, Dens, T_prog)
         call diagnose_3d(Time, Grd, id_neutral_physics_gm(n), T_prog(n)%wrk1(:,:,:)*T_prog(n)%conversion)
      endif
      if(id_neutral_physics_gm_on_nrho(n) > 0) then 
-        call diagnose_3d_rho(Time, Dens, id_neutral_physics_gm(n), T_prog(n)%wrk1*T_prog(n)%conversion)
+        call diagnose_3d_rho(Time, Dens, id_neutral_physics_gm_on_nrho(n), T_prog(n)%wrk1*T_prog(n)%conversion)
      endif
 
      ! send fluxes to diag_manager 
