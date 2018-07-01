@@ -428,7 +428,7 @@ program main
   Ice_ocean_boundary%wnd             = 0.0
 
   ! Initialise simple timers and a logger
-  call logger%init('mom', logfiledir='./', loglevel=accessom2%log_level)
+  call logger%init('mom', logfiledir='log', loglevel=accessom2%log_level)
   call ocean_step_timer%init('ocean_step', logger)
   call ice_wait_timer%init('ice_wait', logger)
   call ice_recv_timer%init('ice_recv', logger)
