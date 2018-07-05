@@ -380,9 +380,6 @@ private
   real, dimension(isd:ied,jsd:jed)      :: bott_blthick  ! bottom boundary layer depth from sigma transport (m)
   real, dimension(isd:ied,jsd:jed)      :: rossby_radius ! rossby radius (m)
   real, dimension(isd:ied,jsd:jed,nk)   :: swheat        ! external shortwave heating source W/m^2
-#if defined(ACCESS)
-  real, dimension(isd:ied,jsd:jed)      :: aice          ! ice fraction
-#endif
 
 #else
 
@@ -409,9 +406,6 @@ private
   real, pointer, dimension(:,:)     :: bott_blthick        =>NULL() ! bottom boundary layer depth from sigma transport (m)
   real, pointer, dimension(:,:)     :: rossby_radius       =>NULL() ! rossby radius (m) 
   real, pointer, dimension(:,:,:)   :: swheat              =>NULL() ! external shortwave heating source W/m^2
-#if defined(ACCESS)
-  real, pointer, dimension(:,:)     :: aice                =>NULL() ! ice fraction
-#endif
 
 #endif
 
@@ -1204,9 +1198,6 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
     allocate(bott_blthick(isd:ied,jsd:jed))    
     allocate(rossby_radius(isd:ied,jsd:jed))    
     allocate(swheat(isd:ied,jsd:jed,nk))
-#if defined(ACCESS)
-    allocate(aice(isd:ied,jsd:jed))
-#endif
 
 #endif
 #if defined (ENABLE_ODA) && defined (ENABLE_ECDA)
@@ -1585,27 +1576,16 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
 
        ! obtain surface boundary fluxes from coupler
        call mpp_clock_begin(id_sbc)
-#if defined(ACCESS)
-       call get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode,       &
-            T_prog(1:num_prog_tracers), Velocity, pme, melt, river, runoff, calving, &
-            upme, uriver, swflx, swflx_vis, patm, aice)
-#else
        call get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode,       &
             T_prog(1:num_prog_tracers), Velocity, pme, melt, river, runoff, calving, &
             upme, uriver, swflx, swflx_vis, patm)
-#endif
        call mpp_clock_end(id_sbc)
 
        ! compute "flux adjustments" (e.g., surface tracer restoring, flux correction)
        call mpp_clock_begin(id_flux_adjust)
-#if defined(ACCESS)
-       call flux_adjust(Time, T_diag(1:num_diag_tracers), Dens, Ext_mode, &
-                        T_prog(1:num_prog_tracers), Velocity, river, melt, pme, aice)
-#else
        call flux_adjust(Time, T_diag(1:num_diag_tracers), Dens, Ext_mode, &
                         T_prog(1:num_prog_tracers), Velocity, river, melt, pme)
 
-#endif
        call mpp_clock_end(id_flux_adjust)
 
        ! calculate bottom momentum fluxes and bottom tracer fluxes
@@ -3379,3 +3359,4 @@ end subroutine ice_ocn_bnd_type_chksum
 
 end module ocean_model_mod
   
+:q!
