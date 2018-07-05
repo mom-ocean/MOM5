@@ -3358,5 +3358,3 @@ subroutine ice_ocn_bnd_type_chksum(id, timestep, iobt)
 end subroutine ice_ocn_bnd_type_chksum
 
 end module ocean_model_mod
-  
-:q!
