@@ -2075,6 +2075,8 @@ subroutine ocean_model_data3D_get(OS,Ocean, name, array3D,isc,jsc)
 end subroutine ocean_model_data3D_get
 
 subroutine ocean_model_data2D_get(OS,Ocean, name, array2D,isc,jsc)
+  use constants_mod,     only: epsln 
+
   type(ocean_state_type),     pointer    :: OS
   type(ocean_public_type),    intent(in) :: Ocean
   character(len=*)          , intent(in) :: name
@@ -2118,6 +2120,8 @@ subroutine ocean_model_data2D_get(OS,Ocean, name, array2D,isc,jsc)
       array2D(isc:iec,jsc:jec) = Grid%cos_rot(Domain%isc:Domain%iec,Domain%jsc:Domain%jec)
    case('sin_rot')
       array2D(isc:iec,jsc:jec) = Grid%sin_rot(Domain%isc:Domain%iec,Domain%jsc:Domain%jec)
+  case('frazil')
+      array2D(isc:iec,jsc:jec) = Ocean%frazil(isc:iec,jsc:jec)/(Time_steps%dtime_t + epsln)
   case default
       call mpp_error(FATAL,'get_ocean_grid_data2D: unknown argument name='//name)
   end select

@@ -2575,6 +2575,7 @@ subroutine sum_ocean_sfc(Time, Thickness, T_prog, T_diag, Dens, Velocity, Ocean_
   
   real, dimension(isd:ied,jsd:jed) :: sst
   integer                          :: taup1, i, j, k, ii, jj
+  real                             :: tfreeze
 
   if (Ocean_sfc%avg_kount == 0) call zero_ocean_sfc(Ocean_sfc)
 
@@ -2629,6 +2630,14 @@ subroutine sum_ocean_sfc(Time, Thickness, T_prog, T_diag, Dens, Velocity, Ocean_
               ii = i + i_shift
               jj = j + j_shift
               Ocean_sfc%frazil(i,j) = Ocean_sfc%frazil(i,j) + T_diag(index_frazil)%field(ii,jj,k)
+              if(k==1) then 
+                tfreeze = -0.054*Dens%rho_salinity(ii,jj,k,taup1)
+                if(T_prog(index_temp)%field(ii,jj,k,taup1) >= tfreeze) then  
+                    Ocean_sfc%frazil(i,j) = Ocean_sfc%frazil(i,j) + &
+                         (tfreeze-T_prog(index_temp)%field(ii,jj,k,taup1)) &
+                         *Thickness%rho_dzt(ii,jj,k,taup1)*cp_ocean
+                endif
+              endif
            enddo
         enddo
      enddo
