@@ -3722,7 +3722,7 @@ subroutine fz_flux_gm(T_prog, k)
 
       do n=1,num_prog_tracers
          fz2(n)%field(COMP)     = 0.0
-         flux_z(n)%field(:,:,:) = 0.0 ! for diagnostics only 
+         flux_z(n)%field(:,:,k) = 0.0 ! for diagnostics only 
       enddo
       return 
 
