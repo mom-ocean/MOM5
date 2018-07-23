@@ -1098,7 +1098,7 @@ module ocean_types_mod
      real, _ALLOCATABLE, dimension(:,:,:)     :: bmf             _NULL ! momentum flux per mass into ocean bottom  (N/m^2)
      real, _ALLOCATABLE, dimension(:,:)       :: gamma           _NULL ! dimensionful bottom drag coefficient (kg/(m^2 sec))
      real, _ALLOCATABLE, dimension(:,:)       :: langmuirfactor  _NULL ! Langmuir turbulence enhancement factor
-     real, _ALLOCATABLE, dimension(:,:)       :: u10             _NULL ! x-dir surface stokes drift
+     real, _ALLOCATABLE, dimension(:,:)       :: u10             _NULL ! 10m wind speed (m/s)
      real, _ALLOCATABLE, dimension(:,:)       :: ustoke          _NULL ! x-dir surface stokes drift
      real, _ALLOCATABLE, dimension(:,:)       :: vstoke          _NULL ! y-dir surface stokes drift
      real, _ALLOCATABLE, dimension(:,:)       :: wavlen          _NULL ! wave length
