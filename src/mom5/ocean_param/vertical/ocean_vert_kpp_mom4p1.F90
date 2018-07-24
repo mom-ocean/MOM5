@@ -946,7 +946,7 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
        Time%model_time, 'wscale from KPP', 'm',                            &
        missing_value = missing_value, range=(/-1.e5,1.e6/))
 
-  id_lang_enh = register_diag_field('ocean_model','lang_enh',Grd%tracer_axes(1:3), &
+  id_lang_enh = register_diag_field('ocean_model','lang_enh',Grd%tracer_axes(1:2), &
        Time%model_time, 'enhancement due to langmuir turbulence', 'none',                            &
        missing_value = missing_value, range=(/0.0,10./))
 
