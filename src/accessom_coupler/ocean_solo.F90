@@ -166,7 +166,7 @@ program main
   integer, parameter :: mp = 2*MAXPES
   data ((mask_list(n,m),n=1, 2),m=1,MAXPES) /mp*0/
   integer :: restart_interval(6) = (/0,0,0,0,0,0/)
-  integer :: mpi_comm_mom, atm_intercomm
+  integer :: mpi_comm_mom
   integer ::  stdoutunit, stdlogunit, tmp_unit
   logical :: debug_this_module
   character(len=1024) :: accessom2_config_dir = '../'
