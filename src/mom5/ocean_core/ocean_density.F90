@@ -261,6 +261,11 @@ module ocean_density_mod
 !  binning variable for water-mass diagnostics.
 !  Default neutral_density_theta=.false.
 !  </DATA>
+!  <DATA NAME="neutral_density_salt" TYPE="logical">
+!  Set to true to use salinity instead of neutral density as the
+!  binning variable for water-mass diagnostics.
+!  Default neutral_density_salt=.false.
+!  </DATA>
 !  <DATA NAME="neutralrho_min" UNITS="kg/m^3" TYPE="real">
 !  Minimum neutral density used to partition vertical according 
 !  to rational polynomial approximation to neutral density.  
@@ -659,6 +664,7 @@ real :: potrho_max   = 1038.0  ! (kg/m^3)
 logical :: neutral_density_omega  = .false.
 logical :: neutral_density_potrho = .true.
 logical :: neutral_density_theta  = .false.
+logical :: neutral_density_salt   = .false.
 real    :: neutralrho_min = 1020.0  ! (kg/m^3)         
 real    :: neutralrho_max = 1030.0  ! (kg/m^3)           
 
@@ -724,7 +730,7 @@ namelist /ocean_density_nml/ s_test, t_test, p_test, press_standard,            
                              grad_nrho_lrpotrho_compute, grad_nrho_lrpotrho_max,      &
                              grad_nrho_lrpotrho_min,                                  &
                              neutral_density_omega, neutral_density_potrho,           &
-                             neutral_density_theta,                                   &
+                             neutral_density_theta, neutral_density_salt,             &
                              smooth_stratification_factor, update_diagnostic_factors, &
                              smax_diag, smax_min_in_column 
 contains
@@ -942,13 +948,18 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
         ' ==> Note: Computing diagnostic neutral_rho as conservative temperature.'
         neutral_rho_method = neutral_rho_method + 1 
     endif
+    if(neutral_density_salt) then
+        write (stdoutunit,'(/1x,a)') &
+        ' ==> Note: Computing diagnostic neutral_rho as salinity.'
+        neutral_rho_method = neutral_rho_method + 1
+    endif
     if(neutral_rho_method==0) then 
       call mpp_error(FATAL, &
-       '==>Error in ocean_density_mod: set one of the options "neutral_density_omega" or "neutral_density_potrho" or "neutral_density_theta" true.')
+       '==>Error in ocean_density_mod: set one of the options "neutral_density_omega" or "neutral_density_potrho" or "neutral_density_theta" or "neutral_density_salt" true.')
     endif   
     if(neutral_rho_method > 1) then 
       call mpp_error(FATAL, &
-       '==>Error in ocean_density_mod: set only **one** of the options "neutral_density_omega" or "neutral_density_potrho" or "neutral_density_theta" true.')
+       '==>Error in ocean_density_mod: set only **one** of the options "neutral_density_omega" or "neutral_density_potrho" or "neutral_density_theta" or "neutral_density_salt" true.')
     endif   
 
     if(drhodz_diag_stable) then
@@ -1450,6 +1461,10 @@ ierr = check_nml_error(io_status,'ocean_density_nml')
       id_neutral_rho = register_diag_field ('ocean_model', 'neutral_rho', Grd%tracer_axes(1:3),   &
                        Time%model_time, 'conservative temperature is neutral density', 'degC',&
                        missing_value=missing_value, range=(/-10.0,1e5/))    
+  elseif(neutral_density_salt) then
+      id_neutral_rho = register_diag_field ('ocean_model', 'neutral_rho', Grd%tracer_axes(1:3),   &
+                       Time%model_time, 'salinity is neutral density', 'psu',&
+                       missing_value=missing_value, range=(/-10.0,1e5/))
   endif 
 
   id_eos_salinity = register_diag_field ('ocean_model', 'eos_salinity', Grd%tracer_axes(1:3),&
@@ -2660,6 +2675,14 @@ end subroutine update_ocean_density
               enddo
            enddo
         enddo
+    elseif(neutral_density_salt) then
+        do k=1,nk
+           do j=jsd,jed
+              do i=isd,ied
+                 neutral_density_field(i,j,k) = salinity(i,j,k)
+              enddo
+           enddo
+        enddo
     elseif(eos_linear) then
         do k=1,nk
            do j=jsd,jed
@@ -2705,6 +2728,10 @@ end subroutine update_ocean_density
     if(neutral_density_theta) then
 
         neutral_density_point = theta
+
+    elseif(neutral_density_salt) then
+
+        neutral_density_point = salinity
 
     elseif(eos_linear) then
 
