@@ -109,6 +109,7 @@ program main
 #ifdef ACCESS
   use auscom_ice_parameters_mod, only: redsea_gulfbay_sfix, do_sfix_now, sfix_hours, int_sec
   use accessom2_mod, only : accessom2_type => accessom2
+  use coupler_mod, only : coupler_type => coupler
 #endif
 
   implicit none
@@ -117,6 +118,7 @@ program main
   type (ocean_state_type),       pointer :: Ocean_state
   type(ice_ocean_boundary_type), target  :: Ice_ocean_boundary
   type(accessom2_type) :: accessom2
+  type(coupler_type) :: coupler
 
   ! define some time types
   type(time_type) :: Time_init    ! initial time for experiment
@@ -164,9 +166,8 @@ program main
   integer, parameter :: mp = 2*MAXPES
   data ((mask_list(n,m),n=1, 2),m=1,MAXPES) /mp*0/
   integer :: restart_interval(6) = (/0,0,0,0,0,0/)
-  integer :: mpi_comm_mom, atm_intercomm
+  integer :: mpi_comm_mom
   integer ::  stdoutunit, stdlogunit, tmp_unit
-  logical :: external_initialization
   logical :: debug_this_module
   character(len=1024) :: accessom2_config_dir = '../'
   integer, dimension(6) :: date_array
@@ -182,14 +183,8 @@ program main
   read(tmp_unit, nml=ocean_solo_nml)
   close(tmp_unit)
 
-  call external_coupler_mpi_init(mpi_comm_mom, external_initialization, &
-                                 trim(accessom2_config_dir), atm_intercomm)
-
-  if ( external_initialization ) then
-     call fms_init(mpi_comm_mom)
-  else
-     call fms_init()
-  endif
+  call coupler%init_begin('mom5xx', config_dir=trim(accessom2_config_dir))
+  call fms_init(coupler%localcomm)
 
   call constants_init()
   flags = MPP_CLOCK_SYNC
@@ -229,7 +224,7 @@ program main
   ! Tell libaccessom2 about any global configs/state
 
   ! Synchronise accessom2 'state' (i.e. configuration) between all models.
-  call accessom2%sync_config(atm_intercomm, -1, -1)
+  call accessom2%sync_config(coupler)
 
   ! Use accessom2 configuration to set calendar
   if (index(accessom2%get_calendar_type(), 'noleap') > 0) then
@@ -474,17 +469,16 @@ program main
 
   call fms_io_exit
 
-  call external_coupler_exit
-
-  call fms_end
-
+  call coupler%deinit()
   ! Allow libaccessom2 to check that all models are synchronised at the end of
   ! the run.
   call get_date(Time, date_array(1), date_array(2), date_array(3), &
                 date_array(4), date_array(5), date_array(6))
   call accessom2%deinit(cur_date_array=date_array)
 
-  call external_coupler_mpi_exit(mpi_comm_mom, external_initialization)
+  call fms_end
+
+  call external_coupler_mpi_exit(coupler%localcomm, .true.)
 
   print *, 'MOM5: --- completed ---'
 
@@ -569,28 +563,7 @@ end subroutine ice_ocn_bnd_from_data
 ! For clarity all variables should be passed as arguments rather than as globals.
 ! This may require changes to the argument lists.
 
-subroutine external_coupler_mpi_init(mom_local_communicator, &
-                                     external_initialization, &
-                                     accessom2_config_dir, &
-                                     atm_intercomm)
-    ! OASIS3/PRISM acts as the master and initializes MPI. Get a local communicator.
-    ! need to initialize prism and get local communicator MPI_COMM_MOM first! 
-
-    use mom_oasis3_interface_mod, only : mom_prism_init
-    implicit none
-    integer, intent(out) :: mom_local_communicator
-    logical, intent(out) :: external_initialization
-    character(len=*), intent(in) :: accessom2_config_dir
-    integer, optional, intent(out) :: atm_intercomm
-    mom_local_communicator = -100         ! Is there mpp_undefined parameter corresponding to MPI_UNDEFINED?
-                                          ! probably wouldn't need logical flag.
-    if (present(atm_intercomm)) then
-        call mom_prism_init(mom_local_communicator, accessom2_config_dir, atm_intercomm)
-    else
-        call mom_prism_init(mom_local_communicator, accessom2_config_dir)
-    endif
-    external_initialization = .true.
-end subroutine external_coupler_mpi_init
+! NOTE: libaccessom2 makes most of these functions redundant.
 
 subroutine external_coupler_sbc_init(Dom, dt_cpld, Run_len, &
                                      coupling_field_timesteps)
@@ -654,12 +627,6 @@ subroutine external_coupler_restart( dt_cpld, num_cpld_calls, Ocean_sfc)
     timestep = num_cpld_calls * dt_cpld
     call write_coupler_restart(timestep, Ocean_sfc, write_restart=.true.)
 end subroutine external_coupler_restart
-
-subroutine external_coupler_exit
-    ! Clean up as appropriate. Final call to external program
-    use mom_oasis3_interface_mod, only : mom_prism_terminate
-    call mom_prism_terminate
-end subroutine external_coupler_exit
 
 subroutine external_coupler_mpi_exit(mom_local_communicator, external_initialization)
     ! mpp_exit wont call MPI_FINALIZE if mom_local_communicator /= MPI_COMM_WORLD

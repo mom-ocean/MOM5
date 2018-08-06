@@ -1520,8 +1520,8 @@ contains
     !----- write restart file ------
     call coupler_restart(Time, Time_restart_current)
 
-    call fms_io_exit
     call diag_manager_end (Time)
+    call fms_io_exit
     call mpp_set_current_pelist()
 
 !-----------------------------------------------------------------------
