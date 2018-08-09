@@ -292,7 +292,10 @@ program main
   num_cpld_calls    = Run_len / Time_step_coupled
   Time = Time_start
 #ifdef ACCESS
-  Time_last_sfix = Time_start
+  call get_time(Time_start,ss)
+  ! The last sfix time has to be determined from absolute model time, to ensure reproducibility across
+  ! restarts
+  Time_last_sfix = set_time(seconds=int(ss/(sfix_hours*SECONDS_PER_HOUR))*sfix_hours*SECONDS_PER_HOUR)
   Time_sfix = set_time(seconds=int(sfix_hours*SECONDS_PER_HOUR))
 #endif
 
