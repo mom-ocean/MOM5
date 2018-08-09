@@ -2975,7 +2975,7 @@ subroutine vert_mix_coeff(Time, Thickness, Velocity, T_prog,   &
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_thickness_type),     intent(in)    :: Thickness
-  type(ocean_velocity_type),      intent(in)    :: Velocity
+  type(ocean_velocity_type),      intent(inout) :: Velocity
   type(ocean_prog_tracer_type),   intent(inout) :: T_prog(:)
   type(ocean_diag_tracer_type),   intent(in)    :: T_diag(:)
   type(ocean_density_type),       intent(in)    :: Dens
