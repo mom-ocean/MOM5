@@ -54,7 +54,7 @@ public  :: id_mi, id_sh, id_lh, id_sw, id_lw, id_snofl, id_rain, id_runoff,    &
            id_qfres, id_qflim, id_ix_trans, id_iy_trans,                       &
            id_sw_vis, id_sw_dir, id_sw_dif, id_sw_vis_dir, id_sw_vis_dif,      &
            id_sw_nir_dir, id_sw_nir_dif, id_mib, id_ustar, id_vstar, id_vocean,&
-           id_uocean, id_vchan, id_uchan
+           id_uocean, id_vchan, id_uchan, id_wnd
 
 public  :: id_alb_vis_dir, id_alb_vis_dif,id_alb_nir_dir, id_alb_nir_dif
 
@@ -79,6 +79,7 @@ public  :: iceClocka,iceClockb,iceClockc
   integer :: id_sw_nir_dir, id_sw_nir_dif, id_mib, id_ustar, id_vstar
   integer :: id_vocean, id_uocean, id_vchan, id_uchan
   integer :: id_alb_vis_dir, id_alb_vis_dif, id_alb_nir_dir, id_alb_nir_dif 
+  integer :: id_wnd 
 
   !--- namelist interface --------------
   real    :: mom_rough_ice  = 1.0e-4     ! momentum same, cd10=(von_k/ln(10/z0))^2
@@ -253,6 +254,7 @@ public  :: iceClocka,iceClockb,iceClockc
                                                                         ! because flux_ice_to_ocean cannot handle 3D fields. This may be
 									! removed, if the information on ice thickness can be derived from 
 									! eventually from h_ice outside the ice module.
+     real,    pointer, dimension(:,:,:) :: wnd                 =>NULL() ! need 10m wind speed to deduce Stokes drift etc in QL_KF_17
      logical, pointer, dimension(:,:)   :: maskmap             =>NULL() ! A pointer to an array indicating which
                                                                         ! logical processors are actually used for
                                                                         ! the ocean code. The other logical
@@ -414,6 +416,7 @@ public  :: iceClocka,iceClockb,iceClockc
          Ice % sea_lev        (isd:ied, jsd:jed)       , &
          Ice % part_size      (isd:ied, jsd:jed, km)   , &
          Ice % part_size_uv   (isc:iec, jsc:jec, km)   , &
+         Ice % wnd            (isc:iec, jsc:jec, km)   , &
          Ice % u_surf         (isc:iec, jsc:jec, km)   , &
          Ice % v_surf         (isc:iec, jsc:jec, km)   , &
          Ice % u_ocn          (isd:ied, jsd:jed)       , &
@@ -488,6 +491,7 @@ public  :: iceClocka,iceClockb,iceClockc
     Ice % flux_v_top_bgrid=0.
     Ice % sea_lev         =0.
     Ice % part_size       =0.
+    Ice % wnd             =0.
     Ice % u_ocn           =0.
     Ice % v_ocn           =0.
     Ice % u_ice           =0.
@@ -779,6 +783,7 @@ public  :: iceClocka,iceClockb,iceClockc
     deallocate(Ice % qflx_lim_ice, Ice % qflx_res_ice )
     deallocate(Ice % flux_sw_vis_dir, Ice % flux_sw_vis_dif )
     deallocate(Ice % flux_sw_nir_dir, Ice % flux_sw_nir_dif )
+    deallocate(Ice % wnd )
 
     ! End icebergs
     if (do_icebergs) call icebergs_end(Ice%icebergs)
@@ -853,6 +858,8 @@ public  :: iceClocka,iceClockb,iceClockc
        id_ext = register_diag_field('ice_model', 'EXT', axt, Ice%Time, &
                 'ice modeled', '0 or 1', missing_value=missing)
     end if
+    id_wnd      = register_diag_field('ice_model', 'wnd ', axt, Ice%Time,   &
+                   'wind speed', 'm/s', missing_value=missing)
     id_mi       = register_diag_field('ice_model', 'MI', axt, Ice%Time,                  &
                  'ice mass', 'kg/m^2', missing_value=missing)
     id_mib      = register_diag_field('ice_model', 'MIB', axt, Ice%Time,                  &

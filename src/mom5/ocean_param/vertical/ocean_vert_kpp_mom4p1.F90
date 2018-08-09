@@ -243,7 +243,7 @@ module ocean_vert_kpp_mom4p1_mod
 !
 !</NAMELIST>
 
-use constants_mod,    only: epsln
+use constants_mod,    only: epsln, pi
 use diag_manager_mod, only: register_diag_field, register_static_field
 use fms_mod,          only: FATAL, NOTE, WARNING, stdout, stdlog
 use fms_mod,          only: write_version_number, open_namelist_file, check_nml_error, close_file
@@ -260,6 +260,7 @@ use ocean_types_mod,       only: ocean_prog_tracer_type, ocean_diag_tracer_type
 use ocean_types_mod,       only: ocean_velocity_type, ocean_density_type
 use ocean_types_mod,       only: ocean_time_type, ocean_time_steps_type, ocean_thickness_type
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4, wrk5
+use ocean_workspace_mod,   only: wrk1_2d, wrk2_2d
 use ocean_util_mod,        only: diagnose_2d, diagnose_3d, diagnose_sum
 use ocean_tracer_util_mod, only: diagnose_3d_rho
 
@@ -279,6 +280,9 @@ private enhance
 private ri_for_kpp 
 private watermass_diag_init
 private watermass_diag 
+
+private get_langmuir_number
+private ust_2_u10_coare3p5
 
 #include <ocean_memory.h>
 
@@ -320,6 +324,8 @@ real, private, dimension(isd:ied,jsd:jed,nk)    :: ghats       ! nonlocal transp
 real, private, dimension(isd:ied,jsd:jed)       :: hblt        ! boundary layer depth with tmask 
 real, private, dimension(isd:ied,jsd:jed)       :: hbl         ! boundary layer depth
 
+real, dimension(isd:ied,jsd:jed)                :: langmuir_factor !  Enhancnement due to langmuir turbulence3
+real, dimension(isd:ied,jsd:jed)                :: langmuir_number !  Langmuir number
 #else
 
 real, dimension(:,:), allocatable      :: bfsfc    ! surface buoyancy forcing    (m^2/s^3)
@@ -358,6 +364,8 @@ real, private, dimension(:,:,:), allocatable :: ghats       ! nonlocal transport
 real, private, dimension(:,:),   allocatable :: hblt        ! boundary layer depth with tmask 
 real, private, dimension(:,:),   allocatable :: hbl         ! boundary layer depth
 
+real, private, dimension(:,:),   allocatable :: langmuir_factor !  Enhancnement due to langmuir turbulence3
+real, private, dimension(:,:),   allocatable :: langmuir_number !  Langmuir number
 #endif
 
 type(wsfc_type), dimension(:), allocatable     :: wsfc
@@ -388,7 +396,7 @@ real :: vtc_flag = 0.0  ! default to the older approach.
 real :: Lgam = 1.04     ! adjustment to non-gradient flux (McWilliam & Sullivan 2000)
 real :: Cw_0 = 0.15     ! eq. (13) in Smyth et al (2002)
 real :: l_smyth = 2.0   ! eq. (13) in Smyth et al (2002)
-real :: LTmax = 5.0     ! maximum Langmuir turbulence enhancement factor (langmuirfactor) allowed
+real :: LTmax = 5.0     ! maximum Langmuir turbulence enhancement factor (langmuir_factor) allowed
 real :: Wstfac = 0.6    ! stability adjustment coefficient, eq. (13) in Smyth et al (2002)
 
 
@@ -442,6 +450,9 @@ integer  :: id_diff_cbt_kpp_s =-1
 integer  :: id_diff_cbt_conv  =-1
 integer  :: id_hblt           =-1
 integer  :: id_ws             =-1
+integer  :: id_lang_enh       =-1
+integer  :: id_lang           =-1
+integer  :: id_u10           =-1
 
 integer  :: id_neut_rho_kpp_nloc          =-1
 integer  :: id_pot_rho_kpp_nloc           =-1
@@ -472,6 +483,8 @@ integer  :: id_tform_salt_kpp_nloc_on_nrho =-1
 logical :: non_local_kpp = .true.  ! enable/disable non-local term in KPP
 logical :: smooth_blmc   = .false. ! smooth boundary layer diffusitivies to remove grid scale noise
 logical :: do_langmuir   = .false. ! whether or not calcualte langmuir turbulence enhance factor
+logical :: do_langmuir_cvmix   = .false. ! whether or not calcualte langmuir turbulence enhance factor via cvmix method based on Van Roekel 2012
+logical :: calculate_u10 = .false. ! If 10m not available the estimate u10 from u_star
 
 integer, parameter :: nni = 890         ! number of values for zehat in the look up table
 integer, parameter :: nnj = 480         ! number of values for ustar in the look up table
@@ -507,7 +520,7 @@ namelist /ocean_vert_kpp_mom4p1_nml/ use_this_module, shear_instability, double_
                                      use_sbl_bottom_flux, wsfc_combine_runoff_calve,        &
 			             bvf_from_below, variable_vtc, use_max_shear,           &
 			             linear_hbl, calc_visc_on_cgrid, smooth_ri_kmax_eq_kmu, &
-                                     do_langmuir
+                                     do_langmuir, do_langmuir_cvmix, calculate_u10
                                  
 
 contains
@@ -675,6 +688,18 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
   else
     write(stdoutunit,'(1x,a)') '==> NOTE from ocean_vert_kpp_mom4p1_mod: Leave full sw-radiation in non-local surface flux.'
   endif
+
+  if(do_langmuir .and. .not. do_langmuir_cvmix) then
+    write(stdoutunit,'(1x,a)') '==> NOTE from ocean_vert_kpp_mom4p1_mod: Enhancing mixing via langmuir turbulence according to Smyth 2002.'
+  endif
+  if(do_langmuir .and. do_langmuir_cvmix) then
+    write(stdoutunit,'(1x,a)') '==> NOTE from ocean_vert_kpp_mom4p1_mod: Enhancing mixing via langmuir turbulence according to van Roekel 2012.'
+  endif
+
+  if( calculate_u10 ) then
+    write(stdoutunit,'(1x,a)') '==> NOTE from ocean_vert_kpp_mom4p1_mod: Calculating U_10 on T-grid from ustar  COARE 3.5 paper (Edson et al., 2013).'
+  endif
+
   
   if(radiation_large .and. radiation_zero) call mpp_error(FATAL,&
       '==>ocean_vert_kpp_mom4p1_mod: Do not enable radiation_large and radiation_zero together. ')   
@@ -762,6 +787,8 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
   allocate (dat1(isd:ied,jsd:jed,3))
   allocate(sw_frac_hbl(isd:ied,jsd:jed))
 
+  allocate (langmuir_factor(isd:ied,jsd:jed))
+  allocate (langmuir_number(isd:ied,jsd:jed))
 #endif
 
   kbl(:,:)         = 0
@@ -772,6 +799,7 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
   hbl(:,:)         = 0.0
   sw_frac_hbl(:,:) = 0.0
   Ustk2(:,:)       = 0.0
+  ustar            = 0.0
 
   do n = 1, num_prog_tracers  
     wsfc(n)%wsfc(:,:) = 0.0
@@ -918,6 +946,18 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
        Time%model_time, 'wscale from KPP', 'm',                            &
        missing_value = missing_value, range=(/-1.e5,1.e6/))
 
+  id_lang_enh = register_diag_field('ocean_model','lang_enh',Grd%tracer_axes(1:2), &
+       Time%model_time, 'enhancement due to langmuir turbulence', 'none',                            &
+       missing_value = missing_value, range=(/0.0,10./))
+
+  id_lang = register_diag_field('ocean_model','lang_num',Grd%tracer_axes(1:2), &
+       Time%model_time, 'Langmuir number', 'none',                            &
+       missing_value = missing_value, range=(/0.0,1.E10/))
+
+  id_u10 = register_diag_field('ocean_model','u10',Grd%tracer_axes(1:2), &
+       Time%model_time, '10m wind speed used for kpp Langmuir turbulence', 'm/s',                            &
+       missing_value = missing_value, range=(/0.0,1.e3/))
+
   call watermass_diag_init(Time,Dens)
 
 
@@ -964,7 +1004,7 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
   real,                            intent(in)    :: aidif
   type(ocean_time_type),           intent(in)    :: Time
   type(ocean_thickness_type),      intent(in)    :: Thickness
-  type(ocean_velocity_type),       intent(in)    :: Velocity
+  type(ocean_velocity_type),       intent(inout) :: Velocity
   type(ocean_prog_tracer_type),    intent(inout) :: T_prog(:)
   type(ocean_diag_tracer_type),    intent(in)    :: T_diag(:)
   type(ocean_density_type),        intent(in)    :: Dens
@@ -1191,6 +1231,17 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
         enddo
       enddo
 
+
+! May need to estimate u_10 from ustar. Copy method from MOM6 RASF
+      if ( calculate_u10 ) then
+         where(ustar > 0.0 )
+            Velocity%u10 = ust_2_u10_coare3p5(ustar*sqrt(rho0/1.225))
+         elsewhere
+            Velocity%u10 = 0.0
+         end where
+      endif
+      if(id_u10 > 0) call diagnose_2d(Time, Grd, id_u10, Velocity%u10(:,:))
+
 !-----------------------------------------------------------------------
 !     compute interior mixing coefficients everywhere, due to constant 
 !     internal wave activity, static instability, and local shear 
@@ -1224,14 +1275,16 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
 !     boundary layer mixing coefficients: diagnose new b.l. depth
 !-----------------------------------------------------------------------
 
-      call bldepth(Thickness, sw_frac_zt, do_wave) 
+      call bldepth(Thickness, Velocity, sw_frac_zt, do_wave) 
  
 !-----------------------------------------------------------------------
 !     boundary layer diffusivities
 !-----------------------------------------------------------------------
 
-      call blmix_kpp(Thickness, diff_cbt, visc_cbu, do_wave)
+      call blmix_kpp(Thickness, Velocity, diff_cbt, visc_cbu, do_wave)
       call diagnose_3d(Time, Grd, id_ws, wrk1(:,:,:))
+      call diagnose_2d(Time, Grd, id_lang_enh, wrk1_2d(:,:))
+      call diagnose_2d(Time, Grd, id_lang, wrk2_2d(:,:))
 
 !-----------------------------------------------------------------------
 !     enhance diffusivity at interface kbl - 1
@@ -1591,9 +1644,10 @@ end subroutine vert_mix_kpp_mom4p1
 !      integer kbl(ij_bounds)     ! index of first grid level below hbl         <BR/>
 ! </DESCRIPTION>
 !
-subroutine bldepth(Thickness, sw_frac_zt, do_wave)
+subroutine bldepth(Thickness, Velocity, sw_frac_zt, do_wave)
 
   type(ocean_thickness_type),   intent(in) :: Thickness
+  type(ocean_velocity_type),   intent(in) :: Velocity
   real, dimension(isd:,jsd:,:), intent(in) :: sw_frac_zt   !3-D array of shortwave fract
   logical, intent(in)                      :: do_wave
 
@@ -1662,7 +1716,7 @@ subroutine bldepth(Thickness, sw_frac_zt, do_wave)
 
         ! compute velocity scales at sigma, for hbl = zt(kl):
         iwscale_use_hbl_eq_zt=1
-        call wscale (iwscale_use_hbl_eq_zt, Thickness%depth_zt(:,:,kl), do_wave)
+        call wscale (iwscale_use_hbl_eq_zt, Thickness%depth_zt(:,:,kl), Velocity, do_wave)
 
         do j=jsc,jec
           do i=isc,iec
@@ -1764,7 +1818,7 @@ subroutine bldepth(Thickness, sw_frac_zt, do_wave)
           
           !  compute velocity scales at sigma, for hbl = zt(kl):
           iwscale_use_hbl_eq_zt=1
-          call wscale (iwscale_use_hbl_eq_zt, Thickness%depth_zt(:,:,kl), do_wave)
+          call wscale (iwscale_use_hbl_eq_zt, Thickness%depth_zt(:,:,kl), Velocity, do_wave)
 
           do j=jsc,jec
             do i=isc,iec
@@ -2006,6 +2060,7 @@ end subroutine bldepth
 !      real hbl(ij_bounds)    = boundary layer depth (m)               <BR/>  
 !      real ustar(ij_bounds)  = surface friction velocity    (m/s)     <BR/>  
 !      real bfsfc(ij_bounds)  = total surface buoyancy flux (m^2/s^3)  <BR/>
+!      velocity structure.                                             <BR/>
 
 !  output                                                               <BR/>  
 !      real wm(ij_bounds),ws(ij_bounds) ! turbulent velocity scales at sigma
@@ -2018,14 +2073,15 @@ end subroutine bldepth
 ! Speed gain was observed at the SX-6.
 ! Later compiler versions may do better.
 !
-subroutine wscale(iwscale_use_hbl_eq_zt, zt_kl, do_wave)
+subroutine wscale(iwscale_use_hbl_eq_zt, zt_kl, Velocity, do_wave)
 
   integer,                    intent(in) :: iwscale_use_hbl_eq_zt
   real, dimension(isd:,jsd:), intent(in) :: zt_kl
+  type(ocean_velocity_type),  intent(in) :: Velocity
   logical,                    intent(in) :: do_wave
 
   real                :: zdiff, udiff, zfrac, ufrac, fzfrac
-  real                :: wam, wbm, was, wbs, u3, langmuirfactor, Cw_smyth
+  real                :: wam, wbm, was, wbs, u3, Cw_smyth
   real                :: zehat           ! = zeta *  ustar**3
   integer             :: iz, izp1, ju, jup1
   integer             :: i, j
@@ -2121,18 +2177,31 @@ subroutine wscale(iwscale_use_hbl_eq_zt, zt_kl, do_wave)
 
 !----------- if do_wave, add Langmuir turbulence enhancement factor
 
-      if (do_wave .and. do_langmuir) then
-         do j=jsc,jec
-            do i=isc,iec
-               Cw_smyth=Cw_0*(ustar(i,j)*ustar(i,j)*ustar(i,j)/(ustar(i,j)*ustar(i,j)*ustar(i,j) &
-                    + Wstfac*von_karman*bfsfc(i,j)*hbl(i,j) + epsln))**l_smyth
-               langmuirfactor=sqrt(1+Cw_smyth*Ustk2(i,j)/(ustar(i,j)*ustar(i,j) + epsln))
-               langmuirfactor = max(1.0, langmuirfactor)
-               langmuirfactor = min(LTmax, langmuirfactor)
-               ws(i,j)=ws(i,j)*langmuirfactor
-               wm(i,j)=wm(i,j)*langmuirfactor
+!RASF      if (do_wave .and. do_langmuir) then
+      if (do_wave .or. do_langmuir) then
+         if ( do_langmuir_cvmix ) then
+            do j=jsc,jec
+               do i=isc,iec
+                  langmuir_number(i,j)= get_langmuir_number(ustar(i,j), hbl(i,j), Velocity%u10(i,j))
+                  langmuir_factor(i,j) = min(sqrt(1.0 + 1./1.5**2/langmuir_number(i,j)**2 + 1./(5.4**4)/langmuir_number(i,j)**4),LTmax)
+                  ws(i,j)=ws(i,j)*langmuir_factor(i,j)
+                  wm(i,j)=wm(i,j)*langmuir_factor(i,j)
+               enddo
             enddo
-         enddo
+
+         else
+            do j=jsc,jec
+               do i=isc,iec
+                  Cw_smyth=Cw_0*(ustar(i,j)*ustar(i,j)*ustar(i,j)/(ustar(i,j)*ustar(i,j)*ustar(i,j) &
+                       + Wstfac*von_karman*bfsfc(i,j)*hbl(i,j) + epsln))**l_smyth
+                  langmuir_factor(i,j)=sqrt(1+Cw_smyth*Ustk2(i,j)/(ustar(i,j)*ustar(i,j) + epsln))
+                  langmuir_factor(i,j) = max(1.0, langmuir_factor(i,j))
+                  langmuir_factor(i,j) = min(LTmax, langmuir_factor(i,j))
+                  ws(i,j)=ws(i,j)*langmuir_factor(i,j)
+                  wm(i,j)=wm(i,j)*langmuir_factor(i,j)
+               enddo
+            enddo
+         endif
       endif
 
 end subroutine wscale
@@ -2440,9 +2509,10 @@ end subroutine ddmix
 !
 ! </DESCRIPTION>
 !
-subroutine blmix_kpp(Thickness, diff_cbt, visc_cbu, do_wave)
+subroutine blmix_kpp(Thickness, Velocity, diff_cbt, visc_cbu, do_wave)
 
   type(ocean_thickness_type),     intent(in)    :: Thickness
+  type(ocean_Velocity_type),      intent(in)    :: Velocity
   real, dimension(isd:,jsd:,:,:), intent(inout) :: diff_cbt
   real, dimension(isd:,jsd:,:) ,  intent(inout) :: visc_cbu
   logical,                        intent(in)    :: do_wave
@@ -2469,7 +2539,7 @@ subroutine blmix_kpp(Thickness, diff_cbt, visc_cbu, do_wave)
         iwscale_use_hbl_eq_zt = 0
         zt_kl_dummy(:,:)      = 0.0
 
-        call wscale (iwscale_use_hbl_eq_zt, zt_kl_dummy, do_wave)
+        call wscale (iwscale_use_hbl_eq_zt, zt_kl_dummy, Velocity, do_wave)
 
       do j=jsc,jec
         do i = isc,iec 
@@ -2522,6 +2592,9 @@ subroutine blmix_kpp(Thickness, diff_cbt, visc_cbu, do_wave)
       enddo
 
       blmc(:,:,:,:) = 0.0
+      wrk1 = 0.0
+      wrk1_2d = 1.0
+      wrk2_2d = 0.0
 
       do ki=1,kbl_max !results are needed only for ki<kbl, hence, limiting this loops saves a lot of wscale calls
 
@@ -2540,7 +2613,7 @@ subroutine blmix_kpp(Thickness, diff_cbt, visc_cbu, do_wave)
           iwscale_use_hbl_eq_zt = 0
           zt_kl_dummy(:,:)      = 0.0
 
-          call wscale(iwscale_use_hbl_eq_zt, zt_kl_dummy, do_wave)
+          call wscale(iwscale_use_hbl_eq_zt, zt_kl_dummy, Velocity, do_wave)
 
 !-----------------------------------------------------------------------
 !         compute the dimensionless shape functions at the interfaces
@@ -2548,6 +2621,10 @@ subroutine blmix_kpp(Thickness, diff_cbt, visc_cbu, do_wave)
 !-----------------------------------------------------------------------
 
         if (id_ws > 0) wrk1(:,:,ki) =  ws(:,:)
+        if(ki == 1) then
+           if (id_lang_enh > 0) wrk1_2d =  langmuir_factor
+           if (id_lang > 0) wrk2_2d =  langmuir_number
+        endif
           
         do j=jsc,jec
           do i = isc,iec
@@ -2578,8 +2655,9 @@ subroutine blmix_kpp(Thickness, diff_cbt, visc_cbu, do_wave)
 !             nonlocal transport term = ghats * <ws>o (eqn. 20)
 !             To include Langmuir turbulence effects, multiply ghats
 !             by a factor of Lgam (McWilliam & Sullivan 2001)
+!             Do not do this if using cvmix version
 !-----------------------------------------------------------------------
-              if (do_wave .and. do_langmuir) then
+              if ((do_wave .or. do_langmuir) .and. .not. do_langmuir_cvmix) then
                  ghats(i,j,ki) = Lgam * (1.-stable(i,j)) * cg    &
                         / (ws(i,j) * hbl(i,j) + epsln)
               else
@@ -2608,7 +2686,7 @@ subroutine blmix_kpp(Thickness, diff_cbt, visc_cbu, do_wave)
       iwscale_use_hbl_eq_zt = 0
       zt_kl_dummy(:,:)      = 0.0
 
-      call wscale(iwscale_use_hbl_eq_zt, zt_kl_dummy, do_wave)
+      call wscale(iwscale_use_hbl_eq_zt, zt_kl_dummy, Velocity, do_wave)
 
       do j=jsc,jec
         do i = isc,iec
@@ -2827,7 +2905,137 @@ subroutine ri_for_kpp (Time, Thickness, aidif, Velocity, theta, salinity, &
 end subroutine ri_for_kpp
 ! </SUBROUTINE> NAME="ri_for_kpp"
 
+!#######################################################################
+!
+elemental real function ust_2_u10_coare3p5(USTair) result(u10)
+  real, intent(in) :: USTair
+  real, parameter :: nu=1e-6
+  real :: z0sm, z0, z0rough, u10a, alpha, CD
+  integer :: CT
 
+  ! Uses empirical formula for z0 to convert ustar_air to u10 based on the
+  !  COARE 3.5 paper (Edson et al., 2013)
+  !alpha=m*U10+b
+  !Note in Edson et al. 2013, eq. 13 m is given as 0.017.  However,
+  ! m=0.0017 reproduces the curve in their figure 6. Later acknowleged in
+  ! correction. RASF
+
+   z0sm = 0.11 * nu / USTair !Compute z0smooth from ustar guess
+   u10 = USTair/sqrt(0.001)  !Guess for u10
+   u10a = 1000
+
+   CT=0
+   do while (abs(u10a/u10-1.)>0.001)
+      CT=CT+1
+      u10a = u10
+      alpha = min(0.028,0.0017 * u10 - 0.005)
+      z0rough = alpha * USTair**2/grav ! Compute z0rough from ustar guess
+      z0=z0sm+z0rough
+      CD = ( von_karman / log(10/z0) )**2 ! Compute CD from derived roughness
+      u10 = USTair/sqrt(CD);!Compute new u10 from derived CD, while loop
+                       ! ends and checks for convergence...CT counter
+                       ! makes sure loop doesn't run away if function
+                       ! doesn't converge.  This code was produced offline
+                       ! and converged rapidly (e.g. 2 cycles)
+                       ! for ustar=0.0001:0.0001:10.
+      if (CT>20) then
+         u10 = USTair/sqrt(0.0015) ! I don't expect to get here, but just
+                              !  in case it will output a reasonable value.
+         exit
+      endif
+   enddo
+end function ust_2_u10_coare3p5
+
+
+real function get_langmuir_number(ustr, hbl, u10) result(LA)
+! Original description:
+! This function returns the Langmuir number, given the 10-meter
+! wind (m/s), friction velocity (m/s) and the boundary layer depth (m).
+! Update (Jan/25):
+!
+! Qing Li, 160606
+! BGR port from CVMix to MOM6 Jan/25/2017
+! Modified from MOM6 for MOM5 RASF 2018
+
+! Input
+  real, intent(in) :: &
+       ! water-side surface friction velocity (m/s)
+       ustr, &
+       ! boundary layer depth (m)
+       hbl, &
+       ! 10m winds (m/s)
+       u10
+!  real, intent(out) :: US_SL, LA
+!  real, intent(out) :: LA
+! Local variables
+  ! parameters
+  real, parameter :: &
+       ! ratio of U19.5 to U10 (Holthuijsen, 2007)
+       u19p5_to_u10 = 1.075, &
+       ! ratio of mean frequency to peak frequency for
+       ! Pierson-Moskowitz spectrum (Webb, 2011)
+       fm_to_fp = 1.296, &
+       ! ratio of surface Stokes drift to U10
+       us_to_u10 = 0.0162, &
+       ! loss ratio of Stokes transport
+       r_loss = 0.667
+  real :: us, us_sl, hm0, fm, fp, vstokes, kphil, kstar
+  real :: z0, z0i, r1, r2, r3, r4, tmp, lasl_sqr_i
+
+
+  if (ustr > 0.0 .and. u10 > 0.0) then
+    ! surface Stokes drift
+    us = us_to_u10*u10
+    !
+    ! significant wave height from Pierson-Moskowitz
+    ! spectrum (Bouws, 1998)
+    hm0 = 0.0246 *u10**2
+    !
+    ! peak frequency (PM, Bouws, 1998)
+    tmp = 2.0 * PI * u19p5_to_u10 * u10
+    fp = 0.877 * grav / tmp
+    !
+    ! mean frequency
+    fm = fm_to_fp * fp
+    !
+    ! total Stokes transport (a factor r_loss is applied to account
+    !  for the effect of directional spreading, multidirectional waves
+    !  and the use of PM peak frequency and PM significant wave height
+    !  on estimating the Stokes transport)
+    vstokes = 0.125 * PI * r_loss * fm * hm0**2
+    !
+    ! the general peak wavenumber for Phillips' spectrum
+    ! (Breivik et al., 2016) with correction of directional spreading
+    kphil = 0.176 * us / vstokes
+    !
+    ! surface layer averaged Stokes dirft with Stokes drift profile
+    ! estimated from Phillips' spectrum (Breivik et al., 2016)
+    ! the directional spreading effect from Webb and Fox-Kemper, 2015
+    ! is also included
+    kstar = kphil * 2.56
+    ! surface layer
+!RASF Dodgy as anything here. cvmix uses 0.2 but MOM6 looks like it uses 0.04 
+    z0 = 0.2*abs(hbl)
+    z0i = 1.0 / z0
+    ! term 1 to 4
+    r1 = ( 0.151 / kphil * z0i -0.84 ) &
+         * ( 1.0 - exp(-2.0 * kphil * z0) )
+    r2 = -( 0.84 + 0.0591 / kphil * z0i ) &
+         *sqrt( 2.0 * PI * kphil * z0 ) &
+         *erfc( sqrt( 2.0 * kphil * z0 ) )
+    r3 = ( 0.0632 / kstar * z0i + 0.125 ) &
+         * (1.0 - exp(-2.0 * kstar * z0) )
+    r4 = ( 0.125 + 0.0946 / kstar * z0i ) &
+         *sqrt( 2.0 * PI *kstar * z0) &
+         *erfc( sqrt( 2.0 * kstar * z0 ) )
+    us_sl = us * (0.715 + r1 + r2 + r3 + r4)
+    LA = sqrt(ustr/us_sl)
+  else
+    us_sl = 0.0
+    LA=1.e8
+  endif
+
+end function get_langmuir_number
 
 !#######################################################################
 ! <SUBROUTINE NAME="watermass_diag_init">
