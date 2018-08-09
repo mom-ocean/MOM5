@@ -3202,6 +3202,16 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
      enddo
   enddo
 
+  !------- Get 10m winds --------------------------------
+  do j = jsc_bnd,jec_bnd
+     do i = isc_bnd,iec_bnd
+        ii = i + i_shift
+        jj = j + j_shift
+        Velocity%u10(ii,jj)= Ice_ocean_boundary%wnd(i,j)*Grd%tmask(ii,jj,1) !RASF 10m winds passin ACCESS, Wombat. c.f. MOM6 approach ustar to u10. T-GRID!
+     enddo
+  enddo
+  call mpp_update_domains(Velocity%u10(:,:)  , Dom%domain2d)
+
   !------- Calculate Langmuir turbulence enhancement and stokes drift if do_langmuir is true ------------------------
     if ( do_langmuir ) then 
        do j = jsc_bnd,jec_bnd
@@ -3214,10 +3224,8 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
                 Velocity%vstoke(ii,jj) = Ice_ocean_boundary%vstoke(i,j)
                 Velocity%wavlen(ii,jj)= Ice_ocean_boundary%wavlen(i,j)
              endif
-             Velocity%u10(ii,jj)= Ice_ocean_boundary%wnd(i,j)*Grd%tmask(ii,jj,1) !RASF 10m winds passin ACCESS, Wombat. c.f. MOM6 approach ustar to u10. T-GRID!
           enddo
        enddo
-       call mpp_update_domains(Velocity%u10(:,:)  , Dom%domain2d)
     endif
   !--------momentum fluxes------------------------------------- 
   !
