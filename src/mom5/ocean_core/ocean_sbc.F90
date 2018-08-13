@@ -761,7 +761,6 @@ real, allocatable, dimension(:,:) :: betasfc2      ! potrho surface saline contr
 #endif
 #if defined(ACCESS)
 real, allocatable, dimension(:,:,:) :: sslope
-real, allocatable, dimension(:,:) :: aice
 #endif
 
 
@@ -1047,7 +1046,6 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
 #if defined(ACCESS)
   allocate ( Ocean_sfc%gradient (isc_bnd:iec_bnd,jsc_bnd:jec_bnd,2))
   allocate ( sslope(isc:iec, jsc:jec, 2) )
-  allocate ( aice(isc:iec, jsc:jec) )
 #if defined(ACCESS_CM)
   allocate ( Ocean_sfc%co2    (isc_bnd:iec_bnd,jsc_bnd:jec_bnd), &
              Ocean_sfc%co2flux (isc_bnd:iec_bnd,jsc_bnd:jec_bnd)) 
@@ -1064,7 +1062,6 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
 #if defined(ACCESS)
   Ocean_sfc%gradient  = 0.0  ! gradint of ssl passed to Ice model
   sslope = 0.0
-  aice = 0.0
 #if defined(ACCESS_CM)
   Ocean_sfc%co2       = 0.0 
   Ocean_sfc%co2flux   = 0.0 
@@ -3130,9 +3127,18 @@ end subroutine ocean_sfc_end
 ! </DESCRIPTION>
 !
 
+#if defined(ACCESS)
+subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_prog, Velocity, &
+                         pme, melt, river, runoff, calving, upme, uriver, swflx, swflx_vis, patm, aice)
+
+  real, dimension(isd:,jsd:),    intent(inout)    :: aice 
+
+#else
+
 subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_prog, Velocity, &
                          pme, melt, river, runoff, calving, upme, uriver, swflx, swflx_vis, patm)
 
+#endif
 
   type(ocean_time_type),          intent(in)    :: Time 
   type(ice_ocean_boundary_type),  intent(in)    :: Ice_ocean_boundary
@@ -3208,16 +3214,11 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
           do i = isc_bnd,iec_bnd
              ii = i + i_shift
              jj = j + j_shift
-! until full wave model is implemented Ice_ocean_boundary%ustoke etc not associated 
-             if(associated(Ice_ocean_boundary%ustoke)) then
-                Velocity%ustoke(ii,jj) = Ice_ocean_boundary%ustoke(i,j) 
-                Velocity%vstoke(ii,jj) = Ice_ocean_boundary%vstoke(i,j)
-                Velocity%wavlen(ii,jj)= Ice_ocean_boundary%wavlen(i,j)
-             endif
-             Velocity%u10(ii,jj)= Ice_ocean_boundary%wnd(i,j)*Grd%tmask(ii,jj,1) !RASF 10m winds passin ACCESS, Wombat. c.f. MOM6 approach ustar to u10. T-GRID!
+             Velocity%ustoke(ii,jj) = Ice_ocean_boundary%ustoke(i,j)
+             Velocity%vstoke(ii,jj) = Ice_ocean_boundary%vstoke(i,j)
+             Velocity%wavlen(ii,jj)= Ice_ocean_boundary%wavlen(i,j)
           enddo
        enddo
-       call mpp_update_domains(Velocity%u10(:,:)  , Dom%domain2d)
     endif
   !--------momentum fluxes------------------------------------- 
   !
@@ -4202,10 +4203,16 @@ end subroutine get_ocean_sbc
 ! </DESCRIPTION>
 !
 
-subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, melt, pme)
 #if defined(ACCESS)
 
+subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, melt, pme, aice)
   use auscom_ice_parameters_mod, only : use_ioaice, aice_cutoff
+
+  real, dimension(isd:,jsd:),    intent(in)    :: aice 
+
+#else
+
+subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, melt, pme)
 
 #endif
 

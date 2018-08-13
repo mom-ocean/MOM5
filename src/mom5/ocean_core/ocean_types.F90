@@ -564,7 +564,6 @@ module ocean_types_mod
      real, dimension(isd:ied,jsd:jed,2)      :: bmf             ! momentum flux per mass into ocean bottom  (N/m^2)
      real, dimension(isd:ied,jsd:jed)        :: gamma           ! dimensionful bottom drag coefficient (kg/(m^2 sec))
      real, dimension(isd:ied,jsd:jed)        :: langmuirfactor  ! dimensionless langmuir turbulence enhancement factor (non dimensional)
-     real, dimension(isd:ied,jsd:jed)        :: u10             ! 10m wind speed (m/s)
      real, dimension(isd:ied,jsd:jed)        :: ustoke          ! x-dir surface stokes drift (m/s)
      real, dimension(isd:ied,jsd:jed)        :: vstoke          ! y-dir surface stokes drift (m/s)
      real, dimension(isd:ied,jsd:jed)        :: wavlen          ! wave length (m)
@@ -1098,7 +1097,6 @@ module ocean_types_mod
      real, _ALLOCATABLE, dimension(:,:,:)     :: bmf             _NULL ! momentum flux per mass into ocean bottom  (N/m^2)
      real, _ALLOCATABLE, dimension(:,:)       :: gamma           _NULL ! dimensionful bottom drag coefficient (kg/(m^2 sec))
      real, _ALLOCATABLE, dimension(:,:)       :: langmuirfactor  _NULL ! Langmuir turbulence enhancement factor
-     real, _ALLOCATABLE, dimension(:,:)       :: u10             _NULL ! 10m wind speed (m/s)
      real, _ALLOCATABLE, dimension(:,:)       :: ustoke          _NULL ! x-dir surface stokes drift
      real, _ALLOCATABLE, dimension(:,:)       :: vstoke          _NULL ! y-dir surface stokes drift
      real, _ALLOCATABLE, dimension(:,:)       :: wavlen          _NULL ! wave length
@@ -1236,9 +1234,9 @@ module ocean_types_mod
      real, pointer, dimension(:,:) :: wfiform          =>NULL() ! water flux from forming ice (kg/m^2/s)
 #if defined(ACCESS_CM)
      real, pointer, dimension(:,:) :: co2              =>NULL() ! co2
-#endif
-#endif
      real, pointer, dimension(:,:) :: wnd              =>NULL() ! wind speed
+#endif
+#endif
      integer :: xtype                                          ! REGRID, REDIST or DIRECT
 
      type(coupler_2d_bc_type)      :: fluxes                   ! array of fields used for additional tracers
