@@ -1647,7 +1647,7 @@ subroutine diff_cbt_j09_init(Time, Ocean_options)
   do k=1,nk
      do j=jsc,jec
         do i=isc,iec
-           if(Grd%yt(i,j) <= j09_lat) then
+           if(abs(Grd%yt(i,j)) <= j09_lat) then
               wrk1(i,j,k) = (j09_a * cos(Grd%yt(i,j)*deg_to_rad) + j09_b)*Grd%tmask(i,j,k)
            endif
            diff_cbt_back(i,j,k) = diff_cbt_back(i,j,k) +  wrk1(i,j,k)
