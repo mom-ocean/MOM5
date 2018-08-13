@@ -378,11 +378,8 @@ program main
              Ice_ocean_boundary% aice(isc:iec,jsc:jec),             &
              Ice_ocean_boundary% mh_flux(isc:iec,jsc:jec),          &
              Ice_ocean_boundary% wfimelt(isc:iec,jsc:jec),          &
-             Ice_ocean_boundary% wfiform(isc:iec,jsc:jec))
-#if defined ACCESS_CM
-    allocate(Ice_ocean_boundary%co2(isc:iec,jsc:jec),               &
+             Ice_ocean_boundary% wfiform(isc:iec,jsc:jec),          &
              Ice_ocean_boundary%wnd(isc:iec,jsc:jec))
-#endif
 
   Ice_ocean_boundary%u_flux          = 0.0
   Ice_ocean_boundary%v_flux          = 0.0
@@ -403,10 +400,7 @@ program main
   Ice_ocean_boundary%mh_flux         = 0.0
   Ice_ocean_boundary% wfimelt        = 0.0
   Ice_ocean_boundary% wfiform        = 0.0
-#if defined ACCESS_CM
-  Ice_ocean_boundary%co2             = 0.0
   Ice_ocean_boundary%wnd             = 0.0
-#endif
 
   coupler_init_clock = mpp_clock_id('OASIS init', grain=CLOCK_COMPONENT)
   call mpp_clock_begin(coupler_init_clock)
@@ -688,10 +682,7 @@ subroutine write_boundary_chksums(Ice_ocean_boundary)
     call write_chksum_2d('Ice_ocean_boundary%mh_flux', Ice_ocean_boundary%mh_flux)
     call write_chksum_2d('Ice_ocean_boundary%wfimelt', Ice_ocean_boundary%wfimelt)
     call write_chksum_2d('Ice_ocean_boundary%wfiform', Ice_ocean_boundary%wfiform)
-#if defined ACCESS_CM
-    call write_chksum_2d('Ice_ocean_boundary%co2', Ice_ocean_boundary%co2)
     call write_chksum_2d('Ice_ocean_boundary%wnd', Ice_ocean_boundary%wnd)
-#endif
 
 end subroutine write_boundary_chksums
 
