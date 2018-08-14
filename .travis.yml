@@ -1,0 +1,21 @@
+# Travis doesn't have a fortran build config, so we'll use c as a base and
+# create our own environment
+language: c
+sudo: required
+
+env:
+    global:
+        - FC=gfortran-4.8
+        - OMPI_FC=${FC}
+install:
+    - sudo apt-add-repository --yes ppa:ubuntu-toolchain-r/test
+    - sudo apt-get update
+    - sudo apt-get install gcc-4.8 gfortran-4.8 libgomp1 openmpi-bin libopenmpi-dev  libnetcdf-dev  netcdf-bin
+
+script: 
+    - cd exp && ./MOM_compile.csh --type MOM_SIS --platform gfortran.openmpi --use_netcdf4
+
+
+# after_success:
+#     - find .
+#     - codecov --gcov-exec=gcov-4.8
