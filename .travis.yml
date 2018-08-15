@@ -1,0 +1,38 @@
+# Travis doesn't have a fortran build config, so we'll use c as a base and
+# create our own environment
+language: c
+sudo: required
+
+git:
+    depth: 3
+    quiet: true
+
+env:
+    - MODEL=MOM_solo
+    - MODEL=MOM_SIS
+    - MODEL=CM2M
+    - MODEL=ESM2M
+    - MODEL=ICCM
+    - MODEL=EBM
+    - MODEL=ACCESS-OM
+    - MODEL=ACCESS-CM
+    global:
+        - FC=gfortran-4.8
+        - OMPI_FC=${FC}
+    
+matrix:
+  allow_failures:
+    - env: MODEL=ACCESS-OM
+    - env: MODEL=ACCESS-CM
+
+install:
+    - sudo apt-add-repository --yes ppa:ubuntu-toolchain-r/test
+    - sudo apt-get update
+    - sudo apt-get install gcc-4.8 gfortran-4.8 libgomp1 openmpi-bin libopenmpi-dev  libnetcdf-dev  netcdf-bin
+
+script: 
+    - cd exp && ./MOM_compile.csh --type MOM_SIS --platform travis --use_netcdf4
+
+# after_success:
+#     - find .
+#     - codecov --gcov-exec=gcov-4.8
