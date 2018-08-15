@@ -8,14 +8,15 @@ git:
     quiet: true
 
 env:
-    - MODEL=MOM_solo
-    - MODEL=MOM_SIS
-    - MODEL=CM2M
-    - MODEL=ESM2M
-    - MODEL=ICCM
-    - MODEL=EBM
-    - MODEL=ACCESS-OM
-    - MODEL=ACCESS-CM
+    matrix:
+        - MODEL=MOM_solo
+        - MODEL=MOM_SIS
+        - MODEL=CM2M
+        - MODEL=ESM2M
+        - MODEL=ICCM
+        - MODEL=EBM
+        - MODEL=ACCESS-OM
+        - MODEL=ACCESS-CM
     global:
         - FC=gfortran-4.8
         - OMPI_FC=${FC}
