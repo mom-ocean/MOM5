@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/mom-ocean/MOM5.svg?branch=master)](https://travis-ci.org/mom-ocean/MOM5)
+
 # The Modular Ocean Model
 
 MOM is a numerical ocean model based on the hydrostatic primitive equations. Development of the model is managed through the Model Development Lab at
