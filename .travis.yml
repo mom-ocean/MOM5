@@ -23,8 +23,8 @@ env:
     
 matrix:
   allow_failures:
-    - env: MODEL=ACCESS-OM
-    - env: MODEL=ACCESS-CM
+    - env: TYPE=ACCESS-OM
+    - env: TYPE=ACCESS-CM
 
 install:
     - sudo apt-add-repository --yes ppa:ubuntu-toolchain-r/test
