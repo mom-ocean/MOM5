@@ -9,14 +9,14 @@ git:
 
 env:
     matrix:
-        - MODEL=MOM_solo
-        - MODEL=MOM_SIS
-        - MODEL=CM2M
-        - MODEL=ESM2M
-        - MODEL=ICCM
-        - MODEL=EBM
-        - MODEL=ACCESS-OM
-        - MODEL=ACCESS-CM
+        - TYPE=MOM_solo
+        - TYPE=MOM_SIS
+        - TYPE=CM2M
+        - TYPE=ESM2M
+        - TYPE=ICCM
+        - TYPE=EBM
+        - TYPE=ACCESS-OM
+        - TYPE=ACCESS-CM
     global:
         - FC=gfortran-4.8
         - OMPI_FC=${FC}
@@ -29,10 +29,10 @@ matrix:
 install:
     - sudo apt-add-repository --yes ppa:ubuntu-toolchain-r/test
     - sudo apt-get update
-    - sudo apt-get install gcc-4.8 gfortran-4.8 libgomp1 openmpi-bin libopenmpi-dev  libnetcdf-dev  netcdf-bin
+    - sudo apt-get install csh gcc-4.8 gfortran-4.8 libgomp1 openmpi-bin libopenmpi-dev  libnetcdf-dev  netcdf-bin
 
 script: 
-    - cd exp && ./MOM_compile.csh --type MOM_SIS --platform travis --use_netcdf4
+    - cd exp && ./MOM_compile.csh --type $TYPE --platform travis --use_netcdf4
 
 # after_success:
 #     - find .
