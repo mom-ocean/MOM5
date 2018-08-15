@@ -357,7 +357,8 @@ ierr = check_nml_error(io_status,'ocean_solo_nml')
              Ice_ocean_boundary% fprec (isc:iec,jsc:jec),           &
              Ice_ocean_boundary% runoff (isc:iec,jsc:jec),          &
              Ice_ocean_boundary% calving (isc:iec,jsc:jec),         &
-             Ice_ocean_boundary% p (isc:iec,jsc:jec))
+             Ice_ocean_boundary% p (isc:iec,jsc:jec),               &
+             Ice_ocean_boundary% wnd (isc:iec,jsc:jec))
 
   Ice_ocean_boundary%u_flux          = 0.0
   Ice_ocean_boundary%v_flux          = 0.0
@@ -374,6 +375,7 @@ ierr = check_nml_error(io_status,'ocean_solo_nml')
   Ice_ocean_boundary%runoff          = 0.0
   Ice_ocean_boundary%calving         = 0.0
   Ice_ocean_boundary%p               = 0.0
+  Ice_ocean_boundary%wnd             = 0.0
 
   call external_coupler_sbc_init(Ocean_sfc%domain, dt_cpld, Run_len)
 
@@ -500,6 +502,7 @@ end subroutine ocean_solo_restart
       call data_override('OCN', 'runoff',          x%runoff         , Time_next)
       call data_override('OCN', 'calving',         x%calving        , Time_next)
       call data_override('OCN', 'p',               x%p              , Time_next)
+      call data_override('OCN', 'wnd',             x%wnd            , Time_next)
             
   end subroutine ice_ocn_bnd_from_data
 
