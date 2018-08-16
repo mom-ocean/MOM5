@@ -412,6 +412,7 @@ subroutine ocean_velocity_init (Grid, Domain, Time, Time_steps, Ocean_options, &
   allocate (Velocity%lap_friction_bt(isd:ied,jsd:jed,2))
   allocate (Velocity%bih_friction_bt(isd:ied,jsd:jed,2))
   allocate (Velocity%current_wave_stress(isd:ied,jsd:jed))
+  allocate (Velocity%u10(isd:ied,jsd:jed))
 #endif
 
   Velocity%smf                 = 0.0
@@ -437,6 +438,7 @@ subroutine ocean_velocity_init (Grid, Domain, Time, Time_steps, Ocean_options, &
   Velocity%lap_friction_bt     = 0.0
   Velocity%bih_friction_bt     = 0.0
   Velocity%current_wave_stress = 0.0
+  Velocity%u10                 = 0.0
 
   ! register fields for diagnostic output
 
