@@ -297,6 +297,9 @@ program main
   ! restarts
   Time_last_sfix = set_time(seconds=int(int(ss/(sfix_hours*SECONDS_PER_HOUR))*sfix_hours*SECONDS_PER_HOUR))
   Time_sfix = set_time(seconds=int(sfix_hours*SECONDS_PER_HOUR))
+  if ( mpp_pe().EQ.mpp_root_pe() )then
+    print *,'ss = ',ss,'Time_last_sfix = ',Time_last_sfix ,'Time_sfix = ',Time_sfix 
+  end if
 #endif
 
   Time_restart_init = set_date(date_restart(1), date_restart(2), date_restart(3),  &
