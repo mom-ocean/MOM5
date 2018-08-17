@@ -94,7 +94,7 @@ program main
   use mpp_mod,                  only: mpp_broadcast
   use time_interp_external_mod, only: time_interp_external_init
   use time_manager_mod,         only: set_calendar_type, time_type, increment_date
-  use time_manager_mod,         only: set_time, set_date, get_time, get_date, month_name
+  use time_manager_mod,         only: set_time, set_date, get_time, get_date, month_name, print_time
   use time_manager_mod,         only: GREGORIAN, JULIAN, NOLEAP, THIRTY_DAY_MONTHS, NO_CALENDAR
   use time_manager_mod,         only: operator( <= ), operator( < ), operator( >= )
   use time_manager_mod,         only: operator( + ),  operator( - ), operator( / )
