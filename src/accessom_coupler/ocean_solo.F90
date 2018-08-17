@@ -298,7 +298,9 @@ program main
   Time_last_sfix = set_time(seconds=int(int(ss/(sfix_hours*SECONDS_PER_HOUR))*sfix_hours*SECONDS_PER_HOUR))
   Time_sfix = set_time(seconds=int(sfix_hours*SECONDS_PER_HOUR))
   if ( mpp_pe().EQ.mpp_root_pe() )then
-    print *,'ss = ',ss,'Time_last_sfix = ',Time_last_sfix ,'Time_sfix = ',Time_sfix 
+    print *,'ss = ',ss
+    call print_time(Time_last_sfix,'Time_last_sfix = ')
+    call print_time(Time_sfix,'Time_sfix = ')
   end if
 #endif
 
