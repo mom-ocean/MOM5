@@ -292,13 +292,16 @@ program main
   num_cpld_calls    = Run_len / Time_step_coupled
   Time = Time_start
 #ifdef ACCESS
-  call get_time(Time_start,ss)
+  call get_time(Time_start,seconds,days)
+  if ( mpp_pe().EQ.mpp_root_pe() )then
+    print *,'days = ',days
+    print *,'seconds = ',seconds
+  end if
   ! The last sfix time has to be determined from absolute model time, to ensure reproducibility across
   ! restarts
-  Time_last_sfix = set_time(seconds=int(int(ss/(sfix_hours*SECONDS_PER_HOUR))*sfix_hours*SECONDS_PER_HOUR))
+  Time_last_sfix = set_time(seconds=int(int(seconds/(sfix_hours*SECONDS_PER_HOUR))*sfix_hours*SECONDS_PER_HOUR))
   Time_sfix = set_time(seconds=int(sfix_hours*SECONDS_PER_HOUR))
   if ( mpp_pe().EQ.mpp_root_pe() )then
-    print *,'ss = ',ss
     call print_time(Time_last_sfix,'Time_last_sfix = ')
     call print_time(Time_sfix,'Time_sfix = ')
   end if
