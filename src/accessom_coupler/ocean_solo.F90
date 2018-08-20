@@ -298,7 +298,7 @@ program main
   end if
   ! The last sfix time has to be determined from absolute model time, to ensure reproducibility across
   ! restarts
-  Time_last_sfix = set_time(seconds=seconds-mod(seconds,sfix_hours*SECONDS_PER_HOUR))
+  Time_last_sfix = set_time(seconds=seconds-mod(seconds,int(sfix_hours*SECONDS_PER_HOUR))
   Time_sfix = set_time(seconds=int(sfix_hours*SECONDS_PER_HOUR))
   if ( mpp_pe().EQ.mpp_root_pe() )then
     call print_time(Time_last_sfix,'Time_last_sfix = ')
