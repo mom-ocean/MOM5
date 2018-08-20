@@ -435,6 +435,8 @@ program main
         do_sfix_now = .true.
         Time_last_sfix = Time
      else
+        call print_time(Time - Time_last_sfix,'Time - Time_last_sfix = ')
+        call print_time(Time_sfix,'Time_sfix = ')
         do_sfix_now = .false.
      end if
 #endif
