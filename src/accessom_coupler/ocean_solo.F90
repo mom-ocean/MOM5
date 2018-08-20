@@ -291,20 +291,6 @@ program main
   Time_step_coupled = set_time(dt_cpld, 0)
   num_cpld_calls    = Run_len / Time_step_coupled
   Time = Time_start
-#ifdef ACCESS
-  call get_time(Time_start-Time_init,seconds)
-  if ( mpp_pe().EQ.mpp_root_pe() )then
-    print *,'Current model time in seconds = ',seconds
-  end if
-  ! The last sfix time has to be determined from absolute model time, to ensure reproducibility across
-  ! restarts
-  Time_last_sfix = set_time(seconds=seconds-mod(seconds,int(sfix_hours*SECONDS_PER_HOUR)))
-  Time_sfix = set_time(seconds=int(sfix_hours*SECONDS_PER_HOUR))
-  if ( mpp_pe().EQ.mpp_root_pe() )then
-    call print_time(Time_last_sfix,'Time_last_sfix = ')
-    call print_time(Time_sfix,'Time_sfix = ')
-  end if
-#endif
 
   Time_restart_init = set_date(date_restart(1), date_restart(2), date_restart(3),  &
                                date_restart(4), date_restart(5), date_restart(6) )
@@ -360,6 +346,22 @@ program main
 
   call ocean_model_init(Ocean_sfc, Ocean_state, Time_init, Time, &
                         accessom2%get_ice_ocean_timestep())
+
+#ifdef ACCESS
+  ! This must be called after ocean_model_init so sfix_hours can be read
+  call get_time(Time_start-Time_init,seconds)
+  if ( mpp_pe().EQ.mpp_root_pe() )then
+    print *,'Current model time in seconds = ',seconds
+  end if
+  ! The last sfix time has to be determined from absolute model time, to ensure reproducibility across
+  ! restarts
+  Time_last_sfix = set_time(seconds=seconds-mod(seconds,int(sfix_hours*SECONDS_PER_HOUR)))
+  Time_sfix = set_time(seconds=int(sfix_hours*SECONDS_PER_HOUR))
+  if ( mpp_pe().EQ.mpp_root_pe() )then
+    call print_time(Time_last_sfix,'Time_last_sfix = ')
+    call print_time(Time_sfix,'Time_sfix = ')
+  end if
+#endif
 
   call data_override_init(Ocean_domain_in = Ocean_sfc%domain)
 
