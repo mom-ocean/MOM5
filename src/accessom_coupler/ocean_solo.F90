@@ -352,7 +352,7 @@ program main
   call get_time(Time_start-Time_init,seconds)
   if ( mpp_pe().EQ.mpp_root_pe() )then
     print *,'Current model time in seconds = ',seconds
-    print *,'Current sfix_hours = ',sifx_hours
+    print *,'Current sfix_hours = ',sfix_hours
   end if
   ! The last sfix time has to be determined from absolute model time, to ensure reproducibility across
   ! restarts
