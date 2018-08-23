@@ -133,6 +133,7 @@ program main
 #ifdef ACCESS
   type(time_type) :: Time_last_sfix 
   type(time_type) :: Time_sfix 
+  integer :: sfix_seconds
 #endif
 
   character(len=17) :: calendar = 'julian'
@@ -171,8 +172,6 @@ program main
   logical :: debug_this_module
   character(len=1024) :: accessom2_config_dir = '../'
   integer, dimension(6) :: date_array
-
-  integer :: sfix_seconds
 
   namelist /ocean_solo_nml/ n_mask, layout_mask, mask_list, restart_interval, &
                             debug_this_module, accessom2_config_dir

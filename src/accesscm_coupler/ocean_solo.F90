@@ -175,6 +175,7 @@ program main
 #ifdef ACCESS
   type(time_type) :: Time_last_sfix 
   type(time_type) :: Time_sfix 
+  integer :: sfix_seconds
 #endif
 
   character(len=17) :: calendar = 'julian'
@@ -310,10 +311,6 @@ program main
   Time_step_coupled = set_time(dt_cpld, 0)
   num_cpld_calls    = Run_len / Time_step_coupled
   Time = Time_start
-#ifdef ACCESS
-  Time_last_sfix = Time_start
-  Time_sfix = set_time(seconds=int(sfix_hours*SECONDS_PER_HOUR))
-#endif
 
   Time_restart_init = set_date(date_restart(1), date_restart(2), date_restart(3),  &
                                date_restart(4), date_restart(5), date_restart(6) )
@@ -368,6 +365,18 @@ program main
   end if
 
   call ocean_model_init(Ocean_sfc, Ocean_state, Time_init, Time)
+
+#ifdef ACCESS
+  ! This must be called after ocean_model_init so sfix_hours is read in from namelist
+  sfix_seconds = sfix_hours * SECONDS_PER_HOUR
+  ! Get current model time from Time_init in seconds (must be done like this otherwise
+  ! can get an overflow in seconds)
+  call get_time(Time-Time_init,seconds)
+  ! The last sfix time has to be determined from absolute model time, to ensure reproducibility 
+  ! across restarts
+  Time_last_sfix = set_time(seconds=int(seconds/sfix_seconds)*sfix_seconds) + Time_init
+  Time_sfix = set_time(seconds=int(sfix_seconds))
+#endif
 
   call data_override_init(Ocean_domain_in = Ocean_sfc%domain)
 
@@ -489,7 +498,7 @@ program main
 
   call external_coupler_mpi_exit(mpi_comm_mom, external_initialization)
 
-  print *, 'MOM4: --- completed ---'
+  print *, 'MOM5: --- completed ---'
 
   contains
 
