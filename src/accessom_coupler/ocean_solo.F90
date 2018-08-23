@@ -355,18 +355,10 @@ program main
   ! Get current model time from Time_init in seconds (must be done like this otherwise
   ! can get an overflow in seconds)
   call get_time(Time-Time_init,seconds)
-  if ( mpp_pe().EQ.mpp_root_pe() )then
-    print *,'Current model time in seconds = ',seconds
-    print *,'Current sfix_hours = ',sfix_hours
-  end if
   ! The last sfix time has to be determined from absolute model time, to ensure reproducibility 
   ! across restarts
   Time_last_sfix = set_time(seconds=int(seconds/sfix_seconds)*sfix_seconds) + Time_init
   Time_sfix = set_time(seconds=int(sfix_seconds))
-  if ( mpp_pe().EQ.mpp_root_pe() )then
-    call print_time(Time_last_sfix,'Time_last_sfix = ')
-    call print_time(Time_sfix,'Time_sfix = ')
-  end if
 #endif
 
   call data_override_init(Ocean_domain_in = Ocean_sfc%domain)
@@ -436,8 +428,6 @@ program main
      endif
 
 #ifdef ACCESS
-     call print_time(Time - Time_last_sfix,'Time - Time_last_sfix = ')
-     call print_time(Time_sfix,'Time_sfix = ')
      if ((Time - Time_last_sfix) >= Time_sfix) then
         do_sfix_now = .true.
         Time_last_sfix = Time
