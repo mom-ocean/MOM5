@@ -350,16 +350,18 @@ program main
                         accessom2%get_ice_ocean_timestep())
 
 #ifdef ACCESS
-  ! This must be called after ocean_model_init so sfix_hours can be read
+  ! This must be called after ocean_model_init so sfix_hours is read in from namelist
   sfix_seconds = sfix_hours * SECONDS_PER_HOUR
+  ! Get current model time from Time_init in seconds (must be done like this otherwise
+  ! can get an overflow in seconds)
   call get_time(Time-Time_init,seconds)
   if ( mpp_pe().EQ.mpp_root_pe() )then
     print *,'Current model time in seconds = ',seconds
     print *,'Current sfix_hours = ',sfix_hours
   end if
-  ! The last sfix time has to be determined from absolute model time, to ensure reproducibility across
-  ! restarts
-  Time_last_sfix = set_time(seconds=seconds-(int(seconds/sfix_seconds)*sfix_seconds)) + Time_init
+  ! The last sfix time has to be determined from absolute model time, to ensure reproducibility 
+  ! across restarts
+  Time_last_sfix = set_time(seconds=nint(int(seconds/sfix_seconds)*sfix_seconds)) + Time_init
   Time_sfix = set_time(seconds=int(sfix_seconds))
   if ( mpp_pe().EQ.mpp_root_pe() )then
     call print_time(Time_last_sfix,'Time_last_sfix = ')
