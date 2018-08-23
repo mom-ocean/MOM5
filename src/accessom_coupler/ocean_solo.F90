@@ -352,7 +352,7 @@ program main
 #ifdef ACCESS
   ! This must be called after ocean_model_init so sfix_hours can be read
   sfix_seconds = sfix_hours * SECONDS_PER_HOUR
-  call get_time(Time_start-Time_init,seconds)
+  call get_time(Time-Time_init,seconds)
   if ( mpp_pe().EQ.mpp_root_pe() )then
     print *,'Current model time in seconds = ',seconds
     print *,'Current sfix_hours = ',sfix_hours
@@ -434,12 +434,12 @@ program main
      endif
 
 #ifdef ACCESS
+     call print_time(Time - Time_last_sfix,'Time - Time_last_sfix = ')
+     call print_time(Time_sfix,'Time_sfix = ')
      if ((Time - Time_last_sfix) >= Time_sfix) then
         do_sfix_now = .true.
         Time_last_sfix = Time
      else
-        call print_time(Time - Time_last_sfix,'Time - Time_last_sfix = ')
-        call print_time(Time_sfix,'Time_sfix = ')
         do_sfix_now = .false.
      end if
 #endif
