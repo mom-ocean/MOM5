@@ -12,3 +12,5 @@ src/shared/version/version.F90
 *.pyc
 tags
 data/archives
+src/shared/mpp/null_mpp_io_test.mod
+*.mod

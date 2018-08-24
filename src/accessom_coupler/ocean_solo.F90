@@ -94,7 +94,7 @@ program main
   use mpp_mod,                  only: mpp_broadcast
   use time_interp_external_mod, only: time_interp_external_init
   use time_manager_mod,         only: set_calendar_type, time_type, increment_date
-  use time_manager_mod,         only: set_time, set_date, get_time, get_date, month_name
+  use time_manager_mod,         only: set_time, set_date, get_time, get_date, month_name, print_time
   use time_manager_mod,         only: GREGORIAN, JULIAN, NOLEAP, THIRTY_DAY_MONTHS, NO_CALENDAR
   use time_manager_mod,         only: operator( <= ), operator( < ), operator( >= )
   use time_manager_mod,         only: operator( + ),  operator( - ), operator( / )
@@ -133,6 +133,7 @@ program main
 #ifdef ACCESS
   type(time_type) :: Time_last_sfix 
   type(time_type) :: Time_sfix 
+  integer :: sfix_seconds
 #endif
 
   character(len=17) :: calendar = 'julian'
@@ -291,10 +292,6 @@ program main
   Time_step_coupled = set_time(dt_cpld, 0)
   num_cpld_calls    = Run_len / Time_step_coupled
   Time = Time_start
-#ifdef ACCESS
-  Time_last_sfix = Time_start
-  Time_sfix = set_time(seconds=int(sfix_hours*SECONDS_PER_HOUR))
-#endif
 
   Time_restart_init = set_date(date_restart(1), date_restart(2), date_restart(3),  &
                                date_restart(4), date_restart(5), date_restart(6) )
@@ -350,6 +347,18 @@ program main
 
   call ocean_model_init(Ocean_sfc, Ocean_state, Time_init, Time, &
                         accessom2%get_ice_ocean_timestep())
+
+#ifdef ACCESS
+  ! This must be called after ocean_model_init so sfix_hours is read in from namelist
+  sfix_seconds = sfix_hours * SECONDS_PER_HOUR
+  ! Get current model time from Time_init in seconds (must be done like this otherwise
+  ! can get an overflow in seconds)
+  call get_time(Time-Time_init,seconds)
+  ! The last sfix time has to be determined from absolute model time, to ensure reproducibility 
+  ! across restarts
+  Time_last_sfix = set_time(seconds=int(seconds/sfix_seconds)*sfix_seconds) + Time_init
+  Time_sfix = set_time(seconds=int(sfix_seconds))
+#endif
 
   call data_override_init(Ocean_domain_in = Ocean_sfc%domain)
 
