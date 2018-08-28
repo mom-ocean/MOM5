@@ -2947,8 +2947,8 @@ subroutine compute_diffusivity(Time, ksurf_blayer, drhodz_zt, rossby_radius, &
   ! diagnostics 
   call diagnose_2d(Time, Grd, id_agm, agm_array(:,:,1))
   call diagnose_3d(Time, Grd, id_agm_3d, agm_array(:,:,:))
-  call diagnose_2d(Time, Grd, id_aredi, agm_array(:,:,1))
-  call diagnose_3d(Time, Grd, id_aredi_3d, agm_array(:,:,:))
+  call diagnose_2d(Time, Grd, id_aredi, aredi_array(:,:,1))
+  call diagnose_3d(Time, Grd, id_aredi_3d, aredi_array(:,:,:))
 
   if (id_ksurf_blayer >  0) then 
      wrk1_2d(:,:) = ksurf_blayer(:,:)
