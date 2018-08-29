@@ -15,8 +15,8 @@
 #######################################################################
 
   set echo
-  set platform     = "ncrc.intel"                           # A unique identifier for your platform
-  set npes         = 1                                      # number of processors
+  set platform     = "nccs.intel"      # A unique identifier for your platform
+  set npes         = 1        # number of processors
 #
   set root         = $cwd:h:h:h                         # The directory that contains src/ and bin/
 #
@@ -87,7 +87,7 @@
 !
 
 #  run the executable
-        $mpirunCommand $npes ./$executable:t >fms.out
+#        $mpirunCommand $npes ./$executable:t >fms.out
 
   cat fms.out
        
