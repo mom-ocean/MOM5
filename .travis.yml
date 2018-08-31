@@ -22,10 +22,10 @@ env:
         - OMPI_FC=${FC}
         - OASIS_ROOT=/oasis3-mct/Linux/build/
     
-matrix:
-  allow_failures:
+# matrix:
+#   allow_failures:
     # - env: TYPE=ACCESS-OM
-    - env: TYPE=ACCESS-CM
+    # - env: TYPE=ACCESS-CM
 
 install:
     - sudo apt-add-repository --yes ppa:ubuntu-toolchain-r/test
