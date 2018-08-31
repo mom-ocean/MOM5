@@ -23,7 +23,7 @@ INCLUDE := -I$(shell nc-config --includedir) \
 
 FPPFLAGS := 
 
-FFLAGS := -O2 -fcray-pointer -fdefault-real-8 -ffree-line-length-none -fno-range-check -Waliasing -Wampersand -Warray-bounds -Wcharacter-truncation -Wconversion -Wline-truncation -Wintrinsics-std -Wsurprising -Wno-tabs -Wunderflow -Wintrinsic-shadow -Wno-align-commons -I/usr/include/openmpi -I/usr/include -DGFORTRAN
+FFLAGS := -O2 -fcray-pointer -fdefault-real-8 -ffree-line-length-none -fno-range-check -Waliasing -Wampersand -Warray-bounds -Wcharacter-truncation -Wline-truncation -Wintrinsics-std -Wsurprising -Wunderflow -Wintrinsic-shadow -Wno-align-commons -I/usr/include/openmpi -I/usr/include -DGFORTRAN
 
 CFLAGS := -D__IFC -O2 $(shell nc-config --cflags) -I/usr/include/openmpi
 
