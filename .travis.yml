@@ -20,7 +20,7 @@ env:
     global:
         - FC=gfortran-4.8
         - OMPI_FC=${FC}
-        - OASIS_ROOT=/oasis3-mct/Linux/build/
+        - OASIS_ROOT=$TRAVIS_BUILD_DIR/oasis3-mct/Linux/build/
     
 # matrix:
 #   allow_failures:
