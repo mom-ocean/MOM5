@@ -16,13 +16,18 @@ LD = mpif90  $(MAIN_PROGRAM)
 
 MAKEFLAGS += --jobs=$(shell grep '^processor' /proc/cpuinfo | wc -l)
 
+INCLUDE := -I$(shell nc-config --includedir) \
+			-I$(OASIS_ROOT)/include/psmile.MPI1 \
+			-I$(OASIS_ROOT)/include/pio \
+			-I$(OASIS_ROOT)/include/mct
+
 FPPFLAGS := 
 
 FFLAGS := -O2 -fcray-pointer -fdefault-real-8 -ffree-line-length-none -fno-range-check -Waliasing -Wampersand -Warray-bounds -Wcharacter-truncation -Wconversion -Wline-truncation -Wintrinsics-std -Wsurprising -Wno-tabs -Wunderflow -Wintrinsic-shadow -Wno-align-commons -I/usr/include/openmpi -I/usr/include -DGFORTRAN
 
 CFLAGS := -D__IFC -O2 $(shell nc-config --cflags) -I/usr/include/openmpi
 
-LIBS := $(shell nc-config --flibs) -lpthread
+LIBS := $(shell nc-config --flibs) -lpthread -L$(OASIS_ROOT)/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip
 LDFLAGS += $(LIBS)
 
 #---------------------------------------------------------------------------
