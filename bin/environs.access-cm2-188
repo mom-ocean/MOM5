@@ -1,0 +1,12 @@
+source /etc/profile.d/nf_csh_modules
+module purge
+module load intel-fc/15.0.3.187
+module load intel-cc/15.0.3.187
+module load intel-mkl/15.0.3.187
+module load openmpi/1.8.8
+module load netcdf/4.3.2
+#module load hdf5/1.8.13
+
+# Use prebuild Oasis3-mct library for ACCESS-CM2/nci 
+#setenv OASIS_ROOT ~access/access-cm2/prebuild/oasis3-mct/Linux-182
+setenv OASIS_ROOT /short/p66/hxy599/ACCESS/submodels/oasis3-mct_local/Linux-188
