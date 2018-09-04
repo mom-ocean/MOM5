@@ -354,7 +354,7 @@ program main
     sfix_seconds = sfix_hours * SECONDS_PER_HOUR
     ! Get current model time from Time_init in seconds (must be done like this otherwise
     ! can get an overflow in seconds)
-    call get_time(Time-Time_init,days,seconds)
+    call get_time(Time-Time_init,seconds=seconds,days=days)
     ! The last sfix time has to be determined from absolute model time, to ensure reproducibility 
     ! across restarts
 
