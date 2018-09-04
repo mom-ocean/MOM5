@@ -361,6 +361,12 @@ program main
     ! Current time to nearest hour
     hours = days*24 + int(seconds/SECONDS_PER_HOUR)
 
+    if ( mpp_pe() == mpp_root_pe() ) then
+        print *,'days ',days
+        print *,'hours ',hours
+        print *,'hours (int)',hours = int(hours / sfix_hours) * sfix_hours
+    end if
+
     ! Time of last sfix 
     hours = int(hours / sfix_hours) * sfix_hours
 
