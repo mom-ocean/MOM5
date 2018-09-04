@@ -367,6 +367,10 @@ program main
     ! Convert to days + hours
     days = int(hours / 24)
     hours = hours - days*24
+    if ( mpp_pe() == mpp_root_pe() ) then
+        print *,'days ',days
+        print *,'hours ',hours
+    end if
 
     Time_last_sfix = set_time(days=int(days),seconds=int(hours*SECONDS_PER_HOUR)) + Time_init
     Time_sfix = set_time(seconds=int(sfix_seconds))
