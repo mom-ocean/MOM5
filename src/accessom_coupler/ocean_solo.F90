@@ -368,7 +368,7 @@ program main
     days = hours / 24
     hours = hours - days*24
 
-    Time_last_sfix = set_time(days=days,seconds=hours*SECONDS_PER_HOUR) + Time_init
+    Time_last_sfix = set_time(days=int(days),seconds=int(hours*SECONDS_PER_HOUR) + Time_init
     Time_sfix = set_time(seconds=int(sfix_seconds))
   end if
 #endif
