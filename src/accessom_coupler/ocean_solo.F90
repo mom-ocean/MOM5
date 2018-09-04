@@ -365,11 +365,14 @@ program main
     hours = int(hours / sfix_hours) * sfix_hours
 
     ! Convert to days + hours
-    days = hours / 24
+    days = int(hours / 24)
     hours = hours - days*24
 
     Time_last_sfix = set_time(days=int(days),seconds=int(hours*SECONDS_PER_HOUR)) + Time_init
     Time_sfix = set_time(seconds=int(sfix_seconds))
+    call print_time(Time,'Time: ')
+    call print_time(Time_init,'Time_init: ')
+    call print_time(Time_last_sfix,'Time_last_sfix: ')
   end if
 #endif
 
