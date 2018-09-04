@@ -349,15 +349,30 @@ program main
                         accessom2%get_ice_ocean_timestep())
 
 #ifdef ACCESS
-  ! This must be called after ocean_model_init so sfix_hours is read in from namelist
-  sfix_seconds = sfix_hours * SECONDS_PER_HOUR
-  ! Get current model time from Time_init in seconds (must be done like this otherwise
-  ! can get an overflow in seconds)
-  call get_time(Time-Time_init,seconds)
-  ! The last sfix time has to be determined from absolute model time, to ensure reproducibility 
-  ! across restarts
-  Time_last_sfix = set_time(seconds=int(seconds/sfix_seconds)*sfix_seconds) + Time_init
-  Time_sfix = set_time(seconds=int(sfix_seconds))
+  if (redsea_gulfbay_sfix) then
+    ! This must be called after ocean_model_init so sfix_hours is read in from namelist
+    sfix_seconds = sfix_hours * SECONDS_PER_HOUR
+    ! Get current model time from Time_init in seconds (must be done like this otherwise
+    ! can get an overflow in seconds)
+    call get_time(Time-Time_init,seconds=seconds,days=days)
+    ! The last sfix time has to be determined from absolute model time, to ensure reproducibility 
+    ! across restarts
+
+    ! Current time to nearest hour
+    hours = days*24 + int(seconds/SECONDS_PER_HOUR)
+
+    ! Time of last sfix 
+    hours = int(hours / sfix_hours) * sfix_hours
+
+    ! Convert to days + hours
+    days = int(hours / 24)
+    hours = hours - days*24
+
+    Time_last_sfix = set_time(days=int(days),seconds=int(hours*SECONDS_PER_HOUR)) + Time_init
+    Time_sfix = set_time(seconds=int(sfix_seconds))
+
+    call print_time(Time_last_sfix,'Time_last_sfix: ')
+  end if
 #endif
 
   call data_override_init(Ocean_domain_in = Ocean_sfc%domain)
@@ -427,12 +442,14 @@ program main
      endif
 
 #ifdef ACCESS
-     if ((Time - Time_last_sfix) >= Time_sfix) then
-        do_sfix_now = .true.
-        Time_last_sfix = Time
-     else
-        do_sfix_now = .false.
-     end if
+    if (redsea_gulfbay_sfix) then
+        if ((Time - Time_last_sfix) >= Time_sfix) then
+            do_sfix_now = .true.
+            Time_last_sfix = Time
+        else
+            do_sfix_now = .false.
+        end if
+    end if
 #endif
 
      call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
