@@ -364,7 +364,7 @@ program main
     if ( mpp_pe() == mpp_root_pe() ) then
         print *,'days ',days
         print *,'hours ',hours
-        print *,'hours (int)',hours = int(hours / sfix_hours) * sfix_hours
+        print *,'hours (int)',int(hours / sfix_hours) * sfix_hours
     end if
 
     ! Time of last sfix 
