@@ -2112,25 +2112,25 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
   integer :: tau, taup1
   integer :: i, j, k
 
-  integer :: nx, ny, nz
+  integer :: nx, ny
   integer :: iisd, iied, jjsd, jjed
 
   nx = Grid%ni
   ny = Grid%nj
-  nz = Grid%nk
 
   tau   = Time%tau
   taup1 = Time%taup1
 
-  allocate (global_tmask(nx,ny,nz)) ; global_tmask=0.0
-  call mpp_global_field(Domain%domain2d, Grid%tmask, global_tmask)
+! Only need global fields for upper ksmax levels
+  allocate (global_tmask(nx,ny,ksmax)) ; global_tmask=0.0
+  call mpp_global_field(Domain%domain2d, Grid%tmask(:,:,1:ksmax), global_tmask)
   allocate (global_dat(nx,ny))      ; global_dat=0.0
   call mpp_global_field(Domain%domain2d, Grid%dat, global_dat)
 
-  allocate (global_dzt(nx,ny,nz))    ; global_dzt=0.0
-  call mpp_global_field(Domain%domain2d, Thickness%dzt(:,:,:), global_dzt)
-  allocate (global_sp(nx,ny,nz)) ; global_sp=0.0
-  call mpp_global_field(Domain%domain2d, T_prog(index_salt)%field(:,:,:,taup1),global_sp)
+  allocate (global_dzt(nx,ny,ksmax))    ; global_dzt=0.0
+  call mpp_global_field(Domain%domain2d, Thickness%dzt(:,:,1:ksmax), global_dzt)
+  allocate (global_sp(nx,ny,ksmax)) ; global_sp=0.0
+  call mpp_global_field(Domain%domain2d, T_prog(index_salt)%field(:,:,1:ksmax,taup1),global_sp)
 
   call mpp_get_data_domain(Ocean_sfc%domain, iisd, iied, jjsd, jjed)
 
@@ -2200,21 +2200,9 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
        enddo
     endif
 
-    call mpp_broadcast(global_sp(:,:,k),nx*ny,mpp_root_pe())
     T_prog(index_salt)%field(iisd:iied,jjsd:jjed,k,taup1) = global_sp(iisd:iied,jjsd:jjed,k)
 
   enddo   !k=1,kdmax
-
-!  if(mpp_pe() == mpp_root_pe()) then
-!   write(115,'(10e12.5)') global_sp
-!  endif
-
-!  global_sp = 0.0
-!  call mpp_global_field(Domain%domain2d,
-!  T_prog(index_salt)%field(:,:,:,taup1),global_sp)
-!  if(mpp_pe() == mpp_root_pe()) then
-!   write(116,'(10e12.5)') global_sp
-!  endif
 
   deallocate (global_tmask, global_dzt, global_sp, global_dat)
 
