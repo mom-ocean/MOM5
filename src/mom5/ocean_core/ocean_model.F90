@@ -2156,7 +2156,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
 
   enddo   !k=1,ksmax
 
-  call mpp_sum(salt_vol_sums, ksmax*4)
+  call mpp_sum(salt_vol_sums, size(salt_vol_sums))
 
 ! Replace by sums
 ! Note that we fill to domain edge. No need to update halo
@@ -2164,7 +2164,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
 ! Red Sea
   do k=1,ksmax
      if ( salt_vol_sums(k,2,1) /= 0.0 ) then
-        ave_sp = salt_ave_sums(k,1,1) / salt_ave_sums(k,2,1)
+        ave_sp = salt_vol_sums(k,1,1) / salt_vol_sums(k,2,1)
         do j=max(jrs1,jsd),min(jre1,jed)
            do i=max(irs1,isd),min(ire1,ied)
               Salt%field(i,j,k,taup1) =  ave_sp * Grid%tmask(i,j,k)
@@ -2180,7 +2180,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
 !Persian gulf
 
     if ( salt_vol_sums(k,2,2) /= 0.0 ) then
-        ave_sp = salt_ave_sums(k,1,2) / salt_ave_sums(k,2,2)
+        ave_sp = salt_vol_sums(k,1,2) / salt_vol_sums(k,2,2)
         do j=max(jgs,jsd),min(jge,jed)
            do i=max(igs,isd),min(ige,ied)
               Salt%field(i,j,k,taup1) =  ave_sp * Grid%tmask(i,j,k)
