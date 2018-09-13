@@ -2094,8 +2094,8 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
   implicit none
 
   type(ocean_time_type),         intent(in) :: Time
-  type(ocean_grid_type)          intent(in) :: Grid ! grid information for ocean model 
-  type(ocean_domain_type)        inent(in)  :: Domain ! domain grid information for ocean model 
+  type(ocean_grid_type),         intent(in) :: Grid ! grid information for ocean model 
+  type(ocean_domain_type),       intent(in)  :: Domain ! domain grid information for ocean model 
   type(ocean_thickness_type),    intent(in) :: Thickness
   type(ocean_prog_tracer_type),  intent(inout) :: Salt
 
@@ -2127,7 +2127,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
       do i=max(irs1,isc),min(ire1,iec)
          if(Grid%tmask(i,j,k) == 1.0) then
              volume = Grid%dat(i,j) * Thickness%dzt(i,j,k)
-             salt_vol_sums(k,1,1) = salt_vol_sums(k,1,1) + Salt%field(i,j,k) * volume
+             salt_vol_sums(k,1,1) = salt_vol_sums(k,1,1) + Salt%field(i,j,k,taup1) * volume
              salt_vol_sums(k,2,1) = salt_vol_sums(k,2,1) + volume
           endif
       enddo
@@ -2136,7 +2136,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
       do i=max(irs2,isc),min(ire2,iec)
          if(Grid%tmask(i,j,k) == 1.0) then
              volume = Grid%dat(i,j) * Thickness%dzt(i,j,k)
-             salt_vol_sums(k,1,1) = salt_vol_sums(k,1,1) + Salt%field(i,j,k) * volume
+             salt_vol_sums(k,1,1) = salt_vol_sums(k,1,1) + Salt%field(i,j,k,taup1) * volume
              salt_vol_sums(k,2,1) = salt_vol_sums(k,2,1) + volume
          endif
       enddo
@@ -2148,7 +2148,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
       do i=max(igs,isc),min(ige,iec)
          if(Grid%tmask(i,j,k) == 1.0) then
              volume = Grid%dat(i,j) * Thickness%dzt(i,j,k)
-             salt_vol_sums(k,1,2) = salt_vol_sums(k,1,2) + Salt%field(i,j,k) * volume
+             salt_vol_sums(k,1,2) = salt_vol_sums(k,1,2) + Salt%field(i,j,k,taup1) * volume
              salt_vol_sums(k,2,2) = salt_vol_sums(k,2,2) + volume
           endif
       enddo
@@ -2156,7 +2156,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
 
   enddo   !k=1,ksmax
 
-  call mpp_sum(salt_vol_sums)
+  call mpp_sum(salt_vol_sums, ksmax*4)
 
 ! Replace by sums
 ! Note that we fill to domain edge. No need to update halo
