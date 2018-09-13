@@ -2053,7 +2053,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
             call print_time(time_start_update, 'Calling redsea_gulfbay_hmix_s at runtime = ')
         endif
         call redsea_gulfbay_hmix_s(Time, Grid, Domain, Thickness, &
-                                   T_prog(1:num_prog_tracers))
+                                   T_prog(index_salt))
         call mpp_clock_end(id_sfix)
     endif
 #endif
@@ -2083,7 +2083,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
 ! </SUBROUTINE> NAME="update_ocean_model"
 
 #if defined(ACCESS)
-  subroutine redsea_gulfbay_hmix_s(Time, Grid, Domain, Thickness, T_prog)
+  subroutine redsea_gulfbay_hmix_s(Time, Grid, Domain, Thickness, Salt)
 
   use ocean_domains_mod, only : get_local_indices
   use mpp_mod,           only : mpp_sum
@@ -2097,7 +2097,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
   type(ocean_grid_type)          intent(in) :: Grid ! grid information for ocean model 
   type(ocean_domain_type)        inent(in)  :: Domain ! domain grid information for ocean model 
   type(ocean_thickness_type),    intent(in) :: Thickness
-  type(ocean_prog_tracer_type),  intent(inout) :: T_prog(:)
+  type(ocean_prog_tracer_type),  intent(inout) :: Salt
 
 
   real :: volume = 0.0
@@ -2127,7 +2127,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
       do i=max(irs1,isc),min(ire1,iec)
          if(Grid%tmask(i,j,k) == 1.0) then
              volume = Grid%dat(i,j) * Thickness%dzt(i,j,k)
-             salt_vol_sums(k,1,1) = salt_vol_sums(k,1,1) + T_prog(index_salt)%field(i,j,k) * volume
+             salt_vol_sums(k,1,1) = salt_vol_sums(k,1,1) + Salt%field(i,j,k) * volume
              salt_vol_sums(k,2,1) = salt_vol_sums(k,2,1) + volume
           endif
       enddo
@@ -2136,7 +2136,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
       do i=max(irs2,isc),min(ire2,iec)
          if(Grid%tmask(i,j,k) == 1.0) then
              volume = Grid%dat(i,j) * Thickness%dzt(i,j,k)
-             salt_vol_sums(k,1,1) = salt_vol_sums(k,1,1) + T_prog(index_salt)%field(i,j,k) * volume
+             salt_vol_sums(k,1,1) = salt_vol_sums(k,1,1) + Salt%field(i,j,k) * volume
              salt_vol_sums(k,2,1) = salt_vol_sums(k,2,1) + volume
          endif
       enddo
@@ -2148,7 +2148,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
       do i=max(igs,isc),min(ige,iec)
          if(Grid%tmask(i,j,k) == 1.0) then
              volume = Grid%dat(i,j) * Thickness%dzt(i,j,k)
-             salt_vol_sums(k,1,2) = salt_vol_sums(k,1,2) + T_prog(index_salt)%field(i,j,k) * volume
+             salt_vol_sums(k,1,2) = salt_vol_sums(k,1,2) + Salt%field(i,j,k) * volume
              salt_vol_sums(k,2,2) = salt_vol_sums(k,2,2) + volume
           endif
       enddo
@@ -2167,12 +2167,12 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
         ave_sp = salt_ave_sums(k,1,1) / salt_ave_sums(k,2,1)
         do j=max(jrs1,jsd),min(jre1,jed)
            do i=max(irs1,isd),min(ire1,ied)
-              T_prog(index_salt)%field(i,j,k,taup1) =  ave_sp * Grid%tmask(i,j,k)
+              Salt%field(i,j,k,taup1) =  ave_sp * Grid%tmask(i,j,k)
            enddo
         enddo
         do j=max(jrs2,jsd),min(jre2,jed)
            do i=max(irs2,isd),min(ire2,ied)
-              T_prog(index_salt)%field(i,j,k,taup1) =  ave_sp * Grid%tmask(i,j,k)
+              Salt%field(i,j,k,taup1) =  ave_sp * Grid%tmask(i,j,k)
            enddo
        enddo
     endif
@@ -2183,7 +2183,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
         ave_sp = salt_ave_sums(k,1,2) / salt_ave_sums(k,2,2)
         do j=max(jgs,jsd),min(jge,jed)
            do i=max(igs,isd),min(ige,ied)
-              T_prog(index_salt)%field(i,j,k,taup1) =  ave_sp * Grid%tmask(i,j,k)
+              Salt%field(i,j,k,taup1) =  ave_sp * Grid%tmask(i,j,k)
            enddo
         enddo
     endif
