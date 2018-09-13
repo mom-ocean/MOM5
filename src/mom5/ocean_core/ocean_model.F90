@@ -2085,7 +2085,6 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
 #if defined(ACCESS)
   subroutine redsea_gulfbay_hmix_s(Time, Grid, Domain, Thickness, Salt)
 
-  use ocean_domains_mod, only : get_local_indices
   use mpp_mod,           only : mpp_sum
 
   use auscom_ice_parameters_mod, only : irs1, ire1, jrs1, jre1, irs2, ire2,jrs2, jre2, &
@@ -2115,7 +2114,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
   tau   = Time%tau
   taup1 = Time%taup1
 
-  call mpp_get_local_indices(Domain, isd, ied, jsd, jed, isc, iec, jsc, jec)
+  call get_local_indices(Domain, isd, ied, jsd, jed, isc, iec, jsc, jec)
 
   allocate(salt_vol_sums(ksmax,2,2))
   salt_vol_sums = 0.0
