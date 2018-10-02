@@ -459,14 +459,12 @@ program main
         call write_boundary_chksums(Ice_ocean_boundary)
      endif
 
-#ifdef ACCESS
      if ((Time - Time_last_sfix) >= Time_sfix) then
         do_sfix_now = .true.
         Time_last_sfix = Time
      else
         do_sfix_now = .false.
      end if
-#endif
 
      call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
 
@@ -703,10 +701,8 @@ subroutine write_boundary_chksums(Ice_ocean_boundary)
     call write_chksum_2d('Ice_ocean_boundary%mh_flux', Ice_ocean_boundary%mh_flux)
     call write_chksum_2d('Ice_ocean_boundary%wfimelt', Ice_ocean_boundary%wfimelt)
     call write_chksum_2d('Ice_ocean_boundary%wfiform', Ice_ocean_boundary%wfiform)
-#if defined ACCESS_CM
     call write_chksum_2d('Ice_ocean_boundary%co2', Ice_ocean_boundary%co2)
     call write_chksum_2d('Ice_ocean_boundary%wnd', Ice_ocean_boundary%wnd)
-#endif
 
 end subroutine write_boundary_chksums
 
