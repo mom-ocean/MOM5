@@ -143,13 +143,8 @@ integer :: imt_local, jmt_local                    ! 2D global layout
 integer iisc,iiec,jjsc,jjec
 integer iisd,iied,jjsd,jjed
 
-#if defined(ACCESS_CM)
-integer, parameter :: max_fields_in=22
+integer, parameter :: max_fields_in=24
 integer, parameter :: max_fields_out=10
-#else
-integer, parameter :: max_fields_in=20
-integer, parameter :: max_fields_out=8
-#endif
 
 integer, dimension(max_fields_in)  :: id_var_in  ! ID for fields to be rcvd
 integer, dimension(max_fields_out) :: id_var_out ! ID for fields to be sent
@@ -343,10 +338,11 @@ endif
   mom_name_read(18)='mh_flux'   ! Heat flux due to melting
   mom_name_read(19)='wfimelt'  !Water flux due to ice melting
   mom_name_read(20)='wfiform'  !Water flux due to ice forming 
-#if defined(ACCESS_CM)
   mom_name_read(21)='co2_io'  !
   mom_name_read(22)='wnd_io'  !
-#endif
+  !20171024: 2 more i2o fields due to land ice discharge into ocean
+  mom_name_read(23)='licefw' !water flux (kg/m^2/s)
+  mom_name_read(24)='liceht' !heat flux (W/m^2)
 
   !ocn ==> ice
   mom_name_write(:)=''
@@ -359,10 +355,8 @@ endif
   mom_name_write(6)='frazil'
   mom_name_write(7)='dssldx'
   mom_name_write(8)='dssldy'
-#if defined(ACCESS_CM)
   mom_name_write(9)='co2_o'
   mom_name_write(10)='co2fx_o'
-#endif
 
 
   fmatch = .false.
@@ -566,12 +560,10 @@ do jf = 1,num_fields_out
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1)
   case('dssldy') 
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2)
-#if defined(ACCESS_CM)
   case('co2_o') 
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%co2(iisd:iied,jjsd:jjed)
   case('co2fx_o') 
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%co2flux(iisd:iied,jjsd:jjed)
-#endif
   case DEFAULT
   call mpp_error(FATAL,&
       '==>Error from into_coupler: Unknown quantity.')
@@ -730,12 +722,15 @@ do jf =  1, num_fields_in
      Ice_ocean_boundary%wfimelt(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('wfiform')
      Ice_ocean_boundary%wfiform(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
-#if defined(ACCESS_CM)
   case('co2_io')
      Ice_ocean_boundary%co2(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('wnd_io')
      Ice_ocean_boundary%wnd(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
-#endif
+  !20171024: 2 more i2o fields: water and heat fluxes due to land ice discharge into ocean 
+  case('licefw')
+     Ice_ocean_boundary%licefw(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+  case('liceht')
+     Ice_ocean_boundary%liceht(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case DEFAULT
 ! Probable error. Leave as warning for the moment. RASF
    call mpp_error(WARNING,&
@@ -798,10 +793,8 @@ if ( write_restart ) then
           case('dssldx'); vtmp = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1); fld_ice='sslx_i'
           case('dssldy'); vtmp = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2); fld_ice='ssly_i'
           case('frazil'); vtmp = Ocean_sfc%frazil(iisd:iied,jjsd:jjed); fld_ice='pfmice_i'
-#if defined(ACCESS_CM)
           case('co2_o'); vtmp = Ocean_sfc%co2(iisd:iied,jjsd:jjed); fld_ice='co2_oi'
           case('co2fx_o'); vtmp = Ocean_sfc%co2flux(iisd:iied,jjsd:jjed); fld_ice='co2fx_oi'
-#endif
         end select
 
         if (parallel_coupling) then
