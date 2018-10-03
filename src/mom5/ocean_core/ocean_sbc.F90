@@ -3928,8 +3928,9 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
                jj = j + j_shift
                T_prog(index_salt)%stf(ii,jj) = -Ice_ocean_boundary%salt_flux(i,j)*1000.0     -&
                                                (Ice_ocean_boundary%lprec(i,j)                +&
-#if defined(ACCESS)
-                                                melt(ii, jj)                                 +&
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
+                                               (Ice_ocean_boundary%wfimelt(i,j)              +&
+                                               Ice_ocean_boundary%wfiform(i,j))              +&
 #endif
                                                 Ice_ocean_boundary%fprec(i,j) + river(ii,jj) -&
                                                 Ice_ocean_boundary%q_flux(i,j))*salinity_ref*Grd%tmask(ii,jj,1) 
