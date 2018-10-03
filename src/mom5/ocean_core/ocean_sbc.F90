@@ -4279,6 +4279,13 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
   integer                          :: i, j, k, n, tau, taum1
   logical                          :: used
   logical                          :: ice_present
+
+ #if defined(ACCESS_CM)
+  ! Changed in CM2. Make parameter to isolate change
+  real, parameter                  :: ice_detection_parameter = 0.054
+ #else
+  real, parameter                  :: ice_detection_parameter = 0.0539
+ #endif
   
   tau      = Time%tau
   taum1    = Time%taum1  
@@ -4322,7 +4329,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
              do i=isc,iec
                 if(Grd%tmask(i,j,1) == 1.0) then 
                     ice_present = T_prog(index_temp)%field(i,j,1,tau) <= &
-                                    -0.0539*T_prog(index_salt)%field(i,j,1,tau)
+                        -ice_detection_parameter*T_prog(index_salt)%field(i,j,1,tau)
 #if defined(ACCESS)
                     if (use_ioaice) then
                       ice_present = aice(i,j) >= aice_cutoff
