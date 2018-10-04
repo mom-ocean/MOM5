@@ -317,16 +317,29 @@ ierr = check_nml_error(io_status,'ocean_vert_chen_nml')
 
   riu(:,:,:)    = 0.0
   rit(:,:,:)    = 0.0
+#ifdef defined(ACCESS_CM)
+  kbl(:,:)      = 1
+  hbl(:,:)      = 5.0
+#endif
   id_restart = register_restart_field(Che_restart, 'kraus.res.nc', 'kbl',kbl, &
                domain=Dom%domain2d)
   id_restart = register_restart_field(Che_restart, 'kraus.res.nc', 'hbl',hbl, &
                domain=Dom%domain2d)
   if(file_exist('INPUT/kraus.res.nc')) then
       call restore_state(Che_restart)
+#ifdef defined(ACCESS_CM)
+      call mpp_update_domains(kbl,Dom%domain2d)
+      call mpp_update_domains(hbl,Dom%domain2d)
+#endif
       write(stdoutunit,*)' ' 
       write(stdoutunit,*) 'From ocean_vert_chen: reading hbl from kraus.res.nc'
       call write_timestamp(Time%model_time)
       call write_chksum_2d('hbl', hbl(COMP)*Grd%tmask(COMP,1))
+#ifdef defined(ACCESS_CM)
+      write(stdoutunit,*) 'From ocean_vert_chen: reading kbl from kraus.res.nc'
+      call write_timestamp(Time%model_time)
+      call write_chksum_2d('kbl', kbl(COMP)*Grd%tmask(COMP,1))
+#endif
   else
       hbl(:,:) = hbl_init*Grd%tmask(:,:,1)
       kbl(:,:)=1
@@ -719,7 +732,12 @@ subroutine kraus_turner(Time, Velocity, T_prog, Dens, swflx, pme, mixmask)
     do i=isc,iec
       kbl_m1=max(1,kbl(i,j)-1)
       shallow=max(hbl(i,j),Grd%zt(1))-Grd%zt(kbl_m1)
+#ifdef defined(ACCESS_CM)
+      !dhb599: try to avoid "floating invalid" here:
+      mixmask(i,j,kbl(i,j))=shallow/(Grd%zt(kbl(i,j))-Grd%zt(kbl_m1)+ 1.0e-10)
+#else
       mixmask(i,j,kbl(i,j))=shallow/(Grd%zt(kbl(i,j))-Grd%zt(kbl_m1)+ epsln)
+#endif
     enddo
   enddo
 
