@@ -231,6 +231,8 @@ logical :: used
 integer, dimension(:), allocatable  :: id_tracer_sigma  ! tracer concentration within sigma layer 
 integer, dimension(:), allocatable  :: id_sigma_diff    ! thickness and density weighted time tendency 
                                                         ! for tracer from sigma diffusion
+integer, dimension(:), allocatable  :: id_sigma_diff_on_nrho    ! thickness and density weighted time tendency 
+                                                                ! for tracer from sigma diffusion binned to neutral density
 integer, dimension(:), allocatable  :: id_sigma_adv     ! thickness and density weighted time tendency 
                                                         ! for tracer from sigma advection
 integer, dimension(:), allocatable  :: id_sigma_diff_2d ! thickness and density weighted time tendency 
@@ -754,12 +756,14 @@ ierr = check_nml_error(io_status,'ocean_sigma_transport_nml')
 
   allocate (id_tracer_sigma(num_prog_tracers))
   allocate (id_sigma_diff(num_prog_tracers))
+  allocate (id_sigma_diff_on_nrho(num_prog_tracers))
   allocate (id_sigma_adv(num_prog_tracers))
   allocate (id_sigma_diff_2d(num_prog_tracers))
   allocate (id_sigma_adv_2d(num_prog_tracers))
   allocate (id_sigma_smooth(num_prog_tracers))
   id_tracer_sigma  = -1
   id_sigma_diff    = -1
+  id_sigma_diff_on_nrho    = -1
   id_sigma_adv     = -1
   id_sigma_diff_2d = -1
   id_sigma_adv_2d  = -1
@@ -776,6 +780,10 @@ ierr = check_nml_error(io_status,'ocean_sigma_transport_nml')
         id_sigma_diff(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_sigma_diff', &
                            Grd%tracer_axes(1:3), Time%model_time,                                   &
                            'thk wghtd sigma-diffusion heating ', 'Watts/m^2',                       &
+                           missing_value=missing_value, range=(/-1.e16,1.e16/))
+        id_sigma_diff_on_nrho(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_sigma_diff_on_nrho', &
+                           Dens%neutralrho_axes(1:3), Time%model_time,                                   &
+                           'thk wghtd sigma-diffusion heating binned to neutral density', 'Watts/m^2', &
                            missing_value=missing_value, range=(/-1.e16,1.e16/))
         id_sigma_adv(n)  = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_sigma_adv', &
                            Grd%tracer_axes(1:3), Time%model_time,                                  &
@@ -797,6 +805,10 @@ ierr = check_nml_error(io_status,'ocean_sigma_transport_nml')
         id_sigma_diff(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_sigma_diff',          &
                            Grd%tracer_axes(1:3), Time%model_time,                                            &
                            'thk wghtd sigma-diffusion on '//trim(T_prog(n)%name), trim(T_prog(n)%flux_units),&
+                           missing_value=missing_value, range=(/-1.e16,1.e16/))
+        id_sigma_diff_on_nrho(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_sigma_diff_on_nrho', &
+                           Dens%neutralrho_axes(1:3), Time%model_time,                                            &
+                           'thk wghtd sigma-diffusion on '//trim(T_prog(n)%name)//' binned to neutral density', trim(T_prog(n)%flux_units),&
                            missing_value=missing_value, range=(/-1.e16,1.e16/))
         id_sigma_adv(n) = register_diag_field ('ocean_model', trim(T_prog(n)%name)//'_sigma_adv',            &
                            Grd%tracer_axes(1:3), Time%model_time,                                            &
@@ -1470,6 +1482,9 @@ subroutine sigma_transport (Time, Thickness, Dens, T_prog, Adv_vel, bott_blthick
      ! send tendency to diagnostic manager 
      if (id_sigma_diff(n) > 0) then 
         call diagnose_3d(Time, Grd, id_sigma_diff(n), T_prog(n)%conversion*wrk2(:,:,:))
+     endif
+     if (id_sigma_diff_on_nrho(n) > 0) then
+        call diagnose_3d_rho(Time, Dens, id_sigma_diff_on_nrho(n), T_prog(n)%conversion*wrk2)
      endif
      if (id_sigma_adv(n) > 0) then 
         call diagnose_3d(Time, Grd, id_sigma_adv(n), T_prog(n)%conversion*wrk3(:,:,:))
