@@ -4280,12 +4280,12 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
   logical                          :: used
   logical                          :: ice_present
 
- #if defined(ACCESS_CM)
+#if defined(ACCESS_CM)
   ! Changed in CM2. Make parameter to isolate change
   real, parameter                  :: ice_detection_parameter = 0.054
- #else
+#else
   real, parameter                  :: ice_detection_parameter = 0.0539
- #endif
+#endif
   
   tau      = Time%tau
   taum1    = Time%taum1  
@@ -5705,7 +5705,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
       call diagnose_3d_rho(Time, Dens, id_mass_precip_on_nrho, wrk1)
   endif
 
-#if defined(ACCESS)
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
   ! waterflux associated with ice melt (kg/(m2*sec))
   if (id_wfimelt > 0) then
       do j=jsc_bnd,jec_bnd
@@ -5758,6 +5758,21 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
       total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
       used = send_data (id_total_ocean_wfiform, total_stuff*1e-15, Time%model_time)
   endif
+#endif
+#if defined(ACCESS_CM)
+   ! waterflux associated with land ice melt into ocean (kg/(m2*sec))
+   if (id_licefw > 0) then
+       do j=jsc_bnd,jec_bnd
+          do i=isc_bnd,iec_bnd
+             ii=i+i_shift
+             jj=j+j_shift
+             tmp_flux(ii,jj) = Ice_ocean_boundary%licefw(i,j)
+          enddo
+       enddo
+       used = send_data(id_licefw, tmp_flux(:,:),        &
+              Time%model_time, rmask=Grd%tmask(:,:,1),  &
+              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+   endif
 #endif
 
 
