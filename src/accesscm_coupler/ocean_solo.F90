@@ -416,7 +416,6 @@ program main
              Ice_ocean_boundary%wnd(isc:iec,jsc:jec),               &
              Ice_ocean_boundary%licefw(isc:iec,jsc:jec),            &
              Ice_ocean_boundary%liceht(isc:iec,jsc:jec))
-#endif
 
   Ice_ocean_boundary%u_flux          = 0.0
   Ice_ocean_boundary%v_flux          = 0.0
