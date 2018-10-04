@@ -703,6 +703,8 @@ integer :: id_total_ocean_runoff  =-1
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
 integer :: id_total_ocean_wfimelt =-1
 integer :: id_total_ocean_wfiform =-1
+integer :: id_total_ocean_licefw  =-1
+integer :: id_total_ocean_liceht  =-1
 #endif
 
 
