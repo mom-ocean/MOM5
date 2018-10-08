@@ -1687,7 +1687,7 @@ subroutine bldepth(Thickness, Velocity, sw_frac_zt, do_wave)
         do i=isc,iec
           Rib(i,j,:) = 0.0
           kbl(i,j)   = MAX(Grd%kmt(i,j),2)
-          hbl(i,j)   = Thickness%depth_zt(i,j,kbl(i,j))
+          hbl(i,j)   = Thickness%depth_zt(i,j,kbl(i,j))*Grd%tmask(i,j,kbl(i,j))
           iwet       = iwet + min(Grd%kmt(i,j),1)
         enddo
       enddo
@@ -1716,7 +1716,7 @@ subroutine bldepth(Thickness, Velocity, sw_frac_zt, do_wave)
 
         ! compute velocity scales at sigma, for hbl = zt(kl):
         iwscale_use_hbl_eq_zt=1
-        call wscale (iwscale_use_hbl_eq_zt, Thickness%depth_zt(:,:,kl), Velocity, do_wave)
+        call wscale (iwscale_use_hbl_eq_zt, Thickness%depth_zt(:,:,kl)*Grd%tmask(:,:,kl), Velocity, do_wave)
 
         do j=jsc,jec
           do i=isc,iec
@@ -1818,7 +1818,7 @@ subroutine bldepth(Thickness, Velocity, sw_frac_zt, do_wave)
           
           !  compute velocity scales at sigma, for hbl = zt(kl):
           iwscale_use_hbl_eq_zt=1
-          call wscale (iwscale_use_hbl_eq_zt, Thickness%depth_zt(:,:,kl), Velocity, do_wave)
+          call wscale (iwscale_use_hbl_eq_zt, Thickness%depth_zt(:,:,kl)*Grd%tmask(:,:,kl), Velocity, do_wave)
 
           do j=jsc,jec
             do i=isc,iec
@@ -2104,7 +2104,7 @@ subroutine wscale(iwscale_use_hbl_eq_zt, zt_kl, Velocity, do_wave)
               iz = min( iz , nni )
               iz = max( iz , 0  )
               izp1=iz+1
-            
+
               udiff  = ustar(i,j)-umin
 
               ju = int( min(udiff/deltau,float(nnj)))
