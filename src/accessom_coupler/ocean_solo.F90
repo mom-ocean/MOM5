@@ -111,7 +111,6 @@ program main
   use accessom2_mod, only : accessom2_type => accessom2
   use coupler_mod, only : coupler_type => coupler
   use simple_timer_mod, only : simple_timer_type => simple_timer
-  use logger_mod, only : logger_type => logger
 #endif
 
   implicit none
@@ -121,7 +120,6 @@ program main
   type(ice_ocean_boundary_type), target  :: Ice_ocean_boundary
   type(accessom2_type) :: accessom2
   type(coupler_type) :: coupler
-  type(logger_type) :: logger
   type(simple_timer_type) :: ocean_step_timer, ice_wait_timer, ice_recv_timer
 
   ! define some time types
@@ -427,11 +425,10 @@ program main
   Ice_ocean_boundary% wfiform        = 0.0
   Ice_ocean_boundary%wnd             = 0.0
 
-  ! Initialise simple timers and a logger
-  call logger%init('mom', logfiledir='log', loglevel=accessom2%log_level)
-  call ocean_step_timer%init('ocean_step', logger)
-  call ice_wait_timer%init('ice_wait', logger)
-  call ice_recv_timer%init('ice_recv', logger)
+  ! Initialise simple timers
+  call ocean_step_timer%init('ocean_step', accessom2%logger)
+  call ice_wait_timer%init('ice_wait', accessom2%logger)
+  call ice_recv_timer%init('ice_recv', accessom2%logger)
 
   coupler_init_clock = mpp_clock_id('OASIS init', grain=CLOCK_COMPONENT)
   call mpp_clock_begin(coupler_init_clock)
@@ -495,7 +492,6 @@ program main
   call ocean_step_timer%write_stats()
   call ice_wait_timer%write_stats()
   call ice_recv_timer%write_stats()
-  call logger%deinit()
 
   ! close some of the main components 
   call ocean_model_end(Ocean_sfc, Ocean_state, Time)
