@@ -71,7 +71,7 @@ endif
 if ( $type == EBM ) then
     set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DLAND_BND_TRACERS -DOVERLOAD_C8 -DOVERLOAD_C4 -DOVERLOAD_R4" )
 else if( $type == ACCESS-OM ) then
-    set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DACCESS" )
+    set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DACCESS -DACCESS_OM" )
 else if( $type == ACCESS-CM ) then
     set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DACCESS -DACCESS_CM" )
 endif
