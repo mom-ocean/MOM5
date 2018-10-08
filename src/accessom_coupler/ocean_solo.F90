@@ -106,11 +106,9 @@ program main
   use ocean_types_mod,          only: ice_ocean_boundary_type
   use ocean_util_mod,           only: write_chksum_2d
 
-#ifdef ACCESS
   use auscom_ice_parameters_mod, only: redsea_gulfbay_sfix, do_sfix_now, sfix_hours, int_sec
   use accessom2_mod, only : accessom2_type => accessom2
   use coupler_mod, only : coupler_type => coupler
-#endif
 
   implicit none
 
@@ -130,11 +128,9 @@ program main
   type(time_type) :: Time_restart_init
   type(time_type) :: Time_restart
   type(time_type) :: Time_restart_current
-#ifdef ACCESS
   type(time_type) :: Time_last_sfix 
   type(time_type) :: Time_sfix 
   integer :: sfix_seconds
-#endif
 
   character(len=17) :: calendar = 'julian'
 
@@ -348,7 +344,6 @@ program main
   call ocean_model_init(Ocean_sfc, Ocean_state, Time_init, Time, &
                         accessom2%get_ice_ocean_timestep())
 
-#ifdef ACCESS
   if (redsea_gulfbay_sfix) then
     ! This must be called after ocean_model_init so sfix_hours is read in from namelist
     sfix_seconds = sfix_hours * SECONDS_PER_HOUR
@@ -373,7 +368,6 @@ program main
 
     call print_time(Time_last_sfix,'Time_last_sfix: ')
   end if
-#endif
 
   call data_override_init(Ocean_domain_in = Ocean_sfc%domain)
 
@@ -441,7 +435,6 @@ program main
         call write_boundary_chksums(Ice_ocean_boundary)
      endif
 
-#ifdef ACCESS
     if (redsea_gulfbay_sfix) then
         if ((Time - Time_last_sfix) >= Time_sfix) then
             do_sfix_now = .true.
@@ -450,7 +443,6 @@ program main
             do_sfix_now = .false.
         end if
     end if
-#endif
 
      call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
 

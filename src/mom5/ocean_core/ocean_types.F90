@@ -1260,12 +1260,12 @@ module ocean_types_mod
      real, pointer, dimension(:,:)    :: frazil  =>NULL() ! accumulated heating (J/m^2) from 
                                                           ! frazil formation in the ocean 
      real, pointer, dimension(:,:)    :: area    =>NULL() ! T-cell area.
-#if defined(ACCESS)
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
      real, pointer, dimension(:,:,:)  :: gradient =>NULL() ! x/y slopes of sea surface.
+#endif
 #if defined(ACCESS_CM)
      real, pointer, dimension(:,:)    :: co2     =>NULL() ! co2 ( )
      real, pointer, dimension(:,:)    :: co2flux =>NULL() ! co2 flux ()
-#endif
 #endif
      logical, pointer, dimension(:,:) :: maskmap =>NULL()! A pointer to an array indicating which
                                                          ! logical processors are actually used for
