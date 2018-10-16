@@ -183,9 +183,9 @@ type biotic_type  !{
 
   logical                               :: init
   character(len=fm_field_name_len)      :: name
+  real                                  :: sal_global
 ! arrays for air-sea fluxes
-  real 				      	                 :: sal_global _NULL
-  real, _ALLOCATABLE, dimension(:)      	 :: bgc_global _NULL
+  real, _ALLOCATABLE, dimension(:)      	   :: bgc_global _NULL
   real, _ALLOCATABLE, dimension(:,:)         :: htotal _NULL
   real, _ALLOCATABLE, dimension(:,:)         :: alpha _NULL
   real, _ALLOCATABLE, dimension(:,:)         :: csat _NULL
