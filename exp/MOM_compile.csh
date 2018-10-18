@@ -18,7 +18,7 @@ else
   echo "Old getopt(1)"
 endif
 
-set temp = (`getopt -u -s csh -o h -l type:,platform:,help,unit_testing,debug,use_netcdf4,no_environ --  $*`)
+set temp = (`getopt -u -s csh -o h -l type:,platform:,help,unit_testing,debug,use_netcdf4 --  $*`)
 if ($? != 0) then 
   # Die if there are incorrect options
   set help = 1
