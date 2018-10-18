@@ -9,6 +9,7 @@ set help = 0
 set debug = 0
 set environ = 1
 set use_netcdf4 = 0
+set no_environ = 0
 
 getopt -T >&/dev/null
 if ( $status == 4) then
