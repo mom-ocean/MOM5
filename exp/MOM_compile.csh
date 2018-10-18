@@ -1,4 +1,4 @@
-#!/bin/csh -f
+#!/bin/csh -f -x
 # Minimal compile script for fully coupled model CM2M experiments
 
 set platform      = gfortran    # A unique identifier for your platfo
