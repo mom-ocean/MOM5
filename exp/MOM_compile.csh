@@ -8,7 +8,6 @@ set unit_testing = 0
 set help = 0
 set debug = 0
 set environ = 1
-set no-environ = 0
 set use_netcdf4 = 0
 
 getopt -T >&/dev/null
@@ -16,14 +15,9 @@ if ( $status == 4) then
   echo "Enhanced getopt(1)"
 else
   echo "Old getopt(1)"
-endi
+endif
 
-# Now we do the eval part. As the result is a list, we need braces. But they
-# must be quoted, because they must be evaluated when the eval is called.
-# The 'q` stops doing any silly substitutions.
-eval set argv=\($temp:q\)
-
-set temp = (`getopt -u -o h -l type: -l platform: -l help -l unit_testing -l debug -l use_netcdf4 -l no-environ --  $*`)
+set temp = (`getopt -u -o h -l type: -l platform: -l help -l unit_testing -l debug -l use_netcdf4 -l no_environ --  $*`)
 if ($? != 0) then 
   # Die if there are incorrect options
   set help = 1
@@ -39,7 +33,7 @@ while ("$argv[1]" != "--")
                 set platform = $argv[2]; shift argv; breaksw
         case --unit_testing:
                 set unit_testing = 1; breaksw
-        case --no-environ:
+        case --no_environ:
                 set environ = 0; breaksw
         case --debug:
                 set debug = 1; breaksw
@@ -74,7 +68,7 @@ if ( $help ) then
     echo
     echo "--use_netcdf4  use NetCDF4, the default is NetCDF4. Warning: many of the standard experiments don't work with NetCDF4."
     echo
-    echo "--no-environ  do not source platform specific environment. Allows customising/overriding default environment"
+    echo "--no_environ  do not source platform specific environment. Allows customising/overriding default environment"
     echo
     exit 1
 endif
