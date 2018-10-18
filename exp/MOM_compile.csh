@@ -8,15 +8,28 @@ set unit_testing = 0
 set help = 0
 set debug = 0
 set environ = 1
+set no-environ = 0
 set use_netcdf4 = 0
 
-set argv = (`getopt -u -o h -l type: -l platform: -l help -l unit_testing -l debug -l use_netcdf4 -l environ --  $*`)
+getopt -T >&/dev/null
+if ( $status == 4) then
+  echo "Enhanced getopt(1)"
+else
+  echo "Old getopt(1)"
+endi
+
+# Now we do the eval part. As the result is a list, we need braces. But they
+# must be quoted, because they must be evaluated when the eval is called.
+# The 'q` stops doing any silly substitutions.
+eval set argv=\($temp:q\)
+
+set temp = (`getopt -u -o h -l type: -l platform: -l help -l unit_testing -l debug -l use_netcdf4 -l no-environ --  $*`)
 if ($? != 0) then 
   # Die if there are incorrect options
   set help = 1
   goto help
 endif
-# eval set argv=\($temp:q\)
+eval set argv=\($temp:q\)
 
 while ("$argv[1]" != "--")
     switch ($argv[1])
