@@ -649,7 +649,7 @@ private
                              baroclinic_split, barotropic_split, surface_height_split,           &
                              layout, io_layout, debug, vertical_coordinate, dt_ocean, cmip_units,&
                              horizontal_grid, use_blobs, use_velocity_override, mask_table,      &
-                             introduce_blobs, beta_txty, beta_tf, beta_qf, beta_lwsw
+                             introduce_blobs, beta_txty, beta_tf, beta_qf, beta_lwsw, do_wave
 
 contains
 
