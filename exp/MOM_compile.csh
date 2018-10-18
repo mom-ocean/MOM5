@@ -18,7 +18,7 @@ else
   echo "Old getopt(1)"
 endif
 
-set temp = (`getopt -u -o h -l type: -l platform: -l help -l unit_testing -l debug -l use_netcdf4 -l no_environ --  $*`)
+set temp = (`getopt -u -s csh -o h -l type:,platform:,help,unit_testing,debug,use_netcdf4,no_environ --  $*`)
 if ($? != 0) then 
   # Die if there are incorrect options
   set help = 1
@@ -44,8 +44,6 @@ while ("$argv[1]" != "--")
                 set help = 1;  breaksw
         case -h:
                 set help = 1;  breaksw
-        default:
-            set help = 1; echo "My Unrecognised option! $argv[2]" ; break
     endsw
     shift argv
 end
