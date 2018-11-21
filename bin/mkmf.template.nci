@@ -17,7 +17,6 @@ CC = mpicc
 #########
 # flags #
 #########
-REPRO =
 VERBOSE =
 OPT = on
 
@@ -41,7 +40,7 @@ FPPFLAGS := -fpp -Wp,-w $(INCLUDE)
 FFLAGS := -fno-alias -safe-cray-ptr -fpe0 -ftz -assume byterecl -i4 -r8 -traceback -nowarn -check noarg_temp_created -assume nobuffered_io -convert big_endian -grecord-gcc-switches -align all
 FFLAGS_OPT = -O2 -debug minimal -xHost
 FFLAGS_DEBUG = -g -O0 -debug all -check -check noarg_temp_created -check nopointer -warn -warn noerrors -ftrapuv
-FFLAGS_REPRO = -O2 -debug minimal -no-vec -fp-model precise
+FFLAGS_REPRO = -fp-model precise
 FFLAGS_VERBOSE = -v -V -what
 
 CFLAGS := -D__IFC $(INCLUDE)
