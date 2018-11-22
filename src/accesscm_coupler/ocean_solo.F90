@@ -152,7 +152,7 @@ program main
   use ocean_types_mod,          only: ice_ocean_boundary_type
   use ocean_util_mod,           only: write_chksum_2d
 
-  use auscom_ice_parameters_mod, only: redsea_gulfbay_sfix, do_sfix_now, sfix_hours, int_sec
+  use auscom_ice_parameters_mod, only: redsea_gulfbay_sfix, do_sfix_now, sfix_hours, int_sec, do_sfix_at_start
 
   implicit none
 
@@ -382,6 +382,13 @@ program main
     hours = hours - days*24
 
     Time_last_sfix = set_time(days=int(days),seconds=int(hours*SECONDS_PER_HOUR)) + Time_init
+
+    ! This is an option to reproduce the arguably incorrect behaviour of previous
+    ! ACCESS-CM2 code, which would always apply the red sea fix at the first time step 
+    if (do_sfix_at_start) then
+        Time_last_sfix = Time_init
+    end if
+
     Time_sfix = set_time(seconds=int(sfix_seconds))
 
     call print_time(Time_last_sfix,'Time_last_sfix: ')
@@ -458,12 +465,14 @@ program main
         call write_boundary_chksums(Ice_ocean_boundary)
      endif
 
-     if ((Time - Time_last_sfix) >= Time_sfix) then
-        do_sfix_now = .true.
-        Time_last_sfix = Time
-     else
-        do_sfix_now = .false.
-     end if
+     if (redsea_gulfbay_sfix) then
+        if ((Time - Time_last_sfix) >= Time_sfix) then
+            do_sfix_now = .true.
+            Time_last_sfix = Time
+        else
+            do_sfix_now = .false.
+        end if
+    end if
 
      call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
 
