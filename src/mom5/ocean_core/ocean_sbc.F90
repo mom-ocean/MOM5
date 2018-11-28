@@ -5567,6 +5567,22 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
       call diagnose_3d_rho(Time, Dens, id_tform_rho_pbl_flux_on_nrho, wrk1)
   endif
 
+#if defined(ACCESS_CM)
+   ! Heat into ocean due to land ice discharge-melt (>0 heats ocean)
+   if (id_liceht > 0) then
+       do j=jsc_bnd,jec_bnd
+          do i=isc_bnd,iec_bnd
+             ii=i+i_shift
+             jj=j+j_shift
+             tmp_flux(ii,jj) = Ice_ocean_boundary%liceht(i,j)
+          enddo
+       enddo
+       used = send_data(id_liceht, tmp_flux(:,:),        &
+              Time%model_time, rmask=Grd%tmask(:,:,1),  &
+              is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+   endif
+#endif
+
   !--------salt related diagnostics ------------------------------------
   !
   ! salt flux (kg/(m2*sec)) passed through the coupler 
