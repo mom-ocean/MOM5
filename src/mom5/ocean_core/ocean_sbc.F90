@@ -4031,6 +4031,9 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
                                            + Ice_ocean_boundary%mh_flux(i,j)  &
 #endif
+#if defined(ACCESS_CM)
+                                           + Ice_ocean_boundary%liceht(i,j) &
+#endif
                                            )/cp_ocean*Grd%tmask(ii,jj,1)
           
        enddo
