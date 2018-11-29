@@ -232,6 +232,10 @@ program main
   ! Initialise libaccessom2
   call accessom2%init('mom5xx', config_dir=trim(accessom2_config_dir))
 
+  if (mpp_pe() == mpp_root_pe()) then
+    call accessom2%print_version_info()
+  endif
+
   ! Tell libaccessom2 about any global configs/state
 
   ! Synchronise accessom2 'state' (i.e. configuration) between all models.

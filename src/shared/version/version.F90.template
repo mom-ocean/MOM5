@@ -5,14 +5,14 @@ module version_mod
 !   This module provides a string which is the git hash (version) of the code
 !   used to build this executable.
 !
-!   The version can be read with the following command:
-!   $ readelf -p .rodata <executable> | grep -A 1 'version.F90'
+!   The hash can be read with the following command:
+!   $ strings <executable> | grep MOM_COMMIT_HASH
 ! </OVERVIEW>
 
 implicit none
 private
 
-character (len=*), parameter, public :: MOM_VERSION = "MOM_VERSION={MOM_VERSION}"
+character (len=*), parameter, public :: MOM_COMMIT_HASH = "MOM_COMMIT_HASH={MOM_COMMIT_HASH}"
 
 contains
 
