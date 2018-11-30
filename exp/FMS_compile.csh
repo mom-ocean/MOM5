@@ -13,14 +13,14 @@ set lib_name = "lib_FMS"
 # Set up the version string, needed for FMS build.
 # The version string is the git hash of the commit used to build the code.
 # The version of an executable can be found with the following command:
-# readelf -p .rodata <executable> | grep -A 1 'version.F90'
+# strings <executable> | grep 'MOM_COMMIT_HASH='
 setenv GIT_CONFIG_NOGLOBAL 'yes'
 
-set old_hash=`grep 'MOM_VERSION' ../src/shared/version/version.F90 | cut -d '"' -f 2 | cut -d '=' -f 2`
+set old_hash=`grep 'public :: MOM_COMMIT_HASH' ../src/shared/version/version.F90 | cut -d '"' -f 2 | cut -d '=' -f 2`
 set new_hash=`git rev-parse HEAD`
 
 if ( $old_hash != $new_hash ) then
-    sed -e "s/{MOM_VERSION}/$new_hash/g" $code_dir/shared/version/version.F90.template > $code_dir/shared/version/version.F90
+    sed -e "s/{MOM_COMMIT_HASH}/$new_hash/g" $code_dir/shared/version/version.F90.template > $code_dir/shared/version/version.F90
 endif
 
 mkdir -p $executable:h:h/$lib_name
