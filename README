@@ -9,11 +9,7 @@ How to run the MOM tests
 
 Read:
 
-http://mom-ocean.science/web/docs/project/quickstart
-
-Or:
-
-doc/web/quickstart.md
+https://mom-ocean.github.io/docs/quick-start-guide/
 
 
 Warning: The Solo and Coupled run scripts have been tested only on 10 and 24, ia64
