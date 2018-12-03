@@ -2189,7 +2189,7 @@ subroutine thickness_restart (Time, Grid, Ext_mode, Thickness, introduce_blobs)
             Thickness%mass_uT(:,:,:)    = Thickness%mass_u(:,:,:)   
          endif
 
-         where (Thickness%rho_dztT(:,:,:,taup1)==0.) Thickness%rho_dztT(:,:,:,taup1) = rho0*thickness_dzt_min_init
+         where (Thickness%rho_dztT(:,:,:,taup1) == MPP_FILL_DOUBLE) Thickness%rho_dztT(:,:,:,taup1) = rho0*thickness_dzt_min_init
          call mpp_update_domains(Thickness%rho_dztL(:,:,:,taup1), Dom%domain2d)
          call mpp_update_domains(Thickness%rho_dztT(:,:,:,taup1), Dom%domain2d)
          Thickness%rho_dztL(:,:,:,tau) = Thickness%rho_dztL(:,:,:,taup1)
@@ -2197,7 +2197,7 @@ subroutine thickness_restart (Time, Grid, Ext_mode, Thickness, introduce_blobs)
          Thickness%rho_dzt(:,:,:,taup1) = Thickness%rho_dztT(:,:,:,taup1) - Thickness%rho_dztL(:,:,:,taup1)
          Thickness%rho_dzt(:,:,:,tau)   = Thickness%rho_dztT(:,:,:,tau)   - Thickness%rho_dztL(:,:,:,tau)
       else
-         where (Thickness%rho_dzt(:,:,:,taup1)==0.) Thickness%rho_dzt(:,:,:,taup1) = rho0*thickness_dzt_min_init
+         where (Thickness%rho_dzt(:,:,:,taup1) == MPP_FILL_DOUBLE) Thickness%rho_dzt(:,:,:,taup1) = rho0*thickness_dzt_min_init
       endif
 
       call mpp_update_domains(Thickness%rho_dzt(:,:,:,taup1),  Dom%domain2d)
