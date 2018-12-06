@@ -4048,6 +4048,9 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
           sensible(ii,jj) = -Ice_ocean_boundary%t_flux(i,j)*Grd%tmask(ii,jj,1)
           longwave(ii,jj) =  Ice_ocean_boundary%lw_flux(i,j)*Grd%tmask(ii,jj,1)
           latent(ii,jj)   =  latent_heat_vapor(ii,jj)*evaporation(ii,jj) &
+#if defined(ACCESS_CM)
+          +Ice_ocean_boundary%liceht(ii,jj) &   
+#endif
                             -latent_heat_fusion(ii,jj)*(frozen_precip(ii,jj)+calving(ii,jj))
        enddo
     enddo
