@@ -3444,9 +3444,12 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
           do i = isc_bnd,iec_bnd
               ii = i + i_shift
               jj = j + j_shift
-              ! Take half the waterflux from the previous timestep and add to half the
-              ! flux from the current timestep calculated above
+              ! Take half the waterflux from the previous timestep and add to half 
+              ! the flux from the current timestep calculated above. Set pme_taum1 
+              ! to calculated pme for this timestep
+              tmp_pme = pme(ii,jj)
               pme(ii,jj) = 0.5*pme(ii,jj) + 0.5*pme_taum1(ii,jj)
+              pme_taum1(ii,jj) = tmp_pme
           end do
         end do
       endif 
