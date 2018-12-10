@@ -3193,7 +3193,7 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   real    :: tmp_x, tmp_y
   real    :: pme_river_total, var
   real    :: tracer_input
-  real    :: tmp_runoff, tmp_calving 
+  real    :: tmp_runoff, tmp_calving, tmp_pme
   real    :: dayreal, phase 
   real    :: stokes_factor
   integer :: tau, taup1, n, i, j, k, ii, jj
