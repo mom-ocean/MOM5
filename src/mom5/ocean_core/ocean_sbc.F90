@@ -3418,60 +3418,37 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
       ! note sign switch on evaporation(i,j), so that evaporation(i,j) > 0 when 
       ! water enters ocean (as when condensation occurs from fog).  for most regions,
       ! evaporation(i,j) < 0.  
+      do j = jsc_bnd,jec_bnd
+          do i = isc_bnd,iec_bnd
+              ii = i + i_shift
+              jj = j + j_shift
+              pme(ii,jj) = (Ice_ocean_boundary%lprec(i,j) + Ice_ocean_boundary%fprec(i,j) &
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
+                          ! PME is meant to include "melt", in a MOM+SIS configuration it
+                          ! is added by the coupler. We add it here. 
+                          + Ice_ocean_boundary%wfimelt(i,j) & 
+                          + Ice_ocean_boundary%wfiform(i,j) &
+#endif
+#if defined(ACCESS_CM)
+                          ! This term is not present in ACCESS_OM, so "add" it now
+                          + Ice_ocean_boundary%licefw(i,j) &
+#endif
+                          - Ice_ocean_boundary%q_flux(i,j))*Grd%tmask(ii,jj,1) 
+              liquid_precip(ii,jj) =  Ice_ocean_boundary%lprec(i,j)*Grd%tmask(ii,jj,1) 
+              frozen_precip(ii,jj) =  Ice_ocean_boundary%fprec(i,j)*Grd%tmask(ii,jj,1) 
+              evaporation(ii,jj)   = -Ice_ocean_boundary%q_flux(i,j)*Grd%tmask(ii,jj,1) 
+          enddo
+      enddo
       if(waterflux_tavg) then 
-         do j = jsc_bnd,jec_bnd
-            do i = isc_bnd,iec_bnd
-               ii = i + i_shift
-               jj = j + j_shift
-               pme(ii,jj) = 0.5*pme_taum1(ii,jj)
-
-#if defined(ACCESS_CM) || defined(ACCESS_OM)
-               ! PME is meant to include "melt", in a MOM+SIS configuration it
-               ! is added by the coupler. In ACCESS we add it here. Also note
-               ! wfimelt and wfiform are total liquid flux coming from the ice.
-               ! This includes melt, evaporation and precip from/through ice.
-               pme_taum1(ii,jj) = pme_taum1(ii,jj) + (Ice_ocean_boundary%lprec(i,j) &
-                          + Ice_ocean_boundary%fprec(i,j) &
-                          + Ice_ocean_boundary%wfimelt(i,j) + Ice_ocean_boundary%wfiform(i,j) &
-                          - Ice_ocean_boundary%q_flux(i,j))*Grd%tmask(ii,jj,1)
-#else
-               pme_taum1(ii,jj) = (Ice_ocean_boundary%lprec(i,j) + Ice_ocean_boundary%fprec(i,j) &
-                                  - Ice_ocean_boundary%q_flux(i,j))*Grd%tmask(ii,jj,1) 
-#endif
-#if defined(ACCESS_CM)
-               ! This term is not present in ACCESS_OM, so "add" it now
-               pme_taum1(ii,jj) = pme_taum1(ii,jj) + Ice_ocean_boundary%licefw(i,j)
-#endif
-               pme(ii,jj) = pme(ii,jj) + 0.5*pme_taum1(ii,jj)
-               liquid_precip(ii,jj) =  Ice_ocean_boundary%lprec(i,j)*Grd%tmask(ii,jj,1) 
-               frozen_precip(ii,jj) =  Ice_ocean_boundary%fprec(i,j)*Grd%tmask(ii,jj,1) 
-               evaporation(ii,jj)   = -Ice_ocean_boundary%q_flux(i,j)*Grd%tmask(ii,jj,1) 
-            enddo
-         enddo
-      else 
-         do j = jsc_bnd,jec_bnd
-            do i = isc_bnd,iec_bnd
-               ii = i + i_shift
-               jj = j + j_shift
-#if defined(ACCESS_CM) || defined(ACCESS_OM)
-               ! PME is meant to include "melt", in a MOM+SIS configuration it
-               ! is added by the coupler. We add it here. 
-               pme(ii,jj) = (Ice_ocean_boundary%lprec(i,j) + Ice_ocean_boundary%fprec(i,j) &
-                          + Ice_ocean_boundary%wfimelt(i,j) + Ice_ocean_boundary%wfiform(i,j) &
-                          - Ice_ocean_boundary%q_flux(i,j))*Grd%tmask(ii,jj,1)
-#else
-               pme(ii,jj) = (Ice_ocean_boundary%lprec(i,j) + Ice_ocean_boundary%fprec(i,j) &
-                            -Ice_ocean_boundary%q_flux(i,j))*Grd%tmask(ii,jj,1) 
-#endif
-#if defined(ACCESS_CM)
-               ! This term is not present in ACCESS_OM, so "add" it now
-               pme_taum1(ii,jj) = pme_taum1(ii,jj) + Ice_ocean_boundary%licefw(i,j)
-#endif
-               liquid_precip(ii,jj) =  Ice_ocean_boundary%lprec(i,j)*Grd%tmask(ii,jj,1) 
-               frozen_precip(ii,jj) =  Ice_ocean_boundary%fprec(i,j)*Grd%tmask(ii,jj,1) 
-               evaporation(ii,jj)   = -Ice_ocean_boundary%q_flux(i,j)*Grd%tmask(ii,jj,1) 
-            enddo
-         enddo
+        do j = jsc_bnd,jec_bnd
+          do i = isc_bnd,iec_bnd
+              ii = i + i_shift
+              jj = j + j_shift
+              ! Take half the waterflux from the previous timestep and add to half the
+              ! flux from the current timestep calculated above
+              pme(ii,jj) = 0.5*pme(ii,jj) + 0.5*pme_taum1(ii,jj)
+          end do
+        end do
       endif 
 
       ! water flux in (kg/m^3)*(m/s) from liquid runoff and calving land ice  
