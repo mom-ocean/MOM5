@@ -1342,12 +1342,13 @@ subroutine compute_bldepth(Time, Thickness, Dens, T_prog, surf_blthick)
                         Grd%tmask(i,j-1,k)  +&
                         Grd%tmask(i,j+1,k)
                    if (active_cells > 4.0) then
+! Make sure that we do not smooth to deeper than the maximum column depth. Note that if we are in water cannot have zero index
                        wrk1_2d(i,j) = & 
-                            (4.0*hblt(i,j) +&
+                            min((4.0*hblt(i,j) +&
                             hblt(i-1,j)    +&
                             hblt(i+1,j)    +&
                             hblt(i,j-1)    +&
-                            hblt(i,j+1)) / active_cells
+                            hblt(i,j+1)) / active_cells, Thickness%depth_zwt(i,j,Grd%kmt(i,j)))
                    else
                        wrk1_2d(i,j) = hblt(i,j)
                    endif
@@ -1357,7 +1358,7 @@ subroutine compute_bldepth(Time, Thickness, Dens, T_prog, surf_blthick)
 
          do j=jsc,jec
             do i=isc,iec
-               hblt(i,j) = wrk1_2d(i,j)*Grd%tmask(i,j,k)*Grd%tmask(i,j+1,k)
+               hblt(i,j) = wrk1_2d(i,j)*Grd%tmask(i,j,k)  ! No reason to mask to the north
             enddo
          enddo
 
@@ -1738,10 +1739,12 @@ subroutine compute_psi(Time, Dens, Thickness)
             enddo  ! k=1,1 loop
          enddo     ! ip=0,1 loop
 
-         call mpp_update_domains(psix_horz(:,:,:), Dom%domain2d) 
-         call mpp_update_domains(psiy_horz(:,:,:), Dom%domain2d) 
 
       enddo  ! enddo for number of smoothing iterations 
+
+!Can move outside loop reducing number of updates.
+      call mpp_update_domains(psix_horz(:,:,:), Dom%domain2d) 
+      call mpp_update_domains(psiy_horz(:,:,:), Dom%domain2d) 
   endif      ! endif for smooth_psi
 
 
