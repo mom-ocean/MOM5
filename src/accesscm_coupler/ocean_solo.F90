@@ -386,7 +386,7 @@ program main
     ! This is an option to reproduce the arguably incorrect behaviour of previous
     ! ACCESS-CM2 code, which would always apply the red sea fix at the first time step 
     if (do_sfix_at_start) then
-        Time_last_sfix = Time_init
+        Time_last_sfix = Time_init - set_time(seconds=int(sfix_seconds))
     end if
 
     Time_sfix = set_time(seconds=int(sfix_seconds))
