@@ -1019,7 +1019,7 @@ subroutine transport_on_nrho (Time, Dens, Adv_vel)
             do j=jsc,jec
                do i=isc,iec
                   if (k_rho == 1) then
-                     if(Dens%neutralrho(i,j,k) < Dens%neutralrho_bounds(k_rho)) then 
+                     if(Dens%neutralrho(i,j,k) < Dens%neutralrho_bounds(k_rho+1)) then
                          tmp(1,i,j) = tmp(1,i,j) + Adv_vel%uhrho_et(i,j,k)
                          tmp(2,i,j) = tmp(2,i,j) + Adv_vel%vhrho_nt(i,j,k)
                      endif
@@ -1127,7 +1127,7 @@ subroutine transport_on_rho (Time, Dens, Adv_vel)
             do j=jsc,jec
                do i=isc,iec
                   if (k_rho == 1) then 
-                     if(Dens%potrho(i,j,k) < Dens%potrho_bounds(k_rho)) then 
+                     if(Dens%potrho(i,j,k) < Dens%potrho_bounds(k_rho+1)) then
                         tmp(1,i,j) = tmp(1,i,j) + Adv_vel%uhrho_et(i,j,k)
                         tmp(2,i,j) = tmp(2,i,j) + Adv_vel%vhrho_nt(i,j,k)
                      endif
@@ -1236,7 +1236,7 @@ subroutine transport_on_theta (Time, Dens, Theta, Adv_vel)
             do j=jsc,jec
                do i=isc,iec
                   if (k_theta == 1) then
-                     if(Theta%field(i,j,k,tau) < Dens%theta_bounds(k_theta)) then 
+                     if(Theta%field(i,j,k,tau) < Dens%theta_bounds(k_theta+1)) then
                          tmp(1,i,j) = tmp(1,i,j) + Adv_vel%uhrho_et(i,j,k)
                          tmp(2,i,j) = tmp(2,i,j) + Adv_vel%vhrho_nt(i,j,k)
                      endif
