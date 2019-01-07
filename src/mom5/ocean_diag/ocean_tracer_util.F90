@@ -820,7 +820,7 @@ subroutine rebin_onto_rho (rho_bounds, rho_level, infield_level, outfield_rho)
 
                   ! light waters 
                   if (k_rho == 1) then
-                      if(rho_level(i,j,k) < rho_bounds(k_rho)+1) then
+                      if(rho_level(i,j,k) < rho_bounds(k_rho)) then 
                           outfield_rho(i,j,k_rho) = outfield_rho(i,j,k_rho) + infield_level(i,j,k)
                       endif
 
