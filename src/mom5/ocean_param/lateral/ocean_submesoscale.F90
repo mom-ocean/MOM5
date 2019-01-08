@@ -3714,7 +3714,7 @@ subroutine transport_on_nrho_submeso_adv (Time, Dens, utrans, vtrans)
             do j=jsc,jec
                do i=isc,iec
                   if (k_rho == 1) then
-                     if(Dens%neutralrho(i,j,k) < Dens%neutralrho_bounds(k_rho)) then 
+                     if(Dens%neutralrho(i,j,k) < Dens%neutralrho_bounds(k_rho+1)) then 
                          tmp(1,i,j) = tmp(1,i,j) + utrans(i,j,k)
                          tmp(2,i,j) = tmp(2,i,j) + vtrans(i,j,k)
                      endif
