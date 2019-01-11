@@ -64,7 +64,8 @@ integer :: ksmax = 5        !deepest level of the Red Sea/Gulf Bay
 integer :: sfix_hours = 12  !do s mixing every sfix_hours.
 !
 logical :: redsea_gulfbay_sfix = .false.
-logical :: do_sfix_now = .true.
+logical :: do_sfix_now = .false.
+logical :: do_sfix_at_start = .false.
 logical :: chk_i2o_fields = .false.
 logical :: chk_o2i_fields = .false.
 ! How often to dump the coupling fields if either of the above options are .true.
@@ -94,6 +95,7 @@ namelist /auscom_ice_nml/  dt_cpl, &
                    igs, ige, jgs, jge,                  & 
                    ksmax,                               & 
                    sfix_hours,                          &
+                   do_sfix_at_start,                    &
                    chk_i2o_fields,                      &
                    chk_o2i_fields,                      &
                    chk_fields_period,                   &

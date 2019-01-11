@@ -152,9 +152,7 @@ program main
   use ocean_types_mod,          only: ice_ocean_boundary_type
   use ocean_util_mod,           only: write_chksum_2d
 
-#ifdef ACCESS
   use auscom_ice_parameters_mod, only: redsea_gulfbay_sfix, do_sfix_now, sfix_hours, int_sec
-#endif
 
   implicit none
 
@@ -172,11 +170,9 @@ program main
   type(time_type) :: Time_restart_init
   type(time_type) :: Time_restart
   type(time_type) :: Time_restart_current
-#ifdef ACCESS
   type(time_type) :: Time_last_sfix 
   type(time_type) :: Time_sfix 
   integer :: sfix_seconds
-#endif
 
   character(len=17) :: calendar = 'julian'
 
@@ -366,7 +362,6 @@ program main
 
   call ocean_model_init(Ocean_sfc, Ocean_state, Time_init, Time)
 
-#ifdef ACCESS
   if (redsea_gulfbay_sfix) then
     ! This must be called after ocean_model_init so sfix_hours is read in from namelist
     sfix_seconds = sfix_hours * SECONDS_PER_HOUR
@@ -387,12 +382,11 @@ program main
     hours = hours - days*24
 
     Time_last_sfix = set_time(days=int(days),seconds=int(hours*SECONDS_PER_HOUR)) + Time_init
+
     Time_sfix = set_time(seconds=int(sfix_seconds))
 
     call print_time(Time_last_sfix,'Time_last_sfix: ')
   end if
-#endif
-
 
   call data_override_init(Ocean_domain_in = Ocean_sfc%domain)
 
@@ -419,10 +413,10 @@ program main
              Ice_ocean_boundary% mh_flux(isc:iec,jsc:jec),          &
              Ice_ocean_boundary% wfimelt(isc:iec,jsc:jec),          &
              Ice_ocean_boundary% wfiform(isc:iec,jsc:jec))
-#if defined ACCESS_CM
-    allocate(Ice_ocean_boundary%co2(isc:iec,jsc:jec),               &
-             Ice_ocean_boundary%wnd(isc:iec,jsc:jec))
-#endif
+  allocate ( Ice_ocean_boundary%co2(isc:iec,jsc:jec),               &
+             Ice_ocean_boundary%wnd(isc:iec,jsc:jec),               &
+             Ice_ocean_boundary%licefw(isc:iec,jsc:jec),            &
+             Ice_ocean_boundary%liceht(isc:iec,jsc:jec))
 
   Ice_ocean_boundary%u_flux          = 0.0
   Ice_ocean_boundary%v_flux          = 0.0
@@ -443,10 +437,10 @@ program main
   Ice_ocean_boundary%mh_flux         = 0.0
   Ice_ocean_boundary% wfimelt        = 0.0
   Ice_ocean_boundary% wfiform        = 0.0
-#if defined ACCESS_CM
   Ice_ocean_boundary%co2             = 0.0
   Ice_ocean_boundary%wnd             = 0.0
-#endif
+  Ice_ocean_boundary%licefw          = 0.0
+  Ice_ocean_boundary%liceht          = 0.0
 
   coupler_init_clock = mpp_clock_id('OASIS init', grain=CLOCK_COMPONENT)
   call mpp_clock_begin(coupler_init_clock)
@@ -465,14 +459,14 @@ program main
         call write_boundary_chksums(Ice_ocean_boundary)
      endif
 
-#ifdef ACCESS
-     if ((Time - Time_last_sfix) >= Time_sfix) then
-        do_sfix_now = .true.
-        Time_last_sfix = Time
-     else
-        do_sfix_now = .false.
-     end if
-#endif
+     if (redsea_gulfbay_sfix) then
+        if ((Time - Time_last_sfix) >= Time_sfix) then
+            do_sfix_now = .true.
+            Time_last_sfix = Time
+        else
+            do_sfix_now = .false.
+        end if
+    end if
 
      call update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, Time, Time_step_coupled)
 
@@ -709,10 +703,8 @@ subroutine write_boundary_chksums(Ice_ocean_boundary)
     call write_chksum_2d('Ice_ocean_boundary%mh_flux', Ice_ocean_boundary%mh_flux)
     call write_chksum_2d('Ice_ocean_boundary%wfimelt', Ice_ocean_boundary%wfimelt)
     call write_chksum_2d('Ice_ocean_boundary%wfiform', Ice_ocean_boundary%wfiform)
-#if defined ACCESS_CM
     call write_chksum_2d('Ice_ocean_boundary%co2', Ice_ocean_boundary%co2)
     call write_chksum_2d('Ice_ocean_boundary%wnd', Ice_ocean_boundary%wnd)
-#endif
 
 end subroutine write_boundary_chksums
 

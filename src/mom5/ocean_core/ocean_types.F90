@@ -1229,14 +1229,16 @@ module ocean_types_mod
      real, pointer, dimension(:,:) :: ustoke          =>NULL() ! x-dir surface stokes drift
      real, pointer, dimension(:,:) :: vstoke          =>NULL() ! y-dir surface stokes drift
      real, pointer, dimension(:,:) :: wavlen          =>NULL() ! wave length
-#if defined(ACCESS)
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
      real, pointer, dimension(:,:) :: aice             =>NULL() !  ice fraction
      real, pointer, dimension(:,:) :: mh_flux          =>NULL() ! heat flux from melting ice (W/m^2)
      real, pointer, dimension(:,:) :: wfimelt          =>NULL() ! water flux from melting ice (kg/m^2/s)
      real, pointer, dimension(:,:) :: wfiform          =>NULL() ! water flux from forming ice (kg/m^2/s)
+#endif
 #if defined(ACCESS_CM)
      real, pointer, dimension(:,:) :: co2              =>NULL() ! co2
-#endif
+     real, pointer, dimension(:,:) :: licefw           =>null() ! waterflux into ocean (kg/m2/s) off Antarctica and Greenland
+     real, pointer, dimension(:,:) :: liceht           =>null() ! heatflux due to land ice melt (W/m2)
 #endif
      real, pointer, dimension(:,:) :: wnd              =>NULL() ! wind speed
      integer :: xtype                                          ! REGRID, REDIST or DIRECT
@@ -1258,12 +1260,12 @@ module ocean_types_mod
      real, pointer, dimension(:,:)    :: frazil  =>NULL() ! accumulated heating (J/m^2) from 
                                                           ! frazil formation in the ocean 
      real, pointer, dimension(:,:)    :: area    =>NULL() ! T-cell area.
-#if defined(ACCESS)
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
      real, pointer, dimension(:,:,:)  :: gradient =>NULL() ! x/y slopes of sea surface.
+#endif
 #if defined(ACCESS_CM)
      real, pointer, dimension(:,:)    :: co2     =>NULL() ! co2 ( )
      real, pointer, dimension(:,:)    :: co2flux =>NULL() ! co2 flux ()
-#endif
 #endif
      logical, pointer, dimension(:,:) :: maskmap =>NULL()! A pointer to an array indicating which
                                                          ! logical processors are actually used for

@@ -330,7 +330,7 @@ use wave_types_mod,               only: ocean_wave_type
 use ocean_wave_mod,               only: ocean_wave_init, ocean_wave_end, ocean_wave_model
 use version_mod,                  only: MOM_COMMIT_HASH
 
-#if defined(ACCESS)
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
   use auscom_ice_mod, only: auscom_ice_init
   use auscom_ice_parameters_mod,  only: redsea_gulfbay_sfix, do_sfix_now
 #else
@@ -556,7 +556,7 @@ private
   integer :: id_increment_velocity
   integer :: id_salinity
   integer :: id_wave
-#if defined(ACCESS)
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
   integer :: id_sfix
 #endif
 
@@ -649,7 +649,7 @@ private
                              baroclinic_split, barotropic_split, surface_height_split,           &
                              layout, io_layout, debug, vertical_coordinate, dt_ocean, cmip_units,&
                              horizontal_grid, use_blobs, use_velocity_override, mask_table,      &
-                             introduce_blobs, beta_txty, beta_tf, beta_qf, beta_lwsw
+                             introduce_blobs, beta_txty, beta_tf, beta_qf, beta_lwsw, do_wave
 
 contains
 
@@ -713,7 +713,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
     id_ocean                = mpp_clock_id( 'Ocean', flags=clock_flag_default,grain=CLOCK_COMPONENT )
     id_init                 = mpp_clock_id('(Ocean initialization) '         ,grain=CLOCK_SUBCOMPONENT)
     id_oda                  = mpp_clock_id('(Ocean ODA)'                     ,grain=CLOCK_SUBCOMPONENT)
-#if defined(ACCESS)
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
     id_sfix                 = mpp_clock_id('(Red Sea/Gulf Bay salinity fix)',grain=CLOCK_MODULE)
 #endif
     id_advect               = mpp_clock_id('(Ocean advection velocity) '     ,grain=CLOCK_MODULE)
@@ -1351,7 +1351,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
     call ocean_increment_tracer_init(Grid, Domain, Time, T_prog(:))
     call ocean_increment_velocity_init(Grid, Domain, Time)
     call ocean_wave_init(Grid, Domain, Waves, Time, Time_steps, Ocean_options, debug)
-#if defined(ACCESS)
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
     call auscom_ice_init(Ocean%domain, Time_steps)
 #else
     call sat_vapor_pres_init()
@@ -1437,7 +1437,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
     integer :: num_ocn
     integer :: taum1, tau, taup1
     integer :: i, j, k, n
-#if defined(ACCESS)
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
     integer :: stdoutunit
 
     stdoutunit=stdout()
@@ -2048,7 +2048,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
     call mpp_clock_end(id_oda)
 #endif
 
-#if defined(ACCESS)
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
     ! Perform horizontal mixing to fix the Red Sea and Gulf Bay salinity
     ! drift for ACCESS simulations (no SSS restoring)
     if (redsea_gulfbay_sfix .and. do_sfix_now) then
@@ -2086,7 +2086,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
   end subroutine update_ocean_model
 ! </SUBROUTINE> NAME="update_ocean_model"
 
-#if defined(ACCESS)
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
   subroutine redsea_gulfbay_hmix_s(Time, Grid, Domain, Thickness, Salt)
 
   use mpp_mod,           only : mpp_sum
