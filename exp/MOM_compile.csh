@@ -7,10 +7,12 @@ set type          = MOM_solo    # Type of the experiment
 set unit_testing = 0
 set help = 0
 set debug = 0
+set repro = 0
 set use_netcdf4 = 0
 set environ = 1
 
-set argv = (`getopt -u -o h -l type: -l platform: -l help -l unit_testing -l debug -l use_netcdf4 -l no_environ --  $*`)
+
+set argv = (`getopt -u -o h -l type: -l platform: -l help -l unit_testing -l debug -l repro -l use_netcdf4 -l no_environ --  $*`)
 if ($status != 0) then
   # Die if there are incorrect options
   set help = 1
@@ -26,6 +28,8 @@ while ("$argv[1]" != "--")
                 set unit_testing = 1; breaksw
         case --debug:
                 set debug = 1; breaksw
+        case --repro:
+                set repro = 1; breaksw
         case --use_netcdf4:
                 set use_netcdf4 = 1; breaksw
         case --no_environ:
@@ -94,6 +98,10 @@ endif
 
 if ( $debug ) then
     setenv DEBUG true
+endif
+
+if ( $repro ) then
+    setenv REPRO true
 endif
 
 if ( $use_netcdf4 ) then

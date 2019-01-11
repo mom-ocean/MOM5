@@ -170,6 +170,7 @@ use fms_io_mod,        only: register_restart_field, save_restart, restore_state
 use fms_io_mod,        only: restart_file_type, reset_field_pointer 
 use mpp_domains_mod,   only: mpp_update_domains, mpp_global_min, mpp_global_max, domain2d
 use mpp_mod,           only: input_nml_file, stdout, stdlog, mpp_error, mpp_max, mpp_min, mpp_pe
+use mpp_mod,           only: MPP_FILL_DOUBLE
 
 use ocean_domains_mod,    only: get_local_indices
 use ocean_grids_mod,      only: update_boundaries
@@ -2188,7 +2189,7 @@ subroutine thickness_restart (Time, Grid, Ext_mode, Thickness, introduce_blobs)
             Thickness%mass_uT(:,:,:)    = Thickness%mass_u(:,:,:)   
          endif
 
-         where (Thickness%rho_dztT(:,:,:,taup1)==0.) Thickness%rho_dztT(:,:,:,taup1) = rho0*thickness_dzt_min_init
+         where (Thickness%rho_dztT(:,:,:,taup1) == MPP_FILL_DOUBLE) Thickness%rho_dztT(:,:,:,taup1) = rho0*thickness_dzt_min_init
          call mpp_update_domains(Thickness%rho_dztL(:,:,:,taup1), Dom%domain2d)
          call mpp_update_domains(Thickness%rho_dztT(:,:,:,taup1), Dom%domain2d)
          Thickness%rho_dztL(:,:,:,tau) = Thickness%rho_dztL(:,:,:,taup1)
@@ -2196,7 +2197,7 @@ subroutine thickness_restart (Time, Grid, Ext_mode, Thickness, introduce_blobs)
          Thickness%rho_dzt(:,:,:,taup1) = Thickness%rho_dztT(:,:,:,taup1) - Thickness%rho_dztL(:,:,:,taup1)
          Thickness%rho_dzt(:,:,:,tau)   = Thickness%rho_dztT(:,:,:,tau)   - Thickness%rho_dztL(:,:,:,tau)
       else
-         where (Thickness%rho_dzt(:,:,:,taup1)==0.) Thickness%rho_dzt(:,:,:,taup1) = rho0*thickness_dzt_min_init
+         where (Thickness%rho_dzt(:,:,:,taup1) == MPP_FILL_DOUBLE) Thickness%rho_dzt(:,:,:,taup1) = rho0*thickness_dzt_min_init
       endif
 
       call mpp_update_domains(Thickness%rho_dzt(:,:,:,taup1),  Dom%domain2d)
@@ -2205,11 +2206,11 @@ subroutine thickness_restart (Time, Grid, Ext_mode, Thickness, introduce_blobs)
 
   ! initialize to nonzero to eliminate NaNs when mask 
   ! out processors and then change layout upon a restart 
-  where (Thickness%dzt_dst(:,:,:) ==0.) Thickness%dzt_dst(:,:,:) = thickness_dzt_min_init
-  where (Thickness%dstlo(:,:,:)   ==0.) Thickness%dstlo(:,:,:)   = thickness_dzt_min_init
-  where (Thickness%dstup(:,:,:)   ==0.) Thickness%dstup(:,:,:)   = thickness_dzt_min_init
-  where (Thickness%dst(:,:,:)     ==0.) Thickness%dst(:,:,:)     = thickness_dzt_min_init
-  where (Thickness%dswt(:,:,:)    ==0.) Thickness%dswt(:,:,:)    = thickness_dzt_min_init
+  where (Thickness%dzt_dst(:,:,:) == MPP_FILL_DOUBLE) Thickness%dzt_dst(:,:,:) = thickness_dzt_min_init
+  where (Thickness%dstlo(:,:,:)   == MPP_FILL_DOUBLE) Thickness%dstlo(:,:,:)   = thickness_dzt_min_init
+  where (Thickness%dstup(:,:,:)   == MPP_FILL_DOUBLE) Thickness%dstup(:,:,:)   = thickness_dzt_min_init
+  where (Thickness%dst(:,:,:)     == MPP_FILL_DOUBLE) Thickness%dst(:,:,:)     = thickness_dzt_min_init
+  where (Thickness%dswt(:,:,:)    == MPP_FILL_DOUBLE) Thickness%dswt(:,:,:)    = thickness_dzt_min_init
   
   call mpp_update_domains(Thickness%dzt_dst(:,:,:), Dom%domain2d)
   call mpp_update_domains(Thickness%dstlo(:,:,:),   Dom%domain2d)

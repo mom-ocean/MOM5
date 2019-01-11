@@ -5,7 +5,9 @@ module load intel-fc/17.0.1.132
 module load intel-cc/17.0.1.132
 module load netcdf/4.2.1.1
 module load openmpi/1.10.2
-module load scorep/3.1
+
+module use /apps/Modules/restricted-modulefiles/hpc-opt
+module load scorep/4.0
 
 # Correct PAPI module
 module unload papi

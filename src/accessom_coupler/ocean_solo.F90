@@ -87,6 +87,7 @@ program main
   use fms_io_mod,               only: fms_io_exit
   use mpp_domains_mod,          only: domain2d, mpp_get_compute_domain
   use mpp_io_mod,               only: mpp_open, MPP_RDONLY, MPP_ASCII, MPP_OVERWR, MPP_APPEND, mpp_close, MPP_SINGLE
+  use mpp_mod,                  only: mpp_init
   use mpp_mod,                  only: mpp_error, FATAL, NOTE, mpp_pe, mpp_npes, mpp_set_current_pelist, mpp_sync
   use mpp_mod,                  only: stdlog, stdout, mpp_root_pe, mpp_clock_id
   use mpp_mod,                  only: mpp_clock_begin, mpp_clock_end, MPP_CLOCK_SYNC
@@ -147,7 +148,9 @@ program main
   integer :: isc,iec,jsc,jec
   integer :: unit, io_status, ierr
 
-  integer :: flags=0, override_clock, coupler_init_clock
+  integer :: flags=0
+  integer :: init_clock, main_clock, term_clock
+  integer :: override_clock, coupler_init_clock
   integer :: nfields 
   
   character(len=256) :: version = ''
@@ -181,6 +184,13 @@ program main
   close(tmp_unit)
 
   call coupler%init_begin('mom5xx', config_dir=trim(accessom2_config_dir))
+
+  call mpp_init(localcomm=coupler%localcomm)
+  init_clock = mpp_clock_id('Initialization')
+  main_clock = mpp_clock_id('Main Loop')
+  term_clock = mpp_clock_id('Termination')
+  call mpp_clock_begin(init_clock)
+
   call fms_init(coupler%localcomm)
 
   call constants_init()
@@ -217,6 +227,10 @@ program main
 
   ! Initialise libaccessom2
   call accessom2%init('mom5xx', config_dir=trim(accessom2_config_dir))
+
+  if (mpp_pe() == mpp_root_pe()) then
+    call accessom2%print_version_info()
+  endif
 
   ! Tell libaccessom2 about any global configs/state
 
@@ -422,8 +436,10 @@ program main
   call external_coupler_sbc_init(Ocean_sfc%domain, dt_cpld, Run_len, &
                                  accessom2%get_coupling_field_timesteps())
   call mpp_clock_end(coupler_init_clock)
+  call mpp_clock_end(init_clock)
 
   ! loop over the coupled calls
+  call mpp_clock_begin(main_clock)
   do nc=1, num_cpld_calls
      call mpp_clock_begin(override_clock)
      call ice_ocn_bnd_from_data(Ice_ocean_boundary)
@@ -465,6 +481,9 @@ program main
      call external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
 
   enddo
+  call mpp_clock_end(main_clock)
+
+  call mpp_clock_begin(term_clock)
 
   call external_coupler_restart( dt_cpld, num_cpld_calls, Ocean_sfc)
 
@@ -487,6 +506,8 @@ program main
   call get_date(Time, date_array(1), date_array(2), date_array(3), &
                 date_array(4), date_array(5), date_array(6))
   call accessom2%deinit(cur_date_array=date_array)
+
+  call mpp_clock_end(term_clock)
 
   call fms_end
 

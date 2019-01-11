@@ -213,7 +213,7 @@ use fms_mod,                  only: clock_flag_default
 use fms_io_mod,               only: set_domain, nullify_domain, parse_mask_table
 use mpp_domains_mod,          only: domain2d, BITWISE_EXACT_SUM, NON_BITWISE_EXACT_SUM
 use mpp_domains_mod,          only: mpp_update_domains, BGRID_NE, CGRID_NE, mpp_get_compute_domain
-use mpp_mod,                  only: input_nml_file, mpp_error, mpp_pe, mpp_npes, mpp_chksum, stdlog, stdout
+use mpp_mod,                  only: input_nml_file, mpp_error, mpp_pe, mpp_root_pe, mpp_npes, mpp_chksum, stdlog, stdout
 use mpp_mod,                  only: mpp_clock_id, mpp_clock_begin, mpp_clock_end
 use mpp_mod,                  only: CLOCK_COMPONENT, CLOCK_SUBCOMPONENT, CLOCK_MODULE, CLOCK_ROUTINE
 use stock_constants_mod,      only: ISTOCK_WATER, ISTOCK_HEAT, ISTOCK_SALT
@@ -328,16 +328,16 @@ use ocean_xlandmix_mod,           only: ocean_xlandmix_init, xlandmix
 use ocean_drifters_mod,           only: ocean_drifters_init, update_ocean_drifters, ocean_drifters_end
 use wave_types_mod,               only: ocean_wave_type
 use ocean_wave_mod,               only: ocean_wave_init, ocean_wave_end, ocean_wave_model
+use version_mod,                  only: MOM_COMMIT_HASH
 
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
   use auscom_ice_mod, only: auscom_ice_init
   use auscom_ice_parameters_mod,  only: redsea_gulfbay_sfix, do_sfix_now
-  use mpp_mod,                    only: mpp_pe, mpp_root_pe
 #else
   use sat_vapor_pres_mod,         only: sat_vapor_pres_init
 #endif
 
-#ifdef ENABLE_ODA    
+#ifdef ENABLE_ODA
 #ifdef ENABLE_ECDA
   use oda_types_mod, only : da_flux_type
   use oda_driver_ecda_mod, only : init_oda, oda, oda_end
@@ -687,6 +687,10 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
 
     stdoutunit=stdout()
     stdlogunit=stdlog() 
+
+    if (mpp_pe() == mpp_root_pe()) then
+        write(stdoutunit,*) MOM_COMMIT_HASH
+    endif
 
     if (module_is_initialized) then 
       call mpp_error(FATAL, &
