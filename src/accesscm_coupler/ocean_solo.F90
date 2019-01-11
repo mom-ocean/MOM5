@@ -152,7 +152,7 @@ program main
   use ocean_types_mod,          only: ice_ocean_boundary_type
   use ocean_util_mod,           only: write_chksum_2d
 
-  use auscom_ice_parameters_mod, only: redsea_gulfbay_sfix, do_sfix_now, sfix_hours, int_sec, do_sfix_at_start
+  use auscom_ice_parameters_mod, only: redsea_gulfbay_sfix, do_sfix_now, sfix_hours, int_sec
 
   implicit none
 
@@ -382,12 +382,6 @@ program main
     hours = hours - days*24
 
     Time_last_sfix = set_time(days=int(days),seconds=int(hours*SECONDS_PER_HOUR)) + Time_init
-
-    ! This is an option to reproduce the arguably incorrect behaviour of previous
-    ! ACCESS-CM2 code, which would always apply the red sea fix at the first time step 
-    if (do_sfix_at_start) then
-        Time_last_sfix = Time_init - set_time(seconds=int(sfix_seconds))
-    end if
 
     Time_sfix = set_time(seconds=int(sfix_seconds))
 
