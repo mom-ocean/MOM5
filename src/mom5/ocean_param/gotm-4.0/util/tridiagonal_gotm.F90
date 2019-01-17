@@ -6,6 +6,8 @@
 !
 ! !INTERFACE:
    MODULE mtridiagonal
+
+   use mpp_mod, only: mpp_pe, mpp_root_pe
 !
 ! !DESCRIPTION:
 !
@@ -101,7 +103,9 @@
 !
 !-----------------------------------------------------------------------
 !BOC
+    if (mpp_pe() == mpp_root_pe()) then
    LEVEL1 'init_tridiagonal'
+   endif
    allocate(au(0:N),stat=rc)
    if (rc /= 0) stop 'init_tridiagonal: Error allocating au)'
    au = _ZERO_

@@ -30,6 +30,7 @@
 !
 !
 ! !USES:
+   use mpp_mod, only: mpp_pe, mpp_root_pe
    IMPLICIT NONE
 
 !  default: all is private.
@@ -416,7 +417,9 @@
 !
 !-----------------------------------------------------------------------
 !BOC
+   if(mpp_pe() == mpp_root_pe()) then
    LEVEL1 'init_turbulence: v',RELEASE
+   endif
 
    a1 = _ZERO_
    a2 = _ZERO_
@@ -540,14 +543,18 @@
 
    open(namlst,file=fn,status='old',action='read',err=80)
 
+   if(mpp_pe() == mpp_root_pe()) then
    LEVEL2 'reading turbulence namelists..'
+   endif
 
    read(namlst,nml=turbulence,err=81)
 
    if (turb_method.eq.99) then
       close (namlst)
+      if(mpp_pe() == mpp_root_pe()) then
       LEVEL2 'done.'
       LEVEL1 'done.'
+      endif
       return
    else
       read(namlst,nml=bc,err=82)
@@ -558,13 +565,17 @@
       read(namlst,nml=scnd,err=87)
       read(namlst,nml=iw,err=88)
       close (namlst)
+      if(mpp_pe() == mpp_root_pe()) then
       LEVEL2 'done.'
+      endif
    endif
 
 
 !  allocate memory
 
-   LEVEL2 'allocation memory..'
+   if(mpp_pe() == mpp_root_pe()) then
+    LEVEL2 'allocation memory..'
+   endif
    allocate(tke(0:nlev),stat=rc)
    if (rc /= 0) stop 'init_turbulence: Error allocating (tke)'
    tke = k_min
@@ -581,12 +592,16 @@
    if (rc /= 0) stop 'init_turbulence: Error allocating (L)'
    L = _ZERO_
 
+   if(mpp_pe() == mpp_root_pe()) then
    LEVEL2 'allocation memory..'
+   endif
    allocate(kb(0:nlev),stat=rc)
    if (rc /= 0) stop 'init_turbulence: Error allocating (kb)'
    kb = kb_min
 
+   if(mpp_pe() == mpp_root_pe()) then
    LEVEL2 'allocation memory..'
+   endif
    allocate(epsb(0:nlev),stat=rc)
    if (rc /= 0) stop 'init_turbulence: Error allocating (epsb)'
    epsb = epsb_min
@@ -707,7 +722,9 @@
 
 # endif
 
+   if(mpp_pe() == mpp_root_pe()) then
    LEVEL2 'done.'
+   endif
 
 
 !  initialize the parameters of the second-order closure
@@ -1857,6 +1874,8 @@
 !-----------------------------------------------------------------------
 !BOC
 ! Report on the properties of each model
+   if(mpp_pe() == mpp_root_pe()) then
+
    select case(len_scale_method)
       case(Parabola)
          LEVEL2 ' '
@@ -2061,6 +2080,8 @@
          LEVEL2 ' '
       case default
    end select
+
+   endif
 
    return
    end subroutine report_model
@@ -3464,9 +3485,11 @@
 !EOP
 !-----------------------------------------------------------------------
 !BOC
+   if(mpp_pe() == mpp_root_pe()) then
    LEVEL1 'clean_turbulence'
 
    LEVEL2 'de-allocating turbulence memory ...'
+   endif
    if (allocated(tke)) deallocate(tke)
    if (allocated(tkeo)) deallocate(tkeo)
    if (allocated(eps)) deallocate(eps)
@@ -3503,7 +3526,9 @@
    if (allocated(turb4)) deallocate(turb4)
    if (allocated(turb5)) deallocate(turb5)
 # endif
+   if(mpp_pe() == mpp_root_pe()) then
    LEVEL2 'done.'
+   endif
 
    return
    end subroutine clean_turbulence
@@ -3530,6 +3555,8 @@
 !-----------------------------------------------------------------------
 !BOC
    if (turb_method.eq.99) return
+
+   if(mpp_pe() == mpp_root_pe()) then
 
    LEVEL1 'State of turbulence module:'
    LEVEL2 'tke,eps,L',tke,eps,L
@@ -3592,6 +3619,7 @@
 
    LEVEL2 'iw namelist',    iw_model,alpha,klimiw,rich_cr,     &
                             numiw,nuhiw,numshear
+   endif
 
    end subroutine print_state_turbulence
 !EOC
