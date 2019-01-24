@@ -3181,22 +3181,23 @@ end subroutine ocean_sfc_end
 ! </DESCRIPTION>
 !
 
-#if defined(ACCESS)
 #if defined(ACCESS_CM)
+
 subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_prog, Velocity, &
-                         pme, melt, river, runoff, calving, upme, uriver, swflx, swflx_vis, patm, aice, atm_co2, wnd, Ocean_sfc)
+                         pme, melt, river, runoff, calving, upme, uriver, swflx, swflx_vis, patm, aice, &
+                         atm_co2, wnd, Ocean_sfc)
 
   real, dimension(isd:,jsd:),    intent(inout)    :: aice 
   type(ocean_public_type),       intent(inout)    :: Ocean_sfc
   real, dimension(isd:,jsd:),    intent(inout), optional :: atm_co2
   real, dimension(isd:,jsd:),    intent(inout), optional :: wnd
-#else
+
+#elif defined(ACCESS_OM)
+
 subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_prog, Velocity, &
                          pme, melt, river, runoff, calving, upme, uriver, swflx, swflx_vis, patm, aice)
 
   real, dimension(isd:,jsd:),    intent(inout)    :: aice 
-#endif
-
 #else
 
 subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_prog, Velocity, &
