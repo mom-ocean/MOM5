@@ -2994,6 +2994,8 @@ subroutine transport_on_nrho_gm (Time, Dens, tx_trans_gm, ty_trans_gm)
   integer :: i, j, k, k_rho, neutralrho_nk
   real    :: work(isd:ied,jsd:jed,size(Dens%neutralrho_ref),2)
   real    :: W1, W2
+  real, dimension(jsc:jec) :: nrho_minj,nrho_maxj
+  real                     :: nrho_min,nrho_max
 
   if (.not.module_is_initialized) then 
     call mpp_error(FATAL, &
@@ -3013,9 +3015,20 @@ subroutine transport_on_nrho_gm (Time, Dens, tx_trans_gm, ty_trans_gm)
       ! since the initial value for work is 0.
 
       ! interpolate trans_gm from k-levels to neutralrho_nk-levels
-      do k_rho=1,neutralrho_nk
-         do k=1,nk-1
+      do k=1,nk-1
+         do j=jsc,jec
+            nrho_maxj(j)=maxval(Dens%neutralrho(isc:iec,j,k+1),mask=Grd%tmask(isc:iec,j,k+1)==1.)
+            nrho_minj(j)=minval(Dens%neutralrho(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1.)
+         enddo
+         nrho_max=maxval(nrho_maxj)
+         nrho_min=minval(nrho_minj)
+         if(nrho_max==-huge(nrho_max)) exit  ! only rock below this level
+         do k_rho=1,neutralrho_nk
+            if(nrho_max<Dens%neutralrho_ref(k_rho)) cycle
+            if(nrho_min>Dens%neutralrho_ref(k_rho)) cycle
             do j=jsc,jec
+               if(nrho_maxj(j)<Dens%neutralrho_ref(k_rho)) cycle
+               if(nrho_minj(j)>Dens%neutralrho_ref(k_rho)) cycle
                do i=isc,iec
                   if(     Dens%neutralrho_ref(k_rho) >  Dens%neutralrho(i,j,k)  ) then
                       if( Dens%neutralrho_ref(k_rho) <= Dens%neutralrho(i,j,k+1)) then 
@@ -3087,6 +3100,8 @@ subroutine transport_on_rho_gm (Time, Dens, tx_trans_gm, ty_trans_gm)
   integer :: i, j, k, k_rho, potrho_nk
   real    :: work(isd:ied,jsd:jed,size(Dens%potrho_ref),2)
   real    :: W1, W2
+  real, dimension(jsc:jec) :: rho_minj,rho_maxj
+  real                     :: rho_min,rho_max
 
   if (.not.module_is_initialized) then 
     call mpp_error(FATAL, &
@@ -3105,9 +3120,20 @@ subroutine transport_on_rho_gm (Time, Dens, tx_trans_gm, ty_trans_gm)
       ! since the initial value for work is 0.
 
       ! interpolate trans_gm from k-levels to krho-levels
-      do k_rho=1,potrho_nk
-         do k=1,nk-1
+      do k=1,nk-1
+         do j=jsc,jec
+            rho_maxj(j)=maxval(Dens%potrho(isc:iec,j,k+1),mask=Grd%tmask(isc:iec,j,k+1)==1.)
+            rho_minj(j)=minval(Dens%potrho(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1.)
+         enddo
+         rho_max=maxval(rho_maxj)
+         rho_min=minval(rho_minj)
+         if(rho_max==-huge(rho_max)) exit  ! only rock below this level
+         do k_rho=1,potrho_nk
+            if(rho_max<Dens%potrho_ref(k_rho)) cycle
+            if(rho_min>Dens%potrho_ref(k_rho)) cycle
             do j=jsc,jec
+               if(rho_maxj(j)<Dens%potrho_ref(k_rho)) cycle
+               if(rho_minj(j)>Dens%potrho_ref(k_rho)) cycle
                do i=isc,iec
                   if(     Dens%potrho_ref(k_rho) >  Dens%potrho(i,j,k)  ) then
                       if( Dens%potrho_ref(k_rho) <= Dens%potrho(i,j,k+1)) then 
@@ -3174,6 +3200,8 @@ subroutine transport_on_theta_gm (Time, Dens, Theta, tx_trans_gm, ty_trans_gm)
   integer :: i, j, k, k_theta, theta_nk, tau
   real    :: work(isd:ied,jsd:jed,size(Dens%potrho_ref),2)
   real    :: W1, W2
+  real, dimension(jsc:jec) :: theta_minj,theta_maxj
+  real                     :: theta_min,theta_max
 
   if (.not.module_is_initialized) then 
     call mpp_error(FATAL, &
@@ -3194,9 +3222,20 @@ subroutine transport_on_theta_gm (Time, Dens, Theta, tx_trans_gm, ty_trans_gm)
 
       ! interpolate trans_gm from k-levels to theta-levels
       ! note sign change in the if-tests relative to transport on rho and nrho
-      do k_theta=1,theta_nk
-         do k=1,nk-1
+      do k=1,nk-1
+         do j=jsc,jec
+            theta_maxj(j)=maxval(Theta%field(isc:iec,j,k+1,tau),mask=Grd%tmask(isc:iec,j,k+1)==1.)
+            theta_minj(j)=minval(Theta%field(isc:iec,j,k,tau),mask=Grd%tmask(isc:iec,j,k)==1.)
+         enddo
+         theta_max=maxval(theta_maxj)
+         theta_min=minval(theta_minj)
+         if(theta_max==-huge(theta_max)) exit  ! only rock below this level
+         do k_theta=1,theta_nk
+            if(theta_max<Dens%theta_ref(k_theta)) cycle
+            if(theta_min>Dens%theta_ref(k_theta)) cycle
             do j=jsc,jec
+               if(theta_maxj(j)<Dens%theta_ref(k_theta)) cycle
+               if(theta_minj(j)>Dens%theta_ref(k_theta)) cycle
                do i=isc,iec
                   if(     Dens%theta_ref(k_theta) <  Theta%field(i,j,k,tau) ) then
                       if( Dens%theta_ref(k_theta) >= Theta%field(i,j,k+1,tau)) then 
