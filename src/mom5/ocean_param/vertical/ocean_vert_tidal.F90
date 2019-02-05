@@ -325,7 +325,7 @@ use constants_mod,     only: pi, epsln
 use diag_manager_mod,  only: register_diag_field, register_static_field
 use fms_mod,           only: write_version_number, open_namelist_file, close_file, check_nml_error
 use fms_mod,           only: stdout, stdlog, read_data, NOTE, FATAL, WARNING
-use mpp_domains_mod,   only: mpp_update_domains
+use mpp_domains_mod,   only: mpp_update_domains, NUPDATE, EUPDATE
 use mpp_mod,           only: input_nml_file, mpp_error
 
 use ocean_domains_mod,    only: get_local_indices
@@ -404,6 +404,8 @@ real, private, dimension(:,:,:), allocatable :: diff_drag           ! diffusivit
 real, private, dimension(:,:,:), allocatable :: diff_wave           ! diffusivity (m^2/sec) from wave mixing scheme 
 real, private, dimension(:,:,:), allocatable :: diff_leewave        ! diffusivity (m^2/sec) from leewave mixing scheme 
 real, private, dimension(:,:),   allocatable :: tmask_deep          ! nonzero for points deeper than shelf_depth_cutoff
+
+logical, private, dimension(:),  allocatable :: skip_row            ! false if any point in i-direction needs computing for Lee et al scheme
 
 type(ocean_domain_type), pointer :: Dom => NULL()
 type(ocean_grid_type),   pointer :: Grd => NULL()
@@ -624,6 +626,7 @@ ierr = check_nml_error(io_status,'ocean_vert_tidal_nml')
     allocate (rescaled_speed_u(isd:ied,jsd:jed))
     allocate (rescaled_speed_t(isd:ied,jsd:jed))
     allocate (efold_depth_r(isd:ied,jsd:jed))
+    allocate (skip_row(jsd:jed))
     smooth_lap(:,:)          = Grd%tmask(:,:,1)*vel_micom_smooth*2.0*Grd%dxt(:,:)*Grd%dyt(:,:)/(Grd%dxt(:,:)+Grd%dyt(:,:))
     roughness_length(:,:)    = Grd%tmask(:,:,1)*default_roughness_length
     roughness_amp(:,:)       = sqrt(Grd%tmask(:,:,1)/roughness_kappa)
@@ -637,6 +640,7 @@ ierr = check_nml_error(io_status,'ocean_vert_tidal_nml')
     energy_flux(:,:)         = 0.0
     wave_dissipation(:,:)    = 0.0
     leewave_dissipation(:,:) = 0.0
+    skip_row             = .false.
 
     if(use_wave_dissipation) then 
         write (stdoutunit,'(a)') &
@@ -788,6 +792,7 @@ ierr = check_nml_error(io_status,'ocean_vert_tidal_nml')
     endif
 
 
+
     ! compute efolding depth scale for use in Lee etal scheme. 
     ! efold depth set as rescaled_speed/(radial tide frequency). 
     ! Choose default radial tide frequency as 2pi/12hrs for semi-diurnal tide.  
@@ -820,6 +825,8 @@ ierr = check_nml_error(io_status,'ocean_vert_tidal_nml')
         enddo
         call mpp_update_domains(tide_speed_mask(:,:), Dom%domain2d) 
     endif
+
+    skip_row = all(tide_speed_mask==0.0,dim=1)
 
     ! compute static piece of the energy flux on T-grid for wave diffusivity 
     do j=jsd,jed
@@ -1125,7 +1132,6 @@ end subroutine vert_mix_tidal
   real    :: tmp, rho_N2_prev
   integer :: i, j, k, m, kbot
   integer :: tau
-  real, dimension(isd:ied,jsd:jed) :: roughness_klevel 
 
   tau                = Time%tau
   wrk1(:,:,:)        = 0.0
@@ -1178,14 +1184,12 @@ end subroutine vert_mix_tidal
   do j=jsd,jed
      do i=isd,ied
         kbot                  = Grd%kmt(i,j)
-        roughness_klevel(:,:) = kbot
         if(kbot > 1) then 
             bottom = Thickness%depth_zwt(i,j,kbot)
             kloop: do k=kbot,1,-1
                tmp = Thickness%depth_zwt(i,j,k) + roughness_amp(i,j)
                if(tmp <= bottom) then 
                    wrk1_2d(i,j)          = k
-                   roughness_klevel(i,j) = k
                    exit kloop
                endif
             enddo  kloop
@@ -1208,7 +1212,7 @@ end subroutine vert_mix_tidal
   ! horizontal laplacian smoothing on the bottom bvfreq
   if(smooth_bvfreq_bottom) then 
      bvfreq_bottom(:,:) = bvfreq_bottom(:,:) + dtime*LAP_T(bvfreq_bottom(:,:),smooth_lap(:,:))
-     call mpp_update_domains(bvfreq_bottom(:,:), Dom%domain2d) 
+     call mpp_update_domains(bvfreq_bottom(:,:), Dom%domain2d,flags=NUPDATE+EUPDATE)  !RASF Only ever need NE values
   endif 
 
 
@@ -1263,6 +1267,7 @@ end subroutine compute_bvfreq
   diff_leewave(:,:,:) = 0.0 ! diffusivity from leewave scheme 
   wrk1(:,:,:)         = 0.0 ! viscosity   from wave scheme 
   wrk2(:,:,:)         = 0.0 ! mix_efficiency / rho_N2 
+  wrk1_2d(:,:)      = 0.0 ! work array for factor 
 
   ! compute mask for regions that are deemed too shallow for this scheme 
   do j=jsd,jed
@@ -1317,50 +1322,44 @@ end subroutine compute_bvfreq
 
 
   ! diffusivity calculation (Simmons etal equation (3))
-  do j=jsd,jed
-     do i=isd,ied
-
-        kbot=Grd%kmt(i,j)
-        if(kbot > 1) then
-
             ! normalization of vertical structure function.
             ! Ensure it integrates to unity on the discrete grid.    
             ! "factor" approx decay_scale_inv/(exp[(H+eta)*decay_scale_inv]-1.0)  
-            factor = 0.0
-            do k=1,kbot-1
-               factor = factor + Thickness%dzt(i,j,k)*exp(decay_scale_inv*Thickness%depth_zwt(i,j,k))
-            enddo
-            factor = 1.0/factor 
-
-            do k=1,kbot-1
-               deposition          = factor*exp(decay_scale_inv*Thickness%depth_zwt(i,j,k))
-               tmp                 = Grd%tmask(i,j,k+1)*wrk2(i,j,k)*tidal_diss_efficiency*deposition
-               diff_wave(i,j,k)    = tmp*energy_flux(i,j)
-               diff_leewave(i,j,k) = tmp*leewave_dissipation(i,j)
-               diff_wave(i,j,k)    = min(diff_wave(i,j,k),max_wave_diffusivity) 
-               diff_leewave(i,j,k) = min(diff_leewave(i,j,k),max_wave_diffusivity) 
-            enddo
-
-        endif
-
+  do k = 1,maxval(Grd%kmt)-1
+     do j=jsd,jed
+        do i=isd,ied
+           wrk1_2d(i,j) = wrk1_2d(i,j) + Thickness%dzt(i,j,k)*exp(decay_scale_inv*Thickness%depth_zwt(i,j,k))*Grd%tmask(i,j,k+1)
+        enddo
      enddo
   enddo
-
+  where(wrk1_2d > 0.0) wrk1_2d=1/wrk1_2d
+  do k = 1,maxval(Grd%kmt)-1
+     do j=jsd,jed
+        do i=isd,ied
+           deposition          = wrk1_2d(i,j)*exp(decay_scale_inv*Thickness%depth_zwt(i,j,k))
+           tmp                 = Grd%tmask(i,j,k+1)*wrk2(i,j,k)*tidal_diss_efficiency*deposition
+           diff_wave(i,j,k)    = tmp*energy_flux(i,j)
+           diff_leewave(i,j,k) = tmp*leewave_dissipation(i,j)
+           diff_wave(i,j,k)    = min(diff_wave(i,j,k),max_wave_diffusivity) 
+           diff_leewave(i,j,k) = min(diff_leewave(i,j,k),max_wave_diffusivity) 
+        enddo
+     enddo
+  enddo
+    
 
   ! ensure diffusivity monotonically decreases as move upward in column.
   ! recall that diff_wave(i,j,k) is the diffusivity at the bottom of cell-k, 
   ! where diff_wave(i,j,kbot)=0.0 by definition. This prompts the kbot-2,1,-1
   ! loop limits.   
   if(wave_diffusivity_monotonic) then 
-      do j=jsd,jed
-         do i=isd,ied
-            kbot=Grd%kmt(i,j)
-            if(kbot > 1) then 
-                do k=kbot-2,1,-1
-                   diff_wave(i,j,k)    = min(diff_wave(i,j,k),diff_wave(i,j,k+1))
-                   diff_leewave(i,j,k) = min(diff_leewave(i,j,k),diff_leewave(i,j,k+1))
-                enddo
-            endif
+      do k=maxval(Grd%kmt)-2,1,-1
+         do j=jsd,jed
+            do i=isd,ied
+               if(k<=Grd%kmt(i,j)-2) then
+                  diff_wave(i,j,k)    = min(diff_wave(i,j,k),diff_wave(i,j,k+1))
+                  diff_leewave(i,j,k) = min(diff_leewave(i,j,k),diff_leewave(i,j,k+1))
+               endif
+            enddo
          enddo
       enddo
   endif
@@ -1449,38 +1448,34 @@ end subroutine vert_mix_wave
   wrk3(:,:,:)      =0.0  ! viscosity from drag scheme 
   diff_drag(:,:,:) =0.0  ! diffusivity from drag scheme 
 
+  if(.not. all(skip_row)) then !Check if nothing to do...
   ! Richardson number on U-cell. 
   ! perform a 4-point average of T-cell bvfreq 
   ! and then divide by the U-cell tidal speed term. 
   ! tide_speed_mask is useful to reduce overflows
   ! in later calculation of the diffusivity.
-  do j=jsd,jed-1
-     do i=isd,ied-1
-        kbot=Grd%kmu(i,j)
-        if(kbot>1) then 
-            bottom = Thickness%depth_zwu(i,j,kbot)
-            speedr = tide_speed_mask(i,j)/(epsln+rescaled_speed_u(i,j))
-            do k=1,kbot-1
-               kp1=k+1 
-               height      = bottom-Thickness%depth_zwu(i,j,k)
-               bvfreq_u    = onefourth*(bvfreq(i,j,k)+bvfreq(i+1,j,k)+bvfreq(i,j+1,k)+bvfreq(i+1,j+1,k))            
-               wrk1(i,j,k) = 2.0*Grd%umask(i,j,kp1)*(bvfreq_u*height*speedr)**2
-            enddo
-        endif
+  do k=1,maxval(Grd%kmt)-1
+     kp1=k+1 
+     do j=jsd,jed-1
+        if(skip_row(j)) cycle
+        do i=isd,ied-1
+           kbot=max(Grd%kmu(i,j),1)
+           bottom = Thickness%depth_zwu(i,j,kbot)
+           speedr = tide_speed_mask(i,j)/(epsln+rescaled_speed_u(i,j))
+           height      = bottom-Thickness%depth_zwu(i,j,k)
+           bvfreq_u    = onefourth*(bvfreq(i,j,k)+bvfreq(i+1,j,k)+bvfreq(i,j+1,k)+bvfreq(i+1,j+1,k))            
+           wrk1(i,j,k) = 2.0*Grd%umask(i,j,kp1)*(bvfreq_u*height*speedr)**2
+        enddo
      enddo
-  enddo
 
   ! Richardson number on bottom of T-cells.
   ! need active_cells for averaging operation.
-  do k=1,nk-1
      do j=jsc,jec
+        if(skip_row(j)) cycle
         do i=isc,iec
            active_cells =   Grd%umask(i,j,k)   + Grd%umask(i-1,j,k) &
                           + Grd%umask(i,j-1,k) + Grd%umask(i-1,j-1,k) + epsln
            wrk2(i,j,k)  =  (wrk1(i,j,k) + wrk1(i-1,j,k) + wrk1(i,j-1,k) + wrk1(i-1,j-1,k))/active_cells
-        enddo
-     enddo
-  enddo
 
 
   ! compute drag induced diffusivity 
@@ -1490,10 +1485,6 @@ end subroutine vert_mix_wave
   ! where we do not wish to have any enhanced mixing
   ! arising from the barotropic tide mixing parameterization
   ! anyhow.  
-  do k=1,nk-1
-     kp1=k+1
-     do j=jsc,jec
-        do i=isc,iec
            diff_drag(i,j,k) = Grd%tmask(i,j,kp1)*tide_speed_mask(i,j)*max_drag_diffusivity &
                               *(1.0 + munk_anderson_sigma*wrk2(i,j,k))**(-munk_anderson_p)
         enddo
@@ -1501,24 +1492,26 @@ end subroutine vert_mix_wave
   enddo
 
   if(drag_dissipation_efold) then 
-      do j=jsc,jec
-         do i=isc,iec
-            kbot=Grd%kmt(i,j)
-            if(kbot>1) then 
-                bottom = Thickness%depth_zwt(i,j,kbot)
-                do k=1,kbot-1
-                   kp1=k+1 
+      do k=1,maxval(Grd%kmt(isc:iec,jsc:jec))-1
+         do j=jsc,jec
+            if(skip_row(j)) cycle
+            do i=isc,iec
+               kbot=Grd%kmt(i,j)
+               if(k<kbot) then 
+                   bottom = Thickness%depth_zwt(i,j,kbot)
                    height           = bottom-Thickness%depth_zwt(i,j,k)
                    diff_drag(i,j,k) = diff_drag(i,j,k)*exp(-height*efold_depth_r(i,j))
-                enddo
-            endif
+               endif
+            enddo
          enddo
       enddo
   endif
 
-  call mpp_update_domains(diff_drag(:,:,:), Dom%domain2d) 
+  endif ! Still need to update neighbours even if we did no work
+  call mpp_update_domains(diff_drag(:,:,:), Dom%domain2d,flags=NUPDATE+EUPDATE) 
 
 
+  if(.not. all(skip_row)) then ! No need to update
   ! add drag induced diffusivity and viscosity to diff_cbt and visc_cbu. 
   ! average t-cell diffusivities to get u-cell viscosity.
   do k=1,nk-1
@@ -1536,6 +1529,7 @@ end subroutine vert_mix_wave
         enddo
      enddo
   enddo
+  endif
 
 
   call diagnose_3d(Time, Grd, id_rinumber_drag, wrk2(:,:,:))
@@ -1653,7 +1647,7 @@ end subroutine vert_mix_drag_bgrid
       enddo
   endif
 
-  call mpp_update_domains(diff_drag(:,:,:), Dom%domain2d) 
+  call mpp_update_domains(diff_drag(:,:,:), Dom%domain2d,flags=NUPDATE+EUPDATE) 
 
 
   ! add drag induced diffusivity and viscosity to diff_cbt and visc_cbu. 
