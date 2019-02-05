@@ -248,7 +248,7 @@ use diag_manager_mod, only: register_diag_field, register_static_field
 use fms_mod,          only: FATAL, NOTE, WARNING, stdout, stdlog
 use fms_mod,          only: write_version_number, open_namelist_file, check_nml_error, close_file
 use fms_mod,          only: read_data
-use mpp_domains_mod,  only: mpp_update_domains, NUPDATE, EUPDATE
+use mpp_domains_mod,  only: mpp_update_domains, NUPDATE, EUPDATE, EDGEUPDATE
 use mpp_mod,          only: input_nml_file, mpp_error
 
 use ocean_density_mod,     only: density, density_delta_z, density_delta_sfc
@@ -1300,7 +1300,7 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
       ! to remove 2 delta x noise
       if (smooth_blmc) then
           
-          call mpp_update_domains(blmc,Dom%domain2d)
+          call mpp_update_domains(blmc,Dom%domain2d,flags=EDGEUPDATE)
 
           do k=1,nk-1
              do j=jsc,jec
@@ -1782,7 +1782,7 @@ subroutine bldepth(Thickness, Velocity, sw_frac_zt, do_wave)
           enddo
         enddo
 
-        if (iwet.eq.0) cycle  !all hbl at wet points are defined now -> ready
+        if (iwet.eq.0) exit  !all hbl at wet points are defined now -> ready !  Get out of loop. Not cycle
         
          ksave = ka
          ka    = ku
@@ -1901,7 +1901,7 @@ subroutine bldepth(Thickness, Velocity, sw_frac_zt, do_wave)
             enddo
           enddo
 
-          if (iwet.eq.0) cycle  !all hbl at wet points are defined now -> ready
+          if (iwet.eq.0) exit  !all hbl at wet points are defined now -> ready
          
           ksave   = kupper
           kupper = kup
