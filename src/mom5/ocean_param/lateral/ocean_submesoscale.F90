@@ -222,7 +222,7 @@ use constants_mod,     only: epsln
 use diag_manager_mod,  only: register_diag_field, register_static_field, need_data, send_data
 use fms_mod,           only: write_version_number, open_namelist_file, close_file, check_nml_error
 use fms_mod,           only: stdout, stdlog, read_data, NOTE, FATAL, WARNING
-use mpp_domains_mod,   only: mpp_update_domains, XUPDATE, YUPDATE, CGRID_NE
+use mpp_domains_mod,   only: mpp_update_domains, XUPDATE, YUPDATE, CGRID_NE, EDGEUPDATE, SUPDATE, WUPDATE
 use mpp_domains_mod,   only: mpp_global_sum, NON_BITWISE_EXACT_SUM
 use mpp_mod,           only: input_nml_file, mpp_error, mpp_max, mpp_pe
 use time_manager_mod,  only: time_type, increment_time
@@ -1331,7 +1331,7 @@ subroutine compute_bldepth(Time, Thickness, Dens, T_prog, surf_blthick)
       do num_smooth=1,smooth_hblt_num
 
          wrk1_2d(:,:) = 0.0
-         call mpp_update_domains(hblt(:,:), Dom%domain2d) 
+         call mpp_update_domains(hblt(:,:), Dom%domain2d, flags=EDGEUPDATE) 
          k=1
          do j=jsc,jec
             do i=isc,iec
@@ -1397,23 +1397,27 @@ subroutine compute_bldepth(Time, Thickness, Dens, T_prog, surf_blthick)
 
   ! inverse front length = f/(<N> H), with H=hblt and <N> ave buoyancy freq over hblt
   if(front_length_deform_radius) then 
-      do j=jsd,jed
-         do i=isd,ied
-            buoy_freq_ave(i,j)    = 0.0
-            mld_thickness         = epsln
-            front_length_inv(i,j) = front_length_const_inv 
-            if(kblt(i,j) >= min_kblt) then  
-                buoy_freq_ave(i,j)= epsln
-                mld_thickness     = epsln
-                do k=1,kblt(i,j)
-                   mld_thickness      = mld_thickness      + Thickness%dzt(i,j,k)  
-                   buoy_freq_ave(i,j) = buoy_freq_ave(i,j) - grav_rho0r*Thickness%dzt(i,j,k)*Dens%drhodz_zt(i,j,k)  
-                enddo
-                buoy_freq_ave(i,j)    = sqrt(abs(buoy_freq_ave(i,j))/mld_thickness) 
-                front_length_inv(i,j) = min(front_length_const_inv, coriolis_param(i,j)/(epsln+mld_thickness*buoy_freq_ave(i,j))) 
-            endif 
-         enddo
-      enddo
+     front_length_inv = front_length_const_inv 
+     wrk1_2d(:,:)         = epsln
+     where(kblt>=min_kblt)
+         buoy_freq_ave=epsln
+     elsewhere
+         buoy_freq_ave=0.0
+     endwhere
+     do k=1,maxval(kblt)
+        do j=jsd,jed
+           do i=isd,ied
+              if(kblt(i,j) >= min_kblt .and. k<=kblt(i,j)) then
+                 wrk1_2d(i,j) = wrk1_2d(i,j) + Thickness%dzt(i,j,k)  
+                 buoy_freq_ave(i,j) = buoy_freq_ave(i,j) - grav_rho0r*Thickness%dzt(i,j,k)*Dens%drhodz_zt(i,j,k)  
+              endif
+           enddo
+        enddo
+     enddo
+     where(kblt>=min_kblt)
+        buoy_freq_ave    = sqrt(abs(buoy_freq_ave)/wrk1_2d) 
+        front_length_inv = min(front_length_const_inv, coriolis_param/(epsln+wrk1_2d*buoy_freq_ave)) 
+     endwhere
   endif
 
 
@@ -1465,32 +1469,30 @@ subroutine tracer_derivs(taum1, T_prog)
      dTdy(n)%field(:,:,:) = 0.0
      dTdz(n)%field(:,:,:) = 0.0
 
-     do j=jsc-1,jec
-        do i=isc-1,iec
+     do k=1,maxval(kblt)
+        kp1 = min(k+1,nk)
+        do j=jsc-1,jec
+           do i=isc-1,iec
 
-           if(kblt(i,j) >= min_kblt) then  
-               do k=1,kblt(i,j)
+              if(kblt(i,j) >= max(min_kblt,k)) then  
                   tmaski = Grd%tmask(i,j,k)*Grd%tmask(i+1,j,k)
                   tmaskj = Grd%tmask(i,j,k)*Grd%tmask(i,j+1,k)
                   dTdx(n)%field(i,j,k) = (T_prog(n)%field(i+1,j,k,taum1)-T_prog(n)%field(i,j,k,taum1)) &
                                           *Grd%dxter(i,j)*tmaski
                   dTdy(n)%field(i,j,k) = (T_prog(n)%field(i,j+1,k,taum1)-T_prog(n)%field(i,j,k,taum1)) &
                                           *Grd%dytnr(i,j)*tmaskj
-               enddo
-           endif
+              endif
 
+           enddo
         enddo
-     enddo
 
-     do j=jsd,jed
-        do i=isd,ied
-           if(kblt(i,j) >= min_kblt) then  
-               do k=1,kblt(i,j)
-                  kp1 = min(k+1,nk)
+        do j=jsd,jed
+           do i=isd,ied
+              if(kblt(i,j) >= max(min_kblt,k)) then  
                   dTdz(n)%field(i,j,k) = (T_prog(n)%field(i,j,k,taum1)-T_prog(n)%field(i,j,kp1,taum1)) &
                                           *Grd%tmask(i,j,kp1)*dzwtr(i,j,k)
-               enddo
-           endif
+              endif
+           enddo
         enddo
      enddo
 
@@ -1521,32 +1523,30 @@ subroutine salinity_derivs(taum1, Dens)
   dSdy%field(:,:,:) = 0.0
   dSdz%field(:,:,:) = 0.0
 
-  do j=jsc-1,jec
-     do i=isc-1,iec
+  do k=1,maxval(kblt)
+     kp1 = min(k+1,nk)
+     do j=jsc-1,jec
+        do i=isc-1,iec
 
-        if(kblt(i,j) >= min_kblt) then  
-            do k=1,kblt(i,j)
+           if(kblt(i,j) >= max(min_kblt,k)) then  
                tmaski = Grd%tmask(i,j,k)*Grd%tmask(i+1,j,k)
                tmaskj = Grd%tmask(i,j,k)*Grd%tmask(i,j+1,k)
                dSdx%field(i,j,k) = (Dens%rho_salinity(i+1,j,k,taum1)-Dens%rho_salinity(i,j,k,taum1)) &
                                        *Grd%dxter(i,j)*tmaski
                dSdy%field(i,j,k) = (Dens%rho_salinity(i,j+1,k,taum1)-Dens%rho_salinity(i,j,k,taum1)) &
                                        *Grd%dytnr(i,j)*tmaskj
-            enddo
-        endif
+           endif
 
+        enddo
      enddo
-  enddo
 
-  do j=jsd,jed
-     do i=isd,ied
-        if(kblt(i,j) >= min_kblt) then  
-            do k=1,kblt(i,j)
-               kp1 = min(k+1,nk)
+     do j=jsd,jed
+        do i=isd,ied
+           if(kblt(i,j) >= max(min_kblt,k)) then  
                dSdz%field(i,j,k) = (Dens%rho_salinity(i,j,k,taum1)-Dens%rho_salinity(i,j,kp1,taum1)) &
                                        *Grd%tmask(i,j,kp1)*dzwtr(i,j,k)
-            enddo
-        endif
+           endif
+        enddo
      enddo
   enddo
 
@@ -1685,8 +1685,8 @@ subroutine compute_psi(Time, Dens, Thickness)
   if(smooth_psi) then 
       do num_smooth=1,smooth_psi_num
 
-         call mpp_update_domains(psix_horz(:,:,:), Dom%domain2d) 
-         call mpp_update_domains(psiy_horz(:,:,:), Dom%domain2d) 
+         call mpp_update_domains(psix_horz(:,:,:), Dom%domain2d, flags=EDGEUPDATE) 
+         call mpp_update_domains(psiy_horz(:,:,:), Dom%domain2d, flags=EDGEUPDATE) 
 
          do ip=0,1
             jq=ip
@@ -1742,37 +1742,41 @@ subroutine compute_psi(Time, Dens, Thickness)
 
       enddo  ! enddo for number of smoothing iterations 
 
-!Can move outside loop reducing number of updates.
-      call mpp_update_domains(psix_horz(:,:,:), Dom%domain2d) 
-      call mpp_update_domains(psiy_horz(:,:,:), Dom%domain2d) 
   endif      ! endif for smooth_psi
-
 
   ! compute 3d vector streamfunction components by applying 
   ! dimensionless vertical structure function 0 <= wrk3 <= 1.
   psix = 0.0
   psiy = 0.0
   wrk3 = 0.0
-  do j=jsc,jec
-      do i=isc,iec
-          if(hblt(i,j) > 0.0 .and. kblt(i,j) > min_kblt) then 
+
+  do k=1,maxval(kblt(isc:iec,jsc:jec))
+     do j=jsc,jec
+        do i=isc,iec
+           if(hblt(i,j) > 0.0 .and. kblt(i,j) > min_kblt .and. k <= kblt(i,j)) then 
               hblt_r = 1.0/hblt(i,j)
-              do k=1,kblt(i,j) 
-                  factor      = (1.0 - 2.0*Thickness%depth_zt(i,j,k)*hblt_r)**2
-                  wrk3(i,j,k) = (1.0 - factor)*(1.0 + fiveover21*factor) 
-                  tmaski = Grd%tmask(i,j,k)*Grd%tmask(i+1,j,k)
-                  tmaskj = Grd%tmask(i,j,k)*Grd%tmask(i,j+1,k)
-                  do ip=0,1 
-                     jq=ip
-                     psix(i,j,k,jq) = wrk3(i,j,k)*psix_horz(i,j,jq)*tmaskj
-                     psiy(i,j,k,ip) = wrk3(i,j,k)*psiy_horz(i,j,ip)*tmaski
-                  enddo
-              enddo
-          endif
-      enddo
+              factor      = (1.0 - 2.0*Thickness%depth_zt(i,j,k)*hblt_r)**2
+              wrk3(i,j,k) = (1.0 - factor)*(1.0 + fiveover21*factor) 
+           endif
+        enddo
+     enddo
   enddo
-  call mpp_update_domains(psix(:,:,:,:), Dom%domain2d) 
-  call mpp_update_domains(psiy(:,:,:,:), Dom%domain2d) 
+  do ip=0,1 
+     jq=ip
+     do k=1,maxval(kblt(isc:iec,jsc:jec))
+        do j=jsc,jec
+           do i=isc,iec
+              tmaski = Grd%tmask(i,j,k)*Grd%tmask(i+1,j,k)
+              tmaskj = Grd%tmask(i,j,k)*Grd%tmask(i,j+1,k)
+              psix(i,j,k,jq) = wrk3(i,j,k)*psix_horz(i,j,jq)*tmaskj
+              psiy(i,j,k,ip) = wrk3(i,j,k)*psiy_horz(i,j,ip)*tmaski
+           enddo
+        enddo
+     enddo
+  enddo
+
+  call mpp_update_domains(psix(:,:,:,:), Dom%domain2d, flags=SUPDATE+WUPDATE) 
+  call mpp_update_domains(psiy(:,:,:,:), Dom%domain2d, flags=SUPDATE+WUPDATE) 
 
 
   ! send diagnostics 
@@ -2370,7 +2374,7 @@ subroutine compute_submeso_skewsion(Thickness, Dens, Time, T_prog)
 
      ! tracer tendency (units rho*dzt * tracer concentration/sec)
      T_prog(n)%wrk1 = 0.0
-     do k=1,nk
+    do k=1,min(maxval(kblt)+1,nk)
         do j=jsc,jec
            do i=isc,iec
               T_prog(n)%wrk1(i,j,k) = Grd%tmask(i,j,k)*(flux_z(i,j,k-1)-flux_z(i,j,k)           &
@@ -2470,10 +2474,11 @@ subroutine compute_flux_x(Time,n,Tracer)
   integer :: ip, kr
   real    :: tensor_13(isd:ied,jsd:jed,0:1)
   real    :: sumz(isd:ied,jsd:jed,0:1)
-
   flux_x = 0.0
 
-  do k=1,nk
+
+  do k=1,min(maxval(kblt(isc-1:iec,jsc:jec)),nk) ! Only need to compute in surface layer but it will not reproduce for some reason
+                                                 ! I have verified that there is zero contribution. All psiy for k>kblt_max are ! zero.
 
      ! tracer-independent part of the calculation 
      tensor_13(:,:,:) = 0.0
@@ -2587,7 +2592,7 @@ subroutine compute_flux_y(Time,n,Tracer)
 
   flux_y = 0.0
 
-  do k=1,nk
+  do k=1,min(maxval(kblt(isc:iec,jsc-1:jec))+1,nk) ! Only need to comput in surface layer
 
      ! tracer-independent part of the calculation 
      tensor_23(:,:,:) = 0.0
@@ -2708,7 +2713,7 @@ subroutine compute_flux_z(Time,n,Tracer)
   temparray31 = 0.0
   temparray32 = 0.0
 
-  do k=1,nk-1
+  do k=1,min(maxval(kblt(isc-1:iec,jsc-1:jec)),nk-1) ! Only need to comput in surface layer
 
      do ip=0,1
         jq=ip  
