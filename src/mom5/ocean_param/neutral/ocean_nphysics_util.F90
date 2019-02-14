@@ -3224,8 +3224,8 @@ subroutine transport_on_theta_gm (Time, Dens, Theta, tx_trans_gm, ty_trans_gm)
       ! note sign change in the if-tests relative to transport on rho and nrho
       do k=1,nk-1
          do j=jsc,jec
-            theta_maxj(j)=maxval(Theta%field(isc:iec,j,k+1,tau),mask=Grd%tmask(isc:iec,j,k+1)==1.)
-            theta_minj(j)=minval(Theta%field(isc:iec,j,k,tau),mask=Grd%tmask(isc:iec,j,k)==1.)
+            theta_maxj(j)=maxval(Theta%field(isc:iec,j,k,tau),mask=Grd%tmask(isc:iec,j,k)==1.)
+            theta_minj(j)=minval(Theta%field(isc:iec,j,k+1,tau),mask=Grd%tmask(isc:iec,j,k+1)==1.)
          enddo
          theta_max=maxval(theta_maxj)
          theta_min=minval(theta_minj)
