@@ -1288,7 +1288,6 @@ subroutine compute_bldepth(Time, Thickness, Dens, T_prog, surf_blthick)
 
   integer :: i, j, k, tau
   integer :: num_smooth
-  real    :: mld_thickness
   real    :: active_cells 
 
   tau  = Time%tau 
@@ -2477,8 +2476,7 @@ subroutine compute_flux_x(Time,n,Tracer)
   flux_x = 0.0
 
 
-  do k=1,min(maxval(kblt(isc-1:iec,jsc:jec)),nk) ! Only need to compute in surface layer but it will not reproduce for some reason
-                                                 ! I have verified that there is zero contribution. All psiy for k>kblt_max are ! zero.
+  do k=1,min(maxval(kblt(isc-1:iec,jsc:jec)),nk) ! Only need to compute in surface layer
 
      ! tracer-independent part of the calculation 
      tensor_13(:,:,:) = 0.0
@@ -2592,7 +2590,7 @@ subroutine compute_flux_y(Time,n,Tracer)
 
   flux_y = 0.0
 
-  do k=1,min(maxval(kblt(isc:iec,jsc-1:jec))+1,nk) ! Only need to comput in surface layer
+  do k=1,min(maxval(kblt(isc:iec,jsc-1:jec))+1,nk) ! Only need to compute in surface layer
 
      ! tracer-independent part of the calculation 
      tensor_23(:,:,:) = 0.0
@@ -2713,7 +2711,7 @@ subroutine compute_flux_z(Time,n,Tracer)
   temparray31 = 0.0
   temparray32 = 0.0
 
-  do k=1,min(maxval(kblt(isc-1:iec,jsc-1:jec)),nk-1) ! Only need to comput in surface layer
+  do k=1,min(maxval(kblt(isc-1:iec,jsc-1:jec)),nk-1) ! Only need to compute in surface layer
 
      do ip=0,1
         jq=ip  
