@@ -4080,7 +4080,7 @@ subroutine diagnose_tracer_on_rho(Time, Dens, Tracer, ntracer)
      enddo
      rho_max = maxval(rho_maxj)
      rho_min = minval(rho_minj)
-     i f(rho_max == -huge(rho_max)) exit  ! only rock below this level
+     if (rho_max == -huge(rho_max)) exit  ! only rock below this level
      do k_rho = 1,potrho_nk
         if (rho_max < Dens%potrho_ref(k_rho)) cycle
         if (rho_min > Dens%potrho_ref(k_rho)) cycle
