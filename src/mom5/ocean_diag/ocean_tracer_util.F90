@@ -815,16 +815,16 @@ subroutine rebin_onto_rho (rho_bounds, rho_level, infield_level, outfield_rho)
   ! maximum and minimum of rho_bounds.
   if(rebin_onto_rho_all_values) then 
 
-      do j=jsc,jec
-         do k=1,nk
-            rho_max=maxval(rho_level(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1)
-            if(rho_max == -huge(rho_max)) exit  ! All land in this row and lower
-            rho_min=minval(rho_level(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1)
+      do j = jsc,jec
+         do k = 1,nk
+            rho_max = maxval(rho_level(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1)
+            if (rho_max == -huge(rho_max)) exit  ! All land in this row and lower
+            rho_min = minval(rho_level(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1)
             ! light waters 
             k_rho = 1
-            if(rho_min<rho_bounds(k_rho+1)) then
+            if (rho_min < rho_bounds(k_rho+1)) then
                do i=isc,iec
-                  if(rho_level(i,j,k) < rho_bounds(k_rho+1)) then 
+                  if (rho_level(i,j,k) < rho_bounds(k_rho+1)) then 
                       outfield_rho(i,j,k_rho) = outfield_rho(i,j,k_rho) + infield_level(i,j,k)
                   endif
                enddo
@@ -832,9 +832,9 @@ subroutine rebin_onto_rho (rho_bounds, rho_level, infield_level, outfield_rho)
 
             ! within the predefined range 
             do k_rho = 2,rho_nk-1
-               if( rho_bounds(k_rho) > rho_max .or. rho_bounds(k_rho+1) <= rho_min ) cycle
+               if (rho_bounds(k_rho) > rho_max .or. rho_bounds(k_rho+1) <= rho_min) cycle
                do i=isc,iec
-                  if( (rho_bounds(k_rho) <= rho_level(i,j,k)) .and.  &
+                  if ((rho_bounds(k_rho) <= rho_level(i,j,k)) .and.  &
                       (rho_level(i,j,k)  <  rho_bounds(k_rho+1)) ) then 
                       outfield_rho(i,j,k_rho) = outfield_rho(i,j,k_rho) + infield_level(i,j,k)
                   endif
@@ -843,9 +843,9 @@ subroutine rebin_onto_rho (rho_bounds, rho_level, infield_level, outfield_rho)
 
                   ! denser than the last interface 
             k_rho = rho_nk
-            if(rho_max >= rho_bounds(k_rho)) then
-               do i=isc,iec
-                  if(rho_bounds(k_rho) <= rho_level(i,j,k)) then 
+            if (rho_max >= rho_bounds(k_rho)) then
+               do i = isc,iec
+                  if (rho_bounds(k_rho) <= rho_level(i,j,k)) then 
                           outfield_rho(i,j,k_rho) = outfield_rho(i,j,k_rho) + infield_level(i,j,k)             
                   endif
                enddo
@@ -858,15 +858,15 @@ subroutine rebin_onto_rho (rho_bounds, rho_level, infield_level, outfield_rho)
 
       ! ignore those cells with density outside of the 
       ! maximum and minimum of rho_bounds.
-      do j=jsc,jec
-         do k=1,nk
-            rho_max=maxval(rho_level(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1)
-            if(rho_max == -huge(rho_max)) exit  ! All land in this row and lower
-            rho_min=minval(rho_level(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1)
-            do k_rho=1,rho_nk
-               if( rho_bounds(k_rho) > rho_max .or. rho_bounds(k_rho+1) <= rho_min ) cycle
-               do i=isc,iec
-                  if( (rho_bounds(k_rho) <= rho_level(i,j,k)) .and.  &
+      do j = jsc,jec
+         do k = 1,nk
+            rho_max = maxval(rho_level(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1)
+            if (rho_max == -huge(rho_max)) exit  ! All land in this row and lower
+            rho_min = minval(rho_level(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1)
+            do k_rho = 1,rho_nk
+               if (rho_bounds(k_rho) > rho_max .or. rho_bounds(k_rho+1) <= rho_min) cycle
+               do i = isc,iec
+                  if ((rho_bounds(k_rho) <= rho_level(i,j,k)) .and.  &
                       (rho_level(i,j,k)  <  rho_bounds(k_rho+1)) ) then 
                       outfield_rho(i,j,k_rho) = outfield_rho(i,j,k_rho) + infield_level(i,j,k)
                   endif
@@ -878,9 +878,9 @@ subroutine rebin_onto_rho (rho_bounds, rho_level, infield_level, outfield_rho)
   endif
  
   ! apply land-sea masks for level-mask at k=1 
-  do k_rho=1,rho_nk
-     do j=jsc,jec
-        do i=isc,iec
+  do k_rho = 1,rho_nk
+     do j = jsc,jec
+        do i = isc,iec
            outfield_rho(i,j,k_rho) = outfield_rho(i,j,k_rho)*Grd%tmask(i,j,1)
         enddo
      enddo

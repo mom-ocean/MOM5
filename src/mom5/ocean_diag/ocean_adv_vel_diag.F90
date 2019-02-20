@@ -988,25 +988,25 @@ subroutine transport_on_nrho (Time, Dens, Adv_vel)
       work1(:,:,:) = 0.0
       work2(:,:,:) = 0.0
 
-      do k_rho=1,neutralrho_nk
+      do k_rho = 1,neutralrho_nk
 
          tmp(:,:,:) = 0.0
-         do k=1,nk
-            do j=jsc,jec
-               do i=isc,iec
+         do k = 1,nk
+            do j = jsc,jec
+               do i = isc,iec
                   if (k_rho == 1) then
-                     if(Dens%neutralrho(i,j,k) < Dens%neutralrho_bounds(k_rho+1)) then
+                     if (Dens%neutralrho(i,j,k) < Dens%neutralrho_bounds(k_rho+1)) then
                          tmp(1,i,j) = tmp(1,i,j) + Adv_vel%uhrho_et(i,j,k)
                          tmp(2,i,j) = tmp(2,i,j) + Adv_vel%vhrho_nt(i,j,k)
                      endif
-                  elseif(k_rho < neutralrho_nk) then
-                     if( (Dens%neutralrho_bounds(k_rho) <= Dens%neutralrho(i,j,k)) .and.  &
+                  elseif (k_rho < neutralrho_nk) then
+                     if ((Dens%neutralrho_bounds(k_rho) <= Dens%neutralrho(i,j,k)) .and.  &
                          (Dens%neutralrho(i,j,k)        <  Dens%neutralrho_bounds(k_rho+1)) ) then 
                            tmp(1,i,j) = tmp(1,i,j) + Adv_vel%uhrho_et(i,j,k)
                            tmp(2,i,j) = tmp(2,i,j) + Adv_vel%vhrho_nt(i,j,k)
                      endif
                   else    ! if (k_rho == neutralrho_nk) then
-                     if(Dens%neutralrho_bounds(k_rho) <= Dens%neutralrho(i,j,k)) then 
+                     if (Dens%neutralrho_bounds(k_rho) <= Dens%neutralrho(i,j,k)) then 
                          tmp(1,i,j) = tmp(1,i,j) + Adv_vel%uhrho_et(i,j,k)             
                          tmp(2,i,j) = tmp(2,i,j) + Adv_vel%vhrho_nt(i,j,k)
                      endif
@@ -1015,8 +1015,8 @@ subroutine transport_on_nrho (Time, Dens, Adv_vel)
             enddo
          enddo
 
-         do j=jsc,jec
-            do i=isc,iec
+         do j = jsc,jec
+            do i = isc,iec
                work1(i,j,k_rho) = (tmp(1,i,j)+work1(i,j,k_rho))*Grd%dyte(i,j)*transport_convert*Grd%tmask(i,j,1)
                work2(i,j,k_rho) = (tmp(2,i,j)+work2(i,j,k_rho))*Grd%dxtn(i,j)*transport_convert*Grd%tmask(i,j,1)
             enddo
@@ -1100,26 +1100,26 @@ subroutine transport_on_rho (Time, Dens, Adv_vel)
       work1(:,:,:) = 0.0
       work2(:,:,:) = 0.0
 
-      do j=jsc,jec
+      do j = jsc,jec
          tmp(:,:,:) = 0.0
-         do k=1,nk
-            rho_max=maxval(Dens%potrho(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1)
-            if(rho_max == -huge(rho_max)) exit  ! All land in this row and lower
-            rho_min=minval(Dens%potrho(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1)
+         do k = 1,nk
+            rho_max = maxval(Dens%potrho(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1)
+            if (rho_max == -huge(rho_max)) exit  ! All land in this row and lower
+            rho_min = minval(Dens%potrho(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1)
 
-            k_rho=1
-            if(rho_min<Dens%potrho_bounds(k_rho+1)) then
-               do i=isc,iec
-                  if(Dens%potrho(i,j,k) < Dens%potrho_bounds(k_rho+1)) then
+            k_rho = 1
+            if (rho_min < Dens%potrho_bounds(k_rho+1)) then
+               do i = isc,iec
+                  if (Dens%potrho(i,j,k) < Dens%potrho_bounds(k_rho+1)) then
                      tmp(1,i,k_rho) = tmp(1,i,k_rho) + Adv_vel%uhrho_et(i,j,k)
                      tmp(2,i,k_rho) = tmp(2,i,k_rho) + Adv_vel%vhrho_nt(i,j,k)
                   endif
                enddo
             endif
-            do k_rho=2,potrho_nk-1
-               if( Dens%potrho_bounds(k_rho) > rho_max .or. Dens%potrho_bounds(k_rho+1) <= rho_min ) cycle
-               do i=isc,iec
-                  if( (Dens%potrho_bounds(k_rho) <= Dens%potrho(i,j,k)) .and. &
+            do k_rho = 2,potrho_nk-1
+               if (Dens%potrho_bounds(k_rho) > rho_max .or. Dens%potrho_bounds(k_rho+1) <= rho_min) cycle
+               do i = isc,iec
+                  if ((Dens%potrho_bounds(k_rho) <= Dens%potrho(i,j,k)) .and. &
                       (Dens%potrho(i,j,k)        <  Dens%potrho_bounds(k_rho+1)) ) then 
                         tmp(1,i,k_rho) = tmp(1,i,k_rho) + Adv_vel%uhrho_et(i,j,k)
                         tmp(2,i,k_rho) = tmp(2,i,k_rho) + Adv_vel%vhrho_nt(i,j,k)
@@ -1127,9 +1127,9 @@ subroutine transport_on_rho (Time, Dens, Adv_vel)
                enddo
             enddo
             k_rho = potrho_nk
-            if(rho_max >= Dens%potrho_bounds(k_rho)) then
-               do i=isc,iec
-                  if(Dens%potrho_bounds(k_rho) <= Dens%potrho(i,j,k)) then 
+            if (rho_max >= Dens%potrho_bounds(k_rho)) then
+               do i = isc,iec
+                  if (Dens%potrho_bounds(k_rho) <= Dens%potrho(i,j,k)) then 
                      tmp(1,i,k_rho) = tmp(1,i,k_rho) + Adv_vel%uhrho_et(i,j,k)             
                      tmp(2,i,k_rho) = tmp(2,i,k_rho) + Adv_vel%vhrho_nt(i,j,k)
                   endif
@@ -1138,7 +1138,7 @@ subroutine transport_on_rho (Time, Dens, Adv_vel)
          enddo
 
          do k_rho = 1,potrho_nk
-            do i=isc,iec
+            do i = isc,iec
                work1(i,j,k_rho) = (tmp(1,i,k_rho)+work1(i,j,k_rho))*Grd%dyte(i,j)*transport_convert*Grd%tmask(i,j,1)
                work2(i,j,k_rho) = (tmp(2,i,k_rho)+work2(i,j,k_rho))*Grd%dxtn(i,j)*transport_convert*Grd%tmask(i,j,1)
             enddo
@@ -1223,26 +1223,26 @@ subroutine transport_on_theta (Time, Dens, Theta, Adv_vel)
       work1(:,:,:)  = 0.0
       work2(:,:,:)  = 0.0
 
-      do j=jsc,jec
+      do j = jsc,jec
          tmp(:,:,:) = 0.0
-         do k=1,nk
-            theta_max=maxval(Theta%field(isc:iec,j,k,tau),mask=Grd%tmask(isc:iec,j,k)==1)
-            if(theta_max == -huge(theta_max)) exit  ! All land in this row and lower
-            theta_min=minval(Theta%field(isc:iec,j,k,tau),mask=Grd%tmask(isc:iec,j,k)==1)
+         do k = 1,nk
+            theta_max = maxval(Theta%field(isc:iec,j,k,tau),mask=Grd%tmask(isc:iec,j,k)==1)
+            if (theta_max == -huge(theta_max)) exit  ! All land in this row and lower
+            theta_min = minval(Theta%field(isc:iec,j,k,tau),mask=Grd%tmask(isc:iec,j,k)==1)
 
-            k_theta=1
-            if(theta_min<Dens%theta_bounds(k_theta+1)) then
-               do i=isc,iec
-                  if(Theta%field(i,j,k,tau) < Dens%theta_bounds(k_theta+1)) then
+            k_theta = 1
+            if (theta_min < Dens%theta_bounds(k_theta+1)) then
+               do i = isc,iec
+                  if (Theta%field(i,j,k,tau) < Dens%theta_bounds(k_theta+1)) then
                      tmp(1,i,k_theta) = tmp(1,i,k_theta) + Adv_vel%uhrho_et(i,j,k)
                      tmp(2,i,k_theta) = tmp(2,i,k_theta) + Adv_vel%vhrho_nt(i,j,k)
                   endif
                enddo
             endif
-            do k_theta=2,theta_nk-1
-               if( Dens%theta_bounds(k_theta) > theta_max .or. Dens%theta_bounds(k_theta+1) <= theta_min ) cycle
-               do i=isc,iec
-                  if( (Dens%theta_bounds(k_theta) <= Theta%field(i,j,k,tau)) .and. &
+            do k_theta = 2,theta_nk-1
+               if (Dens%theta_bounds(k_theta) > theta_max .or. Dens%theta_bounds(k_theta+1) <= theta_min ) cycle
+               do i = isc,iec
+                  if ((Dens%theta_bounds(k_theta) <= Theta%field(i,j,k,tau)) .and. &
                       (Theta%field(i,j,k,tau)     <  Dens%theta_bounds(k_theta+1)) ) then 
                        tmp(1,i,k_theta) = tmp(1,i,k_theta) + Adv_vel%uhrho_et(i,j,k)
                        tmp(2,i,k_theta) = tmp(2,i,k_theta) + Adv_vel%vhrho_nt(i,j,k)
@@ -1250,9 +1250,9 @@ subroutine transport_on_theta (Time, Dens, Theta, Adv_vel)
                enddo
             enddo
             k_theta = theta_nk
-            if(theta_max >= Dens%theta_bounds(k_theta)) then
-               do i=isc,iec
-                  if(Dens%theta_bounds(k_theta) <= Theta%field(i,j,k,tau)) then 
+            if (theta_max >= Dens%theta_bounds(k_theta)) then
+               do i = isc,iec
+                  if (Dens%theta_bounds(k_theta) <= Theta%field(i,j,k,tau)) then 
                       tmp(1,i,k_theta) = tmp(1,i,k_theta) + Adv_vel%uhrho_et(i,j,k)
                       tmp(2,i,k_theta) = tmp(2,i,k_theta) + Adv_vel%vhrho_nt(i,j,k)
                   endif
@@ -1261,7 +1261,7 @@ subroutine transport_on_theta (Time, Dens, Theta, Adv_vel)
          enddo
 
          do k_theta = 1,theta_nk
-            do i=isc,iec
+            do i = isc,iec
                work1(i,j,k_theta) = (tmp(1,i,k_theta)+work1(i,j,k_theta))*Grd%dyte(i,j)*transport_convert*Grd%tmask(i,j,1)
                work2(i,j,k_theta) = (tmp(2,i,k_theta)+work2(i,j,k_theta))*Grd%dxtn(i,j)*transport_convert*Grd%tmask(i,j,1)
             enddo

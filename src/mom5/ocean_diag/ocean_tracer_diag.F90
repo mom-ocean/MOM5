@@ -4073,20 +4073,20 @@ subroutine diagnose_tracer_on_rho(Time, Dens, Tracer, ntracer)
 
   ! interpolate tracer field onto rho-surface 
     
-  do k=1,nk-1
-     do j=jsc,jec
-        rho_maxj(j)=maxval(Dens%potrho(isc:iec,j,k+1),mask=Grd%tmask(isc:iec,j,k+1)==1.)
-        rho_minj(j)=minval(Dens%potrho(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1.)
+  do k = 1,nk-1
+     do j = jsc,jec
+        rho_maxj(j) = maxval(Dens%potrho(isc:iec,j,k+1),mask=Grd%tmask(isc:iec,j,k+1)==1.)
+        rho_minj(j) = minval(Dens%potrho(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1.)
      enddo
-     rho_max=maxval(rho_maxj)
-     rho_min=minval(rho_minj)
-     if(rho_max==-huge(rho_max)) exit  ! only rock below this level
-     do k_rho=1,potrho_nk
-        if(rho_max<Dens%potrho_ref(k_rho)) cycle
-        if(rho_min>Dens%potrho_ref(k_rho)) cycle
-        do j=jsc,jec
-           if(rho_maxj(j)<Dens%potrho_ref(k_rho)) cycle
-           if(rho_minj(j)>Dens%potrho_ref(k_rho)) cycle
+     rho_max = maxval(rho_maxj)
+     rho_min = minval(rho_minj)
+     i f(rho_max == -huge(rho_max)) exit  ! only rock below this level
+     do k_rho = 1,potrho_nk
+        if (rho_max < Dens%potrho_ref(k_rho)) cycle
+        if (rho_min > Dens%potrho_ref(k_rho)) cycle
+        do j = jsc,jec
+           if (rho_maxj(j) < Dens%potrho_ref(k_rho)) cycle
+           if (rho_minj(j) > Dens%potrho_ref(k_rho)) cycle
            do i=isc,iec
               if(     Dens%potrho_ref(k_rho) >  Dens%potrho(i,j,k)  ) then
                   if( Dens%potrho_ref(k_rho) <= Dens%potrho(i,j,k+1)) then 
@@ -4103,9 +4103,9 @@ subroutine diagnose_tracer_on_rho(Time, Dens, Tracer, ntracer)
   enddo
 
   ! ensure masking is applied to interpolated field 
-  do k_rho=1,potrho_nk
-     do j=jsc,jec
-        do i=isc,iec
+  do k_rho = 1,potrho_nk
+     do j = jsc,jec
+        do i = isc,iec
            tracer_on_rho(i,j,k_rho) = tracer_on_rho(i,j,k_rho)*Grd%tmask(i,j,1)
         enddo
      enddo
