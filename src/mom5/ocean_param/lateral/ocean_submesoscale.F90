@@ -3608,6 +3608,8 @@ subroutine transport_on_nrho_submeso (Time, Dens, tx_trans_lev, ty_trans_lev)
   integer :: i, j, k, k_rho, neutralrho_nk
   real    :: work(isd:ied,jsd:jed,size(Dens%neutralrho_ref),2)
   real    :: W1, W2
+  real, dimension(jsc:jec) :: nrho_minj, nrho_maxj
+  real                     :: nrho_min, nrho_max
 
   if (.not.module_is_initialized) then 
     call mpp_error(FATAL, &
@@ -3627,17 +3629,28 @@ subroutine transport_on_nrho_submeso (Time, Dens, tx_trans_lev, ty_trans_lev)
       ! since the initial value for work is 0.
 
       ! interpolate trans_lev from k-levels to neutralrho_nk-levels
-      do k_rho=1,neutralrho_nk
-         do k=1,nk-1
-            do j=jsc,jec
-               do i=isc,iec
-                  if(     Dens%neutralrho_ref(k_rho) >  Dens%neutralrho(i,j,k)  ) then
-                      if( Dens%neutralrho_ref(k_rho) <= Dens%neutralrho(i,j,k+1)) then 
-                          W1= Dens%neutralrho_ref(k_rho)- Dens%neutralrho(i,j,k)
-                          W2= Dens%neutralrho(i,j,k+1)  - Dens%neutralrho_ref(k_rho)
-                          work(i,j,k_rho,1) = (tx_trans_lev(i,j,k+1)*W1 +tx_trans_lev(i,j,k)*W2) &
+      do k = 1,nk-1
+         do j = jsc,jec
+            nrho_maxj(j) = maxval(Dens%neutralrho(isc:iec,j,k+1),mask=Grd%tmask(isc:iec,j,k+1)==1.)
+            nrho_minj(j) = minval(Dens%neutralrho(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1.)
+         enddo
+         nrho_max = maxval(nrho_maxj)
+         nrho_min = minval(nrho_minj)
+         if (nrho_max == -huge(nrho_max)) exit  ! only rock below this level
+         do k_rho = 1,neutralrho_nk
+            if (nrho_max < Dens%neutralrho_ref(k_rho)) cycle
+            if (nrho_min > Dens%neutralrho_ref(k_rho)) cycle
+            do j = jsc,jec
+               if (nrho_maxj(j) < Dens%neutralrho_ref(k_rho)) cycle
+               if (nrho_minj(j) > Dens%neutralrho_ref(k_rho)) cycle
+               do i = isc,iec
+                  if (    Dens%neutralrho_ref(k_rho) >  Dens%neutralrho(i,j,k)  ) then
+                      if (Dens%neutralrho_ref(k_rho) <= Dens%neutralrho(i,j,k+1)) then 
+                         W1 = Dens%neutralrho_ref(k_rho)- Dens%neutralrho(i,j,k)
+                         W2 = Dens%neutralrho(i,j,k+1)  - Dens%neutralrho_ref(k_rho)
+                         work(i,j,k_rho,1) = (tx_trans_lev(i,j,k+1)*W1 +tx_trans_lev(i,j,k)*W2) &
                                               /(W1 + W2 + epsln)
-                          work(i,j,k_rho,2) = (ty_trans_lev(i,j,k+1)*W1 +ty_trans_lev(i,j,k)*W2) &
+                         work(i,j,k_rho,2) = (ty_trans_lev(i,j,k+1)*W1 +ty_trans_lev(i,j,k)*W2) &
                                               /(W1 + W2 + epsln)
                       endif
                   endif
@@ -3646,9 +3659,9 @@ subroutine transport_on_nrho_submeso (Time, Dens, tx_trans_lev, ty_trans_lev)
          enddo
       enddo
 
-      do k_rho=1,neutralrho_nk
-         do j=jsc,jec
-            do i=isc,iec
+      do k_rho = 1,neutralrho_nk
+         do j = jsc,jec
+            do i = isc,iec
                work(i,j,k_rho,1) = work(i,j,k_rho,1)*Grd%tmask(i,j,1)
                work(i,j,k_rho,2) = work(i,j,k_rho,2)*Grd%tmask(i,j,1)
             enddo
@@ -3707,27 +3720,27 @@ subroutine transport_on_nrho_submeso_adv (Time, Dens, utrans, vtrans)
       work1(:,:,:) = 0.0
       work2(:,:,:) = 0.0
 
-      do k_rho=1,neutralrho_nk
+      do k_rho = 1,neutralrho_nk
 
          tmp(:,:,:) = 0.0
-         do k=1,nk
-            do j=jsc,jec
-               do i=isc,iec
+         do k = 1,nk
+            do j = jsc,jec
+               do i = isc,iec
                   if (k_rho == 1) then
-                     if(Dens%neutralrho(i,j,k) < Dens%neutralrho_bounds(k_rho+1)) then 
+                     if (Dens%neutralrho(i,j,k) < Dens%neutralrho_bounds(k_rho+1)) then 
                          tmp(1,i,j) = tmp(1,i,j) + utrans(i,j,k)
                          tmp(2,i,j) = tmp(2,i,j) + vtrans(i,j,k)
                      endif
-                  elseif(k_rho < neutralrho_nk) then
-                     if( (Dens%neutralrho_bounds(k_rho) <= Dens%neutralrho(i,j,k)) .and.  &
+                  elseif (k_rho < neutralrho_nk) then
+                     if ((Dens%neutralrho_bounds(k_rho) <= Dens%neutralrho(i,j,k)) .and.  &
                          (Dens%neutralrho(i,j,k)        <  Dens%neutralrho_bounds(k_rho+1)) ) then 
                            tmp(1,i,j) = tmp(1,i,j) + utrans(i,j,k)
                            tmp(2,i,j) = tmp(2,i,j) + vtrans(i,j,k)
                      endif
                   else    ! if (k_rho == neutralrho_nk) then
-                     if(Dens%neutralrho_bounds(k_rho) <= Dens%neutralrho(i,j,k)) then 
-                         tmp(1,i,j) = tmp(1,i,j) + utrans(i,j,k)             
-                         tmp(2,i,j) = tmp(2,i,j) + vtrans(i,j,k)
+                     if (Dens%neutralrho_bounds(k_rho) <= Dens%neutralrho(i,j,k)) then 
+                        tmp(1,i,j) = tmp(1,i,j) + utrans(i,j,k)             
+                        tmp(2,i,j) = tmp(2,i,j) + vtrans(i,j,k)
                      endif
                   endif
                enddo
