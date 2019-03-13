@@ -1630,13 +1630,22 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
 
        ! compute ocean tendencies from tracer packages
        call mpp_clock_begin(id_otpm_source)
+#if ! defined (CSIRO_BGC)
        call ocean_tpm_source(isd, ied, jsd, jed, Domain, Grid, T_prog(:), T_diag(:), &
             Time, Thickness, Dens, surf_blthick, dtts)
+#else
+       call ocean_tpm_source(isd, ied, jsd, jed, Domain, Grid, T_prog(:), T_diag(:), &
+            Time, Thickness, Dens, surf_blthick, dtts, swflx, sw_frac_zt)
+#endif
        call mpp_clock_end(id_otpm_source)
 
        ! set ocean surface boundary conditions for the tracer packages
        call mpp_clock_begin(id_otpm_bbc)
+#if ! defined (CSIRO_BGC)
        call ocean_tpm_bbc(Domain, Grid, T_prog(:))
+#else
+       call ocean_tpm_bbc(Domain, Grid, T_prog(:), Time)
+#endif
        call mpp_clock_end(id_otpm_bbc)
 
        ! add sponges to T_prog%th_tendency 

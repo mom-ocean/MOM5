@@ -54,6 +54,8 @@ if ( $help ) then
     echo "             EBM       : ocean-seaice-land-atmosphere coupled model with energy balance atmosphere"
     echo "             ACCESS-CM : ocean component of ACCESS-CM model."
     echo "             ACCESS-OM : ocean component of ACCESS-OM model."
+    echo "             ACCESS-ESM : ocean component of ACCESS-ESM model with CSIRO BGC  (Wombat)."
+    echo "             ACCESS-OM-BGC: ocean component of ACCESS-OM model with CSIRO BGC  (Wombat)."
     echo
     echo "--platform   followed by the platform name that has a corresponfing environ file in the ../bin dir, default is gfortran"
     echo
@@ -87,8 +89,12 @@ if ( $type == EBM ) then
     set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DLAND_BND_TRACERS -DOVERLOAD_C8 -DOVERLOAD_C4 -DOVERLOAD_R4" )
 else if( $type == ACCESS-OM ) then
     set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DACCESS -DACCESS_OM" )
+else if( $type == ACCESS-OM-BGC ) then
+    set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DACCESS -DACCESS_OM -DCSIRO_BGC" )
 else if( $type == ACCESS-CM ) then
     set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DACCESS -DACCESS_CM" )
+else if( $type == ACCESS-ESM ) then
+    set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DACCESS -DACCESS_CM -DCSIRO_BGC" )
 endif
 
 if ( $unit_testing ) then
@@ -134,7 +140,7 @@ cd $root/exp
 source ./ocean_compile.csh
 if ( $status ) exit $status
 
-if( $type != MOM_solo && $type != ACCESS-OM  && $type != ACCESS-CM) then
+if( $type != MOM_solo && $type != ACCESS-OM  && $type != ACCESS-CM && $type != ACCESS-OM-BGC  && $type != ACCESS-ESM) then
     cd $root/exp
     source ./ice_compile.csh
     if ( $status ) exit $status
@@ -186,12 +192,12 @@ cd $executable:h
 if( $type == MOM_solo ) then
     set srcList = ( mom5/drivers )
     set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
-else if( $type == ACCESS-CM ) then
+else if( $type == ACCESS-CM | $type == ACCESS-ESM) then
     set srcList = ( accesscm_coupler )
     set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/$type/lib_ocean"
     set libs = "$executable:h:h/$type/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
     setenv OASIS true
-else if( $type == ACCESS-OM ) then
+else if( $type == ACCESS-OM | $type == ACCESS-OM-BGC) then
     set srcList = ( accessom_coupler )
     set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/$type/lib_ocean"
     set libs = "$executable:h:h/$type/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"

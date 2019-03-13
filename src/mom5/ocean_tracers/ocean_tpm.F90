@@ -225,7 +225,7 @@ use ocean_generic_mod, only: ocean_generic_init
 use ocean_generic_mod, only: ocean_generic_column_physics
 use ocean_generic_mod, only: ocean_generic_end
 use ocean_generic_mod, only: ocean_generic_flux_init
-#endif 
+#endif
 
 use ocean_frazil_mod,     only: ocean_frazil_init
 use ocean_tempsalt_mod,   only: ocean_tempsalt_init
@@ -236,6 +236,10 @@ use transport_matrix_mod, only: do_transport_matrix
 use transport_matrix_mod, only: transport_matrix_init
 use transport_matrix_mod, only: transport_matrix_start
 use transport_matrix_mod, only: transport_matrix_store_implicit
+
+#if defined(CSIRO_BGC)
+use csiro_bgc_mod 
+#endif
 
 !
 !       force all variables to be "typed"
@@ -380,7 +384,7 @@ endif  !}
 #ifdef USE_OCEAN_OCMIP2 
   call mpp_error(FATAL, &
   '==>Error in ocean_tmp_mod: cpp option USE_OCEAN_OCMIP2 is now called USE_OCEAN_BGC. Please recompile...sorry.')
-#endif 
+#endif
 
 
 time_tau = time%tau
@@ -570,7 +574,7 @@ end subroutine do_time_calc  !}
 !       calculations
 ! </DESCRIPTION>
 
-subroutine ocean_tpm_bbc(Domain, Grid, T_prog)  !{
+subroutine ocean_tpm_bbc(Domain, Grid, T_prog, Time)  !{
 
 !
 !-----------------------------------------------------------------------
@@ -581,6 +585,7 @@ subroutine ocean_tpm_bbc(Domain, Grid, T_prog)  !{
 type(ocean_domain_type), intent(in)                             :: Domain
 type(ocean_grid_type), intent(in)                               :: Grid
 type(ocean_prog_tracer_type), dimension(:), intent(inout)       :: T_prog
+type(ocean_time_type), intent(in), optional                     :: Time
 
 !
 !-----------------------------------------------------------------------
@@ -605,7 +610,13 @@ if (do_ocean_bgc_restore) then  !{
                              Domain%isd, Domain%ied, Domain%jsd, Domain%jed, T_prog, Grid%kmt)
 endif  !}
 
-#endif 
+#endif
+
+#if defined(CSIRO_BGC)
+if (do_csiro_bgc) then  !{
+  call csiro_bgc_bbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, T_prog, Grid, Time)
+endif  !}
+#endif
 
 return
 
@@ -728,6 +739,13 @@ endif  !}
 if (do_generic_tracer) call ocean_generic_end
 
 #endif 
+
+#if defined(CSIRO_BGC)
+if (do_csiro_bgc) then  !{
+  call csiro_bgc_end(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Time%taup1,          &
+                           Thickness, T_prog, Grid)
+endif  !}
+#endif
 
 return
 
@@ -1200,9 +1218,9 @@ end subroutine ocean_tpm_sfc_end  !}
 !
 
 subroutine ocean_tpm_sbc(Domain, Grid, T_prog, Time, Ice_ocean_boundary_fluxes, &
-     runoff, isc_bnd, iec_bnd, jsc_bnd, jec_bnd)  !{
+     runoff, isc_bnd, iec_bnd, jsc_bnd, jec_bnd, aice, atm_co2, wnd,            &
+     use_waterflux, salt_restore_as_salt_flux, co2flux, ocn_co2)  !{
 
-use coupler_types_mod, only: coupler_2d_bc_type
 
 implicit none
 
@@ -1223,6 +1241,14 @@ integer, intent(in)                                             :: jsc_bnd
 integer, intent(in)                                             :: jec_bnd
 real, dimension(Domain%isd:,Domain%jsd:), intent(in)            :: runoff
 
+! Optional arguments. Passed through for csiro BGC.
+
+real, intent(in), dimension(Domain%isd:,Domain%jsd:), optional :: aice
+real, intent(in), dimension(Domain%isd:,Domain%jsd:), optional :: atm_co2
+real, intent(in), dimension(Domain%isd:,Domain%jsd:), optional :: wnd
+logical, intent(in), optional                                  :: use_waterflux, salt_restore_as_salt_flux
+
+real, intent(out), dimension(Domain%isd:,Domain%jsd:), optional :: co2flux, ocn_co2
 !
 !-----------------------------------------------------------------------
 !     local parameters
@@ -1289,8 +1315,14 @@ if (do_ocean_ibgc) then  !{
                            Grid, Time, Ice_ocean_boundary_fluxes)
 endif  !}
 
-
 #endif 
+
+#if defined(CSIRO_BGC)
+if (do_csiro_bgc) then  !{
+  call csiro_bgc_sbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Domain%isd, Domain%ied, Domain%jsd, Domain%jed,  &
+  T_prog, aice, wnd, Grid, Time, use_waterflux, salt_restore_as_salt_flux, atm_co2, co2flux, sfc_co2)
+endif  !}
+#endif
 
 return
 
@@ -1380,6 +1412,10 @@ call ocean_ibgc_init
 
 call ocean_generic_init(Domain,Grid,Time)
 
+#endif 
+
+#if defined(CSIRO_BGC)
+call csiro_bgc_init
 #endif 
 
 call transport_matrix_init
@@ -1497,6 +1533,11 @@ type(ocean_thickness_type), intent(in)                          :: Thickness
 type(ocean_density_type), intent(in)                            :: Dens
 real, intent(in), dimension(isd:,jsd:)                          :: hblt_depth
 real, intent(in)                                                :: dtts
+
+! Optional input for csiro bgc
+real, intent(in), dimension(isd:,jsd:), optional                :: swflx ! short wave radiation flux (W/m^2)
+real, intent(in), dimension(isd:,jsd:,:), optional              :: sw_frac_zt ! short wave radiation fraction
+
 !
 !-----------------------------------------------------------------------
 !     local parameters
@@ -1554,6 +1595,14 @@ if (do_ocmip2_he) then
 endif
 
 #endif 
+
+#if defined(CSIRO_BGC)
+if (do_csiro_bgc) then
+  call csiro_bgc_source(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, &
+    Domain%isd, Domain%ied, Domain%jsd, Domain%jed,                   &
+    T_prog, grid, Time, dtts, Thickness, Dens, swflx, sw_frac_zt)
+endif
+#endif
 
 if (do_ocean_residency) then  !{        ! must come last
   call ocean_residency_source(Domain%isc, Domain%iec, Domain%jsc, Domain%jec,           &
@@ -1689,6 +1738,12 @@ endif  !}
 
 #endif 
 
+#if defined(CSIRO_BGC)
+if (do_csiro_bgc) then  !{
+  call csiro_bgc_start(Time, Domain, Grid)
+endif  !}
+#endif
+
 if (do_transport_matrix) then  !{
   call transport_matrix_start(Time, T_prog, Domain%isd, Domain%ied, Domain%jsd,         &
                               Domain%jed, Grid%nk, Grid%tracer_axes)
@@ -1791,6 +1846,12 @@ if (do_generic_tracer) then
 endif
 
 #endif 
+
+#if defined(CSIRO_BGC)
+if (do_csiro_bgc) then  !{
+  call csiro_bgc_tracer(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, T_prog, grid, Time, dtts)
+endif  !}
+#endif
 
 if (do_transport_matrix) then !{
   call transport_matrix_store_implicit(Time, T_prog, Domain%isd, Domain%ied, Domain%jsd, Domain%jed,    &
