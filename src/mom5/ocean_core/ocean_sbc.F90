@@ -487,6 +487,9 @@ use ocean_workspace_mod,      only: wrk1_2d, wrk2_2d, wrk3_2d, wrk1
 use ocean_util_mod,           only: diagnose_2d, diagnose_2d_u, diagnose_3d_u, diagnose_sum
 use ocean_tracer_util_mod,    only: diagnose_3d_rho
 
+#if defined(CSIRO_BGC)
+use csiro_bgc_mod,            only: csiro_bgc_vertical_fluxes, do_csiro_bgc
+#endif
 implicit none
 
 private
@@ -623,10 +626,13 @@ integer :: id_restore_mask   =-1
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
 integer :: id_wfimelt        =-1
 integer :: id_wfiform        =-1
+integer :: id_aice               =-1
+integer :: id_wnd                =-1
 #endif
 #if defined(ACCESS_CM)
 integer :: id_licefw        =-1
 integer :: id_liceht        =-1
+integer :: id_atm_co2            =-1
 #endif
 
 
@@ -768,6 +774,10 @@ real, allocatable, dimension(:,:) :: betasfc2      ! potrho surface saline contr
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
 real, allocatable, dimension(:,:,:) :: sslope
 real, allocatable, dimension(:,:) :: aice
+#endif
+#if defined(ACCESS_CM)
+real, allocatable, dimension(:,:) :: co2flux
+real, allocatable, dimension(:,:) :: ocn_co2
 #endif
 
 
@@ -1053,10 +1063,11 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
   allocate ( Ocean_sfc%gradient (isc_bnd:iec_bnd,jsc_bnd:jec_bnd,2))
   allocate ( sslope(isc:iec, jsc:jec, 2) )
-  allocate ( aice(isc:iec, jsc:jec) )
+  allocate ( aice(isd:ied, jsd:jed) )
 #if defined(ACCESS_CM)
   allocate ( Ocean_sfc%co2    (isc_bnd:iec_bnd,jsc_bnd:jec_bnd), &
              Ocean_sfc%co2flux (isc_bnd:iec_bnd,jsc_bnd:jec_bnd)) 
+  allocate ( co2flux(isd:ied,,jsd:jed),iocn_co2(isd:ied,jsd:jed))
 #endif
 #endif
 
@@ -1075,6 +1086,8 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
 #if defined(ACCESS_CM)
   Ocean_sfc%co2       = 0.0 
   Ocean_sfc%co2flux   = 0.0 
+  co2flux             = 0.0
+  ocn_co2             = 0.0
 #endif
 
   Ocean_sfc%area    = Grid%dat(isc:iec, jsc:jec) * Grid%tmask(isc:iec, jsc:jec, 1) !grid cell area
@@ -1913,6 +1926,14 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
        '(kg/sec)/1e15', missing_value=missing_value,range=(/-1.e10,1.e10/))   
 
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
+  id_aice = register_diag_field('ocean_model','aice', Grd%tracer_axes(1:2),&
+       Time%model_time, 'fraction of surface area covered with ice', 'm^2/m^2' ,  &
+       missing_value=missing_value,range=(/-1.e1,1.e1/),                      &
+       standard_name='areal_ice_concentration' )
+  id_wnd = register_diag_field('ocean_model','wnd', Grd%tracer_axes(1:2),&
+       Time%model_time, 'Wind speed', 'm/s' ,  &
+       missing_value=missing_value,range=(/-1.e3,1.e3/),                      &
+       standard_name='wind_speed' )
  id_total_ocean_wfimelt = register_diag_field('ocean_model','total_ocean_wfimelt',  &
        Time%model_time, 'total icemelt into ocean (>0 enters ocean)',     &
        'kg/sec/1e15', missing_value=missing_value,range=(/-1.e10,1.e10/))
@@ -1922,6 +1943,10 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
 #endif 
 
 #if defined(ACCESS_CM)
+  id_atm_co2 = register_diag_field('ocean_model','atm_co2', Grd%tracer_axes(1:2),&
+       Time%model_time, 'Atmospheric CO2 content', 'ppm' ,  &
+       missing_value=missing_value,range=(/-1.e1,1.e4/),                      &
+       standard_name='atmospheric_co2' )
   id_total_ocean_licefw = register_diag_field('ocean_model','total_ocean_licefw',  &
         Time%model_time, 'total land icemelt into ocean (>0 enters ocean)',     &
         'kg/sec/1e15', missing_value=missing_value,range=(/-1.e10,1.e10/))
@@ -2722,7 +2747,12 @@ subroutine initialize_ocean_sfc(Time, Thickness, T_prog, T_diag, Velocity, Ocean
       Ocean_sfc%v_surf(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)  = Velocity%u(isc:iec,jsc:jec,1,2,taup1)
       Ocean_sfc%sea_lev(isc_bnd:iec_bnd,jsc_bnd:jec_bnd) = Thickness%sea_lev(isc:iec,jsc:jec)
       Ocean_sfc%frazil(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)  = 0.0
+#if defined(ACCESS_CM)
+      Ocean%co2flux(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)     = co2flux(isc:iec,jsc:jec)  !These should really come from a restart RASF
+      Ocean%co2(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)         = ocn_co2(isc:iec,jsc:jec)
+#endif
   end where
+
 
   ! when enabled, use FAFMIP redistributed heat tracer for sst
   if(index_redist_heat > 0) then
@@ -2756,6 +2786,11 @@ subroutine initialize_ocean_sfc(Time, Thickness, T_prog, T_diag, Velocity, Ocean
   id_field = register_restart_field(Sfc_restart, filename, 'v_surf', Ocean_sfc%v_surf,Ocean_sfc%Domain)
   id_field = register_restart_field(Sfc_restart, filename, 'sea_lev',Ocean_sfc%sea_lev,Ocean_sfc%Domain)
   id_field = register_restart_field(Sfc_restart, filename, 'frazil', Ocean_sfc%frazil,Ocean_sfc%Domain)
+#if defined(ACCESS_CM)
+!RASF Make these optional so we don't break existing runs.
+  id_field = register_restart_field(Sfc_restart, filename, 'co2flux',Ocean_sfc%co2flux,Ocean_sfc%Domain, mandatory=.false.)
+  id_field = register_restart_field(Sfc_restart, filename, 'ocn_co2', Ocean_sfc%co2,Ocean_sfc%Domain, mandatory=.false.)
+#endif
   if (file_exist('INPUT/ocean_sbc.res.nc')) then
      call restore_state(Sfc_restart)
   endif
@@ -2839,7 +2874,11 @@ subroutine sum_ocean_sfc(Time, Thickness, T_prog, T_diag, Dens, Velocity, Ocean_
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
             Ocean_sfc%gradient(i,j,:) = Ocean_sfc%gradient(i,j,:) + sslope(ii,jj,:)  
 #endif
+#if defined(ACCESS_CM)
+            Ocean_sfc%co2flux(i,j) = Ocean_sfc%co2flux(i,j) + co2flux(ii,jj)
+            Ocean_sfc%co2(i,j)     = Ocean_sfc%co2(i,j) + ocn_co2(ii,jj)
          enddo
+#endif
       enddo
 
       ! for FAFMIP, sst is from redistributed heat tracer 
@@ -2925,6 +2964,11 @@ subroutine zero_ocean_sfc(Ocean_sfc)
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
         Ocean_sfc%gradient(i,j,:)= 0.0
 #endif
+#if defined(ACCESS_CM)
+        Ocean_sfc%co2flux(i,j) = 0.0
+        Ocean_sfc%co2(i,j)     = 0.0
+#endif
+         enddo
      enddo
   enddo
 
@@ -3002,6 +3046,10 @@ subroutine avg_ocean_sfc(Time, Thickness, T_prog, T_diag, Velocity, Ocean_sfc)
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
            Ocean_sfc%gradient(i,j,:) = Ocean_sfc%gradient(i,j,:)*divid
 #endif
+#if defined(ACCESS_CM)
+           Ocean_sfc%co2flux(i,j) = Ocean_sfc%co2flux(i,j)*divid
+           Ocean_sfc%co2(i,j)     = Ocean_sfc%co2(i,j)*divid
+#endif
         endif
      enddo
   enddo
@@ -3024,6 +3072,10 @@ subroutine avg_ocean_sfc(Time, Thickness, T_prog, T_diag, Velocity, Ocean_sfc)
             if(Grd%tmask(ii,jj,1) == 1.0) then
                 Ocean_sfc%s_surf(i,j) = T_prog(index_salt)%field(ii,jj,1,taup1)
                 Ocean_sfc%sea_lev(i,j)= Thickness%sea_lev(ii,jj)
+#if defined(ACCESS_CM)
+                Ocean_sfc%co2flux(i,j) = co2flux
+                Ocean_sfc%co2(i,j)     = ocn_co2
+#endif
             endif
          enddo
       enddo
@@ -4186,20 +4238,6 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   endif 
 
 
-
-  !--------compute surface tracer fluxes from tracer packages------------------- 
-  !
-  call ocean_tpm_sbc(Dom, Grd, T_prog(:), Time, Ice_ocean_boundary%fluxes, runoff, &
-                     isc_bnd, iec_bnd, jsc_bnd, jec_bnd)
-
-
-  !--------send diagnostics------------------- 
-  !
-  call ocean_sbc_diag (Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_boundary,        &
-                      pme, runoff, calving, river, alphasfc, betasfc, alphasfc2, betasfc2, &
-                      melt, liquid_precip, frozen_precip, evaporation, sensible, longwave, &
-                      latent, swflx, swflx_vis)
-
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
   do j = jsc_bnd,jec_bnd
      do i = isc_bnd,iec_bnd
@@ -4209,6 +4247,35 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
      enddo
   enddo
 #endif
+
+
+  !--------compute surface tracer fluxes from tracer packages------------------- 
+  !
+#if defined(ACCESS_CM) && defined(CSIRO_BGC)
+  call ocean_tpm_sbc(Dom, Grd, T_prog(:), Time, Ice_ocean_boundary%fluxes, runoff, &
+                     isc_bnd, iec_bnd, jsc_bnd, jec_bnd,aice, Velocity%u10, &
+     use_waterflux, salt_restore_as_salt_flux, atm_co2, co2flux, ocn_co2)
+#else if defined(ACCESS_OM) && defined(CSIRO_BGC)
+! Do not pass co2flux, ocn_co2 or atm_co2
+  call ocean_tpm_sbc(Dom, Grd, T_prog(:), Time, Ice_ocean_boundary%fluxes, runoff, &
+                     isc_bnd, iec_bnd, jsc_bnd, jec_bnd,aice=aice, wnd=Velocity%u10, &
+                     use_waterflux=use_waterflux, salt_restore_as_salt_flux=salt_restore_as_salt_flux)
+#else
+
+#if ! defined(CSIRO_BGC)
+  call ocean_tpm_sbc(Dom, Grd, T_prog(:), Time, Ice_ocean_boundary%fluxes, runoff, &
+                     isc_bnd, iec_bnd, jsc_bnd, jec_bnd)
+#else
+! Leave this case blank at the moment. We want to use the bgc with SIS etc.
+#endif
+#endif
+
+  !--------send diagnostics------------------- 
+  !
+  call ocean_sbc_diag (Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_boundary,        &
+                      pme, runoff, calving, river, alphasfc, betasfc, alphasfc2, betasfc2, &
+                      melt, liquid_precip, frozen_precip, evaporation, sensible, longwave, &
+                      latent, swflx, swflx_vis)
 
 end subroutine get_ocean_sbc
 ! </SUBROUTINE> NAME="get_ocean_sbc"
@@ -5762,6 +5829,12 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
       total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
       used = send_data (id_total_ocean_wfiform, total_stuff*1e-15, Time%model_time)
   endif
+  if (id_aice > 0) used = send_data(id_aice, aice(:,:),    &
+                 Time%model_time, rmask=Grd%tmask(:,:,1),  &
+                 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  if (id_wnd > 0) used = send_data(id_wnd, Velocity%u10(:,:),    &
+                 Time%model_time, rmask=Grd%tmask(:,:,1),  &
+                 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
 #endif
 #if defined(ACCESS_CM)
    ! waterflux associated with land ice melt into ocean (kg/(m2*sec))
@@ -5777,6 +5850,9 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
               Time%model_time, rmask=Grd%tmask(:,:,1),  &
               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
    endif
+  if (id_atm_co2 > 0) used = send_data(id_atm_co2, atm_co2(:,:),    &
+                 Time%model_time, rmask=Grd%tmask(:,:,1),  &
+                 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
 #endif
 
 
