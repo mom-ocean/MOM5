@@ -550,7 +550,7 @@ ierr = check_nml_error(io_status,'ocean_tracer_diag_nml')
            id_tracer_on_rho(n) = register_diag_field ('ocean_model', 'temp_on_rho', &
                      Dens%potrho_axes(1:3), Time%model_time,                        &
                      'temperature on potential density surface', 'C',               & 
-                     missing_value=missing_value, range=(/0.0,1.e3/))   
+                     missing_value=missing_value, range=(/-5.0,100./))   
            id_tracer_zrho_on_rho(n) = register_diag_field ('ocean_model', 'temp_zrho_on_rho', &
                      Dens%potrho_axes(1:3), Time%model_time,                                  &
                      'temperature*dz/drho on potential density surface', 'degC * m/(kg/m^3)', & 
@@ -4053,6 +4053,8 @@ subroutine diagnose_tracer_on_rho(Time, Dens, Tracer, ntracer)
   integer   :: potrho_nk
   integer   :: i, j, k, k_rho, tau
   real, dimension(isd:ied,jsd:jed,size(Dens%potrho_ref(:))) :: tracer_on_rho 
+  real, dimension(jsc:jec) :: rho_minj,rho_maxj
+  real                     :: rho_min,rho_max
 
   potrho_nk = size(Dens%potrho_ref(:))
   tau       = Time%tau
@@ -4070,9 +4072,21 @@ subroutine diagnose_tracer_on_rho(Time, Dens, Tracer, ntracer)
   ! since the initial value for tracer_on_rho is 0.
 
   ! interpolate tracer field onto rho-surface 
-  do k_rho=1,potrho_nk
-     do k=1,nk-1
-        do j=jsc,jec
+    
+  do k = 1,nk-1
+     do j = jsc,jec
+        rho_maxj(j) = maxval(Dens%potrho(isc:iec,j,k+1),mask=Grd%tmask(isc:iec,j,k+1)==1.)
+        rho_minj(j) = minval(Dens%potrho(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1.)
+     enddo
+     rho_max = maxval(rho_maxj)
+     rho_min = minval(rho_minj)
+     if (rho_max == -huge(rho_max)) exit  ! only rock below this level
+     do k_rho = 1,potrho_nk
+        if (rho_max < Dens%potrho_ref(k_rho)) cycle
+        if (rho_min > Dens%potrho_ref(k_rho)) cycle
+        do j = jsc,jec
+           if (rho_maxj(j) < Dens%potrho_ref(k_rho)) cycle
+           if (rho_minj(j) > Dens%potrho_ref(k_rho)) cycle
            do i=isc,iec
               if(     Dens%potrho_ref(k_rho) >  Dens%potrho(i,j,k)  ) then
                   if( Dens%potrho_ref(k_rho) <= Dens%potrho(i,j,k+1)) then 
@@ -4089,9 +4103,9 @@ subroutine diagnose_tracer_on_rho(Time, Dens, Tracer, ntracer)
   enddo
 
   ! ensure masking is applied to interpolated field 
-  do k_rho=1,potrho_nk
-     do j=jsc,jec
-        do i=isc,iec
+  do k_rho = 1,potrho_nk
+     do j = jsc,jec
+        do i = isc,iec
            tracer_on_rho(i,j,k_rho) = tracer_on_rho(i,j,k_rho)*Grd%tmask(i,j,1)
         enddo
      enddo
