@@ -1218,9 +1218,11 @@ end subroutine ocean_tpm_sfc_end  !}
 !
 
 subroutine ocean_tpm_sbc(Domain, Grid, T_prog, Time, Ice_ocean_boundary_fluxes, &
-     runoff, isc_bnd, iec_bnd, jsc_bnd, jec_bnd, aice, atm_co2, wnd,            &
-     use_waterflux, salt_restore_as_salt_flux, co2flux, ocn_co2)  !{
+     runoff, isc_bnd, iec_bnd, jsc_bnd, jec_bnd, aice, wnd,            &
+     use_waterflux, salt_restore_as_salt_flux, atm_co2, co2flux, ocn_co2)
 
+
+use coupler_types_mod, only: coupler_2d_bc_type
 
 implicit none
 
@@ -1320,7 +1322,7 @@ endif  !}
 #if defined(CSIRO_BGC)
 if (do_csiro_bgc) then  !{
   call csiro_bgc_sbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Domain%isd, Domain%ied, Domain%jsd, Domain%jed,  &
-  T_prog, aice, wnd, Grid, Time, use_waterflux, salt_restore_as_salt_flux, atm_co2, co2flux, sfc_co2)
+  T_prog, aice, wnd, Grid, Time, use_waterflux, salt_restore_as_salt_flux, atm_co2, co2flux, ocn_co2)
 endif  !}
 #endif
 
@@ -1510,7 +1512,7 @@ end subroutine ocean_tpm_flux_init  !}
 !
 
 subroutine ocean_tpm_source(isd, ied, jsd, jed, Domain, Grid, T_prog, T_diag,   &
-     Time, Thickness, Dens, hblt_depth, dtts)
+     Time, Thickness, Dens, hblt_depth, dtts, swflx, sw_frac_zt)
 
 implicit none
 
