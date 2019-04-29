@@ -2480,9 +2480,11 @@ do n = 1, instances  !{
  if (id_fe.ne.0) then
     do j = jsc, jec  !{
       do i = isc, iec  !{
-        k = grid%kmt(i,j)
-        if (grid%zw(k) .le. 200) &
-           t_prog(biotic(n)%ind_bgc(id_fe))%field(i,j,k,time%taup1)= 0.999
+         if (grid%kmt(i,j) .gt. 0) then
+            k = grid%kmt(i,j)
+            if (grid%zw(k) .le. 200) &
+               t_prog(biotic(n)%ind_bgc(id_fe))%field(i,j,k,time%taup1)= 0.999
+         endif
       enddo  !} i
     enddo  !} j
  endif
