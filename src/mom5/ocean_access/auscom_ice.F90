@@ -11,6 +11,7 @@ use fms_mod,         only: open_namelist_file, close_file, check_nml_error
 use mpp_domains_mod, only: mpp_update_domains, domain2d
 use mpp_mod,         only: mpp_broadcast, mpp_pe, mpp_npes
 use mpp_mod,         only: stdlog, stdout
+use mpp_mod,         only: mpp_error 
 use mpp_domains_mod, only: mpp_get_compute_domain, &
                            mpp_get_data_domain
 use ocean_types_mod, only: ice_ocean_boundary_type, &
@@ -312,7 +313,10 @@ real :: cp_over_lhfusion
        !   (/deg C)        (J/m^3/deg C)      (J/kg)     (1000kg/m^3)
 real :: epsilon = 1.0e-20       !as in POP
 
-integer :: i, k, index_temp_redist, index_salt, taup1
+integer :: i, k
+integer :: index_temp_redist = -1
+integer ::  index_salt = -1
+integer :: taup1
 integer :: num_prog_tracers
 
 real, pointer :: PTR_TEMP(:,:),PTR_SALT(:,:),PTR_THICK(:,:), PTR_FRAZIL(:,:)
@@ -326,9 +330,13 @@ cp_over_lhfusion = rho_cp/hlf/1000.0
 
 num_prog_tracers = size(T_prog)
 do i=1, num_prog_tracers
-   if (T_prog(i)%name == 'index_redist_heat') index_temp_redist = i
+   if (T_prog(i)%name == 'redist_heat') index_temp_redist = i
    if (T_prog(i)%name == 'salt') index_salt = i
 enddo
+
+if ( index_temp_redist == -1 .or. index_salt == -1 ) then
+    call mpp_error(FATAL, '==>Error: auscom_ice_mod: Redistributed tracer indices not found')
+endif
 
 allocate(POTICE(iisc:iiec,jjsc:jjec),TEMP_BEFORE(iisc:iiec,jjsc:jjec))
 allocate(SALT_BEFORE(iisc:iiec,jjsc:jjec))
