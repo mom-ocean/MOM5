@@ -385,7 +385,7 @@ do k = kmxice, 1, -1
    !*** if POTICE > 0, keep on freezing (QICE < 0)
    !***
 
-   POTICE = max(POTICE, QICE)
+   POTICE = max(POTICE, QICE_redist)
 
    !***
    !*** adjust tracer values based on freeze/melt
@@ -462,11 +462,14 @@ do k = kmxice, 1, -1
 
   PTR_FRAZIL = rho_cp * frazil_factor * ( PTR_TEMP - TEMP_BEFORE) * PTR_THICK 
 
+! Reset salt to it original value if it has changed since we need to preserve
+! its value
+  if (iceform_adj_salt) then 
+     PTR_SALT = SALT_BEFORE
+  endif
+
 enddo  !loop k = kmxice, 1, -1
 
-if (iceform_adj_salt) then 
-   PTR_SALT = SALT_BEFORE
-endif
 ATIME_redist = ATIME_redist + dt_ocean
 
 deallocate(TEMP_BEFORE,POTICE, SALT_BEFORE)

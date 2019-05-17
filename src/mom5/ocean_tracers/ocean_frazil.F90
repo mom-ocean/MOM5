@@ -781,12 +781,12 @@ subroutine compute_frazil_redist_heating (Time, Thickness, Dens, T_prog, T_diag)
     endif
     T_diag(index_frazil_redist)%field=T_diag(index_frazil_redist)%field * Grd%tmask
     if (id_frazil_redist_2d > 0) then 
-      used = send_data(id_frazil_2d, T_diag(index_frazil_redist)%field(:,:,1)*dtimer, &
+      used = send_data(id_frazil_redist_2d, T_diag(index_frazil_redist)%field(:,:,1)*dtimer, &
            Time%model_time, rmask=Grd%tmask(:,:,1), &
            is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
     endif
     if (id_frazil_redist_3d > 0) then 
-      used = send_data(id_frazil_3d, T_diag(index_frazil_redist)%field(:,:,:)*dtimer, &
+      used = send_data(id_frazil_redist_3d, T_diag(index_frazil_redist)%field(:,:,:)*dtimer, &
            Time%model_time, rmask=Grd%tmask(:,:,:), &
            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
     endif
