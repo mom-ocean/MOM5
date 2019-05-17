@@ -10,7 +10,7 @@ use fms_mod,         only: file_exist
 use fms_mod,         only: open_namelist_file, close_file, check_nml_error
 use mpp_domains_mod, only: mpp_update_domains, domain2d
 use mpp_mod,         only: mpp_broadcast, mpp_pe, mpp_npes
-use mpp_mod,         only: stdlog, stdout
+use mpp_mod,         only: FATAL, stdlog, stdout
 use mpp_mod,         only: mpp_error 
 use mpp_domains_mod, only: mpp_get_compute_domain, &
                            mpp_get_data_domain
