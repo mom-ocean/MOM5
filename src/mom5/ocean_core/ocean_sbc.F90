@@ -475,6 +475,7 @@ use ocean_parameters_mod,     only: grav, rho_cp, cp_ocean, cp_liquid_runoff, cp
 use ocean_parameters_mod,     only: CONSERVATIVE_TEMP, POTENTIAL_TEMP, PREFORMED_SALT, PRACTICAL_SALT
 use ocean_parameters_mod,     only: MOM_BGRID, MOM_CGRID 
 use ocean_riverspread_mod,    only: spread_river_horz
+use ocean_tempsalt_mod,       only: pottemp_from_contemp
 use ocean_tpm_mod,            only: ocean_tpm_sum_sfc, ocean_tpm_avg_sfc, ocean_tpm_sbc
 use ocean_tpm_mod,            only: ocean_tpm_zero_sfc, ocean_tpm_sfc_end
 use ocean_types_mod,          only: ocean_grid_type, ocean_domain_type, ocean_public_type
@@ -2710,10 +2711,12 @@ subroutine initialize_ocean_sfc(Time, Thickness, T_prog, T_diag, Velocity, Ocean
 
   if(prog_temp_variable==CONSERVATIVE_TEMP) then
     sst(:,:) = T_diag(index_diag_temp)%field(:,:,1)
+    if(index_redist_heat > 0 ) sst_redist(:,:) = pottemp_from_contemp(T_prog(index_salt)%field(:,:,1,taup1),  &
+                                                                      T_prog(index_redist_heat)%field(:,:,1,taup1))
   else
     sst(:,:) = T_prog(index_temp)%field(:,:,1,taup1)
+    if(index_redist_heat > 0) sst_redist(:,:) = T_prog(index_redist_heat)%field(:,:,1,taup1)
   endif
-  if(index_redist_heat > 0) sst_redist(:,:) = T_prog(index_redist_heat)%field(:,:,1,taup1)
 
   where (Grd%tmask(isc:iec,jsc:jec,1) == 1.0)
       Ocean_sfc%t_surf(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)  = sst(isc:iec,jsc:jec) + kelvin
@@ -2814,10 +2817,12 @@ subroutine sum_ocean_sfc(Time, Thickness, T_prog, T_diag, Dens, Velocity, Ocean_
 
   if(prog_temp_variable==CONSERVATIVE_TEMP) then
     sst(:,:) = T_diag(index_diag_temp)%field(:,:,1)
+    if(index_redist_heat > 0 ) sst_redist(:,:) = pottemp_from_contemp(T_prog(index_salt)%field(:,:,1,taup1),  &
+                                                                      T_prog(index_redist_heat)%field(:,:,1,taup1))
   else
     sst(:,:) = T_prog(index_temp)%field(:,:,1,taup1)
+    if(index_redist_heat > 0) sst_redist(:,:) = T_prog(index_redist_heat)%field(:,:,1,taup1)
   endif
-  if(index_redist_heat > 0) sst_redist(:,:) = T_prog(index_redist_heat)%field(:,:,1,taup1)
 
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
   sslope(:,:,:) = GRAD_BAROTROPIC_P(Thickness%sea_lev(:,:), isc - isd, isc - isd)
@@ -3012,10 +3017,12 @@ subroutine avg_ocean_sfc(Time, Thickness, T_prog, T_diag, Velocity, Ocean_sfc)
 
       if(prog_temp_variable==CONSERVATIVE_TEMP) then
           sst(:,:) = T_diag(index_diag_temp)%field(:,:,1)
+          if(index_redist_heat > 0 ) sst_redist(:,:) = pottemp_from_contemp(T_prog(index_salt)%field(:,:,1,taup1),  &
+                                                                            T_prog(index_redist_heat)%field(:,:,1,taup1))
       else
           sst(:,:) = T_prog(index_temp)%field(:,:,1,taup1)
+          if(index_redist_heat > 0 ) sst_redist(:,:) = T_prog(index_redist_heat)%field(:,:,1,taup1)
       endif
-      if(index_redist_heat > 0 ) sst_redist(:,:) = T_prog(index_redist_heat)%field(:,:,1,taup1)
       
       do j = jsc_bnd,jec_bnd
          do i = isc_bnd,iec_bnd
