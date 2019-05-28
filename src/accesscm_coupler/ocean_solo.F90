@@ -449,11 +449,12 @@ program main
 
   ! loop over the coupled calls
   do nc=1, num_cpld_calls
+
+     call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
+
      call mpp_clock_begin(override_clock)
      call ice_ocn_bnd_from_data(Ice_ocean_boundary)
      call mpp_clock_end(override_clock)
-
-     call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
 
      if (debug_this_module) then
         call write_boundary_chksums(Ice_ocean_boundary)
