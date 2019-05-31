@@ -853,6 +853,7 @@ logical :: use_ideal_runoff               =.false.
 logical :: use_ideal_calving              =.false.
 logical :: read_stokes_drift              =.false.
 logical :: do_langmuir                    =.false.
+logical :: do_ustar_correct               =.true.  ! In FAFMIP stress make this fasl
 
 real    :: constant_sss_for_restore       = 35.0
 real    :: constant_sst_for_restore       = 12.0
@@ -902,7 +903,7 @@ namelist /ocean_sbc_nml/ temp_restore_tscale, salt_restore_tscale, salt_restore_
          temp_correction_scale, salt_correction_scale, tau_x_correction_scale, tau_y_correction_scale, do_bitwise_exact_sum, &
          sbc_heat_fluxes_const, sbc_heat_fluxes_const_value, sbc_heat_fluxes_const_seasonal,                                 &
          use_constant_sss_for_restore, constant_sss_for_restore, use_constant_sst_for_restore, constant_sst_for_restore,     &
-         use_ideal_calving, use_ideal_runoff, constant_hlf, constant_hlv, read_stokes_drift, do_langmuir
+         use_ideal_calving, use_ideal_runoff, constant_hlf, constant_hlv, read_stokes_drift, do_langmuir,  do_ustar_correct
 
 namelist /ocean_sbc_ofam_nml/ restore_mask_ofam, river_temp_ofam
 
@@ -3206,6 +3207,7 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   integer :: tau, taup1, n, i, j, k, ii, jj
   integer :: day, sec 
   real    :: potrhosfc_inv
+  real    :: active_cells, smftu, smftv
 
   integer :: stdoutunit 
   stdoutunit=stdout() 
@@ -3354,6 +3356,27 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
      enddo
   endif 
 
+  ! Calculate surface friction velocity
+    do j=jsc,jec
+        do i=isc,iec
+
+!         ustar is needed on the "T-grid".  It is assumed that masking of 
+!         smf over land was performed inside of the ocean_sbc module. 
+!         smf has units of N/m^2 and so we need rho0r to get ustar in m/s.   
+!         swflx has units W/m^2 so needs 1/rho_cp to get to C*m/s units.
+!         these are proper units for buoyancy fluxes. 
+          active_cells = Grd%umask(i,j,1)   + Grd%umask(i-1,j,1)   &
+                        +Grd%umask(i,j-1,1) + Grd%umask(i-1,j-1,1) + epsln
+          smftu = rho0r*(Velocity%smf_bgrid(i,j,1)   + Velocity%smf_bgrid(i-1,j,1)     &
+                        +Velocity%smf_bgrid(i,j-1,1) + Velocity%smf_bgrid(i-1,j-1,1))  &
+                  /active_cells
+          smftv = rho0r*(Velocity%smf_bgrid(i,j,2)   + Velocity%smf_bgrid(i-1,j,2)    &
+                        +Velocity%smf_bgrid(i,j-1,2) + Velocity%smf_bgrid(i-1,j-1,2)) &
+                   /active_cells
+          Velocity%ustar(i,j) = sqrt( sqrt(smftu**2 + smftv**2) )
+     enddo
+  enddo
+  
 
   !--------stokes drift from surface wave model------------------------------- 
   ! smg: place holder until get code updates to Ice_ocean_boundary.
@@ -4274,6 +4297,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
   integer                          :: i, j, k, n, tau, taum1
   logical                          :: used
   logical                          :: ice_present
+  real                             :: active_cells, smftu, smftv
 
 #if defined(ACCESS_CM)
   ! Changed in CM2. Make parameter to isolate change
@@ -4874,6 +4898,32 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
            enddo
         enddo
      endif
+
+  ! Calculate surface friction velocity
+  ! FAFMIP stess experiment says do not do this. Default is tTRUE.
+
+     if ( do_ustar_correct ) then
+          do j=jsc,jec
+              do i=isc,iec
+
+!         ustar is needed on the "T-grid".  It is assumed that masking of 
+!         smf over land was performed inside of the ocean_sbc module. 
+!         smf has units of N/m^2 and so we need rho0r to get ustar in m/s.   
+!         swflx has units W/m^2 so needs 1/rho_cp to get to C*m/s units.
+!         these are proper units for buoyancy fluxes. 
+             active_cells = Grd%umask(i,j,1)   + Grd%umask(i-1,j,1)   &
+                        +Grd%umask(i,j-1,1) + Grd%umask(i-1,j-1,1) + epsln
+             smftu = rho0r*(Velocity%smf_bgrid(i,j,1)   + Velocity%smf_bgrid(i-1,j,1)     &
+                        +Velocity%smf_bgrid(i,j-1,1) + Velocity%smf_bgrid(i-1,j-1,1))  &
+                  /active_cells
+             smftv = rho0r*(Velocity%smf_bgrid(i,j,2)   + Velocity%smf_bgrid(i-1,j,2)    &
+                        +Velocity%smf_bgrid(i,j-1,2) + Velocity%smf_bgrid(i-1,j-1,2)) &
+                   /active_cells
+             Velocity%ustar(i,j) = sqrt( sqrt(smftu**2 + smftv**2) )
+           enddo
+        enddo
+     endif
+  
 
   endif
 
