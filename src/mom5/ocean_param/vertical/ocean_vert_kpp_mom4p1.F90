@@ -2163,7 +2163,7 @@ subroutine wscale(iwscale_use_hbl_eq_zt, zt_kl, Velocity, do_wave)
          if ( do_langmuir_cvmix ) then
             do j=jsc,jec
                do i=isc,iec
-                  langmuir_number(i,j)= get_langmuir_number(ustar(i,j), hbl(i,j), Velocity%u10(i,j))
+                  langmuir_number(i,j)= get_langmuir_number(Velocity%ustar(i,j), hbl(i,j), Velocity%u10(i,j))
                   langmuir_factor(i,j) = min(sqrt(1.0 + 1./1.5**2/langmuir_number(i,j)**2 + 1./(5.4**4)/langmuir_number(i,j)**4),LTmax)
                   ws(i,j)=ws(i,j)*langmuir_factor(i,j)
                   wm(i,j)=wm(i,j)*langmuir_factor(i,j)

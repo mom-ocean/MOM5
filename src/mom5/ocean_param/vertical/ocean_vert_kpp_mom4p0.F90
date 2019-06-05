@@ -1194,13 +1194,13 @@ subroutine vert_mix_kpp_mom4p0 (aidif, Time, Thickness, Velocity, T_prog, T_diag
 !     boundary layer mixing coefficients: diagnose new b.l. depth
 !-----------------------------------------------------------------------
 
-      call bldepth(sw_frac_zt, do_wave) 
+      call bldepth(Velocity, sw_frac_zt, do_wave) 
  
 !-----------------------------------------------------------------------
 !     boundary layer diffusivities
 !-----------------------------------------------------------------------
 
-      call blmix_kpp(diff_cbt, visc_cbu, do_wave)
+      call blmix_kpp(Velocity, diff_cbt, visc_cbu, do_wave)
 
 !-----------------------------------------------------------------------
 !     enhance diffusivity at interface kbl - 1
@@ -1460,8 +1460,9 @@ end subroutine vert_mix_kpp_mom4p0
 !      integer kbl(ij_bounds)     ! index of first grid level below hbl         <BR/>
 ! </DESCRIPTION>
 !
-subroutine bldepth(sw_frac_zt, do_wave)
+subroutine bldepth(Velocity, sw_frac_zt, do_wave)
 
+  type(ocean_velocity_type),    intent(in)  :: Velocity
   real, intent(in), dimension(isd:,jsd:,:) :: sw_frac_zt   !3-D array of shortwave fract
   logical, intent(in)                      :: do_wave
 
@@ -1520,7 +1521,7 @@ subroutine bldepth(sw_frac_zt, do_wave)
 !-----------------------------------------------------------------------
 
           iwscale_use_hbl_eq_zt=1
-          call wscale ( iwscale_use_hbl_eq_zt, Grd%zt(kl), do_wave)
+          call wscale ( iwscale_use_hbl_eq_zt, Grd%zt(kl), Velocity, do_wave)
 
 
         do j=jsc,jec
@@ -1687,8 +1688,9 @@ end subroutine bldepth
 !
 ! </DESCRIPTION>
 !
-subroutine wscale(iwscale_use_hbl_eq_zt, zt_kl, do_wave)
+subroutine wscale(iwscale_use_hbl_eq_zt, zt_kl, Velocity, do_wave)
 
+  type(ocean_velocity_type),    intent(in)  :: Velocity
   real,    intent(in) :: zt_kl
   integer, intent(in) :: iwscale_use_hbl_eq_zt
   logical, intent(in) :: do_wave
@@ -2066,8 +2068,9 @@ end subroutine ddmix
 !
 ! </DESCRIPTION>
 !
-subroutine blmix_kpp(diff_cbt, visc_cbu, do_wave)
+subroutine blmix_kpp(Velocity, diff_cbt, visc_cbu, do_wave)
 
+  type(ocean_velocity_type),    intent(in)  :: Velocity
   real, dimension(isd:ied,jsd:jed,nk,2) :: diff_cbt
   real, dimension(isd:ied,jsd:jed,nk)   :: visc_cbu
   logical,intent(in)                    :: do_wave
@@ -2093,7 +2096,7 @@ subroutine blmix_kpp(diff_cbt, visc_cbu, do_wave)
         iwscale_use_hbl_eq_zt = 0
         zt_kl_dummy=0.0
 
-        call wscale (iwscale_use_hbl_eq_zt, zt_kl_dummy, do_wave)
+        call wscale (iwscale_use_hbl_eq_zt, zt_kl_dummy, Velocity, do_wave)
 
       do j=jsc,jec
         do i = isc,iec 
@@ -2163,7 +2166,7 @@ subroutine blmix_kpp(diff_cbt, visc_cbu, do_wave)
           iwscale_use_hbl_eq_zt=0
           zt_kl_dummy=0.0
 
-          call wscale(iwscale_use_hbl_eq_zt, zt_kl_dummy, do_wave)
+          call wscale(iwscale_use_hbl_eq_zt, zt_kl_dummy, Velocity, do_wave)
 
 !-----------------------------------------------------------------------
 !         compute the dimensionless shape functions at the interfaces
@@ -2228,7 +2231,7 @@ subroutine blmix_kpp(diff_cbt, visc_cbu, do_wave)
         iwscale_use_hbl_eq_zt=0
         zt_kl_dummy=0.0
 
-        call wscale(iwscale_use_hbl_eq_zt, zt_kl_dummy, do_wave)
+        call wscale(iwscale_use_hbl_eq_zt, zt_kl_dummy, Velocity, do_wave)
 
         do i = isc,iec
           sig = Grd%zt(kbl(i,j)-1) / (hbl(i,j)+epsln)
