@@ -452,6 +452,24 @@ module ocean_sbc_mod
 !  drift into the interior.  Default read_stokes_drift = .false.
 !  </DATA>
 !
+!  <DATA NAME="do_langmuir" TYPE="logical">
+!  TThis option exists in the event that boundary forcing from a future wave model is
+!  provided. Not to be confused with wave mixing parameterised by supplying 10m
+!  winds.
+!  Default do_langmuir = .false.
+!  </DATA>
+!
+!  <DATA NAME="do_ustar_correction" TYPE="logical">
+!  Compute ustar including the adjusted/correction stress field that has now been
+!  included in smf.
+!  Note, however, that the FAFMIP stess experiment says we should NOT include the perturbed
+!  stress when computing ustar since we do not wish to affect the mixing schemes.
+!  Hence, we should set do_ustar_correction=.false. for FAFMIP in which case ustar just has
+!  contributions from the unperturbed stress.
+!  Default do_ustar_correction = .true. as this reproduces earlier
+! behavior.
+!  </DATA>
+!
 !</NAMELIST>
 !
 
@@ -853,7 +871,7 @@ logical :: use_ideal_runoff               =.false.
 logical :: use_ideal_calving              =.false.
 logical :: read_stokes_drift              =.false.
 logical :: do_langmuir                    =.false.
-logical :: do_ustar_correct               =.true.  ! In FAFMIP stress make this fasl
+logical :: do_ustar_correction            =.true.  ! In FAFMIP stress make this falsel
 
 real    :: constant_sss_for_restore       = 35.0
 real    :: constant_sst_for_restore       = 12.0
@@ -903,7 +921,7 @@ namelist /ocean_sbc_nml/ temp_restore_tscale, salt_restore_tscale, salt_restore_
          temp_correction_scale, salt_correction_scale, tau_x_correction_scale, tau_y_correction_scale, do_bitwise_exact_sum, &
          sbc_heat_fluxes_const, sbc_heat_fluxes_const_value, sbc_heat_fluxes_const_seasonal,                                 &
          use_constant_sss_for_restore, constant_sss_for_restore, use_constant_sst_for_restore, constant_sst_for_restore,     &
-         use_ideal_calving, use_ideal_runoff, constant_hlf, constant_hlv, read_stokes_drift, do_langmuir,  do_ustar_correct
+         use_ideal_calving, use_ideal_runoff, constant_hlf, constant_hlv, read_stokes_drift, do_langmuir,  do_ustar_correction
 
 namelist /ocean_sbc_ofam_nml/ restore_mask_ofam, river_temp_ofam
 
@@ -4900,9 +4918,10 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
      endif
 
   ! Calculate surface friction velocity
-  ! FAFMIP stess experiment says do not do this. Default is tTRUE.
+  ! FAFMIP stess experiment says do not do this. Default is .TRUE. See notes for
+  ! ocean_sbc_nml namelist above
 
-     if ( do_ustar_correct ) then
+     if ( do_ustar_correction ) then
           do j=jsc,jec
               do i=isc,iec
 
