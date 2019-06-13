@@ -483,23 +483,44 @@ subroutine auscom_ice_heatflux_new(Ocean_sfc)
 ! the accumulated AQICE and ATIME back to zero. 
 ! called once in a coupling interval before calling get_o2i_fields.
 ! Now also resets FAFMIP values.
+! In FAFMIP runs the heat flux is based on the redistributed heat tracer.
 
 implicit none
 type (ocean_public_type) :: Ocean_sfc
 
 integer :: i, j
 
-do j = jjsc, jjec
-do i = iisc, iiec
+! If ATIME_redist > 0 then we know that the correct heat flux for frazil should
+! be based on the redistributed heat in a FAFMIP type 2 heat experiment.
 
-  Ocean_sfc%frazil(i,j) = QICE(i,j) * frazil_factor * rho_cp / float(ATIME)
+if ( ATIME_redist > 0 ) then
+
+   do j = jjsc, jjec
+      do i = iisc, iiec
+
+        Ocean_sfc%frazil(i,j) = QICE_redist(i,j) * frazil_factor * rho_cp / float(ATIME_redist)
+  ! here ATIME_redist can be accumulated time (seconds) in a coupling interval 
+  ! or just the ocean time step, depending how often the ice_formation_new
+  ! is called  (21/07/2008, E. Hunke suggested POP calls ice_foramtion
+  !                         once per coupling interval) 
+
+      enddo
+   enddo
+
+else
+
+   do j = jjsc, jjec
+      do i = iisc, iiec
+
+           Ocean_sfc%frazil(i,j) = QICE(i,j) * frazil_factor * rho_cp / float(ATIME)
   ! here ATIME can be accumulated time (seconds) in a coupling interval 
   ! or just the ocean time step, depending how often the ice_formation_new
   ! is called  (21/07/2008, E. Hunke suggested POP calls ice_foramtion
   !                         once per coupling interval) 
 
-enddo
-enddo
+      enddo
+   enddo
+endif
 
 AQICE = 0.0
 ATIME = 0
