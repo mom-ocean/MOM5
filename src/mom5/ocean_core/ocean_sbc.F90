@@ -37,7 +37,21 @@ module ocean_sbc_mod
 ! on the B-grid point.  Code will need to be modified if using another
 ! assumption.  
 !
+! Treatment of flux adjustments may be modified according to the FAFMIP
+! experiment protocol (Gregory et al 2016). See also the design notes by
+! Griffies et al http://www.met.reading.ac.uk/~jonathan/FAFMIP/GFDL_heat.pdf
+! and the FAFMIP website http://www.met.reading.ac.uk/~jonathan/FAFMIP/
+!
 !</DESCRIPTION>
+!
+! <REFERENCE>
+! Gregory, J. M., Bouttes, N., Griffies, S. M., Haak, H., Hurlin, W. J.,
+! Jungclaus, J., Kelley, M., Lee, W. G., Marshall, J., Romanou, A., Saenko, O.
+! A., Stammer, D., and Winton, M.: The Flux-Anomaly-Forced Model Intercomparison
+! Project (FAFMIP) contribution to CMIP6: investigation of sea-level and ocean
+! climate change in response to CO2 forcing, Geosci. Model Dev., 9, 3993-4017,
+! https://doi.org/10.5194/gmd-9-3993-2016, 2016.
+! </REFERENCE>
 !
 !<NAMELIST NAME="ocean_sbc_nml">
 !
@@ -467,7 +481,21 @@ module ocean_sbc_mod
 !  Hence, we should set do_ustar_correction=.false. for FAFMIP in which case ustar just has
 !  contributions from the unperturbed stress.
 !  Default do_ustar_correction = .true. as this reproduces earlier
-! behavior.
+!  behavior.
+!  </DATA>
+!
+!  <DATA NAME="do_frazil_redist" TYPE="logical">
+!  In FAFMIP heat experiments we should be using the heat due to frazil
+!  formation from the redistributed tracer. Previous code unconditionally
+!  used the standard tracer. We allow the  user to override the recommended treatment to
+!  recover old results by setting  do_frazil_redist=.false.. If there is no
+!  frazil_redist_tracer this flag has no effect and the usual treatment of frazil proceeds.
+!  This flag has no effect on the ACCESS treatment of frazil which ALWAYS uses the redistibuted
+!  heat  version if it is available.
+!  Note that the current approach (June 2019) the frazil heats are note quite
+!  the same for the temperature and redistributed heat tracers. See the references above 
+!  for details.
+!  Default do_frazil_redist = .true. 
 !  </DATA>
 !
 !</NAMELIST>
@@ -543,6 +571,7 @@ integer :: prog_salt_variable =-1
 ! FAFMIP heat tracers 
 integer :: index_added_heat  = -1
 integer :: index_redist_heat = -1
+integer :: index_frazil_redist =-1
 
 integer :: memuse
 integer :: num_prog_tracers
@@ -872,6 +901,7 @@ logical :: use_ideal_calving              =.false.
 logical :: read_stokes_drift              =.false.
 logical :: do_langmuir                    =.false.
 logical :: do_ustar_correction            =.true.  ! In FAFMIP stress make this falsel
+logical :: do_frazil_redist               =.true.  ! In FAFMIP heat make this false to recover old (not recommended) behaviour.
 
 real    :: constant_sss_for_restore       = 35.0
 real    :: constant_sst_for_restore       = 12.0
@@ -921,7 +951,8 @@ namelist /ocean_sbc_nml/ temp_restore_tscale, salt_restore_tscale, salt_restore_
          temp_correction_scale, salt_correction_scale, tau_x_correction_scale, tau_y_correction_scale, do_bitwise_exact_sum, &
          sbc_heat_fluxes_const, sbc_heat_fluxes_const_value, sbc_heat_fluxes_const_seasonal,                                 &
          use_constant_sss_for_restore, constant_sss_for_restore, use_constant_sst_for_restore, constant_sst_for_restore,     &
-         use_ideal_calving, use_ideal_runoff, constant_hlf, constant_hlv, read_stokes_drift, do_langmuir,  do_ustar_correction
+         use_ideal_calving, use_ideal_runoff, constant_hlf, constant_hlv, read_stokes_drift, do_langmuir,                    &
+         do_ustar_correction, do_frazil_redist
 
 namelist /ocean_sbc_ofam_nml/ restore_mask_ofam, river_temp_ofam
 
@@ -1215,6 +1246,7 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
    
   do n=1,num_diag_tracers
      if (T_diag(n)%name == 'frazil')   index_frazil    = n
+     if (T_diag(n)%name == 'frazil_redist') index_frazil_redist = n
      if (T_diag(n)%name == 'con_temp') index_diag_temp = n
      if (T_diag(n)%name == 'pot_temp') index_diag_temp = n
   enddo
@@ -1226,6 +1258,10 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
   if (index_diag_temp == -1) then 
     call mpp_error(FATAL, &
     '==>Error in ocean_sbc_mod (ocean_sbc_init): diagnostic temp not identified')
+  endif 
+  if (index_frazil_redist > 0 .and. .not. do_frazil_redist) then 
+    write(stdoutunit,*) &
+    '==>Warning: Using standard frazil calculation despite redistributed version being available'
   endif 
   
   if(T_prog(index_temp)%longname=='Conservative temperature') prog_temp_variable = CONSERVATIVE_TEMP
@@ -2904,8 +2940,21 @@ subroutine sum_ocean_sfc(Time, Thickness, T_prog, T_diag, Dens, Velocity, Ocean_
 
   endif 
 
+!  In FAFMIP heat experiments we should be using the heat from the redistributed
+!  tracer. Previous code uncontionally used the standard tracer. We allow the
+!  user to override the correct treatment to recover old results.
 
-  if(index_frazil > 0) then 
+  if(index_frazil_redist > 0  .and. do_frazil_redist ) then 
+     do k=1,nk
+        do j = jsc_bnd,jec_bnd
+           do i = isc_bnd,iec_bnd
+              ii = i + i_shift
+              jj = j + j_shift
+              Ocean_sfc%frazil(i,j) = Ocean_sfc%frazil(i,j) + T_diag(index_frazil_redist)%field(ii,jj,k)
+           enddo
+        enddo
+     enddo
+  else if(index_frazil > 0 ) then
      do k=1,nk
         do j = jsc_bnd,jec_bnd
            do i = isc_bnd,iec_bnd
