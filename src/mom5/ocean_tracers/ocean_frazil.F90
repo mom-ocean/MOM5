@@ -480,7 +480,7 @@ subroutine ocean_frazil_init (Domain, Grid, Time, Time_steps, Ocean_options, &
          Time%model_time, 'ocn frazil heat flux over time step', 'W/m^2',               &
          missing_value=missing_value, range=(/-1.e10,1.e10/))  
   id_frazil_3d_int_z = register_diag_field ('ocean_model', 'frazil_3d_int_z', Grd%tracer_axes(1:2), &
-         Time%model_time, 'z-integral of ocn frazil heat flux over time step', 'W/m^2', &
+         Time%model_time, 'Vertical sum of ocn frazil heat flux over time step', 'W/m^2', &
          missing_value=missing_value, range=(/-1.e10,1.e10/))
 
   ! for FAFMIP frazil diagnostic tracer 
