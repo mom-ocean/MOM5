@@ -472,7 +472,7 @@ subroutine ocean_frazil_init (Domain, Grid, Time, Time_steps, Ocean_options, &
 
   ! when ice forms only in k=1 cell, only require frazil saved as 2d field 
   id_frazil_2d = register_diag_field ('ocean_model', 'frazil_2d', Grd%tracer_axes(1:2), &
-         Time%model_time, 'ocn frazil heat flux over time step', 'W/m^2',               &
+         Time%model_time, 'ocn frazil heat flux from the top level over time step', 'W/m^2', &
          missing_value=missing_value, range=(/-1.e10,1.e10/))  
 
   ! when ice forms at any depth, require frazil to be saved as 3d field
