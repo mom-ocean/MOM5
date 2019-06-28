@@ -165,6 +165,7 @@ real    :: cp_ocean_r
 logical :: used
 integer :: id_frazil_2d=-1
 integer :: id_frazil_3d=-1
+integer :: id_frazil_3d_int_z=-1
 integer :: id_temp_freeze=-1
 ! for FAFMIP heat tracers 
 integer :: id_frazil_redist_2d=-1
@@ -471,13 +472,16 @@ subroutine ocean_frazil_init (Domain, Grid, Time, Time_steps, Ocean_options, &
 
   ! when ice forms only in k=1 cell, only require frazil saved as 2d field 
   id_frazil_2d = register_diag_field ('ocean_model', 'frazil_2d', Grd%tracer_axes(1:2), &
-         Time%model_time, 'ocn frazil heat flux over time step', 'W/m^2',               &
+         Time%model_time, 'ocn frazil heat flux from the top level over time step', 'W/m^2', &
          missing_value=missing_value, range=(/-1.e10,1.e10/))  
 
   ! when ice forms at any depth, require frazil to be saved as 3d field
   id_frazil_3d = register_diag_field ('ocean_model', 'frazil_3d', Grd%tracer_axes(1:3), &
          Time%model_time, 'ocn frazil heat flux over time step', 'W/m^2',               &
          missing_value=missing_value, range=(/-1.e10,1.e10/))  
+  id_frazil_3d_int_z = register_diag_field ('ocean_model', 'frazil_3d_int_z', Grd%tracer_axes(1:2), &
+         Time%model_time, 'Vertical sum of ocn frazil heat flux over time step', 'W/m^2', &
+         missing_value=missing_value, range=(/-1.e10,1.e10/))
 
   ! for FAFMIP frazil diagnostic tracer 
   id_frazil_redist_2d = register_diag_field ('ocean_model','frazil_redist_2d',Grd%tracer_axes(1:2), &
@@ -542,7 +546,17 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
            Time%model_time, rmask=Grd%tmask(:,:,:), &
            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
     endif
-  
+
+    if (id_frazil_3d_int_z > 0) then
+       wrk1_2d(:,:) = 0.0
+       do k=1,nk
+          wrk1_2d(:,:) = wrk1_2d(:,:) +  T_diag(index_frazil)%field(:,:,k)*dtimer
+       enddo
+       used = send_data(id_frazil_3d_int_z, wrk1_2d(:,:), &
+            Time%model_time, rmask=Grd%tmask(:,:,1), &
+            is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+    endif
+
     return
   endif
 #endif
@@ -693,6 +707,13 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
   endif
   if (id_frazil_3d > 0) then
      call diagnose_3d(Time, Grd, id_frazil_3d, T_diag(index_frazil)%field(:,:,:)*dtimer)
+  endif
+  if (id_frazil_3d_int_z > 0) then
+     wrk1_2d(:,:) = 0.0
+     do k=1,nk
+        wrk1_2d(:,:) = wrk1_2d(:,:) +  T_diag(index_frazil)%field(:,:,k)*dtimer
+     enddo
+     call diagnose_2d(Time, Grd, id_frazil_3d_int_z, wrk1_2d(:,:))
   endif
 
   if(id_temp_freeze > 0) then 
