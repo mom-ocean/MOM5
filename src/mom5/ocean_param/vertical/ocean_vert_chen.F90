@@ -117,7 +117,6 @@ integer, parameter :: isg = 1, ieg = NI_ , jsg = 1, jeg = NJ_
 integer, parameter :: nk = NK_
 
 
-real, dimension(isd:ied,jsd:jed)                :: ustar      ! surface friction velocity       (m/s)
 real                :: BoT        ! thermal turb buoy. forcing  (m^2/s^3)
 real, dimension(isd:ied,jsd:jed)                :: Bosol      ! radiative buoy forcing      (m^2/s^3)
 real                :: BoS        ! salinity buoy forcing      (m^2/s^3)
@@ -136,7 +135,6 @@ integer :: isd, ied, jsd, jed, isc, iec, jsc, jec, nk
 
 
 real, dimension(:,:), allocatable        :: rhosfc     ! potential density of sfc layer(kg/m^3)
-real, dimension(:,:), allocatable        :: ustar      ! surface friction velocity       (m/s)
 real        :: BoT        ! 
 real, dimension(:,:), allocatable        :: Bosol      ! 
 real        :: BoS        !
@@ -309,7 +307,6 @@ ierr = check_nml_error(io_status,'ocean_vert_chen_nml')
   allocate (rit(isd:ied,jsd:jed,nk))
   allocate (hbl(isd:ied,jsd:jed))
 
-  allocate (ustar(isd:ied,jsd:jed))     ! surface friction velocity       (m/s)
   allocate (dbloc(isd:ied,jsd:jed))     ! local delta buoy at interfaces(m/s^2)
   allocate (kbl(isd:ied,jsd:jed))       ! index of first grid level below hbl
   allocate(Bosol(isd:ied,jsd:jed))
@@ -574,7 +571,6 @@ end subroutine vert_mix_chen
 ! from the coupler in ocean_core/ocean_sbc.F90, when using the FMS coupler.
 !
 !      real dbloc(ij_bounds)  = local delta buoyancy         (m/s^2)        
-!      real ustar(ij_bounds)  = surface friction velocity     (m/s)      
 !      real Bo(ij_bounds)     = surface turbulent buoyancy forcing(m^2/s^3)
 !      real Bosol(ij_bounds)  = radiative buoyancy forcing (m^2/s^3)       
 !
@@ -625,18 +621,6 @@ subroutine kraus_turner(Time, Velocity, T_prog, Dens, swflx, pme, mixmask)
      enddo
   enddo
 
-  ! use smf_bgrid since this is directly from the FMS coupler. 
-  do j=jsc,jec
-     do i=isc,iec
-        active_cells = Grd%umask(i,j,1) + Grd%umask(i-1,j,1) +  Grd%umask(i,j-1,1) + Grd%umask(i-1,j-1,1) + epsln
-        smftu = (Velocity%smf_bgrid(i,j,1)   + Velocity%smf_bgrid(i-1,j,1) &
-               + Velocity%smf_bgrid(i,j-1,1) + Velocity%smf_bgrid(i-1,j-1,1) )/active_cells
-        smftv = (Velocity%smf_bgrid(i,j,2)   + Velocity%smf_bgrid(i-1,j,2) &
-               + Velocity%smf_bgrid(i,j-1,2) + Velocity%smf_bgrid(i-1,j-1,2) )/active_cells
-        ustar(i,j) = sqrt(rho0r*sqrt( smftu**2 + smftv**2 ))
-     enddo
-  enddo
-
 
 ! Surface Buoyancy fluxes
 ! Note stf is now ( heat_flux/cp_ocean)
@@ -661,7 +645,7 @@ subroutine kraus_turner(Time, Velocity, T_prog, Dens, swflx, pme, mixmask)
       exdepth=exp(-hbl(i,j)/ssw_atten_depth(i,j))
       pen_ke= Bosol(i,j)*(hbl(i,j)*(1+exdepth)-2.0*ssw_atten_depth(i,j)*(1.0-exdepth))
 
-      wind_mixing(i,j)= 2.0 * bulk_tm * ustar(i,j)**3
+      wind_mixing(i,j)= 2.0 * bulk_tm * Velocity%ustar(i,j)**3
       bulk_tke(i,j)=((1+bulk_tn)*BoTot-(1.0-bulk_tn)*abs(BoTot))/2.0
       tke(i,j)=Grd%tmask(i,j,1)*(wind_mixing(i,j)+hbl(i,j)*bulk_tke(i,j)+pen_ke)
     enddo

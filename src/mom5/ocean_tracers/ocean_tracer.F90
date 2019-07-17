@@ -2490,18 +2490,6 @@ subroutine update_ocean_tracer (Time, Dens, Adv_vel, Thickness, pme, diff_cbt, &
   ! update for Dens%rho_salinity, now that all of the 
   ! updates have been applied to the prognostic salinity.  
   call update_ocean_density_salinity(T_prog, taup1, Dens)
-
-  ! update the diagnostic temperature variable to taup1
-  if(prog_temp_variable==CONSERVATIVE_TEMP) then
-     T_diag(index_diag_temp)%field(:,:,:) = pottemp_from_contemp(Dens%rho_salinity(:,:,:,taup1),        &
-                                                                 T_prog(index_temp)%field(:,:,:,taup1)) &
-                                                                 *Grd%tmask(:,:,:)   
-  else
-     T_diag(index_diag_temp)%field(:,:,:) = contemp_from_pottemp(Dens%rho_salinity(:,:,:,taup1),        &
-                                                                 T_prog(index_temp)%field(:,:,:,taup1)) &
-                                                                 *Grd%tmask(:,:,:)
-  endif
-
   
   ! perform range check for temperature and salinity
   if(use_tempsalt_check_range .or. debug_this_module) then
@@ -2516,6 +2504,20 @@ subroutine update_ocean_tracer (Time, Dens, Adv_vel, Thickness, pme, diff_cbt, &
 
   ! compute watermass diagnostics 
   call watermass_diag(Time, T_prog, T_diag, Dens, Thickness, pme)
+
+
+  ! update the diagnostic temperature variable to taup1. This must be done after
+  ! diagnostics are sent at time tau.
+
+  if(prog_temp_variable==CONSERVATIVE_TEMP) then
+     T_diag(index_diag_temp)%field(:,:,:) = pottemp_from_contemp(Dens%rho_salinity(:,:,:,taup1),        &
+                                                                 T_prog(index_temp)%field(:,:,:,taup1)) &
+                                                                 *Grd%tmask(:,:,:)   
+  else
+     T_diag(index_diag_temp)%field(:,:,:) = contemp_from_pottemp(Dens%rho_salinity(:,:,:,taup1),        &
+                                                                 T_prog(index_temp)%field(:,:,:,taup1)) &
+                                                                 *Grd%tmask(:,:,:)
+  endif
 
   ! Update the combined tracer concentration to be at time taup1.
   ! Do so here so that diagnostics for fieldT are at tau. 

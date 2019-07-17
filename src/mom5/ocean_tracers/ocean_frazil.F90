@@ -132,6 +132,7 @@ use ocean_util_mod,       only: diagnose_2d, diagnose_3d
 use auscom_ice_parameters_mod, only: pop_icediag, do_ice
 use auscom_ice_mod,            only: AQICE
 use auscom_ice_mod,            only: auscom_ice_formation_new
+use auscom_ice_mod,            only: auscom_ice_formation_new_redist
 use diag_manager_mod,          only: send_data
 #endif
 
@@ -531,6 +532,12 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
 
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
   if (pop_icediag) then
+!In FAFMIP runs we need to call this routine first as it is possibe to change
+!the salinity.
+    if(index_frazil_redist > 0) then
+     call compute_frazil_redist_heating(Time, Thickness, Dens, T_prog, T_diag)
+    endif 
+
     if ( do_ice ) then
       T_diag(index_frazil)%field = 0.0
       call auscom_ice_formation_new(Time,T_prog,Thickness, T_diag(index_frazil) )
@@ -785,6 +792,29 @@ subroutine compute_frazil_redist_heating (Time, Thickness, Dens, T_prog, T_diag)
   real     :: press 
 
   if(.not. use_this_module) return 
+
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
+  if (pop_icediag) then
+    if ( do_ice ) then
+      T_diag(index_frazil_redist)%field = 0.0
+!Saliniy is unchanged on return from this routine. 
+      call auscom_ice_formation_new_redist(Time,T_prog,Thickness, T_diag(index_frazil_redist) )
+    endif
+    T_diag(index_frazil_redist)%field=T_diag(index_frazil_redist)%field * Grd%tmask
+    if (id_frazil_redist_2d > 0) then 
+      used = send_data(id_frazil_redist_2d, T_diag(index_frazil_redist)%field(:,:,1)*dtimer, &
+           Time%model_time, rmask=Grd%tmask(:,:,1), &
+           is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+    endif
+    if (id_frazil_redist_3d > 0) then 
+      used = send_data(id_frazil_redist_3d, T_diag(index_frazil_redist)%field(:,:,:)*dtimer, &
+           Time%model_time, rmask=Grd%tmask(:,:,:), &
+           is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
+    endif
+  
+    return
+  endif
+#endif
 
   taup1 = Time%taup1
   tau   = Time%tau
