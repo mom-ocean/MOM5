@@ -3,6 +3,8 @@
 language: c
 sudo: required
 
+dist: trusty
+
 git:
     depth: 3
     quiet: true
@@ -30,7 +32,7 @@ matrix:
 install:
     - sudo apt-add-repository --yes ppa:ubuntu-toolchain-r/test
     - sudo apt-get update
-    - sudo apt-get install csh gcc-4.8 gfortran-4.8 libgomp1 openmpi-bin libopenmpi-dev  libnetcdf-dev  netcdf-bin
+    - sudo apt-get install csh gcc-4.8 gfortran-4.8 libgomp1 openmpi-bin libopenmpi-dev libnetcdf-dev  netcdf-bin
 
 before_script:
     - git clone --depth=1 https://github.com/OceansAus/oasis3-mct.git
@@ -42,3 +44,4 @@ script:
 # after_success:
 #     - find .
 #     - codecov --gcov-exec=gcov-4.8
+
