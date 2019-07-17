@@ -231,11 +231,11 @@ endif
 id_tx_trans = register_diag_field ('ocean_model','tx_trans', Grd%tracer_axes_flux_x(1:3),&
               Time%model_time, 'T-cell i-mass transport',trim(transport_dims),           &
               missing_value=missing_value, range=(/-1e20,1e20/),                         &
-              standard_name='ocean_x_mass_transport')
+              standard_name='ocean_mass_x_transport')
 id_ty_trans = register_diag_field ('ocean_model','ty_trans', Grd%tracer_axes_flux_y(1:3), &
               Time%model_time, 'T-cell j-mass transport',trim(transport_dims),            &
               missing_value=missing_value, range=(/-1e20,1e20/),                          &
-              standard_name='ocean_y_mass_transport')
+              standard_name='ocean_mass_y_transport')
 id_tx_trans_int_z = register_diag_field ('ocean_model','tx_trans_int_z',        &
               Grd%tracer_axes_flux_x(1:2), Time%model_time,                     &
               'T-cell i-mass transport vertically summed',trim(transport_dims), &

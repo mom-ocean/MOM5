@@ -232,7 +232,6 @@ real, dimension(isd:ied,jsd:jed,nk)             :: talpha     ! -d(rho)/ d(pot.t
 real, dimension(isd:ied,jsd:jed,nk)             :: sbeta      ! d(rho)/ d(salinity)       (kg/m^3/PSU)
 real, dimension(isd:ied,jsd:jed,nk)             :: alphaDT    ! alpha * DT  across interfaces (kg/m^3)
 real, dimension(isd:ied,jsd:jed,nk)             :: betaDS     ! beta  * DS  across interfaces (kg/m^3)
-real, dimension(isd:ied,jsd:jed)                :: ustar      ! surface friction velocity       (m/s)
 real, dimension(isd:ied,jsd:jed)                :: Bo         ! surface turb buoy. forcing  (m^2/s^3)
 real, dimension(isd:ied,jsd:jed)                :: Bosol      ! radiative buoy forcing      (m^2/s^3)
 real, dimension(isd:ied,jsd:jed,nk)             :: dbloc      ! local delta buoy at interfaces(m/s^2)
@@ -280,7 +279,6 @@ real, dimension(:,:,:), allocatable    :: talpha   ! -d(rho)/ d(pot.temperature)
 real, dimension(:,:,:), allocatable    :: sbeta    ! d(rho)/ d(salinity)       (kg/m^3/PSU)
 real, dimension(:,:,:), allocatable    :: alphaDT  ! alpha * DT  across interfaces (kg/m^3)
 real, dimension(:,:,:), allocatable    :: betaDS   ! beta  * DS  across interfaces (kg/m^3)
-real, dimension(:,:), allocatable      :: ustar    ! surface friction velocity       (m/s)
 real, dimension(:,:), allocatable      :: Bo       ! surface turb buoy. forcing  (m^2/s^3)
 real, dimension(:,:), allocatable      :: Bosol    ! radiative buoy forcing      (m^2/s^3)
 real, dimension(:,:,:), allocatable    :: dbloc    ! local delta buoy at interfaces(m/s^2)
@@ -633,7 +631,6 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p0_nml')
   allocate (sbeta(isd:ied,jsd:jed,nk))      ! d(rho)/ d(salinity)       (g/m^3/PSU)
   allocate (alphaDT(isd:ied,jsd:jed,nk))    ! alpha * DT  across interfaces (g/m^3)
   allocate (betaDS(isd:ied,jsd:jed,nk))     ! beta  * DS  across interfaces (g/m^3)
-  allocate (ustar(isd:ied,jsd:jed))         ! surface friction velocity       (m/s)
   allocate (Bo(isd:ied,jsd:jed))            ! surface turb buoy. forcing  (m^2/s^3)
   allocate (Bosol(isd:ied,jsd:jed))         ! radiative buoy forcing      (m^2/s^3)
   allocate (dbloc(isd:ied,jsd:jed,nk))      ! local delta buoy at interfaces(m/s^2)
@@ -1154,23 +1151,6 @@ subroutine vert_mix_kpp_mom4p0 (aidif, Time, Thickness, Velocity, T_prog, T_diag
       do j=jsc,jec
         do i=isc,iec
 
-          ! ustar is needed on the "T-grid".  It is assumed that masking of 
-          ! smf over land was performed inside of the ocean_sbc module. 
-          ! smf has units of N/m^2 and so we need rho0r to get ustar in m/s.   
-          ! swflx has units W/m^2 so needs 1/rho_cp to get to C*m/s units.
-          ! these are proper units for buoyancy fluxes.
-          ! use smf_bgrid for either MOM_BGRID or MOM_CGRID, since smf_bgrid
-          ! is taken straight from the FMS coupler, so is more basic than smf_cgrid. 
-          active_cells = Grd%umask(i,j,1)   + Grd%umask(i-1,j,1)   &
-                        +Grd%umask(i,j-1,1) + Grd%umask(i-1,j-1,1) + epsln
-          smftu = rho0r*(Velocity%smf_bgrid(i,j,1)   + Velocity%smf_bgrid(i-1,j,1)     &
-                        +Velocity%smf_bgrid(i,j-1,1) + Velocity%smf_bgrid(i-1,j-1,1))  &
-                  /active_cells
-          smftv = rho0r*(Velocity%smf_bgrid(i,j,2)   + Velocity%smf_bgrid(i-1,j,2)    &
-                        +Velocity%smf_bgrid(i,j-1,2) + Velocity%smf_bgrid(i-1,j-1,2)) &
-                   /active_cells
-          ustar(i,j) = sqrt( sqrt(smftu**2 + smftv**2) )
-          
           Bo(i,j)    = grav * (talpha(i,j,1) * &
                  (wsfc(index_temp)%wsfc(i,j)+frazil(i,j)/(rho_cp*tracer_timestep))  &
                  -sbeta (i,j,1) * wsfc(index_salt)%wsfc(i,j)) &     
@@ -1214,13 +1194,13 @@ subroutine vert_mix_kpp_mom4p0 (aidif, Time, Thickness, Velocity, T_prog, T_diag
 !     boundary layer mixing coefficients: diagnose new b.l. depth
 !-----------------------------------------------------------------------
 
-      call bldepth(sw_frac_zt, do_wave) 
+      call bldepth(Velocity, sw_frac_zt, do_wave) 
  
 !-----------------------------------------------------------------------
 !     boundary layer diffusivities
 !-----------------------------------------------------------------------
 
-      call blmix_kpp(diff_cbt, visc_cbu, do_wave)
+      call blmix_kpp(Velocity, diff_cbt, visc_cbu, do_wave)
 
 !-----------------------------------------------------------------------
 !     enhance diffusivity at interface kbl - 1
@@ -1480,8 +1460,9 @@ end subroutine vert_mix_kpp_mom4p0
 !      integer kbl(ij_bounds)     ! index of first grid level below hbl         <BR/>
 ! </DESCRIPTION>
 !
-subroutine bldepth(sw_frac_zt, do_wave)
+subroutine bldepth(Velocity, sw_frac_zt, do_wave)
 
+  type(ocean_velocity_type),    intent(in)  :: Velocity
   real, intent(in), dimension(isd:,jsd:,:) :: sw_frac_zt   !3-D array of shortwave fract
   logical, intent(in)                      :: do_wave
 
@@ -1540,7 +1521,7 @@ subroutine bldepth(sw_frac_zt, do_wave)
 !-----------------------------------------------------------------------
 
           iwscale_use_hbl_eq_zt=1
-          call wscale ( iwscale_use_hbl_eq_zt, Grd%zt(kl), do_wave)
+          call wscale ( iwscale_use_hbl_eq_zt, Grd%zt(kl), Velocity, do_wave)
 
 
         do j=jsc,jec
@@ -1621,8 +1602,8 @@ subroutine bldepth(sw_frac_zt, do_wave)
       do j=jsc,jec
         do i = isc,iec
           if (bfsfc(i,j) > 0.0) then
-             hekman = cekman * ustar(i,j) / (abs(Grd%f(i,j))+epsln)
-             hmonob = cmonob * ustar(i,j)*ustar(i,j)*ustar(i,j)     &
+             hekman = cekman * Velocity%ustar(i,j) / (abs(Grd%f(i,j))+epsln)
+             hmonob = cmonob * Velocity%ustar(i,j)*Velocity%ustar(i,j)*Velocity%ustar(i,j)     &
                      /vonk / (bfsfc(i,j)+epsln) 
              hlimit = stable(i,j)     * AMIN1(hekman,hmonob) +      &
                      (stable(i,j)-1.) * (Grd%zt(nk))
@@ -1707,8 +1688,9 @@ end subroutine bldepth
 !
 ! </DESCRIPTION>
 !
-subroutine wscale(iwscale_use_hbl_eq_zt, zt_kl, do_wave)
+subroutine wscale(iwscale_use_hbl_eq_zt, zt_kl, Velocity, do_wave)
 
+  type(ocean_velocity_type),    intent(in)  :: Velocity
   real,    intent(in) :: zt_kl
   integer, intent(in) :: iwscale_use_hbl_eq_zt
   logical, intent(in) :: do_wave
@@ -1740,7 +1722,7 @@ subroutine wscale(iwscale_use_hbl_eq_zt, zt_kl, do_wave)
             iz = max( iz , 0  )
             izp1=iz+1
             
-            udiff  = ustar(i,j)-umin
+            udiff  = Velocity%ustar(i,j)-umin
 
             ju = int( min(udiff/deltau,float(nnj)))
             ju = max( ju , 0  )
@@ -1758,8 +1740,8 @@ subroutine wscale(iwscale_use_hbl_eq_zt, zt_kl, do_wave)
             wbs   = (fzfrac)  * wst(iz,ju  ) + zfrac*wst(izp1,ju  )
             ws(i,j) = (1.-ufrac)* wbs          + ufrac*was
           else
-            u3    = ustar(i,j)*ustar(i,j)*ustar(i,j)
-            wm(i,j) = vonk * ustar(i,j) * u3 / ( u3 + conc1*zehat + epsln )
+            u3    = Velocity%ustar(i,j)*Velocity%ustar(i,j)*Velocity%ustar(i,j)
+            wm(i,j) = vonk * Velocity%ustar(i,j) * u3 / ( u3 + conc1*zehat + epsln )
             ws(i,j) = wm(i,j)
           endif
         enddo
@@ -1770,9 +1752,10 @@ subroutine wscale(iwscale_use_hbl_eq_zt, zt_kl, do_wave)
       if (do_wave .and. do_langmuir) then
          do j=jsc,jec
             do i=isc,iec
-               Cw_smyth=Cw_0*(ustar(i,j)*ustar(i,j)*ustar(i,j)/(ustar(i,j)*ustar(i,j)*ustar(i,j) &
+               Cw_smyth=Cw_0*(Velocity%ustar(i,j)*Velocity%ustar(i,j)*Velocity%ustar(i,j)/ &
+                     (Velocity%ustar(i,j)*Velocity%ustar(i,j)*Velocity%ustar(i,j) &
                     + Wstfac* 0.4 *bfsfc(i,j)*hbl(i,j) + epsln))**l_smyth
-               langmuirfactor=sqrt(1+Cw_smyth*Ustk2(i,j)/(ustar(i,j)*ustar(i,j) + epsln))
+               langmuirfactor=sqrt(1+Cw_smyth*Ustk2(i,j)/(Velocity%ustar(i,j)*Velocity%ustar(i,j) + epsln))
                langmuirfactor = max(1.0, langmuirfactor)
                langmuirfactor = min(LTmax, langmuirfactor)
                ws(i,j)=ws(i,j)*langmuirfactor
@@ -2085,8 +2068,9 @@ end subroutine ddmix
 !
 ! </DESCRIPTION>
 !
-subroutine blmix_kpp(diff_cbt, visc_cbu, do_wave)
+subroutine blmix_kpp(Velocity, diff_cbt, visc_cbu, do_wave)
 
+  type(ocean_velocity_type),    intent(in)  :: Velocity
   real, dimension(isd:ied,jsd:jed,nk,2) :: diff_cbt
   real, dimension(isd:ied,jsd:jed,nk)   :: visc_cbu
   logical,intent(in)                    :: do_wave
@@ -2112,7 +2096,7 @@ subroutine blmix_kpp(diff_cbt, visc_cbu, do_wave)
         iwscale_use_hbl_eq_zt = 0
         zt_kl_dummy=0.0
 
-        call wscale (iwscale_use_hbl_eq_zt, zt_kl_dummy, do_wave)
+        call wscale (iwscale_use_hbl_eq_zt, zt_kl_dummy, Velocity, do_wave)
 
       do j=jsc,jec
         do i = isc,iec 
@@ -2147,7 +2131,7 @@ subroutine blmix_kpp(diff_cbt, visc_cbu, do_wave)
           difsh  = diff_cbt(i,j,kn,2) + difsp * delhat
           difth  = diff_cbt(i,j,kn,1)     + diftp * delhat
 
-          f1 = stable(i,j) * conc1 * bfsfc(i,j) / (ustar(i,j)**4+epsln) 
+          f1 = stable(i,j) * conc1 * bfsfc(i,j) / (Velocity%ustar(i,j)**4+epsln) 
 
           gat1(i,j,1) = visch / (hbl(i,j)+epsln) / (wm(i,j)+epsln)
           dat1(i,j,1) = -viscp / (wm(i,j)+epsln) + f1 * visch
@@ -2182,7 +2166,7 @@ subroutine blmix_kpp(diff_cbt, visc_cbu, do_wave)
           iwscale_use_hbl_eq_zt=0
           zt_kl_dummy=0.0
 
-          call wscale(iwscale_use_hbl_eq_zt, zt_kl_dummy, do_wave)
+          call wscale(iwscale_use_hbl_eq_zt, zt_kl_dummy, Velocity, do_wave)
 
 !-----------------------------------------------------------------------
 !         compute the dimensionless shape functions at the interfaces
@@ -2247,7 +2231,7 @@ subroutine blmix_kpp(diff_cbt, visc_cbu, do_wave)
         iwscale_use_hbl_eq_zt=0
         zt_kl_dummy=0.0
 
-        call wscale(iwscale_use_hbl_eq_zt, zt_kl_dummy, do_wave)
+        call wscale(iwscale_use_hbl_eq_zt, zt_kl_dummy, Velocity, do_wave)
 
         do i = isc,iec
           sig = Grd%zt(kbl(i,j)-1) / (hbl(i,j)+epsln)
