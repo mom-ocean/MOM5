@@ -34,6 +34,19 @@ env:
         - FC=gfortran
         - OMPI_FC=${FC}
     
+<<<<<<< HEAD
+=======
+matrix:
+  allow_failures:
+    - env: TYPE=ACCESS-OM
+    # - env: TYPE=ACCESS-CM
+
+install:
+    - sudo apt-add-repository --yes ppa:ubuntu-toolchain-r/test
+    - sudo apt-get update
+    - sudo apt-get install csh gfortran libopenmpi1.10 libgomp1 openmpi-bin libopenmpi-dev libnetcdf-dev libnetcdff-dev libnetcdff6 netcdf-bin cmake
+
+>>>>>>> Updated travis.yml to work with xenial distribution
 before_script:
     - echo $(nf-config --flibs)
     - echo $(nf-config --fflags)
