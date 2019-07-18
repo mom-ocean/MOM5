@@ -40,7 +40,6 @@ env:
         - TYPE=ACCESS-OM-BGC
         - TYPE=ACCESS-ESM
     global:
-        - FC=gfortran
         - OMPI_FC=${FC}
     
 before_script:
