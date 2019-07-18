@@ -43,7 +43,7 @@ matrix:
 
 install:
     - sudo apt-get update
-    - sudo apt-get install csh gfortran libopenmpi1.10 libgomp1 openmpi-bin libopenmpi-dev libnetcdf-dev libnetcdff-dev libnetcdf netcdf-bin cmake
+    - sudo apt-get install csh gfortran libopenmpi1.10 libgomp1 openmpi-bin libopenmpi-dev libnetcdf-dev libnetcdff-dev libnetcdf11 netcdf-bin cmake
 
 >>>>>>> Updated travis.yml to work with xenial distribution
 before_script:
