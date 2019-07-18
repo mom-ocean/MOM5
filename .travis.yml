@@ -5,6 +5,15 @@ sudo: required
 
 dist: xenial
 
+addons:
+  apt:
+    update: true
+    packages:
+      - pkg-config csh cmake 
+      - gfortran 
+      - openmpi-bin libopenmpi-dev libopenmpi1.10 
+      - netcdf-bin libnetcdf-dev libnetcdff-dev libnetcdf11
+
 git:
     depth: 3
     quiet: true
@@ -34,18 +43,6 @@ env:
         - FC=gfortran
         - OMPI_FC=${FC}
     
-<<<<<<< HEAD
-=======
-matrix:
-  allow_failures:
-    - env: TYPE=ACCESS-OM
-    # - env: TYPE=ACCESS-CM
-
-install:
-    - sudo apt-get update
-    - sudo apt-get install csh gfortran libopenmpi1.10 libgomp1 openmpi-bin libopenmpi-dev libnetcdf-dev libnetcdff-dev libnetcdf11 netcdf-bin cmake
-
->>>>>>> Updated travis.yml to work with xenial distribution
 before_script:
     - echo $(nf-config --flibs)
     - echo $(nf-config --fflags)
