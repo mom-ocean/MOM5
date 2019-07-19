@@ -1,23 +1,6 @@
-! -*-f90-*-
 
-!***********************************************************************
-!*                   GNU Lesser General Public License
-!*
-!* This file is part of the GFDL Flexible Modeling System (FMS).
-!*
-!* FMS is free software: you can redistribute it and/or modify it under
-!* the terms of the GNU Lesser General Public License as published by
-!* the Free Software Foundation, either version 3 of the License, or (at
-!* your option) any later version.
-!*
-!* FMS is distributed in the hope that it will be useful, but WITHOUT
-!* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-!* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-!* for more details.
-!*
-!* You should have received a copy of the GNU Lesser General Public
-!* License along with FMS.  If not, see <http://www.gnu.org/licenses/>.
-!***********************************************************************
+! -*-f90-*-
+! $Id$
 
 ! <SUBROUTINE NAME="mpp_open">
 
@@ -180,11 +163,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     subroutine mpp_open( unit, file, action, form, access, threading, &
                          fileset, iospec, nohdrs, recl,               &
-                         iostat, is_root_pe, domain, &
-!----------
-!ug support
-                         domain_ug)
-!----------
+                         iostat, is_root_pe, domain )
       integer,         intent(out)           :: unit   
       character(len=*), intent(in)           :: file
       integer,          intent(in), optional :: action, form, access 
@@ -194,10 +173,7 @@
       integer,         intent(out), optional :: iostat
       logical,          intent(in), optional :: is_root_pe      
       type(domain2d),   intent(in), optional :: domain
-!----------
-!ug support
-      type(domainUG),target,intent(in),optional :: domain_ug
-!----------
+
       character(len=16)  :: act, acc, for, pos
       character(len=128) :: mesg
       character(len=256) :: text2
@@ -207,14 +183,7 @@
       logical :: write_on_this_pe, read_on_this_pe, io_domain_exist
       integer :: ios, nc_pos     !position of .nc in file name
       type(axistype) :: unlim    !used by netCDF with mpp_append
-
-!----------
-!ug support
-      type(domain2d),pointer :: io_domain
-      type(domainUG),pointer :: io_domain_ug
-      integer(INT_KIND)      :: io_layout_ug
-      integer(INT_KIND)      :: tile_id_ug
-!----------
+      type(domain2d), pointer :: io_domain=>NULL()
       integer*8                             :: lenp
       integer                               :: comm
       integer                               :: info, ierror
@@ -226,20 +195,8 @@
       integer                               ::fsize, inital = 0
       character(len=128)                    :: f_test
       
-!----------
-!ug support
-     !Only allow one type of mpp domain.
-      if (present(domain) .and. present(domain_ug)) then
-          call mpp_error(FATAL, &
-                         "mpp_open: domain and domain_ug cannot both be" &
-                         //" present in the same mpp_open call.")
-      endif
-
-     !Null initialize the unstructured I/O domain pointer.
-      io_domain => null()
-      io_domain_ug => null()
-!----------
-     
+      
+      
       call mpp_clock_begin(mpp_open_clock)
       if( .NOT.module_is_initialized )call mpp_error( FATAL, 'MPP_OPEN: must first call mpp_io_init.' )
       on_root_pe = mpp_pe() == mpp_root_pe()
@@ -267,14 +224,6 @@
       if( PRESENT(domain) ) then
          io_domain => mpp_get_io_domain(domain)
          if(associated(io_domain)) io_domain_exist = .true.
-
-!----------
-!ug support
-      elseif (present(domain_ug)) then
-          io_domain_ug => mpp_get_UG_io_domain(domain_ug)
-          io_domain_exist = .true.
-!----------
-
       endif
 
       write_on_this_pe = .true.
@@ -295,17 +244,8 @@
       endif   
    
       if( io_domain_exist) then
-
-!----------
-!ug support
-          if (associated(io_domain)) then
-             ! in this case, only write out from the root_pe of io_domain.
-              write_on_this_pe = mpp_domain_is_tile_root_pe(io_domain)
-          elseif (associated(io_domain_ug)) then
-              write_on_this_pe = mpp_domain_UG_is_tile_root_pe(io_domain_ug)
-          endif
-!----------
-
+          ! in this case, only write out from the root_pe of io_domain.
+          write_on_this_pe = mpp_domain_is_tile_root_pe(io_domain)
       endif 
       if( action_flag == MPP_RDONLY) write_on_this_pe = .false.
       !get a unit number
@@ -339,13 +279,6 @@
       if( PRESENT(domain) ) then
          allocate(mpp_file(unit)%domain)
          mpp_file(unit)%domain = domain
-
-!----------
-!ug support
-      elseif (present(domain_ug)) then
-          mpp_file(unit)%domain_ug => domain_ug
-!----------
-
       endif
 
 !get a filename
@@ -355,80 +288,29 @@
       length = len_trim(file)      
       if(form_flag.EQ.MPP_NETCDF.AND. file(length-2:length) /= '.nc' .AND. .NOT.dist_file) &
          text = trim(file)//'.nc'
-
-!----------
-!ug support
-!HELP: Is there any way to retrieve the I/O layout for an unstructured grid?
-!      I could not find a way, so I added it into mpp_domains.
-      if (present(domain)) then
-          io_layout = mpp_get_io_domain_layout(domain)
-      elseif (present(domain_ug)) then
-          io_layout_ug = mpp_get_io_domain_UG_layout(domain_ug)
-      endif
-!----------
-
+      if(present(domain)) io_layout = mpp_get_io_domain_layout(domain) 
       if( io_domain_exist) then
-
-!----------
-!ug support
-          if (present(domain) .and. io_layout(1)*io_layout(2) .gt. 1) then
-              fileset_flag = MPP_MULTI
-              threading_flag = MPP_MULTI
-              tile_id = mpp_get_tile_id(io_domain)
-              text2 = trim(text)
-              if (tile_id(1) .ge. 10000) then
-                  call mpp_error(FATAL, &
-                                 "mpp_open: tile_id should be less than" &
-                                 //" 10000 when io_domain exist")
-              endif
-              write(text,'(a,i4.4)') trim(text)//'.',tile_id(1)
-              if (action_flag .eq. MPP_RDONLY) then
-                  inquire(file=trim(text),EXIST=exists)
-                  if (.not. exists) then
-                      write(text2,'(a,i6.6)') trim(text2)//'.',tile_id(1)
-                      inquire(file=trim(text2),EXIST=exists)
-                      if (.not.exists) then
-                          call mpp_error(FATAL, &
-                                         "mpp_open: neither "// &
-                                         trim(text)//" nor "// &
-                                         trim(text2)//" exist and io" &
-                                         //" domain exist.")
-                      endif
-                      text = trim(text2)
-                  endif
-              endif
-          elseif (present(domain_ug) .and. io_layout_ug .gt. 1) then
-              fileset_flag = MPP_MULTI
-              threading_flag = MPP_MULTI
-              tile_id_ug = mpp_get_UG_domain_tile_id(io_domain_ug)
-              text2 = trim(text)
-              if (tile_id_ug .ge. 10000) then
-                  call mpp_error(FATAL, &
-                                 "mpp_open: tile_id should be less than" &
-                                 //" 10000 when io_domain exist")
-              endif
-              write(text,'(a,i4.4)') trim(text)//'.',tile_id_ug
-              if (action_flag .eq. MPP_RDONLY) then
-                  inquire(file=trim(text),EXIST=exists)
-                  if (.not. exists) then
-                      write(text2,'(a,i6.6)') trim(text2)//'.',tile_id_ug
-                      inquire(file=trim(text2),EXIST=exists)
-                      if (.not.exists) then
-                          call mpp_error(FATAL, &
-                                         "mpp_open: neither "// &
-                                         trim(text)//" nor "// &
-                                         trim(text2)//" exist and io" &
-                                         //" domain exist.")
-                      endif
-                      text = trim(text2)
-                  endif
-              endif
-          else
-              fileset_flag = MPP_SINGLE
-              threading_flag = MPP_SINGLE
-          endif
-!----------
-
+         if( io_layout(1)*io_layout(2) > 1) then
+            fileset_flag = MPP_MULTI
+            threading_flag = MPP_MULTI
+            tile_id = mpp_get_tile_id(io_domain)
+            text2 = trim(text)
+            if(tile_id(1) .GE. 10000) call mpp_error(FATAL, 'mpp_open: tile_id should be less than 10000 when io_domain exist')
+            write( text,'(a,i4.4)' )trim(text)//'.', tile_id(1)
+            if( action_flag == MPP_RDONLY ) then
+               inquire(file=trim(text),EXIST=exists)
+               if(.not. exists) then
+                  write( text2,'(a,i6.6)' )trim(text2)//'.', tile_id(1)
+                  inquire(file=trim(text2),EXIST=exists)
+                  if(.not.exists) call mpp_error(FATAL, 'mpp_open: neither '// &
+                                  trim(text)//' nor '//trim(text2)//' exist and io domain exist')
+                  text = trim(text2)
+               endif
+            endif
+         else
+            fileset_flag   = MPP_SINGLE
+            threading_flag = MPP_SINGLE
+         endif
       else if( fileset_flag.EQ.MPP_MULTI ) then
          if(mpp_npes() > 10000) then
             write( text,'(a,i6.6)' )trim(text)//'.', pe-mpp_root_pe()
@@ -631,7 +513,7 @@
               if( verbose )print '(a,i6,i16,i4)', 'MPP_OPEN: append to existing netCDF file: pe, ncid, time_axis_id=',&
                    pe, mpp_file(unit)%ncid, mpp_file(unit)%id
               mpp_file(unit)%format=form_flag ! need this for mpp_read
-              call mpp_read_meta(unit, read_time=.FALSE.)
+!              call mpp_read_meta(unit)
           else if( action_flag.EQ.MPP_RDONLY )then
                inquire(file=trim(mpp_file(unit)%name),EXIST=exists)
               if (.NOT.exists) call mpp_error(FATAL,'MPP_OPEN:'&
@@ -640,7 +522,7 @@
               if( verbose )print '(a,i6,i16,i4)', 'MPP_OPEN: opening existing netCDF file: pe, ncid, time_axis_id=',&
                    pe, mpp_file(unit)%ncid, mpp_file(unit)%id
               mpp_file(unit)%format=form_flag ! need this for mpp_read
-              call mpp_read_meta(unit, read_time=.TRUE.)
+              call mpp_read_meta(unit)
           end if
           mpp_file(unit)%opened = .TRUE.
 #elif use_LARGEFILE
@@ -671,7 +553,7 @@
               if( verbose )print '(a,i6,i16,i4)', 'MPP_OPEN: append to existing netCDF file: pe, ncid, time_axis_id=',&
                    pe, mpp_file(unit)%ncid, mpp_file(unit)%id
               mpp_file(unit)%format=form_flag ! need this for mpp_read
-              call mpp_read_meta(unit, read_time=.FALSE.)
+!              call mpp_read_meta(unit)
           else if( action_flag.EQ.MPP_RDONLY )then
                inquire(file=trim(mpp_file(unit)%name),EXIST=exists)
               if (.NOT.exists) call mpp_error(FATAL,'MPP_OPEN:'&
@@ -680,7 +562,7 @@
               if( verbose )print '(a,i6,i16,i4)', 'MPP_OPEN: opening existing netCDF file: pe, ncid, time_axis_id=',&
                    pe, mpp_file(unit)%ncid, mpp_file(unit)%id
               mpp_file(unit)%format=form_flag ! need this for mpp_read
-              call mpp_read_meta(unit, read_time=.TRUE.)
+              call mpp_read_meta(unit)
           end if
           mpp_file(unit)%opened = .TRUE.
 #else
@@ -711,7 +593,7 @@
               if( verbose )print '(a,i6,i16,i4)', 'MPP_OPEN: append to existing netCDF file: pe, ncid, time_axis_id=',&
                    pe, mpp_file(unit)%ncid, mpp_file(unit)%id
               mpp_file(unit)%format=form_flag ! need this for mpp_read
-              call mpp_read_meta(unit, read_time=.FALSE.)
+!              call mpp_read_meta(unit)
           else if( action_flag.EQ.MPP_RDONLY )then
                inquire(file=trim(mpp_file(unit)%name),EXIST=exists)
               if (.NOT.exists) call mpp_error(FATAL,'MPP_OPEN:'&
@@ -720,7 +602,7 @@
               if( verbose )print '(a,i6,i16,i4)', 'MPP_OPEN: opening existing netCDF file: pe, ncid, time_axis_id=',&
                    pe, mpp_file(unit)%ncid, mpp_file(unit)%id
               mpp_file(unit)%format=form_flag ! need this for mpp_read
-              call mpp_read_meta(unit, read_time=.TRUE.)
+              call mpp_read_meta(unit)
           end if
           mpp_file(unit)%opened = .TRUE.
 
@@ -789,17 +671,6 @@
                 nfiles = io_layout(1)*io_layout(2)
                 npes = mpp_get_domain_npes(domain)
                 if(nfiles > npes) nfiles = npes
-
-!----------
-!ug support
-             elseif (present(domain_ug)) then
-                 nfiles = io_layout_ug
-                 npes = mpp_get_UG_domain_npes(domain_ug)
-                 if (nfiles .gt. npes) then
-                     nfiles = npes
-                 endif
-!----------
-
              else
                 nfiles = mpp_npes()
              endif
@@ -807,17 +678,7 @@
           end if
       end if   
 
-!----------
-!ug support
-     !<Nullify local pointers.
-      if (associated(io_domain)) then
-          io_domain => NULL()
-      endif
-      if (associated(io_domain_ug)) then
-          io_domain_ug => null()
-      endif
-!----------
-
+      if(ASSOCIATED(io_domain) )io_domain=>NULL()
       call mpp_clock_end(mpp_open_clock)              
       return
     end subroutine mpp_open
@@ -963,19 +824,7 @@
       mpp_file(unit)%valid = .false.
       mpp_file(unit)%io_domain_exist = .false.
       mpp_file(unit)%write_on_this_pe = .false.
-
-!----------
-!ug support
-     !<There was a memory leak here.  The mpp_file(unit)%domain was set
-     !!to point to null without begin deallocated first (it is allocated
-     !!in mpp_open above).
-      if (associated(mpp_file(unit)%domain)) then
-          deallocate(mpp_file(unit)%domain)
-          mpp_file(unit)%domain => null()
-      elseif (associated(mpp_file(unit)%domain_ug)) then
-          mpp_file(unit)%domain_ug => null()
-      endif
-!----------
+      if(Associated(mpp_file(unit)%domain)) mpp_file(unit)%domain=>NULL() 
 
       call mpp_clock_end(mpp_close_clock)
       return

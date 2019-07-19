@@ -1,22 +1,3 @@
-!***********************************************************************
-!*                   GNU Lesser General Public License
-!*
-!* This file is part of the GFDL Flexible Modeling System (FMS).
-!*
-!* FMS is free software: you can redistribute it and/or modify it under
-!* the terms of the GNU Lesser General Public License as published by
-!* the Free Software Foundation, either version 3 of the License, or (at
-!* your option) any later version.
-!*
-!* FMS is distributed in the hope that it will be useful, but WITHOUT
-!* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-!* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-!* for more details.
-!*
-!* You should have received a copy of the GNU Lesser General Public
-!* License along with FMS.  If not, see <http://www.gnu.org/licenses/>.
-!***********************************************************************
-
 function MPP_CHKSUM_INT_( var, pelist, mask_val )
   integer(LONG_KIND) :: MPP_CHKSUM_INT_
       MPP_TYPE_, intent(in) :: var MPP_RANK_
@@ -90,8 +71,8 @@ function MPP_CHKSUM_INT_RMASK_( var, pelist, mask_val )
         errStr = errStr // tmpstr3 // ") mask_val="
         write(unit=tmpstr4,fmt=*) mask_val
         errStr = errStr // trim(tmpstr4) // "has been called with these strange values. Check your KINDS, _FillValue, pack and mask_val. // &
-            & Hint: Try being explicit and using MPP_FILL_{INT,FLOAT,DOUBLE}. Continuing by using the default MPP_FILL_INT. // &
-            & THIS WILL BE FATAL IN THE FUTURE!"
+             Hint: Try being explicit and using MPP_FILL_{INT,FLOAT,DOUBLE}. Continuing by using the default MPP_FILL_INT. // &
+             THIS WILL BE FATAL IN THE FUTURE!"
         call mpp_error(WARNING, trim(errStr) )
 
         imask_val = MPP_FILL_INT

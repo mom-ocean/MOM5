@@ -1,21 +1,3 @@
-!***********************************************************************
-!*                   GNU Lesser General Public License
-!*
-!* This file is part of the GFDL Flexible Modeling System (FMS).
-!*
-!* FMS is free software: you can redistribute it and/or modify it under
-!* the terms of the GNU Lesser General Public License as published by
-!* the Free Software Foundation, either version 3 of the License, or (at
-!* your option) any later version.
-!*
-!* FMS is distributed in the hope that it will be useful, but WITHOUT
-!* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-!* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-!* for more details.
-!*
-!* You should have received a copy of the GNU Lesser General Public
-!* License along with FMS.  If not, see <http://www.gnu.org/licenses/>.
-!***********************************************************************
 module get_cal_time_mod
 
 !   <CONTACT EMAIL="fms@gfdl.noaa.gov">
@@ -57,8 +39,8 @@ logical :: allow_calendar_conversion=.true.
 namelist / get_cal_time_nml / allow_calendar_conversion
 ! </NAMELIST>
 
-! Include variable "version" to be written to log file.
-#include<file_version.h>
+character(len=128) :: version='$Id$'
+character(len=128) :: tagname='$Name$'
 
 contains
 !------------------------------------------------------------------------
@@ -196,7 +178,7 @@ if(.not.module_is_initialized) then
   20 call close_file (namelist_unit)
 #endif
 
-  call write_version_number("GET_CAL_TIME_MOD", version)
+  call write_version_number (version, tagname)
   logunit = stdlog()
   if(mpp_pe() == mpp_root_pe()) write (logunit, nml=get_cal_time_nml)
   module_is_initialized = .true.

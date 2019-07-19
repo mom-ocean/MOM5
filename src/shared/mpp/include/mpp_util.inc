@@ -1,24 +1,7 @@
+
 ! -*-f90-*-
+! $Id$
 
-
-!***********************************************************************
-!*                   GNU Lesser General Public License
-!*
-!* This file is part of the GFDL Flexible Modeling System (FMS).
-!*
-!* FMS is free software: you can redistribute it and/or modify it under
-!* the terms of the GNU Lesser General Public License as published by
-!* the Free Software Foundation, either version 3 of the License, or (at
-!* your option) any later version.
-!*
-!* FMS is distributed in the hope that it will be useful, but WITHOUT
-!* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-!* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-!* for more details.
-!*
-!* You should have received a copy of the GNU Lesser General Public
-!* License along with FMS.  If not, see <http://www.gnu.org/licenses/>.
-!***********************************************************************
 
 #ifdef use_libSMA
 #include <mpp_util_sma.inc>
@@ -1323,17 +1306,17 @@ end function rarray_to_char
 ! read(input_nml_file, nml=<name_nml>, iostat=status)
 !
 ! 
-  subroutine read_input_nml(pelist_name_in)
+  subroutine read_input_nml()
 
-! Include variable "version" to be written to log file.
-#include<file_version.h>
+! version and tagging information
+    character(len=128) :: version = '$Id$'
+    character(len=128) :: tagname = '$Name$' 
 
-    character(len=*), intent(in), optional :: pelist_name_in
 ! private variables
     integer :: log_unit
     integer :: num_lines, i
     logical :: file_exist
-    character(len=len(peset(current_peset_num)%name)) :: pelist_name
+    character(len=32) :: pelist_name
     character(len=128) :: filename
 
 ! check the status of input_nml_file
@@ -1342,17 +1325,7 @@ end function rarray_to_char
     endif
 
 ! the following code is necessary for using alternate namelist files (nests, stretched grids, etc)
-    if (PRESENT(pelist_name_in)) then
-      ! test to make sure length of pelist_name_in is <= pelist_name
-      if (LEN(pelist_name_in) > LEN(pelist_name)) then
-        call mpp_error(FATAL,  &
-           "mpp_util.inc: read_input_nml optional argument pelist_name_in has size greater than local pelist_name")
-      else
-        pelist_name = pelist_name_in
-      endif
-    else
-      pelist_name = mpp_get_current_pelist_name()
-    endif
+    pelist_name = mpp_get_current_pelist_name()
     filename='input_'//trim(pelist_name)//'.nml'
     inquire(FILE=filename, EXIST=file_exist)
     if (.not. file_exist ) then
@@ -1366,7 +1339,7 @@ end function rarray_to_char
     if (pe == root_pe) then
        log_unit = stdlog()
        write(log_unit,'(a)')  '========================================================================'
-       write(log_unit,'(a)')  'READ_INPUT_NML: '//trim(version)
+       write(log_unit,'(a)')  'READ_INPUT_NML: '//trim(version)//':'//trim(tagname)
        write(log_unit,'(a)')  'READ_INPUT_NML: '//trim(filename)//' '
        do i = 1, num_lines
           write(log_unit,*) trim(input_nml_file(i))
@@ -1466,8 +1439,9 @@ end function rarray_to_char
     character(len=*), intent(inout), dimension(:) :: Content
     integer, intent(in), optional,   dimension(:) :: PELIST
 
-    ! Include variable "version" to be written to log file.
-#include<file_version.h>
+    ! version and tagging information
+    character(len=*), parameter :: VERSION = '$Id$'
+    character(len=*), parameter :: TAGNAME = '$Name$' 
 
     character(len=5) :: text
     logical :: file_exist
@@ -1488,7 +1462,7 @@ end function rarray_to_char
        ! write info logfile
        log_unit = stdlog()
        write(log_unit,'(a)')  '========================================================================'
-       write(log_unit,'(a)')  'READ_ASCII_FILE: '//trim(version)
+       write(log_unit,'(a)')  'READ_ASCII_FILE: '//trim(VERSION)//':'//trim(TAGNAME)
        write(log_unit,'(a)')  'READ_ASCII_FILE: File: '//trim(FILENAME)
 
        inquire(FILE=FILENAME, EXIST=file_exist)

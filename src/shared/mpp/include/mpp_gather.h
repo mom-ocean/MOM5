@@ -1,21 +1,3 @@
-!***********************************************************************
-!*                   GNU Lesser General Public License
-!*
-!* This file is part of the GFDL Flexible Modeling System (FMS).
-!*
-!* FMS is free software: you can redistribute it and/or modify it under
-!* the terms of the GNU Lesser General Public License as published by
-!* the Free Software Foundation, either version 3 of the License, or (at
-!* your option) any later version.
-!*
-!* FMS is distributed in the hope that it will be useful, but WITHOUT
-!* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-!* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-!* for more details.
-!*
-!* You should have received a copy of the GNU Lesser General Public
-!* License along with FMS.  If not, see <http://www.gnu.org/licenses/>.
-!***********************************************************************
 subroutine MPP_GATHER_1D_(sbuf, rbuf,pelist)
 ! JWD: Did not create mpp_gather_2d because have no requirement for it
 ! JWD: See mpp_gather_2dv below
@@ -84,20 +66,13 @@ subroutine MPP_GATHER_1DV_(sbuf, ssize, rbuf, rsize, pelist)
 
 
    !--- pre-post receiving
-   if (pe .eq. op_root) then
-       pos = 1
-       do l = 1,nproc   ! include op_root to simplify logic
-           if (rsize(l) == 0) then
-               cycle  ! avoid ranks with no data
-           endif
-           call mpp_recv(rbuf(pos),glen=rsize(l),from_pe=pelist2(l), &
-                         block=.FALSE.,tag=COMM_TAG_2)
-           pos = pos + rsize(l)
-       enddo
-   endif
-   if (ssize .gt. 0) then
-       call mpp_send(sbuf(1),plen=ssize,to_pe=op_root,tag=COMM_TAG_2) !avoid ranks with no data
-   endif
+   pos = 1
+   do l = 1, nproc   ! include op_root to simplify logic
+      if(rsize(l) == 0) cycle  ! avoid ranks with no data
+      call mpp_recv(rbuf(pos), glen=rsize(l), from_pe=pelist2(l), block=.FALSE., tag=COMM_TAG_2 )
+      pos = pos + rsize(l)
+   enddo
+   if(ssize>0) call mpp_send(sbuf(1), plen=ssize, to_pe=op_root, tag=COMM_TAG_2)  !  avoid ranks with no data
 
    call mpp_sync_self(check=EVENT_RECV)
    call mpp_sync_self()

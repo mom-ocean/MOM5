@@ -1,22 +1,3 @@
-!***********************************************************************
-!*                   GNU Lesser General Public License
-!*
-!* This file is part of the GFDL Flexible Modeling System (FMS).
-!*
-!* FMS is free software: you can redistribute it and/or modify it under
-!* the terms of the GNU Lesser General Public License as published by
-!* the Free Software Foundation, either version 3 of the License, or (at
-!* your option) any later version.
-!*
-!* FMS is distributed in the hope that it will be useful, but WITHOUT
-!* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-!* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-!* for more details.
-!*
-!* You should have received a copy of the GNU Lesser General Public
-!* License along with FMS.  If not, see <http://www.gnu.org/licenses/>.
-!***********************************************************************
-
 
 module fft_mod
 
@@ -199,8 +180,9 @@ integer :: leng, leng1, leng2, lenc    ! related to transform size
 
 logical :: module_is_initialized=.false.
 
-! Include variable "version" to be written to log file.
-#include<file_version.h>
+!  cvs version and tag name
+character(len=128) :: version = '$Id$'
+character(len=128) :: tagname = '$Name$'
 
 !-----------------------------------------------------------------------
 !
@@ -863,9 +845,9 @@ contains
       if (module_is_initialized) &
       call error_handler ('fft_init', 'attempted to reinitialize fft')
 
-!  write file version to log file
+!  write version and tag name to log file
    if (do_log) then
-      call write_version_number("FFT_MOD", version)
+      call write_version_number (version, tagname)
       do_log = .false.
    endif
 
