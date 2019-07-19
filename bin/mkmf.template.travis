@@ -32,6 +32,7 @@ FPPFLAGS := $(INCLUDE)
 
 CFLAGS := -D__IFC -O2 $(shell nc-config --cflags) -I/usr/include/openmpi $(INCLUDE)
 
+<<<<<<< HEAD
 FFLAGS := -O2 -fcray-pointer -fdefault-real-8 -ffree-line-length-none -fno-range-check
 
 LIBS := -lnetcdff -lnetcdf -lnetcdf -lpthread
@@ -44,6 +45,9 @@ ifneq ($(OASIS_ROOT),)
   LIBS += -L$(OASIS_ROOT)/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip
 endif
 
+=======
+LIBS := $(shell nf-config --flibs) -lpthread -L$(OASIS_ROOT)/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip
+>>>>>>> Changed to nf-config in travis template
 LDFLAGS += $(LIBS)
 
 #---------------------------------------------------------------------------
