@@ -1322,9 +1322,7 @@ subroutine diagnose_potential_vorticity(Time, Thickness, Velocity, Adv_vel, Dens
   ! NB: this method does not use conservative differencing so won't perfectly conserve advective q flux
   if(id_u_dot_grad_vert_pv > 0) then
     call mpp_update_domains(wrk5,Dom%domain2d)  ! update vert_pv
-    wrk6(:,:,1)  = 0.0
-    wrk6(:,:,nk) = 0.0
-    do k=2,nk-1
+    do k=1,nk
       do j=jsc,jec
         do i=isc,iec
           wrk6(i,j,k) = (wrk5(i+1,j,k) - wrk5(i-1,j,k)) &
@@ -1338,12 +1336,19 @@ subroutine diagnose_potential_vorticity(Time, Thickness, Velocity, Adv_vel, Dens
            *( Velocity%u(i,j,k,2,tau) + &
               Velocity%u(i-1,j,k,2,tau) + &
               Velocity%u(i,j-1,k,2,tau) + &
-              Velocity%u(i-1,j-1,k,2,tau) )*0.25 &
-            + (wrk5(i,j,k-1) - wrk5(i,j,k+1)) &
-            /(Thickness%dzwt(i,j,k-1) + Thickness%dzwt(i,j,k)) &
-            *(Adv_vel%wrho_bt(i,j,k-1) + Adv_vel%wrho_bt(i,j,k))*0.5*rho0r
+              Velocity%u(i-1,j-1,k,2,tau) )*0.25
         enddo
       enddo
+      if (k > 1 .and. k < nk) then  ! include vertical advection if not at surface or nk
+        do j=jsc,jec
+          do i=isc,iec
+            wrk6(i,j,k) = wrk6(i,j,k) & 
+              + (wrk5(i,j,k-1) - wrk5(i,j,k+1)) &
+              /(Thickness%dzwt(i,j,k-1) + Thickness%dzwt(i,j,k)) &
+              *(Adv_vel%wrho_bt(i,j,k-1) + Adv_vel%wrho_bt(i,j,k))*0.5*rho0r
+          enddo
+        enddo
+      endif
     enddo
     call diagnose_3d(Time, Grd, id_u_dot_grad_vert_pv, wrk6(:,:,:))
   endif
