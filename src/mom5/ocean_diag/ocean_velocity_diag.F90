@@ -1339,7 +1339,26 @@ subroutine diagnose_potential_vorticity(Time, Thickness, Velocity, Adv_vel, Dens
               Velocity%u(i-1,j-1,k,2,tau) )*0.25
         enddo
       enddo
-      if (k > 1 .and. k < nk) then  ! include vertical advection if not at surface or nk
+      ! now do vertical advection
+      if (k == 1) then ! 1st order, with vertical offset
+        do j=jsc,jec
+          do i=isc,iec
+            wrk6(i,j,1) = wrk6(i,j,1) & 
+              + (wrk5(i,j,1)-wrk5(i,j,2)) & 
+              /Thickness%dzwt(i,j,1) &
+              *Adv_vel%wrho_bt(i,j,1)*rho0r
+          enddo
+        enddo
+      elseif (k == nk) then ! 1st order, with vertical offset
+        do j=jsc,jec
+          do i=isc,iec
+            wrk6(i,j,nk) = wrk6(i,j,nk) & 
+              + (wrk5(i,j,nk-1)-wrk5(i,j,nk)) & 
+              /Thickness%dzwt(i,j,nk-1) &
+              *Adv_vel%wrho_bt(i,j,nk-1)*rho0r
+          enddo
+        enddo
+      else ! centred 2nd order differences, aligned vertically with other terms 
         do j=jsc,jec
           do i=isc,iec
             wrk6(i,j,k) = wrk6(i,j,k) & 
