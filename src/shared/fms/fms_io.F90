@@ -2594,7 +2594,7 @@ subroutine save_default_restart(fileObj,restartpath)
   character(len=336)                     :: restartpath ! The restart file path (dir/file).
 
   character(len=8)   :: suffix               ! A suffix (like _2) that is appended to the name of files after the first.
-  integer(kind=8)    :: var_sz, size_in_file ! The size in bytes of each variable and of the variables already in a file.
+  integer(LONG_KIND)    :: var_sz, size_in_file ! The size in bytes of each variable and of the variables already in a file.
   integer            :: unit                 ! The mpp unit of the open file.
   real, dimension(max_axis_size)      :: axisdata
   integer,        dimension(max_axes) :: id_x_axes, siz_x_axes
