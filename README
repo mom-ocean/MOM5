@@ -1,3 +1,5 @@
+These code changes allows for basal runoff.
+1) Start with file i/o read in basal flux and right out diagnostic.
 
 Where to start
 ~~~~~~~~~~~~~~

@@ -287,6 +287,7 @@ use ocean_sigma_transport_mod,    only: ocean_sigma_transport_init, sigma_transp
 use ocean_sigma_transport_mod,    only: ocean_sigma_transport_restart
 use ocean_sponges_eta_mod,        only: ocean_sponges_eta_init, sponge_eta_source
 use ocean_sponges_tracer_mod,     only: ocean_sponges_tracer_init, sponge_tracer_source
+use ocean_basal_tracer_mod,       only: ocean_basal_tracer_init, basal_tracer_source
 use ocean_sponges_velocity_mod,   only: ocean_sponges_velocity_init, sponge_velocity_source
 use ocean_submesoscale_mod,       only: ocean_submesoscale_init, submeso_restrat
 use ocean_tempsalt_mod,           only: ocean_tempsalt_ideal_reinit
@@ -501,6 +502,7 @@ private
   integer :: id_submesoscale
   integer :: id_sw
   integer :: id_sponges_tracer
+  integer :: id_basal_tracer
   integer :: id_sponges_eta
   integer :: id_sponges_velocity
   integer :: id_sigma
@@ -725,6 +727,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
     id_sw                   = mpp_clock_id('(Ocean shortwave) '              ,grain=CLOCK_MODULE)
     id_sponges_eta          = mpp_clock_id('(Ocean sponges_eta) '            ,grain=CLOCK_MODULE)
     id_sponges_tracer       = mpp_clock_id('(Ocean sponges_tracer) '         ,grain=CLOCK_MODULE)
+    id_basal_tracer         = mpp_clock_id('(Ocean basal_tracer) '           ,grain=CLOCK_MODULE)
     id_sponges_velocity     = mpp_clock_id('(Ocean sponges_velocity) '       ,grain=CLOCK_MODULE)
     id_xlandinsert          = mpp_clock_id('(Ocean xlandinsert) '            ,grain=CLOCK_MODULE)
     id_xlandmix             = mpp_clock_id('(Ocean xlandmix) '               ,grain=CLOCK_MODULE)
@@ -1329,6 +1332,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
     call ocean_bbc_init(Grid, Domain, Time, T_prog(:), Velocity, Ocean_options, vert_coordinate_type, horz_grid)
     call ocean_shortwave_init(Grid, Domain, Time, Dens, T_prog(:), vert_coordinate, Ocean_options)
     call ocean_sponges_tracer_init(Grid, Domain, Time, T_prog(:), dtime_t, Ocean_options)
+    call ocean_basal_tracer_init(Grid, Domain, Time, T_prog(:), dtime_t, Ocean_options)
     call ocean_sponges_velocity_init(Grid, Domain, Time, dtime_u, Ocean_options)
     call ocean_sponges_eta_init(Grid, Domain, Time, dtime_t, Ocean_options)
     call ocean_xlandmix_init(Grid, Domain, Time, Dens, T_prog(:), Ocean_options, dtime_t)    
@@ -1643,6 +1647,12 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
        call mpp_clock_begin(id_sponges_tracer)
        call sponge_tracer_source(Time, Thickness, T_prog(1:num_prog_tracers)) 
        call mpp_clock_end(id_sponges_tracer)
+       
+       ! add basal to T_prog%th_tendency 
+       call mpp_clock_begin(id_basal_tracer)
+       !call basal_tracer_source(Time, Thickness, T_prog(1:num_prog_tracers)) 
+       call mpp_clock_end(id_basal_tracer)
+
 
        ! add increments to T_prog%th_tendency as used in Australian OFAM/Bluelink
        call mpp_clock_begin(id_increment_tracer)
@@ -2495,6 +2505,7 @@ end subroutine ocean_model_data1D_get
     write (stdoutunit,'(2x,a)')             Ocean_options%passive_tracers
     write (stdoutunit,'(2x,a)')             Ocean_options%ocean_sponges_eta
     write (stdoutunit,'(2x,a)')             Ocean_options%ocean_sponges_tracer
+    write (stdoutunit,'(2x,a)')             Ocean_options%ocean_basal_tracer
     write (stdoutunit,'(2x,a)')             Ocean_options%ocean_sponges_velocity
     write (stdoutunit,'(2x,a)')             Ocean_options%fafmip_heat
     write (stdoutunit,'(2x,a/)')   '===================================================='   
