@@ -35,7 +35,7 @@ install:
     - sudo apt-get install csh gcc-4.8 gfortran-4.8 libgomp1 openmpi-bin libopenmpi-dev libnetcdf-dev  netcdf-bin
 
 before_script:
-    - git clone --depth=1 https://github.com/OceansAus/oasis3-mct.git
+    - git clone --depth=1 https://github.com/COSIMA/oasis3-mct.git
     - (cd oasis3-mct && make ubuntu)
 
 script: 
