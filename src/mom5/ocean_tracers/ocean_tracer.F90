@@ -1230,7 +1230,7 @@ function ocean_prog_tracer_init (Grid, Thickness, Ocean_options, Domain, Time, T
        id_prog(n) = register_diag_field ('ocean_model',      &
             trim(prog_name),                                 &
             Grd%tracer_axes(1:3),                            &
-            Time%model_time, prog_longname,                  &
+            Time%model_time, trim(prog_longname),                  &
             trim(temp_units),                                &
             missing_value=missing_value, range=range_array,  &
             standard_name='sea_water_potential_temperature')
@@ -1246,7 +1246,7 @@ function ocean_prog_tracer_init (Grid, Thickness, Ocean_options, Domain, Time, T
        id_surf_tracer_sq(n) = register_diag_field ('ocean_model', &
             'squared_surface_'//trim(prog_name),                  &
             Grd%tracer_axes(1:2),                                 &
-            Time%model_time, 'squared '//trim(T_prog(n)%name),    &
+            Time%model_time, 'squared '//trim(prog_longname),    &
             'squared '//trim(temp_units),                         &
             missing_value=missing_value, range=(/0.0,1e10/),      &
             standard_name='square_of_sea_surface_temperature')
@@ -1255,7 +1255,7 @@ function ocean_prog_tracer_init (Grid, Thickness, Ocean_options, Domain, Time, T
      id_prog(n) = register_diag_field ('ocean_model',      &
           trim(prog_name),                                 &
           Grd%tracer_axes(1:3),                            &
-          Time%model_time, prog_longname,                  &
+          Time%model_time, trim(prog_longname),                  &
           trim(temp_units),                                &
           missing_value=missing_value, range=range_array,  &
           standard_name='sea_water_conservative_temperature')
@@ -1271,7 +1271,7 @@ function ocean_prog_tracer_init (Grid, Thickness, Ocean_options, Domain, Time, T
      id_surf_tracer_sq(n) = register_diag_field ('ocean_model', &
           'squared_surface_'//trim(prog_name),                  &
           Grd%tracer_axes(1:2),                                 &
-          Time%model_time, 'squared '//trim(T_prog(n)%name),    &
+          Time%model_time, 'squared '//trim(prog_longname),    &
           'squared '//trim(temp_units),                         &
           missing_value=missing_value, range=(/0.0,1e10/),      &
           standard_name='square_of_sea_surface_conservative_temperature')
