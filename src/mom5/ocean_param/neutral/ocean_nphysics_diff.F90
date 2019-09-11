@@ -589,7 +589,7 @@ contains
     min_delta(COMP,:) = min_xy_dz(COMP,:)/(2*aredi_array(COMP,:)*dtime + epsln)
 
     delta_iso = minval(min_delta(COMP,:), mask=Grid%tmask(COMP,:)==1.0)
-    delta_iso = delta_iso + 1.e-6*mpp_pe() ! to separate redundancies
+    delta_iso = delta_iso + 1.e-12*mpp_pe() ! to separate redundancies
     delta_iso0 = delta_iso
     call mpp_min (delta_iso)
 
@@ -621,7 +621,7 @@ contains
 
     ! Compute maximum diffusivity available given a maximum slope of smax
     delta_min = minval(min_xy_dz(COMP,:), mask=Grid%tmask(COMP,:)==1.0)
-    A_max = delta_min/(2*smax*dtime + epsln) + 1.e-6*mpp_pe() ! to separate redundancies
+    A_max = delta_min/(2*smax*dtime + epsln) + 1.e-12*mpp_pe() ! to separate redundancies
     A_max0 = A_max
     call mpp_min (A_max)    
 

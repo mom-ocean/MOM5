@@ -449,7 +449,7 @@ subroutine ocean_advection_velocity_init(Grid, Domain, Time, Time_steps, Thickne
   enddo
   
   max_dt_for_advection = nint(max_dt_for_advection/vertical_factor) ! 
-  max_dt_for_advection =  max_dt_for_advection + 0.001*mpp_pe()     ! to separate redundancies
+  max_dt_for_advection =  max_dt_for_advection + 1.e-12*mpp_pe()     ! to separate redundancies
   max_dt_for_advection0 = max_dt_for_advection
   call mpp_min (max_dt_for_advection)
   call mpp_max (gridmax)

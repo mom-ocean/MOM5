@@ -162,7 +162,7 @@ subroutine ocean_diagnostics(Time, Thickness, T_prog, T_diag, Adv_vel,&
   call mpp_clock_end(id_tracer_diag)
 
   call mpp_clock_begin(id_velocity_diag)
-  call ocean_velocity_diagnostics(Time, Thickness, Dens, Ext_mode, Velocity)
+  call ocean_velocity_diagnostics(Time, Thickness, Dens, Ext_mode, Velocity, Adv_vel)
   call mpp_clock_end(id_velocity_diag)
 
 end subroutine ocean_diagnostics
