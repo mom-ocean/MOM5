@@ -2868,6 +2868,12 @@ subroutine compute_tmask_limit(Time, T_prog)
       enddo
   endif
 
+  ! ensure that redist_heat and added_heat masks are the same as temp
+
+  if ( index_redist_heat /= -1 ) T_prog(index_redist_heat)%tmask_limit = T_prog(index_temp)%tmask_limit
+  if ( index_added_heat /= -1 ) T_prog(index_added_heat)%tmask_limit = T_prog(index_temp)%tmask_limit
+  
+
 
   ! debugging and diagnostics  
   do n=1,num_prog_tracers 
