@@ -182,7 +182,7 @@ set (SRCS
 
 esma_add_library (${this}
   SRCS ${SRCS}
-  DEPENDENCIES FMS_r8
+  DEPENDENCIES fms_r8
   INCLUDES src/mom5/ocean_param/gotm-4.0/include src/mom5/ocean_core
 )
 
