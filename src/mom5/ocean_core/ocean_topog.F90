@@ -32,7 +32,9 @@ module ocean_topog_mod
 !  <DATA NAME="min_thickness" TYPE="real">
 !  min_thickness is only used for Mosaic grid. Since there is no kmt available
 !  in mosaic grid, need to set min_thickness to configure kmt based on ht and zw.
-!  Default min_thickness=1.0e-3 metre.
+!  Value should be set in input namelist (default value -1.0 will cause termination).
+!  Value should be much smaller than minimum vertical grid spacing;
+!  min_thickness=1.0e-3 metre is generally a good choice.
 !  </DATA> 
 !  <DATA NAME="kmt_recompute" TYPE="logical">
 !  To recompute the kmt array based on min_thickness.  This step is not recommended
@@ -72,7 +74,7 @@ integer :: writeunit=6
 logical :: flat_bottom          = .false.
 integer :: flat_bottom_kmt      = 50
 real    :: flat_bottom_ht       = 5500.0
-real    :: min_thickness        = 1.0e-3
+real    :: min_thickness        = -1.0
 integer :: kmt_recompute_offset = 0
 logical :: kmt_recompute        = .false.
 logical :: write_topog          = .false.
@@ -170,6 +172,16 @@ subroutine ocean_topog_init (Domain, Grid, grid_file, vert_coordinate_type)
   write (stdoutunit,'(/)')
   write (stdoutunit,ocean_topog_nml)  
   write (stdlogunit,ocean_topog_nml)
+
+  if(min_thickness < 0) then  ! TODO: also check we are using mosaic?
+     call mpp_error(FATAL, &
+        'ocean_topog_mod: min_thickness must be explicitly specified in ocean_topog_nml. '// &
+        'min_thickness should be much smaller than the minimum vertical grid spacing; '// &
+        'min_thickness=1.0e-3 metre is generally a good choice. '// &
+        'The previous default was 1.0 m; this could be used for consistency when '// &
+        'restarting from runs which did not specify a value, '// &
+        'but may cause problems: https://github.com/COSIMA/access-om2/issues/161' )
+  endif
 
   Grid%kmt=0;Grid%kmu=0;Grid%ht=0;Grid%hu=0
   if(field_exist(grd_file, 'depth_t') ) then ! new grid file
