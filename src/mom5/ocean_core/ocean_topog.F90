@@ -32,12 +32,15 @@ module ocean_topog_mod
 !  <DATA NAME="min_thickness" TYPE="real">
 !  min_thickness is only used for Mosaic grid. Since there is no kmt available
 !  in mosaic grid, need to set min_thickness to configure kmt based on ht and zw.
-!  Value should be set in input namelist (default value -1.0 will cause termination).
-!  Value should be much smaller than minimum vertical grid spacing,
+!  min_thickness should be set in input namelist (default value -1.0 will cause termination).
+!  min_thickness should be much smaller than minimum vertical grid spacing,
 !  but for floating point representation reasons min_thickness should be no less than 
 !  spacing(max_depth,kind=real32) where max_depth is the maximum depth of the model 
 !  and the real32 parameter can be obtained from iso_fortran_env.
-!  min_thickness=1.0e-3 metre is generally a good choice.
+!  min_thickness=1.0e-3 metre is usually a good choice.
+!  The previous default was 1.0 m; this could be used for consistency when
+!  restarting from runs which did not specify a value,
+!  but may cause problems: https://github.com/COSIMA/access-om2/issues/161
 !  </DATA> 
 !  <DATA NAME="kmt_recompute" TYPE="logical">
 !  To recompute the kmt array based on min_thickness.  This step is not recommended
@@ -199,14 +202,10 @@ subroutine ocean_topog_init (Domain, Grid, grid_file, vert_coordinate_type)
      if(min_thickness < 0.0) then
         call mpp_error(FATAL, &
            'ocean_topog_mod: min_thickness must be explicitly specified in ocean_topog_nml. '// &
-           'min_thickness should be much smaller than the minimum vertical grid spacing, '// &
-           'but for floating point representation reasons min_thickness should be no less than '// &
-           'spacing(max_depth,kind=real32) where max_depth is the maximum depth of the model '// &
-           'and the real32 parameter can be obtained from iso_fortran_env. '// &
-           'min_thickness=1.0e-3 metre is generally a good choice. '// &
+           'min_thickness=1.0e-3 metre is usually a good choice. '// &
            'The previous default was 1.0 m; this could be used for consistency when '// &
            'restarting from runs which did not specify a value, '// &
-           'but may cause problems: https://github.com/COSIMA/access-om2/issues/161' )
+           'but may cause problems: https://github.com/COSIMA/access-om2/issues/161')
      endif
 
      call read_data(ocean_topog, 'depth', Grid%ht(isc:iec,jsc:jec), Domain%domain2d)
@@ -237,14 +236,10 @@ subroutine ocean_topog_init (Domain, Grid, grid_file, vert_coordinate_type)
       if(min_thickness < 0.0) then
         call mpp_error(FATAL, &
            'ocean_topog_mod: min_thickness must be explicitly specified in ocean_topog_nml. '// &
-           'min_thickness should be much smaller than the minimum vertical grid spacing, '// &
-           'but for floating point representation reasons min_thickness should be no less than '// &
-           'spacing(max_depth,kind=real32) where max_depth is the maximum depth of the model '// &
-           'and the real32 parameter can be obtained from iso_fortran_env. '// &
-           'min_thickness=1.0e-3 metre is generally a good choice. '// &
+           'min_thickness=1.0e-3 metre is usually a good choice. '// &
            'The previous default was 1.0 m; this could be used for consistency when '// &
            'restarting from runs which did not specify a value, '// &
-           'but may cause problems: https://github.com/COSIMA/access-om2/issues/161' )
+           'but may cause problems: https://github.com/COSIMA/access-om2/issues/161')
       endif
 
       do j=jsc,jec
