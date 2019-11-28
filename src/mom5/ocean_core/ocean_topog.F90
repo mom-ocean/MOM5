@@ -33,7 +33,10 @@ module ocean_topog_mod
 !  min_thickness is only used for Mosaic grid. Since there is no kmt available
 !  in mosaic grid, need to set min_thickness to configure kmt based on ht and zw.
 !  Value should be set in input namelist (default value -1.0 will cause termination).
-!  Value should be much smaller than minimum vertical grid spacing;
+!  Value should be much smaller than minimum vertical grid spacing,
+!  but for floating point representation reasons min_thickness should be no less than 
+!  spacing(max_depth,kind=real32) where max_depth is the maximum depth of the model 
+!  and the real32 parameter can be obtained from iso_fortran_env.
 !  min_thickness=1.0e-3 metre is generally a good choice.
 !  </DATA> 
 !  <DATA NAME="kmt_recompute" TYPE="logical">
@@ -173,16 +176,6 @@ subroutine ocean_topog_init (Domain, Grid, grid_file, vert_coordinate_type)
   write (stdoutunit,ocean_topog_nml)  
   write (stdlogunit,ocean_topog_nml)
 
-  if(min_thickness < 0) then  ! TODO: also check we are using mosaic?
-     call mpp_error(FATAL, &
-        'ocean_topog_mod: min_thickness must be explicitly specified in ocean_topog_nml. '// &
-        'min_thickness should be much smaller than the minimum vertical grid spacing; '// &
-        'min_thickness=1.0e-3 metre is generally a good choice. '// &
-        'The previous default was 1.0 m; this could be used for consistency when '// &
-        'restarting from runs which did not specify a value, '// &
-        'but may cause problems: https://github.com/COSIMA/access-om2/issues/161' )
-  endif
-
   Grid%kmt=0;Grid%kmu=0;Grid%ht=0;Grid%hu=0
   if(field_exist(grd_file, 'depth_t') ) then ! new grid file
      call read_data(grd_file, "depth_t", Grid%ht(isc:iec,jsc:jec), Domain%domain2d)
@@ -202,6 +195,20 @@ subroutine ocean_topog_init (Domain, Grid, grid_file, vert_coordinate_type)
      call read_data(grd_file, "kmt", Grid%kmt(isc:iec,jsc:jec), Domain%domain2d)
 
   elseif(file_exist(ocean_topog)) then
+    
+     if(min_thickness < 0.0) then
+        call mpp_error(FATAL, &
+           'ocean_topog_mod: min_thickness must be explicitly specified in ocean_topog_nml. '// &
+           'min_thickness should be much smaller than the minimum vertical grid spacing, '// &
+           'but for floating point representation reasons min_thickness should be no less than '// &
+           'spacing(max_depth,kind=real32) where max_depth is the maximum depth of the model '// &
+           'and the real32 parameter can be obtained from iso_fortran_env. '// &
+           'min_thickness=1.0e-3 metre is generally a good choice. '// &
+           'The previous default was 1.0 m; this could be used for consistency when '// &
+           'restarting from runs which did not specify a value, '// &
+           'but may cause problems: https://github.com/COSIMA/access-om2/issues/161' )
+     endif
+
      call read_data(ocean_topog, 'depth', Grid%ht(isc:iec,jsc:jec), Domain%domain2d)
 
      !--- calculate kmt based on ht and zw.
@@ -226,6 +233,20 @@ subroutine ocean_topog_init (Domain, Grid, grid_file, vert_coordinate_type)
 
   if(kmt_recompute) then 
       call mpp_error(NOTE, 'ocean_topog_mod: recomputing kmt array given ht, zw, and min_thickness.')
+
+      if(min_thickness < 0.0) then
+        call mpp_error(FATAL, &
+           'ocean_topog_mod: min_thickness must be explicitly specified in ocean_topog_nml. '// &
+           'min_thickness should be much smaller than the minimum vertical grid spacing, '// &
+           'but for floating point representation reasons min_thickness should be no less than '// &
+           'spacing(max_depth,kind=real32) where max_depth is the maximum depth of the model '// &
+           'and the real32 parameter can be obtained from iso_fortran_env. '// &
+           'min_thickness=1.0e-3 metre is generally a good choice. '// &
+           'The previous default was 1.0 m; this could be used for consistency when '// &
+           'restarting from runs which did not specify a value, '// &
+           'but may cause problems: https://github.com/COSIMA/access-om2/issues/161' )
+      endif
+
       do j=jsc,jec
          do i=isc,iec
             if(Grid%kmt(i,j) > 1) then
