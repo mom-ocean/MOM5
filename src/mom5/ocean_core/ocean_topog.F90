@@ -32,7 +32,7 @@ module ocean_topog_mod
 !  <DATA NAME="min_thickness" TYPE="real">
 !  min_thickness is only used for Mosaic grid. Since there is no kmt available
 !  in mosaic grid, need to set min_thickness to configure kmt based on ht and zw.
-!  Default min_thickness=1.0 metre.
+!  Default min_thickness=1.0e-3 metre.
 !  </DATA> 
 !  <DATA NAME="kmt_recompute" TYPE="logical">
 !  To recompute the kmt array based on min_thickness.  This step is not recommended
@@ -72,7 +72,7 @@ integer :: writeunit=6
 logical :: flat_bottom          = .false.
 integer :: flat_bottom_kmt      = 50
 real    :: flat_bottom_ht       = 5500.0
-real    :: min_thickness        = 1.0
+real    :: min_thickness        = 1.0e-3
 integer :: kmt_recompute_offset = 0
 logical :: kmt_recompute        = .false.
 logical :: write_topog          = .false.

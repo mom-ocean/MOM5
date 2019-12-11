@@ -821,12 +821,7 @@ subroutine vert_mix_gotm_bgrid (Time, Thickness, Velocity, T_prog, Dens, visc_cb
                 active_cells= Grd%umask(i,j,1)   + Grd%umask(i-1,j,1)   + &
                               Grd%umask(i,j-1,1) + Grd%umask(i-1,j-1,1) + epsln
 
-                smf1_active = (Velocity%smf_bgrid(i,j,1)   + Velocity%smf_bgrid(i-1,j,1) + &
-                               Velocity%smf_bgrid(i,j-1,1) + Velocity%smf_bgrid(i-1,j-1,1))/active_cells
-                smf2_active = (Velocity%smf_bgrid(i,j,2)   + Velocity%smf_bgrid(i-1,j,2) + &
-                               Velocity%smf_bgrid(i,j-1,2) + Velocity%smf_bgrid(i-1,j-1,2))/active_cells
-                momflux = sqrt(smf1_active**2 + smf2_active**2)
-                u_taus  = sqrt(momflux*rho0r) + epsln
+                u_taus  = Velocity%ustar(i,j) + epsln
 
                 bmf1_active = (Velocity%bmf(i,j,1)   + Velocity%bmf(i-1,j,1) + &
                                Velocity%bmf(i,j-1,1) + Velocity%bmf(i-1,j-1,1))/active_cells

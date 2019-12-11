@@ -562,6 +562,7 @@ module ocean_types_mod
      real, dimension(isd:ied,jsd:jed,2)      :: smf_bgrid       ! momentum flux per mass into ocean surface at Bgrid uv point (N/m^2)
      real, dimension(isd:ied,jsd:jed,2)      :: smf_cgrid       ! momentum flux per mass into ocean surface at Cgrid u/v points (N/m^2)
      real, dimension(isd:ied,jsd:jed,2)      :: bmf             ! momentum flux per mass into ocean bottom  (N/m^2)
+     real, dimension(isd:ied,jsd:jed)        :: ustar           ! surface friction velocity (m/s)
      real, dimension(isd:ied,jsd:jed)        :: gamma           ! dimensionful bottom drag coefficient (kg/(m^2 sec))
      real, dimension(isd:ied,jsd:jed)        :: langmuirfactor  ! dimensionless langmuir turbulence enhancement factor (non dimensional)
      real, dimension(isd:ied,jsd:jed)        :: u10             ! 10m wind speed (m/s)
@@ -1096,6 +1097,7 @@ module ocean_types_mod
      real, _ALLOCATABLE, dimension(:,:,:)     :: smf_bgrid       _NULL ! momentum flux into ocn surface (N/m^2) at Bgrid uv point
      real, _ALLOCATABLE, dimension(:,:,:)     :: smf_cgrid       _NULL ! momentum flux into ocn surface (N/m^2) at Cgrid u/v points
      real, _ALLOCATABLE, dimension(:,:,:)     :: bmf             _NULL ! momentum flux per mass into ocean bottom  (N/m^2)
+     real, _ALLOCATABLE, dimension(:,:)       :: ustar           _NULL ! surface friction velocity (m/s)
      real, _ALLOCATABLE, dimension(:,:)       :: gamma           _NULL ! dimensionful bottom drag coefficient (kg/(m^2 sec))
      real, _ALLOCATABLE, dimension(:,:)       :: langmuirfactor  _NULL ! Langmuir turbulence enhancement factor
      real, _ALLOCATABLE, dimension(:,:)       :: u10             _NULL ! 10m wind speed (m/s)

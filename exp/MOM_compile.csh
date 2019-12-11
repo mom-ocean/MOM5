@@ -1,7 +1,7 @@
 #!/bin/csh -f
 # Minimal compile script for fully coupled model CM2M experiments
 
-set platform      = gfortran    # A unique identifier for your platfo
+set platform      = gfortran    # A unique identifier for your platform
                                 # This corresponds to the mkmf templates in $root/bin dir.
 set type          = MOM_solo    # Type of the experiment
 set unit_testing = 0
@@ -55,7 +55,7 @@ if ( $help ) then
     echo "             ACCESS-CM : ocean component of ACCESS-CM model."
     echo "             ACCESS-OM : ocean component of ACCESS-OM model."
     echo
-    echo "--platform   followed by the platform name that has a corresponfing environ file in the ../bin dir, default is gfortran"
+    echo "--platform   followed by the platform name that has a corresponding environs file in the ../bin dir, default is gfortran"
     echo
     echo "--use_netcdf4  use NetCDF4, the default is NetCDF4. Warning: many of the standard experiments don't work with NetCDF4."
     echo

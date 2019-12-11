@@ -150,11 +150,17 @@ module ocean_model_mod
 !  </DATA> 
 !
 !  <DATA NAME="cmip_units" TYPE="logical">
-!  For CMIP output, we need to have temperature in deg K and 
-!  mass transport in kg/s.  The flag cmip_units=.true. will 
+!  For CMIP output, we need to have temperature in K (if cmip_version<=5)
+!  and mass transport in kg/s.  The flag cmip_units=.true. will 
 !  diagnose CMIP5-related fields with the CMIP units for sending
 !  to the diagnostic manager. 
 !  Default cmip_units=.false. 
+!  </DATA> 
+!
+!  <DATA NAME="cmip_version" TYPE="integer">
+!  Specifies CMIP version used when cmip_units=.true.
+!  Temperature is in K if cmip_version<=5, otherwise degrees C.
+!  Default cmip_version=5.
 !  </DATA> 
 !
 !  <DATA NAME="use_blobs" TYPE="logical">
@@ -625,6 +631,7 @@ private
   logical :: module_is_initialized =.false.
   logical :: have_obc              =.false.   
   logical :: cmip_units            =.false.
+  integer :: cmip_version          =5
   logical :: use_blobs             =.false.
   logical :: introduce_blobs       =.false.
   logical :: use_velocity_override =.false.
@@ -647,8 +654,9 @@ private
 
   namelist /ocean_model_nml/ time_tendency, impose_init_from_restart, reinitialize_thickness,    &
                              baroclinic_split, barotropic_split, surface_height_split,           &
-                             layout, io_layout, debug, vertical_coordinate, dt_ocean, cmip_units,&
-                             horizontal_grid, use_blobs, use_velocity_override, mask_table,      &
+                             layout, io_layout, debug, vertical_coordinate, dt_ocean,            &
+                             cmip_units, cmip_version, horizontal_grid,                          &
+                             use_blobs, use_velocity_override, mask_table,                       &
                              introduce_blobs, beta_txty, beta_tf, beta_qf, beta_lwsw, do_wave
 
 contains
@@ -1261,7 +1269,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
     ! initialize prognostic tracers 
     T_prog => ocean_prog_tracer_init(Grid, Thickness, Ocean_options, Domain, Time, Time_steps, &
                                      num_prog_tracers, vert_coordinate_type, have_obc,         & 
-                                     cmip_units, use_blobs, debug=debug)
+                                     cmip_units, cmip_version, use_blobs, debug=debug)
                                      
     ! initialize diagnostic tracers 
     T_diag => ocean_diag_tracer_init(Time, Thickness, vert_coordinate_type, num_diag_tracers,&
