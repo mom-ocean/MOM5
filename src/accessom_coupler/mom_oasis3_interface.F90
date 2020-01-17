@@ -143,11 +143,7 @@ integer :: imt_local, jmt_local                    ! 2D global layout
 integer iisc,iiec,jjsc,jjec
 integer iisd,iied,jjsd,jjed
 
-#if defined(ACCESS_WND)
 integer, parameter :: max_fields_in=21
-#else
-integer, parameter :: max_fields_in=20
-#endif
 
 integer, parameter :: max_fields_out=8
 
@@ -358,9 +354,7 @@ endif
   mom_name_read(18)='mh_flux'   ! Heat flux due to melting
   mom_name_read(19)='wfimelt'  !Water flux due to ice melting
   mom_name_read(20)='wfiform'  !Water flux due to ice forming 
-#if defined(ACCESS_WND)
   mom_name_read(21)='wnd_io'  !
-#endif
 
   !ocn ==> ice
   mom_name_write(:)=''
@@ -741,10 +735,8 @@ do jf =  1, num_fields_in
      Ice_ocean_boundary%wfimelt(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('wfiform')
      Ice_ocean_boundary%wfiform(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
-#if defined(ACCESS_WND)
   case('wnd_io')
      Ice_ocean_boundary%wnd(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
-#endif
   case DEFAULT
 ! Probable error. Leave as warning for the moment. RASF
    call mpp_error(WARNING,&
