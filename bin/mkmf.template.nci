@@ -5,24 +5,24 @@
 # commands #
 ############
 ifeq ($(VTRACE), yes)
-    FC = mpifort-vt
-    LD = mpifort-vt
+    FC := mpifort-vt
+    LD := mpifort-vt
 else
-    FC = mpifort
-    LD = mpifort
+    FC := mpifort
+    LD := mpifort
 endif
 
-CC = mpicc
+CC := mpicc
 
 #########
 # flags #
 #########
-VERBOSE =
-OPT = on
+VERBOSE :=
+OPT := on
 
 MAKEFLAGS += --jobs=4
 
-INCLUDE   = -I$(NETCDF_ROOT)/include
+INCLUDE   := -I$(NETCDF_ROOT)/include
 
 ifneq ($(LIBACCESSOM2_ROOT),)
 INCLUDE  += -I$(LIBACCESSOM2_ROOT)/build/oasis3-mct-prefix/src/oasis3-mct/Linux/build/lib/psmile.MPI1 \
@@ -38,14 +38,15 @@ endif
 
 FPPFLAGS := -fpp -Wp,-w $(INCLUDE)
 FFLAGS := -fno-alias -safe-cray-ptr -fpe0 -ftz -assume byterecl -i4 -r8 -traceback -nowarn -check noarg_temp_created -assume nobuffered_io -convert big_endian -grecord-gcc-switches -align all
-FFLAGS_OPT = -O2 -debug minimal -xHost
-FFLAGS_DEBUG = -g -O0 -debug all -check -check noarg_temp_created -check nopointer -warn -warn noerrors -ftrapuv
-FFLAGS_REPRO = -fp-model precise
-FFLAGS_VERBOSE = -v -V -what
+FFLAGS_OPT := -g3 -O2 -axCORE-AVX2 -debug all -check none -qopt-report=5 -qopt-report-annotate
+FFLAGS_DEBUG := -g3 -O0 -debug all -check -check noarg_temp_created -check nopointer -warn -warn noerrors -ftrapuv
+FFLAGS_REPRO := -fp-model precise -fp-model source -align all
+FFLAGS_VERBOSE := -v -V -what
 
 CFLAGS := -D__IFC $(INCLUDE)
-CFLAGS_OPT = -O2 -debug minimal -no-vec
-CFLAGS_DEBUG = -O0 -g -ftrapuv -traceback
+CFLAGS_OPT := -O2 -debug minimal -axCORE-AVX2 -qopt-report=5 -qopt-report-annotate
+CFLAGS_DEBUG := -O0 -g -ftrapuv -traceback
+CFLAGS_REPRO := -fp-model precise -fp-model source
 
 LDFLAGS :=
 LDFLAGS_VERBOSE := -Wl,-V,--verbose,-cref,-M
@@ -100,9 +101,9 @@ LDFLAGS += $(LIBS)
 
 # The macro TMPFILES is provided to slate files like the above for removal.
 
-RM = rm -f
-SHELL = /bin/csh -f
-TMPFILES = .*.m *.B *.L *.i *.i90 *.l *.s *.mod *.opt
+RM := rm -f
+SHELL := /bin/csh -f
+TMPFILES := .*.m *.B *.L *.i *.i90 *.l *.s *.mod *.opt
 
 .SUFFIXES: .F .F90 .H .L .T .f .f90 .h .i .i90 .l .o .s .opt .x
 
