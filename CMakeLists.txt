@@ -184,6 +184,7 @@ esma_add_library (${this}
   SRCS ${SRCS}
   DEPENDENCIES fms_r8
   INCLUDES src/mom5/ocean_param/gotm-4.0/include src/mom5/ocean_core
+  TYPE SHARED
 )
 
 target_compile_definitions (${this} PRIVATE MAPL_MODE EIGHT_BYTE SPMD TIMING use_libMPI use_netCDF USE_OCEAN_BGC)
