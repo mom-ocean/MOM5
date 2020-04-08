@@ -2982,6 +2982,19 @@ subroutine mom4_U_to_T_2d(ub, vb, ua, va, ier)
      return
   endif
 
+!ALT: We need to initialize ub_tmp and vb_tmp to 
+! protect against uninitialized detection.
+! Apparently the call to mpp_update_domains
+! does not update all of the halo regions, for example
+! 1 degree run on 6x4 decoposition had 62 NaNs.
+! This is not a real problem - we never use the uninitialized values.
+! But when we compile with debugging flags, the code checks the
+! content of the arrays and it dies, and we cannot use debugger for 
+! anything else.
+
+  ub_tmp = -999.9 ! protect against uninitialised value
+  vb_tmp = -999.9 ! protect against uninitialised value
+
   ub_tmp(isc:iec, jsc:jec) = ub(isc:iec, jsc:jec)
   vb_tmp(isc:iec, jsc:jec) = vb(isc:iec, jsc:jec)
 
