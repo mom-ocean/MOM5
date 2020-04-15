@@ -1977,7 +1977,7 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
   id_total_ocean_liceht = register_diag_field('ocean_model','total_ocean_liceht',  &
         Time%model_time, 'total land icemelt heat flux into ocean (>0 heats ocean)', &
         'Watts/1e15', missing_value=missing_value,range=(/-1.e10,1.e10/))
-#endif 
+#endif
 
   id_total_ocean_runoff = register_diag_field('ocean_model','total_ocean_runoff',&
        Time%model_time, 'total liquid river runoff (>0 water enters ocean)',     &
@@ -4113,7 +4113,9 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
           sensible(ii,jj) = -Ice_ocean_boundary%t_flux(i,j)*Grd%tmask(ii,jj,1)
           longwave(ii,jj) =  Ice_ocean_boundary%lw_flux(i,j)*Grd%tmask(ii,jj,1)
           latent(ii,jj)   =  latent_heat_vapor(ii,jj)*evaporation(ii,jj) &
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
           +Ice_ocean_boundary%liceht(ii,jj) &   
+#endif
                             -latent_heat_fusion(ii,jj)*(frozen_precip(ii,jj)+calving(ii,jj))
        enddo
     enddo
@@ -5662,6 +5664,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   endif
 
    ! Heat into ocean due to land ice discharge-melt (>0 heats ocean)
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
    if (id_liceht > 0) then
        do j=jsc_bnd,jec_bnd
           do i=isc_bnd,iec_bnd
@@ -5674,6 +5677,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
               Time%model_time, rmask=Grd%tmask(:,:,1),  &
               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
    endif
+#endif
 
   !--------salt related diagnostics ------------------------------------
   !
@@ -5871,7 +5875,6 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
       total_stuff  = mpp_global_sum(Dom%domain2d,wrk1_2d(:,:), NON_BITWISE_EXACT_SUM)
       used = send_data (id_total_ocean_wfiform, total_stuff*1e-15, Time%model_time)
   endif
-#endif
 
    ! waterflux associated with land ice melt into ocean (kg/(m2*sec))
    if (id_licefw > 0) then
@@ -5886,6 +5889,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
               Time%model_time, rmask=Grd%tmask(:,:,1),  &
               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
    endif
+#endif
 
 
   ! output saline contraction coeff (1/rho drho/dS) at the ocean surface (1/psu)
