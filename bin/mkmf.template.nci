@@ -25,8 +25,8 @@ MAKEFLAGS += --jobs=4
 INCLUDE   := -I$(NETCDF_ROOT)/include
 
 ifneq ($(LIBACCESSOM2_ROOT),)
-INCLUDE  += -I$(LIBACCESSOM2_ROOT)/build/oasis3-mct-prefix/src/oasis3-mct/Linux/build/lib/psmile.MPI1 \
-            -I$(LIBACCESSOM2_ROOT)/build/oasis3-mct-prefix/src/oasis3-mct/Linux/build/lib/mct \
+INCLUDE  += -I$(LIBACCESSOM2_ROOT)/oasis3-mct/Linux/build/lib/psmile.MPI1 \
+            -I$(LIBACCESSOM2_ROOT)/oasis3-mct/Linux/build/lib/mct \
             -I$(LIBACCESSOM2_ROOT)/build/include
 endif
 

@@ -1,4 +1,4 @@
-source /etc/profile.d/nf_csh_modules
+source /etc/profile.d/modules.csh
 module purge
 module load intel-compiler/2019.5.281
 module load netcdf/4.7.1
