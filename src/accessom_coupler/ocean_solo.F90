@@ -408,6 +408,8 @@ program main
              Ice_ocean_boundary% mh_flux(isc:iec,jsc:jec),          &
              Ice_ocean_boundary% wfimelt(isc:iec,jsc:jec),          &
              Ice_ocean_boundary% wfiform(isc:iec,jsc:jec),          &
+             Ice_ocean_boundary% licefw(isc:iec,jsc:jec),           &
+             Ice_ocean_boundary% liceht(isc:iec,jsc:jec),           &
              Ice_ocean_boundary%wnd(isc:iec,jsc:jec))
 
   Ice_ocean_boundary%u_flux          = 0.0
@@ -429,6 +431,8 @@ program main
   Ice_ocean_boundary%mh_flux         = 0.0
   Ice_ocean_boundary% wfimelt        = 0.0
   Ice_ocean_boundary% wfiform        = 0.0
+  Ice_ocean_boundary%licefw          = 0.0
+  Ice_ocean_boundary%liceht          = 0.0
   Ice_ocean_boundary%wnd             = 0.0
 
   coupler_init_clock = mpp_clock_id('OASIS init', grain=CLOCK_COMPONENT)
