@@ -14,3 +14,4 @@ tags
 data/archives
 src/shared/mpp/null_mpp_io_test.mod
 *.mod
+*.swp
