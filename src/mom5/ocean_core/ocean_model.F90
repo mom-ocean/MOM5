@@ -3074,6 +3074,8 @@ subroutine mom4_get_latlon_UV(ua, va, ier)
 
   ier = 0
   tau   = Time%taup1
+  ub_tmp = -999.0
+  vb_tmp = -999.0
 
   do k=1,nk
 
