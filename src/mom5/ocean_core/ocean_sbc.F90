@@ -1995,10 +1995,12 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
   id_total_ocean_wfiform = register_diag_field('ocean_model','total_ocean_wfiform',  &
        Time%model_time, 'total iceform outof ocean (>0 enters ocean)',     &
        'kg/sec/1e15', missing_value=missing_value,range=(/-1.e10,1.e10/))
+#if defined(ACCESS_CM)
   id_atm_co2 = register_diag_field('ocean_model','atm_co2', Grd%tracer_axes(1:2),&
        Time%model_time, 'Atmospheric CO2 content', 'ppm' ,  &
        missing_value=missing_value,range=(/-1.e1,1.e4/),                      &
        standard_name='atmospheric_co2' )
+#endif
   id_total_ocean_licefw = register_diag_field('ocean_model','total_ocean_licefw',  &
         Time%model_time, 'total land icemelt into ocean (>0 enters ocean)',     &
         'kg/sec/1e15', missing_value=missing_value,range=(/-1.e10,1.e10/))
