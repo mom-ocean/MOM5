@@ -5977,9 +5977,11 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
               Time%model_time, rmask=Grd%tmask(:,:,1),  &
               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
    endif
+#if defined(ACCESS_CM)
   if (id_atm_co2 > 0) used = send_data(id_atm_co2, atm_co2(:,:),    &
                  Time%model_time, rmask=Grd%tmask(:,:,1),  &
                  is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+#endif
 #endif
 
 
