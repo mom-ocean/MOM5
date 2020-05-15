@@ -68,6 +68,7 @@ module ocean_bbc_mod
 !  For determining bottom drag coefficient using a map of the roughness length.
 !  This approach is more relevant for coarse models
 !  than the constant roughness length used in the cdbot_law_of_wall option. 
+!  cdbot_lo <= cdbot(i,j) <= cdbot_hi.
 !  Default is cdbot_roughness_length=.false. 
 !  </DATA> 
 !
@@ -446,7 +447,7 @@ if(cdbot_roughness_length) then
     enddo
 
     ! bottom drag coefficient; the range of cdbot is
-    ! cd_beta <= cdbot(i,j) <= cd_alpha
+    ! cdbot_lo <= cdbot(i,j) <= cdbot_hi
     do j=jsd,jed
        do i=isd,ied
           cdbot_array(i,j) = Grd%mask(i,j,1)*cdbot_hi*(1.0-exp(-cdbot_gamma*cdbot_lowall(i,j)))
@@ -476,7 +477,6 @@ if(cdbot_roughness_uamp) then
 
 
     ! bottom drag from law of wall using roughness_length and tidal velocity amplitude
-    cdbot_lowall=0.0
     do j=jsd,jed
        do i=isd,ied
           depth = Grd%ht(i,j)
