@@ -52,7 +52,7 @@ module ocean_bbc_mod
 !  <DATA NAME="cdbot_law_of_wall" TYPE="logical">
 !  For determining bottom drag coefficient using a constant roughness length.
 !  Will take maximum between cdbot and the computed value using law of
-!  wall log-profile.  This option of use when have very very 
+!  wall log-profile.  This option is of use when we have very very 
 !  refined vertical resolution (say on order of meters) near the bottom.
 !  Terrain following coordinates should use this option since they generally 
 !  have very refined vertical grid spacing on topography. 
@@ -77,7 +77,7 @@ module ocean_bbc_mod
 !  This approach is more relevant for coarse models
 !  than the constant roughness length used in the cdbot_law_of_wall option.
 !  cdbot_lo <= cdbot(i,j) <= cdbot_hi.
-!  Default is cdbot_roughness_length=.false.
+!  Default is cdbot_roughness_uamp=.false.
 !  </DATA>
 !
 !  <DATA NAME="cdbot_HH" UNITS="m" TYPE="real">
@@ -225,8 +225,8 @@ real    :: convert_geothermal       = .001     ! for converting units from mW to
 real    :: law_of_wall_rough_length = 0.01     ! metre
 real    :: cdbot                    = 2.5e-3   ! dimensionless
 real    :: uresidual                = .05      ! m/sec
-real    :: cdbot_hi                 = 3.0e-3   ! hi-end of cdbot for cdbot_roughness_length 
-real    :: cdbot_lo                 = 1.0e-3   ! lo-end of cdbot for cdbot_roughness_length 
+real    :: cdbot_hi                 = 3.0e-3   ! hi-end of cdbot for cdbot_roughness_length and cdbot_roughness_uamp
+real    :: cdbot_lo                 = 1.0e-3   ! lo-end of cdbot for cdbot_roughness_length and cdbot_roughness_uamp
 real    :: cdbot_gamma              = 40.0     ! for setting exp decay for cdbot w/ cdbot_roughness_length 
 real    :: uvmag_max                = 10.0     ! max velocity scale (m/s) for computing bmf
 real    :: bmf_max                  = 1.0      ! max bmf (N/m^2)
