@@ -184,7 +184,6 @@ logical :: module_is_initialized = .false.
 logical :: first_call            = .true.
 
 real    :: vonkarman2          
-real    :: rho0_cdbot
 real    :: law_of_wall_rough_length_r
 
 real    :: cellarea_r
@@ -333,7 +332,6 @@ allocate (wave_u(isd:ied,jsd:jed))
 allocate (wave_s(isd:ied,jsd:jed))
 allocate (grd_kbot(isd:ied,jsd:jed))
 
-rho0_cdbot            = rho0*cdbot
 vonkarman2            = von_karman*von_karman
 geo_heat(:,:)         = 0.0
 data(:,:)             = 0.0
