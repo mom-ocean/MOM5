@@ -19,6 +19,8 @@ env:
         - TYPE=EBM
         - TYPE=ACCESS-OM
         - TYPE=ACCESS-CM
+        - TYPE=ACCESS-OM-BGC
+        - TYPE=ACCESS-ESM
     global:
         - FC=gfortran-4.8
         - OMPI_FC=${FC}
