@@ -57,7 +57,7 @@ if ( $help ) then
     echo "             ACCESS-ESM : ocean component of ACCESS-ESM model with CSIRO BGC  (Wombat)."
     echo "             ACCESS-OM-BGC: ocean component of ACCESS-OM model with CSIRO BGC  (Wombat)."
     echo
-    echo "--platform   followed by the platform name that has a corresponfing environ file in the ../bin dir, default is gfortran"
+    echo "--platform   followed by the platform name that has a corresponding environ file in the ../bin dir, default is gfortran"
     echo
     echo "--use_netcdf4  use NetCDF4, the default is NetCDF4. Warning: many of the standard experiments don't work with NetCDF4."
     echo
