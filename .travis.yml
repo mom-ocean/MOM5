@@ -29,7 +29,7 @@ env:
 matrix:
   allow_failures:
     - env: TYPE=ACCESS-OM
-    - env: TYPE=ACCESS-CM-BGC
+    - env: TYPE=ACCESS-OM-BGC
 
 install:
     - sudo apt-add-repository --yes ppa:ubuntu-toolchain-r/test
