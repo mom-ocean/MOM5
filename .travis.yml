@@ -19,6 +19,8 @@ env:
         - TYPE=EBM
         - TYPE=ACCESS-OM
         - TYPE=ACCESS-CM
+        - TYPE=ACCESS-OM-BGC
+        - TYPE=ACCESS-ESM
     global:
         - FC=gfortran-4.8
         - OMPI_FC=${FC}
@@ -27,7 +29,7 @@ env:
 matrix:
   allow_failures:
     - env: TYPE=ACCESS-OM
-    # - env: TYPE=ACCESS-CM
+    - env: TYPE=ACCESS-CM-BGC
 
 install:
     - sudo apt-add-repository --yes ppa:ubuntu-toolchain-r/test
