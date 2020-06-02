@@ -31,7 +31,7 @@ env:
         - TYPE=ACCESS-OM-BGC
         - TYPE=ACCESS-ESM
     global:
-        - FC=gfortran-4.8
+        - FC=gfortran
         - OMPI_FC=${FC}
     
 before_script:
@@ -53,5 +53,5 @@ script:
 
 # after_success:
 #     - find .
-#     - codecov --gcov-exec=gcov-4.8
+#     - codecov --gcov-exec=gcov
 
