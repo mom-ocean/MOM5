@@ -35,6 +35,8 @@ env:
         - OMPI_FC=${FC}
     
 before_script:
+    - echo $(nf-config --flibs)
+    - echo $(nf-config --fflags)
     - |
       if [ "$TYPE" == "ACCESS-CM" ]; then
         OASIS_ROOT=$TRAVIS_BUILD_DIR/oasis3-mct/Linux
