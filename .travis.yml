@@ -25,20 +25,24 @@ env:
         - FC=gfortran-4.8
         - OMPI_FC=${FC}
         - OASIS_ROOT=$TRAVIS_BUILD_DIR/oasis3-mct/Linux
+        - LIBACCESSOM2_ROOT=$TRAVIS_BUILD_DIR/libaccessom2
     
-matrix:
-  allow_failures:
-    - env: TYPE=ACCESS-OM
-    - env: TYPE=ACCESS-OM-BGC
-
 install:
     - sudo apt-add-repository --yes ppa:ubuntu-toolchain-r/test
     - sudo apt-get update
     - sudo apt-get install csh gcc-4.8 gfortran-4.8 libgomp1 openmpi-bin libopenmpi-dev libnetcdf-dev  netcdf-bin
 
 before_script:
-    - git clone --depth=1 https://github.com/COSIMA/oasis3-mct.git
-    - (cd oasis3-mct && make ubuntu)
+    - |
+    if [ "$TYPE" == "ACCESS-CM" ]; then
+      git clone --depth=1 https://github.com/COSIMA/oasis3-mct.git
+      (cd oasis3-mct && make ubuntu)
+    fi
+    - |
+    if [ "$TYPE" == "ACCESS-OM" || "$TYPE" == "ACCESS-OM-BGC" ]; then
+      wget https://github.com/COSIMA/libaccessom2/releases/latest/download/binary_release.tar.gz
+      tar -zxf binary_release.tar.gz
+    fi
 
 script: 
     - cd exp && ./MOM_compile.csh --type $TYPE --platform travis --use_netcdf4
