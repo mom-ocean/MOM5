@@ -1904,12 +1904,12 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
 
   id_liceht = register_diag_field('ocean_model','liceht', Grd%tracer_axes(1:2), &
         Time%model_time, 'heat into ocean due to land ice discharge-melt (>0 heats ocean)', &
-        '(W/M^2)', missing_value=missing_value,range=(/-1.e10,1.e10/),&
+        '(W/m^2)', missing_value=missing_value,range=(/-1.e10,1.e10/),&
         standard_name='liceht_flux')
 
   id_mh_flux = register_diag_field('ocean_model','mh_flux', Grd%tracer_axes(1:2), &
         Time%model_time, 'heat into ocean due to melting ice (>0 heats ocean)', &
-        '(W/M^2)', missing_value=missing_value,range=(/-1.e10,1.e10/),&
+        '(W/m^2)', missing_value=missing_value,range=(/-1.e10,1.e10/),&
         standard_name='mh_flux')
 #endif
 
