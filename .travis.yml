@@ -34,15 +34,15 @@ install:
 
 before_script:
     - |
-    if [ "$TYPE" == "ACCESS-CM" ]; then
-      git clone --depth=1 https://github.com/COSIMA/oasis3-mct.git
-      (cd oasis3-mct && make ubuntu)
-    fi
+      if [ "$TYPE" == "ACCESS-CM" ]; then
+        git clone --depth=1 https://github.com/COSIMA/oasis3-mct.git
+        (cd oasis3-mct && make ubuntu)
+      fi
     - |
-    if [ "$TYPE" == "ACCESS-OM" || "$TYPE" == "ACCESS-OM-BGC" ]; then
-      wget https://github.com/COSIMA/libaccessom2/releases/latest/download/binary_release.tar.gz
-      tar -zxf binary_release.tar.gz
-    fi
+      if [ "$TYPE" == "ACCESS-OM" || "$TYPE" == "ACCESS-OM-BGC" ]; then
+        wget https://github.com/COSIMA/libaccessom2/releases/latest/download/binary_release.tar.gz
+        tar -zxf binary_release.tar.gz
+      fi
 
 script: 
     - cd exp && ./MOM_compile.csh --type $TYPE --platform travis --use_netcdf4
