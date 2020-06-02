@@ -38,7 +38,7 @@ before_script:
     - echo $(nf-config --flibs)
     - echo $(nf-config --fflags)
     - |
-      if [ "$TYPE" == "ACCESS-CM" ]; then
+      if [ "$TYPE" == "ACCESS-"* ]; then
         OASIS_ROOT=$TRAVIS_BUILD_DIR/oasis3-mct/Linux
         git clone --depth=1 https://github.com/COSIMA/oasis3-mct.git
         (cd oasis3-mct && make ubuntu)
