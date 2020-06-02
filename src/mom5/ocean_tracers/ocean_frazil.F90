@@ -558,14 +558,19 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
     endif
 
-    if (id_frazil_3d_int_z > 0) then
+    if (id_frazil_3d_int_z > 0 .or. id_total_ocean_frazil > 0) then
        wrk1_2d(:,:) = 0.0
        do k=1,nk
           wrk1_2d(:,:) = wrk1_2d(:,:) +  T_diag(index_frazil)%field(:,:,k)*dtimer
        enddo
-       used = send_data(id_frazil_3d_int_z, wrk1_2d(:,:), &
-            Time%model_time, rmask=Grd%tmask(:,:,1), &
-            is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+       if (id_frazil_3d_int_z > 0) then
+          used = send_data(id_frazil_3d_int_z, wrk1_2d(:,:), &
+               Time%model_time, rmask=Grd%tmask(:,:,1), &
+               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+       endif
+       if (id_total_ocean_frazil > 0) then
+        call diagnose_sum(Time, Grd, Dom, id_total_ocean_frazil, wrk1_2d, 1e-15)
+       endif
     endif
 
     return
