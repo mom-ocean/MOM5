@@ -16,6 +16,8 @@ LD = mpif90  $(MAIN_PROGRAM)
 
 MAKEFLAGS += --jobs=$(shell grep '^processor' /proc/cpuinfo | wc -l)
 
+INCLUDE := -I$(shell nc-config --includedir)
+
 ifneq ($(OASIS_ROOT),)
   INCLUDE  += -I$(OASIS_ROOT)/build/lib/psmile.MPI1 \
               -I$(OASIS_ROOT)/build/lib/pio \
@@ -27,8 +29,6 @@ FPPFLAGS := $(INCLUDE)
 FFLAGS := -O2 -fcray-pointer -fdefault-real-8 -ffree-line-length-none -fno-range-check -w
 
 CFLAGS := -D__IFC -O2 $(shell nc-config --cflags) -I/usr/include/openmpi $(INCLUDE)
-
-INCLUDE := -I$(shell nc-config --includedir)
 
 LIBS := $(shell nc-config --flibs) -lpthread
 
