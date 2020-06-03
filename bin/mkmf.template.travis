@@ -25,7 +25,7 @@ ifneq ($(OASIS_ROOT),)
 endif
 
 ifneq ($(LIBACCESSOM2_ROOT),)
-  INCLUDE += -I$(LIBACCESSOM2_ROOT)
+  INCLUDE += -I$(LIBACCESSOM2_ROOT)/include
 endif
 
 FPPFLAGS := $(INCLUDE)
