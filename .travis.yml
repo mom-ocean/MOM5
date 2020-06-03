@@ -38,13 +38,13 @@ before_script:
     - echo $(nf-config --flibs)
     - echo $(nf-config --fflags)
     - |
-      if [ "$TYPE" == "ACCESS-"* ]; then
+      if [[ "$TYPE" == "ACCESS-"* ]]; then
         export OASIS_ROOT=$TRAVIS_BUILD_DIR/oasis3-mct/Linux
         git clone --depth=1 https://github.com/COSIMA/oasis3-mct.git
         (cd oasis3-mct && make ubuntu)
       fi
     - |
-      if [ "$TYPE" == "ACCESS-OM" || "$TYPE" == "ACCESS-OM-BGC" ]; then
+      if [[ "$TYPE" == "ACCESS-OM" || "$TYPE" == "ACCESS-OM-BGC" ]]; then
         export LIBACCESSOM2_ROOT=$TRAVIS_BUILD_DIR/libaccessom2
         wget https://github.com/COSIMA/libaccessom2/releases/latest/download/binary_release.tar.gz
         tar -zxf binary_release.tar.gz
