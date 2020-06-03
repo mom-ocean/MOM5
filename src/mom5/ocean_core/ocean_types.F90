@@ -80,6 +80,7 @@ module ocean_types_mod
      character(len=72)  :: bryan_lewis_mix
      character(len=72)  :: hwf_mix
      character(len=72)  :: tanh_diff_cbt
+     character(len=72)  :: read_diff_cbt
      character(len=72)  :: j09_diff_cbt
      character(len=72)  :: horz_bih_tracer
      character(len=72)  :: horz_lap_tracer
