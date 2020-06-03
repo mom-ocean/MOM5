@@ -51,8 +51,7 @@ before_script:
       fi
 
 script: 
-    - echo "OASIS_ROOT: $OASIS_ROOT"
-    - echo "LIBACCESSOM2_ROOT: $LIBACCESSOM2_ROOT"
+    - env
     - cd exp && ./MOM_compile.csh --type $TYPE --platform travis --use_netcdf4
 
 # after_success:
