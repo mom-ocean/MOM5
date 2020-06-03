@@ -32,7 +32,7 @@ FPPFLAGS := $(INCLUDE)
 
 CFLAGS := -D__IFC -O2 $(shell nc-config --cflags) -I/usr/include/openmpi $(INCLUDE)
 
-FFLAGS := -O2 -fcray-pointer -fdefault-real-8 -ffree-line-length-none -fno-range-check -w $(INCLUDE)
+FFLAGS := -O2 -fcray-pointer -fdefault-real-8 -ffree-line-length-none -fno-range-check
 
 LIBS := -lnetcdff -lnetcdf -lnetcdf -lpthread
 
