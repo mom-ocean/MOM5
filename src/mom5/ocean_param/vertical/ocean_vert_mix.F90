@@ -128,6 +128,10 @@ module ocean_vert_mix_mod
 !  Default diff_cbt_tanh_zwid=30.0.
 !  </DATA> 
 !
+!  <DATA NAME="read_diff_cbt_file" TYPE="logical">
+!  For enabling a background vertical diffusivity profile initilaized from file. 
+!  Default read_diff_cbt_file=.false.
+!
 !  <DATA NAME="hwf_diffusivity" TYPE="logical">
 !  3D background diffusivity which gets smaller in equatorial region.
 !  Based on the work of Henyey etal (1986).   
@@ -252,7 +256,7 @@ module ocean_vert_mix_mod
 use constants_mod,       only: epsln, pi, deg_to_rad
 use diag_manager_mod,    only: register_diag_field, register_static_field, send_data
 use field_manager_mod,   only: MODEL_OCEAN, parse, find_field_index, get_field_methods, method_type, get_field_info
-use fms_mod,             only: open_namelist_file, check_nml_error, close_file, write_version_number
+use fms_mod,             only: open_namelist_file, check_nml_error, close_file, write_version_number, read_data, file_exist
 use fms_mod,             only: FATAL, WARNING, NOTE, stdout, stdlog
 use mpp_domains_mod,     only: mpp_update_domains
 use mpp_mod,             only: input_nml_file, mpp_error
@@ -307,6 +311,7 @@ public ocean_vert_mix_restart
 private vert_friction_init
 private bryan_lewis_init
 private diff_cbt_tanh_init
+private read_diff_cbt_init
 private hwf_init
 private diff_cbt_j09_init
 private diff_cbt_table_init
@@ -392,6 +397,11 @@ real    :: diff_cbt_tanh_min=2e-5
 real    :: diff_cbt_tanh_zmid=150.0
 real    :: diff_cbt_tanh_zwid=30.0
 
+! file initialised background vertical diffusivity
+real, dimension(:,:,:), allocatable :: diff_cbt_back_file
+logical :: read_diff_cbt_file=.false.
+character(len=32) :: name
+
 ! horizontal variation for j09 background vertical diffusivity
 logical :: j09_diffusivity=.false.
 real    :: j09_bgmin=1.e-6
@@ -469,6 +479,7 @@ integer :: id_diff_bryan_lewis_00   =-1
 integer :: id_diff_bryan_lewis_90   =-1
 integer :: id_hwf_diffusivity       =-1
 integer :: id_diff_cbt_tanh         =-1
+integer :: id_diff_cbt_file         =-1
 integer :: id_diff_cbt_j09         =-1
 integer :: id_diff_cbt_table        =-1
 integer :: id_diff_cbt_back         =-1
@@ -720,7 +731,7 @@ namelist /ocean_vert_mix_nml/ debug_this_module, vert_mix_scheme, verbose_init, 
  j09_diffusivity, j09_bgmin, j09_bgmax, j09_lat,                                                                    &
  quebec_2009_10_bug, vmix_rescale_nonbouss,                                                                         &
  vmix_set_min_dissipation, vmix_min_diss_const, vmix_min_diss_bvfreq_scale, vmix_min_diss_flux_ri_max,              &
- smooth_rho_N2, num_121_passes
+ smooth_rho_N2, num_121_passes, read_diff_cbt_file
 
 contains
 
@@ -867,6 +878,9 @@ ierr = check_nml_error(io_status,'ocean_vert_mix_nml')
 
   ! initialize static tanh background diffusivity and add to diff_cbt_back
   call diff_cbt_tanh_init(Time, Ocean_options)
+
+  ! initialize static background diffusivity from file
+  call read_diff_cbt_init(Time, Domain, Ocean_options)
 
   ! initialize static j09 cosine background diffusivity and add to diff_cbt_back
   call diff_cbt_j09_init(Time, Ocean_options)
@@ -1609,6 +1623,62 @@ subroutine diff_cbt_tanh_init(Time, Ocean_options)
 
 end subroutine diff_cbt_tanh_init
 ! </SUBROUTINE> NAME="diff_cbt_tanh_init"
+
+!#####################################################################KS_diff
+! <SUBROUTINE NAME="read_diff_cbt_init">
+!
+! <DESCRIPTION>
+! Initialize the background diffusivity from file.
+! </DESCRIPTION>
+!
+subroutine read_diff_cbt_init(Time, Domain, Ocean_options)
+  type(ocean_time_type),    intent(in)    :: Time
+  type(ocean_options_type), intent(inout) :: Ocean_options
+  type(ocean_domain_type),      intent(in), target   :: Domain
+
+  integer :: i,j,k
+
+  if(read_diff_cbt_file) then
+     Ocean_options%read_diff_cbt = 'Reading in background vertical diffusivity from file.'
+  else
+     Ocean_options%read_diff_cbt = 'Did NOT read background vertical diffusivity from file.'
+     return
+  endif
+
+  if(bryan_lewis_diffusivity .or. hwf_diffusivity .or. diff_cbt_tanh) then
+    call mpp_error(WARNING,&
+    '==>Warning from ocean_vert_mix_mod: Enabling diff_cbt_back read in  from file, on top of either Bryan-Lewis, HWF of tanh diff_cbt.')
+  endif
+
+  name = 'INPUT/background_diffusivity.nc'
+  if (.not. file_exist(trim(name))) then
+    call mpp_error(FATAL, '==> Error from ocean_vert_mix(read_diff_cbt_init): ' // &
+                          'read_diff_cbt_file set true but background_diffusivity.nc does not exist')
+  endif
+
+  allocate (diff_cbt_back_file(isd:ied,jsd:jed,nk))
+  diff_cbt_back_file(:,:,:) = 0.0
+
+  call read_data(name,'diff_cbt_file',diff_cbt_back_file,domain=Domain%domain2d,timelevel=1)
+
+  ! Add to background diffusivity 
+  do k=1,nk
+     do j=jsc,jec
+        do i=isc,iec
+           diff_cbt_back(i,j,k) = diff_cbt_back(i,j,k) + Grd%tmask(i,j,k)*diff_cbt_back_file(i,j,k)
+        enddo
+     enddo
+  enddo
+
+  ! register and send static diffusivity
+  id_diff_cbt_file = -1
+  id_diff_cbt_file = register_static_field ('ocean_model', 'diff_cbt_file',            &
+                       Grd%tracer_axes(1:3), 'Background vertical diffusivity from file', &
+                       'm^2/s',missing_value=missing_value, range=(/-10.0,1e6/))
+  call diagnose_3d(Time, Grd, id_diff_cbt_file, diff_cbt_back_file(:,:,:))
+
+end subroutine read_diff_cbt_init
+! </SUBROUTINE> NAME="read_diff_cbt_init"
 
 !#######################################################################
 ! <SUBROUTINE NAME="diff_cbt_j09_init">
