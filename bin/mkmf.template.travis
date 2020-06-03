@@ -21,7 +21,6 @@ INCLUDE := -I$(shell nc-config --includedir)
 
 ifneq ($(OASIS_ROOT),)
   INCLUDE  += -I$(OASIS_ROOT)/build/lib/psmile.MPI1 \
-              -I$(OASIS_ROOT)/build/lib/pio \
               -I$(OASIS_ROOT)/build/lib/mct
 endif
 
