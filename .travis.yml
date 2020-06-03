@@ -21,15 +21,15 @@ addons:
 env:
     matrix:
         - TYPE=MOM_solo
-        # - TYPE=MOM_SIS
-        # - TYPE=CM2M
-        # - TYPE=ESM2M
-        # - TYPE=ICCM
-        # - TYPE=EBM
+        - TYPE=MOM_SIS
+        - TYPE=CM2M
+        - TYPE=ESM2M
+        - TYPE=ICCM
+        - TYPE=EBM
         - TYPE=ACCESS-OM
         - TYPE=ACCESS-CM
-        # - TYPE=ACCESS-OM-BGC
-        # - TYPE=ACCESS-ESM
+        - TYPE=ACCESS-OM-BGC
+        - TYPE=ACCESS-ESM
     global:
         - FC=gfortran
         - OMPI_FC=${FC}
