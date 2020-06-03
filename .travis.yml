@@ -3,11 +3,20 @@
 language: c
 sudo: required
 
-dist: trusty
+dist: xenial
 
 git:
     depth: 3
     quiet: true
+
+addons:
+  apt:
+    update: true
+    packages:
+      - pkg-config csh cmake
+      - gcc gfortran 
+      - libgomp1 openmpi-bin libopenmpi-dev 
+      - libnetcdf-dev libnetcdff-dev  netcdf-bin
 
 env:
     matrix:
@@ -22,28 +31,30 @@ env:
         - TYPE=ACCESS-OM-BGC
         - TYPE=ACCESS-ESM
     global:
-        - FC=gfortran-4.8
+        - FC=gfortran
         - OMPI_FC=${FC}
-        - OASIS_ROOT=$TRAVIS_BUILD_DIR/oasis3-mct/Linux
     
-matrix:
-  allow_failures:
-    - env: TYPE=ACCESS-OM
-    - env: TYPE=ACCESS-OM-BGC
-
-install:
-    - sudo apt-add-repository --yes ppa:ubuntu-toolchain-r/test
-    - sudo apt-get update
-    - sudo apt-get install csh gcc-4.8 gfortran-4.8 libgomp1 openmpi-bin libopenmpi-dev libnetcdf-dev  netcdf-bin
-
 before_script:
-    - git clone --depth=1 https://github.com/COSIMA/oasis3-mct.git
-    - (cd oasis3-mct && make ubuntu)
+    - echo $(nf-config --flibs)
+    - echo $(nf-config --fflags)
+    - |
+      if [[ "$TYPE" == "ACCESS-"* ]]; then
+        export OASIS_ROOT=$TRAVIS_BUILD_DIR/oasis3-mct/Linux
+        git clone --depth=1 https://github.com/COSIMA/oasis3-mct.git
+        (cd oasis3-mct && make ubuntu)
+      fi
+    - |
+      if [[ "$TYPE" == "ACCESS-OM" || "$TYPE" == "ACCESS-OM-BGC" ]]; then
+        export LIBACCESSOM2_ROOT=$TRAVIS_BUILD_DIR/libaccessom2
+        wget https://github.com/COSIMA/libaccessom2/releases/latest/download/binary_release.tar.gz
+        tar -zxf binary_release.tar.gz
+      fi
 
 script: 
+    - env
     - cd exp && ./MOM_compile.csh --type $TYPE --platform travis --use_netcdf4
 
 # after_success:
 #     - find .
-#     - codecov --gcov-exec=gcov-4.8
+#     - codecov --gcov-exec=gcov
 

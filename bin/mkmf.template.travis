@@ -16,19 +16,34 @@ LD = mpif90  $(MAIN_PROGRAM)
 
 MAKEFLAGS += --jobs=$(shell grep '^processor' /proc/cpuinfo | wc -l)
 
-INCLUDE := -I$(shell nc-config --includedir) \
-			-I$(OASIS_ROOT)/build/lib/psmile.MPI1 \
-			-I$(OASIS_ROOT)/build/lib/scrip \
-			-I$(OASIS_ROOT)/build/lib/scrip \
-			-I$(OASIS_ROOT)/build/lib/mct
+INCLUDE := -I$(shell nc-config --includedir)
+# INCLUDE := -I$(shell nc-config --fflags)
+
+ifneq ($(OASIS_ROOT),)
+  INCLUDE  += -I$(OASIS_ROOT)/build/lib/psmile.MPI1 \
+              -I$(OASIS_ROOT)/build/lib/mct
+endif
+
+ifneq ($(LIBACCESSOM2_ROOT),)
+  INCLUDE += -I$(LIBACCESSOM2_ROOT)/include
+endif
 
 FPPFLAGS := $(INCLUDE)
 
-FFLAGS := -O2 -fcray-pointer -fdefault-real-8 -ffree-line-length-none -fno-range-check -w
-
 CFLAGS := -D__IFC -O2 $(shell nc-config --cflags) -I/usr/include/openmpi $(INCLUDE)
 
-LIBS := $(shell nc-config --flibs) -lpthread -L$(OASIS_ROOT)/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip
+FFLAGS := -O2 -fcray-pointer -fdefault-real-8 -ffree-line-length-none -fno-range-check
+
+LIBS := -lnetcdff -lnetcdf -lnetcdf -lpthread
+
+ifneq ($(LIBACCESSOM2_ROOT),)
+  LIBS += -L$(LIBACCESSOM2_ROOT)/lib -laccessom2
+endif
+
+ifneq ($(OASIS_ROOT),)
+  LIBS += -L$(OASIS_ROOT)/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip
+endif
+
 LDFLAGS += $(LIBS)
 
 #---------------------------------------------------------------------------
