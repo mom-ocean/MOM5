@@ -3734,6 +3734,8 @@ subroutine transport_on_rho_submeso (Time, Dens, tx_trans_lev, ty_trans_lev)
   integer :: i, j, k, k_rho, potrho_nk
   real    :: work(isd:ied,jsd:jed,size(Dens%potrho_ref),2)
   real    :: W1, W2
+  real, dimension(jsc:jec) :: rho_minj, rho_maxj
+  real                     :: rho_min, rho_max
 
   if (.not.module_is_initialized) then
     call mpp_error(FATAL, &
@@ -3741,29 +3743,40 @@ subroutine transport_on_rho_submeso (Time, Dens, tx_trans_lev, ty_trans_lev)
   endif
 
   next_time = increment_time(Time%model_time, int(dtime), 0)
+
   if (need_data(id_tx_trans_rho_submeso,next_time) .or. need_data(id_ty_trans_rho_submeso,next_time)) then
 
       potrho_nk = size(Dens%potrho_ref(:))
       work(:,:,:,:) = 0.0
 
-      ! for (i,j) points with neutralrho_ref < neutralrho(k=1),   work=0
-      ! for (i,j) points with neutralrho_ref > neutralrho(k=kmt), work=0
-      ! these assumptions mean there is no need to specially handle the
-      ! endpoints,
+      ! for (i,j) points with potrho_ref < potrho(k=1),   work=0
+      ! for (i,j) points with potrho_ref > potrho(k=kmt), work=0
+      ! these assumptions mean there is no need to specially handle the endpoints,
       ! since the initial value for work is 0.
 
-      ! interpolate trans_lev from k-levels to neutralrho_nk-levels
-      do k_rho=1,potrho_nk
-         do k=1,nk-1
-            do j=jsc,jec
-               do i=isc,iec
-                  if(     Dens%potrho_ref(k_rho) >  Dens%potrho(i,j,k) ) then
-                      if( Dens%potrho_ref(k_rho) <= Dens%potrho(i,j,k+1)) then
-                          W1= Dens%potrho_ref(k_rho)- Dens%potrho(i,j,k)
-                          W2= Dens%potrho(i,j,k+1)  - Dens%potrho_ref(k_rho)
-                          work(i,j,k_rho,1) = (tx_trans_lev(i,j,k+1)*W1+tx_trans_lev(i,j,k)*W2) &
+      ! interpolate trans_lev from k-levels to potrho_nk-levels
+      do k = 1,nk-1
+         do j = jsc,jec
+            rho_maxj(j) = maxval(Dens%potrho(isc:iec,j,k+1),mask=Grd%tmask(isc:iec,j,k+1)==1.)
+            rho_minj(j) = minval(Dens%potrho(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1.)
+         enddo
+         rho_max = maxval(rho_maxj)
+         rho_min = minval(rho_minj)
+         if (rho_max == -huge(rho_max)) exit  ! only rock below this level
+         do k_rho = 1,potrho_nk
+            if (rho_max < Dens%potrho_ref(k_rho)) cycle
+            if (rho_min > Dens%potrho_ref(k_rho)) cycle
+            do j = jsc,jec
+               if (rho_maxj(j) < Dens%potrho_ref(k_rho)) cycle
+               if (rho_minj(j) > Dens%potrho_ref(k_rho)) cycle
+               do i = isc,iec
+                  if (    Dens%potrho_ref(k_rho) >  Dens%potrho(i,j,k)  ) then
+                      if (Dens%potrho_ref(k_rho) <= Dens%potrho(i,j,k+1)) then
+                         W1 = Dens%potrho_ref(k_rho)- Dens%potrho(i,j,k)
+                         W2 = Dens%potrho(i,j,k+1)  - Dens%potrho_ref(k_rho)
+                         work(i,j,k_rho,1) = (tx_trans_lev(i,j,k+1)*W1 +tx_trans_lev(i,j,k)*W2) &
                                               /(W1 + W2 + epsln)
-                          work(i,j,k_rho,2) = (ty_trans_lev(i,j,k+1)*W1+ty_trans_lev(i,j,k)*W2) &
+                         work(i,j,k_rho,2) = (ty_trans_lev(i,j,k+1)*W1 +ty_trans_lev(i,j,k)*W2) &
                                               /(W1 + W2 + epsln)
                       endif
                   endif
@@ -3772,9 +3785,9 @@ subroutine transport_on_rho_submeso (Time, Dens, tx_trans_lev, ty_trans_lev)
          enddo
       enddo
 
-      do k_rho=1,potrho_nk
-         do j=jsc,jec
-            do i=isc,iec
+      do k_rho = 1,potrho_nk
+         do j = jsc,jec
+            do i = isc,iec
                work(i,j,k_rho,1) = work(i,j,k_rho,1)*Grd%tmask(i,j,1)
                work(i,j,k_rho,2) = work(i,j,k_rho,2)*Grd%tmask(i,j,1)
             enddo
