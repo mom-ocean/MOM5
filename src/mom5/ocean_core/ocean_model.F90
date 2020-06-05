@@ -589,6 +589,7 @@ private
   public mom4_set_swheat_fr
   public mom4_get_pointers_to_variables
   public mom4_get_streamfunction
+  public mom4_get_mld
   public mom4_ghost_prognostics
 
   public    ocean_model_data_get
@@ -3433,6 +3434,26 @@ function mom4_get_streamfunction() result(psi)
   psi = psiu(isc:iec, jsc:jec); 
   
 end function mom4_get_streamfunction
+
+
+function mom4_get_mld() result(mld)
+
+  use ocean_tracer_diag_mod
+
+  real :: mld(isc:iec,jsc:jec)
+  real :: fld(isd:ied,jsd:jed)
+  integer :: tau
+
+  tau = time%taup1
+  call calc_mixed_layer_depth(Thickness,                                       &
+                                T_prog(index_salt)%field(isd:ied,jsd:jed,:,tau), &
+                                T_prog(index_temp)%field(isd:ied,jsd:jed,:,tau), &
+                                Dens%rho(isd:ied,jsd:jed,:,tau),                 &
+                                Dens%pressure_at_depth(isd:ied,jsd:jed,:),       &
+                                fld(isd:ied,jsd:jed), .true.)
+  mld=fld(isc:iec, jsc:jec)
+  
+end function mom4_get_mld
 
 subroutine ocean_public_type_chksum(id, timestep, ocn)
 
