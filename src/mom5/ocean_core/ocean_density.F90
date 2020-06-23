@@ -256,6 +256,16 @@ module ocean_density_mod
 !  at this time.  
 !  Default neutral_density_potrho=.true.
 !  </DATA>
+!  <DATA NAME="diff_nrho_press" TYPE="logical">
+!  If neutral_density_potrho=true., use a different reference sea pressure
+!  nrho_press, instead of potrho_press? Allows multiple diagnostic potential
+!  densities to be output.
+!  Default diff_nrho_press=.false.
+!  <DATA NAME="nrho_press" UNITS="dbar" TYPE="real">
+!  Reference sea pressure for computing diagnostic potential density
+!  for the 'neutral' density variable used in computing diagnostics with nrho.
+!  Default nrho_press=2000.0
+!  </DATA>
 !  <DATA NAME="neutral_density_theta" TYPE="logical">
 !  Set to true to use temperature instead of neutral density as the
 !  binning variable for water-mass diagnostics.
@@ -661,6 +671,9 @@ logical :: neutral_density_potrho = .true.
 logical :: neutral_density_theta  = .false.
 real    :: neutralrho_min = 1020.0  ! (kg/m^3)         
 real    :: neutralrho_max = 1030.0  ! (kg/m^3)           
+
+real    :: nrho_press = 2000.0
+logical :: diff_nrho_press = .false.
 
 ! for diagnostic partitioning of vertical according 
 ! to potential temperature or conservative temperature classes 
@@ -2669,7 +2682,11 @@ end subroutine update_ocean_density
            enddo
         enddo
     else
-         neutral_density_field = potential_density(salinity,theta,potrho_press)
+         if (diff_nrho_press) then
+             neutral_density_field = potential_density(salinity,theta,nrho_press)
+         else
+             neutral_density_field = potential_density(salinity,theta,potrho_press)
+         endif
     endif 
 
   end function neutral_density_field
