@@ -183,7 +183,9 @@ set (SRCS
 esma_add_library (${this}
   SRCS ${SRCS}
   DEPENDENCIES fms_r8
-  INCLUDES src/mom5/ocean_param/gotm-4.0/include src/mom5/ocean_core
+  INCLUDES 
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/mom5/ocean_param/gotm-4.0/include> 
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/mom5/ocean_core>
 )
 
 target_compile_definitions (${this} PRIVATE MAPL_MODE EIGHT_BYTE SPMD TIMING use_libMPI use_netCDF USE_OCEAN_BGC)
