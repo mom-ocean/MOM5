@@ -186,6 +186,7 @@ esma_add_library (${this}
   INCLUDES 
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/mom5/ocean_param/gotm-4.0/include> 
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/mom5/ocean_core>
+  TYPE SHARED
 )
 
 target_compile_definitions (${this} PRIVATE MAPL_MODE EIGHT_BYTE SPMD TIMING use_libMPI use_netCDF USE_OCEAN_BGC)
