@@ -202,7 +202,7 @@ module ocean_solo_mod
   use time_manager_mod,         only: date_to_string
   use time_manager_mod,         only: fms_get_calendar_type => get_calendar_type
   use ocean_model_mod,          only: ocean_model_init , update_ocean_model, ocean_model_end
-  use ocean_model_mod,          only: ocean_model_restart, ocean_public_type, ocean_state_type
+  use ocean_model_mod,          only: ocean_model_restart, ocean_public_type, mom5_ocean_state_type
   use ocean_types_mod,          only: ice_ocean_boundary_type
 
   use ESMF
@@ -220,7 +220,7 @@ module ocean_solo_mod
 
   type ocean_internalstate_type
     type(ocean_public_type),       pointer :: ocean_public_type_ptr
-    type(ocean_state_type),        pointer :: ocean_state_type_ptr
+    type(mom5_ocean_state_type),        pointer :: ocean_state_type_ptr
     type(ice_ocean_boundary_type), pointer :: ice_ocean_boundary_type_ptr
   end type
 
@@ -296,7 +296,7 @@ module ocean_solo_mod
     type(ESMF_VM)      :: vm
     
     type (ocean_public_type),      pointer :: Ocean_sfc          
-    type (ocean_state_type),       pointer :: Ocean_state => NULL()
+    type (mom5_ocean_state_type),       pointer :: Ocean_state => NULL()
     type(ice_ocean_boundary_type), pointer :: Ice_ocean_boundary 
 
     ! define some time types 
@@ -758,7 +758,7 @@ module ocean_solo_mod
     type(ESMF_TimeInterval)       :: timeStep
 
     type (ocean_public_type),      pointer :: Ocean_sfc          
-    type (ocean_state_type),       pointer :: Ocean_state
+    type (mom5_ocean_state_type),       pointer :: Ocean_state
     type(ice_ocean_boundary_type), pointer :: Ice_ocean_boundary 
 
     ! define some time types 
@@ -905,7 +905,7 @@ module ocean_solo_mod
     
     ! local variables
     type (ocean_public_type),      pointer :: Ocean_sfc          
-    type (ocean_state_type),       pointer :: Ocean_state
+    type (mom5_ocean_state_type),       pointer :: Ocean_state
     type(ocean_internalstate_wrapper)      :: ocean_internalstate
     type(time_type)                        :: Time, Time_restart_current, Time_end
     type(ESMF_Time)                        :: currTime
@@ -1299,7 +1299,7 @@ module esm_mod
   use time_manager_mod,         only: date_to_string
   use time_manager_mod,         only: fms_get_calendar_type => get_calendar_type
   use ocean_model_mod,          only: ocean_model_init , update_ocean_model, ocean_model_end
-  use ocean_model_mod,          only: ocean_model_restart, ocean_public_type, ocean_state_type
+  use ocean_model_mod,          only: ocean_model_restart, ocean_public_type, mom5_ocean_state_type
   use ocean_types_mod,          only: ice_ocean_boundary_type
 
 
@@ -1666,7 +1666,7 @@ program ocean_solo
   use time_manager_mod,         only: fms_get_calendar_type => get_calendar_type
 
   use ocean_model_mod,          only: ocean_model_init , update_ocean_model, ocean_model_end
-  use ocean_model_mod,          only: ocean_model_restart, ocean_public_type, ocean_state_type
+  use ocean_model_mod,          only: ocean_model_restart, ocean_public_type, mom5_ocean_state_type
   use ocean_types_mod,          only: ice_ocean_boundary_type
 
 

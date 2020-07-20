@@ -635,12 +635,12 @@ private
   real :: beta_qf   = 0.0
   real :: beta_lwsw = 0.0
 
-  type, public ::  ocean_state_type; private
+  type, public ::  mom5_ocean_state_type; private
      ! This type is private, and can therefore vary between different ocean models.
      ! All information entire ocean state may be contained here, although it is not
      ! necessary that this is implemented with all models.
      logical       :: is_ocean_pe = .false.       ! .true. on processors that run the ocean model.
-  end type ocean_state_type
+  end type mom5_ocean_state_type
 
   integer :: dt_ocean = -1  ! ocean tracer timestep
 
@@ -670,7 +670,7 @@ contains
 !
 subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)   
     type(ocean_public_type), intent(inout)  :: Ocean
-    type(ocean_state_type),  pointer        :: Ocean_state
+    type(mom5_ocean_state_type),  pointer        :: Ocean_state
     type(time_type),         intent(in)     :: Time_init
     type(time_type),         intent(in)     :: Time_in 
     
@@ -692,7 +692,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 
     if (associated(Ocean_state)) then
        call mpp_error(WARNING, "ocean_model_init called with an associated "// &
-            "ocean_state_type structure. Model is already initialized.")
+            "mom5_ocean_state_type structure. Model is already initialized.")
        return
     endif
     allocate(Ocean_state)
@@ -1397,7 +1397,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
   subroutine update_ocean_model(Ice_ocean_boundary, Ocean_state, Ocean_sfc, &
                          time_start_update, Ocean_coupling_time_step, do_wave_in)
     type(ice_ocean_boundary_type), intent(inout) :: Ice_ocean_boundary
-    type(ocean_state_type),        pointer       :: Ocean_state
+    type(mom5_ocean_state_type),        pointer       :: Ocean_state
     type(ocean_public_type),       intent(inout) :: Ocean_sfc
     type(time_type),               intent(in)    :: time_start_update
     type(time_type),               intent(in)    :: Ocean_coupling_time_step
@@ -2059,7 +2059,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in)
 ! </SUBROUTINE> NAME="get_ocean_grid_size"
 
 subroutine ocean_model_data3D_get(OS,Ocean, name, array3D,isc,jsc)
-  type(ocean_state_type),     pointer    :: OS
+  type(mom5_ocean_state_type),     pointer    :: OS
   type(ocean_public_type),    intent(in) :: Ocean
   character(len=*)          , intent(in) :: name
   real, dimension(isc:,jsc:,:), intent(out):: array3D
@@ -2078,7 +2078,7 @@ end subroutine ocean_model_data3D_get
 subroutine ocean_model_data2D_get(OS,Ocean, name, array2D,isc,jsc)
   use constants_mod,     only: epsln 
 
-  type(ocean_state_type),     pointer    :: OS
+  type(mom5_ocean_state_type),     pointer    :: OS
   type(ocean_public_type),    intent(in) :: Ocean
   character(len=*)          , intent(in) :: name
   real, dimension(isc:,jsc:), intent(out):: array2D
@@ -2130,7 +2130,7 @@ subroutine ocean_model_data2D_get(OS,Ocean, name, array2D,isc,jsc)
 end subroutine ocean_model_data2D_get
 
 subroutine ocean_model_data1D_get(OS,Ocean, name, value)
-  type(ocean_state_type),     pointer    :: OS
+  type(mom5_ocean_state_type),     pointer    :: OS
   type(ocean_public_type),    intent(in) :: Ocean
   character(len=*)          , intent(in) :: name
   real                      , intent(out):: value
@@ -2178,7 +2178,7 @@ end subroutine ocean_model_data1D_get
 ! </DESCRIPTION>
 !
   subroutine ocean_model_init_sfc(Ocean_state, Ocean)
-    type(ocean_state_type),  pointer       :: Ocean_state    
+    type(mom5_ocean_state_type),  pointer       :: Ocean_state    
     type(ocean_public_type), intent(inout) :: Ocean
 
     call ocean_tpm_init_sfc(Domain, T_prog(:), Dens, Ocean, Time, Grid)
@@ -2200,7 +2200,7 @@ end subroutine ocean_model_data1D_get
 ! </DESCRIPTION>
 !
   subroutine ocean_model_flux_init(Ocean_state)
-    type(ocean_state_type), pointer       :: Ocean_state
+    type(mom5_ocean_state_type), pointer       :: Ocean_state
     
     call ocean_tpm_flux_init
     
@@ -2220,14 +2220,14 @@ end subroutine ocean_model_data1D_get
 !
 ! NOTE from nnz: This module keeps its own Time and does not need the Time_in argument.
 ! Arguments: 
-!   Ocean_state (type(ocean_state_type), pointer) - A structure containing the internal ocean state.
+!   Ocean_state (type(mom5_ocean_state_type), pointer) - A structure containing the internal ocean state.
 !   Time_in     (type(time_type), intent(in))     - The model time, used for writing restarts.
 !   Ocean_sfc   (type(ocean_public_type), optional, intent(inout))- An ocean_public_type structure that is to be
 !                   deallocated upon termination.
 ! </DESCRIPTION>
 !
   subroutine ocean_model_end(Ocean_sfc, Ocean_state, Time_in)
-    type(ocean_state_type),            pointer       :: Ocean_state
+    type(mom5_ocean_state_type),            pointer       :: Ocean_state
     type(time_type),                   intent(in)    :: Time_in
     type(ocean_public_type), optional, intent(inout) :: Ocean_sfc
 
@@ -2383,7 +2383,7 @@ end subroutine ocean_model_data1D_get
 ! </DESCRIPTION>
 !
   subroutine ocean_model_restart(Ocean_state, timestamp)
-     type(ocean_state_type),    pointer     :: Ocean_state
+     type(mom5_ocean_state_type),    pointer     :: Ocean_state
      character(len=*), intent(in), optional :: timestamp
 
      call ocean_tracer_restart(Time, T_prog, timestamp)
@@ -2421,7 +2421,7 @@ end subroutine ocean_model_data1D_get
 ! </DESCRIPTION>
 !
 subroutine ocean_stock_pe(Ocean_state, index, value, time_index)
-  type(ocean_state_type),pointer     :: Ocean_state
+  type(mom5_ocean_state_type),pointer     :: Ocean_state
   integer,               intent(in)  :: index
   real,                  intent(out) :: value
   integer, optional,     intent(in)  :: time_index ! -1=previous, 0=now, or +1=next

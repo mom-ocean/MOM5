@@ -192,7 +192,7 @@ program coupler_main
   use ice_model_mod,           only: atm_ice_bnd_type_chksum, lnd_ice_bnd_type_chksum
 
   use ocean_model_mod,         only: update_ocean_model, ocean_model_init
-  use ocean_model_mod,         only: ocean_model_end, ocean_public_type, ocean_state_type, ice_ocean_boundary_type
+  use ocean_model_mod,         only: ocean_model_end, ocean_public_type, mom5_ocean_state_type, ice_ocean_boundary_type
   use ocean_model_mod,         only: ocean_model_restart
   use ocean_model_mod,         only: ocean_public_type_chksum, ice_ocn_bnd_type_chksum
 !
@@ -239,7 +239,7 @@ program coupler_main
   type   (ice_data_type) :: Ice
   ! allow members of ocean type to be aliased (ap)
   type (ocean_public_type), target :: Ocean
-  type (ocean_state_type),  pointer :: Ocean_state => NULL()
+  type (mom5_ocean_state_type),  pointer :: Ocean_state => NULL()
 
   type(atmos_land_boundary_type)     :: Atmos_land_boundary
   type(atmos_ice_boundary_type)      :: Atmos_ice_boundary
