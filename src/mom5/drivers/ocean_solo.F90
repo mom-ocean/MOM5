@@ -122,13 +122,13 @@ program main
   use time_manager_mod,         only: date_to_string
 
   use ocean_model_mod,          only: ocean_model_init , update_ocean_model, ocean_model_end
-  use ocean_model_mod,          only: ocean_model_restart, ocean_public_type, ocean_state_type
+  use ocean_model_mod,          only: ocean_model_restart, ocean_public_type, mom5_ocean_state_type
   use ocean_types_mod,          only: ice_ocean_boundary_type
 
   implicit none
 
   type (ocean_public_type)               :: Ocean_sfc          
-  type (ocean_state_type),       pointer :: Ocean_state => NULL()
+  type (mom5_ocean_state_type),       pointer :: Ocean_state => NULL()
   type(ice_ocean_boundary_type), target  :: Ice_ocean_boundary 
 
   ! define some time types 

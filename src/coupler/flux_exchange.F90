@@ -177,7 +177,7 @@ module flux_exchange_mod
 !DIRECT: same grid, same decomp, direct copy
   use atmos_model_mod, only: atmos_data_type, land_ice_atmos_boundary_type
   use ocean_model_mod, only: ocean_public_type, ice_ocean_boundary_type
-  use ocean_model_mod, only: ocean_state_type
+  use ocean_model_mod, only: mom5_ocean_state_type
   use ice_model_mod,   only: ice_data_type, land_ice_boundary_type, &
        ocean_ice_boundary_type, atmos_ice_boundary_type, Ice_stock_pe, &
        ice_cell_area => cell_area
@@ -511,7 +511,7 @@ subroutine flux_exchange_init ( Time, Atm, Land, Ice, Ocean, Ocean_state,&
   type(land_data_type),              intent(in)  :: Land
   type(ice_data_type),               intent(inout)  :: Ice
   type(ocean_public_type),           intent(inout)  :: Ocean
-  type(ocean_state_type),            pointer        :: Ocean_state
+  type(mom5_ocean_state_type),            pointer        :: Ocean_state
 ! All intent(OUT) derived types with pointer components must be 
 ! COMPLETELY allocated here and in subroutines called from here;
 ! NO pointer components should have been allocated before entry if the
@@ -3112,7 +3112,7 @@ subroutine flux_ocean_to_ice ( Time, Ocean, Ice, Ocean_Ice_Boundary )
     type(atmos_data_type), optional :: Atm
     type(land_data_type), optional  :: Lnd
     type(ice_data_type), optional   :: Ice
-    type(ocean_state_type), optional, pointer :: Ocn_state
+    type(mom5_ocean_state_type), optional, pointer :: Ocn_state
 
     real :: ref_value
     integer :: i, ier
@@ -3178,7 +3178,7 @@ subroutine flux_init_stocks(Time, Atm, Lnd, Ice, Ocn_state)
   type(atmos_data_type) :: Atm
   type(land_data_type)  :: Lnd
   type(ice_data_type)   :: Ice
-  type(ocean_state_type), pointer :: Ocn_state
+  type(mom5_ocean_state_type), pointer :: Ocn_state
 
   integer i, ier
 
@@ -3711,7 +3711,7 @@ end subroutine flux_up_to_atmos
 !		
 !  </TEMPLATE>
   subroutine flux_ocean_from_ice_stocks(ocean_state,Ocean,Ice_Ocean_boundary)
-    type(ocean_state_type),        pointer    :: ocean_state
+    type(mom5_ocean_state_type),        pointer    :: ocean_state
     type(ocean_public_type),       intent(in) :: Ocean
     type(ice_ocean_boundary_type), intent(in) :: Ice_Ocean_Boundary
     real    :: from_dq, cp_ocn
