@@ -71,6 +71,18 @@ module mom_oasis3_interface_mod
 !   <DATA NAME="send_after_ocean_update" TYPE="logical" DEFAULT=".FALSE.">
 !    TRUE if coupling strategy requires we send data to coupler AFTER updating the ocean
 !   </DATA>
+!   <DATA NAME=""frac_vis_dir TYPE="real" DEFAULT="0.215">
+!    Fraction of ssw apportion to direct visible radiation
+!   </DATA>
+!   <DATA NAME=""frac_vis_dif TYPE="real" DEFAULT="0.215">
+!    Fraction of ssw apportioned to diffuse visible radiation
+!   </DATA>
+!   <DATA NAME=""frac_nir_dir TYPE="real" DEFAULT="0.285">
+!    Fraction of ssw apportioned to direct near infrared radiation
+!   </DATA>
+!   <DATA NAME=""frac_nir_dif TYPE="real" DEFAULT="0.285">
+!    Fraction of ssw apportioned to diffuse near infrared radiation
+!   </DATA>
 !
 ! </NAMELIST>
 !
@@ -184,6 +196,10 @@ integer(kind=mpi_address_kind) :: start, extent
 real :: realvalue
 integer :: col_comm
 integer :: mom4_comm
+
+real :: frac_vis_dir=0.5*0.43, frac_vis_dif=0.5*0.43,             &
+        frac_nir_dir=0.5*0.57, frac_nir_dif=0.5*0.57 ! shortwave partitioning
+
 contains
 
 !-----------------------------------------------------------------------------------
@@ -262,7 +278,9 @@ integer ifield
 logical fmatch 
 
 namelist /mom_oasis3_interface_nml/ num_fields_in, num_fields_out,fields_in,fields_out, &
-          send_before_ocean_update, send_after_ocean_update
+          send_before_ocean_update, send_after_ocean_update, frac_vis_dir, frac_vis_dif, &
+          frac_nir_dir, frac_nir_dif
+
 
 ! all processors read the namelist--
 
@@ -641,9 +659,6 @@ type (time_type),optional         :: Time
 real, dimension(isg:ieg,jsg:jeg) :: gtmp
 
 integer, intent(in) :: step
-
-real :: frac_vis_dir=0.5*0.43, frac_vis_dif=0.5*0.43,             &
-        frac_nir_dir=0.5*0.57, frac_nir_dif=0.5*0.57 ! shortwave partitioning
 
   character*80 :: fname = 'fields_i2o_in_ocn.nc'
   integer :: ncid,currstep,ll,ilout
