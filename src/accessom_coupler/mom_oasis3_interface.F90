@@ -71,16 +71,16 @@ module mom_oasis3_interface_mod
 !   <DATA NAME="send_after_ocean_update" TYPE="logical" DEFAULT=".FALSE.">
 !    TRUE if coupling strategy requires we send data to coupler AFTER updating the ocean
 !   </DATA>
-!   <DATA NAME="frac_vis_dir TYPE="real" DEFAULT="0.215">
+!   <DATA NAME="frac_vis_dir" TYPE="real" DEFAULT="0.215">
 !    Fraction of ssw apportion to direct visible radiation
 !   </DATA>
-!   <DATA NAME="frac_vis_dif TYPE="real" DEFAULT="0.215">
+!   <DATA NAME="frac_vis_dif" TYPE="real" DEFAULT="0.215">
 !    Fraction of ssw apportioned to diffuse visible radiation
 !   </DATA>
-!   <DATA NAME="frac_nir_dir TYPE="real" DEFAULT="0.285">
+!   <DATA NAME="frac_nir_dir" TYPE="real" DEFAULT="0.285">
 !    Fraction of ssw apportioned to direct near infrared radiation
 !   </DATA>
-!   <DATA NAME="frac_nir_dif TYPE="real" DEFAULT="0.285">
+!   <DATA NAME="frac_nir_dif" TYPE="real" DEFAULT="0.285">
 !    Fraction of ssw apportioned to diffuse near infrared radiation
 !   </DATA>
 !
