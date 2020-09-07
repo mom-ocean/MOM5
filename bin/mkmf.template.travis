@@ -29,6 +29,7 @@ endif
 
 ifneq ($(LIBACCESSOM2_ROOT),)
   INCLUDE += -I$(LIBACCESSOM2_ROOT)/include
+  LIBS += -L$(LIBACCESSOM2_ROOT)/lib -laccessom2
 endif
 
 FPPFLAGS := $(INCLUDE)
