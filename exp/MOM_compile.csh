@@ -204,7 +204,7 @@ else if( $type == ACCESS-CM || $type == ACCESS-ESM) then
 else if( $type == ACCESS-OM || $type == ACCESS-OM-BGC) then
     set srcList = ( accessom_coupler )
     set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/$type/lib_ocean"
-    set libs = "$executable:h:h/$type/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"t:want
+    set libs = "$executable:h:h/$type/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == MOM_SIS ) then
     set srcList = ( coupler )
     set includes = "$includes -I$executable:h:h/lib_ice -I$executable:h:h/lib_atmos_null -I$executable:h:h/lib_land_null"
