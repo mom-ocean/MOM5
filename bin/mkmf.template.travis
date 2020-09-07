@@ -19,9 +19,12 @@ MAKEFLAGS += --jobs=$(shell grep '^processor' /proc/cpuinfo | wc -l)
 INCLUDE := -I$(shell nc-config --includedir)
 # INCLUDE := -I$(shell nc-config --fflags)
 
+LIBS := $(shell nf-config --flibs) -lpthread
+
 ifneq ($(OASIS_ROOT),)
   INCLUDE  += -I$(OASIS_ROOT)/build/lib/psmile.MPI1 \
               -I$(OASIS_ROOT)/build/lib/mct
+  LIBS += -L$(OASIS_ROOT)/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip
 endif
 
 ifneq ($(LIBACCESSOM2_ROOT),)
@@ -34,7 +37,6 @@ CFLAGS := -D__IFC -O2 $(shell nc-config --cflags) -I/usr/include/openmpi $(INCLU
 
 FFLAGS := -O2 -fcray-pointer -fdefault-real-8 -ffree-line-length-none -fno-range-check $(shell nf-config --fflags)
 
-LIBS := $(shell nf-config --flibs) -lpthread -L$(OASIS_ROOT)/lib -lpsmile.MPI1 -lmct -lmpeu -lscrip
 LDFLAGS += $(LIBS)
 
 #---------------------------------------------------------------------------
