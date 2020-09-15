@@ -4,8 +4,8 @@ from __future__ import print_function
 import os
 import shutil
 
-from model_test_setup import ModelTestSetup
-from test_run import tests as experiments
+from .model_test_setup import ModelTestSetup
+from .test_run import tests as experiments
 
 class TestRunSetup(ModelTestSetup):
     """
