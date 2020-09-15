@@ -20,7 +20,7 @@ CC := mpicc
 VERBOSE :=
 OPT := on
 
-MAKEFLAGS += --jobs=4
+MAKEFLAGS += -j
 
 INCLUDE   := -I$(NETCDF_ROOT)/include
 
@@ -38,15 +38,15 @@ endif
 
 FPPFLAGS := -fpp -Wp,-w $(INCLUDE)
 FFLAGS := -fno-alias -safe-cray-ptr -fpe0 -ftz -assume byterecl -i4 -r8 -traceback -nowarn -check noarg_temp_created -assume nobuffered_io -convert big_endian -grecord-gcc-switches -align all
-FFLAGS_OPT := -g3 -O2 -axCORE-AVX2 -debug all -check none
+FFLAGS_OPT := -g3 -O2 -debug all -check none -xcore-avx2
 FFLAGS_REPORT := -qopt-report=5 -qopt-report-annotate
 FFLAGS_DEBUG := -g3 -O0 -debug all -check -check noarg_temp_created -check nopointer -warn -warn noerrors -ftrapuv
 FFLAGS_REPRO := -fp-model precise -fp-model source -align all
 FFLAGS_VERBOSE := -v -V -what
 
 CFLAGS := -D__IFC $(INCLUDE)
-CFLAGS_OPT := -O2 -debug minimal -axCORE-AVX2
-CFLAGS_REPORT := -qopt-report=5 -qopt-report-annotate
+CFLAGS_OPT := -O2 -debug minimal -xcore-avx2
+CFLAGS_REPORT :=  -qopt-report=5 -qopt-report-annotate
 CFLAGS_DEBUG := -O0 -g -ftrapuv -traceback
 CFLAGS_REPRO := -fp-model precise -fp-model source
 
