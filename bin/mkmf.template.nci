@@ -20,7 +20,7 @@ CC := mpicc
 VERBOSE :=
 OPT := on
 
-MAKEFLAGS += --jobs=4
+MAKEFLAGS += -j
 
 INCLUDE   := -I$(NETCDF_ROOT)/include
 

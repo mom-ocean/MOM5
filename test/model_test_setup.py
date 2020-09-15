@@ -8,7 +8,7 @@ import shlex
 import shutil
 import tempfile
 import time
-import platform as plat
+from .platform import build_cmd, run_scripts
 
 class ModelTestSetup(object):
 
@@ -129,7 +129,7 @@ class ModelTestSetup(object):
         fe, stderr_file = tempfile.mkstemp(dir=self.exp_dir)
 
         # Write script out as a file.
-        run_script = plat.run_scripts[self.get_platform()]
+        run_script = run_scripts[self.get_platform()]
         run_script = run_script.format(walltime=walltime, ncpus=ncpus,
                                        mem=mem, stdout_file=stdout_file,
                                        stderr_file=stderr_file,
@@ -181,7 +181,7 @@ class ModelTestSetup(object):
             unit_testing =''
 
         platform = self.get_platform()
-        build_cmd = plat.build_cmd.format(type=model_type, platform=platform,
+        build_cmd = build_cmd.format(type=model_type, platform=platform,
                                             unit_testing=unit_testing)
         # Build the model.
         ret = sp.call(shlex.split(build_cmd))
