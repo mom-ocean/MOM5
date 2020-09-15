@@ -8,7 +8,7 @@ import shlex
 import shutil
 import tempfile
 import time
-from .platform import build_cmd, run_scripts
+import platform as plat
 
 class ModelTestSetup(object):
 
@@ -63,8 +63,8 @@ class ModelTestSetup(object):
         stderr = ''
         stdout = ''
         while True:
-            so = os.read(fo, 1024*1024)
-            se = os.read(fe, 1024*1024)
+            so = os.read(fo, 1024*1024).decode(encoding='ASCII')
+            se = os.read(fe, 1024*1024).decode(encoding='ASCII')
 
             if so == '' and se == '':
                 empty_reads += 1
@@ -129,7 +129,7 @@ class ModelTestSetup(object):
         fe, stderr_file = tempfile.mkstemp(dir=self.exp_dir)
 
         # Write script out as a file.
-        run_script = run_scripts[self.get_platform()]
+        run_script = plat.run_scripts[self.get_platform()]
         run_script = run_script.format(walltime=walltime, ncpus=ncpus,
                                        mem=mem, stdout_file=stdout_file,
                                        stderr_file=stderr_file,
@@ -137,9 +137,12 @@ class ModelTestSetup(object):
                                        type=model_type, exp=exp, npes=npes,
                                        valgrind=valgrind)
 
+        import pdb; pdb.set_trace()
+        print(self.exp_dir)
+        print(run_script)
         # Write out run script
-        frun, run_file = tempfile.mkstemp(dir=self.exp_dir)
-        os.write(frun, run_script)
+        frun, run_file = tempfile.mkstemp(dir=self.exp_dir, text=True)
+        os.write(frun, run_script.encode(encoding='ASCII'))
         os.close(frun)
         os.chmod(run_file, 0o755)
 
@@ -181,7 +184,7 @@ class ModelTestSetup(object):
             unit_testing =''
 
         platform = self.get_platform()
-        build_cmd = build_cmd.format(type=model_type, platform=platform,
+        build_cmd = plat.build_cmd.format(type=model_type, platform=platform,
                                             unit_testing=unit_testing)
         # Build the model.
         ret = sp.call(shlex.split(build_cmd))
