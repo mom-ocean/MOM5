@@ -1,7 +1,7 @@
 
 from __future__ import print_function
 
-from .model_test_setup import ModelTestSetup
+from model_test_setup import ModelTestSetup
 
 import os
 import sys
