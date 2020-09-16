@@ -11,6 +11,7 @@ import time
 import platform as plat
 
 run_scripts = {}
+
 run_scripts['nci'] = \
 """#!/bin/csh -f
 
@@ -31,7 +32,7 @@ limit stacksize unlimited
 ./MOM_run.csh --platform nci --type {type} --experiment {exp} {npes} {valgrind}
 """
 
-build_cmd = " ./MOM_compile.csh --platform {platform} --type {type} {unit_testing}"
+build_cmd_template = " ./MOM_compile.csh --platform {platform} --type {type} {unit_testing}"
 
 class ModelTestSetup(object):
 
@@ -199,6 +200,8 @@ class ModelTestSetup(object):
 
     def build(self, model_type, unit_testing=True):
 
+        global build_cmd_template
+
         os.chdir(self.exp_dir)
 
         if unit_testing:
@@ -207,8 +210,8 @@ class ModelTestSetup(object):
             unit_testing =''
 
         platform = self.get_platform()
-        build_cmd = build_cmd.format(type=model_type, platform=platform,
-                                            unit_testing=unit_testing)
+        build_cmd = build_cmd_template.format(type=model_type, platform=platform,
+                                              unit_testing=unit_testing)
         # Build the model.
         ret = sp.call(shlex.split(build_cmd))
 
