@@ -10,6 +10,29 @@ import tempfile
 import time
 import platform as plat
 
+run_scripts = {}
+run_scripts['nci'] = \
+"""#!/bin/csh -f
+
+#PBS -P x77
+#PBS -q normal
+#PBS -l walltime={walltime}
+#PBS -l ncpus={ncpus}
+#PBS -l mem={mem}
+#PBS -l wd
+#PBS -l storage=scratch/v45+scratch/x77
+#PBS -o {stdout_file}
+#PBS -e {stderr_file}
+#PBS -N {run_name}
+#PBS -W block=true
+
+limit stacksize unlimited
+
+./MOM_run.csh --platform nci --type {type} --experiment {exp} {npes} {valgrind}
+"""
+
+build_cmd = " ./MOM_compile.csh --platform {platform} --type {type} {unit_testing}"
+
 class ModelTestSetup(object):
 
     def __init__(self):
@@ -129,7 +152,7 @@ class ModelTestSetup(object):
         fe, stderr_file = tempfile.mkstemp(dir=self.exp_dir)
 
         # Write script out as a file.
-        run_script = plat.run_scripts[self.get_platform()]
+        run_script = run_scripts[self.get_platform()]
         run_script = run_script.format(walltime=walltime, ncpus=ncpus,
                                        mem=mem, stdout_file=stdout_file,
                                        stderr_file=stderr_file,
@@ -184,7 +207,7 @@ class ModelTestSetup(object):
             unit_testing =''
 
         platform = self.get_platform()
-        build_cmd = plat.build_cmd.format(type=model_type, platform=platform,
+        build_cmd = build_cmd.format(type=model_type, platform=platform,
                                             unit_testing=unit_testing)
         # Build the model.
         ret = sp.call(shlex.split(build_cmd))
