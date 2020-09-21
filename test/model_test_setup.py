@@ -178,7 +178,7 @@ class ModelTestSetup(object):
             stdout, stderr = self.get_qsub_output(fo, fe)
         else:
             try:
-                stdout = sp.check_output([run_file], stderr=sp.STDOUT)
+                stdout = sp.check_output([run_file], stderr=sp.STDOUT, text=True)
             except sp.CalledProcessError as e:
                 ret = e.returncode
                 stdout = e.output
