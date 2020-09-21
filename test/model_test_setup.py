@@ -183,8 +183,8 @@ class ModelTestSetup(object):
                 ret = e.returncode
                 stdout = e.output
 
-            os.write(fo, stdout)
-            os.write(fe, stderr)
+            os.write(fo, stdout.encode(encoding='ASCII'))
+            os.write(fe, stderr.encode(encoding='ASCII'))
 
         # Move temporary files to experiment directory.
         shutil.move(stdout_file, os.path.join(self.work_dir, exp, 'fms.out'))
