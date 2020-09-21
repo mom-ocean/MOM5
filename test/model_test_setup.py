@@ -161,7 +161,6 @@ class ModelTestSetup(object):
                                        type=model_type, exp=exp, npes=npes,
                                        valgrind=valgrind)
 
-        import pdb; pdb.set_trace()
         print(self.exp_dir)
         print(run_script)
         # Write out run script
