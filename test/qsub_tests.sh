@@ -1,5 +1,9 @@
 #PBS -P v45 
-#PBS -l wd,ncpus=960,mem=1920Gb,walltime=5:00:00 
+#PBS -l ncpus=960
+#PBS -l mem=1920Gb
+#PBS -l walltime=5:00:00 
+#PBS -l wd
+#PBS -l storage=gdata/hh5
 #PBS -W block=true
 
 module purge
