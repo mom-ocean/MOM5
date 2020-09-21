@@ -149,8 +149,8 @@ class ModelTestSetup(object):
             valgrind =''
 
         # Get temporary file names for the stdout, stderr.
-        fo, stdout_file = tempfile.mkstemp(dir=self.exp_dir)
-        fe, stderr_file = tempfile.mkstemp(dir=self.exp_dir)
+        fo, stdout_file = tempfile.mkstemp(dir=self.exp_dir, text=True)
+        fe, stderr_file = tempfile.mkstemp(dir=self.exp_dir, text=True)
 
         # Write script out as a file.
         run_script = run_scripts[self.get_platform()]
