@@ -59,6 +59,7 @@ class ModelTestSetup(object):
         if not os.path.exists(input):
             cmd = '{} {}'.format(os.path.join(self.data_dir, 'get_exp_data.py'),
                                  filename)
+            print(cmd)
             ret = sp.call(shlex.split(cmd))
         if ret != 0:
             return ret
@@ -73,6 +74,7 @@ class ModelTestSetup(object):
 
         if not os.path.exists(os.path.join(self.work_dir, exp)):
             cmd = '/bin/tar -C {} -xvf {}'.format(self.work_dir, input)
+            print(cmd)
             ret += sp.call(shlex.split(cmd))
 
         return ret
