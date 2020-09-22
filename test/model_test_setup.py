@@ -165,7 +165,7 @@ class ModelTestSetup(object):
         print(run_script)
         # Write out run script
         frun, run_file = tempfile.mkstemp(dir=self.exp_dir, text=True)
-        os.write(frun, run_script.encode(encoding='ASCII'))
+        os.write(frun, run_script.encode())
         os.close(frun)
         os.chmod(run_file, 0o755)
 
@@ -183,8 +183,10 @@ class ModelTestSetup(object):
                 ret = e.returncode
                 stdout = e.output
 
-            os.write(fo, stdout)
-            os.write(fe, stderr)
+        os.write(fo, stdout.encode())
+        os.write(fe, stderr.encode())
+
+        os.close(fo, fe)
 
         # Move temporary files to experiment directory.
         shutil.move(stdout_file, os.path.join(self.work_dir, exp, 'fms.out'))
