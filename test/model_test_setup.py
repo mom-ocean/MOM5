@@ -186,7 +186,8 @@ class ModelTestSetup(object):
         os.write(fo, stdout.encode())
         os.write(fe, stderr.encode())
 
-        os.close(fo, fe)
+        os.close(fo)
+        os.close(fe)
 
         # Move temporary files to experiment directory.
         shutil.move(stdout_file, os.path.join(self.work_dir, exp, 'fms.out'))
