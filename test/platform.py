@@ -8,6 +8,7 @@ run_scripts['nci'] = \
 #PBS -l ncpus={ncpus}
 #PBS -l mem={mem}
 #PBS -l wd
+#PBS -l storage=scratch/v45+scratch/x77
 #PBS -o {stdout_file}
 #PBS -e {stderr_file}
 #PBS -N {run_name}

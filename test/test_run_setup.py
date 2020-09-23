@@ -23,6 +23,7 @@ class TestRunSetup(ModelTestSetup):
         assert(ret == 0)
 
     def check_download_data(self, experiment):
+        print('Check data downloaded for {}'.format(experiment))
         ret = self.download_input_data(experiment)
         assert(ret == 0)
 

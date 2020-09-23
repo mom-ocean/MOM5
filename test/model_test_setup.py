@@ -10,6 +10,30 @@ import tempfile
 import time
 import platform as plat
 
+run_scripts = {}
+
+run_scripts['nci'] = \
+"""#!/bin/csh -f
+
+#PBS -P x77
+#PBS -q normal
+#PBS -l walltime={walltime}
+#PBS -l ncpus={ncpus}
+#PBS -l mem={mem}
+#PBS -l wd
+#PBS -l storage=scratch/v45+scratch/x77
+#PBS -o {stdout_file}
+#PBS -e {stderr_file}
+#PBS -N {run_name}
+#PBS -W block=true
+
+limit stacksize unlimited
+
+./MOM_run.csh --platform nci --type {type} --experiment {exp} {npes} {valgrind}
+"""
+
+build_cmd_template = " ./MOM_compile.csh --platform {platform} --type {type} {unit_testing}"
+
 class ModelTestSetup(object):
 
     def __init__(self):
@@ -35,6 +59,7 @@ class ModelTestSetup(object):
         if not os.path.exists(input):
             cmd = '{} {}'.format(os.path.join(self.data_dir, 'get_exp_data.py'),
                                  filename)
+            print(cmd)
             ret = sp.call(shlex.split(cmd))
         if ret != 0:
             return ret
@@ -49,6 +74,7 @@ class ModelTestSetup(object):
 
         if not os.path.exists(os.path.join(self.work_dir, exp)):
             cmd = '/bin/tar -C {} -xvf {}'.format(self.work_dir, input)
+            print(cmd)
             ret += sp.call(shlex.split(cmd))
 
         return ret
@@ -63,8 +89,8 @@ class ModelTestSetup(object):
         stderr = ''
         stdout = ''
         while True:
-            so = os.read(fo, 1024*1024)
-            se = os.read(fe, 1024*1024)
+            so = os.read(fo, 1024*1024).decode(encoding='ASCII')
+            se = os.read(fe, 1024*1024).decode(encoding='ASCII')
 
             if so == '' and se == '':
                 empty_reads += 1
@@ -125,11 +151,11 @@ class ModelTestSetup(object):
             valgrind =''
 
         # Get temporary file names for the stdout, stderr.
-        fo, stdout_file = tempfile.mkstemp(dir=self.exp_dir)
-        fe, stderr_file = tempfile.mkstemp(dir=self.exp_dir)
+        fo, stdout_file = tempfile.mkstemp(dir=self.exp_dir, text=True)
+        fe, stderr_file = tempfile.mkstemp(dir=self.exp_dir, text=True)
 
         # Write script out as a file.
-        run_script = plat.run_scripts[self.get_platform()]
+        run_script = run_scripts[self.get_platform()]
         run_script = run_script.format(walltime=walltime, ncpus=ncpus,
                                        mem=mem, stdout_file=stdout_file,
                                        stderr_file=stderr_file,
@@ -137,9 +163,11 @@ class ModelTestSetup(object):
                                        type=model_type, exp=exp, npes=npes,
                                        valgrind=valgrind)
 
+        print(self.exp_dir)
+        print(run_script)
         # Write out run script
-        frun, run_file = tempfile.mkstemp(dir=self.exp_dir)
-        os.write(frun, run_script)
+        frun, run_file = tempfile.mkstemp(dir=self.exp_dir, text=True)
+        os.write(frun, run_script.encode())
         os.close(frun)
         os.chmod(run_file, 0o755)
 
@@ -152,13 +180,16 @@ class ModelTestSetup(object):
             stdout, stderr = self.get_qsub_output(fo, fe)
         else:
             try:
-                stdout = sp.check_output([run_file], stderr=sp.STDOUT)
+                stdout = sp.check_output([run_file], stderr=sp.STDOUT, text=True)
             except sp.CalledProcessError as e:
                 ret = e.returncode
                 stdout = e.output
 
-            os.write(fo, stdout)
-            os.write(fe, stderr)
+        os.write(fo, stdout.encode())
+        os.write(fe, stderr.encode())
+
+        os.close(fo)
+        os.close(fe)
 
         # Move temporary files to experiment directory.
         shutil.move(stdout_file, os.path.join(self.work_dir, exp, 'fms.out'))
@@ -173,6 +204,8 @@ class ModelTestSetup(object):
 
     def build(self, model_type, unit_testing=True):
 
+        global build_cmd_template
+
         os.chdir(self.exp_dir)
 
         if unit_testing:
@@ -181,8 +214,8 @@ class ModelTestSetup(object):
             unit_testing =''
 
         platform = self.get_platform()
-        build_cmd = plat.build_cmd.format(type=model_type, platform=platform,
-                                            unit_testing=unit_testing)
+        build_cmd = build_cmd_template.format(type=model_type, platform=platform,
+                                              unit_testing=unit_testing)
         # Build the model.
         ret = sp.call(shlex.split(build_cmd))
 
