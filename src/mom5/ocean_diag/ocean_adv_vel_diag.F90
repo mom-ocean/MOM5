@@ -855,6 +855,7 @@ subroutine transport_on_s(Time, Adv_vel)
   endif 
  
   if (id_ty_trans > 0 .or. id_ty_trans_int_z > 0) then 
+    wrk1_2d(:,:) = 0.0
     do k=1,nk
       do j=jsc,jec
          do i=isc,iec
