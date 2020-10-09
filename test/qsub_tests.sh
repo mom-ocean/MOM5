@@ -1,4 +1,4 @@
-#PBS -P x77
+#PBS -P v45
 #PBS -l ncpus=960
 #PBS -l mem=1920Gb
 #PBS -l walltime=5:00:00 
