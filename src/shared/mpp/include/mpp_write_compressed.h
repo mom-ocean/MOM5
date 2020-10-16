@@ -15,23 +15,6 @@
       return
     end subroutine MPP_WRITE_COMPRESSED_1D_
 
-    subroutine MPP_WRITE_COMPRESSED_3D_(unit, field, domain, data, nelems_io, tstamp, default_data)
-      integer, intent(in) :: unit
-      type(fieldtype), intent(inout) :: field
-      type(domain2D), intent(inout) :: domain
-      MPP_TYPE_, intent(inout) :: data(:,:,:)
-      integer, intent(in) :: nelems_io(:)  ! number of compressed elements
-      real,              intent(in), optional :: tstamp
-      MPP_TYPE_,         intent(in), optional :: default_data
-
-      MPP_TYPE_ :: data2D(size(data,1),size(data,2)*size(data,3))
-      pointer( ptr, data2D )
-      ptr = LOC(data)
-
-      call mpp_write_compressed(unit, field, domain, data2D, nelems_io, tstamp, default_data)
-      return
-    end subroutine MPP_WRITE_COMPRESSED_3D_
-
     subroutine MPP_WRITE_COMPRESSED_2D_(unit, field, domain, data, nelems_io, tstamp, default_data)
       integer,           intent(in)           :: unit
       type(fieldtype),   intent(inout)        :: field
@@ -64,7 +47,7 @@
       fill = 0
       if(PRESENT(default_data)) fill = default_data
 
-      io_domain=>mpp_get_io_domain(domain)
+      io_domain=>mpp_get_io_domain(domain) 
       if (.not. ASSOCIATED(io_domain)) call mpp_error( FATAL, 'MPP_WRITE_COMPRESSED_2D_: io_domain must be defined.' )
       npes = mpp_get_domain_npes(io_domain)
       allocate(pelist(npes))
@@ -88,7 +71,7 @@
       ! and a clear, concise unpack
       do j=1,mynelems
         do i=1,nz
-          sbuff(i,j) = data(j,i)
+          sbuff(i,j) = data(j,i) 
       enddo; enddo
 
    !  Note that the gatherV implied here is asymmetric; only root needs to know the vector of recv size
