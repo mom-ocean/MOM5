@@ -114,7 +114,7 @@ private
 
 
 integer, parameter, private :: max_split_file = 50
-integer, parameter, private :: max_fields=400
+integer, parameter, private :: max_fields=200
 integer, parameter, private :: max_axes=40
 integer, parameter, private :: max_atts=20
 integer, parameter, private :: max_domains = 10
