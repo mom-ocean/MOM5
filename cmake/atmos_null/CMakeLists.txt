@@ -5,7 +5,7 @@ set(FMS_DIR "${SRC_DIR}/shared")
 
 # common files for both builds
 file(GLOB_RECURSE ATMOS_SOURCE LIST_DIRECTORIES false FOLLOW_SYMLINKS
-  ${ATMOS_DIR}/*.[fF]90 ${ATMOS_PARAM_DIR}/*.[fF]90 ${ATMOS_SHARED_DIR}/*.[fF]90 )
+  ${ATMOS_SHARED_DIR}/diag_integral/*.[fF]90 ${ATMOS_PARAM_DIR}/diag_integral/*.[fF]90 ${ATMOS_PARAM_DIR}/monin_obukhov/*.[fF]90 )
 
 add_library(atmos_null ${ATMOS_SOURCE})
 target_include_directories(atmos_null PRIVATE

@@ -24,7 +24,7 @@ endif()
 message("Using Fortran: ${CMAKE_Fortran_COMPILER} and C: ${CMAKE_C_COMPILER}")
 
 if(CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fno-alias -stack_temps -safe-cray-ptr -ftz -i_dynamic -assume byterecl -i4 -r8 -nowarn -sox -traceback")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fno-alias -stack_temps -safe-cray-ptr -ftz -shared_intel -assume byterecl -i4 -r8 -nowarn -sox -traceback")
   set(CMAKE_Fortran_FLAGS_RELEASE        "-O2 -fp-model source")
   set(CMAKE_Fortran_FLAGS_RELWITHDEBINFO "${CMAKE_Fortran_FLAGS_RELEASE} -g")
   set(CMAKE_Fortran_FLAGS_DEBUG          "-g -O0 -check -check noarg_temp_created -check nopointer -warn -warn noerrors -fpe0 -ftrapuv")
