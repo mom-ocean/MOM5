@@ -62,6 +62,7 @@ set(SRC_DIR "${CMAKE_SOURCE_DIR}/../src")
 
 add_subdirectory(FMS)
 add_subdirectory(ocean)
+add_subdirectory(atmos_fv)
 add_subdirectory(atmos_null)
 add_subdirectory(atmos_phys)
 add_subdirectory(land_null)
