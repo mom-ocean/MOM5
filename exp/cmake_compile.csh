@@ -5,6 +5,7 @@
 set generator  = "Unix Makefiles"
 set build_type = "relwithdebinfo"
 set target     = "MOM5_SIS"
+set use_netcdf4 = 1
 set help       = 0 
 
 set argv = (`getopt -u -o h -l generator: -l build_type: -l target: -l help --  $*`)
@@ -17,6 +18,8 @@ while ("$argv[1]" != "--")
                 set build_type = $argv[2]; shift argv; breaksw
         case --target:
                 set target = $argv[2]; shift argv; breaksw
+        case --netcdf3:
+                set use_netcdf4 = 0; breaksw
         case --help:
                 set help = 1;  breaksw
         case -h:
@@ -37,6 +40,7 @@ if ( $help ) then
     echo "--target     followed by the type of the model, one of the following (default is MOM5_SIS):"
     echo "             MOM5_solo  : solo ocean model"
     echo "             MOM5_SIS   : ocean-seaice model"
+    echo "--netcdf3    force netCDF3, default is to use netCDF4
     echo
     exit 1
 endif
@@ -46,4 +50,4 @@ set exec_dir      = $root/exec                        # source code directory
 set build_dir     = $exec_dir/$build_type             # source code directory
 
 cmake -E make_directory $build_dir
-(cd $build_dir && cmake -G "$generator" -DCMAKE_BUILD_TYPE=$build_type $root/cmake && cmake --build . --target $target --config "$generator" -- -j10)
+(cd $build_dir && cmake -G "$generator" -DCMAKE_BUILD_TYPE=$build_type -DNETCDF4=use_netcdf4 $root/cmake && cmake --build . --target $target --config "$generator" -- -j10)

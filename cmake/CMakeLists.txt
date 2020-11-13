@@ -45,6 +45,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "Intel")
   set(CMAKE_C_FLAGS         "${CMAKE_C_FLAGS} -sox -traceback") 
   set(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG} -O0 -debug")
   set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O2 -debug minimal")
+  add_compile_definitions(__IFC)
 elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
   set(CMAKE_C_FLAGS         "${CMAKE_C_FLAGS} -frecord-gcc-switches -traceback")
   set(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG} -O0 -debug")
@@ -53,10 +54,29 @@ else ()
   message ("Unknown C compiler default flags only...")
 endif()
 
+if(NETCDF4)
+  add_compile_definitions(use_netCDF4) 
+else()
+  add_compile_definitions(use_netCDF3) 
+endif()
+
 string(TOUPPER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
 message("Using Fortran flags: ${CMAKE_Fortran_FLAGS} ${CMAKE_Fortran_FLAGS_${BUILD_TYPE}}")
 
-add_definitions(-Duse_libMPI -Duse_netCDF -Duse_LARGEFILE -DSPMD -D__IFC)
+add_compile_definitions(use_netCDF 
+                        use_libMPI 
+                        USE_OCEAN_BGC 
+                        ENABLE_ODA 
+                        SPMD 
+                        LAND_BND_TRACERS)
+
+set(CMAKE_DEBUG_TARGET_PROPERTIES
+            # INCLUDE_DIRECTORIES
+            # COMPILE_DEFINITIONS
+            # POSITION_INDEPENDENT_CODE
+            # CONTAINER_SIZE_REQUIRED
+            # LIB_VERSION
+          )
 
 set(SRC_DIR "${CMAKE_SOURCE_DIR}/../src")
 
@@ -70,6 +90,7 @@ add_subdirectory(atmos_phys)
 add_subdirectory(land_null)
 add_subdirectory(land_lad)
 add_subdirectory(land_lad2)
+add_subdirectory(MOM5_EBM)
 add_subdirectory(MOM5_solo)
 add_subdirectory(ice_sis)
 add_subdirectory(MOM5_SIS)
