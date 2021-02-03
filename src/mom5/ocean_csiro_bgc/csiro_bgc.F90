@@ -842,7 +842,7 @@ end subroutine  csiro_bgc_end  !}
 !
 
 subroutine csiro_bgc_sbc(isc, iec, jsc, jec, isd, ied, jsd, jed, &
-    T_prog, aice, wnd, grid, time, use_waterflux, salt_restore_as_salt_flux, atm_co2, co2flux, sfc_co2)
+    T_prog, aice, wnd, ice_nitrate, grid, time, use_waterflux, salt_restore_as_salt_flux, atm_co2, co2flux, sfc_co2)
 
 use ocmip2_co2calc_mod
 use mpp_mod, only : mpp_sum
@@ -858,7 +858,7 @@ integer, intent(in)                             :: jsd, jed
 type(ocean_prog_tracer_type), dimension(:), intent(inout)       :: T_prog
 type(ocean_grid_type), intent(in)                               :: Grid
 type(ocean_time_type), intent(in)                               :: Time
-real, intent(in), dimension(isd:ied,jsd:jed)                    :: aice, wnd
+real, intent(in), dimension(isd:ied,jsd:jed)                    :: aice, wnd, ice_nitrate
 logical, intent(in) :: use_waterflux, salt_restore_as_salt_flux
 
 real, intent(in), dimension(isd:ied,jsd:jed), optional          :: atm_co2

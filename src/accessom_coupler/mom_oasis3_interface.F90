@@ -357,6 +357,7 @@ endif
   mom_name_read(21)='licefw'  ! Water flux from land ice
   mom_name_read(22)='liceht'  ! Heat flux from land ice
   mom_name_read(23)='wnd_io'  !
+  mom_name_read(24)='nitrate_io'  !
 
   !ocn ==> ice
   mom_name_write(:)=''
@@ -369,6 +370,7 @@ endif
   mom_name_write(6)='frazil'
   mom_name_write(7)='dssldx'
   mom_name_write(8)='dssldy'
+  mom_name_write(9)='n_surf'
 
 
   fmatch = .false.
@@ -579,6 +581,8 @@ do jf = 1,num_fields_out
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1)
   case('dssldy') 
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2)
+  case('n_surf')
+    vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%n_surf(iisd:iied,jjsd:jjed)
   case DEFAULT
   call mpp_error(FATAL,&
       '==>Error from into_coupler: Unknown quantity.')
@@ -805,6 +809,7 @@ if ( write_restart ) then
           case('dssldx'); vtmp = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1); fld_ice='sslx_i'
           case('dssldy'); vtmp = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2); fld_ice='ssly_i'
           case('frazil'); vtmp = Ocean_sfc%frazil(iisd:iied,jjsd:jjed); fld_ice='pfmice_i'
+          case('n_surf'); vtmp = Ocean_sfc%n_surf(iisd:iied,jjsd:jjed); fld_ice='ssn_i'
         end select
 
         if (parallel_coupling) then
