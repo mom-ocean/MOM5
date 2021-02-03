@@ -266,6 +266,9 @@ integer :: id_tz_trans_submeso_adv =-1
 integer :: id_tx_trans_nrho_submeso=-1
 integer :: id_ty_trans_nrho_submeso=-1
 integer :: id_tz_trans_nrho_submeso=-1
+integer :: id_tx_trans_rho_submeso=-1
+integer :: id_ty_trans_rho_submeso=-1
+integer :: id_tz_trans_rho_submeso=-1
 integer :: id_front_length_submeso =-1
 integer :: id_buoy_freq_ave_submeso=-1 
 integer :: id_uhrho_et_submeso     =-1
@@ -458,6 +461,7 @@ private compute_submeso_skewsion
 private compute_submeso_upwind 
 private compute_submeso_sweby
 private maximum_bottom_w_submeso
+private transport_on_rho_submeso
 private transport_on_nrho_submeso
 private transport_on_nrho_submeso_adv
 private watermass_diag_init
@@ -905,6 +909,15 @@ contains
          Dens%neutralrho_axes(1:3),Time%model_time,                                       &
          'T-cell k-mass transport from submesoscale param on neutral rho'                 &
          ,trim(transport_dims),missing_value=missing_value, range=(/-1e20,1e20/))
+
+    id_tx_trans_rho_submeso = register_diag_field('ocean_model','tx_trans_rho_submeso',  &
+         Dens%potrho_axes_flux_x(1:3),Time%model_time,                                   &
+         'T-cell i-mass transport from submesoscale param on pot_rho'                    &
+         ,trim(transport_dims),missing_value=missing_value,range=(/-1e20,1e20/))
+    id_ty_trans_rho_submeso = register_diag_field('ocean_model','ty_trans_rho_submeso',  &
+         Dens%potrho_axes_flux_y(1:3),Time%model_time,                                   &
+         'T-cell j-mass transport from submesoscale param on pot_rho'                    &
+         ,trim(transport_dims),missing_value=missing_value,range=(/-1e20,1e20/))
 
     id_u_et_submeso = register_diag_field ('ocean_model', 'u_et_submeso', &
         Grd%tracer_axes_flux_x(1:3), Time%model_time,                     &
@@ -2429,6 +2442,7 @@ subroutine compute_submeso_skewsion(Thickness, Dens, Time, T_prog)
   endif
 
   call transport_on_nrho_submeso(Time, Dens,-1.0*wrk1_v(:,:,:,1),-1.0*wrk1_v(:,:,:,2))  
+  call transport_on_rho_submeso(Time, Dens,-1.0*wrk1_v(:,:,:,1),-1.0*wrk1_v(:,:,:,2))
 
   if(diagnose_eta_tend_submeso_flx) then 
       call diagnose_eta_tend_3dflux (Time, Thickness, Dens,&
@@ -3685,6 +3699,114 @@ subroutine transport_on_nrho_submeso (Time, Dens, tx_trans_lev, ty_trans_lev)
 end subroutine transport_on_nrho_submeso
 ! </SUBROUTINE> NAME="transport_on_nrho_submeso"
 
+
+!#######################################################################
+! <SUBROUTINE NAME="transport_on_rho_submeso">
+!
+! <DESCRIPTION>
+! Classify horizontal submeso mass transport according to potential
+! density classes. 
+!
+! NOTE: This diagnostic works with transport integrated from bottom to 
+! a particular cell depth. To get transport_on_rho_submeso, a remapping is 
+! performed, rather than the binning done for transport_on_nrho_submeso_adv.
+!
+! This is the same algorithm as used for GM skew fluxes on rho surfaces. 
+!
+! Caveat: Since the submeso scheme operates only in the mixed layer,
+! there are difficulties mapping this transport to potential density 
+! layers.  The user should be mindful of the problems with this 
+! remapping.  An alternative that may be more suitable is to use 
+! Ferret to remap the time mean submeso transport to the time mean
+! potential density surfaces.  There are missing correlations, but for
+! many purposes, the Ferret remapping may be preferable.  
+!
+! </DESCRIPTION>
+!
+subroutine transport_on_rho_submeso (Time, Dens, tx_trans_lev, ty_trans_lev)
+
+  type(ocean_time_type),        intent(in) :: Time
+  type(ocean_density_type),     intent(in) :: Dens
+  real, dimension(isd:,jsd:,:), intent(in) :: tx_trans_lev
+  real, dimension(isd:,jsd:,:), intent(in) :: ty_trans_lev
+  type(time_type)                          :: next_time
+
+  integer :: i, j, k, k_rho, potrho_nk
+  real    :: work(isd:ied,jsd:jed,size(Dens%potrho_ref),2)
+  real    :: W1, W2
+  real, dimension(jsc:jec) :: rho_minj, rho_maxj
+  real                     :: rho_min, rho_max
+
+  if (.not.module_is_initialized) then
+    call mpp_error(FATAL, &
+    '==>Error transport_on_rho_submeso (transport_on_rho_submeso): module needs initialization ')
+  endif
+
+  next_time = increment_time(Time%model_time, int(dtime), 0)
+
+  if (need_data(id_tx_trans_rho_submeso,next_time) .or. need_data(id_ty_trans_rho_submeso,next_time)) then
+
+      potrho_nk = size(Dens%potrho_ref(:))
+      work(:,:,:,:) = 0.0
+
+      ! for (i,j) points with potrho_ref < potrho(k=1),   work=0
+      ! for (i,j) points with potrho_ref > potrho(k=kmt), work=0
+      ! these assumptions mean there is no need to specially handle the endpoints,
+      ! since the initial value for work is 0.
+
+      ! interpolate trans_lev from k-levels to potrho_nk-levels
+      do k = 1,nk-1
+         do j = jsc,jec
+            rho_maxj(j) = maxval(Dens%potrho(isc:iec,j,k+1),mask=Grd%tmask(isc:iec,j,k+1)==1.)
+            rho_minj(j) = minval(Dens%potrho(isc:iec,j,k),mask=Grd%tmask(isc:iec,j,k)==1.)
+         enddo
+         rho_max = maxval(rho_maxj)
+         rho_min = minval(rho_minj)
+         if (rho_max == -huge(rho_max)) exit  ! only rock below this level
+         do k_rho = 1,potrho_nk
+            if (rho_max < Dens%potrho_ref(k_rho)) cycle
+            if (rho_min > Dens%potrho_ref(k_rho)) cycle
+            do j = jsc,jec
+               if (rho_maxj(j) < Dens%potrho_ref(k_rho)) cycle
+               if (rho_minj(j) > Dens%potrho_ref(k_rho)) cycle
+               do i = isc,iec
+                  if (    Dens%potrho_ref(k_rho) >  Dens%potrho(i,j,k)  ) then
+                      if (Dens%potrho_ref(k_rho) <= Dens%potrho(i,j,k+1)) then
+                         W1 = Dens%potrho_ref(k_rho)- Dens%potrho(i,j,k)
+                         W2 = Dens%potrho(i,j,k+1)  - Dens%potrho_ref(k_rho)
+                         work(i,j,k_rho,1) = (tx_trans_lev(i,j,k+1)*W1 +tx_trans_lev(i,j,k)*W2) &
+                                              /(W1 + W2 + epsln)
+                         work(i,j,k_rho,2) = (ty_trans_lev(i,j,k+1)*W1 +ty_trans_lev(i,j,k)*W2) &
+                                              /(W1 + W2 + epsln)
+                      endif
+                  endif
+               enddo
+            enddo
+         enddo
+      enddo
+
+      do k_rho = 1,potrho_nk
+         do j = jsc,jec
+            do i = isc,iec
+               work(i,j,k_rho,1) = work(i,j,k_rho,1)*Grd%tmask(i,j,1)
+               work(i,j,k_rho,2) = work(i,j,k_rho,2)*Grd%tmask(i,j,1)
+            enddo
+         enddo
+      enddo
+
+      if (id_tx_trans_rho_submeso > 0) then
+          used = send_data (id_tx_trans_rho_submeso, work(:,:,:,1), Time%model_time, &
+                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=potrho_nk)
+      endif
+      if (id_ty_trans_rho_submeso > 0) then
+          used = send_data (id_ty_trans_rho_submeso, work(:,:,:,2), Time%model_time, &
+                 is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=potrho_nk)
+      endif
+
+  endif
+
+end subroutine transport_on_rho_submeso
+! </SUBROUTINE> NAME="transport_on_rho_submeso"
 
 
 !#######################################################################

@@ -9,6 +9,7 @@ exp/*.csh.e*
 src/path_names_shared
 exp/path_names.html
 src/shared/version/version.F90
+src/version/version.F90
 *.pyc
 tags
 data/archives

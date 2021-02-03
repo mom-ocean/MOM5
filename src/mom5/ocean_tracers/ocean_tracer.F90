@@ -2026,7 +2026,7 @@ function ocean_diag_tracer_init (Time, Thickness, vert_coordinate_type, num_diag
                 Grd%tracer_axes(1:2),                                             &
                 Time%model_time, 'squared '//trim(T_diag(n)%longname),            &
                 'squared '//trim(temp_units),                                     &
-                missing_value=missing_value, range=range_array,                   &
+                missing_value=missing_value, range=(/0.0,1e10/),                  &
                 standard_name='square_of_sea_surface_temperature')
 
        elseif(T_diag(n)%longname=='Conservative temperature') then 
@@ -2044,7 +2044,7 @@ function ocean_diag_tracer_init (Time, Thickness, vert_coordinate_type, num_diag
                 Grd%tracer_axes(1:2),                                             &
                 Time%model_time, 'squared '//trim(T_diag(n)%longname),            &
                 'squared '//trim(temp_units),                                     &
-                missing_value=missing_value, range=range_array)
+                missing_value=missing_value, range=(/0.0,1e10/))
 
        else 
 
@@ -2062,7 +2062,7 @@ function ocean_diag_tracer_init (Time, Thickness, vert_coordinate_type, num_diag
                 Grd%tracer_axes(1:2),                                             &
                 Time%model_time, 'squared '//trim(T_diag(n)%longname),            &
                 'squared '//trim(T_diag(n)%units),                                &
-                missing_value=missing_value, range=range_array)
+                missing_value=missing_value, range=(/0.0,1e20/))
 
        endif
 
