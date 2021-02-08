@@ -2805,6 +2805,9 @@ subroutine initialize_ocean_sfc(Time, Thickness, T_prog, T_diag, Velocity, Ocean
   id_field = register_restart_field(Sfc_restart, filename, 's_surf', Ocean_sfc%s_surf,Ocean_sfc%Domain)
   id_field = register_restart_field(Sfc_restart, filename, 'u_surf', Ocean_sfc%u_surf,Ocean_sfc%Domain)
   id_field = register_restart_field(Sfc_restart, filename, 'v_surf', Ocean_sfc%v_surf,Ocean_sfc%Domain)
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
+  id_field = register_restart_field(Sfc_restart, filename, 'gradient', Ocean_sfc%gradient,Ocean_sfc%Domain)
+#endif
   id_field = register_restart_field(Sfc_restart, filename, 'sea_lev',Ocean_sfc%sea_lev,Ocean_sfc%Domain)
   id_field = register_restart_field(Sfc_restart, filename, 'frazil', Ocean_sfc%frazil,Ocean_sfc%Domain)
   if (file_exist('INPUT/ocean_sbc.res.nc')) then

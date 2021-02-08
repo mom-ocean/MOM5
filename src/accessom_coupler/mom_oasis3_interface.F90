@@ -65,13 +65,6 @@ module mom_oasis3_interface_mod
 !    valid names correspond to variables in the Ocean_sfc structure.
 !    These names must agree with the 'interpolated' names in the OASIS namcouple file
 !   </DATA>
-!   <DATA NAME="send_before_ocean_update" TYPE="logical" DEFAULT=".FALSE.">
-!    TRUE if coupling strategy requires we send data to coupler BEFORE updating the ocean
-!   </DATA>
-!   <DATA NAME="send_after_ocean_update" TYPE="logical" DEFAULT=".FALSE.">
-!    TRUE if coupling strategy requires we send data to coupler AFTER updating the ocean
-!   </DATA>
-!
 ! </NAMELIST>
 !
 !
@@ -79,7 +72,7 @@ module mom_oasis3_interface_mod
 use mod_prism
 
 !MOM4 modules: 
-use fms_mod,         only: file_exist
+use fms_mod,         only: file_exist, read_data
 use fms_mod,         only: write_version_number, open_namelist_file, close_file, check_nml_error
 use mpp_domains_mod, only: mpp_update_domains, domain2d
 use mpp_mod,         only: mpp_broadcast, mpp_pe, mpp_npes, mpp_root_pe
@@ -107,7 +100,7 @@ use time_manager_mod, only: time_type, get_time
 implicit none
 
 public :: mom_prism_init, mom_prism_terminate, coupler_init, from_coupler, into_coupler, &
-          write_coupler_restart
+          write_coupler_restart, read_coupler_restart
 
 public :: iisd, iied, jjsd, jjed, iisc, iiec, jjsc, jjec
 
@@ -163,8 +156,6 @@ integer :: num_fields_in    ! Number of fields to be sent
 integer :: num_fields_out   ! Number of fields to be rcvd
 character(len=8),dimension(max_fields_out) :: fields_out
 character(len=8),dimension(max_fields_in) :: fields_in
-logical :: send_before_ocean_update=.FALSE.,       &
-           send_after_ocean_update=.FALSE.  ! Control when to pass fields to coupler.
 
 ! Work array
 real, allocatable,dimension(:,:)  :: vwork
@@ -265,8 +256,7 @@ integer ifield
 
 logical fmatch 
 
-namelist /mom_oasis3_interface_nml/ num_fields_in, num_fields_out,fields_in,fields_out, &
-          send_before_ocean_update, send_after_ocean_update
+namelist /mom_oasis3_interface_nml/ num_fields_in, num_fields_out,fields_in,fields_out
 
 ! all processors read the namelist--
 
@@ -429,8 +419,6 @@ endif
     il_paral ( clim_strategy ) = clim_serial
     il_paral ( clim_offset   ) = 0
     il_paral ( clim_length   ) = imt_global * jmt_global
-    send_before_ocean_update = .false.
-    send_after_ocean_update = .true.
   else !if( parallel_coupling .and. mpp_pe() < pe_layout(1) ) then
 
   il_paral ( clim_strategy ) = clim_Box
@@ -439,9 +427,6 @@ endif
   il_paral ( clim_SizeX    ) = iiec-iisc+1
   il_paral ( clim_SizeY    ) = jjec-jjsc+1
   il_paral ( clim_LdX      ) = ieg-isg+1
-    send_before_ocean_update = .false.
-    send_after_ocean_update = .true.
-  
   endif
 
   !
@@ -511,7 +496,7 @@ endif   !
 end subroutine  coupler_init
 
 !=======================================================================
-subroutine into_coupler(step, Ocean_sfc, Time, before_ocean_update)
+subroutine into_coupler(step, Ocean_sfc, Time)
 !------------------------------------------!
 
 use ocean_operators_mod, only : GRAD_BAROTROPIC_P       !GRAD_SURF_sealev
@@ -524,8 +509,6 @@ type (ocean_public_type) :: Ocean_sfc
 type (time_type),optional         :: Time
 
 integer, intent(in) :: step
-logical, intent(in),optional :: before_ocean_update ! Flag to indicate whether
-                                           ! we are calling before or after updating the ocean
 integer:: jf, ierr, i, j
 
 real, pointer, dimension(:,:) :: vwork_local
@@ -539,10 +522,6 @@ real, dimension(isg:ieg,jsg:jeg) :: gtmp
 
 ! Check if  we want to couple at this call.
 
-if ( before_ocean_update .and. (.not. send_before_ocean_update) ) return
-if ( (.not. before_ocean_update) .and. (.not. send_after_ocean_update) ) return
-
-  
   if (mpp_pe() == mpp_root_pe()) then
     if (chk_o2i_fields .and. (mod(step, chk_fields_period) == 0) .and. (step >= chk_fields_start_time)) then
         currstep=currstep+1
@@ -560,7 +539,9 @@ if ( (.not. before_ocean_update) .and. (.not. send_after_ocean_update) ) return
 !20110329: gradient is now calculated in initialize_ocean_sfc to avoid the domain boundary shift!
 !!!Ocean_sfc%gradient(:,:,:) = GRAD_BAROTROPIC_P(Ocean_sfc%sea_lev(:,:))
 !frazil is actually updated 
-call auscom_ice_heatflux_new(Ocean_sfc)
+    if (step > 0) then
+        call auscom_ice_heatflux_new(Ocean_sfc)
+    endif
 
      call mpp_clock_begin(id_oasis_send)
 do jf = 1,num_fields_out
@@ -838,6 +819,41 @@ if ( write_restart ) then
 
 endif
 end subroutine write_coupler_restart
+
+
+subroutine read_coupler_restart(Ocean_sfc)
+
+    type (ocean_public_type) :: Ocean_sfc
+
+    real, dimension(iisd:iied,jjsd:jjed) :: vtmp
+
+    call read_data('INPUT/o2i.nc', 'sst_i', vtmp, Ocean_sfc%domain, timelevel=1)
+    Ocean_sfc%t_surf(iisd:iied,jjsd:jjed) = vtmp(:,:)
+
+    if (mpp_pe() == mpp_root_pe()) then
+        print*, 'read_coupler_restart t_surf: ', sum(vtmp), minval(vtmp), maxval(vtmp)
+    endif
+
+    call read_data('INPUT/o2i.nc', 'sss_i', vtmp, Ocean_sfc%domain, timelevel=1)
+    Ocean_sfc%s_surf(iisd:iied,jjsd:jjed) = vtmp(:,:)
+
+    call read_data('INPUT/o2i.nc', 'ssu_i', vtmp, Ocean_sfc%domain, timelevel=1)
+    Ocean_sfc%u_surf(iisd:iied,jjsd:jjed) = vtmp(:,:)
+
+    call read_data('INPUT/o2i.nc', 'ssv_i', vtmp, Ocean_sfc%domain, timelevel=1)
+    Ocean_sfc%v_surf(iisd:iied,jjsd:jjed) = vtmp(:,:)
+
+    call read_data('INPUT/o2i.nc', 'sslx_i', vtmp, Ocean_sfc%domain, timelevel=1)
+    Ocean_sfc%gradient(iisd:iied,jjsd:jjed, 1) = vtmp(:,:)
+
+    call read_data('INPUT/o2i.nc', 'ssly_i', vtmp, Ocean_sfc%domain, timelevel=1)
+    Ocean_sfc%gradient(iisd:iied,jjsd:jjed, 2) = vtmp(:,:)
+
+    call read_data('INPUT/o2i.nc', 'pfmice_i', vtmp, Ocean_sfc%domain, timelevel=1)
+    Ocean_sfc%frazil(iisd:iied,jjsd:jjed) = vtmp(:,:)
+
+end subroutine read_coupler_restart
+
 
 !-----------------------------------------------------------------------------------
 subroutine mom_prism_terminate

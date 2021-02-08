@@ -111,6 +111,8 @@ program main
   use accessom2_mod, only : accessom2_type => accessom2
   use coupler_mod, only : coupler_type => coupler
 
+  use mom_oasis3_interface_mod, only : read_coupler_restart
+
   implicit none
 
   type (ocean_public_type)               :: Ocean_sfc
@@ -442,11 +444,23 @@ program main
   call mpp_clock_end(coupler_init_clock)
   call mpp_clock_end(init_clock)
 
+  ! Read coupling restarts
+  call read_coupler_restart(Ocean_sfc)
+
   ! loop over the coupled calls
   call mpp_clock_begin(main_clock)
   do nc=1, num_cpld_calls
 
-     call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld)
+     if (nc == 1) then
+         ! On  the first call do a send as well as receive.
+         ! This is to send the ocean boundary from the restart.
+         call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld, &
+                                          do_coupler_send=.true.)
+     else
+         ! For all other calls just do a receive
+         call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld, &
+                                          do_coupler_send=.false.)
+     endif
 
      call mpp_clock_begin(override_clock)
      call ice_ocn_bnd_from_data(Ice_ocean_boundary)
@@ -483,7 +497,8 @@ program main
         call ocean_solo_restart(Time, Time_restart_current, timestamp)
      end if
 
-     call external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
+     ! Send to ice. This won't send on the last call
+     call external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld)
 
   enddo
   call mpp_clock_end(main_clock)
@@ -618,7 +633,7 @@ subroutine external_coupler_sbc_init(Dom, dt_cpld, Run_len, &
                       coupling_field_timesteps=coupling_field_timesteps)
 end  subroutine external_coupler_sbc_init
 
-subroutine external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nsteps, dt_cpld )
+subroutine external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nsteps, dt_cpld, do_coupler_send)
     ! Perform transfers before ocean time stepping
     ! May need special tratment on first call.
 
@@ -628,14 +643,17 @@ subroutine external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nsteps, dt
     type (ice_ocean_boundary_type), intent(INOUT) :: Ice_ocean_boundary
     type (ocean_public_type) , intent(INOUT)        :: Ocean_sfc
     integer , intent(IN)                       :: nsteps, dt_cpld
+    logical , intent(in)                       :: do_coupler_send
 
     integer                        :: rtimestep ! Receive timestep
     integer                        :: stimestep ! Send timestep
 
     rtimestep = (nsteps-1) * dt_cpld   ! runtime in this run segment!
     stimestep = rtimestep
+    if (do_coupler_send) then
+        call into_coupler( stimestep, Ocean_sfc)
+    endif
     call from_coupler( rtimestep, Ocean_sfc, Ice_ocean_boundary )
-    call into_coupler( stimestep, Ocean_sfc, before_ocean_update = .true.)
 end subroutine external_coupler_sbc_before
 
 subroutine external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nsteps, dt_cpld )
@@ -651,7 +669,10 @@ subroutine external_coupler_sbc_after(Ice_ocean_boundary, Ocean_sfc, nsteps, dt_
     integer                        :: stimestep ! Send timestep
 
     stimestep = nsteps * dt_cpld   ! runtime in this run segment!
-    if (stimestep < num_cpld_calls*dt_cpld) call into_coupler(stimestep, Ocean_sfc, before_ocean_update = .false.)
+    if (stimestep < num_cpld_calls*dt_cpld) then
+        call into_coupler(stimestep, Ocean_sfc)
+    endif
+
 end subroutine external_coupler_sbc_after
 
 subroutine external_coupler_restart( dt_cpld, num_cpld_calls, Ocean_sfc)
