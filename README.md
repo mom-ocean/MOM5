@@ -5,6 +5,8 @@ MOM is a numerical ocean model based on the hydrostatic primitive equations. Dev
 
 Explicit tidal forcing in OGCM (ocean general circulation models) using  tides in MOM5 plus accurate phase information is introduced. 
 
+![](https://github.com/mabelcalim/mom/blob/master/figs/ani-msl.gif)
+
 
 Some tips to use tides in MOM5
 
