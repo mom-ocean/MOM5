@@ -185,13 +185,22 @@ program main
   read(tmp_unit, nml=ocean_solo_nml)
   close(tmp_unit)
 
-  call coupler%init_begin('mom5xx', config_dir=trim(accessom2_config_dir))
+  ! Initialise libaccessom2
+  call accessom2%init('mom5xx', config_dir=trim(accessom2_config_dir))
+
+  call coupler%init_begin('mom5xx', &
+                          accessom2%get_mpi_comm_comp_world(), &
+                          config_dir=trim(accessom2_config_dir))
 
   call mpp_init(localcomm=coupler%localcomm)
   init_clock = mpp_clock_id('Initialization')
   main_clock = mpp_clock_id('Main Loop')
   term_clock = mpp_clock_id('Termination')
   call mpp_clock_begin(init_clock)
+
+  if (mpp_pe() == mpp_root_pe()) then
+    call accessom2%print_version_info()
+  endif
 
   call fms_init(coupler%localcomm)
 
@@ -226,13 +235,6 @@ program main
      call mpp_error(FATAL, &
      'ocean_solo: ocean_solo_nml entry calendar must be one of GREGORIAN|JULIAN|NOLEAP|THIRTY_DAY|NO_CALENDAR.' )
   end select
-
-  ! Initialise libaccessom2
-  call accessom2%init('mom5xx', config_dir=trim(accessom2_config_dir))
-
-  if (mpp_pe() == mpp_root_pe()) then
-    call accessom2%print_version_info()
-  endif
 
   ! Tell libaccessom2 about any global configs/state
 
