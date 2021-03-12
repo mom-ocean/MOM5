@@ -342,18 +342,18 @@
 	use_this_module=.true.
 	debug_this_module=.false.
 	river_insertion_thickness=40.0
-	river_diffusion_thickness=40.0
-	river_diffusivity=5.e-2
-	river_diffuse_salt=.true.
-	river_diffuse_temp=.true.
+	river_diffusion_thickness=0.0      
+	river_diffusivity=0.0
+	river_diffuse_salt=.false.
+	river_diffuse_temp=.false.
 /
 
  &ocean_riverspread_nml
 	use_this_module=.true.
 	debug_this_module=.false
 	riverspread_diffusion=.true.
-	riverspread_diffusion_passes=500
-	vel_micom_smooth=2.0
+	riverspread_diffusion_passes=2
+	vel_micom_smooth=0.2
 /
 
  &ocean_rough_nml
@@ -569,10 +569,6 @@
 /
 
  &ocean_vert_kpp_mom4p1_nml
-	 use_this_module=.true.
-/
-
- &ocean_vert_kpp_nml
 	use_this_module=.true.
 	diff_cbt_iw=0.0
 	visc_cbu_iw=0.0

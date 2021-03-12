@@ -1,5 +1,5 @@
 CM2.1p1
-1 1 1 0 0 0
+1900 1 1 0 0 0
 #output files
 #"atmos_daily",   24,  "hours",  1, "days", "time",
 #"atmos_8xdaily",  3,  "hours",  1, "days", "time",
