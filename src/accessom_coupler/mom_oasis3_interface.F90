@@ -155,9 +155,9 @@ integer :: imt_local, jmt_local                    ! 2D global layout
 integer iisc,iiec,jjsc,jjec
 integer iisd,iied,jjsd,jjed
 
-integer, parameter :: max_fields_in=23
+integer, parameter :: max_fields_in=24
 
-integer, parameter :: max_fields_out=8
+integer, parameter :: max_fields_out=9
 
 integer, dimension(max_fields_in)  :: id_var_in  ! ID for fields to be rcvd
 integer, dimension(max_fields_out) :: id_var_out ! ID for fields to be sent
@@ -375,7 +375,7 @@ endif
   mom_name_read(21)='licefw'  ! Water flux from land ice
   mom_name_read(22)='liceht'  ! Heat flux from land ice
   mom_name_read(23)='wnd_io'  !
-  mom_name_read(24)='nitrate_io'  !
+  mom_name_read(24)='iof_nit'  !
 
   !ocn ==> ice
   mom_name_write(:)=''
@@ -750,6 +750,8 @@ do jf =  1, num_fields_in
      Ice_ocean_boundary%fprec(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('aice')
      Ice_ocean_boundary%aice(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+  case('iof_nit')
+     Ice_ocean_boundary%iof_nit(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('mh_flux')
      Ice_ocean_boundary%mh_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('wfimelt')

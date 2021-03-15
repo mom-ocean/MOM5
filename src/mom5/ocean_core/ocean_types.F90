@@ -1244,6 +1244,7 @@ module ocean_types_mod
      real, pointer, dimension(:,:) :: co2              =>NULL() ! co2
 #endif
      real, pointer, dimension(:,:) :: wnd              =>NULL() ! wind speed
+     real, pointer, dimension(:,:) :: iof_nit              =>NULL() ! wind speed
      integer :: xtype                                          ! REGRID, REDIST or DIRECT
 
      type(coupler_2d_bc_type)      :: fluxes                   ! array of fields used for additional tracers
@@ -1265,6 +1266,7 @@ module ocean_types_mod
      real, pointer, dimension(:,:)    :: area    =>NULL() ! T-cell area.
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
      real, pointer, dimension(:,:,:)  :: gradient =>NULL() ! x/y slopes of sea surface.
+     real, pointer, dimension(:,:)    :: n_surf =>NULL() ! sea surface nitrate (mmol m-3)
 #endif
 #if defined(ACCESS_CM)
      real, pointer, dimension(:,:)    :: co2     =>NULL() ! co2 ( )
