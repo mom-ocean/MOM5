@@ -411,7 +411,8 @@ program main
              Ice_ocean_boundary% licefw(isc:iec,jsc:jec),           &
              Ice_ocean_boundary% liceht(isc:iec,jsc:jec),           &
              Ice_ocean_boundary%wnd(isc:iec,jsc:jec),               &
-             Ice_ocean_boundary%iof_nit(isc:iec,jsc:jec))
+             Ice_ocean_boundary%iof_nit(isc:iec,jsc:jec),           &
+             Ice_ocean_boundary%iof_alg(isc:iec,jsc:jec))
 
   Ice_ocean_boundary%u_flux          = 0.0
   Ice_ocean_boundary%v_flux          = 0.0
@@ -436,6 +437,7 @@ program main
   Ice_ocean_boundary%liceht          = 0.0
   Ice_ocean_boundary%wnd             = 0.0
   Ice_ocean_boundary%iof_nit         = 0.0
+  Ice_ocean_boundary%iof_alg         = 0.0
 
   coupler_init_clock = mpp_clock_id('OASIS init', grain=CLOCK_COMPONENT)
   call mpp_clock_begin(coupler_init_clock)
@@ -703,6 +705,7 @@ subroutine write_boundary_chksums(Ice_ocean_boundary)
     call write_chksum_2d('Ice_ocean_boundary%wfiform', Ice_ocean_boundary%wfiform)
     call write_chksum_2d('Ice_ocean_boundary%wnd', Ice_ocean_boundary%wnd)
     call write_chksum_2d('Ice_ocean_boundary%iof_nit', Ice_ocean_boundary%iof_nit)
+    call write_chksum_2d('Ice_ocean_boundary%iof_alg', Ice_ocean_boundary%iof_alg)
 
 end subroutine write_boundary_chksums
 

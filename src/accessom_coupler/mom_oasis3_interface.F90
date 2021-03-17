@@ -155,9 +155,9 @@ integer :: imt_local, jmt_local                    ! 2D global layout
 integer iisc,iiec,jjsc,jjec
 integer iisd,iied,jjsd,jjed
 
-integer, parameter :: max_fields_in=24
+integer, parameter :: max_fields_in=25
 
-integer, parameter :: max_fields_out=9
+integer, parameter :: max_fields_out=10
 
 integer, dimension(max_fields_in)  :: id_var_in  ! ID for fields to be rcvd
 integer, dimension(max_fields_out) :: id_var_out ! ID for fields to be sent
@@ -376,6 +376,7 @@ endif
   mom_name_read(22)='liceht'  ! Heat flux from land ice
   mom_name_read(23)='wnd_io'  !
   mom_name_read(24)='iof_nit'  !
+  mom_name_read(25)='iof_alg'  !
 
   !ocn ==> ice
   mom_name_write(:)=''
@@ -389,6 +390,7 @@ endif
   mom_name_write(7)='dssldx'
   mom_name_write(8)='dssldy'
   mom_name_write(9)='n_surf'
+  mom_name_write(10)='alg_surf'
 
 
   fmatch = .false.
@@ -601,6 +603,8 @@ do jf = 1,num_fields_out
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2)
   case('n_surf')
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%n_surf(iisd:iied,jjsd:jjed)
+  case('alg_surf')
+    vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%alg_surf(iisd:iied,jjsd:jjed)
   case DEFAULT
   call mpp_error(FATAL,&
       '==>Error from into_coupler: Unknown quantity.')
@@ -752,6 +756,8 @@ do jf =  1, num_fields_in
      Ice_ocean_boundary%aice(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('iof_nit')
      Ice_ocean_boundary%iof_nit(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+  case('iof_alg')
+     Ice_ocean_boundary%iof_alg(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('mh_flux')
      Ice_ocean_boundary%mh_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('wfimelt')
@@ -827,6 +833,7 @@ if ( write_restart ) then
           case('dssldy'); vtmp = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2); fld_ice='ssly_i'
           case('frazil'); vtmp = Ocean_sfc%frazil(iisd:iied,jjsd:jjed); fld_ice='pfmice_i'
           case('n_surf'); vtmp = Ocean_sfc%n_surf(iisd:iied,jjsd:jjed); fld_ice='ssn_i'
+          case('alg_surf'); vtmp = Ocean_sfc%alg_surf(iisd:iied,jjsd:jjed); fld_ice='ssalg_i'
         end select
 
         if (parallel_coupling) then
