@@ -1,19 +1,19 @@
 module ocean_barotropic_mod
 #define COMP isc:iec,jsc:jec
 !
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> S.M. Griffies
+! <CONTACT EMAIL="Stephen.Griffies@noaa.gov"> S.M. Griffies
 ! </CONTACT>
 !
 ! <CONTACT EMAIL="martin.schmidt@io-warnemuende.de"> Martin Schmidt (OBC)
 ! </CONTACT>
 !
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Zhi Liang (OBC and halos)
+! <CONTACT EMAIL="Zhi.Liang@noaa.gov"> Zhi Liang (OBC and halos)
 ! </CONTACT>
 !
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Harper Simmons (tides)
+! <CONTACT EMAIL="Harper.Simmons@noaa.gov"> Harper Simmons (tides)
 ! </CONTACT>
 !
-! <REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov"> M.J. Harrison
+! <REVIEWER EMAIL="Matthew.Harrison@noaa.gov"> M.J. Harrison
 ! </REVIEWER>
 !
 !<OVERVIEW>
@@ -33,6 +33,15 @@ module ocean_barotropic_mod
 ! and pressure-based non-Boussinesq vertical coordinates.
 !
 ! Treatment is provided for both a Bgrid or Cgrid horizontal layout.   
+!
+! MABEL : Tidal phase information is included based on changes made by 
+! Russel.
+! MABEL : amp,phase and freq from TPXO7.2 
+! MABEL : Astronomical arguments, obtained with Richard Ray's
+!         "arguments" and "astrol", for Jan 1, 1992, 00:00 
+!           Greenwich time  Corrected July 12, 2000  
+! MABEL : 11 tidal constituents = 4 semidiurnal + 4 diurnal + 3 long term
+! based on Schwiderski 1980
 !
 ! </DESCRIPTION>
 !
@@ -664,9 +673,9 @@ type(domain1d),save :: Domy
 
 
 character(len=128) :: &
-     version='$Id: ocean_barotropic.F90,v 20.0 2013/12/14 00:10:34 fms Exp $'
+     version='$Id: ocean_barotropic.F90,v 1.1.2.10 2012/06/08 00:45:19 Stephen.Griffies Exp $'
 character (len=128) :: tagname = &
-     '$Name: tikal $'
+     '$Name: mom5_siena_08jun2012_smg $'
 
 #include <ocean_memory.h>
 
@@ -899,6 +908,9 @@ real :: tidal_omega_K1,Love_K1,amp_K1
 real :: tidal_omega_O1,Love_O1,amp_O1
 real :: tidal_omega_P1,Love_P1,amp_P1
 real :: tidal_omega_Q1,Love_Q1,amp_Q1
+real :: tidal_omega_Mf,Love_Mf,amp_Mf
+real :: tidal_omega_Mm,Love_Mm,amp_Mm
+real :: tidal_omega_Ssa,Love_Ssa,amp_Ssa
 
 ! for tidal and geoid forcing  
 real, private, dimension(:,:), allocatable :: eta_eq_tidal! equilibrium tidal forcing (m)
@@ -908,6 +920,9 @@ real, private, dimension(:,:), allocatable :: coslat2     ! cosine^2 of   longit
 real, private, dimension(:,:), allocatable :: sin2lon     !   sine   of 2*longitude on T-cells
 real, private, dimension(:,:), allocatable :: sinlon      !   sine   of   longitude on T-cells
 real, private, dimension(:,:), allocatable :: sin2lat     !   sine   of 2*latitude  on T-cells
+real, private, dimension(:,:), allocatable :: sinlat3     !   3*sineˆ2   of latitude  on T-cells
+real, private, dimension(:,:), allocatable :: sinlat2     !   sineˆ2   of latitude  on T-cells
+real, private, dimension(:,:), allocatable :: sinlon0     !   sine   of 0*longitude on T-cells
 real, private, dimension(:,:), allocatable :: ideal_amp   ! amplitude for ideal tidal forcing 
 
 namelist /ocean_barotropic_nml/ write_a_restart,                                &
@@ -945,7 +960,7 @@ contains
 !
 subroutine ocean_barotropic_init(Grid, Domain, Time, Time_steps, Ocean_options, Ext_mode, obc, &
                                  ver_coordinate, ver_coordinate_class, hor_grid, cmip_units,   &
-                                 use_blobs, introduce_blobs, velocity_override, debug)
+                                 use_blobs, velocity_override, debug)
 
   type(ocean_grid_type),          intent(in), target   :: Grid
   type(ocean_domain_type),        intent(in), target   :: Domain
@@ -959,7 +974,6 @@ subroutine ocean_barotropic_init(Grid, Domain, Time, Time_steps, Ocean_options, 
   integer,                        intent(in)           :: hor_grid 
   logical,                        intent(in)           :: cmip_units
   logical,                        intent(in)           :: use_blobs
-  logical,                        intent(in)           :: introduce_blobs
   logical,                        intent(in)           :: velocity_override
   logical,                        intent(in), optional :: debug
 
@@ -1437,7 +1451,7 @@ subroutine ocean_barotropic_init(Grid, Domain, Time, Time_steps, Ocean_options, 
          call ocean_obc_update_boundary_baro(eta_t_bt(:,:,:), 'T')
       endif
   endif
-  call read_barotropic(Time, Ext_mode, use_blobs, introduce_blobs)
+  call read_barotropic(Time, Ext_mode, use_blobs)
 
   if(Time%init .and. zero_eta_ic) then 
       call mpp_error(NOTE, &
@@ -2761,7 +2775,7 @@ end subroutine eta_and_pbot_tendency
 ! </DESCRIPTION>
 !
 subroutine update_ocean_barotropic (Time, Dens, Thickness, Adv_vel, &
-                                    Ext_mode, patm, pme, river, use_blobs)
+                                    Ext_mode, patm, pme, river)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_density_type),       intent(in)    :: Dens
@@ -2771,7 +2785,6 @@ subroutine update_ocean_barotropic (Time, Dens, Thickness, Adv_vel, &
   real, dimension(isd:,jsd:),     intent(in)    :: patm
   real, dimension(isd:,jsd:),     intent(in)    :: pme
   real, dimension(isd:,jsd:),     intent(in)    :: river
-  logical,                        intent(in)    :: use_blobs
 
   type(time_type)                  :: next_time 
   type(time_type)                  :: time_bt 
@@ -2831,15 +2844,15 @@ subroutine update_ocean_barotropic (Time, Dens, Thickness, Adv_vel, &
       
       if(horz_grid == MOM_BGRID) then 
          if(vert_coordinate_class==DEPTH_BASED) then 
-           call pred_corr_tropic_depth_bgrid (Time, Thickness, Ext_mode, patm, pme, river, use_blobs)
+           call pred_corr_tropic_depth_bgrid (Time, Thickness, Ext_mode, patm, pme, river)
          elseif(vert_coordinate_class==PRESSURE_BASED ) then 
-           call pred_corr_tropic_press_bgrid (Time, Thickness, Ext_mode, pme, river, use_blobs)
+           call pred_corr_tropic_press_bgrid (Time, Thickness, Ext_mode, pme, river)
          endif  
       else 
          if(vert_coordinate_class==DEPTH_BASED) then 
-           call pred_corr_tropic_depth_cgrid (Time, Thickness, Ext_mode, patm, pme, river, use_blobs)
+           call pred_corr_tropic_depth_cgrid (Time, Thickness, Ext_mode, patm, pme, river)
          elseif(vert_coordinate_class==PRESSURE_BASED ) then 
-           call pred_corr_tropic_press_cgrid (Time, Thickness, Ext_mode, pme, river, use_blobs)
+           call pred_corr_tropic_press_cgrid (Time, Thickness, Ext_mode, pme, river)
          endif  
       endif 
 
@@ -3222,7 +3235,7 @@ end subroutine ocean_mass_forcing
 !
 ! </DESCRIPTION>
 !
-subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Ext_mode, patm, pme, river, use_blobs)
+subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Ext_mode, patm, pme, river)
 
   type(ocean_time_type),          intent(in)    :: Time 
   type(ocean_thickness_type),     intent(in)    :: Thickness 
@@ -3230,7 +3243,6 @@ subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Ext_mode, patm, pme, r
   real, dimension(isd:,jsd:),     intent(in)    :: patm
   real, dimension(isd:,jsd:),     intent(in)    :: pme
   real, dimension(isd:,jsd:),     intent(in)    :: river
-  logical,                        intent(in)    :: use_blobs
 
   type(time_type)                                :: time_bt 
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt)   :: steady_forcing
@@ -3310,9 +3322,7 @@ subroutine pred_corr_tropic_depth_bgrid (Time, Thickness, Ext_mode, patm, pme, r
         ! since Ext_mode%eta_smooth is only to be used for 
         ! smoothing eta_t, not for smoothing eta_t_bt.
         steady_forcing(i,j) = Grd%tmask(i,j,1)*( pme(i,j) + river(i,j) + Ext_mode%source(i,j) - Ext_mode%eta_smooth(i,j))
-        if (use_blobs) then
-           steady_forcing(i,j) = steady_forcing(i,j) + Grd%tmask(i,j,1)*Ext_mode%conv_blob(i,j)
-        endif
+
      enddo
   enddo
 
@@ -3598,7 +3608,7 @@ end subroutine pred_corr_tropic_depth_bgrid
 !
 ! </DESCRIPTION>
 !
-subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Ext_mode, patm, pme, river, use_blobs)
+subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Ext_mode, patm, pme, river)
 
   type(ocean_time_type),          intent(in)    :: Time 
   type(ocean_thickness_type),     intent(in)    :: Thickness 
@@ -3606,7 +3616,6 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Ext_mode, patm, pme, r
   real, dimension(isd:,jsd:),     intent(in)    :: patm
   real, dimension(isd:,jsd:),     intent(in)    :: pme
   real, dimension(isd:,jsd:),     intent(in)    :: river
-  logical,                        intent(in)    :: use_blobs
 
   type(time_type)                                  :: time_bt 
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt)     :: steady_forcing
@@ -3700,9 +3709,7 @@ subroutine pred_corr_tropic_depth_cgrid (Time, Thickness, Ext_mode, patm, pme, r
         ! since Ext_mode%eta_smooth is only to be used for 
         ! smoothing eta_t, not for smoothing eta_t_bt.
         steady_forcing(i,j) = Grd%tmask(i,j,1)*( pme(i,j) + river(i,j) + Ext_mode%source(i,j) - Ext_mode%eta_smooth(i,j))
-        if (use_blobs) then
-           steady_forcing(i,j) = steady_forcing(i,j) + Grd%tmask(i,j,1)*Ext_mode%conv_blob(i,j)
-        endif
+
      enddo
   enddo
 
@@ -3986,14 +3993,13 @@ end subroutine pred_corr_tropic_depth_cgrid
 !
 ! </DESCRIPTION>
 !
-subroutine pred_corr_tropic_press_bgrid (Time, Thickness, Ext_mode, pme, river, use_blobs)
+subroutine pred_corr_tropic_press_bgrid (Time, Thickness, Ext_mode, pme, river)
 
   type(ocean_time_type),          intent(in)    :: Time 
   type(ocean_thickness_type),     intent(in)    :: Thickness 
   type(ocean_external_mode_type), intent(inout) :: Ext_mode
   real, dimension(isd:,jsd:),     intent(in)    :: pme
   real, dimension(isd:,jsd:),     intent(in)    :: river
-  logical,                        intent(in)    :: use_blobs
 
   type(time_type)                                :: time_bt 
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt)   :: steady_forcing
@@ -4067,9 +4073,7 @@ subroutine pred_corr_tropic_press_bgrid (Time, Thickness, Ext_mode, pme, river, 
         steady_forcing(i,j) = Grd%tmask(i,j,1)                                            &
         *(grav*(pme(i,j) + river(i,j) + Ext_mode%source(i,j) - Ext_mode%pbot_smooth(i,j)) &
         + Ext_mode%dpatm_dt(i,j))
-        if (use_blobs) then
-           steady_forcing(i,j) = steady_forcing(i,j) + Grd%tmask(i,j,1)*Ext_mode%conv_blob(i,j)
-        endif 
+ 
      enddo
   enddo
 
@@ -4352,14 +4356,13 @@ end subroutine pred_corr_tropic_press_bgrid
 !
 ! </DESCRIPTION>
 !
-subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Ext_mode, pme, river, use_blobs)
+subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Ext_mode, pme, river)
 
   type(ocean_time_type),          intent(in)    :: Time 
   type(ocean_thickness_type),     intent(in)    :: Thickness 
   type(ocean_external_mode_type), intent(inout) :: Ext_mode
   real, dimension(isd:,jsd:),     intent(in)    :: pme
   real, dimension(isd:,jsd:),     intent(in)    :: river
-  logical,                        intent(in)    :: use_blobs
 
   type(time_type)                                  :: time_bt 
   real, dimension(isd_bt:ied_bt,jsd_bt:jed_bt)     :: steady_forcing
@@ -4449,9 +4452,7 @@ subroutine pred_corr_tropic_press_cgrid (Time, Thickness, Ext_mode, pme, river, 
         steady_forcing(i,j) = Grd%tmask(i,j,1)                                            &
         *(grav*(pme(i,j) + river(i,j) + Ext_mode%source(i,j) - Ext_mode%pbot_smooth(i,j)) &
         + Ext_mode%dpatm_dt(i,j))
-        if (use_blobs) then
-           steady_forcing(i,j) = steady_forcing(i,j) + Grd%tmask(i,j,1)*Ext_mode%conv_blob(i,j)
-        endif 
+ 
      enddo
   enddo
 
@@ -5219,14 +5220,13 @@ end subroutine barotropic_energy
 ! <DESCRIPTION>
 !  Read in external mode fields from restart file.
 ! </DESCRIPTION>
-subroutine read_barotropic(Time, Ext_mode, use_blobs, introduce_blobs)
+subroutine read_barotropic(Time, Ext_mode, use_blobs)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_external_mode_type), intent(inout) :: Ext_mode
   logical,                        intent(in)    :: use_blobs
-  logical,                        intent(in)    :: introduce_blobs
 
-  character*128 file_name, baro_filename
+  character*128 file_name
   integer, dimension(4) :: siz 
   integer  :: tau, taum1, taup1
 
@@ -5238,7 +5238,6 @@ subroutine read_barotropic(Time, Ext_mode, use_blobs, introduce_blobs)
   taup1 = Time%taup1
 
   file_name = 'ocean_barotropic.res.nc'
-  baro_filename = file_name
   if(tendency==THREE_LEVEL) then 
       id_restart(1) = register_restart_field(Bar_restart, file_name, 'eta_t', Ext_mode%eta_t(:,:,tau),&
                Ext_mode%eta_t(:,:,taup1), domain=Dom%domain2d)
@@ -5293,7 +5292,7 @@ subroutine read_barotropic(Time, Ext_mode, use_blobs, introduce_blobs)
   id_restart(13)= register_restart_field(Bar_restart, file_name, 'forcing_v_bt',Ext_mode%forcing_bt(:,:,2), &
        domain=Dom%domain2d) 
 
-  if (use_blobs .and. .not. introduce_blobs) then
+  if (use_blobs) then
       id_restart(14) = register_restart_field(Bar_restart, file_name, 'deta_dt', &
                        Ext_mode%deta_dt(:,:), domain=Dom%domain2d)
   endif 
@@ -5362,15 +5361,7 @@ subroutine read_barotropic(Time, Ext_mode, use_blobs, introduce_blobs)
       call mpp_update_domains(Ext_mode%eta_nonbouss(:,:,:),   Dom%domain2d)
       call mpp_update_domains(Ext_mode%forcing_bt(:,:,1), Ext_mode%forcing_bt(:,:,2),&
                               Dom%domain2d,gridtype=GRID_NE)
-      if (use_blobs .and. .not. introduce_blobs) then
-         call mpp_update_domains(Ext_mode%deta_dt(:,:), Dom%domain2d)
-      elseif (use_blobs .and. introduce_blobs) then
-         ! If we are introducing blobs, deta_dt will not have been in the restart file, but, it
-         ! will need to be written to the restart file at the end of this run.
-         id_restart(14) = register_restart_field(Bar_restart, baro_filename, 'deta_dt', &
-                          Ext_mode%deta_dt(:,:), domain=Dom%domain2d)
-
-      endif
+      if (use_blobs) call mpp_update_domains(Ext_mode%deta_dt(:,:), Dom%domain2d)
 
   endif
 
@@ -5655,7 +5646,7 @@ end subroutine barotropic_chksum
 !  will be equal, and they will be equal to the rigid lid barotropic
 !  streamfunction in the Boussinesq case.  
 !
-!  Original algorithm: Stephen.Griffies
+!  Original algorithm: Stephen.Griffies@noaa.gov
 !
 !  13MAR2007: Change units to 10^9 kg/s, which is a "mass Sv"
 !  This is the natural unit of transport for a mass-based 
@@ -6240,7 +6231,8 @@ subroutine tidal_forcing_init(Time)
   real :: xcenter, ycenter
   real :: xwidth, ywidth
   integer :: i,j
-
+  
+ 
      allocate (eta_eq_tidal(isd_bt:ied_bt,jsd_bt:jed_bt))
      allocate (cos2lon(isd_bt:ied_bt,jsd_bt:jed_bt))
      allocate (coslon(isd_bt:ied_bt,jsd_bt:jed_bt))
@@ -6248,6 +6240,9 @@ subroutine tidal_forcing_init(Time)
      allocate (sin2lon(isd_bt:ied_bt,jsd_bt:jed_bt))
      allocate (sinlon(isd_bt:ied_bt,jsd_bt:jed_bt))
      allocate (sin2lat(isd_bt:ied_bt,jsd_bt:jed_bt))
+     allocate (sinlat3(isd_bt:ied_bt,jsd_bt:jed_bt))
+     allocate (sinlat2(isd_bt:ied_bt,jsd_bt:jed_bt))
+     allocate (sinlon0(isd_bt:ied_bt,jsd_bt:jed_bt))
      allocate (ideal_amp(isd_bt:ied_bt,jsd_bt:jed_bt))
 
      eta_eq_tidal = 0.0
@@ -6257,33 +6252,36 @@ subroutine tidal_forcing_init(Time)
      sin2lon      = 0.0 
      sinlon       = 0.0 
      sin2lat      = 0.0
+     sinlat3      = 0.0
+     sinlat2      = 0.0
+     sinlon0      = 0.0
      ideal_amp    = 0.0
 
      if(tidal_forcing_m2) then
        call mpp_error(NOTE, &
-        '==>Note from tidal_forcing_init: adding M2 lunar tidal forcing to ext-mode')
+        '==>Note from tidal_forcing_init: adding M2 lunar tidal forcing to ext-mode. TPXO 7.2')
      endif 
      if(tidal_forcing_8) then
        call mpp_error(NOTE, &
-       '==>Note from tidal_forcing_init: adding tidal forcing to ext-mode from 8-lunar/solar constituents')
+       '==>Note from tidal_forcing_init: adding tidal forcing to ext-mode from 8-lunar/solar constituents. TPXO 7.2')
      endif 
      if(tidal_forcing_ideal) then
        call mpp_error(NOTE, &
-       '==>Note from tidal_forcing_init: adding ideal tidal forcing to ext-mode')
+       '==>Note from tidal_forcing_init: adding ideal tidal forcing to ext-mode.TPXO 7.2')
      endif 
      if(tidal_forcing_m2 .and. tidal_forcing_8) then 
        call mpp_error(NOTE, &
-       '==>Note from tidal_forcing_init: both tidal_forcing_m2 and tidal_forcing_8 = .true. Will use tidal_forcing_8.')
+       '==>Note from tidal_forcing_init: both tidal_forcing_m2 and tidal_forcing_8 = .true. Will use tidal_forcing_8.TPXO 7.2')
      endif 
 
      if(tidal_forcing_m2 .or. tidal_forcing_8 .or. tidal_forcing_ideal) then 
        tidal_forcing=.true.
        call mpp_error(NOTE, &
-       '==>Note from tidal_forcing_init: tidal_forcing=true, so adding tidal forcing to external mode.')
+       '==>Note from tidal_forcing_init: tidal_forcing=true, so adding tidal forcing to external mode.TPXO 7.2')
      else 
        tidal_forcing=.false.
        call mpp_error(NOTE, &
-       '==>Note from tidal_forcing_init: tidal_forcing=false, so not adding tidal forcing to external mode.')
+       '==>Note from tidal_forcing_init: tidal_forcing=false, so not adding tidal forcing to external mode. TPXO 7.2')
      endif 
 
      tidal_omega_K1 = 0.72921e-4*3600.*24.     ! K1-tide
@@ -6295,6 +6293,10 @@ subroutine tidal_forcing_init(Time)
      tidal_omega_S2 = 1.45444e-4*3600.*24.     ! S2-tide
      tidal_omega_N2 = 1.37880e-4*3600.*24.     ! N2-tide
      tidal_omega_K2 = 1.45842e-4*3600.*24.     ! K2-tide
+    
+     tidal_omega_Mf = 0.053234e-4*3600.*24.    ! Mf-tide
+     tidal_omega_Mm = 0.026392e-4*3600.*24.    ! Mm-tide
+     tidal_omega_Ssa= 0.003982e-4*3600.*24.    ! Ssa-tide 
 
      Love_M2 =   0.693                  ! (1+k-h), Love numbers k~=0.3 and h~=0.6 - 
      Love_S2 =   0.693                  ! (1+k-h), Love numbers k~=0.3 and h~=0.6 - 
@@ -6304,6 +6306,9 @@ subroutine tidal_forcing_init(Time)
      Love_O1 =   1.0 + 0.298 - 0.603    ! (1+k-h), Love numbers k~=0.3 and h~=0.6 - 
      Love_P1 =   1.0 + 0.287 - 0.581    ! (1+k-h), Love numbers k~=0.3 and h~=0.6 - 
      Love_Q1 =   1.0 + 0.298 - 0.603    ! (1+k-h), Love numbers k~=0.3 and h~=0.6 - 
+     Love_Mf =   1.0 + 0.299 - 0.606
+     Love_Mm =   1.0 + 0.299 - 0.606
+     Love_Ssa =  1.0 + 0.299 - 0.606
 
      amp_M2 =   0.242334 ! amplitude of M2 equilibrium tide (m)
      amp_S2 =   0.112743 ! amplitude of S2 equilibrium tide (m)
@@ -6313,6 +6318,9 @@ subroutine tidal_forcing_init(Time)
      amp_O1 =   0.100661 ! amplitude of O1 equilibrium tide (m)
      amp_P1 =   0.046848 ! amplitude of P1 equilibrium tide (m)
      amp_Q1 =   0.019273 ! amplitude of Q1 equilibrium tide (m)
+     amp_Mf =   0.042041
+     amp_Mm =   0.022191
+     amp_Ssa =  0.019567
 
      rradian = 1./radian
      cos2lon(isd:ied,jsd:jed) = cos(2.0*Grd%xt(:,:)*rradian)
@@ -6321,6 +6329,10 @@ subroutine tidal_forcing_init(Time)
      sin2lon(isd:ied,jsd:jed) = sin(2.0*Grd%xt(:,:)*rradian)
      sinlon (isd:ied,jsd:jed) = sin(    Grd%xt(:,:)*rradian)
      sin2lat(isd:ied,jsd:jed) = sin(2.0*Grd%yt(:,:)*rradian)
+     sinlat3(isd:ied,jsd:jed) = (3*sin(    Grd%yt(:,:)*rradian)**2)-2
+     sinlat2(isd:ied,jsd:jed) = sin(    Grd%yt(:,:)*rradian)**2
+     sinlon0(isd:ied,jsd:jed) = sin(0.0*Grd%xt(:,:)*rradian)
+
      if(barotropic_halo > 1) then
         call mpp_update_domains(cos2lon, Dom_bt%domain2d, complete=.false.)
         call mpp_update_domains(coslon,  Dom_bt%domain2d, complete=.false.)
@@ -6328,6 +6340,10 @@ subroutine tidal_forcing_init(Time)
         call mpp_update_domains(sin2lon, Dom_bt%domain2d, complete=.false.)
         call mpp_update_domains(sinlon,  Dom_bt%domain2d, complete=.false.)
         call mpp_update_domains(sin2lat, Dom_bt%domain2d, complete=.true.)
+        call mpp_update_domains(sinlat3, Dom_bt%domain2d, complete=.false.)
+        call mpp_update_domains(sinlat2, Dom_bt%domain2d, complete=.true.)
+        call mpp_update_domains(sinlon0, Dom_bt%domain2d, complete=.false.)
+
      endif
 
      ! Gaussian bump profile, set to zero near global boundaries  
@@ -6422,27 +6438,57 @@ subroutine get_tidal_forcing(Time, dayr)
   real    :: cosomegat_O1,sinomegat_O1
   real    :: cosomegat_P1,sinomegat_P1
   real    :: cosomegat_Q1,sinomegat_Q1
+  real    :: cosomegat_Mf,sinomegat_Mf
+  real    :: cosomegat_Mm,sinomegat_Mm
+  real    :: cosomegat_Ssa,sinomegat_Ssa
 
-  sinomegat_K1=sin(tidal_omega_K1*dayr)
-  sinomegat_O1=sin(tidal_omega_O1*dayr)
-  sinomegat_P1=sin(tidal_omega_P1*dayr)
-  sinomegat_Q1=sin(tidal_omega_Q1*dayr)
+  real    :: phase_p,phase_h,phase_s
+  real :: chi_K1=0,chi_O1=0,chi_K2=0,chi_M2=0, chi_N2=0,chi_P1=0,chi_Q1=0,chi_Mf=0,chi_Mm=0,chi_Ssa=0
 
-  cosomegat_K1=cos(tidal_omega_K1*dayr)
-  cosomegat_O1=cos(tidal_omega_O1*dayr)
-  cosomegat_P1=cos(tidal_omega_P1*dayr)
-  cosomegat_Q1=cos(tidal_omega_Q1*dayr)
+! MABEL: Phase information hardwired in. TPXO7.2 from constit.h
+! phase S2 = 0.000000000
 
-  sinomegat_M2=sin(tidal_omega_M2*dayr)
-  sinomegat_s2=sin(tidal_omega_S2*dayr)
-  sinomegat_n2=sin(tidal_omega_N2*dayr)
-  sinomegat_K2=sin(tidal_omega_K2*dayr)
+  chi_K1=0.173003674
+  chi_O1=1.558553872
+  chi_K2=3.487600001
+  chi_M2=1.731557546
+  chi_N2=6.050721243
+  chi_P1=6.110181633
+  chi_Q1=5.877717569
+  chi_Mf=1.756042456
+  chi_Mm=1.964021610
+  chi_Ssa=3.487600001
 
-  cosomegat_M2=cos(tidal_omega_M2*dayr)
-  cosomegat_s2=cos(tidal_omega_S2*dayr)
-  cosomegat_n2=cos(tidal_omega_N2*dayr)
-  cosomegat_K2=cos(tidal_omega_K2*dayr)
+  sinomegat_K1=sin(tidal_omega_K1*dayr+chi_K1)
+  sinomegat_O1=sin(tidal_omega_O1*dayr+chi_O1)
+  sinomegat_P1=sin(tidal_omega_P1*dayr+chi_P1)
+  sinomegat_Q1=sin(tidal_omega_Q1*dayr+chi_Q1)
 
+  cosomegat_K1=cos(tidal_omega_K1*dayr+chi_K1)
+  cosomegat_O1=cos(tidal_omega_O1*dayr+chi_O1)
+  cosomegat_P1=cos(tidal_omega_P1*dayr+chi_P1)
+  cosomegat_Q1=cos(tidal_omega_Q1*dayr+chi_Q1)
+
+  sinomegat_M2=sin(tidal_omega_M2*dayr+chi_M2)
+  sinomegat_S2=sin(tidal_omega_S2*dayr)
+  sinomegat_N2=sin(tidal_omega_N2*dayr+chi_N2)
+  sinomegat_K2=sin(tidal_omega_K2*dayr+chi_K2)
+
+  cosomegat_M2=cos(tidal_omega_M2*dayr+chi_M2)
+  cosomegat_S2=cos(tidal_omega_S2*dayr)
+  cosomegat_N2=cos(tidal_omega_N2*dayr+chi_N2)
+  cosomegat_K2=cos(tidal_omega_K2*dayr+chi_K2)
+
+  sinomegat_Mf=sin(tidal_omega_Mf*dayr+chi_Mf)
+  sinomegat_Mm=sin(tidal_omega_Mm*dayr+chi_Mm)
+  sinomegat_Ssa=sin(tidal_omega_Ssa*dayr+chi_Ssa)
+
+  cosomegat_Mf=cos(tidal_omega_Mf*dayr+chi_Mf)
+  cosomegat_Mm=cos(tidal_omega_Mm*dayr+chi_Mm)
+  cosomegat_Ssa=cos(tidal_omega_Ssa*dayr+chi_Ssa)
+
+
+  ! Russel did not zero eta_eq_tidal
   eta_eq_tidal(:,:) = 0.0
 
   ! M2 constituent only
@@ -6452,14 +6498,17 @@ subroutine get_tidal_forcing(Time, dayr)
 
   ! 8 principle constituents
   if(tidal_forcing_8) then 
-     eta_eq_tidal(:,:) =  Love_M2*amp_M2*(coslat2(:,:))*(cosomegat_M2*cos2lon(:,:) - sinomegat_M2*sin2lon(:,:))+&
-                          Love_S2*amp_S2*(coslat2(:,:))*(cosomegat_S2*cos2lon(:,:) - sinomegat_S2*sin2lon(:,:))+&
-                          Love_N2*amp_N2*(coslat2(:,:))*(cosomegat_N2*cos2lon(:,:) - sinomegat_N2*sin2lon(:,:))+&
-                          Love_K2*amp_K2*(coslat2(:,:))*(cosomegat_K2*cos2lon(:,:) - sinomegat_K2*sin2lon(:,:))+&
+     eta_eq_tidal(:,:) =  Love_M2*amp_M2*(sinlat2(:,:))*(cosomegat_M2*cos2lon(:,:) - sinomegat_M2*sin2lon(:,:))+&
+                          Love_S2*amp_S2*(sinlat2(:,:))*(cosomegat_S2*cos2lon(:,:) - sinomegat_S2*sin2lon(:,:))+&
+                          Love_N2*amp_N2*(sinlat2(:,:))*(cosomegat_N2*cos2lon(:,:) - sinomegat_N2*sin2lon(:,:))+&
+                          Love_K2*amp_K2*(sinlat2(:,:))*(cosomegat_K2*cos2lon(:,:) - sinomegat_K2*sin2lon(:,:))+&
                           Love_K1*amp_K1*(sin2lat(:,:))*(cosomegat_K1*coslon (:,:) - sinomegat_K1*sinlon (:,:))+&
                           Love_O1*amp_O1*(sin2lat(:,:))*(cosomegat_O1*coslon (:,:) - sinomegat_O1*sinlon (:,:))+&
                           Love_P1*amp_P1*(sin2lat(:,:))*(cosomegat_P1*coslon (:,:) - sinomegat_P1*sinlon (:,:))+&
-                          Love_Q1*amp_Q1*(sin2lat(:,:))*(cosomegat_Q1*coslon (:,:) - sinomegat_Q1*sinlon (:,:))
+                          Love_Q1*amp_Q1*(sin2lat(:,:))*(cosomegat_Q1*coslon (:,:) - sinomegat_Q1*sinlon (:,:))+&
+                          Love_Mf*amp_Mf*(sinlat3(:,:))*(cosomegat_Mf*coslon (:,:) - sinomegat_Mf*sinlon0 (:,:))+&
+                          Love_Mm*amp_Mm*(sinlat3(:,:))*(cosomegat_Mm*coslon (:,:) - sinomegat_Mm*sinlon0 (:,:))+&
+                          Love_Ssa*amp_Ssa*(sinlat3(:,:))*(cosomegat_Ssa*coslon (:,:) - sinomegat_Ssa*sinlon0 (:,:))
   endif 
 
   ! ideal tidal forcing
