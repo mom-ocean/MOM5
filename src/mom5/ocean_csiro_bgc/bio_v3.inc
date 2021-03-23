@@ -141,6 +141,8 @@ do n = 1, instances  !{
   pprod_gross(:,:,:) = 0.0
   zprod_gross(:,:,:) = 0.0
   light_limit(:,:) = 0.0
+  radbio3d(:,:,:) = 0.0
+  npp3d(:,:,:) = 0.0
 
 ! possible tracers in model
   ind_dic = biotic(n)%ind_bgc(id_dic)
@@ -222,6 +224,8 @@ do n = 1, instances  !{
 ! Assume now that shortwave flux from ocean model has been modified for ice.  mac, aug12
 !          radbio = max(0.0,parbio(i,j)*sw_zt)
 ! well, now doing an experiment without ice, so assumption no longer true.  mac, oct12. 
+
+          radbio3d(i,j,k) = radbio
 
           vpbio(i,k) = abio(i,j)*bbio(i,j)**                                  &
                   (cbio(i,j)*t_prog(index_temp)%field(i,j,k,time%tau))
@@ -319,6 +323,8 @@ do n = 1, instances  !{
 
 ! Estimate primary productivity from phytoplankton growth
           pprod_gross(i,j,k) = pprod_gross(i,j,k) + dtsb*f11
+! Net primary productivity (gross PP minus linear mortality)
+	  npp3d(i,j,k) = npp3d(i,j,k) + dtsb*(f11 - f21)
 
 !chd   -- zooplankton equation
           biotr(i,k,id_zoo)  = biotr(i,k,id_zoo)  + dtsb * (                     &
@@ -393,10 +399,12 @@ do n = 1, instances  !{
 
         pprod_gross(i,j,k)=rdtts*pprod_gross(i,j,k)*grid%tmask(i,j,k)
         zprod_gross(i,j,k)=rdtts*zprod_gross(i,j,k)*grid%tmask(i,j,k)
+        npp3d(i,j,k)=rdtts*npp3d(i,j,k)*grid%tmask(i,j,k)
 
 
          enddo  !} i
         enddo  !} k
+
 
 !RASF upstream sinking of detritus
 ! change field(..,k,..) to field(..,k-1,..), mac apr10
