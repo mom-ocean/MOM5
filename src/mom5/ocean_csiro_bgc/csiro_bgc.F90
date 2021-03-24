@@ -240,6 +240,7 @@ real, allocatable, dimension(:,:)       :: fice_t
 integer                                 :: id_light_limit = -1
 integer                                 :: id_radbio1 = -1
 integer                                 :: id_radbio3d = -1
+integer                                 :: id_wdet100 = -1
 integer                                 :: id_npp1 = -1
 integer                                 :: id_npp2d = -1
 integer                                 :: id_npp3d = -1
@@ -308,9 +309,8 @@ real, allocatable, dimension(:) :: fmin_poc
 real, allocatable, dimension(:) :: fmin_pic
 real, allocatable, dimension(:,:,:) :: biotr
 real, allocatable, dimension(:,:) :: light_limit
-real, allocatable, dimension(:,:) :: radbio1
 real, allocatable, dimension(:,:,:) :: radbio3d
-real, allocatable, dimension(:,:) :: npp1
+real, allocatable, dimension(:,:) :: wdet100
 real, allocatable, dimension(:,:) :: npp2d
 real, allocatable, dimension(:,:,:) :: npp3d
 real, allocatable, dimension(:,:,:) :: pprod_gross
@@ -461,9 +461,8 @@ allocate( fmin_pic(nk) )
 allocate( ray(nk) )
 allocate( biotr(isc:iec,nk,ntr_bgc) )
 allocate( light_limit(isc:iec,jsc:jec) )
-allocate( radbio1(isc:iec,jsc:jec) )
 allocate( radbio3d(isc:iec,jsc:jec,nk) )
-allocate( npp1(isc:iec,jsc:jec) )
+allocate( wdet100(isc:iec,jsc:jec) )
 allocate( npp2d(isc:iec,jsc:jec) )
 allocate( npp3d(isc:iec,jsc:jec,nk) )
 allocate( pprod_gross(isc:iec,jsc:jec,nk) )
@@ -1888,34 +1887,32 @@ if (id_pprod_gross_2d .gt. 0) then
        time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
 endif
 
+!det export at 100 m
+if (id_wdet100 .gt. 0) then
+  wdet100(:,:) = wdetbio(isc:iec,jsc:jec)*t_prog(ind_det)%field(isc:iec,jsc:jec,minloc(grid%zt(:)-100,dim=1),time%taum1)
+  used = send_data(id_wdet100, wdet100(isc:iec,jsc:jec),          &
+       time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
+endif
+
 ! Net primary productivity
 
+! at each depth
 if (id_npp3d .gt. 0) then
   used = send_data(id_npp3d, npp3d(isc:iec,jsc:jec,:),          &
        time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,:))
 endif
-
+! depth integrated
 if (id_npp2d .gt. 0) then
   npp2d(:,:)=0.0
   do k=1,grid%nk
-     do j=jsc,jec
-        do i=isc,iec
-           npp2d(i,j)=npp2d(i,j) + npp3d(i,j,k)*Thickness%dzt(i,j,k)
-        enddo
-     enddo
+        npp2d(isc:iec,jsc:jec) = npp2d(isc:iec,jsc:jec) + npp3d(isc:iec,jsc:jec,k)*Thickness%dzt(isc:iec,jsc:jec,k)
   enddo
   used = send_data(id_npp2d, npp2d(isc:iec,jsc:jec),          &
        time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
 endif
-
+! at surface
 if (id_npp1 .gt. 0) then
-  npp1(:,:)=0.0
-     do j=jsc,jec
-        do i=isc,iec
-           npp1(i,j)=npp1(i,j) + npp3d(i,j,1)*Thickness%dzt(i,j,1)
-        enddo
-     enddo
-  used = send_data(id_npp1, npp1(isc:iec,jsc:jec),          &
+  used = send_data(id_npp1, npp3d(isc:iec,jsc:jec,1),          &
        time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
 endif
 
@@ -1936,13 +1933,7 @@ endif
 ! PAR for phytoplankton at surface.
 
 if (id_radbio1 .gt. 0) then
-  radbio1(:,:)=0.0
-     do j=jsc,jec
-        do i=isc,iec
-           radbio1(i,j)=radbio1(i,j) + radbio3d(i,j,1)*Thickness%dzt(i,j,1)
-        enddo
-     enddo
-  used = send_data(id_radbio1, radbio1(isc:iec,jsc:jec),          &
+  used = send_data(id_radbio1, radbio3d(isc:iec,jsc:jec,1),          &
        time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
 endif
 
@@ -2276,6 +2267,10 @@ id_radbio1 = register_diag_field('ocean_model','radbio1', &
 id_radbio3d = register_diag_field('ocean_model','radbio3d', &
      grid%tracer_axes(1:3),Time%model_time, 'Photosynthetically active radiation for phytoplankton growth', &
      'W m-2',missing_value = -1.0e+10)
+
+id_wdet100 = register_diag_field('ocean_model','wdet100', &
+     grid%tracer_axes(1:2),Time%model_time, 'detritus export at 100 m (det*sinking rate)', &
+     'mmolN/m^2/s',missing_value = -1.0e+10)
 
 id_npp3d = register_diag_field('ocean_model','npp3d', &
      grid%tracer_axes(1:3),Time%model_time, 'Net primary productivity', &
