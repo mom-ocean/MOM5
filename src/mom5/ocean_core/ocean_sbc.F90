@@ -2831,15 +2831,20 @@ subroutine initialize_ocean_sfc(Time, Thickness, T_prog, T_diag, Velocity, Ocean
       Ocean_sfc%v_surf(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)  = Velocity%u(isc:iec,jsc:jec,1,2,taup1)
       Ocean_sfc%sea_lev(isc_bnd:iec_bnd,jsc_bnd:jec_bnd) = Thickness%sea_lev(isc:iec,jsc:jec)
       Ocean_sfc%frazil(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)  = 0.0
-#if defined(ACCESS_OM) && defined(CSIRO_BGC)
-      Ocean_sfc%n_surf(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)  = T_prog(ind_no3)%field(isc:iec,jsc:jec,1,taup1)
-      Ocean_sfc%alg_surf(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)  = T_prog(ind_phy)%field(isc:iec,jsc:jec,1,taup1)
-#endif
 #if defined(ACCESS_CM)
       Ocean_sfc%co2flux(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)     = co2flux(isc:iec,jsc:jec)  !These should really come from a restart RASF
       Ocean_sfc%co2(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)         = ocn_co2(isc:iec,jsc:jec)
 #endif
   end where
+
+  if (ind_no3 > 0) then
+   where (Grd%tmask(isc:iec,jsc:jec,1) == 1.0)
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+      Ocean_sfc%n_surf(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)  = T_prog(ind_no3)%field(isc:iec,jsc:jec,1,taup1)
+      Ocean_sfc%alg_surf(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)  = T_prog(ind_phy)%field(isc:iec,jsc:jec,1,taup1)
+#endif
+   end where
+  end if
 
   ! when enabled, use FAFMIP redistributed heat tracer for sst
   if(index_redist_heat > 0) then
@@ -2966,8 +2971,10 @@ subroutine sum_ocean_sfc(Time, Thickness, T_prog, T_diag, Dens, Velocity, Ocean_
             Ocean_sfc%sea_lev(i,j) = Ocean_sfc%sea_lev(i,j) + Thickness%sea_lev(ii,jj)
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
             Ocean_sfc%gradient(i,j,:) = Ocean_sfc%gradient(i,j,:) + sslope(ii,jj,:)  
-            Ocean_sfc%n_surf(i,j)  = Ocean_sfc%n_surf(i,j)  + T_prog(ind_no3)%field(ii,jj,1,taup1)
-            Ocean_sfc%alg_surf(i,j)  = Ocean_sfc%alg_surf(i,j)  + T_prog(ind_phy)%field(ii,jj,1,taup1)
+            if (ind_no3 > 0) then
+             Ocean_sfc%n_surf(i,j)  = Ocean_sfc%n_surf(i,j)  + T_prog(ind_no3)%field(ii,jj,1,taup1)
+             Ocean_sfc%alg_surf(i,j)  = Ocean_sfc%alg_surf(i,j)  + T_prog(ind_phy)%field(ii,jj,1,taup1)
+            end if
 #endif
 #if defined(ACCESS_CM)
             Ocean_sfc%co2flux(i,j) = Ocean_sfc%co2flux(i,j) + co2flux(ii,jj)
@@ -3010,8 +3017,10 @@ subroutine sum_ocean_sfc(Time, Thickness, T_prog, T_diag, Dens, Velocity, Ocean_
                                      *(Velocity%u(ii,jj,1,2,taup1) + Velocity%u(ii,jj+1,1,2,taup1))
             Ocean_sfc%sea_lev(i,j) = Ocean_sfc%sea_lev(i,j) + Thickness%sea_lev(ii,jj)
 #if defined(ACCESS_OM) && defined(CSIRO_BGC)
-            Ocean_sfc%n_surf(i,j)  = Ocean_sfc%n_surf(i,j)  + T_prog(ind_no3)%field(ii,jj,1,taup1)
-            Ocean_sfc%alg_surf(i,j)  = Ocean_sfc%alg_surf(i,j)  + T_prog(ind_phy)%field(ii,jj,1,taup1)
+            if (ind_no3 > 0) then
+             Ocean_sfc%n_surf(i,j)  = Ocean_sfc%n_surf(i,j)  + T_prog(ind_no3)%field(ii,jj,1,taup1)
+             Ocean_sfc%alg_surf(i,j)  = Ocean_sfc%alg_surf(i,j)  + T_prog(ind_phy)%field(ii,jj,1,taup1)
+            end if
 #endif         
          enddo
       enddo

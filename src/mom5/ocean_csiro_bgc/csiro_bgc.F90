@@ -221,8 +221,17 @@ integer                                 :: package_index
 integer :: id_po4, id_dic, id_alk, id_o2, id_no3, id_phy, id_det, id_zoo &
       , id_caco3, id_adic, id_fe, id_caco3_sediment, id_det_sediment
 ! internal pointer to make reading the code easier
-integer,public :: ind_po4, ind_dic, ind_alk, ind_o2, ind_no3, ind_phy, ind_det, ind_zoo &
-      , ind_caco3, ind_adic, ind_fe
+integer,public :: ind_po4 = -1
+integer,public :: ind_dic = -1 
+integer,public :: ind_alk = -1
+integer,public :: ind_o2 = -1
+integer,public :: ind_no3 = -1
+integer,public :: ind_phy = -1
+integer,public :: ind_det = -1
+integer,public :: ind_zoo = -1
+integer,public :: ind_caco3 = -1
+integer,public :: ind_adic = -1
+integer,public :: ind_fe = -1
 character*6  :: qbio_model
 integer      :: bio_version    ! version of the bgc module to use
 logical      :: zero_floor     ! apply hard floor to bgc tracers 
