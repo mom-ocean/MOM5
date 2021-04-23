@@ -675,15 +675,16 @@ integer :: id_restore_mask   =-1
 integer :: id_wfimelt        =-1
 integer :: id_wfiform        =-1
 integer :: id_aice               =-1
-integer :: id_iof_nit               =-1
-integer :: id_iof_alg               =-1
 integer :: id_wnd                =-1
 integer :: id_licefw        =-1
 integer :: id_liceht        =-1
 integer :: id_mh_flux            =-1
 integer :: id_atm_co2            =-1
 #endif
-
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+integer :: id_iof_nit               =-1
+integer :: id_iof_alg               =-1
+#endif
 
 ! ids for sea level forcing fields 
 real    :: cellarea_r
@@ -2971,6 +2972,8 @@ subroutine sum_ocean_sfc(Time, Thickness, T_prog, T_diag, Dens, Velocity, Ocean_
             Ocean_sfc%sea_lev(i,j) = Ocean_sfc%sea_lev(i,j) + Thickness%sea_lev(ii,jj)
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
             Ocean_sfc%gradient(i,j,:) = Ocean_sfc%gradient(i,j,:) + sslope(ii,jj,:)  
+#endif
+#if defined(ACCES_OM) && defined(CSIRO_BGC)
             if (ind_no3 > 0) then
              Ocean_sfc%n_surf(i,j)  = Ocean_sfc%n_surf(i,j)  + T_prog(ind_no3)%field(ii,jj,1,taup1)
              Ocean_sfc%alg_surf(i,j)  = Ocean_sfc%alg_surf(i,j)  + T_prog(ind_phy)%field(ii,jj,1,taup1)
