@@ -1119,16 +1119,18 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
   allocate ( Ocean_sfc%gradient (isc_bnd:iec_bnd,jsc_bnd:jec_bnd,2))
   allocate ( sslope(isc:iec, jsc:jec, 2) )
   allocate ( aice(isd:ied, jsd:jed) )
+#endif
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
   allocate ( iof_nit(isd:ied, jsd:jed) )
   allocate ( iof_alg(isd:ied, jsd:jed) )
   allocate ( Ocean_sfc%n_surf (isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
   allocate ( Ocean_sfc%alg_surf (isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
+#endif
 #if defined(ACCESS_CM)
   allocate ( Ocean_sfc%co2    (isc_bnd:iec_bnd,jsc_bnd:jec_bnd), &
              Ocean_sfc%co2flux (isc_bnd:iec_bnd,jsc_bnd:jec_bnd)) 
   allocate ( co2flux(isd:ied,jsd:jed),ocn_co2(isd:ied,jsd:jed))
   allocate ( atm_co2(isd:ied,jsd:jed))
-#endif
 #endif
 
   Ocean_sfc%t_surf  = 0.0  ! time averaged sst (Kelvin) passed to atmosphere/ice model
@@ -1142,6 +1144,8 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
   Ocean_sfc%gradient  = 0.0  ! gradint of ssl passed to Ice model
   sslope = 0.0
   aice = 0.0
+#endif
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
   iof_nit = 0.0
   iof_alg = 0.0
   Ocean_sfc%n_surf  = 0.0 
@@ -2003,6 +2007,7 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
        Time%model_time, 'fraction of surface area covered with ice', 'm^2/m^2' ,  &
        missing_value=missing_value,range=(/-1.e1,1.e1/),                      &
        standard_name='areal_ice_concentration' )
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
   id_iof_nit = register_diag_field('ocean_model','iof_nit', Grd%tracer_axes(1:2),&
        Time%model_time, 'ice-ocean flux of nitrate', 'mmol/m^2/s^1' ,  &
        missing_value=missing_value,range=(/-1.e1,1.e1/),                      &
@@ -2011,6 +2016,7 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
        Time%model_time, 'ice-ocean flux of algae', 'mmol/m^2/s^1' ,  &
        missing_value=missing_value,range=(/-1.e1,1.e1/),                      &
        standard_name='ice_ocean_algal_flux' )
+#endif
   id_wnd = register_diag_field('ocean_model','wnd', Grd%tracer_axes(1:2),&
        Time%model_time, 'Wind speed', 'm/s' ,  &
        missing_value=missing_value,range=(/-1.e3,1.e3/),                      &
@@ -2838,14 +2844,14 @@ subroutine initialize_ocean_sfc(Time, Thickness, T_prog, T_diag, Velocity, Ocean
 #endif
   end where
 
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
   if (ind_no3 > 0) then
    where (Grd%tmask(isc:iec,jsc:jec,1) == 1.0)
-#if defined(ACCESS_OM) && defined(CSIRO_BGC)
       Ocean_sfc%n_surf(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)  = T_prog(ind_no3)%field(isc:iec,jsc:jec,1,taup1)
       Ocean_sfc%alg_surf(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)  = T_prog(ind_phy)%field(isc:iec,jsc:jec,1,taup1)
-#endif
    end where
   end if
+#endif
 
   ! when enabled, use FAFMIP redistributed heat tracer for sst
   if(index_redist_heat > 0) then
@@ -2879,7 +2885,7 @@ subroutine initialize_ocean_sfc(Time, Thickness, T_prog, T_diag, Velocity, Ocean
   id_field = register_restart_field(Sfc_restart, filename, 'v_surf', Ocean_sfc%v_surf,Ocean_sfc%Domain)
   id_field = register_restart_field(Sfc_restart, filename, 'sea_lev',Ocean_sfc%sea_lev,Ocean_sfc%Domain)
   id_field = register_restart_field(Sfc_restart, filename, 'frazil', Ocean_sfc%frazil,Ocean_sfc%Domain)
-#if defined(ACCESS_OM)
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
   id_field = register_restart_field(Sfc_restart, filename, 'n_surf', Ocean_sfc%n_surf,Ocean_sfc%Domain)
   id_field = register_restart_field(Sfc_restart, filename, 'alg_surf', Ocean_sfc%alg_surf,Ocean_sfc%Domain)
 #endif
@@ -3087,6 +3093,8 @@ subroutine zero_ocean_sfc(Ocean_sfc)
         Ocean_sfc%frazil(i,j) = 0.0
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
         Ocean_sfc%gradient(i,j,:)= 0.0
+#endif
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
         Ocean_sfc%n_surf(i,j)= 0.0
         Ocean_sfc%alg_surf(i,j)= 0.0
 #endif
@@ -3170,6 +3178,8 @@ subroutine avg_ocean_sfc(Time, Thickness, T_prog, T_diag, Velocity, Ocean_sfc)
            Ocean_sfc%sea_lev(i,j) = Ocean_sfc%sea_lev(i,j)*divid 
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
            Ocean_sfc%gradient(i,j,:) = Ocean_sfc%gradient(i,j,:)*divid
+#endif
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
            Ocean_sfc%n_surf(i,j)  = Ocean_sfc%n_surf(i,j)*divid
            Ocean_sfc%alg_surf(i,j)  = Ocean_sfc%alg_surf(i,j)*divid
 #endif
@@ -4399,8 +4409,10 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
         ii = i + i_shift
         jj = j + j_shift
         aice(ii,jj) = Ice_ocean_boundary%aice(i,j)*Grd%tmask(ii,jj,1)
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
         iof_nit(ii,jj) = Ice_ocean_boundary%iof_nit(i,j)*Grd%tmask(ii,jj,1)
         iof_alg(ii,jj) = Ice_ocean_boundary%iof_alg(i,j)*Grd%tmask(ii,jj,1)
+#endif
      enddo
   enddo
 #endif
@@ -6072,12 +6084,14 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   if (id_aice > 0) used = send_data(id_aice, aice(:,:),    &
                  Time%model_time, rmask=Grd%tmask(:,:,1),  &
                  is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
   if (id_iof_nit > 0) used = send_data(id_iof_nit, iof_nit(:,:),    &
                  Time%model_time, rmask=Grd%tmask(:,:,1),  &
                  is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
   if (id_iof_alg > 0) used = send_data(id_iof_alg, iof_alg(:,:),    &
                  Time%model_time, rmask=Grd%tmask(:,:,1),  &
                  is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+#endif
   if (id_wnd > 0) used = send_data(id_wnd, Velocity%u10(:,:),    &
                  Time%model_time, rmask=Grd%tmask(:,:,1),  &
                  is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)

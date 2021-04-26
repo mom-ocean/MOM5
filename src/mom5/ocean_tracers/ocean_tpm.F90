@@ -1321,8 +1321,13 @@ endif  !}
 
 #if defined(CSIRO_BGC)
 if (do_csiro_bgc) then  !{
+#if defined(ACCESS_OM)
   call csiro_bgc_sbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Domain%isd, Domain%ied, Domain%jsd, Domain%jed,  &
-  T_prog, aice, wnd, iof_nit, iof_alg, Grid, Time, use_waterflux, salt_restore_as_salt_flux, atm_co2, co2flux, ocn_co2)
+  T_prog, aice, wnd, Grid, Time, use_waterflux, salt_restore_as_salt_flux, atm_co2, co2flux, ocn_co2, iof_nit, iof_alg)
+#else
+  call csiro_bgc_sbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Domain%isd, Domain%ied, Domain%jsd, Domain%jed,  &
+  T_prog, aice, wnd, Grid, Time, use_waterflux, salt_restore_as_salt_flux, atm_co2, co2flux, ocn_co2)
+#endif
 endif  !}
 #endif
 
