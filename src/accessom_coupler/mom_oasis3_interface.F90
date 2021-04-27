@@ -389,9 +389,10 @@ endif
   mom_name_write(6)='frazil'
   mom_name_write(7)='dssldx'
   mom_name_write(8)='dssldy'
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
   mom_name_write(9)='n_surf'
   mom_name_write(10)='alg_surf'
-
+#endif
 
   fmatch = .false.
   do jf = 1,num_fields_in
@@ -601,10 +602,12 @@ do jf = 1,num_fields_out
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1)
   case('dssldy') 
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2)
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
   case('n_surf')
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%n_surf(iisd:iied,jjsd:jjed)
   case('alg_surf')
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%alg_surf(iisd:iied,jjsd:jjed)
+#endif
   case DEFAULT
   call mpp_error(FATAL,&
       '==>Error from into_coupler: Unknown quantity.')
@@ -832,8 +835,10 @@ if ( write_restart ) then
           case('dssldx'); vtmp = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1); fld_ice='sslx_i'
           case('dssldy'); vtmp = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2); fld_ice='ssly_i'
           case('frazil'); vtmp = Ocean_sfc%frazil(iisd:iied,jjsd:jjed); fld_ice='pfmice_i'
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
           case('n_surf'); vtmp = Ocean_sfc%n_surf(iisd:iied,jjsd:jjed); fld_ice='ssn_i'
           case('alg_surf'); vtmp = Ocean_sfc%alg_surf(iisd:iied,jjsd:jjed); fld_ice='ssalg_i'
+#endif
         end select
 
         if (parallel_coupling) then
