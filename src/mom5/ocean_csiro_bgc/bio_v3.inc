@@ -399,7 +399,7 @@ do n = 1, instances  !{
 
         pprod_gross(i,j,k)=rdtts*pprod_gross(i,j,k)*grid%tmask(i,j,k)
         zprod_gross(i,j,k)=rdtts*zprod_gross(i,j,k)*grid%tmask(i,j,k)
-        npp3d(i,j,k)=rdtts*npp3d(i,j,k)*grid%tmask(i,j,k)
+        npp3d(i,j,k)=rdtts*max(0,npp3d(i,j,k))*grid%tmask(i,j,k)
 
 
          enddo  !} i
