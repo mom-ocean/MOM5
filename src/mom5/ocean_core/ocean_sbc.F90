@@ -2979,7 +2979,7 @@ subroutine sum_ocean_sfc(Time, Thickness, T_prog, T_diag, Dens, Velocity, Ocean_
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
             Ocean_sfc%gradient(i,j,:) = Ocean_sfc%gradient(i,j,:) + sslope(ii,jj,:)  
 #endif
-#if defined(ACCES_OM) && defined(CSIRO_BGC)
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
             if (ind_no3 > 0) then
              Ocean_sfc%n_surf(i,j)  = Ocean_sfc%n_surf(i,j)  + T_prog(ind_no3)%field(ii,jj,1,taup1)
              Ocean_sfc%alg_surf(i,j)  = Ocean_sfc%alg_surf(i,j)  + T_prog(ind_phy)%field(ii,jj,1,taup1)
