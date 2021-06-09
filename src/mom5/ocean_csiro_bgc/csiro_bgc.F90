@@ -2090,14 +2090,16 @@ if (atmpress_id .eq. 0) then  !{
        trim(atmpress_file))
 endif  !}
 
-pistonveloc_id = init_external_field(pistonveloc_file,          &
+if (gasx_from_file) then
+   pistonveloc_id = init_external_field(pistonveloc_file,          &
                                      pistonveloc_name,          &
                                      domain = Domain%domain2d)
-if (pistonveloc_id .eq. 0) then  !{
-  call mpp_error(FATAL, trim(error_header) //                   &
+   if (pistonveloc_id .eq. 0) then  !{
+     call mpp_error(FATAL, trim(error_header) //                   &
        'Could not open pistonveloc file: ' //                   &
        trim(pistonveloc_file))
-endif  !}
+   endif  !}
+endif
 
 !RASF I think the ifdafs are redundant
 if (id_adic .ne. 0 .and. .not. use_access_co2) then
@@ -2111,14 +2113,16 @@ if (id_adic .ne. 0 .and. .not. use_access_co2) then
  endif  !}
 endif
 
-seaicefract_id = init_external_field(seaicefract_file,          &
+if (ice_file4gasx) then
+   seaicefract_id = init_external_field(seaicefract_file,          &
                                      seaicefract_name,          &
                                      domain = Domain%domain2d)
-if (seaicefract_id .eq. 0) then  !{
-  call mpp_error(FATAL, trim(error_header) //                   &
+   if (seaicefract_id .eq. 0) then  !{
+     call mpp_error(FATAL, trim(error_header) //                   &
        'Could not open seaicefract file: ' //                   &
        trim(seaicefract_file))
-endif  !}
+   endif  !}
+endif
 
 dust_id = init_external_field(dust_file,          &
                                      dust_name,          &
