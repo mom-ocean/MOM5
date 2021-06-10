@@ -111,6 +111,7 @@ use ocean_types_mod,    only: ocean_density_type
 use ocean_types_mod,    only: ocean_grid_type, ocean_domain_type
 use ocean_types_mod,    only: ocean_prog_tracer_type, ocean_diag_tracer_type
 use ocean_types_mod,    only: ocean_time_type
+use ocean_types_mod,    only: ice_ocean_boundary_type
 
 use ocean_types_mod,    only: ocean_public_type
 
@@ -865,7 +866,7 @@ end subroutine  csiro_bgc_end  !}
 !
 
 subroutine csiro_bgc_sbc(isc, iec, jsc, jec, isd, ied, jsd, jed, &
-    T_prog, aice, wnd, grid, time, use_waterflux, salt_restore_as_salt_flux, atm_co2, co2flux, sfc_co2, iof_nit, iof_alg)
+    T_prog, aice, wnd, grid, time, use_waterflux, salt_restore_as_salt_flux, atm_co2, co2flux, sfc_co2, iof_nit, iof_alg, Ice_ocean_boundary)
 
 use ocmip2_co2calc_mod
 use mpp_mod, only : mpp_sum
@@ -883,6 +884,7 @@ type(ocean_grid_type), intent(in)                               :: Grid
 type(ocean_time_type), intent(in)                               :: Time
 real, intent(in), dimension(isd:ied,jsd:jed)                    :: aice, wnd
 real, intent(in), dimension(isd:ied,jsd:jed), optional          :: iof_nit, iof_alg
+type(ice_ocean_boundary_type), intent(in), optional             :: Ice_ocean_boundary
 logical, intent(in) :: use_waterflux, salt_restore_as_salt_flux
 
 real, intent(in), dimension(isd:ied,jsd:jed), optional          :: atm_co2
@@ -971,7 +973,11 @@ else
 endif ! if (gasx_from_file)
 
 call time_interp_external(nat_co2_id, time%model_time, nat_co2)
-call time_interp_external(atmpress_id, time%model_time, patm_t)
+if (gasx_from_file) then
+        call time_interp_external(atmpress_id, time%model_time, patm_t)
+else !use the sea level pressure from the forcing (convert Pa to atm)
+        patm_t(isc:iec,jsc:jec) = Ice_ocean_boundary%p(isc:iec,jsc:jec)/101325
+endif
 call time_interp_external(dust_id, time%model_time, dust_t)
 if (id_adic .ne. 0) then
 ! The atmospheric co2 value for the anthropogenic+natural carbon tracer
