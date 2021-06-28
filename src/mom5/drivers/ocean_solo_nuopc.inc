@@ -443,7 +443,7 @@ module ocean_solo_mod
         read(unit,*) date_restart
         call mpp_close(unit)
     else
-        date_restart = date_init
+        date_restart = date
     endif
         
     call set_calendar_type (calendar_type)
