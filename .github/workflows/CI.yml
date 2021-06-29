@@ -17,9 +17,11 @@ jobs:
         # TYPE: [MOM_solo, MOM_SIS, CM2M, ESM2M, ICCM, EBM, ACCESS-OM, ACCESS-CM, ACCESS-OM-BGC, ACCESS-ESM]
         TYPE: [MOM_solo, MOM_SIS]
     env:
-      FC: gfortran-${{ matrix.gcc_v }}
-      OMPI_FC: gfortran-${{ matrix.gcc_v }}
-      GCC_V: ${{ matrix.gcc_v }}
+      # FC: gfortran-${{ matrix.gcc_v }}
+      # OMPI_FC: gfortran-${{ matrix.gcc_v }}
+      # GCC_V: ${{ matrix.gcc_v }}
+      FC: gfortran
+      OMPI_FC: gfortran
 
     steps:
     - name: Checkout code
