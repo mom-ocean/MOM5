@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest # ${{ matrix.os }}
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         # os: ubuntu-latest 
         # [ubuntu-latest, macos-latest]
@@ -39,7 +39,7 @@ jobs:
       working-directory: ./exp
       run: |
         env
-        $CC -showme
+        mpicc -showme
         ./MOM_compile.csh --type ${{ matrix.TYPE }} --platform travis --use_netcdf4
 
     # - |
