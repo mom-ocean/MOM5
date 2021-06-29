@@ -34,9 +34,10 @@ jobs:
         nf-config --fflags
 
     - name: Compile
+      working-directory: ./exp
       run: |
         env
-        cd exp && ./MOM_compile.csh --type $TYPE --platform travis --use_netcdf4
+        ./MOM_compile.csh --type ${{ matrix.TYPE }} --platform travis --use_netcdf4
 
     # - |
     #   if [[ "$TYPE" == "ACCESS-"* ]]; then
