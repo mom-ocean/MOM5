@@ -26,8 +26,8 @@ jobs:
       uses: actions/checkout@v1
 
     - name: Install dependencies
+      # sudo pkg-config csh cmake
       run: |
-        sudo pkg-config csh cmake
         sudo apt-get update
         sudo apt-get -yqq install libgomp1 openmpi-bin libopenmpi-dev libnetcdf-dev libnetcdff-dev  netcdf-bin
         nf-config --flibs
