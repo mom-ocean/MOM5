@@ -20,6 +20,7 @@ jobs:
       # FC: gfortran-${{ matrix.gcc_v }}
       # OMPI_FC: gfortran-${{ matrix.gcc_v }}
       # GCC_V: ${{ matrix.gcc_v }}
+      CC: mpicc
       FC: gfortran
       OMPI_FC: gfortran
 
@@ -39,6 +40,7 @@ jobs:
       working-directory: ./exp
       run: |
         env
+        $CC -showme
         ./MOM_compile.csh --type ${{ matrix.TYPE }} --platform travis --use_netcdf4
 
     # - |
