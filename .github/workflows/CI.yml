@@ -6,12 +6,12 @@ env:
   CI: "ON" # We can detect this in the build system and other vendors implement it
 
 jobs:
-  Build:
-    runs-on: ${{ matrix.os }}
+  build:
+    runs-on: unbuntu-latest # ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: ubuntu-latest 
+        # os: ubuntu-latest 
         # [ubuntu-latest, macos-latest]
         # gcc_v: [8, 9] # Version of GFortran we want to use.
         # TYPE: [MOM_solo, MOM_SIS, CM2M, ESM2M, ICCM, EBM, ACCESS-OM, ACCESS-CM, ACCESS-OM-BGC, ACCESS-ESM]
