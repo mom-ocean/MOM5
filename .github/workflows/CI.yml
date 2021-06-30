@@ -55,7 +55,7 @@ jobs:
     - name: Compile
       working-directory: ./exp
       env: 
-        OASIS_DIR: ${{ env.oasis_dir }}
+        OASIS_ROOT: ${{ env.oasis_dir }}
       run: |
         env
         ./MOM_compile.csh --type ${{ matrix.TYPE }} --platform github --use_netcdf4
