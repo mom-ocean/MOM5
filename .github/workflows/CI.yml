@@ -54,7 +54,7 @@ jobs:
       working-directory: ./exp
       run: |
         env
-        ./MOM_compile.csh --type ${{ matrix.TYPE }} --platform travis --use_netcdf4
+        ./MOM_compile.csh --type ${{ matrix.TYPE }} --platform github --use_netcdf4
 
     # - |
     #   if [[ "$TYPE" == "ACCESS-"* ]]; then
