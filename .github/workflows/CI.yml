@@ -50,7 +50,7 @@ jobs:
       working-directory: ./oasis3-mct
       run: | 
         make ubuntu
-        echo "oasis_dir=${{ github.workspace }}/MOM5/oasis3-mct/Linux" >> $GITHUB_ENV
+        echo "oasis_dir=${{ github.workspace }}/oasis3-mct/Linux" >> $GITHUB_ENV
 
     - name: Compile
       working-directory: ./exp
