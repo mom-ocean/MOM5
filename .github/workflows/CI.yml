@@ -15,7 +15,7 @@ jobs:
         # [ubuntu-latest, macos-latest]
         # gcc_v: [8, 9] # Version of GFortran we want to use.
         # TYPE: [MOM_solo, MOM_SIS, CM2M, ESM2M, ICCM, EBM, ACCESS-OM, ACCESS-CM, ACCESS-OM-BGC, ACCESS-ESM]
-        TYPE: [MOM_solo, MOM_SIS, ACCESS-CM, CM2M, ESM2M, ICCM, EBM]
+        TYPE: [MOM_solo, ACCESS-CM, MOM_SIS, CM2M, ESM2M, ICCM, EBM]
         # include:
         #  - TYPE: ACCESS-CM
         #    OASIS_ROOT: ${{ github.workspace }}/oasis3-mct/Linux
@@ -25,7 +25,7 @@ jobs:
       # GCC_V: ${{ matrix.gcc_v }}
       FC: gfortran
       OMPI_FC: gfortran
-      OASIS_ROOT: ${{ github.workspace }}/MOM5/oasis3-mct/Linux
+      # OASIS_ROOT: ${{ github.workspace }}/MOM5/oasis3-mct/Linux
 
     steps:
     - name: Checkout code
@@ -48,10 +48,14 @@ jobs:
     - name: Compile OASIS
       if: startsWith(matrix.TYPE, 'ACCESS-')
       working-directory: ./oasis3-mct
-      run: make ubuntu
+      run: | 
+        make ubuntu
+        echo "{oasis_dir}={ ${{ github.workspace }}/MOM5/oasis3-mct/Linux }" >> $GITHUB_ENV
 
     - name: Compile
       working-directory: ./exp
+      env: 
+        OASIS_DIR: ${{ env.oasis_dir }}
       run: |
         env
         ./MOM_compile.csh --type ${{ matrix.TYPE }} --platform github --use_netcdf4
