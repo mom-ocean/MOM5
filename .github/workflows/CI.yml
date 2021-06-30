@@ -42,6 +42,7 @@ jobs:
       uses: actions/checkout@v2
       with: 
           repository: COSIMA/oasis3-mct
+          path: oasis3-mct
 
     - name: Compile OASIS
       if: startsWith(matrix.TYPE, 'ACCESS-')
