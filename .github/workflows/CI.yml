@@ -18,7 +18,7 @@ jobs:
         TYPE: [MOM_solo, MOM_SIS, ACCESS-CM, CM2M, ESM2M, ICCM, EBM]
         include:
          - TYPE: ACCESS-CM
-           OASIS_ROOT: ${{ env.GITHUB_WORKSPACE }}/oasis3-mct/Linux
+           OASIS_ROOT: ${{ github.workspace }}/oasis3-mct/Linux
     env:
       # FC: gfortran-${{ matrix.gcc_v }}
       # OMPI_FC: gfortran-${{ matrix.gcc_v }}
