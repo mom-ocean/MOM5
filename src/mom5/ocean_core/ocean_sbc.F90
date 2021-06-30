@@ -4428,7 +4428,7 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
 ! Do not pass co2flux, ocn_co2 or atm_co2
   call ocean_tpm_sbc(Dom, Grd, T_prog(:), Time, Ice_ocean_boundary%fluxes, runoff, &
                      isc_bnd, iec_bnd, jsc_bnd, jec_bnd,aice=aice, iof_nit=iof_nit, iof_alg=iof_alg, wnd=Velocity%u10, &
-                     use_waterflux=use_waterflux, salt_restore_as_salt_flux=salt_restore_as_salt_flux)
+                     use_waterflux=use_waterflux, salt_restore_as_salt_flux=salt_restore_as_salt_flux,patm=patm)
 #else 
   call ocean_tpm_sbc(Dom, Grd, T_prog(:), Time, Ice_ocean_boundary%fluxes, runoff, &
                      isc_bnd, iec_bnd, jsc_bnd, jec_bnd)
