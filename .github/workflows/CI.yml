@@ -37,13 +37,16 @@ jobs:
         nf-config --flibs
         nf-config --fflags
 
-    - name: Compile OASIS
+    - name: Download OASIS
       if: startsWith(matrix.TYPE, 'ACCESS-')
       uses: actions/checkout@v2
       with: 
           repository: COSIMA/oasis3-mct
-      run: |
-        cd oasis3-mct && make ubuntu
+
+    - name: Compile OASIS
+      if: startsWith(matrix.TYPE, 'ACCESS-')
+      working-directory: ./oasis3-mct
+      run: make ubuntu
 
     - name: Compile
       working-directory: ./exp
