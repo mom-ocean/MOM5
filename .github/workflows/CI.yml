@@ -15,7 +15,7 @@ jobs:
         # [ubuntu-latest, macos-latest]
         # gcc_v: [8, 9] # Version of GFortran we want to use.
         # TYPE: [MOM_solo, MOM_SIS, CM2M, ESM2M, ICCM, EBM, ACCESS-OM, ACCESS-CM, ACCESS-OM-BGC, ACCESS-ESM]
-        TYPE: [MOM_solo, MOM_SIS]
+        TYPE: [MOM_solo, MOM_SIS, CM2M, ESM2M, ICCM, EBM]
     env:
       # FC: gfortran-${{ matrix.gcc_v }}
       # OMPI_FC: gfortran-${{ matrix.gcc_v }}
@@ -39,7 +39,6 @@ jobs:
       working-directory: ./exp
       run: |
         env
-        mpicc -showme
         ./MOM_compile.csh --type ${{ matrix.TYPE }} --platform travis --use_netcdf4
 
     # - |
