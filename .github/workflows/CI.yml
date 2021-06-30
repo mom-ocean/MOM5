@@ -14,18 +14,14 @@ jobs:
         # os: ubuntu-latest 
         # [ubuntu-latest, macos-latest]
         # gcc_v: [8, 9] # Version of GFortran we want to use.
-        # TYPE: [MOM_solo, MOM_SIS, CM2M, ESM2M, ICCM, EBM, ACCESS-OM, ACCESS-CM, ACCESS-OM-BGC, ACCESS-ESM]
-        TYPE: [MOM_solo, ACCESS-CM, MOM_SIS, CM2M, ESM2M, ICCM, EBM]
-        # include:
-        #  - TYPE: ACCESS-CM
-        #    OASIS_ROOT: ${{ github.workspace }}/oasis3-mct/Linux
+        TYPE: [MOM_solo, MOM_SIS, CM2M, ESM2M, ICCM, EBM, ACCESS-OM, ACCESS-CM, ACCESS-OM-BGC, ACCESS-ESM]
+        # TYPE: [MOM_solo, ACCESS-CM, ACCESS-OM, MOM_SIS, CM2M, ESM2M, ICCM, EBM]
     env:
       # FC: gfortran-${{ matrix.gcc_v }}
       # OMPI_FC: gfortran-${{ matrix.gcc_v }}
       # GCC_V: ${{ matrix.gcc_v }}
       FC: gfortran
       OMPI_FC: gfortran
-      # OASIS_ROOT: ${{ github.workspace }}/MOM5/oasis3-mct/Linux
 
     steps:
     - name: Checkout code
@@ -52,20 +48,37 @@ jobs:
         make ubuntu
         echo "oasis_dir=${{ github.workspace }}/oasis3-mct/Linux" >> $GITHUB_ENV
 
+    - name: Download libaccessom2
+      if: startsWith(matrix.TYPE, 'ACCESS-OM')
+      run: | 
+        wget https://github.com/COSIMA/libaccessom2/releases/latest/download/binary_release.tar.gz
+        tar -zxf binary_release.tar.gz
+
+    - name: Download libaccessom2
+      if: startsWith(matrix.TYPE, 'ACCESS-OM')
+      uses: dawidd6/action-download-artifact@v2
+      with:
+        repo: COSIMA/libaccessom2
+        workflow: CI.yml
+        name: binary_release
+        path: libaccessom2
+
+    - name: Untar libaccessom2
+      if: startsWith(matrix.TYPE, 'ACCESS-OM')
+      working-directory: ./libaccessom2
+      run: |
+        tar -xvf binary_release.tar
+        echo "libaccessom2_dir=${{ github.workspace }}/libaccessom2" >> $GITHUB_ENV
+
     - name: Compile
       working-directory: ./exp
       env: 
         OASIS_ROOT: ${{ env.oasis_dir }}
+        LIBACCESSOM2_ROOT: ${{ env.libaccessom2_dir }}
       run: |
         env
         ./MOM_compile.csh --type ${{ matrix.TYPE }} --platform github --use_netcdf4
 
-    # - |
-    #   if [[ "$TYPE" == "ACCESS-"* ]]; then
-    #     export OASIS_ROOT=$TRAVIS_BUILD_DIR/oasis3-mct/Linux
-    #     git clone --depth=1 https://github.com/COSIMA/oasis3-mct.git
-    #     (cd oasis3-mct && make ubuntu)
-    #   fi
     # - |
     #   if [[ "$TYPE" == "ACCESS-OM" || "$TYPE" == "ACCESS-OM-BGC" ]]; then
     #     export LIBACCESSOM2_ROOT=$TRAVIS_BUILD_DIR/libaccessom2
