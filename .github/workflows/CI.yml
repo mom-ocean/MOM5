@@ -20,8 +20,8 @@ jobs:
       # FC: gfortran-${{ matrix.gcc_v }}
       # OMPI_FC: gfortran-${{ matrix.gcc_v }}
       # GCC_V: ${{ matrix.gcc_v }}
-      FC: gfortran
-      OMPI_FC: gfortran
+      FC: gfortran8
+      OMPI_FC: gfortran8
 
     steps:
     - name: Checkout code
@@ -31,8 +31,11 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get -yqq install csh gfortran libgomp1 openmpi-bin libopenmpi-dev libnetcdf-dev libnetcdff-dev  netcdf-bin
+        add-apt-repository -y ppa:ubuntu-toolchain-r/test
+        apt-get -yqq install gcc-8 g++-8 gfortran-8 --no-install-recommends
         nf-config --flibs
         nf-config --fflags
+        gfortran8 --version
 
     - name: Download OASIS
       if: startsWith(matrix.TYPE, 'ACCESS-')
