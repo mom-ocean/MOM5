@@ -20,22 +20,30 @@ jobs:
       # FC: gfortran-${{ matrix.gcc_v }}
       # OMPI_FC: gfortran-${{ matrix.gcc_v }}
       # GCC_V: ${{ matrix.gcc_v }}
-      FC: gfortran-8
-      OMPI_FC: gfortran-8
+      FC: gfortran
+      OMPI_FC: gfortran
 
     steps:
+
     - name: Checkout code
       uses: actions/checkout@v2
 
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-        sudo apt-get -yqq install csh gcc-8 g++-8 gfortran-8 --no-install-recommends
-        sudo apt-get -yqq install libgomp1 openmpi-bin libopenmpi-dev libnetcdf-dev libnetcdff-dev  netcdf-bin
-        nf-config --flibs
-        nf-config --fflags
-        gfortran-8 --version
+        sudo apt-get -yqq install csh gfortran libgomp1 openmpi-bin libopenmpi-dev libnetcdf-dev libnetcdff-dev  netcdf-bin
+        echo $(nf-config --flibs)
+        echo $(nf-config --fflags)
+        echo $(gfortran --version)
+
+      - name: Determing OS version
+        uses: kenchan0130/actions-system-info@master
+        id: system-info
+
+      - name: Set OS version
+        run: | 
+          echo "Release: ${{ steps.system-info.outputs.release }}"
+          echo "os_version=${{ steps.system-info.outputs.release }}" >> $GITHUB_ENV
 
     - name: Download OASIS
       if: startsWith(matrix.TYPE, 'ACCESS-')
@@ -54,8 +62,8 @@ jobs:
     - name: Download libaccessom2
       if: startsWith(matrix.TYPE, 'ACCESS-OM')
       run: | 
-        wget https://github.com/COSIMA/libaccessom2/releases/latest/download/binary_release.tar.gz
-        tar -zxf binary_release.tar.gz
+        wget https://github.com/COSIMA/libaccessom2/releases/latest/download/binary_release_${{ env.os_version }}.tar.gz
+        tar -zxf binary_release_${{ env.os_version }}.tar.gz
 
     - name: Download libaccessom2
       if: startsWith(matrix.TYPE, 'ACCESS-OM')
