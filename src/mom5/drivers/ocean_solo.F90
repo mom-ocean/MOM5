@@ -242,7 +242,7 @@ ierr = check_nml_error(io_status,'ocean_solo_nml')
       read(unit,*) date_restart
       call mpp_close(unit)
   else
-      date_restart = date_init
+      date_restart = date
   endif
       
   call set_calendar_type (calendar_type)
