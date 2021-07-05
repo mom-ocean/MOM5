@@ -60,7 +60,6 @@ jobs:
       if: startsWith(matrix.TYPE, 'ACCESS-OM')
       run: | 
         wget https://github.com/COSIMA/libaccessom2/releases/latest/download/binary_release_${{ env.os_version }}.tar.gz
-        tar -zxf binary_release_${{ env.os_version }}.tar.gz
 
     # - name: Download libaccessom2
     #  if: startsWith(matrix.TYPE, 'ACCESS-OM')
@@ -75,7 +74,7 @@ jobs:
       if: startsWith(matrix.TYPE, 'ACCESS-OM')
       working-directory: ./libaccessom2
       run: |
-        tar -xvf binary_release.tar
+        tar -zxf binary_release_${{ env.os_version }}.tar.gz
         echo "libaccessom2_dir=${{ github.workspace }}/libaccessom2" >> $GITHUB_ENV
 
     - name: Compile
