@@ -56,11 +56,11 @@ jobs:
         make ubuntu
         echo "oasis_dir=${{ github.workspace }}/oasis3-mct/Linux" >> $GITHUB_ENV
 
-    - name: Download libaccessom2
-      if: startsWith(matrix.TYPE, 'ACCESS-OM')
-      run: | 
-        wget https://github.com/COSIMA/libaccessom2/releases/latest/download/binary_release_${{ env.os_version }}.tar.gz
-        tar -zxf binary_release_${{ env.os_version }}.tar.gz
+    # - name: Download libaccessom2
+    #   if: startsWith(matrix.TYPE, 'ACCESS-OM')
+    #   run: | 
+    #     wget https://github.com/COSIMA/libaccessom2/releases/latest/download/binary_release_${{ env.os_version }}.tar.gz
+    #     tar -zxf binary_release_${{ env.os_version }}.tar.gz
 
     - name: Download libaccessom2
       if: startsWith(matrix.TYPE, 'ACCESS-OM')
@@ -68,7 +68,7 @@ jobs:
       with:
         repo: COSIMA/libaccessom2
         workflow: CI.yml
-        name: binary_release
+        name: binary_release_${{ env.os_version }}.tar.gz
         path: libaccessom2
 
     - name: Untar libaccessom2
