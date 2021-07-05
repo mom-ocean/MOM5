@@ -34,11 +34,11 @@ endif
 
 FPPFLAGS := $(INCLUDE)
 
-CFLAGS := -D__IFC -O2 $(shell nc-config --cflags) -I/usr/include/openmpi $(INCLUDE)
+CFLAGS := -D__IFC -O2 -no-pie $(shell nc-config --cflags) -I/usr/include/openmpi $(INCLUDE)
 
-FFLAGS := -O2 -fcray-pointer -fdefault-real-8 -ffree-line-length-none -fno-range-check $(shell nf-config --fflags)
+FFLAGS := -O2 -no-pie -fcray-pointer -fdefault-real-8 -ffree-line-length-none -fno-range-check $(shell nf-config --fflags)
 
-LDFLAGS += $(LIBS)
+LDFLAGS += -no-pie $(LIBS)
 
 #---------------------------------------------------------------------------
 # you should never need to change any lines below.
