@@ -1,15 +1,33 @@
+!***********************************************************************
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the GFDL Flexible Modeling System (FMS).
+!*
+!* FMS is free software: you can redistribute it and/or modify it under
+!* the terms of the GNU Lesser General Public License as published by
+!* the Free Software Foundation, either version 3 of the License, or (at
+!* your option) any later version.
+!*
+!* FMS is distributed in the hope that it will be useful, but WITHOUT
+!* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+!* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+!* for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with FMS.  If not, see <http://www.gnu.org/licenses/>.
+!***********************************************************************
 ! module within MPP for handling PSETs:
 ! PSET: Persistent Shared-memory Execution Thread
 !
 ! AUTHOR: V. Balaji (v.balaji@noaa.gov)
 ! DATE: 2006-01-15
-#include <fms_platform.h>
 #ifdef test_mpp_pset
 !PSET_DEBUG is always turned on in the test program
 #define PSET_DEBUG
 #endif
 
 module mpp_pset_mod
+#include <fms_platform.h>
   use mpp_mod, only: mpp_pe, mpp_npes, mpp_root_pe, mpp_send, mpp_recv, &
        mpp_sync, mpp_error, FATAL, WARNING, stdout, stderr, mpp_chksum, &
        mpp_declare_pelist, mpp_get_current_pelist, mpp_set_current_pelist, &

@@ -1,6 +1,23 @@
-
 ! -*-f90-*-
-! $Id$
+
+!***********************************************************************
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the GFDL Flexible Modeling System (FMS).
+!*
+!* FMS is free software: you can redistribute it and/or modify it under
+!* the terms of the GNU Lesser General Public License as published by
+!* the Free Software Foundation, either version 3 of the License, or (at
+!* your option) any later version.
+!*
+!* FMS is distributed in the hope that it will be useful, but WITHOUT
+!* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+!* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+!* for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with FMS.  If not, see <http://www.gnu.org/licenses/>.
+!***********************************************************************
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                             !
@@ -11,10 +28,6 @@
 subroutine mpp_error_basic( errortype, errormsg )
   !a very basic error handler
   !uses ABORT and FLUSH calls, may need to use cpp to rename
-#ifdef __INTEL_COMPILER
-  ! Needs special traceback module for intel compile RASF
-   use ifcore
-#endif
   integer,                    intent(in) :: errortype
   character(len=*), intent(in), optional :: errormsg
   character(len=512)                     :: text
@@ -50,10 +63,6 @@ subroutine mpp_error_basic( errortype, errormsg )
         call FLUSH(outunit)
 #ifdef sgi_mipspro
         call TRACE_BACK_STACK_AND_PRINT()
-#endif
-#ifdef __INTEL_COMPILER
-  ! Get traceback and return quietly for correct abort
-        call TRACEBACKQQ(user_exit_code=-1)
 #endif
         call ABORT() !automatically calls traceback on Cray systems
      end if

@@ -1,4 +1,22 @@
 ! -*-f90-*- 
+!***********************************************************************
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the GFDL Flexible Modeling System (FMS).
+!*
+!* FMS is free software: you can redistribute it and/or modify it under
+!* the terms of the GNU Lesser General Public License as published by
+!* the Free Software Foundation, either version 3 of the License, or (at
+!* your option) any later version.
+!*
+!* FMS is distributed in the hope that it will be useful, but WITHOUT
+!* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+!* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+!* for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with FMS.  If not, see <http://www.gnu.org/licenses/>.
+!***********************************************************************
     subroutine MPP_DO_UPDATE_3D_( f_addrs, domain, update, d_type, ke, flags)
 !updates data domain of 3D field whose computational domains have been computed
       integer(LONG_KIND),         intent(in) :: f_addrs(:,:)
@@ -21,7 +39,7 @@
      
 !receive domains saved here for unpacking
 !for non-blocking version, could be recomputed
-      integer,    allocatable :: msg1(:), msg2(:)
+      integer,    allocatable :: msg1(:), msg2(:), msg3(:)
       logical :: send(8), recv(8), update_edge_only
       integer :: to_pe, from_pe, pos, msgsize
       integer :: n, l_size, l, m, i, j, k
@@ -40,6 +58,7 @@
       if( PRESENT(flags) )update_flags = flags
 
       update_edge_only = BTEST(update_flags, EDGEONLY)
+      recv = .false.
       recv(1) = BTEST(update_flags,EAST)
       recv(3) = BTEST(update_flags,SOUTH)
       recv(5) = BTEST(update_flags,WEST)
@@ -61,9 +80,10 @@
 
       if(debug_message_passing) then
          nlist = size(domain%list(:))  
-         allocate(msg1(0:nlist-1), msg2(0:nlist-1) )
+         allocate(msg1(0:nlist-1), msg2(0:nlist-1), msg3(0:nlist-1) )
          msg1 = 0
          msg2 = 0
+         msg3 = 0
          do m = 1, update%nrecv
             overPtr => update%recv(m)
             msgsize = 0
@@ -77,7 +97,6 @@
             end do
             from_pe = update%recv(m)%pe
             l = from_pe-mpp_root_pe()
-            call mpp_recv( msg1(l), glen=1, from_pe=from_pe, block=.FALSE., tag=COMM_TAG_1 )
             msg2(l) = msgsize
          enddo
 
@@ -92,9 +111,10 @@
                   msgsize = msgsize + (ie-is+1)*(je-js+1)
                end if
             end do
-            call mpp_send( msgsize, plen=1, to_pe=overPtr%pe, tag=COMM_TAG_1 )
+            l = overPtr%pe - mpp_root_pe()
+            msg3(l) = msgsize
          enddo
-         call mpp_sync_self(check=EVENT_RECV)
+         call mpp_alltoall(msg3, 1, msg1, 1)
 
          do m = 0, nlist-1
             if(msg1(m) .NE. msg2(m)) then
@@ -103,10 +123,9 @@
                call mpp_error(FATAL, "mpp_do_update: mismatch on send and recv size")
             endif
          enddo
-         call mpp_sync_self()
          write(outunit,*)"NOTE from mpp_do_update: message sizes are matched between send and recv for domain " &
                           //trim(domain%name)
-         deallocate(msg1, msg2)
+         deallocate(msg1, msg2, msg3)
       endif
 
       !recv

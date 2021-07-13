@@ -1,6 +1,23 @@
-
 ! -*-f90-*-
-! $Id$
+
+!***********************************************************************
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the GFDL Flexible Modeling System (FMS).
+!*
+!* FMS is free software: you can redistribute it and/or modify it under
+!* the terms of the GNU Lesser General Public License as published by
+!* the Free Software Foundation, either version 3 of the License, or (at
+!* your option) any later version.
+!*
+!* FMS is distributed in the hope that it will be useful, but WITHOUT
+!* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+!* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+!* for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with FMS.  If not, see <http://www.gnu.org/licenses/>.
+!***********************************************************************
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                             !
@@ -38,6 +55,25 @@ subroutine mpp_init( flags,localcomm )
   call SYSTEM_CLOCK( count=tick0, count_rate=ticks_per_sec, count_max=max_ticks )
   tick_rate = 1./ticks_per_sec
   clock0 = mpp_clock_id( 'Total runtime', flags=MPP_CLOCK_SYNC )
+
+  ! Initialize mpp_datatypes
+  ! NOTE: mpp_datatypes is unused in serial mode; this is an empty list
+  datatypes%head => null()
+  datatypes%tail => null()
+  datatypes%length = 0
+
+  ! Create the bytestream (default) mpp_datatype
+  ! NOTE: mpp_byte is unused in serial mode
+  mpp_byte%counter = -1
+  mpp_byte%ndims = -1
+  allocate(mpp_byte%sizes(0))
+  allocate(mpp_byte%subsizes(0))
+  allocate(mpp_byte%starts(0))
+  mpp_byte%etype = -1
+  mpp_byte%id = -1
+
+  mpp_byte%prev => null()
+  mpp_byte%next => null()
 
   if( PRESENT(flags) )then
      debug   = flags.EQ.MPP_DEBUG
@@ -118,7 +154,7 @@ subroutine mpp_init( flags,localcomm )
   if( verbose )call mpp_error( NOTE, 'MPP_INIT: initializing MPP module...' )
   if( pe.EQ.root_pe )then
      logunit = stdlog()
-     write( logunit,'(/a)' )'MPP module '//trim(version)//trim(tagname)
+     write( logunit,'(/a)' )'MPP module '//trim(version)
      write( logunit,'(a,i6)' )'MPP started with NPES=', npes
      write( logunit,'(a)' )'Using no library for message passing...'
      write( logunit, '(a26,es12.4,a6,i10,a11)' ) &
@@ -126,6 +162,7 @@ subroutine mpp_init( flags,localcomm )
      write( logunit, '(a23,es12.4,a6,i20,a7)' ) &
           'Clock rolls over after ', max_ticks*tick_rate, ' sec (', max_ticks, ' ticks)'
   end if
+
   call mpp_clock_begin(clock0)
 
   return
@@ -727,8 +764,10 @@ end subroutine mpp_exit
 !            GLOBAL REDUCTION ROUTINES: mpp_max, mpp_sum, mpp_min             !
 !                                                                             !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#undef MPP_REDUCE_
-#define MPP_REDUCE_ mpp_max_real8
+#undef MPP_REDUCE_0D_
+#define MPP_REDUCE_0D_ mpp_max_real8_0d
+#undef MPP_REDUCE_1D_
+#define MPP_REDUCE_1D_ mpp_max_real8_1d
 #undef MPP_TYPE_
 #define MPP_TYPE_ real(DOUBLE_KIND)
 #undef MPP_TYPE_BYTELEN_
@@ -740,8 +779,10 @@ end subroutine mpp_exit
 #include <mpp_reduce_nocomm.h>
 
 #ifdef OVERLOAD_R4
-#undef MPP_REDUCE_
-#define MPP_REDUCE_ mpp_max_real4
+#undef MPP_REDUCE_0D_
+#define MPP_REDUCE_0D_ mpp_max_real4_0d
+#undef MPP_REDUCE_1D_
+#define MPP_REDUCE_1D_ mpp_max_real4_1d
 #undef MPP_TYPE_
 #define MPP_TYPE_ real(FLOAT_KIND)
 #undef MPP_TYPE_BYTELEN_
@@ -754,8 +795,10 @@ end subroutine mpp_exit
 #endif
 
 #ifndef no_8byte_integers
-#undef MPP_REDUCE_
-#define MPP_REDUCE_ mpp_max_int8
+#undef MPP_REDUCE_0D_
+#define MPP_REDUCE_0D_ mpp_max_int8_0d
+#undef MPP_REDUCE_1D_
+#define MPP_REDUCE_1D_ mpp_max_int8_1d
 #undef MPP_TYPE_
 #define MPP_TYPE_ integer(LONG_KIND)
 #undef MPP_TYPE_BYTELEN_
@@ -767,8 +810,10 @@ end subroutine mpp_exit
 #include <mpp_reduce_nocomm.h>
 #endif
 
-#undef MPP_REDUCE_
-#define MPP_REDUCE_ mpp_max_int4
+#undef MPP_REDUCE_0D_
+#define MPP_REDUCE_0D_ mpp_max_int4_0d
+#undef MPP_REDUCE_1D_
+#define MPP_REDUCE_1D_ mpp_max_int4_1d
 #undef MPP_TYPE_
 #define MPP_TYPE_ integer(INT_KIND)
 #undef MPP_TYPE_BYTELEN_
@@ -779,8 +824,10 @@ end subroutine mpp_exit
 #define MPI_REDUCE_ MPI_MAX
 #include <mpp_reduce_nocomm.h>
 
-#undef MPP_REDUCE_
-#define MPP_REDUCE_ mpp_min_real8
+#undef MPP_REDUCE_0D_
+#define MPP_REDUCE_0D_ mpp_min_real8_0d
+#undef MPP_REDUCE_1D_
+#define MPP_REDUCE_1D_ mpp_min_real8_1d
 #undef MPP_TYPE_
 #define MPP_TYPE_ real(DOUBLE_KIND)
 #undef MPP_TYPE_BYTELEN_
@@ -792,8 +839,10 @@ end subroutine mpp_exit
 #include <mpp_reduce_nocomm.h>
 
 #ifdef OVERLOAD_R4
-#undef MPP_REDUCE_
-#define MPP_REDUCE_ mpp_min_real4
+#undef MPP_REDUCE_0D_
+#define MPP_REDUCE_0D_ mpp_min_real4_0d
+#undef MPP_REDUCE_1D_
+#define MPP_REDUCE_1D_ mpp_min_real4_1d
 #undef MPP_TYPE_
 #define MPP_TYPE_ real(FLOAT_KIND)
 #undef MPP_TYPE_BYTELEN_
@@ -806,8 +855,10 @@ end subroutine mpp_exit
 #endif
 
 #ifndef no_8byte_integers
-#undef MPP_REDUCE_
-#define MPP_REDUCE_ mpp_min_int8
+#undef MPP_REDUCE_0D_
+#define MPP_REDUCE_0D_ mpp_min_int8_0d
+#undef MPP_REDUCE_1D_
+#define MPP_REDUCE_1D_ mpp_min_int8_1d
 #undef MPP_TYPE_
 #define MPP_TYPE_ integer(LONG_KIND)
 #undef MPP_TYPE_BYTELEN_
@@ -818,9 +869,11 @@ end subroutine mpp_exit
 #define MPI_REDUCE_ MPI_MIN
 #include <mpp_reduce_nocomm.h>
 #endif       
-             
-#undef MPP_REDUCE_
-#define MPP_REDUCE_ mpp_min_int4
+ 
+#undef MPP_REDUCE_0D_
+#define MPP_REDUCE_0D_ mpp_min_int4_0d
+#undef MPP_REDUCE_1D_
+#define MPP_REDUCE_1D_ mpp_min_int4_1d            
 #undef MPP_TYPE_
 #define MPP_TYPE_ integer(INT_KIND)
 #undef MPP_TYPE_BYTELEN_
@@ -1012,3 +1065,55 @@ end subroutine mpp_exit
 #define MPP_TYPE_BYTELEN_ 8
 #define MPI_TYPE_ MPI_REAL8
 #include <mpp_alltoall_nocomm.h>
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                             !
+!            DATA TRANSFER TYPES: mpp_type_create, mpp_type_free              !
+!                                                                             !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#define MPP_TYPE_CREATE_ mpp_type_create_int4
+#define MPP_TYPE_ integer(INT_KIND)
+#define MPI_TYPE_ MPI_INTEGER4
+#include <mpp_type_nocomm.h>
+
+#define MPP_TYPE_CREATE_ mpp_type_create_int8
+#define MPP_TYPE_ integer(LONG_KIND)
+#define MPI_TYPE_ MPI_INTEGER8
+#include <mpp_type_nocomm.h>
+
+#define MPP_TYPE_CREATE_ mpp_type_create_real4
+#define MPP_TYPE_ real(FLOAT_KIND)
+#define MPI_TYPE_ MPI_REAL4
+#include <mpp_type_nocomm.h>
+
+#define MPP_TYPE_CREATE_ mpp_type_create_real8
+#define MPP_TYPE_ real(DOUBLE_KIND)
+#define MPI_TYPE_ MPI_REAL8
+#include <mpp_type_nocomm.h>
+
+#define MPP_TYPE_CREATE_ mpp_type_create_logical4
+#define MPP_TYPE_ logical(INT_KIND)
+#define MPI_TYPE_ MPI_INTEGER4
+#include <mpp_type_nocomm.h>
+
+#define MPP_TYPE_CREATE_ mpp_type_create_logical8
+#define MPP_TYPE_ logical(LONG_KIND)
+#define MPI_TYPE_ MPI_INTEGER8
+#include <mpp_type_nocomm.h>
+
+! Clear preprocessor flags
+#undef MPI_TYPE_
+#undef MPP_TYPE_
+#undef MPP_TYPE_CREATE_
+
+subroutine mpp_type_free(dtype)
+    type(mpp_type), pointer, intent(inout) :: dtype
+
+    call mpp_error(NOTE, 'MPP_TYPE_FREE: ' &
+                         'This function should not be used in serial mode.')
+
+    ! For consistency with MPI, we deallocate the pointer
+    deallocate(dtype)
+
+end subroutine mpp_type_free
