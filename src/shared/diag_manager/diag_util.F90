@@ -18,7 +18,6 @@
 !***********************************************************************
 
 MODULE diag_util_mod
-#include <fms_platform.h>
   ! <CONTACT EMAIL="seth.underwood@noaa.gov">
   !   Seth Underwood
   ! </CONTACT>
@@ -131,6 +130,7 @@ MODULE diag_util_mod
   ! </INTERFACE>
 
   ! Include variable "version" to be written to log file.
+#include <fms_platform.h>
 #include <file_version.h>
 
   LOGICAL :: module_initialized = .FALSE.

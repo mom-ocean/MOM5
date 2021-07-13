@@ -167,11 +167,6 @@ module mpp_mod
 !  <TT>MPP_TYPE_</TT> is treated in this way.
 ! </PUBLIC>
 
-! Define rank(X) for PGI compiler
-#ifdef __PGI
-#define rank(X) size(shape(X))
-#endif
-
 #include <fms_platform.h>
 
 #if defined(use_libSMA) && defined(sgi_mipspro)
@@ -189,7 +184,6 @@ module mpp_mod
   use mpp_parameter_mod, only : MAX_EVENTS, MAX_BINS, MAX_EVENT_TYPES, MAX_CLOCKS
   use mpp_parameter_mod, only : MAXPES, EVENT_WAIT, EVENT_ALLREDUCE, EVENT_BROADCAST
   use mpp_parameter_mod, only : EVENT_ALLTOALL
-  use mpp_parameter_mod, only : EVENT_TYPE_CREATE, EVENT_TYPE_FREE
   use mpp_parameter_mod, only : EVENT_RECV, EVENT_SEND, MPP_READY, MPP_WAIT
   use mpp_parameter_mod, only : mpp_parameter_version=>version
   use mpp_parameter_mod, only : DEFAULT_TAG
@@ -214,12 +208,6 @@ private
 #include <mpif.h>   
 !sgi_mipspro gets this from 'use mpi'
 #endif
-
-! Parallel netCDF support
-#if defined(use_netCDF)
-#include <netcdf.inc>
-#endif
-
 
   !--- public paramters  -----------------------------------------------
   public :: MPP_VERBOSE, MPP_DEBUG, ALL_PES, ANY_PE, NULL_PE, NOTE, WARNING, FATAL
@@ -248,15 +236,10 @@ private
 
   !--- public interface from mpp_comm.h ------------------------------
   public :: mpp_chksum, mpp_max, mpp_min, mpp_sum, mpp_transmit, mpp_send, mpp_recv
-  public :: mpp_sum_ad
   public :: mpp_broadcast, mpp_malloc, mpp_init, mpp_exit
   public :: mpp_gather, mpp_scatter, mpp_alltoall
-  public :: mpp_type, mpp_byte, mpp_type_create, mpp_type_free
 #ifdef use_MPI_GSM
   public :: mpp_gsm_malloc, mpp_gsm_free
-#endif
-#if defined(use_libMPI) && defined(use_netCDF)
-  public :: mpp_nc_create, mpp_nc_open
 #endif
 
   !*********************************************************************
@@ -312,29 +295,6 @@ private
      character(len=16)         :: name
      type (Clock_Data_Summary) :: event(MAX_EVENT_TYPES)
   end type Summary_Struct
-
-  ! Data types for generalized data transfer (e.g. MPI_Type)
-  type :: mpp_type
-     private
-     integer :: counter ! Number of instances of this type
-     integer :: ndims
-     integer, allocatable :: sizes(:)
-     integer, allocatable :: subsizes(:)
-     integer, allocatable :: starts(:)
-     integer :: etype   ! Elementary data type (e.g. MPI_BYTE)
-     integer :: id      ! Identifier within message passing library (e.g. MPI)
-
-     type(mpp_type), pointer :: prev => null()
-     type(mpp_type), pointer :: next => null()
-  end type mpp_type
-
-  ! Persisent elements for linked list interaction
-  type :: mpp_type_list
-      private
-      type(mpp_type), pointer :: head => null()
-      type(mpp_type), pointer :: tail => null()
-      integer :: length
-  end type mpp_type_list
 
 !***********************************************************************
 !
@@ -581,21 +541,6 @@ private
   ! </SUBROUTINE>
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!                                                                             !
-!              DATA TRANSFER TYPES: mpp_type_create                           !
-!                                                                             !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  interface mpp_type_create
-      module procedure mpp_type_create_int4
-      module procedure mpp_type_create_int8
-      module procedure mpp_type_create_real4
-      module procedure mpp_type_create_real8
-      module procedure mpp_type_create_logical4
-      module procedure mpp_type_create_logical8
-  end interface mpp_type_create
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !                                                                             !
   !            GLOBAL REDUCTION ROUTINES: mpp_max, mpp_sum, mpp_min             !
   !                                                                             !
@@ -733,53 +678,6 @@ private
 #endif
   end interface
 
-  interface mpp_sum_ad
-#ifndef no_8byte_integers
-     module procedure mpp_sum_int8_ad
-     module procedure mpp_sum_int8_scalar_ad
-     module procedure mpp_sum_int8_2d_ad
-     module procedure mpp_sum_int8_3d_ad
-     module procedure mpp_sum_int8_4d_ad
-     module procedure mpp_sum_int8_5d_ad
-#endif
-     module procedure mpp_sum_real8_ad
-     module procedure mpp_sum_real8_scalar_ad
-     module procedure mpp_sum_real8_2d_ad
-     module procedure mpp_sum_real8_3d_ad
-     module procedure mpp_sum_real8_4d_ad
-     module procedure mpp_sum_real8_5d_ad
-#ifdef OVERLOAD_C8
-     module procedure mpp_sum_cmplx8_ad
-     module procedure mpp_sum_cmplx8_scalar_ad
-     module procedure mpp_sum_cmplx8_2d_ad
-     module procedure mpp_sum_cmplx8_3d_ad
-     module procedure mpp_sum_cmplx8_4d_ad
-     module procedure mpp_sum_cmplx8_5d_ad
-#endif
-     module procedure mpp_sum_int4_ad
-     module procedure mpp_sum_int4_scalar_ad
-     module procedure mpp_sum_int4_2d_ad
-     module procedure mpp_sum_int4_3d_ad
-     module procedure mpp_sum_int4_4d_ad
-     module procedure mpp_sum_int4_5d_ad
-#ifdef OVERLOAD_R4
-     module procedure mpp_sum_real4_ad
-     module procedure mpp_sum_real4_scalar_ad
-     module procedure mpp_sum_real4_2d_ad
-     module procedure mpp_sum_real4_3d_ad
-     module procedure mpp_sum_real4_4d_ad
-     module procedure mpp_sum_real4_5d_ad
-#endif
-#ifdef OVERLOAD_C4
-     module procedure mpp_sum_cmplx4_ad
-     module procedure mpp_sum_cmplx4_scalar_ad
-     module procedure mpp_sum_cmplx4_2d_ad
-     module procedure mpp_sum_cmplx4_3d_ad
-     module procedure mpp_sum_cmplx4_4d_ad
-     module procedure mpp_sum_cmplx4_5d_ad
-#endif
-  end interface
-
   !#####################################################################
   ! <INTERFACE NAME="mpp_gather">
   !  <OVERVIEW>
@@ -832,20 +730,10 @@ private
      module procedure mpp_alltoall_int8
      module procedure mpp_alltoall_real4
      module procedure mpp_alltoall_real8
-     module procedure mpp_alltoall_logical4
-     module procedure mpp_alltoall_logical8
      module procedure mpp_alltoall_int4_v
      module procedure mpp_alltoall_int8_v
      module procedure mpp_alltoall_real4_v
      module procedure mpp_alltoall_real8_v
-     module procedure mpp_alltoall_logical4_v
-     module procedure mpp_alltoall_logical8_v
-     module procedure mpp_alltoall_int4_w
-     module procedure mpp_alltoall_int8_w
-     module procedure mpp_alltoall_real4_w
-     module procedure mpp_alltoall_real8_w
-     module procedure mpp_alltoall_logical4_w
-     module procedure mpp_alltoall_logical8_w
   end interface
 
 
@@ -1320,9 +1208,6 @@ private
   integer              :: clock_num=0, num_clock_ids=0,current_clock=0, previous_clock(MAX_CLOCKS)=0
   real                 :: tick_rate
 
-  type(mpp_type_list)    :: datatypes
-  type(mpp_type), target :: mpp_byte
-
   integer              :: cur_send_request = 0
   integer              :: cur_recv_request = 0
   integer, allocatable :: request_send(:)
@@ -1405,9 +1290,6 @@ private
 #include <mpp_util.inc>
 #include <mpp_comm.inc>
 
-#if defined(use_libMPI) && defined(use_netCDF)
-#include <mpp_netcdf.inc>
-#endif
   end module mpp_mod
 
 

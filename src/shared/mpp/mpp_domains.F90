@@ -154,11 +154,8 @@ module mpp_domains_mod
   use mpp_mod,                only : stdout, stderr, stdlog, mpp_send, mpp_recv, mpp_transmit, mpp_sync_self
   use mpp_mod,                only : mpp_clock_id, mpp_clock_begin, mpp_clock_end
   use mpp_mod,                only : mpp_max, mpp_min, mpp_sum, mpp_get_current_pelist, mpp_broadcast
-  use mpp_mod,                only : mpp_sum_ad
   use mpp_mod,                only : mpp_sync, mpp_init, mpp_malloc, lowercase
   use mpp_mod,                only : input_nml_file, mpp_alltoall
-  use mpp_mod,                only : mpp_type, mpp_byte
-  use mpp_mod,                only : mpp_type_create, mpp_type_free
   use mpp_mod,                only : COMM_TAG_1, COMM_TAG_2, COMM_TAG_3, COMM_TAG_4
   use mpp_memutils_mod,       only : mpp_memuse_begin, mpp_memuse_end
   use mpp_pset_mod,           only : mpp_pset_init
@@ -201,8 +198,6 @@ module mpp_domains_mod
   public :: mpp_get_tile_npes, mpp_get_domain_root_pe, mpp_get_tile_pelist, mpp_get_tile_compute_domains
   public :: mpp_get_num_overlap, mpp_get_overlap
   public :: mpp_get_io_domain, mpp_get_domain_pe, mpp_get_domain_tile_root_pe
-  public :: mpp_get_num_io_domains, mpp_get_io_root_pes
-  public :: mpp_domain_is_missing_io_domain
   public :: mpp_get_domain_name, mpp_get_io_domain_layout
   public :: mpp_copy_domain, mpp_set_domain_symmetry
   public :: mpp_get_update_pelist, mpp_get_update_size
@@ -212,7 +207,7 @@ module mpp_domains_mod
 
   !--- public interface from mpp_domains_reduce.h
   public :: mpp_global_field, mpp_global_max, mpp_global_min, mpp_global_sum
-  public :: mpp_global_sum_tl, mpp_global_sum_ad
+!  public :: mpp_global_sum_tl, mpp_global_sum_ad
   !--- public interface from mpp_domains_misc.h
   public :: mpp_broadcast_domain, mpp_domains_init, mpp_domains_exit, mpp_redistribute
   public :: mpp_update_domains, mpp_check_field
@@ -222,8 +217,6 @@ module mpp_domains_mod
   public :: mpp_reset_group_update_field
   public :: mpp_update_nest_fine, mpp_update_nest_coarse
   public :: mpp_get_boundary
-  public :: mpp_update_domains_ad
-  public :: mpp_get_boundary_ad
   public :: mpp_pass_SG_to_UG, mpp_pass_UG_to_SG
   !--- public interface from mpp_domains_define.h
   public :: mpp_define_layout, mpp_define_domains, mpp_modify_domain, mpp_define_mosaic
@@ -412,10 +405,6 @@ module mpp_domains_mod
      type(overlapSpec),  pointer :: update_C      => NULL() ! send and recv information for halo update of C-cell.
      type(overlapSpec),  pointer :: update_N      => NULL() ! send and recv information for halo update of N-cell.
      type(domain2d),     pointer :: io_domain     => NULL() ! domain for IO, will be set through calling mpp_set_io_domain ( this will be changed).
-
-     ! IO domain metadata used for parallel I/O
-     integer, pointer :: io_root_pes(:) => NULL()           ! List of root PEs for IO domains
-     logical :: missing_io_domains = .false.                ! True if any IO domain is fully masked
   end type domain2D     
 
   !--- the following type is used to reprsent the contact between tiles.
@@ -708,9 +697,8 @@ module mpp_domains_mod
   logical           :: debug_message_passing = .false.
   integer           :: nthread_control_loop = 8
   logical           :: efp_sum_overflow_check = .false.
-  logical           :: use_alltoallw = .false.
   namelist /mpp_domains_nml/ debug_update_domain, domain_clocks_on, debug_message_passing, nthread_control_loop, &
-                             efp_sum_overflow_check, use_alltoallw
+                             efp_sum_overflow_check
 
   !***********************************************************************
 
@@ -1783,30 +1771,6 @@ interface mpp_broadcast_domain
   module procedure mpp_broadcast_domain_ug
 end interface
 
-!--------------------------------------------------------------
-! for adjoint update
-!--------------------------------------------------------------
-  interface mpp_update_domains_ad
-     module procedure mpp_update_domains_ad_2D_r8_2d
-     module procedure mpp_update_domains_ad_2D_r8_3d
-     module procedure mpp_update_domains_ad_2D_r8_4d
-     module procedure mpp_update_domains_ad_2D_r8_5d
-     module procedure mpp_update_domains_ad_2D_r8_2dv
-     module procedure mpp_update_domains_ad_2D_r8_3dv
-     module procedure mpp_update_domains_ad_2D_r8_4dv
-     module procedure mpp_update_domains_ad_2D_r8_5dv
-#ifdef OVERLOAD_R4
-     module procedure mpp_update_domains_ad_2D_r4_2d
-     module procedure mpp_update_domains_ad_2D_r4_3d
-     module procedure mpp_update_domains_ad_2D_r4_4d
-     module procedure mpp_update_domains_ad_2D_r4_5d
-     module procedure mpp_update_domains_ad_2D_r4_2dv
-     module procedure mpp_update_domains_ad_2D_r4_3dv
-     module procedure mpp_update_domains_ad_2D_r4_4dv
-     module procedure mpp_update_domains_ad_2D_r4_5dv
-#endif
-  end interface
-!
 
   interface mpp_do_update
      module procedure mpp_do_update_r8_3d
@@ -1876,16 +1840,7 @@ end interface
 
 !!$     module procedure mpp_do_update_ad_i4_3d
 !!$  end interface
-!
-  interface mpp_do_update_ad
-     module procedure mpp_do_update_ad_r8_3d
-     module procedure mpp_do_update_ad_r8_3dv
-#ifdef OVERLOAD_R4
-     module procedure mpp_do_update_ad_r4_3d
-     module procedure mpp_do_update_ad_r4_3dv
-#endif
-  end interface
-!
+!bnc
 
 ! <INTERFACE NAME="mpp_get_boundary">
 ! <OVERVIEW>
@@ -1924,34 +1879,12 @@ end interface
 #endif
   end interface
 
-  interface mpp_get_boundary_ad
-     module procedure mpp_get_boundary_ad_r8_2d
-     module procedure mpp_get_boundary_ad_r8_3d
-     module procedure mpp_get_boundary_ad_r8_2dv
-     module procedure mpp_get_boundary_ad_r8_3dv
-#ifdef OVERLOAD_R4
-     module procedure mpp_get_boundary_ad_r4_2d
-     module procedure mpp_get_boundary_ad_r4_3d
-     module procedure mpp_get_boundary_ad_r4_2dv
-     module procedure mpp_get_boundary_ad_r4_3dv
-#endif
-  end interface
-
   interface mpp_do_get_boundary
      module procedure mpp_do_get_boundary_r8_3d
      module procedure mpp_do_get_boundary_r8_3dv
 #ifdef OVERLOAD_R4
      module procedure mpp_do_get_boundary_r4_3d
      module procedure mpp_do_get_boundary_r4_3dv
-#endif
-  end interface
-
-  interface mpp_do_get_boundary_ad
-     module procedure mpp_do_get_boundary_ad_r8_3d
-     module procedure mpp_do_get_boundary_ad_r8_3dv
-#ifdef OVERLOAD_R4
-     module procedure mpp_do_get_boundary_ad_r4_3d
-     module procedure mpp_do_get_boundary_ad_r4_3dv
 #endif
   end interface
 
@@ -2157,49 +2090,6 @@ end interface
      module procedure mpp_global_field2D_l4_5d
   end interface
 
-  interface mpp_global_field_ad
-     module procedure mpp_global_field2D_r8_2d_ad
-     module procedure mpp_global_field2D_r8_3d_ad
-     module procedure mpp_global_field2D_r8_4d_ad
-     module procedure mpp_global_field2D_r8_5d_ad
-#ifdef OVERLOAD_C8
-     module procedure mpp_global_field2D_c8_2d_ad
-     module procedure mpp_global_field2D_c8_3d_ad
-     module procedure mpp_global_field2D_c8_4d_ad
-     module procedure mpp_global_field2D_c8_5d_ad
-#endif
-#ifndef no_8byte_integers
-     module procedure mpp_global_field2D_i8_2d_ad
-     module procedure mpp_global_field2D_i8_3d_ad
-     module procedure mpp_global_field2D_i8_4d_ad
-     module procedure mpp_global_field2D_i8_5d_ad
-     module procedure mpp_global_field2D_l8_2d_ad
-     module procedure mpp_global_field2D_l8_3d_ad
-     module procedure mpp_global_field2D_l8_4d_ad
-     module procedure mpp_global_field2D_l8_5d_ad
-#endif
-#ifdef OVERLOAD_R4
-     module procedure mpp_global_field2D_r4_2d_ad
-     module procedure mpp_global_field2D_r4_3d_ad
-     module procedure mpp_global_field2D_r4_4d_ad
-     module procedure mpp_global_field2D_r4_5d_ad
-#endif
-#ifdef OVERLOAD_C4
-     module procedure mpp_global_field2D_c4_2d_ad
-     module procedure mpp_global_field2D_c4_3d_ad
-     module procedure mpp_global_field2D_c4_4d_ad
-     module procedure mpp_global_field2D_c4_5d_ad
-#endif
-     module procedure mpp_global_field2D_i4_2d_ad
-     module procedure mpp_global_field2D_i4_3d_ad
-     module procedure mpp_global_field2D_i4_4d_ad
-     module procedure mpp_global_field2D_i4_5d_ad
-     module procedure mpp_global_field2D_l4_2d_ad
-     module procedure mpp_global_field2D_l4_3d_ad
-     module procedure mpp_global_field2D_l4_4d_ad
-     module procedure mpp_global_field2D_l4_5d_ad
-  end interface
-
   interface mpp_do_global_field
      module procedure mpp_do_global_field2D_r8_3d
 #ifdef OVERLOAD_C8
@@ -2217,25 +2107,6 @@ end interface
 #endif
      module procedure mpp_do_global_field2D_i4_3d
      module procedure mpp_do_global_field2D_l4_3d
-  end interface
-
-  interface mpp_do_global_field_a2a
-     module procedure mpp_do_global_field2D_a2a_r8_3d
-#ifdef OVERLOAD_C8
-     module procedure mpp_do_global_field2D_a2a_c8_3d
-#endif
-#ifndef no_8byte_integers
-     module procedure mpp_do_global_field2D_a2a_i8_3d
-     module procedure mpp_do_global_field2D_a2a_l8_3d
-#endif
-#ifdef OVERLOAD_R4
-     module procedure mpp_do_global_field2D_a2a_r4_3d
-#endif
-#ifdef OVERLOAD_C4
-     module procedure mpp_do_global_field2D_a2a_c4_3d
-#endif
-     module procedure mpp_do_global_field2D_a2a_i4_3d
-     module procedure mpp_do_global_field2D_a2a_l4_3d
   end interface
 
   interface mpp_global_field_ug
@@ -2261,24 +2132,6 @@ end interface
      module procedure mpp_global_field2D_ug_i4_5d
   end interface
 
-  interface mpp_do_global_field_ad
-     module procedure mpp_do_global_field2D_r8_3d_ad
-#ifdef OVERLOAD_C8
-     module procedure mpp_do_global_field2D_c8_3d_ad
-#endif
-#ifndef no_8byte_integers
-     module procedure mpp_do_global_field2D_i8_3d_ad
-     module procedure mpp_do_global_field2D_l8_3d_ad
-#endif
-#ifdef OVERLOAD_R4
-     module procedure mpp_do_global_field2D_r4_3d_ad
-#endif
-#ifdef OVERLOAD_C4
-     module procedure mpp_do_global_field2D_c4_3d_ad
-#endif
-     module procedure mpp_do_global_field2D_i4_3d_ad
-     module procedure mpp_do_global_field2D_l4_3d_ad
-  end interface
 
 ! <INTERFACE NAME="mpp_global_max">
 !  <OVERVIEW>
@@ -2398,23 +2251,11 @@ end interface
      module procedure mpp_global_sum_r8_3d
      module procedure mpp_global_sum_r8_4d
      module procedure mpp_global_sum_r8_5d
-#ifdef OVERLOAD_C8
-     module procedure mpp_global_sum_c8_2d
-     module procedure mpp_global_sum_c8_3d
-     module procedure mpp_global_sum_c8_4d
-     module procedure mpp_global_sum_c8_5d
-#endif
 #ifdef OVERLOAD_R4
      module procedure mpp_global_sum_r4_2d
      module procedure mpp_global_sum_r4_3d
      module procedure mpp_global_sum_r4_4d
      module procedure mpp_global_sum_r4_5d
-#endif
-#ifdef OVERLOAD_C4
-     module procedure mpp_global_sum_c4_2d
-     module procedure mpp_global_sum_c4_3d
-     module procedure mpp_global_sum_c4_4d
-     module procedure mpp_global_sum_c4_5d
 #endif
 #ifndef no_8byte_integers
      module procedure mpp_global_sum_i8_2d
@@ -2434,73 +2275,14 @@ end interface
      module procedure mpp_global_sum_tl_r8_3d
      module procedure mpp_global_sum_tl_r8_4d
      module procedure mpp_global_sum_tl_r8_5d
-#ifdef OVERLOAD_C8
-     module procedure mpp_global_sum_tl_c8_2d
-     module procedure mpp_global_sum_tl_c8_3d
-     module procedure mpp_global_sum_tl_c8_4d
-     module procedure mpp_global_sum_tl_c8_5d
-#endif
 #ifdef OVERLOAD_R4
      module procedure mpp_global_sum_tl_r4_2d
      module procedure mpp_global_sum_tl_r4_3d
      module procedure mpp_global_sum_tl_r4_4d
      module procedure mpp_global_sum_tl_r4_5d
 #endif
-#ifdef OVERLOAD_C4
-     module procedure mpp_global_sum_tl_c4_2d
-     module procedure mpp_global_sum_tl_c4_3d
-     module procedure mpp_global_sum_tl_c4_4d
-     module procedure mpp_global_sum_tl_c4_5d
-#endif
-#ifndef no_8byte_integers
-     module procedure mpp_global_sum_tl_i8_2d
-     module procedure mpp_global_sum_tl_i8_3d
-     module procedure mpp_global_sum_tl_i8_4d
-     module procedure mpp_global_sum_tl_i8_5d
-#endif
-     module procedure mpp_global_sum_tl_i4_2d
-     module procedure mpp_global_sum_tl_i4_3d
-     module procedure mpp_global_sum_tl_i4_4d
-     module procedure mpp_global_sum_tl_i4_5d
   end interface
 !gag
-
-!bnc
-  interface mpp_global_sum_ad
-     module procedure mpp_global_sum_ad_r8_2d
-     module procedure mpp_global_sum_ad_r8_3d
-     module procedure mpp_global_sum_ad_r8_4d
-     module procedure mpp_global_sum_ad_r8_5d
-#ifdef OVERLOAD_C8
-     module procedure mpp_global_sum_ad_c8_2d
-     module procedure mpp_global_sum_ad_c8_3d
-     module procedure mpp_global_sum_ad_c8_4d
-     module procedure mpp_global_sum_ad_c8_5d
-#endif
-#ifdef OVERLOAD_R4
-     module procedure mpp_global_sum_ad_r4_2d
-     module procedure mpp_global_sum_ad_r4_3d
-     module procedure mpp_global_sum_ad_r4_4d
-     module procedure mpp_global_sum_ad_r4_5d
-#endif
-#ifdef OVERLOAD_C4
-     module procedure mpp_global_sum_ad_c4_2d
-     module procedure mpp_global_sum_ad_c4_3d
-     module procedure mpp_global_sum_ad_c4_4d
-     module procedure mpp_global_sum_ad_c4_5d
-#endif
-#ifndef no_8byte_integers
-     module procedure mpp_global_sum_ad_i8_2d
-     module procedure mpp_global_sum_ad_i8_3d
-     module procedure mpp_global_sum_ad_i8_4d
-     module procedure mpp_global_sum_ad_i8_5d
-#endif
-     module procedure mpp_global_sum_ad_i4_2d
-     module procedure mpp_global_sum_ad_i4_3d
-     module procedure mpp_global_sum_ad_i4_4d
-     module procedure mpp_global_sum_ad_i4_5d
-  end interface
-!bnc
 
 !***********************************************************************
 !

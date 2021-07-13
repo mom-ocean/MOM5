@@ -412,12 +412,11 @@ private
   !--- mpp_io data types
   !-----------------------------------------------------------------------------
 integer FILE_TYPE_USED
-integer, parameter :: MAX_ATT_LENGTH = 1280
 type :: atttype
      private
      integer             :: type, len
      character(len=128)  :: name
-     character(len=MAX_ATT_LENGTH) :: catt
+     character(len=1280) :: catt
      real, pointer       :: fatt(:) =>NULL() ! just use type conversion for integers
   end type atttype
 
@@ -1064,18 +1063,8 @@ type :: atttype
   integer            :: deflate_level = -1
   logical            :: cf_compliance = .false.
 
-
-  ! Parallel netCDF support
-  logical            :: parallel_netcdf = .false.
-  logical            :: parallel_read = .false.
-  logical            :: pnetcdf = .false.
-  logical            :: parallel_chunk = .false.
-  integer            :: chunk_layout(2) = [1, 1]
-
-  namelist /mpp_io_nml/ header_buffer_val, global_field_on_root_pe, &
-                        io_clocks_on, shuffle, deflate_level, cf_compliance, &
-                        parallel_netcdf, parallel_read, pnetcdf, &
-                        parallel_chunk, chunk_layout
+  namelist /mpp_io_nml/header_buffer_val, global_field_on_root_pe, io_clocks_on, &
+                       shuffle, deflate_level, cf_compliance
 
   real(DOUBLE_KIND), allocatable :: mpp_io_stack(:)
   type(axistype),save            :: default_axis      !provided to users with default components

@@ -16,9 +16,9 @@
 !* You should have received a copy of the GNU Lesser General Public
 !* License along with FMS.  If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
+#include <fms_platform.h>
 
 module fms_io_mod
-#include <fms_platform.h>
 
 !
 !
@@ -650,13 +650,13 @@ subroutine fms_io_init()
 #ifdef INTERNAL_FILE_NML
   read (input_nml_file, fms_io_nml, iostat=io_status)
   if (io_status > 0) then
-     call mpp_error(FATAL, '=>fms_io_init: Error reading input.nml')
+     call mpp_error(FATAL,'=>fms_io_init: Error reading input.nml')
   endif
 #else
   call mpp_open(unit, 'input.nml',form=MPP_ASCII,action=MPP_RDONLY)
   read(unit,fms_io_nml,iostat=io_status)
   if (io_status > 0) then
-     call mpp_error(FATAL, '=>fms_io_init: Error reading input.nml')
+     call mpp_error(FATAL,'=>fms_io_init: Error reading input.nml')
   endif
   call mpp_close (unit)
 #endif
