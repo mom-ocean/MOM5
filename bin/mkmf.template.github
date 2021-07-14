@@ -32,9 +32,9 @@ ifneq ($(LIBACCESSOM2_ROOT),)
   LIBS += -L$(LIBACCESSOM2_ROOT)/lib -laccessom2
 endif
 
-ifneq ($(os_version),20.04)
+ifeq ($(os_version),20.04)
   # glibc version supplies gettid function
-  CPPDEFS += '-DHAVE_GETTID'
+  CPPDEFS += -DHAVE_GETTID
 endif
 
 FPPFLAGS := $(INCLUDE)
