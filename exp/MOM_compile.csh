@@ -88,13 +88,13 @@ endif
 if ( $type == EBM ) then
     set cppDefs  = ( "-Duse_netCDF -Duse_netCDF3 -Duse_libMPI -DLAND_BND_TRACERS -DOVERLOAD_C8 -DOVERLOAD_C4 -DOVERLOAD_R4" )
 else if( $type == ACCESS-OM ) then
-    set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DACCESS -DACCESS_OM" )
+    set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DACCESS_OM" )
 else if( $type == ACCESS-OM-BGC ) then
-    set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DACCESS -DACCESS_OM -DCSIRO_BGC" )
+    set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DACCESS_OM -DCSIRO_BGC" )
 else if( $type == ACCESS-CM ) then
-    set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DACCESS -DACCESS_CM" )
+    set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DACCESS_CM" )
 else if( $type == ACCESS-ESM ) then
-    set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DACCESS -DACCESS_CM -DCSIRO_BGC" )
+    set cppDefs  = ( "-Duse_netCDF -Duse_libMPI -DACCESS_CM -DCSIRO_BGC" )
 endif
 
 if ( $unit_testing ) then
