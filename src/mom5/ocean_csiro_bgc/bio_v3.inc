@@ -143,6 +143,18 @@ do n = 1, instances  !{
   light_limit(:,:) = 0.0
   radbio3d(:,:,:) = 0.0
   npp3d(:,:,:) = 0.0
+  adic_intmld(:,:) = 0.0
+  dic_intmld(:,:) = 0.0
+  o2_intmld(:,:) = 0.0
+  no3_intmld(:,:) = 0.0
+  fe_intmld(:,:) = 0.0
+  phy_intmld(:,:) = 0.0
+  det_intmld(:,:) = 0.0
+  pprod_gross_intmld(:,:) = 0.0
+  npp_intmld(:,:) = 0.0
+  radbio_intmld(:,:) = 0.0
+  wdet100avg(:,:) = 0.0
+
 
 ! possible tracers in model
   ind_dic = biotic(n)%ind_bgc(id_dic)
@@ -401,9 +413,23 @@ do n = 1, instances  !{
         zprod_gross(i,j,k)=rdtts*zprod_gross(i,j,k)*grid%tmask(i,j,k)
         npp3d(i,j,k)=rdtts*npp3d(i,j,k)*grid%tmask(i,j,k)
 
+          if (Grid%zw(k) .le. mld(i,j)) then
+            adic_intmld(i,j) = adic_intmld(i,j) + biotr(i,k,id_adic) * thickness%dzt(i,j,k)
+            dic_intmld(i,j) = dic_intmld(i,j) + biotr(i,k,id_dic) * thickness%dzt(i,j,k)
+            o2_intmld(i,j) = o2_intmld(i,j) + biotr(i,k,id_o2) * thickness%dzt(i,j,k)
+            no3_intmld(i,j) = no3_intmld(i,j) + biotr(i,k,id_no3) * thickness%dzt(i,j,k)
+            fe_intmld(i,j) = fe_intmld(i,j) + biotr(i,k,id_fe) * thickness%dzt(i,j,k)
+            phy_intmld(i,j) = phy_intmld(i,j) + biotr(i,k,id_phy) * thickness%dzt(i,j,k)
+            det_intmld(i,j) = det_intmld(i,j) + biotr(i,k,id_det) * thickness%dzt(i,j,k)
+            pprod_gross_intmld(i,j) = pprod_gross_intmld(i,j) + pprod_gross(i,j,k) * thickness%dzt(i,j,k)
+            npp_intmld(i,j) = npp_intmld(i,j) + npp3d(i,j,k) * thickness%dzt(i,j,k)
+            radbio_intmld(i,j) = radbio_intmld(i,j) + radbio3d(i,j,k) * thickness%dzt(i,j,k)
+          endif
 
          enddo  !} i
         enddo  !} k
+
+        wdet100avg(:,:) = wdetbio(:,:)*t_prog(ind_det)%field(:,:,minloc(grid%zt(:)-100,dim=1),time%taum1)
 
 
 !RASF upstream sinking of detritus
