@@ -27,6 +27,10 @@
 
 subroutine mpp_error_basic( errortype, errormsg )
   !a very basic error handler
+#ifdef __INTEL_COMPILER
+  ! Needs special traceback module for intel compile RASF
+   use ifcore
+#endif
   !uses ABORT and FLUSH calls, may need to use cpp to rename
   integer,                    intent(in) :: errortype
   character(len=*), intent(in), optional :: errormsg
@@ -65,6 +69,10 @@ subroutine mpp_error_basic( errortype, errormsg )
         call FLUSH(out_unit)
 #ifdef sgi_mipspro
         call TRACE_BACK_STACK_AND_PRINT()
+#endif
+#ifdef __INTEL_COMPILER
+  ! Get traceback and return quietly for correct abort
+        call TRACEBACKQQ(user_exit_code=-1)
 #endif
         call MPI_ABORT( MPI_COMM_WORLD, 1, error )
      end if

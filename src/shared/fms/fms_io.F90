@@ -145,7 +145,7 @@ private
 
 
 integer, parameter, private :: max_split_file = 50
-integer, parameter, private :: max_fields=400
+integer, parameter, private :: max_fields=200
 integer, parameter, private :: max_axes=40
 integer, parameter, private :: max_atts=20
 integer, parameter, private :: max_domains = 10
@@ -544,10 +544,16 @@ logical           :: print_chksum        = .false.
 logical           :: show_open_namelist_file_warning = .false.
 logical           :: debug_mask_list     = .false.
 logical           :: checksum_required   = .true.
+! Deprecated namelist variables
+character(len=32) :: threading_write     = 'multi'
+character(len=32) :: fileset_write       = 'multi'
+
   namelist /fms_io_nml/ fms_netcdf_override, fms_netcdf_restart, &
        threading_read, format, read_all_pe, iospec_ieee32,max_files_w,max_files_r, &
        read_data_bug, time_stamp_restart, print_chksum, show_open_namelist_file_warning, &
-       debug_mask_list, checksum_required, dr_set_size
+       debug_mask_list, checksum_required, dr_set_size, &
+       threading_write, &   ! Deprecated
+       fileset_write        ! Deprecated
 
 integer            :: pack_size  ! = 1 for double = 2 for float
 
