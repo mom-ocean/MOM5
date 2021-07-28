@@ -866,7 +866,9 @@ logical,        intent(in)             :: use_higher_order
      !--- first find out number of points need to send to other pe and fill the send buffer.
      nsend1(:) = 0; nrecv1(:) = 0
      nsend2(:) = 0; nrecv2(:) = 0
-     ibuf1(:)= 0; ibuf2(:)= 0
+
+     ibuf1(:) = 0; ibuf2(:) = 0
+
 
      call mpp_clock_begin(id_load_xgrid2)
      if(nxgrid_local>0) then
@@ -918,6 +920,7 @@ logical,        intent(in)             :: use_higher_order
 
      if (do_alltoall) then
         do p = 0, npes-1
+
            ibuf1(2*p+1) = nsend1(p)
            ibuf1(2*p+2) = nsend2(p)
         enddo
@@ -943,7 +946,7 @@ logical,        intent(in)             :: use_higher_order
         nrecv1(p) = ibuf2(2*p+1)
         nrecv2(p) = ibuf2(2*p+2)
      enddo
-    
+   
      if(.not. do_alltoall) call mpp_sync_self()
      call mpp_clock_end(id_load_xgrid3)
      call mpp_clock_begin(id_load_xgrid4)
