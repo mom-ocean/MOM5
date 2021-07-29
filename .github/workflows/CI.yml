@@ -8,9 +8,9 @@ env:
 jobs:
   build:
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
-        os: [ ubuntu-18.04 ] 
+        os: [ ubuntu-18.04, ubuntu-20.04 ] 
         # gcc_v: [8, 9] # Version of GFortran we want to use.
         TYPE: 
           - MOM_solo

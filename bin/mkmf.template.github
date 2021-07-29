@@ -32,6 +32,11 @@ ifneq ($(LIBACCESSOM2_ROOT),)
   LIBS += -L$(LIBACCESSOM2_ROOT)/lib -laccessom2
 endif
 
+ifeq ($(os_version),20.04)
+  # glibc version supplies gettid function
+  CPPDEFS += -DHAVE_GETTID
+endif
+
 FPPFLAGS := $(INCLUDE)
 
 CFLAGS := -D__IFC -O2 -no-pie $(shell nc-config --cflags) -I/usr/include/openmpi $(INCLUDE)
