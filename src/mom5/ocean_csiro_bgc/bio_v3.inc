@@ -153,6 +153,16 @@ do n = 1, instances  !{
   pprod_gross_intmld(:,:) = 0.0
   npp_intmld(:,:) = 0.0
   radbio_intmld(:,:) = 0.0
+  adic_int100(:,:) = 0.0
+  dic_int100(:,:) = 0.0
+  o2_int100(:,:) = 0.0
+  no3_int100(:,:) = 0.0
+  fe_int100(:,:) = 0.0
+  phy_int100(:,:) = 0.0
+  det_int100(:,:) = 0.0
+  pprod_gross_int100(:,:) = 0.0
+  npp_int100(:,:) = 0.0
+  radbio_int100(:,:) = 0.0
   wdet100avg(:,:) = 0.0
 
 
@@ -424,6 +434,19 @@ do n = 1, instances  !{
             pprod_gross_intmld(i,j) = pprod_gross_intmld(i,j) + pprod_gross(i,j,k) * thickness%dzt(i,j,k)
             npp_intmld(i,j) = npp_intmld(i,j) + npp3d(i,j,k) * thickness%dzt(i,j,k)
             radbio_intmld(i,j) = radbio_intmld(i,j) + radbio3d(i,j,k) * thickness%dzt(i,j,k)
+          endif
+
+          if (Grid%zw(k) .le. 100) then
+            adic_int100(i,j) = adic_int100(i,j) + biotr(i,k,id_adic) * thickness%dzt(i,j,k)
+            dic_int100(i,j) = dic_int100(i,j) + biotr(i,k,id_dic) * thickness%dzt(i,j,k)
+            o2_int100(i,j) = o2_int100(i,j) + biotr(i,k,id_o2) * thickness%dzt(i,j,k)
+            no3_int100(i,j) = no3_int100(i,j) + biotr(i,k,id_no3) * thickness%dzt(i,j,k)
+            fe_int100(i,j) = fe_int100(i,j) + biotr(i,k,id_fe) * thickness%dzt(i,j,k)
+            phy_int100(i,j) = phy_int100(i,j) + biotr(i,k,id_phy) * thickness%dzt(i,j,k)
+            det_int100(i,j) = det_int100(i,j) + biotr(i,k,id_det) * thickness%dzt(i,j,k)
+            pprod_gross_int100(i,j) = pprod_gross_int100(i,j) + pprod_gross(i,j,k) * thickness%dzt(i,j,k)
+            npp_int100(i,j) = npp_int100(i,j) + npp3d(i,j,k) * thickness%dzt(i,j,k)
+            radbio_int100(i,j) = radbio_int100(i,j) + radbio3d(i,j,k) * thickness%dzt(i,j,k)
           endif
 
          enddo  !} i

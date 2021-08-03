@@ -257,6 +257,16 @@ integer                                 :: id_det_intmld = -1
 integer                                 :: id_pprod_gross_intmld = -1
 integer                                 :: id_npp_intmld = -1
 integer                                 :: id_radbio_intmld = -1
+integer                                 :: id_adic_int100 = -1
+integer                                 :: id_dic_int100 = -1
+integer                                 :: id_o2_int100 = -1
+integer                                 :: id_no3_int100 = -1
+integer                                 :: id_fe_int100 = -1
+integer                                 :: id_phy_int100 = -1
+integer                                 :: id_det_int100 = -1
+integer                                 :: id_pprod_gross_int100 = -1
+integer                                 :: id_npp_int100 = -1
+integer                                 :: id_radbio_int100 = -1
 integer                                 :: id_wdet100avg = -1
 integer                                 :: id_radbio1 = -1
 integer                                 :: id_radbio3d = -1
@@ -330,7 +340,9 @@ real, allocatable, dimension(:) :: fmin_pic
 real, allocatable, dimension(:,:,:) :: biotr
 real, allocatable, dimension(:,:) :: light_limit
 real, allocatable, dimension(:,:) :: adic_intmld,dic_intmld,o2_intmld,no3_intmld,fe_intmld,phy_intmld,det_intmld
+real, allocatable, dimension(:,:) :: adic_int100,dic_int100,o2_int100,no3_int100,fe_int100,phy_int100,det_int100
 real, allocatable, dimension(:,:) :: pprod_gross_intmld,npp_intmld,radbio_intmld,wdet100avg
+real, allocatable, dimension(:,:) :: pprod_gross_int100,npp_int100,radbio_int100
 real, allocatable, dimension(:,:,:) :: radbio3d
 real, allocatable, dimension(:,:) :: wdet100
 real, allocatable, dimension(:,:) :: npp2d
@@ -486,12 +498,23 @@ allocate( light_limit(isc:iec,jsc:jec) )
 allocate( adic_intmld(isc:iec,jsc:jec) )
 allocate( dic_intmld(isc:iec,jsc:jec) )
 allocate( o2_intmld(isc:iec,jsc:jec) )
+allocate( fe_intmld(isc:iec,jsc:jec) )
 allocate( no3_intmld(isc:iec,jsc:jec) )
 allocate( phy_intmld(isc:iec,jsc:jec) )
 allocate( det_intmld(isc:iec,jsc:jec) )
 allocate( pprod_gross_intmld(isc:iec,jsc:jec) )
 allocate( npp_intmld(isc:iec,jsc:jec) )
 allocate( radbio_intmld(isc:iec,jsc:jec) )
+allocate( adic_int100(isc:iec,jsc:jec) )
+allocate( dic_int100(isc:iec,jsc:jec) )
+allocate( o2_int100(isc:iec,jsc:jec) )
+allocate( fe_int100(isc:iec,jsc:jec) )
+allocate( no3_int100(isc:iec,jsc:jec) )
+allocate( phy_int100(isc:iec,jsc:jec) )
+allocate( det_int100(isc:iec,jsc:jec) )
+allocate( pprod_gross_int100(isc:iec,jsc:jec) )
+allocate( npp_int100(isc:iec,jsc:jec) )
+allocate( radbio_int100(isc:iec,jsc:jec) )
 allocate( wdet100avg(isc:iec,jsc:jec) )
 allocate( radbio3d(isc:iec,jsc:jec,nk) )
 allocate( wdet100(isc:iec,jsc:jec) )
@@ -2012,6 +2035,47 @@ if (id_radbio_intmld .gt. 0) then
        time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
 endif
 
+if (id_adic_int100 .gt. 0) then
+  used = send_data(id_adic_int100, adic_int100(isc:iec,jsc:jec),          &
+       time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
+endif
+if (id_dic_int100 .gt. 0) then
+  used = send_data(id_dic_int100, dic_int100(isc:iec,jsc:jec),          &
+       time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
+endif
+if (id_o2_int100 .gt. 0) then
+  used = send_data(id_o2_int100, o2_int100(isc:iec,jsc:jec),          &
+       time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
+endif
+if (id_no3_int100 .gt. 0) then
+  used = send_data(id_no3_int100, no3_int100(isc:iec,jsc:jec),          &
+       time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
+endif
+if (id_fe_int100 .gt. 0) then
+  used = send_data(id_fe_int100, fe_int100(isc:iec,jsc:jec),          &
+       time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
+endif
+if (id_phy_int100 .gt. 0) then
+  used = send_data(id_phy_int100, phy_int100(isc:iec,jsc:jec),          &
+       time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
+endif
+if (id_det_int100 .gt. 0) then
+  used = send_data(id_det_int100, det_int100(isc:iec,jsc:jec),          &
+       time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
+endif
+if (id_pprod_gross_int100 .gt. 0) then
+  used = send_data(id_pprod_gross_int100, pprod_gross_int100(isc:iec,jsc:jec),          &
+       time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
+endif
+if (id_npp_int100 .gt. 0) then
+  used = send_data(id_npp_int100, npp_int100(isc:iec,jsc:jec),          &
+       time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
+endif
+if (id_radbio_int100 .gt. 0) then
+  used = send_data(id_radbio_int100, radbio_int100(isc:iec,jsc:jec),          &
+       time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
+endif
+
 !detritus sinking at 100 m
 if (id_wdet100avg .gt. 0) then
   used = send_data(id_wdet100avg, wdet100avg(isc:iec,jsc:jec),          &
@@ -2382,6 +2446,37 @@ id_npp_intmld = register_diag_field('ocean_model','npp_intmld', &
 id_radbio_intmld = register_diag_field('ocean_model','radbio_intmld', &
      grid%tracer_axes(1:2),Time%model_time, 'MLD-integrated radbio', &
      ' ',missing_value = -1.0e+10)     
+
+     id_adic_int100 = register_diag_field('ocean_model','adic_int100', &
+     grid%tracer_axes(1:2),Time%model_time, '100m-integrated adic', &
+     ' ',missing_value = -1.0e+10)
+id_dic_int100 = register_diag_field('ocean_model','dic_int100', &
+     grid%tracer_axes(1:2),Time%model_time, '100m-integrated dic', &
+     ' ',missing_value = -1.0e+10)     
+id_o2_int100 = register_diag_field('ocean_model','o2_int100', &
+     grid%tracer_axes(1:2),Time%model_time, '100m-integrated o2', &
+     ' ',missing_value = -1.0e+10)     
+id_no3_int100 = register_diag_field('ocean_model','no3_int100', &
+     grid%tracer_axes(1:2),Time%model_time, '100m-integrated no3', &
+     ' ',missing_value = -1.0e+10)     
+id_fe_int100 = register_diag_field('ocean_model','fe_int100', &
+     grid%tracer_axes(1:2),Time%model_time, '100m-integrated fe', &
+     ' ',missing_value = -1.0e+10)     
+id_phy_int100 = register_diag_field('ocean_model','phy_int100', &
+     grid%tracer_axes(1:2),Time%model_time, '100m-integrated phy', &
+     ' ',missing_value = -1.0e+10)     
+id_det_int100 = register_diag_field('ocean_model','det_int100', &
+     grid%tracer_axes(1:2),Time%model_time, '100m-integrated det', &
+     ' ',missing_value = -1.0e+10)     
+id_pprod_gross_int100 = register_diag_field('ocean_model','pprod_gross_int100', &
+     grid%tracer_axes(1:2),Time%model_time, '100m-integrated pprod_gross', &
+     ' ',missing_value = -1.0e+10)     
+id_npp_int100 = register_diag_field('ocean_model','npp_int100', &
+     grid%tracer_axes(1:2),Time%model_time, '100m-integrated npp', &
+     ' ',missing_value = -1.0e+10)     
+id_radbio_int100 = register_diag_field('ocean_model','radbio_int100', &
+     grid%tracer_axes(1:2),Time%model_time, '100m-integrated radbio', &
+     ' ',missing_value = -1.0e+10)   
 
 id_wdet100avg = register_diag_field('ocean_model','wdet100avg', &
      grid%tracer_axes(1:2),Time%model_time, 'detritus sinking at 100 m', &
