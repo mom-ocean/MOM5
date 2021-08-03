@@ -163,7 +163,6 @@ do n = 1, instances  !{
   pprod_gross_int100(:,:) = 0.0
   npp_int100(:,:) = 0.0
   radbio_int100(:,:) = 0.0
-  wdet100avg(:,:) = 0.0
 
 
 ! possible tracers in model
@@ -451,9 +450,6 @@ do n = 1, instances  !{
 
          enddo  !} i
         enddo  !} k
-
-        wdet100avg(:,:) = wdetbio(:,:)*t_prog(ind_det)%field(:,:,minloc(grid%zt(:)-100,dim=1),time%taum1)
-
 
 !RASF upstream sinking of detritus
 ! change field(..,k,..) to field(..,k-1,..), mac apr10

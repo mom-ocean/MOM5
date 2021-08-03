@@ -267,7 +267,6 @@ integer                                 :: id_det_int100 = -1
 integer                                 :: id_pprod_gross_int100 = -1
 integer                                 :: id_npp_int100 = -1
 integer                                 :: id_radbio_int100 = -1
-integer                                 :: id_wdet100avg = -1
 integer                                 :: id_radbio1 = -1
 integer                                 :: id_radbio3d = -1
 integer                                 :: id_wdet100 = -1
@@ -341,7 +340,7 @@ real, allocatable, dimension(:,:,:) :: biotr
 real, allocatable, dimension(:,:) :: light_limit
 real, allocatable, dimension(:,:) :: adic_intmld,dic_intmld,o2_intmld,no3_intmld,fe_intmld,phy_intmld,det_intmld
 real, allocatable, dimension(:,:) :: adic_int100,dic_int100,o2_int100,no3_int100,fe_int100,phy_int100,det_int100
-real, allocatable, dimension(:,:) :: pprod_gross_intmld,npp_intmld,radbio_intmld,wdet100avg
+real, allocatable, dimension(:,:) :: pprod_gross_intmld,npp_intmld,radbio_intmld
 real, allocatable, dimension(:,:) :: pprod_gross_int100,npp_int100,radbio_int100
 real, allocatable, dimension(:,:,:) :: radbio3d
 real, allocatable, dimension(:,:) :: wdet100
@@ -515,7 +514,6 @@ allocate( det_int100(isc:iec,jsc:jec) )
 allocate( pprod_gross_int100(isc:iec,jsc:jec) )
 allocate( npp_int100(isc:iec,jsc:jec) )
 allocate( radbio_int100(isc:iec,jsc:jec) )
-allocate( wdet100avg(isc:iec,jsc:jec) )
 allocate( radbio3d(isc:iec,jsc:jec,nk) )
 allocate( wdet100(isc:iec,jsc:jec) )
 allocate( npp2d(isc:iec,jsc:jec) )
@@ -2076,12 +2074,6 @@ if (id_radbio_int100 .gt. 0) then
        time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
 endif
 
-!detritus sinking at 100 m
-if (id_wdet100avg .gt. 0) then
-  used = send_data(id_wdet100avg, wdet100avg(isc:iec,jsc:jec),          &
-       time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
-endif
-
 ! PAR for phytoplankton at surface.
 
 if (id_radbio1 .gt. 0) then
@@ -2476,11 +2468,7 @@ id_npp_int100 = register_diag_field('ocean_model','npp_int100', &
      ' ',missing_value = -1.0e+10)     
 id_radbio_int100 = register_diag_field('ocean_model','radbio_int100', &
      grid%tracer_axes(1:2),Time%model_time, '100m-integrated radbio', &
-     ' ',missing_value = -1.0e+10)   
-
-id_wdet100avg = register_diag_field('ocean_model','wdet100avg', &
-     grid%tracer_axes(1:2),Time%model_time, 'detritus sinking at 100 m', &
-     ' ',missing_value = -1.0e+10)     
+     ' ',missing_value = -1.0e+10)      
 
 id_radbio1 = register_diag_field('ocean_model','radbio1', &
      grid%tracer_axes(1:2),Time%model_time, 'Photosynthetically active radiation for phytoplankton growth at surface', &
