@@ -1018,9 +1018,8 @@ call time_interp_external(nat_co2_id, time%model_time, nat_co2)
 if (gasx_from_file) then
         call time_interp_external(atmpress_id, time%model_time, patm_t)
 else !use the sea level pressure from the forcing (convert Pa to atm)
-        !THIS HAS NOT BEEN IMPLEMENTED YET. READ INPUT FILE FOR NOW...
-        call time_interp_external(atmpress_id, time%model_time, patm_t)
-        !patm_t(isc:iec,jsc:jec) = patm(isc:iec,jsc:jec)/101325
+        !THIS HAS NOT BEEN IMPLEMENTED YET. SET TO 1 ATM FOR NOW...
+        patm_t(isc:iec,jsc:jec) = 1.0
 endif
 call time_interp_external(dust_id, time%model_time, dust_t)
 if (id_adic .ne. 0) then
@@ -2215,14 +2214,16 @@ call allocate_arrays(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Domain%isd,
 !       Open up the files for boundary conditions
 !-----------------------------------------------------------------------
 
-atmpress_id = init_external_field(atmpress_file,                &
+if (gasx_from_file) then
+   atmpress_id = init_external_field(atmpress_file,                &
                                   atmpress_name,                &
                                   domain = Domain%domain2d)
-if (atmpress_id .eq. 0) then  !{
-  call mpp_error(FATAL, trim(error_header) //                   &
+   if (atmpress_id .eq. 0) then  !{
+      call mpp_error(FATAL, trim(error_header) //                   &
        'Could not open atmpress file: ' //                      &
        trim(atmpress_file))
-endif  !}
+   endif  !}
+endif
 
 if (gasx_from_file) then
    pistonveloc_id = init_external_field(pistonveloc_file,          &
