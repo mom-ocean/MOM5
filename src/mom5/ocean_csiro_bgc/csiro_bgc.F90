@@ -1364,6 +1364,15 @@ if (.not. use_waterflux)  then  !{
           t_prog(ind_trc)%stf(i,j) =                  &
                t_prog(ind_trc)%stf(i,j) +             &
                biotic(n)%vstf(i,j,nn)
+          if (ind_trc == ind_no3) then
+                  t_prog(ind_trc)%stf(i,j) = &
+                  t_prog(ind_trc)%stf(i,j) + &
+                  iof_nit(i,j)
+          else if (ind_trc == ind_phy) then
+                  t_prog(ind_trc)%stf(i,j) = &
+                  t_prog(ind_trc)%stf(i,j) + &
+                  iof_alg(i,j)
+          end if
         enddo  !} i
       enddo  !} j
     enddo !} nn
