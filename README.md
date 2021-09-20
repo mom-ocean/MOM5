@@ -1,6 +1,6 @@
 | Compile | Model run (fast) | Bit Repro (fast)|
 | :-------: | :--------: | :--------: |
-| [![Build Status](https://travis-ci.org/mom-ocean/MOM5.svg?branch=master)](https://travis-ci.org/mom-ocean/MOM5) | [![Fast model run](https://accessdev.nci.org.au/jenkins/buildStatus/icon?job=mom-ocean.org/MOM5_run)](https://accessdev.nci.org.au/jenkins/buildStatus/icon?job=mom-ocean.org/MOM5_run) | [![Bit Reproducibility](https://accessdev.nci.org.au/jenkins/buildStatus/icon?job=mom-ocean.org/MOM5_bit_reproducibility)](https://accessdev.nci.org.au/jenkins/buildStatus/icon?job=mom-ocean.org/MOM5_bit_reproducibility) |
+| [![GitHub Build Status](https://github.com/mom-ocean/MOM5/workflows/CI/badge.svg)](https://github.com/mom-ocean/MOM5/actions?query=workflow%3ACI) | [![Fast model run](https://accessdev.nci.org.au/jenkins/buildStatus/icon?job=mom-ocean.org/MOM5_run)](https://accessdev.nci.org.au/jenkins/buildStatus/icon?job=mom-ocean.org/MOM5_run) | [![Bit Reproducibility](https://accessdev.nci.org.au/jenkins/buildStatus/icon?job=mom-ocean.org/MOM5_bit_reproducibility)](https://accessdev.nci.org.au/jenkins/buildStatus/icon?job=mom-ocean.org/MOM5_bit_reproducibility) |
 
 
 # The Modular Ocean Model

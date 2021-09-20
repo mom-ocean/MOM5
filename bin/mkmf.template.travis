@@ -7,7 +7,7 @@
 ############
 
 FC = mpif90
-CC = gcc
+CC = mpicc
 LD = mpif90  $(MAIN_PROGRAM)
 
 #########
