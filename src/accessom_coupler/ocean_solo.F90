@@ -248,6 +248,8 @@ program main
 
   ! Use accessom2 configuration to initial date and runtime
   date_init(:) = accessom2%get_cur_exp_date_array()
+  ! Set default run date to initial date
+  date(:) = date_init(:)
   dt_cpld = accessom2%get_ice_ocean_timestep()
   years = 0
   months = 0
