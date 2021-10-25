@@ -1364,15 +1364,6 @@ if (.not. use_waterflux)  then  !{
           t_prog(ind_trc)%stf(i,j) =                  &
                t_prog(ind_trc)%stf(i,j) +             &
                biotic(n)%vstf(i,j,nn)
-          if (ind_trc == ind_no3) then
-                  t_prog(ind_trc)%stf(i,j) = &
-                  t_prog(ind_trc)%stf(i,j) + &
-                  iof_nit(i,j)
-          else if (ind_trc == ind_phy) then
-                  t_prog(ind_trc)%stf(i,j) = &
-                  t_prog(ind_trc)%stf(i,j) + &
-                  iof_alg(i,j)
-          end if
         enddo  !} i
       enddo  !} j
     enddo !} nn
@@ -1397,7 +1388,7 @@ end subroutine  csiro_bgc_sbc  !}
 !      mac, dec12.
 ! </DESCRIPTION>
 
-subroutine csiro_bgc_virtual_fluxes(isc, iec, jsc, jec, isd, ied, jsd, jed, salt_vstf, T_prog)  !{
+subroutine csiro_bgc_virtual_fluxes(isc, iec, jsc, jec, isd, ied, jsd, jed, salt_vstf, T_prog, iof_nit, iof_alg)  !{
 
 !-----------------------------------------------------------------------
 !       arguments
@@ -1405,6 +1396,7 @@ subroutine csiro_bgc_virtual_fluxes(isc, iec, jsc, jec, isd, ied, jsd, jed, salt
 
 integer, intent(in)                          :: isc, iec, jsc, jec, isd, ied, jsd, jed
 real, intent(in), dimension(isd:ied,jsd:jed) :: salt_vstf    ! virtual salt flux.  
+real, intent(in), dimension(isd:ied,jsd:jed), optional          :: iof_nit, iof_alg
 type(ocean_prog_tracer_type), dimension(:), intent(inout) :: T_prog
 
 
@@ -1432,6 +1424,15 @@ integer  :: i, j, n, nn, ntr_bgc, ind_trc
           t_prog(ind_trc)%stf(i,j) =                  &
                t_prog(ind_trc)%stf(i,j) +             &
                biotic(n)%vstf(i,j,nn)
+          if (ind_trc == ind_no3) then
+                  t_prog(ind_trc)%stf(i,j) = &
+                  t_prog(ind_trc)%stf(i,j) + &
+                  iof_nit(i,j)
+          else if (ind_trc == ind_phy) then
+                  t_prog(ind_trc)%stf(i,j) = &
+                  t_prog(ind_trc)%stf(i,j) + &
+                  iof_alg(i,j)
+          end if
         enddo  !} i
       enddo  !} j
     enddo !} nn
