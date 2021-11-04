@@ -1696,6 +1696,7 @@ contains
     endif
 
     uf = 0.0; vf = 0.0
+    uf0 = 0.0; vf0 = 0.0 !Must have a value in case of no subcycling
     do k=2,km
        call ice_advect(uc, vc, Ice%part_size(:,:,k))
        call ice_advect(uc, vc, Ice%h_snow   (:,:,k), uf0, vf0)
