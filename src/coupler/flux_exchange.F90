@@ -429,9 +429,10 @@ real, dimension(3) :: ccc ! for conservation checks
 !  DIRECT: same physical grid, same domain decomposition, can directly copy data
 integer, parameter :: REGRID=1, REDIST=2, DIRECT=3
 !Balaji: clocks moved into flux_exchange
-  integer :: cplClock, sfcClock, fluxAtmDnClock, fluxLandIceClock, &
-             fluxIceOceanClock, fluxOceanIceClock, regenClock, fluxAtmUpClock, &
-             cplOcnClock
+!RASF Initialise to zero irrespective  of model component
+  integer :: cplClock=0, sfcClock=0, fluxAtmDnClock=0, fluxLandIceClock=0, &
+             fluxIceOceanClock=0, fluxOceanIceClock=0, regenClock=0, fluxAtmUpClock=0, &
+             cplOcnClock=0
 
   logical :: ocn_pe, ice_pe
   integer, allocatable, dimension(:) :: ocn_pelist, ice_pelist
