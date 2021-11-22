@@ -4687,8 +4687,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
           ! if salt fluxes are used to restore salinity, then virtual fluxes are
           ! needed for csiro BGC tracers. mac, dec12.
           if (do_csiro_bgc) then
-            call csiro_bgc_virtual_fluxes(isc, iec, jsc, jec, isd, ied, jsd, jed, flx_restore, T_prog, &
-            iof_nit=iof_nit, iof_alg=iof_alg)
+            call csiro_bgc_virtual_fluxes(isc, iec, jsc, jec, isd, ied, jsd, jed, flx_restore, T_prog)
           endif
 #endif
 

@@ -1344,6 +1344,28 @@ if (id_fe.ne.0) then
   enddo  !} n
 endif
 
+!ice-to-ocean flux of algae
+if (id_phy.ne.0) then
+  do n = 1, instances  !{
+    do j = jsc, jec  !{
+      do i = isc, iec  !{
+        t_prog(ind_phy)%stf(i,j) = iof_alg(i,j)
+      enddo  !} i
+    enddo  !} j
+  enddo  !} n
+endif
+!ice-to-ocean flux of nitrate
+if (id_no3.ne.0) then
+  do n = 1, instances  !{
+    do j = jsc, jec  !{
+      do i = isc, iec  !{
+        t_prog(ind_no3)%stf(i,j) = iof_nit(i,j)
+      enddo  !} i
+    enddo  !} j
+  enddo  !} n
+endif
+
+
 if (.not. use_waterflux)  then  !{
 ! rjm - One only needs to compute virtual fluxes if waterflux is not used
 ! NB, when this routine is called, t_prog(ind_sal)%stf() only has applied fluxes
@@ -1388,7 +1410,7 @@ end subroutine  csiro_bgc_sbc  !}
 !      mac, dec12.
 ! </DESCRIPTION>
 
-subroutine csiro_bgc_virtual_fluxes(isc, iec, jsc, jec, isd, ied, jsd, jed, salt_vstf, T_prog, iof_nit, iof_alg)  !{
+subroutine csiro_bgc_virtual_fluxes(isc, iec, jsc, jec, isd, ied, jsd, jed, salt_vstf, T_prog)  !{
 
 !-----------------------------------------------------------------------
 !       arguments
@@ -1396,7 +1418,6 @@ subroutine csiro_bgc_virtual_fluxes(isc, iec, jsc, jec, isd, ied, jsd, jed, salt
 
 integer, intent(in)                          :: isc, iec, jsc, jec, isd, ied, jsd, jed
 real, intent(in), dimension(isd:ied,jsd:jed) :: salt_vstf    ! virtual salt flux.  
-real, intent(in), dimension(isd:ied,jsd:jed), optional          :: iof_nit, iof_alg
 type(ocean_prog_tracer_type), dimension(:), intent(inout) :: T_prog
 
 
@@ -1424,15 +1445,6 @@ integer  :: i, j, n, nn, ntr_bgc, ind_trc
           t_prog(ind_trc)%stf(i,j) =                  &
                t_prog(ind_trc)%stf(i,j) +             &
                biotic(n)%vstf(i,j,nn)
-          if (ind_trc == ind_no3) then
-                  t_prog(ind_trc)%stf(i,j) = &
-                  t_prog(ind_trc)%stf(i,j) + &
-                  iof_nit(i,j)
-          else if (ind_trc == ind_phy) then
-                  t_prog(ind_trc)%stf(i,j) = &
-                  t_prog(ind_trc)%stf(i,j) + &
-                  iof_alg(i,j)
-          end if
         enddo  !} i
       enddo  !} j
     enddo !} nn
