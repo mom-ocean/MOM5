@@ -99,13 +99,17 @@ jobs:
           repository: mom-ocean/MOM5-examples
           path: MOM5-examples
 
-    # Run bowl1 from cold start, and then warm start
-    - name: Run bowl1
+    - name: Run bowl1 cold start
       if: startsWith(matrix.TYPE, 'MOM_solo')
       working-directory: MOM5-examples/bowl1
       run: |
         mpirun -n 4 --oversubscribe ${{ github.workspace }}/exec/github/MOM_solo/fms_MOM_solo.x
         rm *.nc.*
         mv RESTART/* INPUT
+
+    - name: Run bowl1 warm start
+      if: startsWith(matrix.TYPE, 'MOM_solo')
+      working-directory: MOM5-examples/bowl1
+      run: |
         mpirun -n 4 --oversubscribe ${{ github.workspace }}/exec/github/MOM_solo/fms_MOM_solo.x
     # ----------
