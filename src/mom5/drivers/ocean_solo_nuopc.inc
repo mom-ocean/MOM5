@@ -436,6 +436,8 @@ module ocean_solo_mod
         read(unit,*) date_init
         read(unit,*) date
         call mpp_close(unit)
+    else
+      date_restart = date
     endif
 
     if (file_exist('INPUT/ocean_solo.intermediate.res')) then
