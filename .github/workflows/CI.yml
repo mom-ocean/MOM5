@@ -89,3 +89,27 @@ jobs:
       run: |
         env
         ./MOM_compile.csh --type ${{ matrix.TYPE }} --platform github --use_netcdf4
+
+    # ----------
+    # Test MOM-solo only currently
+    - name: Download config
+      if: startsWith(matrix.TYPE, 'MOM_solo')
+      uses: actions/checkout@v2
+      with: 
+          repository: mom-ocean/MOM5-examples
+          path: MOM5-examples
+
+    - name: Run bowl1 cold start
+      if: startsWith(matrix.TYPE, 'MOM_solo')
+      working-directory: MOM5-examples/bowl1
+      run: |
+        mpirun -n 4 --oversubscribe ${{ github.workspace }}/exec/github/MOM_solo/fms_MOM_solo.x
+        rm *.nc.*
+        mv RESTART/* INPUT
+
+    - name: Run bowl1 warm start
+      if: startsWith(matrix.TYPE, 'MOM_solo')
+      working-directory: MOM5-examples/bowl1
+      run: |
+        mpirun -n 4 --oversubscribe ${{ github.workspace }}/exec/github/MOM_solo/fms_MOM_solo.x
+    # ----------
