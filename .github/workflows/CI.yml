@@ -97,10 +97,11 @@ jobs:
       uses: actions/checkout@v2
       with: 
           repository: mom-ocean/MOM5-examples
+          path: MOM5-examples
 
     - name: Run bowl1
       if: startsWith(matrix.TYPE, 'MOM_solo')
-      working-directory: ./MOM5-examples/bowl1
+      working-directory: MOM5-examples/bowl1
       run: |
         ls -R {{ github.workspace }}
         mpirun -n 4 --oversubscribe ${{ github.workspace }}/exec/github/MOM_solo/fms_MOM_solo.x
