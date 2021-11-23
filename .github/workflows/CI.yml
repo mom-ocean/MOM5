@@ -102,6 +102,7 @@ jobs:
       if: startsWith(matrix.TYPE, 'MOM_solo')
       working-directory: ./MOM5-examples/bowl1
       run: |
-        mpirun -n 4 --oversubscribe ${{ github.workspace }}/exec/nci/MOM_solo/fms_MOM_solo.x
+        ls -R {{ github.workspace }}
+        mpirun -n 4 --oversubscribe ${{ github.workspace }}/exec/github/MOM_solo/fms_MOM_solo.x
 
     # ----------
