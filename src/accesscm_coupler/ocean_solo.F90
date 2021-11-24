@@ -268,6 +268,8 @@ program main
       read(unit,*) date_init
       read(unit,*) date
       call mpp_close(unit)
+  else
+      date = date_init
   endif
 
   if (file_exist('INPUT/ocean_solo.intermediate.res')) then
