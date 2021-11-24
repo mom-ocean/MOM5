@@ -845,7 +845,6 @@ subroutine diagnose_3d_mask(Time, mask, id_name, data, nk_lim, use_mask, abs_max
 
     logical :: use_mask_, used
     integer :: nk_lim_
-!    real, dimension(isd:ied,jsd:jed,nk) :: threshold_mask
     real, dimension(:,:,:), allocatable :: threshold_mask
 
     nk_lim_ = nk
