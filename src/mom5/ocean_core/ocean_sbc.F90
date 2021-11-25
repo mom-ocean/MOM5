@@ -5646,10 +5646,10 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   call diagnose_2d(Time, Grd, id_swflx, swflx(:,:))
 
   ! visible and near-infrared components of shortwave radiation (direct and diffuse)
-  call diagnose_2d(Time, Grd, id_sw_flux_vis_dif, sw_flux_vis_dif(:,:))
-  call diagnose_2d(Time, Grd, id_sw_flux_vis_dir, sw_flux_vis_dir(:,:))
-  call diagnose_2d(Time, Grd, id_sw_flux_nir_dif, sw_flux_nir_dif(:,:))
-  call diagnose_2d(Time, Grd, id_sw_flux_nir_dir, sw_flux_nir_dir(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_vis_dif, Ice_ocean_boundary%sw_flux_vis_dif(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_vis_dir, Ice_ocean_boundary%sw_flux_vis_dir(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_nir_dif, Ice_ocean_boundary%sw_flux_nir_dif(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_nir_dir, Ice_ocean_boundary%sw_flux_nir_dir(:,:))
 
   ! total shortwave heat transport (Watts)
   call diagnose_sum(Time, Grd, Dom, id_total_ocean_swflx, swflx, 1e-15)
