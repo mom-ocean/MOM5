@@ -620,6 +620,8 @@ integer :: id_ustokes      =-1
 integer :: id_vstokes      =-1
 integer :: id_stokes_depth =-1
 
+integer :: id_u10 = -1
+
 integer :: id_ustoke          =-1
 integer :: id_vstoke          =-1
 integer :: id_wavlen          =-1
@@ -642,6 +644,11 @@ integer :: id_ekman_we       =-1
 integer :: id_ekman_heat     =-1
 integer :: id_swflx          =-1
 integer :: id_swflx_vis      =-1
+
+integer :: id_sw_flux_vis_dir = -1
+integer :: id_sw_flux_vis_dif = -1
+integer :: id_sw_flux_nir_dir = -1
+integer :: id_sw_flux_nir_dif = -1
 
 integer :: id_lw_heat            =-1
 integer :: id_sens_heat          =-1
@@ -1722,6 +1729,11 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
        missing_value=missing_value,range=(/-10.,10./),                       &
        standard_name='surface stokes drift y-velocity')
 
+  id_u10 = register_diag_field('ocean_model','u10', Grd%tracer_axes(1:2),&
+       Time%model_time, 'Wind speed', 'm/s',                   &
+       missing_value=missing_value,range=(/-10.,10./),                       &
+       standard_name='Magntiude of wind velocity')
+
   id_wavlen = register_diag_field('ocean_model','ww3 wavlen', Grd%tracer_axes(1:2),  &
        Time%model_time, 'mean wave length', 'm')
   
@@ -1921,6 +1933,22 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
   id_swflx_vis = register_diag_field('ocean_model','swflx_vis', Grd%tracer_axes(1:2),&
        Time%model_time, 'visible shortwave into ocean (>0 heats ocean)', 'W/m^2' ,   &
        missing_value=missing_value,range=(/-1.e10,1.e10/))   
+
+  id_sw_flux_vis_dir = register_diag_field('ocean_model','sw_flux_vis_dir', Grd%tracer_axes(1:2),&
+      Time%model_time, 'direct visible shortwave radiation [W m-2] (>0 heats ocean)', 'W/m^2' ,  &
+      missing_value=missing_value,range=(/-1.e10,1.e10/)) 
+
+  id_sw_flux_vis_dif = register_diag_field('ocean_model','sw_flux_vis_dif', Grd%tracer_axes(1:2),&
+      Time%model_time, 'diffuse visible shortwave radiation [W m-2] (>0 heats ocean)', 'W/m^2' , &
+      missing_value=missing_value,range=(/-1.e10,1.e10/)) 
+
+  id_sw_flux_nir_dir = register_diag_field('ocean_model','sw_flux_nir_dir', Grd%tracer_axes(1:2),&
+      Time%model_time, 'direct near-infrared visible shortwave radiation [W m-2] (>0 heats ocean)', 'W/m^2',&
+      missing_value=missing_value,range=(/-1.e10,1.e10/)) 
+
+  id_sw_flux_nir_dif = register_diag_field('ocean_model','sw_flux_nir_dif', Grd%tracer_axes(1:2),&
+      Time%model_time, 'diffuse near-infrared visible shortwave radiation [W m-2] (>0 heats ocean)', 'W/m^2',&
+      missing_value=missing_value,range=(/-1.e10,1.e10/)) 
 
   id_evap_heat = register_diag_field('ocean_model','evap_heat', Grd%tracer_axes(1:2),&
        Time%model_time, 'latent heat flux into ocean (<0 cools ocean)', 'W/m^2',     &
@@ -3372,6 +3400,7 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
      enddo
   enddo
   call mpp_update_domains(Velocity%u10(:,:)  , Dom%domain2d)
+  call diagnose_2d(Time, Grd, id_u10, Velocity%u10(:,:))
 
   !------- Calculate Langmuir turbulence enhancement and stokes drift if do_langmuir is true ------------------------
     if ( do_langmuir ) then 
@@ -5615,6 +5644,13 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
   ! shortwave flux (W/m2)
   call diagnose_2d(Time, Grd, id_swflx, swflx(:,:))
+
+  ! visible and near-infrared components of shortwave radiation (direct and diffuse)
+  call diagnose_2d(Time, Grd, id_sw_flux_vis_dif,  sw_flux_vis_dif(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_vis_dir,  sw_flux_vis_dir(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_nir_dif,  sw_flux_nir_dif(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_nir_dir,  sw_flux_nir_dir(:,:))
+
   ! total shortwave heat transport (Watts)
   call diagnose_sum(Time, Grd, Dom, id_total_ocean_swflx, swflx, 1e-15)
   ! swflx impacts on water mass transformation in neutral density classes 
