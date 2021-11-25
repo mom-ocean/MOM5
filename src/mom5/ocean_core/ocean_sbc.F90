@@ -1731,7 +1731,7 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
 
   id_u10 = register_diag_field('ocean_model','u10', Grd%tracer_axes(1:2),&
        Time%model_time, 'Wind speed', 'm/s',                   &
-       missing_value=missing_value,range=(/-10.,10./),                       &
+       missing_value=missing_value,range=(/-100.,100./),                       &
        standard_name='Magntiude of wind velocity')
 
   id_wavlen = register_diag_field('ocean_model','ww3 wavlen', Grd%tracer_axes(1:2),  &
@@ -5646,10 +5646,10 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   call diagnose_2d(Time, Grd, id_swflx, swflx(:,:))
 
   ! visible and near-infrared components of shortwave radiation (direct and diffuse)
-  call diagnose_2d(Time, Grd, id_sw_flux_vis_dif,  sw_flux_vis_dif(:,:))
-  call diagnose_2d(Time, Grd, id_sw_flux_vis_dir,  sw_flux_vis_dir(:,:))
-  call diagnose_2d(Time, Grd, id_sw_flux_nir_dif,  sw_flux_nir_dif(:,:))
-  call diagnose_2d(Time, Grd, id_sw_flux_nir_dir,  sw_flux_nir_dir(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_vis_dif, sw_flux_vis_dif(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_vis_dir, sw_flux_vis_dir(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_nir_dif, sw_flux_nir_dif(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_nir_dir, sw_flux_nir_dir(:,:))
 
   ! total shortwave heat transport (Watts)
   call diagnose_sum(Time, Grd, Dom, id_total_ocean_swflx, swflx, 1e-15)
