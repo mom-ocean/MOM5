@@ -1927,12 +1927,12 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
 
   id_swflx = register_diag_field('ocean_model','swflx', Grd%tracer_axes(1:2),  &
        Time%model_time, 'shortwave flux into ocean (>0 heats ocean)', 'W/m^2', &
-       missing_value=missing_value,range=(/-1.e10,1.e10/),                     &
+       missing_value=4*missing_value,range=(/-1.e10,1.e10/),                     &
        standard_name='surface_net_downward_shortwave_flux')   
 
   id_swflx_vis = register_diag_field('ocean_model','swflx_vis', Grd%tracer_axes(1:2),&
        Time%model_time, 'visible shortwave into ocean (>0 heats ocean)', 'W/m^2' ,   &
-       missing_value=missing_value,range=(/-1.e10,1.e10/))   
+       missing_value=2*missing_value,range=(/-1.e10,1.e10/))   
 
   id_sw_flux_vis_dir = register_diag_field('ocean_model','sw_flux_vis_dir', Grd%tracer_axes(1:2),&
       Time%model_time, 'direct visible shortwave radiation [W m-2] (>0 heats ocean)', 'W/m^2' ,  &
