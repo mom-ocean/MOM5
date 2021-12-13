@@ -175,6 +175,7 @@
 
       if( debug )then
           call SYSTEM_CLOCK(tick)
+	  stdout_unit = stdout()
           write( stdout_unit,'(a,i18,a,i6,a,2i6,2i8)' )&
                'T=',tick, ' PE=',pe, ' MPP_BROADCAST begin: from_pe, length=', from_pe, length
       end if

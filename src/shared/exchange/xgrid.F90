@@ -477,9 +477,15 @@ end type xmap_type
  integer :: id_get_2_from_xgrid = 0
  integer :: id_put_2_to_xgrid = 0
  integer :: id_setup_xmap = 0
- integer :: id_load_xgrid1, id_load_xgrid2, id_load_xgrid3
- integer :: id_load_xgrid4, id_load_xgrid5
- integer :: id_load_xgrid, id_set_comm, id_regen, id_conservation_check
+ integer :: id_load_xgrid1 = 0
+ integer :: id_load_xgrid2 = 0
+ integer :: id_load_xgrid3 = 0
+ integer :: id_load_xgrid4 = 0
+ integer :: id_load_xgrid5 = 0
+ integer :: id_load_xgrid = 0
+ integer :: id_set_comm = 0
+ integer :: id_regen = 0
+ integer :: id_conservation_check = 0
 
 
  ! The following is for nested model

@@ -5,8 +5,8 @@
 ;
 [subrepo]
 	remote = git@github.com:mom-ocean/FMS.git
-	branch = master
-	commit = b784c9e825f8e2858e4c8c951e476b80f6858349
-	parent = f071539bea3fc5c4a4b6da61d5c21bd3b79aad97
+	branch = cmake
+	commit = d1fa5c6b404d78659dd5305f384a91e5e1250ace
+	parent = 6b0d6355c3478854980c7df63b9b496eb17ef2d5
 	method = merge
 	cmdver = 0.4.0

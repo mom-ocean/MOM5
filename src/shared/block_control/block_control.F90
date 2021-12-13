@@ -74,7 +74,7 @@ contains
     integer, dimension(nx_block) :: i1, i2
     integer, dimension(ny_block) :: j1, j2
     character(len=256) :: text
-    integer :: i, j, nblks, ii, jj
+    integer :: i, j, nblks, ii, jj, ix
 
     if (message) then
       if ((mod(iec-isc+1,nx_block) .ne. 0) .or. (mod(jec-jsc+1,ny_block) .ne. 0)) then

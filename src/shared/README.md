@@ -1,3 +1,5 @@
+[![CI](https://github.com/mom-ocean/FMS/actions/workflows/CI.yml/badge.svg)](https://github.com/mom-ocean/FMS/actions/workflows/CI.yml)
+
 # Flexible Modeling System (FMS)
 
 The Flexible Modeling System (FMS) is a software framework for supporting the 
@@ -6,6 +8,22 @@ of atmospheric, oceanic, and climate system models.
 
 More information is available on the [GFDL FMS page](http://www.gfdl.noaa.gov/fms).
 
+# MOM5 Version
+
+This is a [GitHub fork](https://docs.github.com/en/get-started/quickstart/fork-a-repo) of 
+the [Official FMS repository](https://github.com/NOAA-GFDL/FMS) for the purpose of maintaining
+a version of FMS that is compatible with the MOM5 ocean model.
+
+The GFDL `master` branch is tracked in the `https://github.com/mom-ocean/FMS/tree/gfdl/master` branch
+on this repository.
+
+The `master` branch in this repository is included as a [subtree](https://www.atlassian.com/git/tutorials/git-subtree)
+within the MOM5 repository. The forked occurred from the commit for the 
+[Warsaw 201803 Release](https://github.com/mom-ocean/FMS/commit/e8940fe90d68c3dc7c0d6bf1b8f552a577251754). After
+this point the codebases started to diverge and it was decided it would be too difficult to udpate 
+driver code for all the supported model configurations.
+
+Note that this is not the version of FMS that is used for [MOM6](https://github.com/mom-ocean/MOM6).
 # Disclaimer
 
 The United States Department of Commerce (DOC) GitHub project code is provided
