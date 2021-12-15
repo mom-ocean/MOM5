@@ -18,7 +18,7 @@ jobs:
           - CM2M
           - ESM2M
           - ICCM
-          - EBM
+          # - EBM
           - ACCESS-OM
           - ACCESS-CM
           - ACCESS-OM-BGC

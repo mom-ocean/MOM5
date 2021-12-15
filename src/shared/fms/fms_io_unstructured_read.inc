@@ -47,7 +47,7 @@ subroutine fms_io_unstructured_read_r_scalar(filename, &
 
    !Use the 1D case.
     if (present(timelevel)) then
-        if (tlevel .le. 0) then
+        if (timelevel .le. 0) then
             call mpp_error(FATAL, &
                            "fms_io_unstructured_read_r_scalar:" &
                            //" the inputted time level must be at" &
@@ -359,7 +359,7 @@ subroutine fms_io_unstructured_read_i_scalar(filename, &
 
    !Read in the data.
     if (present(timelevel)) then
-        if (tlevel .le. 0) then
+        if (timelevel .le. 0) then
             call mpp_error(FATAL, &
                            "fms_io_unstructured_read_i_scalar:" &
                            //" the inputted time level must be at" &
