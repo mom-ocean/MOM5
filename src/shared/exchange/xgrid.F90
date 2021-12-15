@@ -477,12 +477,12 @@ end type xmap_type
  integer :: id_get_2_from_xgrid = 0
  integer :: id_put_2_to_xgrid = 0
  integer :: id_setup_xmap = 0
- integer :: id_load_xgrid = 0
  integer :: id_load_xgrid1 = 0
  integer :: id_load_xgrid2 = 0
  integer :: id_load_xgrid3 = 0
  integer :: id_load_xgrid4 = 0
  integer :: id_load_xgrid5 = 0
+ integer :: id_load_xgrid = 0
  integer :: id_set_comm = 0
  integer :: id_regen = 0
  integer :: id_conservation_check = 0
