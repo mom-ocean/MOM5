@@ -160,7 +160,7 @@ character(len=*), parameter :: FILENAME=&
   real :: dtime
   integer :: index_temp, index_salt
 
-  logical :: use_this_module
+  logical :: use_this_module = .false.
 
   ! for Tim%init=.true. and ocean_neutral.res.nc exists, but still wish
   ! to start from initial fields.

@@ -2847,7 +2847,7 @@ subroutine cfl_check1_bgrid(Time, Thickness, Velocity)
 
   if (cflup == cflup0) then
 
-    write (unit,'(a,g10.3,a,f7.2,a,g10.3,a,i4,a,i4,a,i3,a,a,f12.3,a,f12.3,a,f10.3,a)')&
+    write (unit,'(a,g10.3,a,f7.2,a,g10.3,a,i0,a,i0,a,i3,a,a,f12.3,a,f12.3,a,f10.3,a)')&
    ' u (',cflum,' m/s) is ',cflup/fudge,' % of CFL (',abs(100.0*cflum/(cflup/fudge)), &
    ' m/s) at (i,j,k) = (',icflu+Dom%ioff,',',jcflu+Dom%joff,',',kcflu,'),',           &
    ' (lon,lat,thk) = (',Grd%xu(icflu,jcflu),',',Grd%yu(icflu,jcflu),',',              &
@@ -2861,7 +2861,7 @@ subroutine cfl_check1_bgrid(Time, Thickness, Velocity)
 
   if (cflvp == cflvp0) then
 
-    write (unit,'(a,g10.3,a,f7.2,a,g10.3,a,i4,a,i4,a,i3,a,a,f12.3,a,f12.3,a,f10.3,a)') &
+    write (unit,'(a,g10.3,a,f7.2,a,g10.3,a,i0,a,i0,a,i3,a,a,f12.3,a,f12.3,a,f10.3,a)') &
     ' v (',cflvm,' m/s) is ',cflvp/fudge,' % of CFL (',abs(100.0*cflvm/(cflvp/fudge)), &
     ' m/s) at (i,j,k) = (',icflv+Dom%ioff,',',jcflv+Dom%joff,',',kcflv,'),',           &
     ' (lon,lat,thk) = (',Grd%xu(icflv,jcflv),',',Grd%yu(icflv,jcflv),',',              &
@@ -3048,7 +3048,7 @@ subroutine cfl_check2_bgrid(Time, Thickness, Velocity)
 
         if (cflu >= large_cfl_value .or. cflv >= large_cfl_value) then
 
-          write (unit,'(/,a,i4,a1,i3,a,i3,a,f6.3)')      &
+          write (unit,'(/,a,i0,a1,i0,a,i3,a,f6.3)')      &
            ' Note: CFL horizontal velocity limit exceeded at (i,j,k) = (',&
            i+Dom%ioff, ',',j+Dom%joff,',',k,') by factor =',large_cfl_value 
 
@@ -3067,7 +3067,7 @@ subroutine cfl_check2_bgrid(Time, Thickness, Velocity)
 
         if (cflu >= max_cfl_value .or. cflv >= max_cfl_value) then
 
-           write (unit,'(/,a,i4,a1,i3,a,i3,a,f6.3)')     &
+           write (unit,'(/,a,i0,a1,i0,a,i3,a,f6.3)')     &
            ' Note: CFL horizontal velocity limit exceeded at (i,j,k) = (',&
            i+Dom%ioff, ',',j+Dom%joff,',',k,') by factor =',max_cfl_value 
 
@@ -3168,7 +3168,7 @@ subroutine cfl_check2_cgrid(Time, Thickness, Velocity)
 
         if (cflu >= large_cfl_value .or. cflv >= large_cfl_value) then
 
-          write (unit,'(/,a,i4,a1,i3,a,i3,a,f6.3)')      &
+          write (unit,'(/,a,i0,a1,i0,a,i3,a,f6.3)')      &
            ' Note: CFL horizontal velocity limit exceeded at (i,j,k) = (',&
            i+Dom%ioff, ',',j+Dom%joff,',',k,') by factor =',large_cfl_value 
 
@@ -3187,7 +3187,7 @@ subroutine cfl_check2_cgrid(Time, Thickness, Velocity)
 
         if (cflu >= max_cfl_value .or. cflv >= max_cfl_value) then
 
-           write (unit,'(/,a,i4,a1,i3,a,i3,a,f6.3)')     &
+           write (unit,'(/,a,i0,a1,i0,a,i3,a,f6.3)')     &
            ' Note: CFL horizontal velocity limit exceeded at (i,j,k) = (',&
            i+Dom%ioff, ',',j+Dom%joff,',',k,') by factor =',max_cfl_value 
 
