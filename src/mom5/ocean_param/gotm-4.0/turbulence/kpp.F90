@@ -1113,10 +1113,10 @@
    REALTYPE                     :: Gt1
    REALTYPE                     :: Gs1
    REALTYPE                     :: dGm1dS
-   #pragma GCC diagnostic push
-   #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
    REALTYPE                     :: dGt1dS
-   #pragma GCC diagnostic pop
+ #pragma GCC diagnostic pop
    REALTYPE                     :: dGs1dS
    REALTYPE                     :: f1
    REALTYPE                     :: sl_dpth,sl_z
