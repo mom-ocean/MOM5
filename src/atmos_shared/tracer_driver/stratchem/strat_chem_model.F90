@@ -2125,7 +2125,7 @@ INTEGER  IYEAR,IMON,IDAY
     DGMT = DGMT - 24.
     IDAY = IDAY + 1.
   5 DP = 365.*IYEAR + IDAY + 31.*(IMON-1.)
-    if (IMON - 2) <= 0 then
+    if ((IMON - 2) .le. 0) then
       D1 = (IYEAR - 1.)*0.25
       D2 = (IYEAR - 1.)*1.E-2 + 1.
       DF1 = DP + INT(D1) - INT(0.75*INT(D2))
