@@ -566,7 +566,6 @@ end subroutine mcm_lw_end
       do i=1,ix
         temp_kelvin(i, 0) = temp_kelvin(i,1)
         temp_kelvin(i,kp) = t_sfc(i)
-        end do
       end do
 
       do k=0,kp
