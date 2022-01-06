@@ -440,10 +440,14 @@ end subroutine write_static_vegn
 #define F90_TYPE       integer
 #define READ_REMAP_SUB read_remap_cohort_data_i0d_fptr
 #include "read_remap_cohort_data.inc"
+#undef F90_TYPE
+#undef READ_REMAP_SUB
 
 #define F90_TYPE       real
 #define READ_REMAP_SUB read_remap_cohort_data_r0d_fptr
 #include "read_remap_cohort_data.inc"
+#undef F90_TYPE
+#undef READ_REMAP_SUB
 
 ! ============================================================================
 ! tile existence detector: returns a logical value indicating wether component
