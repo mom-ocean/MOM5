@@ -49,4 +49,4 @@ extern int errno;
 
 #define MPPNCSCATTER_VERSION "0.3.2"
 
-#endif /* !COMMON_H */
+#endif

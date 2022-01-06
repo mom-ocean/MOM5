@@ -876,7 +876,7 @@ integer           :: unit, ierr, io
 end program test
 
 
-#endif /* test_axis_utils */
+#endif
 
 
 

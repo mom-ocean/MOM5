@@ -186,7 +186,7 @@ module fv_pack
                          tra_step, dyn_step, dry_mass, print_freq,  icase,    &
 #ifdef MARS_GCM
                         p_ref, fv_sponge_lev, fv_sponge_damp,                      &
-#endif MARS_GCM 
+#endif
                          layout, fv_pset_stack
 #else
    namelist /fv_core_nml/nlon,      mlat,     nlev,                           &
@@ -201,7 +201,7 @@ module fv_pack
                          use_tendency, do_ch4_chem,  pft_phys, age_tracer,    &
 #ifdef MARS_GCM
                          p_ref, fv_sponge_lev, fv_sponge_damp,                      &
-#endif MARS_GCM 
+#endif
                          print_freq,  icase, layout
 
 #endif
@@ -422,7 +422,7 @@ contains
        endif !}
 #endif
 
-#endif 
+#endif
 
        call tm_register_tracers (MODEL_ATMOS, ncnst, nt_prog, pnats, num_family)
        if(mpp_pe() == mpp_root_pe()) then
@@ -592,7 +592,7 @@ contains
 
 #ifdef MARS_GCM
           cp_vir = 0.0
-#endif 
+#endif
 
 !--------------------------------------------
 ! Set up horizontal grid geometrical factors:
@@ -1400,7 +1400,7 @@ integer, intent(in):: seconds
                 enddo
              enddo
          endif
-#endif MARS_GCM
+#endif
 
 1000  continue
       call fv_array_sync() !probably needed before gmean

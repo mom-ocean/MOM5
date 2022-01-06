@@ -24,7 +24,7 @@
 #else
       real:: p0=1000.E2
       real:: pc=200.E2
-#endif MARS_GCM 
+#endif
       real pt, pint, lnpe, dlnp
       real press(km+1)
       integer  k
@@ -85,7 +85,7 @@
   9.6858585131e-01,  9.8274719475e-01,  9.9326941371e-01, & 
   1.0000000000e+00  /
 
-#endif MARS_GCM 
+#endif
 
 !-----------------------------------------------
 ! GFDL AM2-L24: modified by SJL at the model top
@@ -440,7 +440,7 @@
             ak(k) = a36(k)
             bk(k) = b36(k)
           enddo
-#endif MARS_GCM 
+#endif
 
 
         case (32)

@@ -147,7 +147,7 @@ contains
            enddo
 
        endif
-#endif 
+#endif
 
 ! Average tendencies for scalars at poles (make it single-valued)
 ! This is necessary because the the physics/land/ocean use different grid
@@ -160,7 +160,7 @@ contains
 #ifdef MARS_GCM
 !!!!       call polavg( delp_dt(1,beglat,k), nlon, mlat, beglat, endlat)
 !!!!       This is carried out in fv_phys.F90
-#endif MARS_GCM
+#endif
 
        if ( use_tendency ) then
            do j=beglat,endlat
@@ -234,7 +234,7 @@ contains
               enddo
 !      endif
            enddo
-#endif 
+#endif
        endif
 
     enddo         ! -----------------------k-loop------------------
@@ -358,7 +358,7 @@ contains
     endif
     call fv_array_sync()
     u_ghosted = .false.
-#endif  SPMD 
+#endif
     call fv_print_chksums( 'Exiting update_fv_phys' )
   end subroutine update_fv_phys
 

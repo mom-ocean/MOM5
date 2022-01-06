@@ -76,5 +76,5 @@ static struct option const long_options[] =
 	{0, 0, 0, 0}
 };
 
-#endif /* MPPNCSCATTER_OPT_H */
+#endif
 

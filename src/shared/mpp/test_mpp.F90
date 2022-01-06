@@ -543,4 +543,4 @@ end program test
 module null_mpp_test
 end module  
 
-#endif /* test_mpp */
+#endif

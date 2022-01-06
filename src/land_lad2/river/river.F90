@@ -1544,4 +1544,4 @@ contains
 
 end program river_solo
 
-#endif test_river_solo
+#endif
