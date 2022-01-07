@@ -710,7 +710,8 @@ end subroutine mcm_lw_end
           dqxb(i,k) = dqxkb(i)
           ppfb(i,k) = ppfkb(i)
         endif
-       end do
+        end do
+      end do
   40  continue
 
       do k=2,kx
@@ -721,7 +722,7 @@ end subroutine mcm_lw_end
             uqxkt(i) = uqx(i,k-1,k)
             ppfkt(i) = sigma_half_level(i,k-1)
           endif
-        end do
+         end do
          do i=1,ix
           if (kldmid(i,k) .eq. 1) then
             psigl(i,k) = (sigma_half_level(i,k) - ppfkt(i)) / &
