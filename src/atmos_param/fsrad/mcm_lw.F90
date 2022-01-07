@@ -1257,7 +1257,8 @@ end function expx
           end do
         end do
 
-        do l=kx-1,0,-1
+        2050: do l=kx-1,0,-1
+
           do k=l+1,kx
             do i=1,ix
               sfac(i,k) = sfac(i,k) + duco2 (i,l+1)
@@ -1311,7 +1312,8 @@ end function expx
               trans(i,k,l) = tcof(i,k) * trans(i,k,l)
             end do
           end do
-        end do
+
+        end do 2050
 
 ! ****** ozone contribution
 
