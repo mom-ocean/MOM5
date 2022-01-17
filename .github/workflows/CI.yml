@@ -91,6 +91,19 @@ jobs:
         ./MOM_compile.csh --type ${{ matrix.TYPE }} --platform github --use_netcdf4
 
     # ----------
+    # Test MOM-SIS only currently
+    - name: Compile MOM_SIS with debug
+      if: startsWith(matrix.TYPE, 'MOM_SIS')
+      working-directory: ./exp
+      env: 
+        OASIS_ROOT: ${{ env.oasis_dir }}
+        LIBACCESSOM2_ROOT: ${{ env.libaccessom2_dir }}
+      run: |
+        env
+        rm -rf ../exec/github
+        ./MOM_compile.csh --debug --type ${{ matrix.TYPE }} --platform github --use_netcdf4
+
+    # ----------
     # Test MOM-solo only currently
     - name: Download config
       if: startsWith(matrix.TYPE, 'MOM_solo')
