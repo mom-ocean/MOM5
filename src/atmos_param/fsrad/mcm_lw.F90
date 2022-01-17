@@ -557,28 +557,25 @@ end subroutine mcm_lw_end
 
 ! ****** compute pbb (planck blackbody radiance), and d(pbb)/dk
 
-      do k=1,kx
-        do i=1,ix
+      do 5 k=1,kx
+        do 5 i=1,ix
           temp_kelvin(i,k) = tj(i,k) + t_freeze
-        end do
-      end do
+    5 continue
 
-      do i=1,ix
+      do 6 i=1,ix
         temp_kelvin(i, 0) = temp_kelvin(i,1)
         temp_kelvin(i,kp) = t_sfc(i)
-      end do
+    6 continue
 
-      do k=0,kp
-        do i=1,ix
+      do 7 k=0,kp
+        do 7 i=1,ix
           planck_func(i,k) = sigma*temp_kelvin(i,k)**4
-        end do
-      end do
+    7 continue
 
-      do k=0,kx
-        do i=1,ix
+      do 8 k=0,kx
+        do 8 i=1,ix
           dpbb(i,k) = planck_func(i,k+1) - planck_func(i,k)
-        end do
-      end do
+    8 continue
 
 ! ----------------------------------------------------------------------
 !  Obtain transmission functions
@@ -589,158 +586,140 @@ end subroutine mcm_lw_end
 
 ! ****** compute upward and downward fluxes at "flux" levels
 
-      do i=1,ix
+      do 11 i=1,ix
         dqx(i,0,0) = 0.0
-      end do
+   11 continue
 
-      do k=1,kx
-        do i=1,ix
+      do 12 k=1,kx
+        do 12 i=1,ix
           dqx(i,k,k) = cdxa(k) * dpbb(i,k) * lw_abs_quarter(i,k,2) + planck_func(i,k)
-        end do
-      end do
+   12 continue
 
-      do l=kx-1,0,-1
-        do k=l+1,kx
-          do i=1,ix
+      do 13 l=kx-1,0,-1
+        do 13 k=l+1,kx
+          do 13 i=1,ix
             dqx(i,k,l) = dqx(i,k,l+1) - lw_trans_coeff(i,k,l)*dpbb(i,l)
-          end do
-        end do
-      end do
+   13 continue
 
-      do k=1,kx
-        do i=1,ix
+      do 14 k=1,kx
+        do 14 i=1,ix
           dqx(i,k,0) = dqx(i,k,0) - lw_toa_correct(i,k) * planck_func(i,0)
-        end do
-      end do
+   14 continue
 
-      do k=0,kx
-        do i=1,ix
+      do 15 k=0,kx
+        do 15 i=1,ix
           uqx(i,k,k+1) = cuxa(k) * dpbb(i,k) * lw_abs_quarter(i,k,1) + planck_func(i,k+1)
-        end do
-      end do
+   15 continue
 
-      do l=2,kp
-        do k=0,l-2
-          do i=1,ix
+      do 16 l=2,kp
+        do 16 k=0,l-2
+          do 16 i=1,ix
             uqx(i,k,l) = uqx(i,k,l-1) + lw_trans_coeff(i,k,l-1) * dpbb(i,l-1)
-          end do
-        end do
-      end do
+   16 continue
 
 !  TK Add code to initialize ufx to take place of equivalence:
-      do k = 0, kp
-         do i = 1, ix
+      do 17 k = 0, kp
+         do 17 i = 1, ix
             ufx(i,k) = uqx(i,k,kp)
-        end do
-      end do
+17    continue 
 
 !  TK Add code to initialize dfx to take place of equivalence:
-      do k = 0, kp
-         do i = 1, ix
+      do 18 k = 0, kp
+         do 18 i = 1, ix
             dfx(i,k) = dqx(i,k,0)
-        end do
-      end do
+18    continue 
 
 ! ----------------------------------------------------------------------
 !  compute actual fluxes from cloud distribution
 ! ----------------------------------------------------------------------
 
-      do k=0,kp
-       do i=1,ix
+      do 105 k=0,kp
+       do 105 i=1,ix
         if (cloud_cover(i,k) .ne. 0) then
           kloud(i,k) = 1
         else
           kloud(i,k) = 0
         endif
-       end do
-      end do
-      do k=2,kx
-       do i=1,ix
+  105 continue
+      do 110 k=2,kx
+       do 110 i=1,ix
         kldtop(i,k) = kloud(i,k) * (1 - kloud(i,k-1))
         kldmid(i,k) = kloud(i,k) *      kloud(i,k+1)
         kldbot(i,k) = kloud(i,k) * (1 - kloud(i,k+1))
-       end do
-      end do
+  110 continue
 
-      do kb=2,kx
-        do k=kb,kx
-         do i=1,ix
+      do 20 kb=2,kx
+        do 20 k=kb,kx
+         do 20 i=1,ix
           if (kldbot(i,kb) .eq. 1) &
             dfx(i,k) = dfx(i,k) * (1.0-cloud_cover(i,kb)) &
                      + dqx(i,k,kb) * cloud_cover(i,kb)
-        end do
-       end do
-      end do
+   20 continue
 
-      do kt=kx,2,-1
-        do k=0,kt-1
-         do i=1,ix
+      do 30 kt=kx,2,-1
+        do 30 k=0,kt-1
+         do 30 i=1,ix
           if (kldtop(i,kt) .eq. 1) &
             ufx(i,k) = ufx(i,k) * (1.0-cloud_cover(i,kt)) &
                      + uqx(i,k,kt) * cloud_cover(i,kt)
-        end do
-       end do
-      end do
+   30 continue
 
-      do k=2,kx
+      do 35 k=2,kx
         numtop(k) = 0
         numbot(k) = 0
         nummid(k) = 0
-      end do
-      do k=2,kx
-       do i=1,ix
+   35 continue
+      do 36 k=2,kx
+       do 36 i=1,ix
         numtop(k) = numtop(k) + kldtop(i,k)
         numbot(k) = numbot(k) + kldbot(i,k)
         nummid(k) = nummid(k) + kldmid(i,k)
-       end do
-      end do
+   36 continue
 
-      do k=kx,2,-1
-       do i=1,ix
+      do 40 k=kx,2,-1
+       do 115 i=1,ix
         if (kldbot(i,k) .eq. 1) then
           ufxkb(i) = ufx(i,k)
           dqxkb(i) = dqx(i,k,k)
           ppfkb(i) = sigma_half_level(i,k)
         endif
-       end do
-       if (nummid(k) .eq. 0) goto 40
-       do i=1,ix
+  115  continue
+        if (nummid(k) .eq. 0) goto 40
+       do 120 i=1,ix
         if (kldmid(i,k) .eq. 1) then
           ufxb(i,k) = ufxkb(i)
           dqxb(i,k) = dqxkb(i)
           ppfb(i,k) = ppfkb(i)
         endif
-        end do
-      end do
+  120  continue
   40  continue
 
-      do k=2,kx
+      do 50 k=2,kx
        if (nummid(k) .eq. 0) goto 50
-         do i=1,ix
+         do 125 i=1,ix
           if (kldtop(i,k) .eq. 1) then
             dfxkt(i) = dfx(i,k-1)
             uqxkt(i) = uqx(i,k-1,k)
             ppfkt(i) = sigma_half_level(i,k-1)
           endif
-         end do
-         do i=1,ix
+  125    continue
+         do 130 i=1,ix
           if (kldmid(i,k) .eq. 1) then
             psigl(i,k) = (sigma_half_level(i,k) - ppfkt(i)) / &
                             (ppfb(i,k) - ppfkt(i))
             dfxc (i,k) = dfxkt(i) + psigl(i,k)*(dqxb(i,k) - dfxkt(i))
             ufxc (i,k) = uqxkt(i) + psigl(i,k)*(ufxb(i,k) - uqxkt(i))
           endif
-        end do
-      end do
+  130    continue
+   50 continue
 
-      do k=2,kx
-       do i=1,ix
+      do 135 k=2,kx
+       do 135 i=1,ix
         if (kldmid(i,k) .eq. 1) then
           dfx(i,k) = dfx(i,k)*(1.0-cloud_cover(i,k)) + dfxc(i,k)*cloud_cover(i,k)
           ufx(i,k) = ufx(i,k)*(1.0-cloud_cover(i,k)) + ufxc(i,k)*cloud_cover(i,k)
         endif
-      end do
-    end do
+  135 continue
 
 ! ----------------------------------------------------------------------
 !  compute net cooling rates from fluxes
@@ -750,29 +729,27 @@ end subroutine mcm_lw_end
 
    80 continue
 
-        do i=1,ix
+        do 85 i=1,ix
          lw_up_toa(i)     = ufx(i,0) * 1.43306e-06
          lw_net_sfc(i)     = (ufx(i,kx) - dfx(i,kx)) * 1.43306e-06
          lw_down_sfc(i) = -dfx(i,kx) * 1.43306e-6
-        end do
+   85   continue
 
 ! 1.1574e-5 = 1.0 / 86400.0
 
         cof = grav_accel * 86400.0 / cp2
         cof = cof * 1.1574e-5
 
-        do k=1,kx
-         do i=1,ix
+        do 90 k=1,kx
+         do 90 i=1,ix
           lw_cooling_rate(i,k) = cof/(sigma_thick(i,k)*psj(i))
-         end do
-        end do
+   90   continue
 
-        do k=1,kx
-         do i=1,ix
+        do 95 k=1,kx
+         do 95 i=1,ix
           lw_cooling_rate(i,k) = lw_cooling_rate(i,k) &
              * (ufx(i,k) - ufx(i,k-1) + dfx(i,k-1) - dfx(i,k))
-         end do
-        end do
+   95   continue
 
       return
       end subroutine lwcool
@@ -1057,96 +1034,87 @@ end function expx
 !  compute band weights
 ! ----------------------------------------------------------------------
 
-      do lb=1,nb
+      do 50 lb=1,nb
         vcube(lb) = v(lb) * v(lb) ** 2
-      end do
+   50 continue
 
-      do lb=1,nb
-        do i=1,ix
+      do 52 lb=1,nb
+        do 52 i=1,ix
           expzs(i,lb) = exp(c2 / temp_kelvin(i,0) * v(lb)) - 1.0
-        end do
-      end do
+   52 continue
 
-      do lb=1,nb
+      do 54 lb=1,nb
         bc = c1 * vcube(lb) * dv(lb)
-        do i=1,ix
+        do 54 i=1,ix
           bwz(i,lb) = bc / (expzs(i,lb) * planck_func(i,0))
-        end do
-      end do
+   54 continue
 
-      do k=0,kx
-        do i=1,ix
+      do 56 k=0,kx
+        do 56 i=1,ix
           dbbdt(i,k) = 4.0 * sigma * temp_kelvin(i,k)**3
-        end do
-      end do
+   56 continue
 
-      do lb=1,nb
+      do 58 lb=1,nb
         bandc1 = c1 * vcube(lb)
         bandc2 = c2 * v(lb)
         bc     = bandc1 * bandc2 * dv(lb)
-        do k=0,kx
-          do i=1,ix
+        do 58 k=0,kx
+          do 58 i=1,ix
             bw(i,k,lb) = exp(bandc2 / temp_kelvin(i,k))
             bw(i,k,lb) = bc * bw(i,k,lb) &
                          / ((bw(i,k,lb) - 1.0) * temp_kelvin(i,k))**2
             bw(i,k,lb) = bw(i,k,lb) / dbbdt(i,k)
-          end do
-        end do
-      end do
+   58 continue
 
 ! ----------------------------------------------------------------------
 !  compute field arrays needed for trans calculation
 !    (note that temp_kelvin has already been computed and stored in flux)
 ! ----------------------------------------------------------------------
 
-      do i=1,ix
+      do 70 i=1,ix
         pdi(i, 0) = 0.0
         pfl(i, 0) = 0.0
         pdi(i,kp) = psj(i)
-      end do
+   70 continue
 
-      do k=1,kx
-        do i=1,ix
+      do 72 k=1,kx
+        do 72 i=1,ix
           pdi (i,k) = psj(i) * sigma_level(i,k)
           pfl (i,k) = psj(i) * sigma_half_level(i,k)
           dpdi(i,k) = psj(i) * sigma_thick(i,k)
           ro3 (i,k) = o3_mixrat(k)
-        end do
-      end do
+   72 continue
 
-      do k=1,kx
-        do i=1,ix
+      do 74 k=1,kx
+        do 74 i=1,ix
           rh2o  (i,k) = rj(i,k)
           qdi   (i,k) = (pfl(i,k) + pfl(i,k-1)) * o2po
           t260  (i,k) = temp_kelvin(i,k) - 260.0
           fbignl(i,k) = exp(1800.0/temp_kelvin(i,k)-6.081081081)
 !        the kernel is      1800.0*(1.0/temp-1.0/296.0)
-        end do
-      end do
+   74 continue
 
-      do i=1,ix
+      do 76 i=1,ix
         rh2o(i, 0) = 0.0
         ro3 (i, 0) = 0.0
         rh2o(i,kp) = rh2o(i,kx)
         ro3 (i,kp) = ro3 (i,kx)
-      end do
+   76 continue
 
-      do k=1,kp
-       do i=1,ix
+      do 77 k=1,kp
+       do 77 i=1,ix
          rh2o(i,k) = max(rh2o(i,k),3.0e-6)
-       end do
-      end do
+   77 continue
 
       cco2 = co2_mixrat * g1
-      do k=1,kx
-        do i=1,ix
+      do 78 k=1,kx
+        do 78 i=1,ix
           duh2o (i,k) = dpdi  (i,k) * rh2o  (i,k) * g1
           duco2 (i,k) = dpdi  (i,k) * cco2
           duo3  (i,k) = dpdi  (i,k) * ro3   (i,k) * g1
           duqh2o(i,k) = duh2o (i,k) * qdi   (i,k)
           bignel(i,k) = (fbignl(i,k)*duqh2o(i,k)*rh2o(i,k)) / (0.622+rh2o(i,k))
-        end do
-      end do
+   78 continue
 
 ! ----------------------------------------------------------------------
 !  compute transm and transz
@@ -1156,48 +1124,41 @@ end function expx
 !  transz is a correction for radiation from the top of the atmosphere
 ! ----------------------------------------------------------------------
 
-      do l=0,kx
-       do k=0,kx
-        do i=1,ix
+      do 80 l=0,kx
+       do 80 k=0,kx
+        do 80 i=1,ix
          trans (i,k,l) = 0.0
          lw_trans_coeff(i,k,l) = 0.0
-        end do
-       end do
-      end do
-      do k=0,kx
-       do i=1,ix
+   80 continue
+      do 82 k=0,kx
+       do 82 i=1,ix
         lw_toa_correct(i,k) = 0.0
-       end do
-      end do
+   82 continue
 
 !  ***** begin loop on longwave frequency bands *****
 
-      do lb= 1, nb
+      do 2890 lb= 1, nb
 
 ! ****** h2o contribution
 
 ! ******  compute temperature adjustment to line strength and line width
 
-        do l=1,2
-          do k=1,kx
-            do i=1,ix
+        do 1300 l=1,2
+          do 1300 k=1,kx
+            do 1300 i=1,ix
               tadj(i,k,l) = (h2o_corr_a(lb,l) + h2o_corr_b(lb,l) * t260(i,k)) * t260(i,k)
               tadj(i,k,l) = expx(tadj(i,k,l))
-            end do
-          end do
-        end do
+ 1300   continue
 
-        do k=0,kx
-         do i=1,ix
+        do 1310 k=0,kx
+         do 1310 i=1,ix
           sfac(i,k) = 0.0
           pfac(i,k) = 0.0
-         end do
-        end do
-        do k=1,kx
-         do i=1,ix
+ 1310   continue
+        do 1320 k=1,kx
+         do 1320 i=1,ix
           bign(i,k) = 0.0
-         end do
-        end do
+ 1320   continue
 
 !     compute h2o contribution to lower triangular half of trans matrix
 !     note that a non-physical factor of sod has been folded into duqfac
@@ -1205,28 +1166,24 @@ end function expx
 
         asodsq = h2o_line_strength(lb) * h2o_line_width(lb)
         if (h2o_line_strength(lb) .eq. 0.0) asodsq = h2o_line_width(lb)
-        do k=1,kx
-          do i=1,ix
+        do 1400 k=1,kx
+          do 1400 i=1,ix
             dufac (i,k) = h2o_line_strength(lb) * duh2o (i,k) * tadj(i,k,2)
             duqfac(i,k) = asodsq  * duqh2o(i,k) * tadj(i,k,1)
-          end do
-        end do
+ 1400   continue
 
-        do l=kx-1,0,-1
-          do k=l+1,kx
-            do i=1,ix
+        do 1550 l=kx-1,0,-1
+          do 1500 k=l+1,kx
+            do 1500 i=1,ix
               sfac(i,k) = sfac(i,k) + dufac (i,l+1)
               pfac(i,k) = pfac(i,k) + duqfac(i,l+1)
               bign(i,k) = bign(i,k) + bignel(i,l+1)
-            end do
-          end do
-        end do
+ 1500     continue
 
-          do k=l+1,kx
-            do i=1,ix
+          do 1550 k=l+1,kx
+            do 1550 i=1,ix
               trans(i,k,l) = exp(-c(lb) * bign(i,k) - sfac(i,k) / sqrt(1.0 + sfac(i,k)**2 / pfac(i,k)))
-            end do
-          end do
+ 1550   continue
 
 ! ****** compute h2o contribution to diagonal elements of trans matrix
 
@@ -1236,45 +1193,59 @@ end function expx
 
         if (lb .ne. 6) goto 2500
 
-        do k=0,kx
-         do i=1,ix
+        do 2005 k=0,kx
+         do 2005 i=1,ix
           sfac(i,k) = 0.0
           pfac(i,k) = 0.0
-         end do
-        end do
-        do k=1,kx
-         do i=1,ix
+ 2005   continue
+        do 2007 k=1,kx
+         do 2007 i=1,ix
           tfac(i,k) = 0.0
-         end do
-        end do
+ 2007   continue
 
 ! **** compute co2 contribution to lower triangular half of trans matrix
 
-        do k=1,kx
-          do i=1,ix
+        do 2010 k=1,kx
+          do 2010 i=1,ix
             duqfac(i,k) = duco2(i,k) * qdi (i,k)
             tdpfac(i,k) = temp_kelvin(i,k) * dpdi(i,k)
-          end do
-        end do
+ 2010   continue
 
-        2050: do l=kx-1,0,-1
-
-          do k=l+1,kx
-            do i=1,ix
+        do 2050 l=kx-1,0,-1
+          do 2020 k=l+1,kx
+            do 2020 i=1,ix
               sfac(i,k) = sfac(i,k) + duco2 (i,l+1)
               pfac(i,k) = pfac(i,k) + duqfac(i,l+1)
               tfac(i,k) = tfac(i,k) + tdpfac(i,l+1)
               teff(i,k) = tfac(i,k) / (pfl(i,k) - pfl(i,l))
-            end do
-          end do
-          do k=l+1,kx
-            do i=1,ix
+ 2020     continue
+          do 2030 k=l+1,kx
+            do 2030 i=1,ix
               ulog(i,k) = alog10(sfac(i,k))
               plog(i,k) = alog10(pfac(i,k)) - ulog(i,k)
               ulog(i,k) = ulog(i,k) + 2.70668
-            end do
-          end do
+ 2030     continue
 
+!   ------ ORIGINAL CODE ------------------------
+!          if (l .eq. kx-1) then
+!            i = 0
+!            ulog(i,kx) = 2.70668
+!            plog(i,kx) = 0.0
+!            teff(i,kx) = 0.0
+!            len = ix + 1
+!          else
+!            i = 1
+!            len = ix * (kx - l)
+!          endif
+
+! ****** call lwco2 to compute tcof values
+
+!          call lwco2(ulog(i,l+1),  plog(i,l+1), teff(i,l+1), len, tcof(i,l+1))
+
+! ****** compute co2 contribution to diagonal elements of trans matrix
+
+!          if (l .eq. kx-1) diag = tcof(i,kx) * diag
+!  ---------END OF ORIGINAL CODE -----------------------
 !  ---------BEGIN TK MODIFICATIONS
 
           if (l .eq. kx-1) then
@@ -1307,51 +1278,46 @@ end function expx
 
 ! ****** accumulate co2 tcof into trans (lower triangular half)
 
-          do k=l+1,kx
-            do i=1,ix
+          do 2040 k=l+1,kx
+            do 2040 i=1,ix
               trans(i,k,l) = tcof(i,k) * trans(i,k,l)
-            end do
-          end do
-
-        end do 2050
+ 2040     continue
+ 2050   continue
 
 ! ****** ozone contribution
 
  2500   if (lb .ne. 9) go to 2855
 
-        do k=0,kx
-         do i=1,ix
+        do 2555 k=0,kx
+         do 2555 i=1,ix
           sfac(i,k) = 0.0
           pfac(i,k) = 0.0
-         end do
-        end do
+ 2555   continue
+!       sfac = 0.0
+!       pfac = 0.0
 
 ! **** compute o3 contribution to lower triangular half of trans matrix
 
-        do k=1,kx
-          do i=1,ix
+        do 2600 k=1,kx
+          do 2600 i=1,ix
             duqfac(i,k) = pi_alpha * duo3(i,k) * qdi(i,k)
-          end do
-        end do
+ 2600   continue
 
-        do l=kx-1,0,-1
-          do k=l+1,kx
-            do i=1,ix
+        do 2700 l=kx-1,0,-1
+          do 2650 k=l+1,kx
+            do 2650 i=1,ix
               sfac(i,k) = sfac(i,k) + duo3  (i,l+1)
               pfac(i,k) = pfac(i,k) + duqfac(i,l+1)
-            end do
-          end do
-          do k=l+1,kx
-            do i=1,ix
+ 2650     continue
+          do 2700 k=l+1,kx
+            do 2700 i=1,ix
               peff (i,k  ) = pfac(i,k) / sfac(i,k)
               fac1 (i,k  ) = sfac(i,k) / peff(i,k)
               fac2 (i,k  ) = 1.0 - exp(-5.0 * peff(i,k) * (sqrt(1.0 + ak2x4 * fac1(i,k)) - 1.0))
               fac1 (i,k  ) = 1.0 - exp(-5.0 * peff(i,k) * (sqrt(1.0 + ak1x4 * fac1(i,k)) - 1.0))
               tcof (i,k  ) = 1.0 - (c3a1 * fac1(i,k) + c3a2 * fac2(i,k))
               trans(i,k,l) = tcof(i,k) * trans(i,k,l)
-            end do
-          end do
-        end do
+ 2700   continue
 
 ! ****** compute o3 contribution to diagonal elements of trans matrix
 
@@ -1366,66 +1332,54 @@ end function expx
 ! ****** first convert trans and diag to absorption
 
  2855   continue
-        do l=0,kx
-         do k=0,kx
-          do i=1,ix
+        do 2857 l=0,kx
+         do 2857 k=0,kx
+          do 2857 i=1,ix
            trans(i,k,l) = 1.0 - trans(i,k,l)
-          end do
-         end do
-        end do
-
+ 2857   continue
         diag  = 1.0 - diag
 
-        do l=0,kx-1
-          do k=l+1,kx
-            do i=1,ix
+        do 2860 l=0,kx-1
+          do 2860 k=l+1,kx
+            do 2860 i=1,ix
               lw_trans_coeff(i,k,l) = lw_trans_coeff(i,k,l) + trans(i,k,l) * bw(i,l,lb)
-            end do
-          end do
-        end do
+ 2860   continue
 
-        do l=1,kx
-          do k=0,l-1
-            do i=1,ix
+        do 2865 l=1,kx
+          do 2865 k=0,l-1
+            do 2865 i=1,ix
               lw_trans_coeff(i,k,l) = lw_trans_coeff(i,k,l) + trans(i,l,k) * bw(i,l,lb)
-            end do
-          end do
-        end do
+ 2865   continue
 
-        do l=0,kx
-          do i=1,ix
+        do 2870 l=0,kx
+          do 2870 i=1,ix
             lw_trans_coeff(i,l,l) = lw_trans_coeff(i,l,l) + diag * bw(i,l,lb)
-          end do
-        end do
+ 2870   continue
 
-        do l=1,kx
-          do i=1,ix
+        do 2875 l=1,kx
+          do 2875 i=1,ix
             lw_toa_correct(i,l) = lw_toa_correct(i,l) + trans(i,l,0) * bwz(i,lb)
-          end do
-        end do
+ 2875   continue
 
-        do i=1,ix
+        do 2880 i=1,ix
           lw_toa_correct(i,0) = lw_toa_correct(i,0) + diag * bwz(i,lb)
-        end do
+ 2880   continue
 
-      end do
+ 2890 continue
 
 !  ***** end loop on longwave frequency bands *****
 
 !  convert transm & transz from absorption to transmission coefficients
 
-      do l=0,kx
-       do k=0,kx
-        do i=1,ix
+      do 2897 l=0,kx
+       do 2897 k=0,kx
+        do 2897 i=1,ix
          lw_trans_coeff(i,k,l) = 1.0 - lw_trans_coeff(i,k,l)
-        end do
-       end do
-      end do
-      do k=0,kx
-       do i=1,ix
-        lw_toa_correct(i,k) = 1.0 - lw_toa_correct(i,k)
-       end do
-      end do
+ 2897 continue
+       do 2898 k=0,kx
+        do 2898 i=1,ix
+         lw_toa_correct(i,k) = 1.0 - lw_toa_correct(i,k)
+ 2898 continue
 
 ! ----------------------------------------------------------------------
 !  compute absrbx
@@ -1435,30 +1389,27 @@ end function expx
 ! ----------------------------------------------------------------------
 
 !     absrbx = 0.0
-      do l=1,2
-       do k=0,kx
-        do i=1,ix
+      do 2899 l=1,2
+       do 2899 k=0,kx
+        do 2899 i=1,ix
          lw_abs_quarter(i,k,l) = 0.0
-        end do
-       end do
-      end do
+ 2899 continue
 
 !  kq=1 is the upward-flux correction; kq=2 is for downward flux
 
-      do kq=1,2
+      do 5000 kq=1,2
 
 !  compute coefficients needed for quarter-layer correction
 
         if (kq.eq.2) goto 3050
 
-        do k=1,kx-1
-          do i=1,ix
+        do 3010 k=1,kx-1
+          do 3010 i=1,ix
             dpfac(i,k) = (pdi(i,k+1) - pfl(i,k)) * g1h
-          end do
-        end do
+ 3010   continue
 
-        do k=1,kx-1
-          do i=1,ix
+        do 3020 k=1,kx-1
+          do 3020 i=1,ix
             txdegk(i,k) = 0.375 * temp_kelvin(i,k) + 0.625 * temp_kelvin(i,k+1)
             qx    (i,k) = (0.75 * pfl(i,k) + 0.25 * pdi(i,k+1)) * opo
             duxh2o(i,k) = (0.375 * rh2o(i,k) + 0.625 * rh2o(i,k+1)) * dpfac(i,k)
@@ -1467,10 +1418,9 @@ end function expx
             bignel(i,k) = (0.375 * rh2o(i,k) + 0.625 * rh2o(i,k+1))**2 &
                           * dpfac(i,k) * fbignl(i,k+1) / &
                           (0.622 + 0.375*rh2o(i,k) + 0.625*rh2o(i,k+1))
-          end do
-        end do
+ 3020   continue
 
-        do i=1,ix
+        do 3030 i=1,ix
           txdegk(i, 0) = 0.75 * temp_kelvin(i,0) + 0.25 * temp_kelvin(i,1)
           txdegk(i,kx) = temp_kelvin(i,kp)
           qx    (i, 0) = (0.75 * pdi(i,0) + 0.25 * pdi(i,1)) * opo
@@ -1485,24 +1435,22 @@ end function expx
                        * (pdi(i,1)-pdi(i,0)) * g1h * fbignl(i,1) / &
                          (0.622 + 0.75*rh2o(i,0) + 0.25*rh2o(i,1))
           bignel(i,kx) = 0.0
-        end do
+ 3030   continue
 
-        do k=0,kx
-          do i=1,ix
+        do 3040 k=0,kx
+          do 3040 i=1,ix
             t260(i,k) = txdegk(i,k) - 260.0
-          end do
-        end do
+ 3040   continue
 
         go to 3100
 
- 3050   do k=1,kx-1
-          do i=1,ix
+ 3050   do 3060 k=1,kx-1
+          do 3060 i=1,ix
             dpfac(i,k) = (pfl(i,k) - pdi(i,k)) * g1h
-          end do
-        end do
+ 3060   continue
 
-        do k=1,kx-1
-          do i=1,ix
+        do 3070 k=1,kx-1
+          do 3070 i=1,ix
             txdegk(i,k) = 0.625 * temp_kelvin(i,k) + 0.375 * temp_kelvin(i,k+1)
             qx    (i,k) = (0.75 * pfl(i,k) + 0.25 * pdi(i,k)) * opo
             duxh2o(i,k) = (0.625 * rh2o(i,k) + 0.375 * rh2o(i,k+1)) * dpfac(i,k)
@@ -1511,10 +1459,9 @@ end function expx
             bignel(i,k) = (0.625*rh2o(i,k) + 0.375*rh2o(i,k+1))**2 &
                           * dpfac(i,k) * fbignl(i,k) / &
                           (0.622 + 0.625*rh2o(i,k) + 0.375*rh2o(i,k+1))
-          end do
-        end do
+ 3070   continue
 
-        do i=1,ix
+        do 3080 i=1,ix
           txdegk(i, 0) = temp_kelvin(i,0)
           txdegk(i,kx) = 0.75 * temp_kelvin(i,kp) + 0.25 * temp_kelvin(i,kx)
           qx    (i, 0) = 1.0
@@ -1529,47 +1476,42 @@ end function expx
           bignel(i,kx) = (0.75 * rh2o(i,kp) + 0.25 * rh2o(i,kx))**2 &
                        * (pdi(i,kp)-pdi(i,kx)) * g1h * fbignl(i,kx) / &
                          (0.622 + 0.75*rh2o(i,kp) + 0.25*rh2o(i,kx))
-        end do
+ 3080   continue
 
-        do k=0,kx
-          do i=1,ix
+        do 3090 k=0,kx
+          do 3090 i=1,ix
             t260(i,k) = txdegk(i,k) - 260.0
-          end do
-        end do
+ 3090   continue
 
 !  ***** begin loop on longwave frequency bands *****
 
- 3100   do lb=1,nb
+ 3100   do 4000 lb=1,nb
 
 ! ****** quarter-layer h2o absorption
 
 ! ****** compute temperature adjustment to line strength and line width
 
-          do k=0,kx
-            do i=1,ix
+          do 3150 k=0,kx
+            do 3150 i=1,ix
               tadj(i,k,1) = (h2o_corr_a(lb,1) + h2o_corr_b(lb,1) * t260(i,k)) * t260(i,k)
               tadj(i,k,2) = (h2o_corr_a(lb,2) + h2o_corr_b(lb,2) * t260(i,k)) * t260(i,k)
               tadj(i,k,1) = tadj(i,k,1) - tadj(i,k,2)
-            end do
-          end do
+ 3150     continue
 
-          do l=1,2
-            do k=0,kx
-              do i=1,ix
+          do 3200 l=1,2
+            do 3200 k=0,kx
+              do 3200 i=1,ix
                 tadj(i,k,l) = expx(tadj(i,k,l))
-              end do
-            end do
-          end do
+ 3200     continue
 
 ! ****** compute h2o contribution to quarter-layer absorption matrix
 
-          do k=0,kx
-            do i=1,ix
+          do 3300 k=0,kx
+            do 3300 i=1,ix
               sfac (i,k   ) = h2o_line_strength(lb) * duxh2o(i,k) * tadj(i,k,2)
               pfac (i,k   ) = h2o_line_width(lb) * qx(i,k) * tadj(i,k,1)
               trans(i,k,kq) = exp(-c(lb) * bignel(i,k) -sfac(i,k)/sqrt(1.0+sfac(i,k)/pfac(i,k)))
-            end do
-          end do
+ 3300     continue
 
 ! ****** quarter-layer co2 absorption
 
@@ -1578,22 +1520,19 @@ end function expx
 ! ****** compute co2 contribution to quarter-layer absorption matrix
 
           len = ix * kp
-          do k=0,kx
-           do i=1,ix
+          do 3410 k=0,kx
+           do 3410 i=1,ix
             sfac(i,k) = duxco2(i,k)
-           end do
-          end do
-          do k=0,kx
-           do i=1,ix
+ 3410     continue
+          do 3420 k=0,kx
+           do 3420 i=1,ix
             duxco2(i,k) = max(duxco2(i,k),1.0e-6)
-           end do
-          end do
-          do k=0,kx
-            do i=1,ix
+ 3420     continue
+          do 3500 k=0,kx
+            do 3500 i=1,ix
               ulog(i,k) = alog10(duxco2(i,k)) + 2.70668
               plog(i,k) = alog10(qx(i,k))
-            end do
-          end do
+ 3500     continue
 
 ! ****** call lwco2 to compute tcof values
 
@@ -1601,47 +1540,44 @@ end function expx
 
 ! ****** accumulate co2 ccp into trans
 
-          do k=0,kx
-            do i=1,ix
+          do 3600 k=0,kx
+            do 3600 i=1,ix
               tcof(i,k) = tcof(i,k) * trans(i,k,kq)
-            end do
-          end do
-          do k=0,kx
-           do i=1,ix
+ 3600     continue
+          do 3610 k=0,kx
+           do 3610 i=1,ix
             if(sfac(i,k) .gt. 0.0) then
               trans(i,k,kq) = tcof(i,k)
             endif
-           end do
-          end do
+ 3610     continue
 
 ! ****** quarter-layer o3 absorption
 
  3700     if (lb .ne. 9) go to 3900
 
-          do k=0,kx
-            do i=1,ix
+          do 3800 k=0,kx
+            do 3800 i=1,ix
               peff (i,k   ) = pi_alpha * qx(i,k)
               fac2 (i,k   ) = duxo3(i,k) / peff(i,k)
               fac1 (i,k   ) = 1.0 - exp(-5.0 * peff(i,k) * (sqrt(1.0 + ak1x4 * fac2(i,k)) - 1.0))
               fac2 (i,k   ) = 1.0 - exp(-5.0 * peff(i,k) * (sqrt(1.0 + ak2x4 * fac2(i,k)) - 1.0))
               tcof (i,k   ) = 1.0 - (c3a1 * fac1(i,k) + c3a2 *fac2(i,k))
               trans(i,k,kq) = tcof(i,k) * trans(i,k,kq)
-            end do
-          end do
+ 3800     continue
  
 ! ****** total quarter-layer absorption
  
- 3900     do k=0,kx
-            do i=1,ix
+ 3900     do 4000 k=0,kx
+            do 4000 i=1,ix
               lw_abs_quarter(i,k,kq) = lw_abs_quarter(i,k,kq) + (1.0 - trans(i,k,kq)) * bw(i,k,lb)
-            end do
-          end do
-      end do
+ 4000 continue
+ 
+ 5000 continue
  
 !  ***** end of principal quarter-layer loop *****
  
       return
-      end subroutine lwtran
+        end subroutine lwtran
  
       subroutine lwco2 (ulog,plog,teff,ln,tco2)
 
@@ -1712,35 +1648,34 @@ end function expx
 ! ****** check for out-of-range ulog input values
 
       iu = 0
-      do l=1,ln
+      do 25 l=1,ln
         if ( ulog(l).lt.-4.25 ) iu=iu+1
-      end do
+   25 continue
       if ( iu.ne.0 ) go to 1200
 
 ! ****** compute pressure range for tables,
 ! ****** and pressure interpolation factor
 
-      do l=1,ln
+      do 50 l=1,ln
         nplog(l) = 1
-      end do
+   50 continue
 
-      do n=2,11
-        do l=1,ln
+      do 100  n=2,11
+        do 100  l=1,ln
           if ( plog(l).gt.pltab(n) ) then
             nplog(l) = n
             plnum(l) = plog(l) - pltab(n)
             plden(l) = pltab(n+1) - pltab(n)
           endif
-        end do
-      end do
+  100 continue
 
-      do l=1,ln
+      do 200 l=1,ln
         plfac(l) = plnum(l) / plden(l)
-      end do
+  200 continue
 
 ! ****** compute co2 absorption for an effective temperature of 300k
 
-      do l=1,ln
+      do 500 l=1,ln
         fulog(l) = 4 * ulog(l) + 18
         iulog(l) = int(fulog(l))
 
@@ -1751,94 +1686,88 @@ end function expx
 
         if ( iulog(l).gt.29 ) iulog(l) = 29
         fulog(l) = fulog(l) - real(iulog(l))
-      end do
+  500 continue
 
-      do l = 1, ln
+      do 600 l = 1, ln
         index(l) = iulog(l) + 30 * (nplog(l) - 1)
-      end do
+  600 continue
 
-      do l=1,ln
+      do 620 l=1,ln
         alogoo(l) = absorp_table(index(l),1)
-      end do
-
-      do l=1,ln
+  620 continue
+      do 640 l=1,ln
         index (l) = index(l) + 1
         alogpo(l) = absorp_table(index(l),1)
-      end do
-
-      do l=1,ln
+  640 continue
+      do 660 l=1,ln
         index (l) = index(l) + (30 - 1)
         alogop(l) = absorp_table(index(l),1)
-      end do
-
-      do l=1,ln
+  660 continue
+      do 680 l=1,ln
         index (l) = index(l) + 1
         alogpp(l) = absorp_table(index(l),1)
-      end do
+  680 continue
 
-      do l = 1, ln
+      do 700  l = 1, ln
         ahi(l) = alogop(l) + fulog(l) * (alogpp(l) - alogop(l))
         alo(l) = alogoo(l) + fulog(l) * (alogpo(l) - alogoo(l))
         cct(l) = alo   (l) + plfac(l) * (ahi   (l) - alo   (l))
-      end do
+  700 continue
 
 ! ****** compute temperature correction coefficient for co2 absorption
 
-      do l=1,ln
+      do 750 l=1,ln
         fulog(l) = ulog(l) + 4
         iulog(l) = int(fulog(l))
         if ( iulog(l).gt.6 ) iulog(l) = 6
         fulog(l) = fulog(l) - real(iulog(l))
-      end do
+  750 continue
 
-      do l = 1, ln
+      do 800 l = 1, ln
         index(l) = iulog(l) + 7 * (nplog(l) - 1)
-      end do
+  800 continue
 
-      do l=1,ln
+      do 820 l=1,ln
         alogoo(l) = d_absorp_dt(index(l),1)
-      end do
-
-      do l=1,ln
+  820 continue
+      do 840 l=1,ln
         index (l) = index(l) + 1
         alogpo(l) = d_absorp_dt(index(l),1)
-      end do
-
-      do l=1,ln
+  840 continue
+      do 860 l=1,ln
         index (l) = index(l) + (7 - 1)
         alogop(l) = d_absorp_dt(index(l),1)
-      end do
-
-      do l=1,ln
+  860 continue
+      do 880 l=1,ln
         index (l) = index(l) + 1
         alogpp(l) = d_absorp_dt(index(l),1)
-      end do
+  880 continue
 
-      do i = 1, ln
+      do 900 i = 1, ln
         ahi(i) = alogop(i) + fulog(i) * (alogpp(i) - alogop(i))
         alo(i) = alogoo(i) + fulog(i) * (alogpo(i) - alogoo(i))
         cdt(i) = alo   (i) + plfac(i) * (ahi   (i) - alo   (i))
-      end do
+  900 continue
 
 ! ****** restrict effective temperature input values to proper range
 
-      do l=1,ln
+      do 950 l=1,ln
         tcor(l) = teff(l)
         if ( tcor(l).gt.320.0 ) tcor(l) = 320
         if ( tcor(l).lt.180.0 ) tcor(l) = 180
-      end do
+  950 continue
 
 ! ****** apply temperature correction to co2
 ! ****** absorption if ulog is in range
 
-      do l=1,ln
+      do 1000  l=1,ln
         cdt (l) = cct(l) + 0.01 * (cdt(l) * (tcor(l) - 300))
         tco2(l) = 1 - 1.3077 * cdt(l)
-      end do
+ 1000 continue
 
-      do l=1,ln
+      do 1100 l=1,ln
         if ( ulog(l).lt.-3 ) tco2(l) = 1 - 1.3077 * cct(l)
-      end do
+ 1100 continue
 
       return
 
