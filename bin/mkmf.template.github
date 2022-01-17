@@ -41,7 +41,13 @@ FPPFLAGS := $(INCLUDE)
 
 CFLAGS := -D__IFC -O2 -no-pie $(shell nc-config --cflags) -I/usr/include/openmpi $(INCLUDE)
 
-FFLAGS := -O0 -g -Wuninitialized -Wno-maybe-uninitialized -fcheck=bounds -Werror -no-pie -fcray-pointer -fdefault-real-8 -ffree-line-length-none -fno-range-check $(shell nf-config --fflags)
+FFLAGS := -g -no-pie -fcray-pointer -fdefault-real-8 -ffree-line-length-none -fno-range-check $(shell nf-config --fflags)
+
+ifdef DEBUG
+  FFLAGS := $(FFLAGS) -O0 -Wuninitialized -Wno-maybe-uninitialized -fcheck=bounds -Werror
+else
+  FFLAGS := $(FFLAGS) -O
+endif
 
 LDFLAGS += -no-pie $(LIBS)
 
