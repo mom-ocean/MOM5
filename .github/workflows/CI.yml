@@ -88,12 +88,15 @@ jobs:
         LIBACCESSOM2_ROOT: ${{ env.libaccessom2_dir }}
       run: |
         env
-        debug="--debug"
         case "${{ matrix.TYPE }}"" in
           CM2M|ICCM|ESM2M)
             debug=""
           ;;
+          *)
+            debug="--debug"
+          ;;
         esac
+        echo ./MOM_compile.csh $debug --type ${{ matrix.TYPE }} --platform github --use_netcdf4
         ./MOM_compile.csh $debug --type ${{ matrix.TYPE }} --platform github --use_netcdf4
 
     # ----------
