@@ -99,10 +99,21 @@ jobs:
         echo ./MOM_compile.csh $debug --type ${{ matrix.TYPE }} --platform github --use_netcdf4
         ./MOM_compile.csh $debug --type ${{ matrix.TYPE }} --platform github --use_netcdf4
 
-    # ----------
-    # Test MOM-solo only currently
+  runmodel:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-18.04, ubuntu-20.04 ] 
+        TYPE: 
+          - MOM_solo
+    runs-on: ${{ matrix.os }}
+    env:
+      FC: gfortran
+      OMPI_FC: gfortran
+    needs: build
+
+    steps:
     - name: Download config
-      if: startsWith(matrix.TYPE, 'MOM_solo')
       uses: actions/checkout@v2
       with: 
           repository: mom-ocean/MOM5-examples
@@ -110,7 +121,6 @@ jobs:
           path: MOM5-examples
 
     - name: Run bowl1 cold start
-      if: startsWith(matrix.TYPE, 'MOM_solo')
       working-directory: MOM5-examples/bowl1
       run: |
         mpirun -n 4 --oversubscribe ${{ github.workspace }}/exec/github/MOM_solo/fms_MOM_solo.x
@@ -118,8 +128,6 @@ jobs:
         mv RESTART/* INPUT
 
     - name: Run bowl1 warm start
-      if: startsWith(matrix.TYPE, 'MOM_solo')
       working-directory: MOM5-examples/bowl1
       run: |
         mpirun -n 4 --oversubscribe ${{ github.workspace }}/exec/github/MOM_solo/fms_MOM_solo.x
-    # ----------
