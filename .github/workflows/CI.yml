@@ -88,7 +88,7 @@ jobs:
         LIBACCESSOM2_ROOT: ${{ env.libaccessom2_dir }}
       run: |
         env
-        case "${{ matrix.TYPE }}"" in
+        case "${{ matrix.TYPE }}" in
           CM2M|ICCM|ESM2M)
             debug=""
           ;;
