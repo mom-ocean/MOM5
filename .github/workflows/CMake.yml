@@ -52,5 +52,5 @@ jobs:
       working-directory: ./build
       run: |
         env
-        cmake ../cmake/CMakeLists.txt
-        make ${{ matrix.TYPE }}
+        cmake -B. -S../cmake
+        make -j ${{ matrix.TYPE }}
