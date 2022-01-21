@@ -49,6 +49,9 @@ set root          = $cwd:h                            # The directory you create
 set exec_dir      = $root/exec                        # source code directory
 set build_dir     = $exec_dir/$build_type             # source code directory
 
+# Update version hash
+source ./update_version.csh
+
 cmake -E make_directory $build_dir
 cmake -G "$generator" -DCMAKE_BUILD_TYPE=$build_type -DNETCDF4=use_netcdf4 -S$root/cmake -B$build_dir
 cmake --build $build_dir --target $target --config "$generator" -j10
