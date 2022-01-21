@@ -8,7 +8,7 @@ env:
 jobs:
   build:
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         os: [ ubuntu-18.04, ubuntu-20.04 ] 
         # gcc_v: [8, 9] # Version of GFortran we want to use.

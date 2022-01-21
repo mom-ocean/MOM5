@@ -5,7 +5,7 @@ on: [push, pull_request, workflow_dispatch]
 jobs:
   build:
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         os: [ ubuntu-20.04 ] 
         # gcc_v: [8, 9] # Version of GFortran we want to use.
@@ -48,4 +48,4 @@ jobs:
       working-directory: ./exp
       run: |
         env
-        ./cmake_compile.csh --target ${{ matrix.TYPE }} --platform github
+        ./cmake_compile.csh --target ${{ matrix.TYPE }}
