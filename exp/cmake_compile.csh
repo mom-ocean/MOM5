@@ -50,4 +50,5 @@ set exec_dir      = $root/exec                        # source code directory
 set build_dir     = $exec_dir/$build_type             # source code directory
 
 cmake -E make_directory $build_dir
-(cd $build_dir && cmake -G "$generator" -DCMAKE_BUILD_TYPE=$build_type -DNETCDF4=use_netcdf4 $root/cmake && cmake --build . --target $target --config "$generator" -- -j10)
+cmake -G "$generator" -DCMAKE_BUILD_TYPE=$build_type -DNETCDF4=use_netcdf4 -S$root/cmake -B$build_dir
+cmake --build $build_dir --target $target --config "$generator" -j10
