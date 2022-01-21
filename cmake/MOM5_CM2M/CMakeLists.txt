@@ -11,10 +11,10 @@ target_include_directories(MOM5_CM2M PRIVATE
   $<TARGET_FILE_DIR:atmos_fv> 
   $<TARGET_FILE_DIR:atmos_phys> 
   $<TARGET_FILE_DIR:land_lad> 
-  ${SRC_DIR}/version
+  $<TARGET_FILE_DIR:version> 
   ${MOM5_DIR}/ocean_core 
   ${FMS_DIR}/include/ 
   ${SRC_DIR}/ocean_shared)
 
 target_link_libraries(MOM5_CM2M FMS ocean ice_sis atmos_phys atmos_fv 
-                                     land_lad ${NETCDF_FLIBS})
+                                     land_lad version ${NETCDF_FLIBS})

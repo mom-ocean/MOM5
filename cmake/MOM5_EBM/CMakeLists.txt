@@ -12,11 +12,11 @@ $<TARGET_FILE_DIR:ocean>
 $<TARGET_FILE_DIR:ice_sis>
 $<TARGET_FILE_DIR:atmos_ebm> 
 $<TARGET_FILE_DIR:land_lad> 
+$<TARGET_FILE_DIR:version> 
 ${SRC_DIR}/version
 ${MOM5_DIR}/ocean_core 
 ${FMS_DIR}/include/ 
 ${SRC_DIR}/ocean_shared)
 
-target_link_libraries(MOM5_EBM FMS 
-  ocean ice_sis atmos_ebm 
-  land_lad ${NETCDF_FLIBS})
+target_link_libraries(MOM5_EBM FMS ocean ice_sis atmos_ebm 
+  land_lad version ${NETCDF_FLIBS})

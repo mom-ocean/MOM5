@@ -98,6 +98,7 @@ set(CMAKE_DEBUG_TARGET_PROPERTIES
 
 set(SRC_DIR "${CMAKE_SOURCE_DIR}/../src")
 
+add_subdirectory(version)
 add_subdirectory(FMS)
 add_subdirectory(ocean)
 add_subdirectory(atmos_bg)
