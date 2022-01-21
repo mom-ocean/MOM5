@@ -32,7 +32,11 @@ if(NOT MPI_FOUND)
   else ()
     message("Could not find C MPI. Will continue and hope for the best")
   endif()
+else ()
+  include_directories(${MPI_Fortran_INCLUDE_PATH})
+  add_compile_options(${MPI_Fortran_COMPILE_FLAGS})
 endif()
+
 message("Using Fortran: ${CMAKE_Fortran_COMPILER_ID} ${CMAKE_Fortran_COMPILER} and C: ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER}")
 
 if(CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
