@@ -44,13 +44,8 @@ jobs:
         echo "Release: ${{ steps.system-info.outputs.release }}"
         echo "os_version=${{ steps.system-info.outputs.release }}" >> $GITHUB_ENV
 
-    - name: Make build directory
-      run: | 
-        mkdir ./build
-
     - name: Compile
-      working-directory: ./build
+      working-directory: ./exp
       run: |
         env
-        cmake -B. -S../cmake
-        make -j ${{ matrix.TYPE }}
+        ./cmake_compile.csh --target ${{ matrix.TYPE }} --platform github
