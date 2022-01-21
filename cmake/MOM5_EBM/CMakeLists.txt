@@ -12,6 +12,7 @@ $<TARGET_FILE_DIR:ocean>
 $<TARGET_FILE_DIR:ice_sis>
 $<TARGET_FILE_DIR:atmos_ebm> 
 $<TARGET_FILE_DIR:land_lad> 
+${SRC_DIR}/version
 ${MOM5_DIR}/ocean_core 
 ${FMS_DIR}/include/ 
 ${SRC_DIR}/ocean_shared)

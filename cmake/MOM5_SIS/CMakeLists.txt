@@ -10,6 +10,7 @@ target_include_directories(MOM5_SIS PRIVATE
   $<TARGET_FILE_DIR:ice_sis>
   $<TARGET_FILE_DIR:atmos_null> 
   $<TARGET_FILE_DIR:land_null> 
+  ${SRC_DIR}/version
   ${MOM5_DIR}/ocean_core 
   ${FMS_DIR}/include/ 
   ${SRC_DIR}/ocean_shared)

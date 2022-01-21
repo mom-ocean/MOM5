@@ -11,6 +11,7 @@ target_include_directories(MOM5_ESM2M PRIVATE
   $<TARGET_FILE_DIR:atmos_fv> 
   $<TARGET_FILE_DIR:atmos_phys> 
   $<TARGET_FILE_DIR:land_lad2> 
+  ${SRC_DIR}/version
   ${MOM5_DIR}/ocean_core 
   ${FMS_DIR}/include/ 
   ${SRC_DIR}/ocean_shared)
