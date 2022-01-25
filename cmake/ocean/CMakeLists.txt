@@ -17,6 +17,11 @@ list(REMOVE_ITEM MOM5_SOURCE ${MOM5_SOLO_SOURCE})
 
 add_library(ocean ${MOM5_SOURCE} ${OCEANSHARED_SOURCE})
 target_include_directories(ocean PRIVATE
-  $<TARGET_FILE_DIR:FMS> ${MOM5_DIR}/ocean_core ${MOM5_DIR}/ocean_param/gotm-4.0/include ${FMS_DIR}/include/ ${SRC_DIR}/ocean_shared)
+  $<TARGET_FILE_DIR:FMS> 
+  $<TARGET_FILE_DIR:version> 
+  ${MOM5_DIR}/ocean_core 
+  ${MOM5_DIR}/ocean_param/gotm-4.0/include 
+  ${FMS_DIR}/include/ 
+  ${SRC_DIR}/ocean_shared)
 
-target_link_libraries(ocean FMS)
+target_link_libraries(ocean FMS version)
