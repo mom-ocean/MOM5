@@ -5,7 +5,7 @@ on: [push, pull_request, workflow_dispatch]
 jobs:
   build:
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         os: [ ubuntu-20.04 ] 
         # gcc_v: [8, 9] # Version of GFortran we want to use.
