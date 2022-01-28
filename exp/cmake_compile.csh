@@ -7,8 +7,10 @@ set build_type = "relwithdebinfo"
 set target     = "MOM5_SIS"
 set use_netcdf4 = 1
 set help       = 0 
+set FC=mpifort
+set CC=mpicc
 
-set argv = (`getopt -u -o h -l generator: -l build_type: -l target: -l help --  $*`)
+set argv = (`getopt -u -o h -l generator: -l build_type: -l target: -l fcomp: -l ccomp: -l help --  $*`)
 
 while ("$argv[1]" != "--")
     switch ($argv[1])
@@ -24,6 +26,10 @@ while ("$argv[1]" != "--")
                 set help = 1;  breaksw
         case -h:
                 set help = 1;  breaksw
+        case --fcomp:
+                set FC = $argv[2]; shift argv; breaksw
+        case --ccomp:
+                set CC = $argv[2]; shift argv; breaksw
     endsw
     shift argv
 end
@@ -40,7 +46,12 @@ if ( $help ) then
     echo "--target     followed by the type of the model, one of the following (default is MOM5_SIS):"
     echo "             MOM5_solo  : solo ocean model"
     echo "             MOM5_SIS   : ocean-seaice model"
-    echo "--netcdf3    force netCDF3, default is to use netCDF4
+    echo "--netcdf3    force netCDF3, default is to use netCDF4"
+    echo "--fcomp      Path to FORTRAN compiler"
+    echo "--ccomp      Path to C compiler"
+    echo ""
+    echo "The compiler options are provided in the case where a site-specific compiler wrappers should be used to"
+    echo "configure builds correctly, currently defaults to mpifort and mpicc"
     echo
     exit 1
 endif
@@ -53,5 +64,5 @@ set build_dir     = $exec_dir/$build_type             # source code directory
 source ./update_version.csh
 
 cmake -E make_directory $build_dir
-cmake -G "$generator" -DCMAKE_BUILD_TYPE=$build_type -DNETCDF4=use_netcdf4 -S$root/cmake -B$build_dir
-cmake --build $build_dir --target $target --config "$generator" -j10
+cmake -G "$generator" -DCMAKE_BUILD_TYPE=$build_type -DNETCDF4=use_netcdf4 -DCMAKE_Fortran_COMPILER=$FC -DCMAKE_C_COMPILER=$CC -S$root/cmake -B$build_dir
+cmake --build $build_dir --target $target --config "$generator" -j
