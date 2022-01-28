@@ -59,6 +59,8 @@ execute_process(COMMAND nf-config --flibs OUTPUT_VARIABLE NETCDF_FLIBS OUTPUT_ST
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -I${NETCDF_INCDIR}")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${NETCDF_FLIBS}")
 
+message("Linker flags: ${CMAKE_EXE_LINKER_FLAGS}")
+
 if(CMAKE_C_COMPILER_ID STREQUAL "Intel")
   set(CMAKE_C_FLAGS                "-sox -traceback") 
   set(CMAKE_C_FLAGS_DEBUG          "-O0 -debug")
