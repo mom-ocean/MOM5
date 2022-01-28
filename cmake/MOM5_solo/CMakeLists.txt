@@ -10,10 +10,6 @@ add_executable(MOM5_solo ${MOM5_SOLO_SOURCE} ${MOM5_SOURCE} ${OCEANSHARED_SOURCE
 target_include_directories(MOM5_solo PRIVATE
   $<TARGET_FILE_DIR:FMS> 
   $<TARGET_FILE_DIR:ocean> 
-  $<TARGET_FILE_DIR:version> 
-  ${MOM5_DIR}/ocean_core 
-  ${FMS_DIR}/include/ 
-  ${SRC_DIR}/ocean_shared)
+  $<TARGET_FILE_DIR:version>)
 
 target_link_libraries(MOM5_solo FMS ocean version ${NETCDF_FLIBS})
-# target_link_libraries(MOM5 FMS ${NETCDF_FLIBS})
