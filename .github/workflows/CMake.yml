@@ -11,10 +11,10 @@ jobs:
         # gcc_v: [8, 9] # Version of GFortran we want to use.
         TYPE: 
           - MOM5_solo
-          # - MOM5_SIS   
-          # - MOM5_CM2M  
-          # - MOM5_ESM2M  
-          # - MOM5_ICCM   
+          - MOM5_SIS   
+          - MOM5_CM2M  
+          - MOM5_ESM2M  
+          - MOM5_ICCM   
 
     runs-on: ${{ matrix.os }}
     env:

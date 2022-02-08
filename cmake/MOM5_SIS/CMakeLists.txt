@@ -20,4 +20,5 @@ target_link_libraries(MOM5_SIS
   atmos_null 
   land_null 
   version
+  ${NETCDF_FLIBS}
 )

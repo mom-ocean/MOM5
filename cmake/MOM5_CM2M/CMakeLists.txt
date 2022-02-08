@@ -25,4 +25,5 @@ target_link_libraries(MOM5_CM2M
   atmos_phys 
   land_lad 
   version
+  ${NETCDF_FLIBS}
 )

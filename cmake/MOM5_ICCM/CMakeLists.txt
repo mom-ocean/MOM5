@@ -27,4 +27,5 @@ target_link_libraries(MOM5_ICCM
   atmos_fv 
   land_lad 
   version
+  ${NETCDF_FLIBS}
 )

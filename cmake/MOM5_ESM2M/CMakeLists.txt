@@ -24,4 +24,5 @@ target_link_libraries(MOM5_ESM2M
   atmos_fv 
   land_lad2 
   version 
+  ${NETCDF_FLIBS}
 )
