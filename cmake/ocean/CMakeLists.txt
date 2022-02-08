@@ -24,4 +24,4 @@ target_include_directories(ocean PRIVATE
   ${FMS_DIR}/include/ 
 )
 
-target_link_libraries(ocean version)
+target_link_libraries(ocean FMS version)
