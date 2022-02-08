@@ -16,5 +16,12 @@ target_include_directories(MOM5_ESM2M PRIVATE
   ${FMS_DIR}/include/ 
   ${SRC_DIR}/ocean_shared)
 
-target_link_libraries(MOM5_ESM2M FMS ocean ice_sis atmos_phys atmos_fv 
-                                     land_lad2 version ${NETCDF_FLIBS})
+target_link_libraries(MOM5_ESM2M 
+  FMS 
+  ocean 
+  ice_sis 
+  atmos_phys 
+  atmos_fv 
+  land_lad2 
+  version 
+)

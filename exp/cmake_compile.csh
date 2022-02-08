@@ -46,6 +46,10 @@ if ( $help ) then
     echo "--target     followed by the type of the model, one of the following (default is MOM5_SIS):"
     echo "             MOM5_solo  : solo ocean model"
     echo "             MOM5_SIS   : ocean-seaice model"
+    echo "             MOM5_CM2M  : ocean-seaice-land-atmosphere coupled climate model"
+    echo "             MOM5_ESM2M : ocean-seaice-land-atmosphere coupled climate model with biogeochemistry, EarthSystemModel"
+    echo "             MOM5_ICCM  : ocean-seaice-land-atmosphere coupled model"
+    echo "             MOM5_EBM   : ocean-seaice-land-atmosphere coupled model with energy balance atmosphere"
     echo "--netcdf3    force netCDF3, default is to use netCDF4"
     echo "--fcomp      Path to FORTRAN compiler"
     echo "--ccomp      Path to C compiler"
@@ -63,6 +67,9 @@ set build_dir     = $exec_dir/$build_type             # source code directory
 # Update version hash
 source ./update_version.csh
 
+echo cmake -E make_directory $build_dir
 cmake -E make_directory $build_dir
+echo cmake -G "$generator" -DCMAKE_BUILD_TYPE=$build_type -DNETCDF4=use_netcdf4 -DCMAKE_Fortran_COMPILER=$FC -DCMAKE_C_COMPILER=$CC -S$root/cmake -B$build_dir
 cmake -G "$generator" -DCMAKE_BUILD_TYPE=$build_type -DNETCDF4=use_netcdf4 -DCMAKE_Fortran_COMPILER=$FC -DCMAKE_C_COMPILER=$CC -S$root/cmake -B$build_dir
+echo cmake --build $build_dir --target $target --config "$generator" -j
 cmake --build $build_dir --target $target --config "$generator" -j

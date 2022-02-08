@@ -10,6 +10,14 @@ target_include_directories(MOM5_SIS PRIVATE
   $<TARGET_FILE_DIR:ice_sis>
   $<TARGET_FILE_DIR:atmos_null> 
   $<TARGET_FILE_DIR:land_null> 
-  $<TARGET_FILE_DIR:version>)
+  $<TARGET_FILE_DIR:version>
+)
 
-target_link_libraries(MOM5_SIS FMS ocean ice_sis atmos_null land_null version ${NETCDF_FLIBS})
+target_link_libraries(MOM5_SIS 
+  FMS 
+  ocean 
+  ice_sis 
+  atmos_null 
+  land_null 
+  version
+)

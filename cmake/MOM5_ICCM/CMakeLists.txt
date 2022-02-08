@@ -10,11 +10,21 @@ target_include_directories(MOM5_ICCM PRIVATE
   $<TARGET_FILE_DIR:ice_sis>
   $<TARGET_FILE_DIR:atmos_bg> 
   $<TARGET_FILE_DIR:atmos_phys> 
+  $<TARGET_FILE_DIR:atmos_fv> 
   $<TARGET_FILE_DIR:land_lad> 
   $<TARGET_FILE_DIR:version> 
   ${MOM5_DIR}/ocean_core 
   ${FMS_DIR}/include/ 
-  ${SRC_DIR}/ocean_shared)
+  ${SRC_DIR}/ocean_shared
+)
 
-target_link_libraries(MOM5_ICCM FMS ocean ice_sis atmos_phys atmos_fv 
-                                     land_lad version ${NETCDF_FLIBS})
+target_link_libraries(MOM5_ICCM 
+  FMS 
+  ocean 
+  ice_sis 
+  atmos_bg
+  atmos_phys 
+  atmos_fv 
+  land_lad 
+  version
+)
