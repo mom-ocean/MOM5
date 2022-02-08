@@ -11,8 +11,8 @@ target_include_directories(MOM5_solo PRIVATE
   $<TARGET_FILE_DIR:version>)
 
 target_link_libraries(MOM5_solo 
-  FMS 
   ocean 
   version 
+  FMS 
   ${NETCDF_FLIBS}
 )
