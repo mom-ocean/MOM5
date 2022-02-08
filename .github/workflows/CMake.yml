@@ -43,6 +43,10 @@ jobs:
         echo "Release: ${{ steps.system-info.outputs.release }}"
         echo "os_version=${{ steps.system-info.outputs.release }}" >> $GITHUB_ENV
 
+    - name: Determine netCDF build options
+      run: | 
+        nc-config --all
+
     - name: Compile
       working-directory: ./exp
       run: |
