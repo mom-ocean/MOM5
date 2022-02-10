@@ -980,4 +980,4 @@ end program xgrid_test
 module null_test_xgrid
 end module  
 
-#endif /* test_mpp */
+#endif

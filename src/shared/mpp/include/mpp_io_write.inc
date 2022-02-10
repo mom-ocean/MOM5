@@ -1032,7 +1032,7 @@
       else
           call mpp_error( FATAL, 'WRITE_ATTRIBUTE_NETCDF: one of rval, ival, cval must be present.' )
       end if
-#endif /* use_netCDF */
+#endif
       return
     end subroutine write_attribute_netcdf
 

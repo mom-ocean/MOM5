@@ -318,7 +318,7 @@ type(time_type),         intent(in)      :: Time
       call constants_init
 #ifdef COL_DIAG
       call column_diagnostics_init 
-#endif SKIP
+#endif
 !---------------------------------------------------------------------
 !    read namelist.
 !---------------------------------------------------------------------

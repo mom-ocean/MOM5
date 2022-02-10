@@ -46,4 +46,4 @@ void scatter_dims(int nc, int ndims, int nvars, ScatterDim* scatterdims[], mnsop
 
 /*-------------------------------------------------------------------*/
 
-#endif /* MPPNCSCATTER_H */
+#endif

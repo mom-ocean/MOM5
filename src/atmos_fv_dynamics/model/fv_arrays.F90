@@ -87,14 +87,14 @@ module fv_arrays_mod
 #ifdef MARS_GCM
    real, allocatable :: delp_dt(:,:,:)
    real, allocatable :: mars_sfc_budg(:,:,:)
-#endif MARS_GCM
+#endif
 
 !! declarations from fv_pack.F90.1D2D
 #ifdef MARS_GCM
   integer, parameter :: NUMPTRS=28
 #else
   integer, parameter :: NUMPTRS=26
-#endif MARS_GCM
+#endif
 
   integer(POINTER_KIND) :: ptrArray(NUMPTRS) !this array contains addresses to all the variables to be shared
                               !between physics and dynamics.
@@ -163,7 +163,7 @@ module fv_arrays_mod
             ptr_u_srf, ptr_v_srf, ptr_u_dt, ptr_v_dt, ptr_t_dt, ptr_q_dt
 #   ifdef MARS_GCM
   public ::  ptr_delp_dt, ptr_mars_sfc_budg
-#   endif MARS_GCM
+#   endif
 
 #else
 !arrays themselves are public
@@ -173,9 +173,9 @@ module fv_arrays_mod
             u_srf, v_srf, u_dt, v_dt, t_dt, q_dt
 #   ifdef MARS_GCM
   public ::  delp_dt, mars_sfc_budg
-#   endif MARS_GCM
+#   endif
 
-#endif use_shared_pointers
+#endif
 
 contains
 
@@ -311,7 +311,7 @@ contains
 #ifdef MARS_GCM
         allocate( delp_dt(isg:ieg, js:je, nz) )
         allocate( mars_sfc_budg(isg:ieg, js:je, 5) )
-#endif MARS_GCM
+#endif
     end if
     isp = isg; iep = ieg
     jsp = js; jep = je
@@ -347,7 +347,7 @@ contains
 #ifdef MARS_GCM
     ptr_delp_dt = LOC(delp_dt)
     ptr_mars_sfc_budg = LOC(mars_sfc_budg)
-#endif MARS_GCM
+#endif
 !the array ptrArray is now filled by equivalence()
     ptrArray( 1) = ptr_u
     ptrArray( 2) = ptr_v
@@ -378,7 +378,7 @@ contains
 #ifdef MARS_GCM
     ptrArray(27) = ptr_delp_dt
     ptrArray(28) = ptr_mars_sfc_budg
-#endif MARS_GCM
+#endif
     endif
     call mpp_pset_broadcast_ptr( pset, ptrArray )
     ptr_u = ptrArray( 1)
@@ -410,7 +410,7 @@ contains
 #ifdef MARS_GCM
     ptr_delp_dt = ptrArray(27)
     ptr_mars_sfc_budg = ptrArray(28)
-#endif MARS_GCM
+#endif
 !isp,... index limits when you divide the computational domain by npex
     isp = is
     iep = ie
@@ -556,7 +556,7 @@ contains
          delp_dt(isg:ieg,js:je,:) )
     call mpp_pset_print_chksum( pset, trim(caller)//' mars_sfc_budg=', &
          mars_sfc_budg(isg:ieg,js:je,:) )
-#endif MARS_GCM
+#endif
     call mpp_pset_print_stack_chksum(pset, caller)
 #endif
     return
@@ -599,7 +599,7 @@ contains
 #ifdef MARS_GCM
         deallocate ( delp_dt )
         deallocate ( mars_sfc_budg )
-#endif MARS_GCM
+#endif
 
 
     end if

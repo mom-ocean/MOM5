@@ -22,7 +22,7 @@ module fv_diagnostics
 #ifdef MARS_GCM
  use fv_pack,       only:   p_ref
  use fv_phys_mod,   only:   mars_mass_budget
-#endif MARS_GCM
+#endif
 
 ! --- tracer manager ---
  use tracer_manager_mod, only : get_tracer_names, get_number_tracers
@@ -91,7 +91,7 @@ contains
     trange = (/  50.,  350. /)  ! temperature
 #else
     trange = (/  100.,  350. /)  ! temperature
-#endif 
+#endif
     arange = (/    0.,   20. /)  ! age-of-air
     slprange = (/800.,  1200./)  ! sea-level-pressure
 
@@ -104,7 +104,7 @@ contains
     call get_eta_level(nlev, p_ref, pfull, phalf, 0.01) 
 #else
     call get_eta_level(nlev, 1.E5, pfull, phalf, 0.01) 
-#endif 
+#endif
 
     id_lonb=diag_axis_init('lonb', lonb, 'degrees_E', 'x', 'longitude edges', &
          set_name=mod_name , Domain2=fv_domain )
@@ -236,7 +236,7 @@ contains
         enddo
 ! for higher tracer number we take the default missing values from FMS
         do i = nt_phys+1, ncnst
-#endif MARS_GCM
+#endif
            call get_tracer_names ( MODEL_ATMOS, i, tname, tlongname, tunits )
            id_tracer(i) = register_diag_field ( mod_name, trim(tname),  &
                 axes(1:3), Time, trim(tlongname),           &
@@ -278,7 +278,7 @@ contains
              endif
            endif
         enddo
-#endif 
+#endif
 !-------
 
     endif !}
@@ -475,7 +475,7 @@ contains
              call drymadj(im, jm, km, jfirst, jlast, ng_d, .true., kappa,   &
                           ptop,  ps, delp, pe, pk, peln, pkz, nq,           &
                           q, .false.)  
-#endif MARS_GCM
+#endif
              call pmaxmin('U', ua, qmin, qmax, im*(jlast-jfirst+1), km, 1.)
              call pmaxmin('V', va, qmin, qmax, im*(jlast-jfirst+1), km, 1.)
     endif
@@ -595,7 +595,7 @@ contains
          if(qmin < 50.) call error_mesg('fv_diagnostics:','too cold', FATAL)
 #else
          if(qmin < 100.) call error_mesg('fv_diagnostics:','too cold', FATAL)
-#endif 
+#endif
       endif
 
     endif
@@ -776,7 +776,7 @@ contains
             endif
           endif
         enddo
-#endif 
+#endif
 !-------
 
 ! Check tracer mass. Unit:

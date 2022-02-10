@@ -88,7 +88,16 @@ jobs:
         LIBACCESSOM2_ROOT: ${{ env.libaccessom2_dir }}
       run: |
         env
-        ./MOM_compile.csh --type ${{ matrix.TYPE }} --platform github --use_netcdf4
+        case "${{ matrix.TYPE }}" in
+          CM2M|ICCM|ESM2M)
+            debug=""
+          ;;
+          *)
+            debug="--debug"
+          ;;
+        esac
+        echo ./MOM_compile.csh $debug --type ${{ matrix.TYPE }} --platform github --use_netcdf4
+        ./MOM_compile.csh $debug --type ${{ matrix.TYPE }} --platform github --use_netcdf4
 
     # ----------
     # Test MOM-solo only currently
@@ -97,6 +106,7 @@ jobs:
       uses: actions/checkout@v2
       with: 
           repository: mom-ocean/MOM5-examples
+          ref: master
           path: MOM5-examples
 
     - name: Run bowl1 cold start

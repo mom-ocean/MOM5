@@ -21,4 +21,4 @@ void ScatterDim_free(ScatterDim* p);
 
 ScatterDim* ScatterDim_new(int id, size_t len, const char * name, scatter_t scatter_type, int ndiv);
 
-#endif /* SCATTERDIM_H */
+#endif

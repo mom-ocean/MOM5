@@ -1297,7 +1297,7 @@ private
   !(t3e: fixed on 3.3 I believe)
   integer, parameter :: MPI_INTEGER8=MPI_INTEGER
 #endif
-#endif /* use_libMPI */
+#endif
 #ifdef use_MPI_SMA
 #include <mpp/shmem.fh>
   integer :: pSync(SHMEM_BARRIER_SYNC_SIZE)

@@ -68,7 +68,7 @@ int find_nodenum(int mynodedev) {
 int mld_id_() { /* dummy routine for portability */
   return 0;
 }
-#endif /* sgi */
+#endif
 
 #ifdef test_threadloc
 void main(int argc, char **argv) {
