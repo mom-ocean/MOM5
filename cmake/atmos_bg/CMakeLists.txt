@@ -19,3 +19,4 @@ target_include_directories(atmos_bg PRIVATE
 )
 
 target_link_libraries(atmos_bg FMS)
+add_dependencies(atmos_bg atmos_phys)
