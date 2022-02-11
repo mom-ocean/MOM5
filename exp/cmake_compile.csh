@@ -67,9 +67,23 @@ set build_dir     = $exec_dir/$build_type             # source code directory
 # Update version hash
 source ./update_version.csh
 
+set CPPFLAGS="-Duse_netCDF=1 -Duse_libMPI=1 -DLAND_BND_TRACERS=1"
+
+if ( $target == MOM5_EBM ) then
+  set CPPFLAGS="$CPPFLAGS -DOVERLOAD_C8=1 -DOVERLOAD_C4=1 -DOVERLOAD_R4=1"
+else
+  set CPPFLAGS="$CPPFLAGS -DUSE_OCEAN_BGC=1 -DENABLE_ODA=1 -DSPMD=1" )
+endif
+
+if ( $use_netcdf4 ) then
+  set CPPFLAGS="$CPPFLAGS -DNETCDF4=1" 
+endif
+
+set CMAKEVARS="-DCMAKE_BUILD_TYPE=$build_type -DCMAKE_Fortran_COMPILER=$FC -DCMAKE_C_COMPILER=$CC"
+
 echo cmake -E make_directory $build_dir
 cmake -E make_directory $build_dir
-echo cmake -G "$generator" -DCMAKE_BUILD_TYPE=$build_type -DNETCDF4=use_netcdf4 -DCMAKE_Fortran_COMPILER=$FC -DCMAKE_C_COMPILER=$CC -S$root/cmake -B$build_dir
-cmake -G "$generator" -DCMAKE_BUILD_TYPE=$build_type -DNETCDF4=use_netcdf4 -DCMAKE_Fortran_COMPILER=$FC -DCMAKE_C_COMPILER=$CC -S$root/cmake -B$build_dir
+echo cmake -G "$generator" $CPPFLAGS $CMAKEVARS -S$root/cmake -B$build_dir
+cmake -G "$generator" $CPPFLAGS $CMAKEVARS -S$root/cmake -B$build_dir
 echo cmake --build $build_dir --target $target --config "$generator" -j
 cmake --build $build_dir --target $target --config "$generator" -j
