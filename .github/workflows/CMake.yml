@@ -50,5 +50,5 @@ jobs:
     - name: Compile
       working-directory: ./exp
       run: |
-        env
+        # env
         ./cmake_compile.csh --target ${{ matrix.TYPE }}
