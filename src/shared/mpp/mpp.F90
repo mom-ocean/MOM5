@@ -173,8 +173,9 @@ module mpp_mod
   use shmem_interface
 #endif
 
-#if defined(use_libMPI) && defined(sgi_mipspro)
+#if defined(use_libMPI) && (defined(sgi_mipspro) || (__GNUC__ >= 11))
   use mpi
+#define MPI_IMPORTED 1
 #endif
 
   use mpp_parameter_mod, only : MPP_VERBOSE, MPP_DEBUG, ALL_PES, ANY_PE, NULL_PE
@@ -205,9 +206,9 @@ private
 #include <mpp/shmem.fh>
 #endif
 
-#if defined(use_libMPI) && !defined(sgi_mipspro)
+#if defined(use_libMPI) && !defined(MPI_IMPORTED)
 #include <mpif.h>   
-!sgi_mipspro gets this from 'use mpi'
+! !sgi_mipspro gets this from 'use mpi'
 #endif
 
   !--- public paramters  -----------------------------------------------
