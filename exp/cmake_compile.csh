@@ -1,8 +1,5 @@
 #!/bin/csh
 
-set verbose
-set echo
-
 # Test compile script for cmake
 
 set generator  = "Unix Makefiles"
@@ -14,8 +11,6 @@ set FC=mpifort
 set CC=mpicc
 
 set argv = (`getopt -u -o h -l netcdf3 -l generator: -l build_type: -l target: -l fcomp: -l ccomp: -l help --  $*`)
-echo $status
-# set errcode=$?
 
 if ( $status != 0 ) then
    set help = 1
