@@ -1,5 +1,8 @@
 #!/bin/csh
 
+set verbose
+set echo
+
 # Test compile script for cmake
 
 set generator  = "Unix Makefiles"
