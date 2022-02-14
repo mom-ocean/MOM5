@@ -14,9 +14,10 @@ set FC=mpifort
 set CC=mpicc
 
 set argv = (`getopt -u -o h -l netcdf3 -l generator: -l build_type: -l target: -l fcomp: -l ccomp: -l help --  $*`)
-set errcode=$?
+echo $status
+# set errcode=$?
 
-if ( $errcode != 0 ) then
+if ( $status != 0 ) then
    set help = 1
 else
    while ("$argv[1]" != "--")
