@@ -14,15 +14,15 @@ jobs:
         # gcc_v: [8, 9] # Version of GFortran we want to use.
         TYPE: 
           - MOM_solo
-          # - MOM_SIS
-          # - CM2M
-          # - ESM2M
-          # - ICCM
+          - MOM_SIS
+          - CM2M
+          - ESM2M
+          - ICCM
           # # - EBM
-          # - ACCESS-OM
-          # - ACCESS-CM
-          # - ACCESS-OM-BGC
-          # - ACCESS-ESM
+          - ACCESS-OM
+          - ACCESS-CM
+          - ACCESS-OM-BGC
+          - ACCESS-ESM
     runs-on: ${{ matrix.os }}
     env:
       # FC: gfortran-${{ matrix.gcc_v }}
