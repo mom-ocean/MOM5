@@ -76,21 +76,30 @@ else ()
   message ("Unknown C compiler default flags only...")
 endif()
 
-if(NETCDF4)
-  add_compile_definitions(use_netCDF4) 
-else()
-  add_compile_definitions(use_netCDF3) 
-endif()
+# Transfer command line setting of CPP defs to CMake 
+set(CPPDEFS 
+  use_netCDF
+  use_netCDF3
+  use_netCDF4
+  use_libMPI
+  SPMD
+  ENABLE
+  ODA
+  USE_OCEAN_BGC
+  LAND_BND_TRACERS 
+  OVERLOAD_C8 
+  OVERLOAD_C4 
+  OVERLOAD_R4
+)
+foreach(VAR ${CPPDEFS})
+  if(${VAR})
+    message("Setting CPP def ${VAR}")
+    add_compile_definitions(${VAR})
+  endif()
+endforeach()
 
 string(TOUPPER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
 message("Using Fortran flags: ${CMAKE_Fortran_FLAGS} ${CMAKE_Fortran_FLAGS_${BUILD_TYPE}}")
-
-add_compile_definitions(use_netCDF 
-                        use_libMPI 
-                        USE_OCEAN_BGC 
-                        ENABLE_ODA 
-                        SPMD 
-                        LAND_BND_TRACERS)
 
 set(CMAKE_DEBUG_TARGET_PROPERTIES
             # INCLUDE_DIRECTORIES

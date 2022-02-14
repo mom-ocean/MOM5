@@ -10,10 +10,14 @@ set help       = 0
 set FC=mpifort
 set CC=mpicc
 
-set argv = (`getopt -u -o h -l generator: -l build_type: -l target: -l fcomp: -l ccomp: -l help --  $*`)
+set argv = (`getopt -u -o h -l netcdf3 -l generator: -l build_type: -l target: -l fcomp: -l ccomp: -l help --  $*`)
+set errcode=$?
 
-while ("$argv[1]" != "--")
-    switch ($argv[1])
+if ( $errcode != 0 ) then
+   set help = 1
+else
+   while ("$argv[1]" != "--")
+     switch ($argv[1])
         case --generator:
                 set generator = $argv[2]; shift argv; breaksw
         case --build_type:
@@ -30,10 +34,14 @@ while ("$argv[1]" != "--")
                 set FC = $argv[2]; shift argv; breaksw
         case --ccomp:
                 set CC = $argv[2]; shift argv; breaksw
-    endsw
+        default:
+                set help = 1
+      endsw
+      shift argv
+    end
     shift argv
-end
-shift argv
+endif
+
 if ( $help ) then
     echo "The optional arguments are:"
     echo "--generator  followed by the CMake generator, one of the following (default is 'Unix Makefiles'):"
@@ -72,11 +80,13 @@ set CPPFLAGS="-Duse_netCDF=1 -Duse_libMPI=1 -DLAND_BND_TRACERS=1"
 if ( $target == MOM5_EBM ) then
   set CPPFLAGS="$CPPFLAGS -DOVERLOAD_C8=1 -DOVERLOAD_C4=1 -DOVERLOAD_R4=1"
 else
-  set CPPFLAGS="$CPPFLAGS -DUSE_OCEAN_BGC=1 -DENABLE_ODA=1 -DSPMD=1" )
+  set CPPFLAGS="$CPPFLAGS -DUSE_OCEAN_BGC=1 -DENABLE_ODA=1 -DSPMD=1"
 endif
 
 if ( $use_netcdf4 ) then
-  set CPPFLAGS="$CPPFLAGS -DNETCDF4=1" 
+  set CPPFLAGS="$CPPFLAGS -Duse_netCDF4=1" 
+else
+  set CPPFLAGS="$CPPFLAGS -Duse_netCDF3=1" 
 endif
 
 set CMAKEVARS="-DCMAKE_BUILD_TYPE=$build_type -DCMAKE_Fortran_COMPILER=$FC -DCMAKE_C_COMPILER=$CC"
