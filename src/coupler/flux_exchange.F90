@@ -2934,7 +2934,7 @@ subroutine flux_ice_to_ocean ( Time, Ice, Ocean, Ice_Ocean_Boundary )
 !        t_surf = surface temperature (deg K)
 !        frazil = frazil (???)
 !        u_surf = zonal ocean current/ice motion (m/s)
-!        v_surf = meridional ocean current/ice motion (m/s
+!        v_surf = meridional ocean current/ice motion (m/s)
 !  </PRE>
 !  </DESCRIPTION>
 !  <TEMPLATE>
