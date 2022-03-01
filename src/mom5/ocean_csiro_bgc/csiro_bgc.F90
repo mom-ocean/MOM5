@@ -2440,66 +2440,86 @@ id_light_limit = register_diag_field('ocean_model','light_limit', &
      ' ',missing_value = -1.0e+10)
 
 id_adic_intmld = register_diag_field('ocean_model','adic_intmld', &
-     grid%tracer_axes(1:2),Time%model_time, 'MLD-integrated adic', &
-     ' ',missing_value = -1.0e+10)
+     grid%tracer_axes(1:2),Time%model_time, &
+     'MLD-integrated natural + anthropogenic dissolved inorganic carbon', &
+     'mmol/m^2',missing_value = -1.0e+10)
 id_dic_intmld = register_diag_field('ocean_model','dic_intmld', &
-     grid%tracer_axes(1:2),Time%model_time, 'MLD-integrated dic', &
-     ' ',missing_value = -1.0e+10)     
+     grid%tracer_axes(1:2),Time%model_time, &
+     'MLD-integrated natural dissolved inorganic carbon', &
+     'mmol/m^2',missing_value = -1.0e+10)     
 id_o2_intmld = register_diag_field('ocean_model','o2_intmld', &
-     grid%tracer_axes(1:2),Time%model_time, 'MLD-integrated o2', &
-     ' ',missing_value = -1.0e+10)     
+     grid%tracer_axes(1:2),Time%model_time, &
+     'MLD-integrated dissolved oxygen', &
+     'mmol/m^2',missing_value = -1.0e+10)     
 id_no3_intmld = register_diag_field('ocean_model','no3_intmld', &
-     grid%tracer_axes(1:2),Time%model_time, 'MLD-integrated no3', &
-     ' ',missing_value = -1.0e+10)     
+     grid%tracer_axes(1:2),Time%model_time, &
+     'MLD-integrated nitrate', &
+     'mmol/m^2',missing_value = -1.0e+10)     
 id_fe_intmld = register_diag_field('ocean_model','fe_intmld', &
-     grid%tracer_axes(1:2),Time%model_time, 'MLD-integrated fe', &
-     ' ',missing_value = -1.0e+10)     
+     grid%tracer_axes(1:2),Time%model_time, &
+     'MLD-integrated iron', &
+     'umol/m^2',missing_value = -1.0e+10)     
 id_phy_intmld = register_diag_field('ocean_model','phy_intmld', &
-     grid%tracer_axes(1:2),Time%model_time, 'MLD-integrated phy', &
-     ' ',missing_value = -1.0e+10)     
+     grid%tracer_axes(1:2),Time%model_time, &
+     'MLD-integrated phytoplankton', &
+     'mmol/m^2',missing_value = -1.0e+10)     
 id_det_intmld = register_diag_field('ocean_model','det_intmld', &
-     grid%tracer_axes(1:2),Time%model_time, 'MLD-integrated det', &
-     ' ',missing_value = -1.0e+10)     
+     grid%tracer_axes(1:2),Time%model_time, &
+     'MLD-integrated detritus', &
+     'mmol/m^2',missing_value = -1.0e+10)     
 id_pprod_gross_intmld = register_diag_field('ocean_model','pprod_gross_intmld', &
-     grid%tracer_axes(1:2),Time%model_time, 'MLD-integrated pprod_gross', &
-     ' ',missing_value = -1.0e+10)     
+     grid%tracer_axes(1:2),Time%model_time, &
+     'MLD-integrated gross PHY production', &
+     'mmolN/m^2/s',missing_value = -1.0e+10)     
 id_npp_intmld = register_diag_field('ocean_model','npp_intmld', &
-     grid%tracer_axes(1:2),Time%model_time, 'MLD-integrated npp', &
-     ' ',missing_value = -1.0e+10)     
+     grid%tracer_axes(1:2),Time%model_time, &
+     'MLD-integrated net primary productivity', &
+     'mmolN/m^2/s',missing_value = -1.0e+10)     
 id_radbio_intmld = register_diag_field('ocean_model','radbio_intmld', &
-     grid%tracer_axes(1:2),Time%model_time, 'MLD-integrated radbio', &
-     ' ',missing_value = -1.0e+10)     
+     grid%tracer_axes(1:2),Time%model_time, &
+     'MLD-integrated photosynthetically active radiation for phytoplankton growth', &
+     'W m-1',missing_value = -1.0e+10)     
 
-     id_adic_int100 = register_diag_field('ocean_model','adic_int100', &
-     grid%tracer_axes(1:2),Time%model_time, '100m-integrated adic', &
-     ' ',missing_value = -1.0e+10)
+id_adic_int100 = register_diag_field('ocean_model','adic_int100', &
+     grid%tracer_axes(1:2),Time%model_time, &
+     '100m-integrated natural + anthropogenic dissolved inorganic carbon', &
+     'mmol/m^2',missing_value = -1.0e+10)
 id_dic_int100 = register_diag_field('ocean_model','dic_int100', &
-     grid%tracer_axes(1:2),Time%model_time, '100m-integrated dic', &
-     ' ',missing_value = -1.0e+10)     
+     grid%tracer_axes(1:2),Time%model_time, &
+     '100m-integrated natural dissolved inorganic carbon', &
+     'mmol/m^2',missing_value = -1.0e+10)     
 id_o2_int100 = register_diag_field('ocean_model','o2_int100', &
-     grid%tracer_axes(1:2),Time%model_time, '100m-integrated o2', &
-     ' ',missing_value = -1.0e+10)     
+     grid%tracer_axes(1:2),Time%model_time, &
+     '100m-integrated dissolved oxygen', &
+     'mmol/m^2',missing_value = -1.0e+10)     
 id_no3_int100 = register_diag_field('ocean_model','no3_int100', &
-     grid%tracer_axes(1:2),Time%model_time, '100m-integrated no3', &
-     ' ',missing_value = -1.0e+10)     
+     grid%tracer_axes(1:2),Time%model_time, &
+     '100m-integrated nitrate', &
+     'mmol/m^2',missing_value = -1.0e+10)     
 id_fe_int100 = register_diag_field('ocean_model','fe_int100', &
-     grid%tracer_axes(1:2),Time%model_time, '100m-integrated fe', &
-     ' ',missing_value = -1.0e+10)     
+     grid%tracer_axes(1:2),Time%model_time, &
+     '100m-integrated iron', &
+     'umol/m^2',missing_value = -1.0e+10)     
 id_phy_int100 = register_diag_field('ocean_model','phy_int100', &
-     grid%tracer_axes(1:2),Time%model_time, '100m-integrated phy', &
-     ' ',missing_value = -1.0e+10)     
+     grid%tracer_axes(1:2),Time%model_time, &
+     '100m-integrated phytoplankton', &
+     'mmol/m^2',missing_value = -1.0e+10)     
 id_det_int100 = register_diag_field('ocean_model','det_int100', &
-     grid%tracer_axes(1:2),Time%model_time, '100m-integrated det', &
-     ' ',missing_value = -1.0e+10)     
+     grid%tracer_axes(1:2),Time%model_time, &
+     '100m-integrated detritus', &
+     'mmol/m^2',missing_value = -1.0e+10)     
 id_pprod_gross_int100 = register_diag_field('ocean_model','pprod_gross_int100', &
-     grid%tracer_axes(1:2),Time%model_time, '100m-integrated pprod_gross', &
-     ' ',missing_value = -1.0e+10)     
+     grid%tracer_axes(1:2),Time%model_time, &
+     '100m-integrated gross PHY production', &
+     'mmolN/m^2/s',missing_value = -1.0e+10)     
 id_npp_int100 = register_diag_field('ocean_model','npp_int100', &
-     grid%tracer_axes(1:2),Time%model_time, '100m-integrated npp', &
-     ' ',missing_value = -1.0e+10)     
+     grid%tracer_axes(1:2),Time%model_time, &
+     '100m-integrated net primary productivity', &
+     'mmolN/m^2/s',missing_value = -1.0e+10)     
 id_radbio_int100 = register_diag_field('ocean_model','radbio_int100', &
-     grid%tracer_axes(1:2),Time%model_time, '100m-integrated radbio', &
-     ' ',missing_value = -1.0e+10)      
+     grid%tracer_axes(1:2),Time%model_time, &
+     '100m-integrated photosynthetically active radiation for phytoplankton growth', &
+     'W m-1',missing_value = -1.0e+10)      
 
 id_radbio1 = register_diag_field('ocean_model','radbio1', &
      grid%tracer_axes(1:2),Time%model_time, 'Photosynthetically active radiation for phytoplankton growth at surface', &
