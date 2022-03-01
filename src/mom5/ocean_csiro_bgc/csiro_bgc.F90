@@ -1493,6 +1493,7 @@ integer                                                 :: nn, ntr_bgc
 real                                                    :: min_range=0.0, max_range=1.e4
 real                                                    :: sum_ntr = 0.0
 character(len=8)                                        :: bgc_trc='tracer00'
+character(len=1)                                        :: bgc_si_prefix='m' ! 'm' for everything but iron, which is 'u'
 
 !       Initialize the csiro_bgc package
 
@@ -1730,12 +1731,19 @@ do n = 1, instances  !{
           min_range=0.0
           max_range=100.0
     endif 
+
+    if (nn == id_fe) then
+          bgc_si_prefix = 'u'
+    else
+          bgc_si_prefix='m'
+    endif
           
     
     biotic(n)%ind_bgc(nn) = otpm_set_prog_tracer(trim(bgc_trc) // trim(suffix),     &
        package_name,                                                  &
        longname = trim(bgc_trc) // trim(long_suffix),                      &
-       units = 'mmol/m^3', flux_units = 'mmol/m^2/s',                 &
+       units = bgc_si_prefix//'mol/m^3',                              &
+       flux_units = bgc_si_prefix//'mol/m^2/s',                       &
        caller = trim(mod_name)//'('//trim(sub_name)//')',              &
        min_range=min_range,max_range=max_range)
  enddo  !} nn
@@ -2660,31 +2668,34 @@ do n = 1, instances  !{
    name2 = 'Virtual flux into ocean - iron'
    name3 = 'Source term - iron'
    name4 = 'Flux into sediment - iron'
+   bgc_si_prefix = 'u'
+  else
+   bgc_si_prefix='m'
   endif
   if (mpp_pe() == mpp_root_pe() )print*,'rjm bio',bgc_stf,'v'//bgc_stf
 
   biotic(n)%id_bgc_stf(nn) = register_diag_field('ocean_model',       &
        bgc_stf//str, grid%tracer_axes(1:2),                     &
-       Time%model_time, name1, 'mmol/m^2/s',    &
-!       Time%model_time, bgc_stf//'flux into ocean', 'mmol/m^2/s',    &
+       Time%model_time, name1, bgc_si_prefix//'mol/m^2/s',    &
+!       Time%model_time, bgc_stf//'flux into ocean', bgc_si_prefix//'mol/m^2/s',    &
        missing_value = -1.0e+10)
 
   biotic(n)%id_bgc_vstf(nn) = register_diag_field('ocean_model',       &
        'v'//bgc_stf//str, grid%tracer_axes(1:2),                     &
-       Time%model_time, name2, 'mmol/m^3/s',    &
-!       Time%model_time, bgc_stf//'virtual flux into ocean', 'mmol/m^3/s',    &
+       Time%model_time, name2, bgc_si_prefix//'mol/m^3/s',    &
+!       Time%model_time, bgc_stf//'virtual flux into ocean', bgc_si_prefix//'mol/m^3/s',    &
        missing_value = -1.0e+10)
 
   biotic(n)%id_bgc_src(nn) = register_diag_field('ocean_model',       &
        bgc_src//str, grid%tracer_axes(1:3),                     &
-       Time%model_time, name3, 'mmolN/m^3/s',    &
-!       Time%model_time, bgc_src, 'mmolN/m^3/s',    &
+       Time%model_time, name3, bgc_si_prefix//'molN/m^3/s',    &
+!       Time%model_time, bgc_src, bgc_si_prefix//'molN/m^3/s',    &
        missing_value = -1.0e+10)
 
   biotic(n)%id_bgc_btf(nn) = register_diag_field('ocean_model',       &
        bgc_btf//str, grid%tracer_axes(1:2),                     &
-       Time%model_time, name4, 'mmol/m^2/s',    &
-!       Time%model_time, bgc_btf//'flux into sediment', 'mmol/m^2/s',    &
+       Time%model_time, name4, bgc_si_prefix//'mol/m^2/s',    &
+!       Time%model_time, bgc_btf//'flux into sediment', bgc_si_prefix//'mol/m^2/s',    &
        missing_value = -1.0e+10)
 
  enddo  !} nn
