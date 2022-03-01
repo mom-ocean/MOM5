@@ -2223,6 +2223,7 @@ character(len=5)        :: bgc_stf='stf00'
 character(len=5)        :: bgc_btf='btf00'
 character(len=5)        :: bgc_src='src00'
 character(len=64)       :: name1, name2, name3, name4 
+character(len=1)        :: bgc_si_prefix='m' ! 'm' for everything but iron, which is 'u'
 
 
 ! =====================================================================
