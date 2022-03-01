@@ -59,6 +59,8 @@ if ( $help ) then
     echo
     echo "--platform   followed by the platform name that has a corresponding environ file in the ../bin dir, default is gfortran"
     echo
+    echo "--debug      make a debugging build"
+    echo
     echo "--use_netcdf4  use NetCDF4, the default is NetCDF4. Warning: many of the standard experiments don't work with NetCDF4."
     echo
     echo "--no_environ  do not source platform specific environment. Allows customising/overriding default environment"

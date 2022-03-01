@@ -17,7 +17,7 @@
   use fv_arrays_mod, only: is,ie,js,je, isd,ied,jsd,jed, isg,ieg,jsg,jeg
 #  ifdef MARS_GCM
   use fv_arrays_mod, only: ptr_delp_dt, ptr_mars_sfc_budg
-#  endif MARS_GCM
+#  endif
 
 #else
 !get arrays from fv_arrays_mod
@@ -28,9 +28,9 @@
 
 #  ifdef MARS_GCM
   use fv_arrays_mod, only: delp_dt, mars_sfc_budg
-#  endif MARS_GCM
+#  endif
 
-#endif  use_shared_pointers
+#endif
 
   implicit none
 

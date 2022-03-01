@@ -1462,16 +1462,17 @@ use fms_mod,only: stdlog, error_mesg, FATAL
       !compute isccp frequencies
 
       !reset frequencies
-      do 38 ilev=1,7
-      do 38 ilev2=1,7
-        do j=1,npoints ! 
-             if (sunlit(j).eq.1 .or. top_height .eq. 3) then 
+      do ilev=1,7
+        do ilev2=1,7
+          do j=1,npoints ! 
+            if (sunlit(j).eq.1 .or. top_height .eq. 3) then 
                 fq_isccp(j,ilev,ilev2)= 0.
-	     else
-	        fq_isccp(j,ilev,ilev2)= output_missing_value
-	     end if
+            else
+                fq_isccp(j,ilev,ilev2)= output_missing_value
+            end if
+          enddo
         enddo
-38    continue
+      enddo
 
       !reset variables need for averaging cloud properties
       do j=1,npoints 

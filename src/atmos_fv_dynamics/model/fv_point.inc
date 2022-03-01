@@ -30,7 +30,7 @@
 #ifdef MARS_GCM
   real :: delp_dt(isg:ieg, js:je, nlev)
   real :: mars_sfc_budg(isg:ieg, js:je, 5)
-#endif MARS_GCM
+#endif
   pointer( p_u, u )
   pointer( p_v, v )
   pointer( p_delp, delp )
@@ -60,7 +60,7 @@
 #ifdef MARS_GCM
   pointer( p_delp_dt, delp_dt )
   pointer( p_mars_sfc_budg, mars_sfc_budg )
-#endif MARS_GCM
+#endif
 !point all the shared pointers
   p_u = ptr_u
   p_v = ptr_v
@@ -91,6 +91,6 @@
 #ifdef MARS_GCM
   p_delp_dt = ptr_delp_dt
   p_mars_sfc_budg = ptr_mars_sfc_budg
-#endif MARS_GCM
+#endif
 
-#endif  use_shared_pointers
+#endif

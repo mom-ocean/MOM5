@@ -499,71 +499,71 @@ private
 #endif
 
   ! identification numbers for mpp clocks
-  integer :: id_init
-  integer :: id_advect
-  integer :: id_vmix
-  integer :: id_neutral
-  integer :: id_compute_visc_form_drag
-  integer :: id_submesoscale
-  integer :: id_sw
-  integer :: id_sponges_tracer
-  integer :: id_sponges_eta
-  integer :: id_sponges_velocity
-  integer :: id_sigma
-  integer :: id_tracer
-  integer :: id_bbc
-  integer :: id_sbc
-  integer :: id_flux_adjust
-  integer :: id_explicit_accel_a
-  integer :: id_explicit_accel_b
-  integer :: id_implicit_accel
-  integer :: id_bottom_smooth
-  integer :: id_surface_smooth
-  integer :: id_eta_and_pbot_tendency
-  integer :: id_eta_and_pbot_update
-  integer :: id_eta_and_pbot_diagnose
-  integer :: id_rho_dzt_tendency
-  integer :: id_dzt_dst_update
-  integer :: id_mass_forcing 
-  integer :: id_barotropic_forcing
-  integer :: id_barotropic_update
-  integer :: id_velocity
-  integer :: id_xlandinsert
-  integer :: id_xlandmix
-  integer :: id_overflow
-  integer :: id_overflow_OFP
-  integer :: id_overexchange
-  integer :: id_mixdownslope
-  integer :: id_blob_update
-  integer :: id_blob_cell_update
-  integer :: id_blob_diagnose_depth
-  integer :: id_tcell_thickness_blob
-  integer :: id_update_L_thickness
-  integer :: id_update_E_thickness
-  integer :: id_rivermix
-  integer :: id_density
-  integer :: id_density_diag
-  integer :: id_otpm_source
-  integer :: id_otpm_bbc
-  integer :: id_otpm_tracer
-  integer :: id_diagnostics
-  integer :: id_tcell_thickness
-  integer :: id_ucell_thickness
-  integer :: id_update_halo_tracer
-  integer :: id_update_halo_velocity
-  integer :: id_oda
-  integer :: id_ocean_sfc
-  integer :: id_ocean_seg_end
-  integer :: id_tmask_limit
-  integer :: id_ocean
-  integer :: id_advect_gotm
-  integer :: id_increment_tracer
-  integer :: id_increment_eta
-  integer :: id_increment_velocity
-  integer :: id_salinity
-  integer :: id_wave
+  integer :: id_init=0
+  integer :: id_advect=0
+  integer :: id_vmix=0
+  integer :: id_neutral=0
+  integer :: id_compute_visc_form_drag=0
+  integer :: id_submesoscale=0
+  integer :: id_sw=0
+  integer :: id_sponges_tracer=0
+  integer :: id_sponges_eta=0
+  integer :: id_sponges_velocity=0
+  integer :: id_sigma=0
+  integer :: id_tracer=0
+  integer :: id_bbc=0
+  integer :: id_sbc=0
+  integer :: id_flux_adjust=0
+  integer :: id_explicit_accel_a=0
+  integer :: id_explicit_accel_b=0
+  integer :: id_implicit_accel=0
+  integer :: id_bottom_smooth=0
+  integer :: id_surface_smooth=0
+  integer :: id_eta_and_pbot_tendency=0
+  integer :: id_eta_and_pbot_update=0
+  integer :: id_eta_and_pbot_diagnose=0
+  integer :: id_rho_dzt_tendency=0
+  integer :: id_dzt_dst_update=0
+  integer :: id_mass_forcing =0
+  integer :: id_barotropic_forcing=0
+  integer :: id_barotropic_update=0
+  integer :: id_velocity=0
+  integer :: id_xlandinsert=0
+  integer :: id_xlandmix=0
+  integer :: id_overflow=0
+  integer :: id_overflow_OFP=0
+  integer :: id_overexchange=0
+  integer :: id_mixdownslope=0
+  integer :: id_blob_update=0
+  integer :: id_blob_cell_update=0
+  integer :: id_blob_diagnose_depth=0
+  integer :: id_tcell_thickness_blob=0
+  integer :: id_update_L_thickness=0
+  integer :: id_update_E_thickness=0
+  integer :: id_rivermix=0
+  integer :: id_density=0
+  integer :: id_density_diag=0
+  integer :: id_otpm_source=0
+  integer :: id_otpm_bbc=0
+  integer :: id_otpm_tracer=0
+  integer :: id_diagnostics=0
+  integer :: id_tcell_thickness=0
+  integer :: id_ucell_thickness=0
+  integer :: id_update_halo_tracer=0
+  integer :: id_update_halo_velocity=0
+  integer :: id_oda=0
+  integer :: id_ocean_sfc=0
+  integer :: id_ocean_seg_end=0
+  integer :: id_tmask_limit=0
+  integer :: id_ocean=0
+  integer :: id_advect_gotm=0
+  integer :: id_increment_tracer=0
+  integer :: id_increment_eta=0
+  integer :: id_increment_velocity=0
+  integer :: id_salinity=0
+  integer :: id_wave=0
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
-  integer :: id_sfix
+  integer :: id_sfix=0
 #endif
 
   public ocean_model_init
@@ -729,6 +729,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
     id_density              = mpp_clock_id('(Ocean update density) '         ,grain=CLOCK_MODULE)    
     id_vmix                 = mpp_clock_id('(Ocean vertical mixing coeff) '  ,grain=CLOCK_MODULE)
     id_neutral              = mpp_clock_id('(Ocean neutral physics) '        ,grain=CLOCK_MODULE)
+    id_compute_visc_form_drag = mpp_clock_id('(Ocean viscous form drag) '    ,grain=CLOCK_MODULE)
     id_submesoscale         = mpp_clock_id('(Ocean submesoscale restrat)'    ,grain=CLOCK_MODULE)
     id_sw                   = mpp_clock_id('(Ocean shortwave) '              ,grain=CLOCK_MODULE)
     id_sponges_eta          = mpp_clock_id('(Ocean sponges_eta) '            ,grain=CLOCK_MODULE)

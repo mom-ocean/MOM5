@@ -13,7 +13,7 @@ module dyn_core
 
 #ifdef MARS_GCM
    use fv_pack,      only: p_ref, fv_sponge_damp, fv_sponge_lev
-#endif MARS_GCM
+#endif
 
 
    use pft_module,   only: pft2d
@@ -249,7 +249,7 @@ CONTAINS
             allocate( fc(im,jsfc:jnfc) )
 #else
             allocate( fc(jsfc:jnfc) )
-#endif 
+#endif
 
 
 #ifndef USE_LIMA
@@ -322,7 +322,7 @@ CONTAINS
         call get_eta_level(km, p_ref, pfull, phalf, 0.01) 
 #else
         call get_eta_level(km, 1.E5, pfull, phalf, 0.01) 
-#endif MARS_GCM 
+#endif
 
 
         do k=1,km
@@ -891,7 +891,7 @@ CONTAINS
       real dp
 #ifndef MARS_GCM
       parameter (dpmin = 0.02)              ! unit: pascal
-#endif 
+#endif
       integer :: ixjs, ixje
 
 
@@ -1034,7 +1034,7 @@ CONTAINS
 #else
 !    rjw    Note that dpmin was 0.02 in the memphis code  
    parameter (dpmin = 0.1)              ! unit: pascal
-#endif MARS_GCM
+#endif
 
    call fv_print_chksums( 'Entering  geopk' )
    call fv_array_check( LOC(hs) )

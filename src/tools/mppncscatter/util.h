@@ -8,4 +8,4 @@
 #define MAX(A,B) ( ((A) > (B)) ? (A) : (B) )
 #define ODD(X) ((X) % 2)
 
-#endif /* MPPNCSCATTER_UTIL_H */
+#endif

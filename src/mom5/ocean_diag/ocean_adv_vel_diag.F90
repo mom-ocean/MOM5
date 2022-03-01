@@ -421,7 +421,7 @@ subroutine remapping_check
     '==>Note: T-->U remapping error will be small (i.e., order 1e-20) only for spherical grids.'
   endif
 
-9000  format(//'==>Maximum T-->U remapping error = ',es10.3,' m/s  at (i,j) = ','(',i4,',',i4,'),',' (lon,lat) = (',f7.2,',',f7.2,')')
+9000  format(//'==>Maximum T-->U remapping error = ',es10.3,' m/s  at (i,j) = ','(',i0,',',i0,'),',' (lon,lat) = (',f7.2,',',f7.2,')')
 
 end subroutine remapping_check
 ! </SUBROUTINE> NAME="remapping_check"
@@ -564,7 +564,7 @@ subroutine cfl_check2(Time, Thickness, Adv_vel)
 
         if (cflw >= large_cfl_value) then
 
-          write (unit,'(/,a,i4,a1,i3,a,i3,a,f6.3)')      &
+          write (unit,'(/,a,i0,a1,i0,a,i3,a,f6.3)')      &
            ' Note: CFL velocity limit exceeded at (i,j,k) = (',&
            i+Dom%ioff, ',',j+Dom%joff,',',k,') by factor =',large_cfl_value 
 
@@ -581,7 +581,7 @@ subroutine cfl_check2(Time, Thickness, Adv_vel)
 
         if (cflw >= max_cfl_value) then
 
-           write (unit,'(/,a,i4,a1,i3,a,i3,a,f6.3)')     &
+           write (unit,'(/,a,i4,a1,i0,a,i0,a,f6.3)')     &
            ' Note: CFL vertical velocity limit exceeded at (i,j,k) = (',&
            i+Dom%ioff, ',',j+Dom%joff,',',k,') by factor =',max_cfl_value 
 
@@ -711,9 +711,9 @@ subroutine maximum_bottom_w(Adv_vel)
      endif
   endif
 
-9112  format(/' Maximum T-cell bottom velocity (',es10.3,' m/s){error}  at (i,j,k) = ','(',i4,',',i4,',',i4,'),',&
+9112  format(/' Maximum T-cell bottom velocity (',es10.3,' m/s){error}  at (i,j,k) = ','(',i0,',',i0,',',i0,'),',&
           ' (lon,lat,dpt) = (',f7.2,',',f7.2,',',f7.0,'m)')
-9113  format(' Maximum U-cell bottom velocity (',es10.3,' m/s){slope}  at (i,j,k) = ','(',i4,',',i4,',',i4,'),',&
+9113  format(' Maximum U-cell bottom velocity (',es10.3,' m/s){slope}  at (i,j,k) = ','(',i0,',',i0,',',i0,'),',&
           ' (lon,lat,dpt) = (',f7.2,',',f7.2,',',f7.0,'m)'/)
 
 end subroutine maximum_bottom_w
@@ -799,7 +799,7 @@ subroutine max_continuity_error(Adv_vel, Thickness)
 
   if (abs(bigt0) == bigt) then
     bigt = bigt0/fudge
-    write (unit,'(a,es10.3,a,i4,a1,i3,a1,i3,a,f9.2,a,f9.2,a,f9.2,a/)') ' Maximum T-cell Continuity Error (',bigt,&
+    write (unit,'(a,es10.3,a,i0,a1,i0,a1,i0,a,f9.2,a,f9.2,a,f9.2,a/)') ' Maximum T-cell Continuity Error (',bigt,&
     ' m/s) is at (i,j,k) = (',it+Dom%ioff,',',jt+Dom%joff,',',kt,'),  (lon,lat,dpt) = ('&
      ,Grd%xt(it,jt),',',Grd%yt(it,jt),',',  Grd%zt(kt),' m)'
   endif
@@ -807,7 +807,7 @@ subroutine max_continuity_error(Adv_vel, Thickness)
   if(horz_grid==MOM_BGRID) then
      if (abs(bigu0) == bigu) then
        bigu = bigu0/fudge
-       write (unit,'(/,a,es10.3,a,i4,a1,i3,a1,i3,a,f9.2,a,f9.2,a,f9.2,a)') ' Maximum U-cell Continuity Error (',bigu,&
+       write (unit,'(/,a,es10.3,a,i0,a1,i0,a1,i0,a,f9.2,a,f9.2,a,f9.2,a)') ' Maximum U-cell Continuity Error (',bigu,&
        ' m/s) is at (i,j,k) = (',iu+Dom%ioff,',',ju+Dom%joff,',',ku,'),  (lon,lat,dpt) = ('&
         ,Grd%xu(iu,ju),',',Grd%yu(iu,ju),',',  Grd%zt(ku),' m)'
      endif

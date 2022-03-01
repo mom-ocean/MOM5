@@ -87,10 +87,10 @@ public  surface_flux
 !  Mixing ratio at earth surface (kg/kg). 
 !  </OUT>
 !  <IN NAME="u_surf" TYPE="real, dimension(:)" UNITS="m/s">
-!  Zonal wind velocity at earth surface.   
+!  Zonal ocean current/ice motion at earth surface.
 !  </IN>
 !  <IN NAME="v_surf" TYPE="real, dimension(:)" UNITS="m/s">
-!  Meridional wind velocity at earth surface. 
+!  Meridional ocean current/ice motion at earth surface.
 !  </IN>
 !  <IN NAME="rough_mom" TYPE="real, dimension(:)" UNITS="m">
 !  Momentum roughness length

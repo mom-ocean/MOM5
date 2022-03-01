@@ -2426,7 +2426,7 @@ subroutine packbuffer(blob,buffer,entrainment,detrainment)
   stdoutunit = stdout()
 
   if (buffer%pe == NULL_PE) then
-     write (stdoutunit, '(a)'), 'Error: Trying to send blob to a NULL_PE'
+     write (stdoutunit, '(a)') 'Error: Trying to send blob to a NULL_PE'
      call mpp_error(FATAL, &
           '==>Error in ocean_blob_static_bottom_mod (packbuffer): '&
           //'Trying to send blob to a NULL_PE')

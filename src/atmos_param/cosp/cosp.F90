@@ -55,13 +55,13 @@ CONTAINS
 SUBROUTINE COSP(overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,rttov,stradar,stlidar,sghydro,cloud_type)
 #else
 SUBROUTINE COSP(overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,rttov,stradar,stlidar)
-#endif COSP_GFDL
+#endif
 #else
 #ifdef COSP_GFDL
 SUBROUTINE COSP(overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,stradar,stlidar, sghydro, cloud_type)
 #else
 SUBROUTINE COSP(overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,modis,stradar,stlidar)
-#endif COSP_GFDL
+#endif
 #endif
   ! Arguments
   integer,intent(in) :: overlap !  overlap type in SCOPS: 1=max, 2=rand, 3=max/rand
@@ -326,7 +326,7 @@ SUBROUTINE COSP(overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,mo
                 call construct_cosp_misr(cfg,Ni,misr_it)
 #ifdef RTTOV 
                 call construct_cosp_rttov(Ni,gbx%nchan,rttov_it) 
-#endif 
+#endif
                 call construct_cosp_radarstats(cfg,Ni,Ncolumns,vgrid%Nlvgrid,N_HYDRO,stradar_it)
                 call construct_cosp_lidarstats(cfg,Ni,Ncolumns,vgrid%Nlvgrid,N_HYDRO,PARASOL_NREFL,stlidar_it)
             endif
@@ -375,7 +375,7 @@ SUBROUTINE COSP(overlap,Ncolumns,cfg,vgrid,gbx,sgx,sgradar,sglidar,isccp,misr,mo
             if (cfg%Lmisr_sim)  call cosp_misr_cpsection(ix,iy,misr_it,misr)
 #ifdef RTTOV 
             if (cfg%Lrttov_sim) call cosp_rttov_cpsection(ix,iy,rttov_it,rttov) 
-#endif 
+#endif
             if (cfg%Lradar_sim) call cosp_radarstats_cpsection(ix,iy,stradar_it,stradar)
             if (cfg%Llidar_sim) call cosp_lidarstats_cpsection(ix,iy,stlidar_it,stlidar)
         enddo

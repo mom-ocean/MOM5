@@ -173,8 +173,9 @@ module mpp_mod
   use shmem_interface
 #endif
 
-#if defined(use_libMPI) && defined(sgi_mipspro)
+#if defined(use_libMPI) && (defined(sgi_mipspro) || (__GNUC__ >= 11))
   use mpi
+#define MPI_IMPORTED 1
 #endif
 
   use mpp_parameter_mod, only : MPP_VERBOSE, MPP_DEBUG, ALL_PES, ANY_PE, NULL_PE
@@ -184,6 +185,7 @@ module mpp_mod
   use mpp_parameter_mod, only : MAX_EVENTS, MAX_BINS, MAX_EVENT_TYPES, MAX_CLOCKS
   use mpp_parameter_mod, only : MAXPES, EVENT_WAIT, EVENT_ALLREDUCE, EVENT_BROADCAST
   use mpp_parameter_mod, only : EVENT_ALLTOALL
+  use mpp_parameter_mod, only : EVENT_TYPE_CREATE, EVENT_TYPE_FREE
   use mpp_parameter_mod, only : EVENT_RECV, EVENT_SEND, MPP_READY, MPP_WAIT
   use mpp_parameter_mod, only : mpp_parameter_version=>version
   use mpp_parameter_mod, only : DEFAULT_TAG
@@ -204,9 +206,9 @@ private
 #include <mpp/shmem.fh>
 #endif
 
-#if defined(use_libMPI) && !defined(sgi_mipspro)
+#if defined(use_libMPI) && !defined(MPI_IMPORTED)
 #include <mpif.h>   
-!sgi_mipspro gets this from 'use mpi'
+! !sgi_mipspro gets this from 'use mpi'
 #endif
 
   !--- public paramters  -----------------------------------------------
@@ -238,6 +240,7 @@ private
   public :: mpp_chksum, mpp_max, mpp_min, mpp_sum, mpp_transmit, mpp_send, mpp_recv
   public :: mpp_broadcast, mpp_malloc, mpp_init, mpp_exit
   public :: mpp_gather, mpp_scatter, mpp_alltoall
+  public :: mpp_type, mpp_byte, mpp_type_create, mpp_type_free
 #ifdef use_MPI_GSM
   public :: mpp_gsm_malloc, mpp_gsm_free
 #endif
@@ -295,6 +298,29 @@ private
      character(len=16)         :: name
      type (Clock_Data_Summary) :: event(MAX_EVENT_TYPES)
   end type Summary_Struct
+
+  ! Data types for generalized data transfer (e.g. MPI_Type)
+  type :: mpp_type
+     private
+     integer :: counter ! Number of instances of this type
+     integer :: ndims
+     integer, allocatable :: sizes(:)
+     integer, allocatable :: subsizes(:)
+     integer, allocatable :: starts(:)
+     integer :: etype   ! Elementary data type (e.g. MPI_BYTE)
+     integer :: id      ! Identifier within message passing library (e.g. MPI)
+
+     type(mpp_type), pointer :: prev => null()
+     type(mpp_type), pointer :: next => null()
+  end type mpp_type
+
+  ! Persisent elements for linked list interaction
+  type :: mpp_type_list
+      private
+      type(mpp_type), pointer :: head => null()
+      type(mpp_type), pointer :: tail => null()
+      integer :: length
+  end type mpp_type_list
 
 !***********************************************************************
 !
@@ -541,6 +567,21 @@ private
   ! </SUBROUTINE>
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                             !
+!              DATA TRANSFER TYPES: mpp_type_create                           !
+!                                                                             !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  interface mpp_type_create
+      module procedure mpp_type_create_int4
+      module procedure mpp_type_create_int8
+      module procedure mpp_type_create_real4
+      module procedure mpp_type_create_real8
+      module procedure mpp_type_create_logical4
+      module procedure mpp_type_create_logical8
+  end interface mpp_type_create
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !                                                                             !
   !            GLOBAL REDUCTION ROUTINES: mpp_max, mpp_sum, mpp_min             !
   !                                                                             !
@@ -730,10 +771,20 @@ private
      module procedure mpp_alltoall_int8
      module procedure mpp_alltoall_real4
      module procedure mpp_alltoall_real8
+     module procedure mpp_alltoall_logical4
+     module procedure mpp_alltoall_logical8
      module procedure mpp_alltoall_int4_v
      module procedure mpp_alltoall_int8_v
      module procedure mpp_alltoall_real4_v
      module procedure mpp_alltoall_real8_v
+     module procedure mpp_alltoall_logical4_v
+     module procedure mpp_alltoall_logical8_v
+     module procedure mpp_alltoall_int4_w
+     module procedure mpp_alltoall_int8_w
+     module procedure mpp_alltoall_real4_w
+     module procedure mpp_alltoall_real8_w
+     module procedure mpp_alltoall_logical4_w
+     module procedure mpp_alltoall_logical8_w
   end interface
 
 
@@ -1208,6 +1259,9 @@ private
   integer              :: clock_num=0, num_clock_ids=0,current_clock=0, previous_clock(MAX_CLOCKS)=0
   real                 :: tick_rate
 
+  type(mpp_type_list)    :: datatypes
+  type(mpp_type), target :: mpp_byte
+
   integer              :: cur_send_request = 0
   integer              :: cur_recv_request = 0
   integer, allocatable :: request_send(:)
@@ -1244,7 +1298,7 @@ private
   !(t3e: fixed on 3.3 I believe)
   integer, parameter :: MPI_INTEGER8=MPI_INTEGER
 #endif
-#endif /* use_libMPI */
+#endif
 #ifdef use_MPI_SMA
 #include <mpp/shmem.fh>
   integer :: pSync(SHMEM_BARRIER_SYNC_SIZE)

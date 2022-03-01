@@ -2125,15 +2125,16 @@ INTEGER  IYEAR,IMON,IDAY
     DGMT = DGMT - 24.
     IDAY = IDAY + 1.
   5 DP = 365.*IYEAR + IDAY + 31.*(IMON-1.)
-    IF(IMON - 2)  10,10,20
- 10 D1 = (IYEAR - 1.)*0.25
-    D2 = (IYEAR - 1.)*1.E-2 + 1.
-    DF1 = DP + INT(D1) - INT(0.75*INT(D2))
-    GOTO 30
- 20 D1 = 4.E-1*IMON + 2.3
-    D2 = IYEAR*1.E-2
-    DF1 = DP - INT(D1) + INT(25.*D2) - INT(0.75*(INT(D2) + 1.))       
- 30 DTY = (DF1 - 693960.)/36525.
+    if ((IMON - 2) <= 0) then
+      D1 = (IYEAR - 1.)*0.25
+      D2 = (IYEAR - 1.)*1.E-2 + 1.
+      DF1 = DP + INT(D1) - INT(0.75*INT(D2))
+    else
+      D1 = 4.E-1*IMON + 2.3
+      D2 = IYEAR*1.E-2
+      DF1 = DP - INT(D1) + INT(25.*D2) - INT(0.75*(INT(D2) + 1.))       
+    endif
+    DTY = (DF1 - 693960.)/36525.
     DTD = 100.*DTY
     DR = (2.7969668E02 + 3.6000768925E04*DTY + 3.03E-4*DTY*DTY)*    &
       DRAD

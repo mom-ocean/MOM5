@@ -827,7 +827,7 @@ float get_global_area(void)
     void read_mosaic_grid_data(const char *mosaic_file, const char *name, int nx, int ny,
                                double *data, unsigned int level, int ioff, int joff)
     {
-      char   tilefile[STRING], gridfile[STRING], dir[STRING];
+      char   tilefile[STRING*2+1], gridfile[STRING], dir[STRING];
       double *tmp;
       int    ni, nj, nxp, nyp, i, j;
 
