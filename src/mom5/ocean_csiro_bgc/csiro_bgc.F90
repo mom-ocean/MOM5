@@ -2709,8 +2709,8 @@ do n = 1, instances  !{
 
   biotic(n)%id_bgc_src(nn) = register_diag_field('ocean_model',       &
        bgc_src//str, grid%tracer_axes(1:3),                     &
-       Time%model_time, name3, bgc_si_prefix//'molN/m^3/s',    &
-!       Time%model_time, bgc_src, bgc_si_prefix//'molN/m^3/s',    &
+       Time%model_time, name3, bgc_si_prefix//'mol/m^3/s',    &
+!       Time%model_time, bgc_src, bgc_si_prefix//'mol/m^3/s',    &
        missing_value = -1.0e+10)
 
   biotic(n)%id_bgc_btf(nn) = register_diag_field('ocean_model',       &
