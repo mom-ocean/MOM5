@@ -1219,7 +1219,7 @@ end subroutine ocean_tpm_sfc_end  !}
 
 subroutine ocean_tpm_sbc(Domain, Grid, T_prog, Time, Ice_ocean_boundary_fluxes, &
      runoff, isc_bnd, iec_bnd, jsc_bnd, jec_bnd, aice, wnd,            &
-     use_waterflux, salt_restore_as_salt_flux, atm_co2, co2flux, ocn_co2)
+     use_waterflux, salt_restore_as_salt_flux, atm_co2, co2flux, ocn_co2, iof_nit, iof_alg)
 
 
 use coupler_types_mod, only: coupler_2d_bc_type
@@ -1247,7 +1247,7 @@ real, dimension(Domain%isd:,Domain%jsd:), intent(in)            :: runoff
 
 real, intent(in), dimension(Domain%isd:,Domain%jsd:), optional :: aice
 real, intent(in), dimension(Domain%isd:,Domain%jsd:), optional :: atm_co2
-real, intent(in), dimension(Domain%isd:,Domain%jsd:), optional :: wnd
+real, intent(in), dimension(Domain%isd:,Domain%jsd:), optional :: wnd, iof_nit, iof_alg
 logical, intent(in), optional                                  :: use_waterflux, salt_restore_as_salt_flux
 
 real, intent(out), dimension(Domain%isd:,Domain%jsd:), optional :: co2flux, ocn_co2
@@ -1321,8 +1321,13 @@ endif  !}
 
 #if defined(CSIRO_BGC)
 if (do_csiro_bgc) then  !{
+#if defined(ACCESS_OM)
+  call csiro_bgc_sbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Domain%isd, Domain%ied, Domain%jsd, Domain%jed,  &
+  T_prog, aice, wnd, Grid, Time, use_waterflux, salt_restore_as_salt_flux, atm_co2, co2flux, ocn_co2, iof_nit=iof_nit, iof_alg=iof_alg)
+#else
   call csiro_bgc_sbc(Domain%isc, Domain%iec, Domain%jsc, Domain%jec, Domain%isd, Domain%ied, Domain%jsd, Domain%jed,  &
   T_prog, aice, wnd, Grid, Time, use_waterflux, salt_restore_as_salt_flux, atm_co2, co2flux, ocn_co2)
+#endif
 endif  !}
 #endif
 

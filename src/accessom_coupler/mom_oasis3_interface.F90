@@ -155,9 +155,9 @@ integer :: imt_local, jmt_local                    ! 2D global layout
 integer iisc,iiec,jjsc,jjec
 integer iisd,iied,jjsd,jjed
 
-integer, parameter :: max_fields_in=23
+integer, parameter :: max_fields_in=25
 
-integer, parameter :: max_fields_out=8
+integer, parameter :: max_fields_out=10
 
 integer, dimension(max_fields_in)  :: id_var_in  ! ID for fields to be rcvd
 integer, dimension(max_fields_out) :: id_var_out ! ID for fields to be sent
@@ -375,6 +375,10 @@ endif
   mom_name_read(21)='licefw'  ! Water flux from land ice
   mom_name_read(22)='liceht'  ! Heat flux from land ice
   mom_name_read(23)='wnd_io'  !
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+  mom_name_read(24)='iof_nit'  !
+  mom_name_read(25)='iof_alg'  !
+#endif
 
   !ocn ==> ice
   mom_name_write(:)=''
@@ -387,7 +391,10 @@ endif
   mom_name_write(6)='frazil'
   mom_name_write(7)='dssldx'
   mom_name_write(8)='dssldy'
-
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+  mom_name_write(9)='n_surf'
+  mom_name_write(10)='alg_surf'
+#endif
 
   fmatch = .false.
   do jf = 1,num_fields_in
@@ -597,6 +604,12 @@ do jf = 1,num_fields_out
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1)
   case('dssldy') 
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2)
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+  case('n_surf')
+    vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%n_surf(iisd:iied,jjsd:jjed)
+  case('alg_surf')
+    vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%alg_surf(iisd:iied,jjsd:jjed)
+#endif
   case DEFAULT
   call mpp_error(FATAL,&
       '==>Error from into_coupler: Unknown quantity.')
@@ -746,6 +759,12 @@ do jf =  1, num_fields_in
      Ice_ocean_boundary%fprec(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('aice')
      Ice_ocean_boundary%aice(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+  case('iof_nit')
+     Ice_ocean_boundary%iof_nit(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+  case('iof_alg')
+     Ice_ocean_boundary%iof_alg(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+#endif
   case('mh_flux')
      Ice_ocean_boundary%mh_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('wfimelt')
@@ -820,6 +839,10 @@ if ( write_restart ) then
           case('dssldx'); vtmp = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1); fld_ice='sslx_i'
           case('dssldy'); vtmp = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2); fld_ice='ssly_i'
           case('frazil'); vtmp = Ocean_sfc%frazil(iisd:iied,jjsd:jjed); fld_ice='pfmice_i'
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+          case('n_surf'); vtmp = Ocean_sfc%n_surf(iisd:iied,jjsd:jjed); fld_ice='ssn_i'
+          case('alg_surf'); vtmp = Ocean_sfc%alg_surf(iisd:iied,jjsd:jjed); fld_ice='ssalg_i'
+#endif
         end select
 
         if (parallel_coupling) then

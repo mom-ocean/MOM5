@@ -141,6 +141,29 @@ do n = 1, instances  !{
   pprod_gross(:,:,:) = 0.0
   zprod_gross(:,:,:) = 0.0
   light_limit(:,:) = 0.0
+  radbio3d(:,:,:) = 0.0
+  npp3d(:,:,:) = 0.0
+  adic_intmld(:,:) = 0.0
+  dic_intmld(:,:) = 0.0
+  o2_intmld(:,:) = 0.0
+  no3_intmld(:,:) = 0.0
+  fe_intmld(:,:) = 0.0
+  phy_intmld(:,:) = 0.0
+  det_intmld(:,:) = 0.0
+  pprod_gross_intmld(:,:) = 0.0
+  npp_intmld(:,:) = 0.0
+  radbio_intmld(:,:) = 0.0
+  adic_int100(:,:) = 0.0
+  dic_int100(:,:) = 0.0
+  o2_int100(:,:) = 0.0
+  no3_int100(:,:) = 0.0
+  fe_int100(:,:) = 0.0
+  phy_int100(:,:) = 0.0
+  det_int100(:,:) = 0.0
+  pprod_gross_int100(:,:) = 0.0
+  npp_int100(:,:) = 0.0
+  radbio_int100(:,:) = 0.0
+
 
 ! possible tracers in model
   ind_dic = biotic(n)%ind_bgc(id_dic)
@@ -222,6 +245,8 @@ do n = 1, instances  !{
 ! Assume now that shortwave flux from ocean model has been modified for ice.  mac, aug12
 !          radbio = max(0.0,parbio(i,j)*sw_zt)
 ! well, now doing an experiment without ice, so assumption no longer true.  mac, oct12. 
+
+          radbio3d(i,j,k) = radbio
 
           vpbio(i,k) = abio(i,j)*bbio(i,j)**                                  &
                   (cbio(i,j)*t_prog(index_temp)%field(i,j,k,time%tau))
@@ -319,6 +344,8 @@ do n = 1, instances  !{
 
 ! Estimate primary productivity from phytoplankton growth
           pprod_gross(i,j,k) = pprod_gross(i,j,k) + dtsb*f11
+! Net primary productivity (gross PP minus linear mortality)
+	  npp3d(i,j,k) = npp3d(i,j,k) + dtsb*(f11 - f21)
 
 !chd   -- zooplankton equation
           biotr(i,k,id_zoo)  = biotr(i,k,id_zoo)  + dtsb * (                     &
@@ -393,7 +420,33 @@ do n = 1, instances  !{
 
         pprod_gross(i,j,k)=rdtts*pprod_gross(i,j,k)*grid%tmask(i,j,k)
         zprod_gross(i,j,k)=rdtts*zprod_gross(i,j,k)*grid%tmask(i,j,k)
+        npp3d(i,j,k)=rdtts*npp3d(i,j,k)*grid%tmask(i,j,k)
 
+          if (Grid%zw(k) .le. mld(i,j)) then
+            adic_intmld(i,j)= adic_intmld(i,j)+ t_prog(ind_adic)%field(i,j,k,time%taum1)* thickness%dzt(i,j,k)
+            dic_intmld(i,j) = dic_intmld(i,j) + t_prog(ind_dic)%field(i,j,k,time%taum1) * thickness%dzt(i,j,k)
+            o2_intmld(i,j)  = o2_intmld(i,j)  + t_prog(ind_o2)%field(i,j,k,time%taum1)  * thickness%dzt(i,j,k)
+            no3_intmld(i,j) = no3_intmld(i,j) + t_prog(ind_no3)%field(i,j,k,time%taum1) * thickness%dzt(i,j,k)
+            fe_intmld(i,j)  = fe_intmld(i,j)  + t_prog(ind_fe)%field(i,j,k,time%taum1)  * thickness%dzt(i,j,k)
+            phy_intmld(i,j) = phy_intmld(i,j) + t_prog(ind_phy)%field(i,j,k,time%taum1) * thickness%dzt(i,j,k)
+            det_intmld(i,j) = det_intmld(i,j) + t_prog(ind_det)%field(i,j,k,time%taum1) * thickness%dzt(i,j,k)
+            pprod_gross_intmld(i,j) = pprod_gross_intmld(i,j) + pprod_gross(i,j,k) * thickness%dzt(i,j,k)
+            npp_intmld(i,j) = npp_intmld(i,j) + npp3d(i,j,k) * thickness%dzt(i,j,k)
+            radbio_intmld(i,j) = radbio_intmld(i,j) + radbio3d(i,j,k) * thickness%dzt(i,j,k)
+          endif
+
+          if (Grid%zw(k) .le. 100) then
+            adic_int100(i,j)= adic_int100(i,j)+ t_prog(ind_adic)%field(i,j,k,time%taum1)* thickness%dzt(i,j,k)
+            dic_int100(i,j) = dic_int100(i,j) + t_prog(ind_dic)%field(i,j,k,time%taum1) * thickness%dzt(i,j,k)
+            o2_int100(i,j)  = o2_int100(i,j)  + t_prog(ind_o2)%field(i,j,k,time%taum1)  * thickness%dzt(i,j,k)
+            no3_int100(i,j) = no3_int100(i,j) + t_prog(ind_no3)%field(i,j,k,time%taum1) * thickness%dzt(i,j,k)
+            fe_int100(i,j)  = fe_int100(i,j)  + t_prog(ind_fe)%field(i,j,k,time%taum1)  * thickness%dzt(i,j,k)
+            phy_int100(i,j) = phy_int100(i,j) + t_prog(ind_phy)%field(i,j,k,time%taum1) * thickness%dzt(i,j,k)
+            det_int100(i,j) = det_int100(i,j) + t_prog(ind_det)%field(i,j,k,time%taum1) * thickness%dzt(i,j,k)
+            pprod_gross_int100(i,j) = pprod_gross_int100(i,j) + pprod_gross(i,j,k) * thickness%dzt(i,j,k)
+            npp_int100(i,j) = npp_int100(i,j) + npp3d(i,j,k) * thickness%dzt(i,j,k)
+            radbio_int100(i,j) = radbio_int100(i,j) + radbio3d(i,j,k) * thickness%dzt(i,j,k)
+          endif
 
          enddo  !} i
         enddo  !} k
@@ -406,6 +459,7 @@ do n = 1, instances  !{
        adv_fb(i,k)=wdetbio(i,j)*biotr(i,k-1,id_det)
       enddo
      enddo
+
 
 !RASF no flux boundary conditions
      do i=isc,iec
