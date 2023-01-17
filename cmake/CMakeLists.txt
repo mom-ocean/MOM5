@@ -75,6 +75,8 @@ elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
 else ()
   message ("Unknown C compiler default flags only...")
 endif()
+execute_process(COMMAND nc-config --cflags OUTPUT_VARIABLE NETCDF_CFLAGS OUTPUT_STRIP_TRAILING_WHITESPACE)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${NETCDF_CFLAGS}")
 
 # Transfer command line setting of CPP defs to CMake 
 set(CPPDEFS 
