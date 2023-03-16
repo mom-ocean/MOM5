@@ -25,10 +25,14 @@ end interface
 #define F90_TYPE real(8)
 #define NF_TYPE  double
 #include "getput_compressed.inc"
+#undef F90_TYPE
+#undef NF_TYPE
 
 #define F90_TYPE integer
 #define NF_TYPE  int
 #include "getput_compressed.inc"
+#undef F90_TYPE
+#undef NF_TYPE
 
 #undef __INTERFACE_SECTION__
 ! ---- module constants ------------------------------------------------------
@@ -205,9 +209,13 @@ end function
 #define F90_TYPE real(8)
 #define NF_TYPE  double
 #include "getput_compressed.inc"
+#undef F90_TYPE
+#undef NF_TYPE
 
 #define F90_TYPE integer
 #define NF_TYPE  int
 #include "getput_compressed.inc"
+#undef F90_TYPE
+#undef NF_TYPE
 
 end module nfc_mod

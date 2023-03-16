@@ -4,8 +4,11 @@ set srcList = ( mom5/ocean_core mom5/ocean_diag mom5/ocean_wave mom5/ocean_blobs
 
 set lib_name = "lib_ocean"
 
-if( $type == ACCESS-OM || $type == ACCESS-CM ) then
+if( $type == ACCESS-OM || $type == ACCESS-CM || $type == ACCESS-OM-BGC || $type == ACCESS-ESM) then
     set srcList = ( $srcList mom5/ocean_access )
+    if( $type ==  ACCESS-OM-BGC || $type == ACCESS-ESM) then
+        set srcList = ( $srcList mom5/ocean_csiro_bgc )
+    endif
     mkdir -p $executable:h:h/$type/$lib_name
     cd $executable:h:h/$type/$lib_name
 else

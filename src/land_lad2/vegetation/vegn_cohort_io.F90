@@ -244,6 +244,11 @@ end subroutine create_cohort_dimension
 #define READ_0D_FPTR read_cohort_data_r0d_fptr
 #define WRITE_0D_FPTR write_cohort_data_r0d_fptr
 #include "vegn_cohort_io.inc"
+#undef F90_TYPE
+#undef NF_TYPE
+#undef NF_FILL_VALUE
+#undef READ_0D_FPTR
+#undef WRITE_0D_FPTR
 
 #define F90_TYPE integer
 #define NF_TYPE NF_INT
@@ -251,5 +256,10 @@ end subroutine create_cohort_dimension
 #define READ_0D_FPTR read_cohort_data_i0d_fptr
 #define WRITE_0D_FPTR write_cohort_data_i0d_fptr
 #include "vegn_cohort_io.inc"
+#undef F90_TYPE
+#undef NF_TYPE
+#undef NF_FILL_VALUE
+#undef READ_0D_FPTR
+#undef WRITE_0D_FPTR
 
 end module cohort_io_mod

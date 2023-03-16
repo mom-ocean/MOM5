@@ -173,6 +173,7 @@ integer :: id_vert_pvf  =-1
 integer :: id_bc_pvf    =-1
 integer :: id_pvf       =-1
 integer :: id_ri_balance=-1
+integer :: id_u_dot_grad_vert_pv   =-1
 logical :: diagnose_pv = .false.
 
 ! pressure conversion diagnostics written in energy analysis subroutine
@@ -431,6 +432,8 @@ id_pvf = register_diag_field ('ocean_model', 'pvf', Grd%tracer_axes(1:3), Time%m
   'Ertel PV times f', '1/sec^4', missing_value=missing_value, range=(/-1e6,1e6/))
 id_ri_balance = register_diag_field ('ocean_model', 'ri_balance', Grd%tracer_axes(1:3), Time%model_time,&
   'Balanced Richardson number', 'dimensionless', missing_value=missing_value, range=(/-1e6,1e6/))
+id_u_dot_grad_vert_pv = register_diag_field ('ocean_model', 'u_dot_grad_vert_pv', Grd%tracer_axes(1:3), Time%model_time,&
+'3d velocity dot product with 3d gradient of vertical piece of Ertel PV: u.grad((f+zeta)*N^2)', '1/sec^4', missing_value=missing_value, range=(/-1e6,1e6/))
 if (id_pg_pv > 0)      diagnose_pv = .true.
 if (id_vert_pv > 0)    diagnose_pv = .true.
 if (id_pg_pvf > 0)     diagnose_pv = .true.
@@ -438,6 +441,7 @@ if (id_vert_pvf > 0)   diagnose_pv = .true.
 if (id_bc_pvf > 0)     diagnose_pv = .true.
 if (id_pvf > 0)        diagnose_pv = .true.
 if (id_ri_balance > 0) diagnose_pv = .true.
+if (id_u_dot_grad_vert_pv > 0)    diagnose_pv = .true.
 
 
 if(horz_grid == MOM_BGRID) then 
@@ -564,13 +568,14 @@ end subroutine ocean_velocity_diag_init
 ! Call diagnostics related to the velocity. 
 ! </DESCRIPTION>
 !
-subroutine ocean_velocity_diagnostics(Time, Thickness, Dens, Ext_mode, Velocity)
+subroutine ocean_velocity_diagnostics(Time, Thickness, Dens, Ext_mode, Velocity, Adv_vel)
 
   type(ocean_time_type),          intent(in)    :: Time
   type(ocean_thickness_type),     intent(in)    :: Thickness
   type(ocean_density_type),       intent(in)    :: Dens
   type(ocean_external_mode_type), intent(in)    :: Ext_mode
   type(ocean_velocity_type),      intent(inout) :: Velocity
+  type(ocean_adv_vel_type),       intent(in)    :: Adv_vel
 
   type(time_type) :: next_time 
 
@@ -618,7 +623,7 @@ subroutine ocean_velocity_diagnostics(Time, Thickness, Dens, Ext_mode, Velocity)
   call diagnose_kinetic_energy_maps(Time, Thickness, Velocity, Ext_mode)
 
   ! diagnostic potential vorticity and terms 
-  call diagnose_potential_vorticity(Time, Velocity, Dens)
+  call diagnose_potential_vorticity(Time, Thickness, Velocity, Adv_vel, Dens)
   
 end subroutine ocean_velocity_diagnostics
 ! </SUBROUTINE>  NAME="ocean_velocity_diagnostics"
@@ -1230,13 +1235,15 @@ end subroutine compute_vorticity
 !
 ! </DESCRIPTION>
 !
-subroutine diagnose_potential_vorticity(Time, Velocity, Dens)
+subroutine diagnose_potential_vorticity(Time, Thickness, Velocity, Adv_vel, Dens)
 
   type(ocean_time_type),      intent(in)  :: Time
+  type(ocean_thickness_type), intent(in)  :: Thickness
   type(ocean_velocity_type),  intent(in)  :: Velocity
+  type(ocean_adv_vel_type),   intent(in)  :: Adv_vel
   type(ocean_density_type),   intent(in)  :: Dens
 
-  real    :: grav_rho0r_sq 
+  real    :: grav_rho0r_sq
   integer :: i, j, k
   integer :: tau
   
@@ -1269,7 +1276,7 @@ subroutine diagnose_potential_vorticity(Time, Velocity, Dens)
  
 
   ! contribution from absolute vorticity 
-  if(id_vert_pv > 0 .or. id_vert_pvf > 0 .or. id_pvf > 0) then
+  if(id_vert_pv > 0 .or. id_vert_pvf > 0 .or. id_pvf > 0 .or. id_u_dot_grad_vert_pv > 0) then
      do k=1,nk
         do j=jsc,jec
            do i=isc,iec
@@ -1287,7 +1294,7 @@ subroutine diagnose_potential_vorticity(Time, Velocity, Dens)
      if(id_vert_pvf > 0) call diagnose_3d(Time, Grd, id_vert_pvf, wrk6(:,:,:))
   endif        
 
-  
+
   ! contribution from baroclinicity and total contribution 
   if(id_bc_pvf > 0 .or. id_pvf > 0 .or. id_ri_balance > 0) then
      wrk1(:,:,:) = 0.0 
@@ -1310,6 +1317,60 @@ subroutine diagnose_potential_vorticity(Time, Velocity, Dens)
      if(id_ri_balance > 0) call diagnose_3d(Time, Grd, id_ri_balance, wrk4(:,:,:))
   endif 
 
+
+  ! calculate u dot grad vert_pv by centred q differences multiplied by averaged velocity
+  ! NB: this method does not use conservative differencing so won't perfectly conserve advective q flux
+  if(id_u_dot_grad_vert_pv > 0) then
+    call mpp_update_domains(wrk5,Dom%domain2d)  ! update vert_pv
+    do k=1,nk
+      do j=jsc,jec
+        do i=isc,iec
+          wrk6(i,j,k) = (wrk5(i+1,j,k) - wrk5(i-1,j,k)) &
+          /((Grd%dxu(i-1,j)+Grd%dxu(i,j) + Grd%dxu(i-1,j-1)+Grd%dxu(i,j-1))*0.5) &
+           *( Velocity%u(i,j,k,1,tau) + &
+              Velocity%u(i-1,j,k,1,tau) + &
+              Velocity%u(i,j-1,k,1,tau) + &
+              Velocity%u(i-1,j-1,k,1,tau) )*0.25 &
+            + (wrk5(i,j+1,k) - wrk5(i,j-1,k)) &
+            /((Grd%dyu(i,j-1)+Grd%dyu(i,j) + Grd%dyu(i-1,j-1)+Grd%dyu(i-1,j))*0.5) &
+           *( Velocity%u(i,j,k,2,tau) + &
+              Velocity%u(i-1,j,k,2,tau) + &
+              Velocity%u(i,j-1,k,2,tau) + &
+              Velocity%u(i-1,j-1,k,2,tau) )*0.25
+        enddo
+      enddo
+      ! now do vertical advection
+      if (k == 1) then ! 1st order, with vertical offset
+        do j=jsc,jec
+          do i=isc,iec
+            wrk6(i,j,1) = wrk6(i,j,1) & 
+              + (wrk5(i,j,1)-wrk5(i,j,2)) & 
+              /Thickness%dzwt(i,j,1) &
+              *Adv_vel%wrho_bt(i,j,1)*rho0r
+          enddo
+        enddo
+      elseif (k == nk) then ! 1st order, with vertical offset
+        do j=jsc,jec
+          do i=isc,iec
+            wrk6(i,j,nk) = wrk6(i,j,nk) & 
+              + (wrk5(i,j,nk-1)-wrk5(i,j,nk)) & 
+              /Thickness%dzwt(i,j,nk-1) &
+              *Adv_vel%wrho_bt(i,j,nk-1)*rho0r
+          enddo
+        enddo
+      else ! centred 2nd order differences, aligned vertically with other terms 
+        do j=jsc,jec
+          do i=isc,iec
+            wrk6(i,j,k) = wrk6(i,j,k) & 
+              + (wrk5(i,j,k-1) - wrk5(i,j,k+1)) &
+              /(Thickness%dzwt(i,j,k-1) + Thickness%dzwt(i,j,k)) &
+              *(Adv_vel%wrho_bt(i,j,k-1) + Adv_vel%wrho_bt(i,j,k))*0.5*rho0r
+          enddo
+        enddo
+      endif
+    enddo
+    call diagnose_3d(Time, Grd, id_u_dot_grad_vert_pv, wrk6(:,:,:))
+  endif
 
 end subroutine diagnose_potential_vorticity
 ! </SUBROUTINE> NAME="diagnose_potential_vorticity"
@@ -2786,7 +2847,7 @@ subroutine cfl_check1_bgrid(Time, Thickness, Velocity)
 
   if (cflup == cflup0) then
 
-    write (unit,'(a,g10.3,a,f7.2,a,g10.3,a,i4,a,i4,a,i3,a,a,f12.3,a,f12.3,a,f10.3,a)')&
+    write (unit,'(a,g10.3,a,f7.2,a,g10.3,a,i0,a,i0,a,i3,a,a,f12.3,a,f12.3,a,f10.3,a)')&
    ' u (',cflum,' m/s) is ',cflup/fudge,' % of CFL (',abs(100.0*cflum/(cflup/fudge)), &
    ' m/s) at (i,j,k) = (',icflu+Dom%ioff,',',jcflu+Dom%joff,',',kcflu,'),',           &
    ' (lon,lat,thk) = (',Grd%xu(icflu,jcflu),',',Grd%yu(icflu,jcflu),',',              &
@@ -2800,7 +2861,7 @@ subroutine cfl_check1_bgrid(Time, Thickness, Velocity)
 
   if (cflvp == cflvp0) then
 
-    write (unit,'(a,g10.3,a,f7.2,a,g10.3,a,i4,a,i4,a,i3,a,a,f12.3,a,f12.3,a,f10.3,a)') &
+    write (unit,'(a,g10.3,a,f7.2,a,g10.3,a,i0,a,i0,a,i3,a,a,f12.3,a,f12.3,a,f10.3,a)') &
     ' v (',cflvm,' m/s) is ',cflvp/fudge,' % of CFL (',abs(100.0*cflvm/(cflvp/fudge)), &
     ' m/s) at (i,j,k) = (',icflv+Dom%ioff,',',jcflv+Dom%joff,',',kcflv,'),',           &
     ' (lon,lat,thk) = (',Grd%xu(icflv,jcflv),',',Grd%yu(icflv,jcflv),',',              &
@@ -2987,7 +3048,7 @@ subroutine cfl_check2_bgrid(Time, Thickness, Velocity)
 
         if (cflu >= large_cfl_value .or. cflv >= large_cfl_value) then
 
-          write (unit,'(/,a,i4,a1,i3,a,i3,a,f6.3)')      &
+          write (unit,'(/,a,i0,a1,i0,a,i3,a,f6.3)')      &
            ' Note: CFL horizontal velocity limit exceeded at (i,j,k) = (',&
            i+Dom%ioff, ',',j+Dom%joff,',',k,') by factor =',large_cfl_value 
 
@@ -3006,7 +3067,7 @@ subroutine cfl_check2_bgrid(Time, Thickness, Velocity)
 
         if (cflu >= max_cfl_value .or. cflv >= max_cfl_value) then
 
-           write (unit,'(/,a,i4,a1,i3,a,i3,a,f6.3)')     &
+           write (unit,'(/,a,i0,a1,i0,a,i3,a,f6.3)')     &
            ' Note: CFL horizontal velocity limit exceeded at (i,j,k) = (',&
            i+Dom%ioff, ',',j+Dom%joff,',',k,') by factor =',max_cfl_value 
 
@@ -3107,7 +3168,7 @@ subroutine cfl_check2_cgrid(Time, Thickness, Velocity)
 
         if (cflu >= large_cfl_value .or. cflv >= large_cfl_value) then
 
-          write (unit,'(/,a,i4,a1,i3,a,i3,a,f6.3)')      &
+          write (unit,'(/,a,i0,a1,i0,a,i3,a,f6.3)')      &
            ' Note: CFL horizontal velocity limit exceeded at (i,j,k) = (',&
            i+Dom%ioff, ',',j+Dom%joff,',',k,') by factor =',large_cfl_value 
 
@@ -3126,7 +3187,7 @@ subroutine cfl_check2_cgrid(Time, Thickness, Velocity)
 
         if (cflu >= max_cfl_value .or. cflv >= max_cfl_value) then
 
-           write (unit,'(/,a,i4,a1,i3,a,i3,a,f6.3)')     &
+           write (unit,'(/,a,i0,a1,i0,a,i3,a,f6.3)')     &
            ' Note: CFL horizontal velocity limit exceeded at (i,j,k) = (',&
            i+Dom%ioff, ',',j+Dom%joff,',',k,') by factor =',max_cfl_value 
 

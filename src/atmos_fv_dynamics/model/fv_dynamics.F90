@@ -446,11 +446,11 @@ contains
 
 #if !defined (SW_DYN)                                                                 
       call mp_send4d_ns(im, jm, km, 1, jfirst, jlast, 1, km, ng_d, ng_d, pt)      
-#endif                                                                                
+#endif
       call mp_send4d_ns(im, jm, km, 1, jfirst, jlast, 1, km, ng_d, ng_d, delpf)   
 #if !defined (SW_DYN)                                                                 
       call mp_recv4d_ns(im, jm, km, 1, jfirst, jlast, 1, km, ng_d, ng_d, pt)      
-#endif                                                                                
+#endif
       call mp_recv4d_ns(im, jm, km, 1, jfirst, jlast, 1, km, ng_d, ng_d, delpf)   
       call fv_array_sync()
 #endif

@@ -1,0 +1,125 @@
+name: CI
+
+on: [push, pull_request]
+
+env:
+  CI: "ON" # We can detect this in the build system and other vendors implement it
+
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ ubuntu-18.04, ubuntu-20.04 ] 
+        # gcc_v: [8, 9] # Version of GFortran we want to use.
+        TYPE: 
+          - MOM_solo
+          - MOM_SIS
+          - CM2M
+          - ESM2M
+          - ICCM
+          # # - EBM
+          - ACCESS-OM
+          - ACCESS-CM
+          - ACCESS-OM-BGC
+          - ACCESS-ESM
+    runs-on: ${{ matrix.os }}
+    env:
+      # FC: gfortran-${{ matrix.gcc_v }}
+      # OMPI_FC: gfortran-${{ matrix.gcc_v }}
+      # GCC_V: ${{ matrix.gcc_v }}
+      FC: gfortran
+      OMPI_FC: gfortran
+
+    steps:
+
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get -yqq install csh gfortran libgomp1 openmpi-bin libopenmpi-dev libnetcdf-dev libnetcdff-dev  netcdf-bin
+
+    - name: Determing OS version
+      uses: kenchan0130/actions-system-info@master
+      id: system-info
+
+    - name: Set OS version
+      run: | 
+        echo "Release: ${{ steps.system-info.outputs.release }}"
+        echo "os_version=${{ steps.system-info.outputs.release }}" >> $GITHUB_ENV
+
+    # ----------
+    # ACCESS only models
+    - name: Download OASIS
+      if: startsWith(matrix.TYPE, 'ACCESS-')
+      uses: actions/checkout@v2
+      with: 
+          repository: COSIMA/oasis3-mct
+          path: oasis3-mct
+
+    - name: Compile OASIS
+      if: startsWith(matrix.TYPE, 'ACCESS-')
+      working-directory: ./oasis3-mct
+      run: | 
+        make ubuntu
+        echo "oasis_dir=${{ github.workspace }}/oasis3-mct/Linux" >> $GITHUB_ENV
+    # ----------
+
+    # ----------
+    # ACCESS-OM only models
+    - name: Download libaccessom2
+      if: startsWith(matrix.TYPE, 'ACCESS-OM')
+      run: | 
+        wget https://github.com/COSIMA/libaccessom2/releases/latest/download/binary_release_${{ env.os_version }}.tar.gz
+
+    - name: Untar libaccessom2
+      if: startsWith(matrix.TYPE, 'ACCESS-OM')
+      run: |
+        tar -zvxf binary_release_${{ env.os_version }}.tar.gz
+        echo "libaccessom2_dir=${{ github.workspace }}/libaccessom2" >> $GITHUB_ENV
+    # ----------
+
+    - name: Compile
+      working-directory: ./exp
+      env: 
+        OASIS_ROOT: ${{ env.oasis_dir }}
+        LIBACCESSOM2_ROOT: ${{ env.libaccessom2_dir }}
+      run: |
+        env
+        case "${{ matrix.TYPE }}" in
+          CM2M|ICCM|ESM2M)
+            debug=""
+          ;;
+          *)
+            debug="--debug"
+          ;;
+        esac
+        echo ./MOM_compile.csh $debug --type ${{ matrix.TYPE }} --platform github --use_netcdf4
+        ./MOM_compile.csh $debug --type ${{ matrix.TYPE }} --platform github --use_netcdf4
+
+    # ----------
+    # Test MOM-solo only currently
+    - name: Download config
+      if: startsWith(matrix.TYPE, 'MOM_solo')
+      uses: actions/checkout@v2
+      with: 
+          repository: mom-ocean/MOM5-examples
+          ref: master
+          path: MOM5-examples
+
+    - name: Run bowl1 cold start
+      if: startsWith(matrix.TYPE, 'MOM_solo')
+      working-directory: MOM5-examples/bowl1
+      run: |
+        mpirun -n 4 --oversubscribe ${{ github.workspace }}/exec/github/MOM_solo/fms_MOM_solo.x
+        rm *.nc.*
+        mv RESTART/* INPUT
+
+    - name: Run bowl1 warm start
+      if: startsWith(matrix.TYPE, 'MOM_solo')
+      working-directory: MOM5-examples/bowl1
+      run: |
+        mpirun -n 4 --oversubscribe ${{ github.workspace }}/exec/github/MOM_solo/fms_MOM_solo.x
+    # ----------

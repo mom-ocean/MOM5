@@ -126,7 +126,7 @@ use ocean_types_mod,      only: ocean_grid_type, ocean_domain_type, ocean_thickn
 use ocean_types_mod,      only: ocean_time_type, ocean_time_steps_type, ocean_options_type
 use ocean_types_mod,      only: ocean_prog_tracer_type, ocean_diag_tracer_type, ocean_density_type
 use ocean_workspace_mod,  only: wrk1_2d, wrk1
-use ocean_util_mod,       only: diagnose_2d, diagnose_3d
+use ocean_util_mod,       only: diagnose_2d, diagnose_3d, diagnose_sum
 
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
 use auscom_ice_parameters_mod, only: pop_icediag, do_ice
@@ -167,6 +167,7 @@ logical :: used
 integer :: id_frazil_2d=-1
 integer :: id_frazil_3d=-1
 integer :: id_frazil_3d_int_z=-1
+integer :: id_total_ocean_frazil=-1
 integer :: id_temp_freeze=-1
 ! for FAFMIP heat tracers 
 integer :: id_frazil_redist_2d=-1
@@ -483,6 +484,9 @@ subroutine ocean_frazil_init (Domain, Grid, Time, Time_steps, Ocean_options, &
   id_frazil_3d_int_z = register_diag_field ('ocean_model', 'frazil_3d_int_z', Grd%tracer_axes(1:2), &
          Time%model_time, 'Vertical sum of ocn frazil heat flux over time step', 'W/m^2', &
          missing_value=missing_value, range=(/-1.e10,1.e10/))
+  id_total_ocean_frazil = register_diag_field ('ocean_model', 'total_ocean_frazil', &
+         Time%model_time, 'total ocean heating from frazil', 'Watts/1e15', &
+         missing_value=missing_value, range=(/-1.e4,1.e4/))
 
   ! for FAFMIP frazil diagnostic tracer 
   id_frazil_redist_2d = register_diag_field ('ocean_model','frazil_redist_2d',Grd%tracer_axes(1:2), &
@@ -528,7 +532,7 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
   real     :: s, sqrts
   real     :: press 
 
-  if(.not. use_this_module) return 
+  if(.not. use_this_module) return
 
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
   if (pop_icediag) then
@@ -554,14 +558,19 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
            is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk)
     endif
 
-    if (id_frazil_3d_int_z > 0) then
+    if (id_frazil_3d_int_z > 0 .or. id_total_ocean_frazil > 0) then
        wrk1_2d(:,:) = 0.0
        do k=1,nk
           wrk1_2d(:,:) = wrk1_2d(:,:) +  T_diag(index_frazil)%field(:,:,k)*dtimer
        enddo
-       used = send_data(id_frazil_3d_int_z, wrk1_2d(:,:), &
-            Time%model_time, rmask=Grd%tmask(:,:,1), &
-            is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+       if (id_frazil_3d_int_z > 0) then
+          used = send_data(id_frazil_3d_int_z, wrk1_2d(:,:), &
+               Time%model_time, rmask=Grd%tmask(:,:,1), &
+               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+       endif
+       if (id_total_ocean_frazil > 0) then
+        call diagnose_sum(Time, Grd, Dom, id_total_ocean_frazil, wrk1_2d, 1e-15)
+       endif
     endif
 
     return
@@ -715,12 +724,17 @@ subroutine compute_frazil_heating (Time, Thickness, Dens, T_prog, T_diag)
   if (id_frazil_3d > 0) then
      call diagnose_3d(Time, Grd, id_frazil_3d, T_diag(index_frazil)%field(:,:,:)*dtimer)
   endif
-  if (id_frazil_3d_int_z > 0) then
+  if (id_frazil_3d_int_z > 0 .or. id_total_ocean_frazil > 0) then
      wrk1_2d(:,:) = 0.0
      do k=1,nk
         wrk1_2d(:,:) = wrk1_2d(:,:) +  T_diag(index_frazil)%field(:,:,k)*dtimer
      enddo
-     call diagnose_2d(Time, Grd, id_frazil_3d_int_z, wrk1_2d(:,:))
+     if (id_frazil_3d_int_z > 0) then
+        call diagnose_2d(Time, Grd, id_frazil_3d_int_z, wrk1_2d(:,:))
+     end if
+     if (id_total_ocean_frazil > 0) then
+        call diagnose_sum(Time, Grd, Dom, id_total_ocean_frazil, wrk1_2d, 1e-15)
+     end if
   endif
 
   if(id_temp_freeze > 0) then 

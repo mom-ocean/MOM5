@@ -248,6 +248,8 @@ program main
 
   ! Use accessom2 configuration to initial date and runtime
   date_init(:) = accessom2%get_cur_exp_date_array()
+  ! Set default run date to initial date
+  date(:) = date_init(:)
   dt_cpld = accessom2%get_ice_ocean_timestep()
   years = 0
   months = 0
@@ -270,7 +272,7 @@ program main
       read(unit,*) date_restart
       call mpp_close(unit)
   else
-      date_restart = date_init
+      date_restart = date
   endif
 
   call set_calendar_type (calendar_type)
@@ -408,8 +410,13 @@ program main
              Ice_ocean_boundary% mh_flux(isc:iec,jsc:jec),          &
              Ice_ocean_boundary% wfimelt(isc:iec,jsc:jec),          &
              Ice_ocean_boundary% wfiform(isc:iec,jsc:jec),          &
+             Ice_ocean_boundary% licefw(isc:iec,jsc:jec),           &
+             Ice_ocean_boundary% liceht(isc:iec,jsc:jec),           &
              Ice_ocean_boundary%wnd(isc:iec,jsc:jec))
-
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+  allocate ( Ice_ocean_boundary%iof_nit(isc:iec,jsc:jec),           &
+             Ice_ocean_boundary%iof_alg(isc:iec,jsc:jec))
+#endif
   Ice_ocean_boundary%u_flux          = 0.0
   Ice_ocean_boundary%v_flux          = 0.0
   Ice_ocean_boundary%t_flux          = 0.0
@@ -429,8 +436,13 @@ program main
   Ice_ocean_boundary%mh_flux         = 0.0
   Ice_ocean_boundary% wfimelt        = 0.0
   Ice_ocean_boundary% wfiform        = 0.0
+  Ice_ocean_boundary%licefw          = 0.0
+  Ice_ocean_boundary%liceht          = 0.0
   Ice_ocean_boundary%wnd             = 0.0
-
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+  Ice_ocean_boundary%iof_nit         = 0.0
+  Ice_ocean_boundary%iof_alg         = 0.0
+#endif
   coupler_init_clock = mpp_clock_id('OASIS init', grain=CLOCK_COMPONENT)
   call mpp_clock_begin(coupler_init_clock)
   call external_coupler_sbc_init(Ocean_sfc%domain, dt_cpld, Run_len, &
@@ -696,7 +708,10 @@ subroutine write_boundary_chksums(Ice_ocean_boundary)
     call write_chksum_2d('Ice_ocean_boundary%wfimelt', Ice_ocean_boundary%wfimelt)
     call write_chksum_2d('Ice_ocean_boundary%wfiform', Ice_ocean_boundary%wfiform)
     call write_chksum_2d('Ice_ocean_boundary%wnd', Ice_ocean_boundary%wnd)
-
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+    call write_chksum_2d('Ice_ocean_boundary%iof_nit', Ice_ocean_boundary%iof_nit)
+    call write_chksum_2d('Ice_ocean_boundary%iof_alg', Ice_ocean_boundary%iof_alg)
+#endif
 end subroutine write_boundary_chksums
 
 end program main

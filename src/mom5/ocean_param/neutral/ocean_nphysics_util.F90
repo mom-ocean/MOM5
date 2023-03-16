@@ -1846,7 +1846,7 @@ subroutine ocean_nphysics_coeff_init(Time, Thickness, rossby_radius, rossby_radi
       enddo
     enddo
   enddo
-  delta_iso  = delta_iso + 1.e-6*mpp_pe() ! to separate redundancies
+  delta_iso  = delta_iso + 1.e-12*mpp_pe() ! to separate redundancies
   delta_iso0 = delta_iso
   call mpp_min (delta_iso)
 
@@ -1890,7 +1890,7 @@ subroutine ocean_nphysics_coeff_init(Time, Thickness, rossby_radius, rossby_radi
       enddo
     enddo
   enddo
-  A_max  = ft*delta_min + 1.e-6*mpp_pe() ! to separate redundancies
+  A_max  = ft*delta_min + 1.e-12*mpp_pe() ! to separate redundancies
   A_max0 = A_max
   call mpp_min (A_max)
 

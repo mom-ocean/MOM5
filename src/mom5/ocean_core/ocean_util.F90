@@ -845,7 +845,7 @@ subroutine diagnose_3d_mask(Time, mask, id_name, data, nk_lim, use_mask, abs_max
 
     logical :: use_mask_, used
     integer :: nk_lim_
-    real, dimension(isd:ied,jsd:jed,nk) :: threshold_mask
+    real, dimension(:,:,:), allocatable :: threshold_mask
 
     nk_lim_ = nk
     if (present(nk_lim)) then
@@ -857,30 +857,33 @@ subroutine diagnose_3d_mask(Time, mask, id_name, data, nk_lim, use_mask, abs_max
        use_mask_ = use_mask
     endif
 
-    threshold_mask(:,:,:) = 1.0
-    if (present(abs_max)) then
-       where (abs(data(COMP,:)) > abs_max) threshold_mask(COMP,:) = 0.0
-    endif
-    if (present(abs_min)) then
-       where (abs(data(COMP,:)) < abs_min) threshold_mask(COMP,:) = 0.0
-    endif
-
     if (id_name > 0) then
        if (use_mask_) then
           if (nk_lim_ /= nk) then
              call mpp_error(FATAL, &
-                  '==> Error from ocean_nphysics_util_new (diagnose_3d): nk_lim must equal nk.')
+                  '==> Error from ocean_util (diagnose_3d_mask): nk_lim must equal nk.')
           endif
-          threshold_mask(:,:,:) = 1.0
-          if (present(abs_max)) then
-             where (abs(data(COMP,:)) > abs_max) threshold_mask(COMP,:) = 0.0
-          endif
-          if (present(abs_min)) then
-             where (abs(data(COMP,:)) < abs_min) threshold_mask(COMP,:) = 0.0
-          endif
-          used = send_data(id_name, data(:,:,:),                              &
-               Time%model_time, rmask=mask(:,:,:)*threshold_mask(:,:,:),&
+          ! If either abs_max or abs_min are present we need to do threshold test.
+          if(present(abs_min) .or. present(abs_max)) then
+
+             allocate(threshold_mask,source=mask) ! Equivalent to copying mask
+             if (present(abs_max)) then
+                where (abs(data(COMP,:)) > abs_max) threshold_mask(COMP,:) = 0.0
+             endif
+             if (present(abs_min)) then
+                where (abs(data(COMP,:)) < abs_min) threshold_mask(COMP,:) = 0.0
+             endif
+             ! No need to multiply by mask as zeros in original mask have already been take care of.
+             used = send_data(id_name, data(:,:,:),                              &
+                  Time%model_time, rmask=threshold_mask(:,:,:),&
+                  is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk_lim_)
+             deallocate(threshold_mask)
+          else
+             used = send_data(id_name, data(:,:,:),                              &
+               Time%model_time, rmask=mask(:,:,:),&
                is_in=isc, js_in=jsc, ks_in=1, ie_in=iec, je_in=jec, ke_in=nk_lim_)
+          endif
+
        else
           used = send_data(id_name, data(:,:,:), &
                Time%model_time,                  &

@@ -48,10 +48,14 @@ end interface
 #define F90_TYPE integer
 #define NF_TYPE  int
 #include "getput.inc"
+#undef F90_TYPE
+#undef NF_TYPE
 
 #define F90_TYPE real(8)
 #define NF_TYPE  double
 #include "getput.inc"
+#undef F90_TYPE
+#undef NF_TYPE
 
 interface nfu_get_valid_range
    module procedure get_valid_range_i
@@ -562,11 +566,14 @@ end function
 #define F90_TYPE integer
 #define NF_TYPE  int
 #include "getput.inc"
+#undef F90_TYPE
+#undef NF_TYPE
 
 #define F90_TYPE real(8)
 #define NF_TYPE  double
 #include "getput.inc"
-
+#undef F90_TYPE
+#undef NF_TYPE
 
 
 function get_valid_range_n(ncid, varname, v) result (iret)

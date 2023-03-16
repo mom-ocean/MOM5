@@ -52,7 +52,7 @@ module ocean_bbc_mod
 !  <DATA NAME="cdbot_law_of_wall" TYPE="logical">
 !  For determining bottom drag coefficient using a constant roughness length.
 !  Will take maximum between cdbot and the computed value using law of
-!  wall log-profile.  This option of use when have very very 
+!  wall log-profile.  This option is of use when we have very very 
 !  refined vertical resolution (say on order of meters) near the bottom.
 !  Terrain following coordinates should use this option since they generally 
 !  have very refined vertical grid spacing on topography. 
@@ -68,6 +68,7 @@ module ocean_bbc_mod
 !  For determining bottom drag coefficient using a map of the roughness length.
 !  This approach is more relevant for coarse models
 !  than the constant roughness length used in the cdbot_law_of_wall option. 
+!  cdbot_lo <= cdbot(i,j) <= cdbot_hi.
 !  Default is cdbot_roughness_length=.false. 
 !  </DATA> 
 !
@@ -77,7 +78,7 @@ module ocean_bbc_mod
 !  This approach is more relevant for coarse models
 !  than the constant roughness length used in the cdbot_law_of_wall option.
 !  cdbot_lo <= cdbot(i,j) <= cdbot_hi.
-!  Default is cdbot_roughness_length=.false.
+!  Default is cdbot_roughness_uamp=.false.
 !  </DATA>
 !
 !  <DATA NAME="cdbot_HH" UNITS="m" TYPE="real">
@@ -184,7 +185,6 @@ logical :: module_is_initialized = .false.
 logical :: first_call            = .true.
 
 real    :: vonkarman2          
-real    :: rho0_cdbot
 real    :: law_of_wall_rough_length_r
 
 real    :: cellarea_r
@@ -225,8 +225,8 @@ real    :: convert_geothermal       = .001     ! for converting units from mW to
 real    :: law_of_wall_rough_length = 0.01     ! metre
 real    :: cdbot                    = 2.5e-3   ! dimensionless
 real    :: uresidual                = .05      ! m/sec
-real    :: cdbot_hi                 = 3.0e-3   ! hi-end of cdbot for cdbot_roughness_length 
-real    :: cdbot_lo                 = 1.0e-3   ! lo-end of cdbot for cdbot_roughness_length 
+real    :: cdbot_hi                 = 3.0e-3   ! hi-end of cdbot for cdbot_roughness_length and cdbot_roughness_uamp
+real    :: cdbot_lo                 = 1.0e-3   ! lo-end of cdbot for cdbot_roughness_length and cdbot_roughness_uamp
 real    :: cdbot_gamma              = 40.0     ! for setting exp decay for cdbot w/ cdbot_roughness_length 
 real    :: uvmag_max                = 10.0     ! max velocity scale (m/s) for computing bmf
 real    :: bmf_max                  = 1.0      ! max bmf (N/m^2)
@@ -333,7 +333,6 @@ allocate (wave_u(isd:ied,jsd:jed))
 allocate (wave_s(isd:ied,jsd:jed))
 allocate (grd_kbot(isd:ied,jsd:jed))
 
-rho0_cdbot            = rho0*cdbot
 vonkarman2            = von_karman*von_karman
 geo_heat(:,:)         = 0.0
 data(:,:)             = 0.0
@@ -448,7 +447,7 @@ if(cdbot_roughness_length) then
     enddo
 
     ! bottom drag coefficient; the range of cdbot is
-    ! cd_beta <= cdbot(i,j) <= cd_alpha
+    ! cdbot_lo <= cdbot(i,j) <= cdbot_hi
     do j=jsd,jed
        do i=isd,ied
           cdbot_array(i,j) = Grd%mask(i,j,1)*cdbot_hi*(1.0-exp(-cdbot_gamma*cdbot_lowall(i,j)))
@@ -478,7 +477,6 @@ if(cdbot_roughness_uamp) then
 
 
     ! bottom drag from law of wall using roughness_length and tidal velocity amplitude
-    cdbot_lowall=0.0
     do j=jsd,jed
        do i=isd,ied
           depth = Grd%ht(i,j)

@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = git@github.com:mom-ocean/FMS.git
+	branch = master
+	commit = 3bd24800ed3cd8b0eb26643afdecf88e10641beb
+	parent = 80ece3dfb05c11db1a526930d0eff9a395405f13
+	method = merge
+	cmdver = 0.4.0

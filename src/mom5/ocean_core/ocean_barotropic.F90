@@ -6467,9 +6467,9 @@ subroutine get_tidal_forcing(Time, dayr)
      eta_eq_tidal(:,:)  =  ideal_amp(:,:)*cosomegat_M2
   endif
 
-  eta_eq_tidal(:,:) = eta_eq_tidal(:,:)*Grd%tmask(:,:,1) 
+  eta_eq_tidal(:,:) = eta_eq_tidal(:,:)*tmask_bt(:,:) 
 
-  call diagnose_2d(Time, Grd, id_eta_eq_tidal, eta_eq_tidal(:,:))
+  call diagnose_2d(Time, Grd, id_eta_eq_tidal, eta_eq_tidal(isd:ied,jsd:jed))
 
 
 end subroutine get_tidal_forcing

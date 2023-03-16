@@ -1,0 +1,54 @@
+name: CMake
+
+on: [workflow_dispatch]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-20.04 ] 
+        # gcc_v: [8, 9] # Version of GFortran we want to use.
+        TYPE: 
+          - MOM5_solo
+          - MOM5_SIS   
+          - MOM5_CM2M  
+          - MOM5_ESM2M  
+          - MOM5_ICCM   
+
+    runs-on: ${{ matrix.os }}
+    env:
+      # FC: gfortran-${{ matrix.gcc_v }}
+      # OMPI_FC: gfortran-${{ matrix.gcc_v }}
+      # GCC_V: ${{ matrix.gcc_v }}
+      FC: gfortran
+      OMPI_FC: gfortran
+
+    steps:
+
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get -yqq install csh gfortran libgomp1 openmpi-bin libopenmpi-dev libnetcdf-dev libnetcdff-dev  netcdf-bin
+
+    - name: Determing OS version
+      uses: kenchan0130/actions-system-info@master
+      id: system-info
+
+    - name: Set OS version
+      run: | 
+        echo "Release: ${{ steps.system-info.outputs.release }}"
+        echo "os_version=${{ steps.system-info.outputs.release }}" >> $GITHUB_ENV
+
+    - name: Determine netCDF build options
+      run: | 
+        nc-config --all
+
+    - name: Compile
+      working-directory: ./exp
+      run: |
+        # env
+        ./cmake_compile.csh --target ${{ matrix.TYPE }}

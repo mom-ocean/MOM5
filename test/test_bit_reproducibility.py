@@ -53,7 +53,7 @@ class TestBitReproducibility(ModelTestSetup):
         produced = self.produced_checksums(key)
 
         for k in expected:
-            assert(produced.has_key(k))
+            assert(k in produced)
             if expected[k] != produced[k]:
                 print('{}: expected {}, produced {}'.format(key, expected[k],
                                                             produced[k]))

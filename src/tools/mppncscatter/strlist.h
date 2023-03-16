@@ -55,4 +55,4 @@ int copystrlist(char** listsrc, char** listdst, int nsrc, int ndst);
 /* Get number of strings in list (and not number of available slots), which don't have to occupy every array position contiguously. */
 int getnumstrlist(char** list, int nlist);
 
-#endif /* !STRLIST_H */
+#endif

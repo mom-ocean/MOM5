@@ -80,6 +80,7 @@ module ocean_types_mod
      character(len=72)  :: bryan_lewis_mix
      character(len=72)  :: hwf_mix
      character(len=72)  :: tanh_diff_cbt
+     character(len=72)  :: read_diff_cbt
      character(len=72)  :: j09_diff_cbt
      character(len=72)  :: horz_bih_tracer
      character(len=72)  :: horz_lap_tracer
@@ -1236,13 +1237,17 @@ module ocean_types_mod
      real, pointer, dimension(:,:) :: mh_flux          =>NULL() ! heat flux from melting ice (W/m^2)
      real, pointer, dimension(:,:) :: wfimelt          =>NULL() ! water flux from melting ice (kg/m^2/s)
      real, pointer, dimension(:,:) :: wfiform          =>NULL() ! water flux from forming ice (kg/m^2/s)
-#endif
-#if defined(ACCESS_CM)
-     real, pointer, dimension(:,:) :: co2              =>NULL() ! co2
      real, pointer, dimension(:,:) :: licefw           =>null() ! waterflux into ocean (kg/m2/s) off Antarctica and Greenland
      real, pointer, dimension(:,:) :: liceht           =>null() ! heatflux due to land ice melt (W/m2)
 #endif
+#if defined(ACCESS_CM)
+     real, pointer, dimension(:,:) :: co2              =>NULL() ! co2
+#endif
      real, pointer, dimension(:,:) :: wnd              =>NULL() ! wind speed
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+     real, pointer, dimension(:,:) :: iof_nit              =>NULL() ! ice-ocean flux of nitrate
+     real, pointer, dimension(:,:) :: iof_alg              =>NULL() ! ice-ocean flux of algae
+#endif
      integer :: xtype                                          ! REGRID, REDIST or DIRECT
 
      type(coupler_2d_bc_type)      :: fluxes                   ! array of fields used for additional tracers
@@ -1264,6 +1269,10 @@ module ocean_types_mod
      real, pointer, dimension(:,:)    :: area    =>NULL() ! T-cell area.
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
      real, pointer, dimension(:,:,:)  :: gradient =>NULL() ! x/y slopes of sea surface.
+#endif
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+     real, pointer, dimension(:,:)    :: n_surf =>NULL() ! sea surface nitrate (mmol m-3)
+     real, pointer, dimension(:,:)    :: alg_surf =>NULL() ! sea surface algae (mmol m-3)
 #endif
 #if defined(ACCESS_CM)
      real, pointer, dimension(:,:)    :: co2     =>NULL() ! co2 ( )

@@ -71,6 +71,18 @@ module mom_oasis3_interface_mod
 !   <DATA NAME="send_after_ocean_update" TYPE="logical" DEFAULT=".FALSE.">
 !    TRUE if coupling strategy requires we send data to coupler AFTER updating the ocean
 !   </DATA>
+!   <DATA NAME="frac_vis_dir" TYPE="real" DEFAULT="0.215">
+!    Fraction of ssw apportion to direct visible radiation
+!   </DATA>
+!   <DATA NAME="frac_vis_dif" TYPE="real" DEFAULT="0.215">
+!    Fraction of ssw apportioned to diffuse visible radiation
+!   </DATA>
+!   <DATA NAME="frac_nir_dir" TYPE="real" DEFAULT="0.285">
+!    Fraction of ssw apportioned to direct near infrared radiation
+!   </DATA>
+!   <DATA NAME="frac_nir_dif" TYPE="real" DEFAULT="0.285">
+!    Fraction of ssw apportioned to diffuse near infrared radiation
+!   </DATA>
 !
 ! </NAMELIST>
 !
@@ -143,13 +155,9 @@ integer :: imt_local, jmt_local                    ! 2D global layout
 integer iisc,iiec,jjsc,jjec
 integer iisd,iied,jjsd,jjed
 
-#if defined(ACCESS_WND)
-integer, parameter :: max_fields_in=21
-#else
-integer, parameter :: max_fields_in=20
-#endif
+integer, parameter :: max_fields_in=25
 
-integer, parameter :: max_fields_out=8
+integer, parameter :: max_fields_out=10
 
 integer, dimension(max_fields_in)  :: id_var_in  ! ID for fields to be rcvd
 integer, dimension(max_fields_out) :: id_var_out ! ID for fields to be sent
@@ -188,6 +196,10 @@ integer(kind=mpi_address_kind) :: start, extent
 real :: realvalue
 integer :: col_comm
 integer :: mom4_comm
+
+real :: frac_vis_dir=0.5*0.43, frac_vis_dif=0.5*0.43,             &
+        frac_nir_dir=0.5*0.57, frac_nir_dif=0.5*0.57 ! shortwave partitioning
+
 contains
 
 !-----------------------------------------------------------------------------------
@@ -266,7 +278,9 @@ integer ifield
 logical fmatch 
 
 namelist /mom_oasis3_interface_nml/ num_fields_in, num_fields_out,fields_in,fields_out, &
-          send_before_ocean_update, send_after_ocean_update
+          send_before_ocean_update, send_after_ocean_update, frac_vis_dir, frac_vis_dif, &
+          frac_nir_dir, frac_nir_dif
+
 
 ! all processors read the namelist--
 
@@ -358,8 +372,12 @@ endif
   mom_name_read(18)='mh_flux'   ! Heat flux due to melting
   mom_name_read(19)='wfimelt'  !Water flux due to ice melting
   mom_name_read(20)='wfiform'  !Water flux due to ice forming 
-#if defined(ACCESS_WND)
-  mom_name_read(21)='wnd_io'  !
+  mom_name_read(21)='licefw'  ! Water flux from land ice
+  mom_name_read(22)='liceht'  ! Heat flux from land ice
+  mom_name_read(23)='wnd_io'  !
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+  mom_name_read(24)='iof_nit'  !
+  mom_name_read(25)='iof_alg'  !
 #endif
 
   !ocn ==> ice
@@ -373,7 +391,10 @@ endif
   mom_name_write(6)='frazil'
   mom_name_write(7)='dssldx'
   mom_name_write(8)='dssldy'
-
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+  mom_name_write(9)='n_surf'
+  mom_name_write(10)='alg_surf'
+#endif
 
   fmatch = .false.
   do jf = 1,num_fields_in
@@ -583,6 +604,12 @@ do jf = 1,num_fields_out
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1)
   case('dssldy') 
     vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2)
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+  case('n_surf')
+    vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%n_surf(iisd:iied,jjsd:jjed)
+  case('alg_surf')
+    vtmp(iisd:iied,jjsd:jjed) = Ocean_sfc%alg_surf(iisd:iied,jjsd:jjed)
+#endif
   case DEFAULT
   call mpp_error(FATAL,&
       '==>Error from into_coupler: Unknown quantity.')
@@ -645,9 +672,6 @@ type (time_type),optional         :: Time
 real, dimension(isg:ieg,jsg:jeg) :: gtmp
 
 integer, intent(in) :: step
-
-real :: frac_vis_dir=0.5*0.43, frac_vis_dif=0.5*0.43,             &
-        frac_nir_dir=0.5*0.57, frac_nir_dif=0.5*0.57 ! shortwave partitioning
 
   character*80 :: fname = 'fields_i2o_in_ocn.nc'
   integer :: ncid,currstep,ll,ilout
@@ -735,16 +759,24 @@ do jf =  1, num_fields_in
      Ice_ocean_boundary%fprec(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('aice')
      Ice_ocean_boundary%aice(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+  case('iof_nit')
+     Ice_ocean_boundary%iof_nit(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+  case('iof_alg')
+     Ice_ocean_boundary%iof_alg(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+#endif
   case('mh_flux')
      Ice_ocean_boundary%mh_flux(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('wfimelt')
      Ice_ocean_boundary%wfimelt(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('wfiform')
      Ice_ocean_boundary%wfiform(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
-#if defined(ACCESS_WND)
+  case('licefw')
+     Ice_ocean_boundary%licefw(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
+  case('liceht')
+     Ice_ocean_boundary%liceht(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
   case('wnd_io')
      Ice_ocean_boundary%wnd(iisc:iiec,jjsc:jjec) =  vwork(iisc:iiec,jjsc:jjec)
-#endif
   case DEFAULT
 ! Probable error. Leave as warning for the moment. RASF
    call mpp_error(WARNING,&
@@ -807,6 +839,10 @@ if ( write_restart ) then
           case('dssldx'); vtmp = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,1); fld_ice='sslx_i'
           case('dssldy'); vtmp = Ocean_sfc%gradient(iisd:iied,jjsd:jjed,2); fld_ice='ssly_i'
           case('frazil'); vtmp = Ocean_sfc%frazil(iisd:iied,jjsd:jjed); fld_ice='pfmice_i'
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+          case('n_surf'); vtmp = Ocean_sfc%n_surf(iisd:iied,jjsd:jjed); fld_ice='ssn_i'
+          case('alg_surf'); vtmp = Ocean_sfc%alg_surf(iisd:iied,jjsd:jjed); fld_ice='ssalg_i'
+#endif
         end select
 
         if (parallel_coupling) then

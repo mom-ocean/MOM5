@@ -8,7 +8,7 @@
                           cosp, sinp, cose, sine, dry_mass,  master
 #ifdef MARS_GCM
     use fv_pack,   only: p_ref
-#endif MARS_GCM
+#endif
 
 
   use fms_mod,      only: file_exist,  error_mesg,  FATAL
@@ -290,7 +290,7 @@
 
   call p_var(nlon, mlat, nlev, beglat, endlat, ptop, delp, ps,   &
                pe, peln, pk, pkz, kappa, q, ng_d, ncnst, full_phys)
-#endif MARS_GCM
+#endif
 
   call d2a3d(u(1,beglat-ng_d,nlev), v(1,beglat-ng_d,nlev), u_srf, v_srf, &
              nlon, mlat, 1, beglat, endlat, ng_d, ng_s, coslon, sinlon)
@@ -301,9 +301,9 @@
      enddo
   enddo
 
-#endif  LIN2004
+#endif
 
-#endif  POLVANI
+#endif
 
  end subroutine init_dry_atm
 
@@ -315,7 +315,7 @@
  subroutine hydro_eq(im, jm, km, beglat, endlat, ps, hs, drym,  &
                     delp, ak, bk, u, v, pt, ng_d, ng_s, ig, grav,  &
                     rg, mountain, master)
-#endif MARS_GCM
+#endif
 !============================================================
 
    use fv_arrays_mod, only: fv_array_check, fv_array_sync
@@ -334,7 +334,7 @@
   logical, intent(in):: master
 #ifdef MARS_GCM
   real, intent(in):: pref
-#endif MARS_GCM
+#endif
 
 ! Output
   real, intent(out)::  ps(im,beglat:endlat)
@@ -386,7 +386,7 @@
            ps(i,j) = mslp*((t0/a0)/(hs(i,j)+t0/a0))**(1./(a0*rg))  
         enddo
      enddo
-#endif MARS_GCM 
+#endif
 
      psm = gmean(im, jm, beglat, endlat, ps(1,beglat))
      dps = drym - psm
@@ -441,7 +441,7 @@
               pt(i,j,k) = max(min(t0, pt(i,j,k)), t1) 
            enddo
         enddo
-#endif  MARS_GCM
+#endif
 
      enddo
 
@@ -472,7 +472,7 @@
                pt(i,j,k) = t1
             enddo
          enddo
-#endif MARS
+#endif
 
       end do
     endif  !  ------- end of no-topography case ------------

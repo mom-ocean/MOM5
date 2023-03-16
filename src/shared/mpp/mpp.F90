@@ -1,3 +1,21 @@
+!***********************************************************************
+!*                   GNU Lesser General Public License
+!*
+!* This file is part of the GFDL Flexible Modeling System (FMS).
+!*
+!* FMS is free software: you can redistribute it and/or modify it under
+!* the terms of the GNU Lesser General Public License as published by
+!* the Free Software Foundation, either version 3 of the License, or (at
+!* your option) any later version.
+!*
+!* FMS is distributed in the hope that it will be useful, but WITHOUT
+!* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+!* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+!* for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with FMS.  If not, see <http://www.gnu.org/licenses/>.
+!***********************************************************************
 !-----------------------------------------------------------------------
 !                 Communication for message-passing codes
 !
@@ -155,8 +173,9 @@ module mpp_mod
   use shmem_interface
 #endif
 
-#if defined(use_libMPI) && defined(sgi_mipspro)
+#if defined(use_libMPI) && (defined(sgi_mipspro) || (__GNUC__ >= 11))
   use mpi
+#define MPI_IMPORTED 1
 #endif
 
   use mpp_parameter_mod, only : MPP_VERBOSE, MPP_DEBUG, ALL_PES, ANY_PE, NULL_PE
@@ -166,8 +185,9 @@ module mpp_mod
   use mpp_parameter_mod, only : MAX_EVENTS, MAX_BINS, MAX_EVENT_TYPES, MAX_CLOCKS
   use mpp_parameter_mod, only : MAXPES, EVENT_WAIT, EVENT_ALLREDUCE, EVENT_BROADCAST
   use mpp_parameter_mod, only : EVENT_ALLTOALL
+  use mpp_parameter_mod, only : EVENT_TYPE_CREATE, EVENT_TYPE_FREE
   use mpp_parameter_mod, only : EVENT_RECV, EVENT_SEND, MPP_READY, MPP_WAIT
-  use mpp_parameter_mod, only : mpp_parameter_version=>version, mpp_parameter_tagname=>tagname
+  use mpp_parameter_mod, only : mpp_parameter_version=>version
   use mpp_parameter_mod, only : DEFAULT_TAG
   use mpp_parameter_mod, only : COMM_TAG_1,  COMM_TAG_2,  COMM_TAG_3,  COMM_TAG_4
   use mpp_parameter_mod, only : COMM_TAG_5,  COMM_TAG_6,  COMM_TAG_7,  COMM_TAG_8
@@ -177,7 +197,7 @@ module mpp_mod
   use mpp_parameter_mod, only : MPP_FILL_INT,MPP_FILL_DOUBLE
   use mpp_data_mod,      only : stat, mpp_stack, ptr_stack, status, ptr_status, sync, ptr_sync  
   use mpp_data_mod,      only : mpp_from_pe, ptr_from, remote_data_loc, ptr_remote
-  use mpp_data_mod,      only : mpp_data_version=>version, mpp_data_tagname=>tagname
+  use mpp_data_mod,      only : mpp_data_version=>version
 
 implicit none
 private
@@ -186,9 +206,9 @@ private
 #include <mpp/shmem.fh>
 #endif
 
-#if defined(use_libMPI) && !defined(sgi_mipspro)
+#if defined(use_libMPI) && !defined(MPI_IMPORTED)
 #include <mpif.h>   
-!sgi_mipspro gets this from 'use mpi'
+! !sgi_mipspro gets this from 'use mpi'
 #endif
 
   !--- public paramters  -----------------------------------------------
@@ -220,6 +240,7 @@ private
   public :: mpp_chksum, mpp_max, mpp_min, mpp_sum, mpp_transmit, mpp_send, mpp_recv
   public :: mpp_broadcast, mpp_malloc, mpp_init, mpp_exit
   public :: mpp_gather, mpp_scatter, mpp_alltoall
+  public :: mpp_type, mpp_byte, mpp_type_create, mpp_type_free
 #ifdef use_MPI_GSM
   public :: mpp_gsm_malloc, mpp_gsm_free
 #endif
@@ -277,6 +298,29 @@ private
      character(len=16)         :: name
      type (Clock_Data_Summary) :: event(MAX_EVENT_TYPES)
   end type Summary_Struct
+
+  ! Data types for generalized data transfer (e.g. MPI_Type)
+  type :: mpp_type
+     private
+     integer :: counter ! Number of instances of this type
+     integer :: ndims
+     integer, allocatable :: sizes(:)
+     integer, allocatable :: subsizes(:)
+     integer, allocatable :: starts(:)
+     integer :: etype   ! Elementary data type (e.g. MPI_BYTE)
+     integer :: id      ! Identifier within message passing library (e.g. MPI)
+
+     type(mpp_type), pointer :: prev => null()
+     type(mpp_type), pointer :: next => null()
+  end type mpp_type
+
+  ! Persisent elements for linked list interaction
+  type :: mpp_type_list
+      private
+      type(mpp_type), pointer :: head => null()
+      type(mpp_type), pointer :: tail => null()
+      integer :: length
+  end type mpp_type_list
 
 !***********************************************************************
 !
@@ -523,6 +567,21 @@ private
   ! </SUBROUTINE>
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                             !
+!              DATA TRANSFER TYPES: mpp_type_create                           !
+!                                                                             !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  interface mpp_type_create
+      module procedure mpp_type_create_int4
+      module procedure mpp_type_create_int8
+      module procedure mpp_type_create_real4
+      module procedure mpp_type_create_real8
+      module procedure mpp_type_create_logical4
+      module procedure mpp_type_create_logical8
+  end interface mpp_type_create
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !                                                                             !
   !            GLOBAL REDUCTION ROUTINES: mpp_max, mpp_sum, mpp_min             !
   !                                                                             !
@@ -550,25 +609,33 @@ private
   ! </INTERFACE>
 
   interface mpp_max
-     module procedure mpp_max_real8
+     module procedure mpp_max_real8_0d
+     module procedure mpp_max_real8_1d
 #ifndef no_8byte_integers
-     module procedure mpp_max_int8
+     module procedure mpp_max_int8_0d
+     module procedure mpp_max_int8_1d
 #endif
 #ifdef OVERLOAD_R4
-     module procedure mpp_max_real4
+     module procedure mpp_max_real4_0d
+     module procedure mpp_max_real4_1d
 #endif
-     module procedure mpp_max_int4
+     module procedure mpp_max_int4_0d
+     module procedure mpp_max_int4_1d
   end interface
 
   interface mpp_min
-     module procedure mpp_min_real8
+     module procedure mpp_min_real8_0d
+     module procedure mpp_min_real8_1d
 #ifndef no_8byte_integers
-     module procedure mpp_min_int8
+     module procedure mpp_min_int8_0d
+     module procedure mpp_min_int8_1d
 #endif
 #ifdef OVERLOAD_R4
-     module procedure mpp_min_real4
+     module procedure mpp_min_real4_0d
+     module procedure mpp_min_real4_1d
 #endif
-     module procedure mpp_min_int4
+     module procedure mpp_min_int4_0d
+     module procedure mpp_min_int4_1d
   end interface
 
 
@@ -659,12 +726,16 @@ private
   !  </OVERVIEW>
   ! </INTERFACE>
   interface mpp_gather
+     module procedure mpp_gather_logical_1d
      module procedure mpp_gather_int4_1d
      module procedure mpp_gather_real4_1d
      module procedure mpp_gather_real8_1d
+     module procedure mpp_gather_logical_1dv
      module procedure mpp_gather_int4_1dv
      module procedure mpp_gather_real4_1dv
      module procedure mpp_gather_real8_1dv
+     module procedure mpp_gather_pelist_logical_2d
+     module procedure mpp_gather_pelist_logical_3d
      module procedure mpp_gather_pelist_int4_2d
      module procedure mpp_gather_pelist_int4_3d
      module procedure mpp_gather_pelist_real4_2d
@@ -700,10 +771,20 @@ private
      module procedure mpp_alltoall_int8
      module procedure mpp_alltoall_real4
      module procedure mpp_alltoall_real8
+     module procedure mpp_alltoall_logical4
+     module procedure mpp_alltoall_logical8
      module procedure mpp_alltoall_int4_v
      module procedure mpp_alltoall_int8_v
      module procedure mpp_alltoall_real4_v
      module procedure mpp_alltoall_real8_v
+     module procedure mpp_alltoall_logical4_v
+     module procedure mpp_alltoall_logical8_v
+     module procedure mpp_alltoall_int4_w
+     module procedure mpp_alltoall_int8_w
+     module procedure mpp_alltoall_real4_w
+     module procedure mpp_alltoall_real8_w
+     module procedure mpp_alltoall_logical4_w
+     module procedure mpp_alltoall_logical8_w
   end interface
 
 
@@ -1178,6 +1259,9 @@ private
   integer              :: clock_num=0, num_clock_ids=0,current_clock=0, previous_clock(MAX_CLOCKS)=0
   real                 :: tick_rate
 
+  type(mpp_type_list)    :: datatypes
+  type(mpp_type), target :: mpp_byte
+
   integer              :: cur_send_request = 0
   integer              :: cur_recv_request = 0
   integer, allocatable :: request_send(:)
@@ -1198,6 +1282,8 @@ private
   integer :: in_unit=5, out_unit=6, err_unit=0
 #endif
 
+  integer :: stdout_unit
+
   !--- variables used in mpp_util.h
   type(Summary_Struct) :: clock_summary(MAX_CLOCKS)
   logical              :: warnings_are_fatal = .FALSE.
@@ -1212,7 +1298,7 @@ private
   !(t3e: fixed on 3.3 I believe)
   integer, parameter :: MPI_INTEGER8=MPI_INTEGER
 #endif
-#endif /* use_libMPI */
+#endif
 #ifdef use_MPI_SMA
 #include <mpp/shmem.fh>
   integer :: pSync(SHMEM_BARRIER_SYNC_SIZE)
@@ -1237,14 +1323,13 @@ private
 ! parameter defining length of character variables 
   integer, parameter :: INPUT_STR_LENGTH = 256
 ! public variable needed for reading input.nml from an internal file
-  character(len=INPUT_STR_LENGTH), dimension(:), allocatable, public :: input_nml_file
+  character(len=INPUT_STR_LENGTH), dimension(:), allocatable, target, public :: input_nml_file
   logical :: read_ascii_file_on = .FALSE.
 !***********************************************************************
 
-  character(len=128), public :: version= &
-       '$Id mpp.F90 $'
-  character(len=128), public :: tagname= &
-       '$Name$'
+! Include variable "version" to be written to log file.
+#include<file_version.h>
+  public version
 
   integer, parameter :: MAX_REQUEST_MIN  = 10000
   integer            :: request_multiply = 20

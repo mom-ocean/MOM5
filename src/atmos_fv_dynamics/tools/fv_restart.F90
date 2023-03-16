@@ -18,7 +18,7 @@ module fv_restart_mod
        restart_format, use_tendency, cold_start, gid
 #ifdef MARS_GCM
   use fv_pack,    only: p_ref
-#endif MARS_GCM
+#endif
 
   use tracer_manager_mod, only : tr_get_tracer_names=>get_tracer_names, &
        get_tracer_names, get_number_tracers, &
@@ -356,7 +356,7 @@ contains
         do n =1,nqrst
            call read_data(fms_tracers_restart_file,fv_tr_name(n),q(ids:ide,jds:jde,:,n) , domain = fv_domain)
         enddo
-#endif MARS_GCM 
+#endif
     endif ! --------------- Finished reading dynamcics tracers ------------
 
 
@@ -383,7 +383,7 @@ contains
     if (do_fms_tracer_manager ) then !{
 #else
     if (do_fms_tracer_manager .and. nq > nt_phys) then !{
-#endif MARS_GCM
+#endif
 
        !Modify the filename if it has an ensemble instance appendix
        call get_instance_filename(fms_tracers_restart_file,restart_name )
@@ -440,7 +440,7 @@ contains
                    if(tname == "ice_wat") cycle
                    if(tname == "cld_amt") cycle
                endif
-#endif MARS_GCM
+#endif
 ! this tracer will be added
                n = n + 1
                is_tracer_in_restart_file = .FALSE.
@@ -702,7 +702,7 @@ contains
 
 #ifdef MARS_GCM 
     character (len=128) :: filename, fieldname
-#endif MARS_GCM
+#endif
 
 #include "fv_point.inc"
 
@@ -785,7 +785,7 @@ contains
             phis = 0.
         endif
 
-#endif MARS_GCM
+#endif
 
         call set_eta(nlev, ks, ptop, ak, bk)
         call init_dry_atm(mountain, kappa, grav, rdgas)
@@ -883,7 +883,7 @@ contains
 #else
     character(len=20) :: fv_tr_name(4)
     data fv_tr_name / "sphum","liq_wat","ice_wat","cld_amt" /
-#endif MARS_GCM
+#endif
 
 #include "fv_point.inc"
 
@@ -1076,7 +1076,7 @@ contains
             call get_eta_level(nlev, p_ref, pfull, phalf, 0.01)
 #else
             call get_eta_level(nlev, 1.E5, pfull, phalf, 0.01)
-#endif MARS_GCM
+#endif
 
             !Modify the filename if it has an ensemble instance appendix
             call get_instance_filename(fms_tracers_restart_file,restart_name )
@@ -1152,7 +1152,7 @@ contains
         call get_eta_level(nlev, p_ref, pfull, phalf, 0.01)
 #else
         call get_eta_level(nlev, 1.E5, pfull, phalf, 0.01)
-#endif MARS_GCM
+#endif
 !        if(master) write(*,*) "phalf values are ",phalf    
 ! define longitude axis for u and tracer fields
         call mpp_write_meta(iuic, axis_lon, 'lon', 'degree_E', 'longitude', &
