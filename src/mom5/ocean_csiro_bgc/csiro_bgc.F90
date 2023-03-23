@@ -1978,7 +1978,7 @@ endif
 
 !det export at 100 m
 if (id_wdet100 .gt. 0) then
-  wdet100(:,:) = wdetbio(isc:iec,jsc:jec)*t_prog(ind_det)%field(isc:iec,jsc:jec,minloc(grid%zt(:)-100,dim=1),time%taum1)
+  wdet100(:,:) = wdetbio(isc:iec,jsc:jec)*t_prog(ind_det)%field(isc:iec,jsc:jec,minloc(abs(grid%zt(:)-100),dim=1),time%taum1)
   used = send_data(id_wdet100, wdet100(isc:iec,jsc:jec),          &
        time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
 endif
