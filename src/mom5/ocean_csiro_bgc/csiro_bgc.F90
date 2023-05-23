@@ -1006,9 +1006,10 @@ if (gasx_from_file) then
 else
  do j=jsc, jec
   do i=isc, iec
-! the relations 0.31 * u^2 comes from Wanninkhof 1992, and is the coefficient for steady wind speed; the equation is 0.39 * u^2 for instaneous wind speeds. I don't know what exactly the timescale is between steady and instaneous...
+i! the relations 0.31 * u^2 comes from Wanninkhof 1992, and is the coefficient for steady wind speeds, suitable for shipboard spot
+! measurements or derived from scatterometers; the equation is 0.39 * u^2 for long-term wind speeds (e.g. climatology). 
 ! the 3.6e5 is a conversion of units; cm/hr to m/s.
-! mac, may13.
+! mac, may13 (comments updated feb22).
    xkw_t(i,j)=(0.31 * wnd(i,j)**2.0 ) /3.6e5   
   enddo ! i
  enddo ! j
