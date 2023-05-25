@@ -184,6 +184,7 @@ type biotic_type  !{
   real                                      :: sal_global
   real, allocatable, dimension(:)           :: bgc_global
   real, allocatable, dimension(:,:)         :: htotal
+  real, allocatable, dimension(:,:)         :: ahtotal
   real, allocatable, dimension(:,:)         :: alpha
   real, allocatable, dimension(:,:)         :: csat
   real, allocatable, dimension(:,:)         :: csat_csurf
@@ -235,6 +236,7 @@ integer,public :: ind_fe = -1
 character*6  :: qbio_model
 integer      :: bio_version    ! version of the bgc module to use
 logical      :: zero_floor     ! apply hard floor to bgc tracers 
+logical      :: sea_ice_bgc    ! exchange algae/phytoplankton and nutrients from sea ice BGC model
 logical      :: sw_thru_ice    ! make this true in a coupled model, so bgc knows swflx is already modified for the presense of ice.  
 logical      :: gasx_from_file ! use gasx exchange coefficients from provided files. mac, may13.  
 logical      :: ice_file4gasx  ! make this true in a ocean-only model, option to control whether to use ice file or the model ice when determining masking effect of ice on co2 gas exchange. 
@@ -276,10 +278,13 @@ integer                                 :: id_npp3d = -1
 integer                                 :: id_pprod_gross = -1
 integer                                 :: id_pprod_gross_2d = -1
 integer                                 :: id_zprod_gross = -1
+integer                                 :: id_export_prod = -1
+integer                                 :: id_export_inorg = -1
 integer                                 :: id_kw_o2  = -1
 integer                                 :: id_o2_sat = -1
 integer                                 :: id_sc_o2  = -1
 integer                                 :: id_pco2 = -1, id_paco2 = -1
+integer                                 :: id_htotal = -1, id_ahtotal = -1
 integer                                 :: id_co2_sat = -1, id_aco2_sat = -1
 integer                                 :: id_caco3_sed_remin, id_det_sed_remin
 integer                                 :: id_caco3_sed_depst, id_det_sed_depst
@@ -347,7 +352,7 @@ real, allocatable, dimension(:,:) :: wdet100
 real, allocatable, dimension(:,:) :: npp2d
 real, allocatable, dimension(:,:,:) :: npp3d
 real, allocatable, dimension(:,:,:) :: pprod_gross
-real, allocatable, dimension(:,:) :: pprod_gross_2d
+real, allocatable, dimension(:,:) :: pprod_gross_2d, export_prod, export_inorg
 real, allocatable, dimension(:,:,:) :: zprod_gross
 real, allocatable, dimension(:) :: ray
 real, allocatable, dimension(:) :: dummy
@@ -521,6 +526,8 @@ allocate( npp3d(isc:iec,jsc:jec,nk) )
 allocate( pprod_gross(isc:iec,jsc:jec,nk) )
 allocate( pprod_gross_2d(isc:iec,jsc:jec) )
 allocate( zprod_gross(isc:iec,jsc:jec,nk) )
+allocate( export_prod(isc:iec,jsc:jec) )
+allocate( export_inorg(isc:iec,jsc:jec) )
 
 allocate (tmp(isd:ied,jsd:jed) )
 allocate ( tracer_sources(0:nk) )
@@ -558,6 +565,7 @@ do n = 1, instances  !{
 !  allocate( biotic(n)%ind_bgc(1:ntr_bgc) )
 
   allocate( biotic(n)%htotal(isd:ied,jsd:jed) )
+  allocate( biotic(n)%ahtotal(isd:ied,jsd:jed) )
   allocate( biotic(n)%alpha(isd:ied,jsd:jed) )
   allocate( biotic(n)%csat(isd:ied,jsd:jed) )
   allocate( biotic(n)%csat_csurf(isd:ied,jsd:jed) )
@@ -617,6 +625,7 @@ allocate( f_inorg(isd:ied,jsd:jed) )
 
 do n = 1, instances  !{
  biotic(n)%htotal(:,:)  = 1.e-8
+ biotic(n)%ahtotal(:,:)  = 1.e-8
   biotic(n)%sio2(:,:) = 35. *1e-3
   biotic(n)%bgc_global(:) = 0.  ! this will make vstf zero
   biotic(n)%sal_global = 35.
@@ -981,6 +990,7 @@ integer :: num_days
 integer :: second
 integer :: year
 integer :: indtemp, indsal
+real    :: schmidt_temp
 
 ! =====================================================================
 !     begin executable code
@@ -1065,9 +1075,10 @@ if (id_dic .eq. 0 .and. id_o2.eq. 0) return
 
 do j = jsc, jec  !{
   do i = isc, iec  !{
-    sc_co2(i,j) = 2073.1 + t_prog(indtemp)%field(i,j,1,time%taum1) * &
-         (-125.62 + t_prog(indtemp)%field(i,j,1,time%taum1) *        &
-          (3.6276 + t_prog(indtemp)%field(i,j,1,time%taum1) *        &
+    schmidt_temp = min(35.0, t_prog(indtemp)%field(i,j,1,time%taum1))! add max limit to temp used for Schmidt number calculation.  mac, jan21.
+    sc_co2(i,j) = 2073.1 + schmidt_temp * &
+         (-125.62 + schmidt_temp  *        &
+          (3.6276 + schmidt_temp  *        &
            (-0.043219))) * grid%tmask(i,j,1)
   enddo  !} i
 enddo  !} j 
@@ -1080,9 +1091,10 @@ enddo  !} j
 
 do j = jsc, jec  !{
   do i = isc, iec  !{
-    sc_o2(i,j) = 1638.0 + t_prog(indtemp)%field(i,j,1,time%taum1) *  &
-         (-81.83 + t_prog(indtemp)%field(i,j,1,time%taum1) *         &
-          (1.483 + t_prog(indtemp)%field(i,j,1,time%taum1) *         &
+    schmidt_temp = min(35.0, t_prog(indtemp)%field(i,j,1,time%taum1))! add max limit to temp used for Schmidt number calculation.  mac, jan21.
+    sc_o2(i,j) = 1638.0 + schmidt_temp  *  &
+         (-81.83 + schmidt_temp  *         &
+          (1.483 + schmidt_temp  *         &
            (-0.008004))) * grid%tmask(i,j,1)
   enddo  !} i
 enddo  !} j 
@@ -1158,7 +1170,7 @@ do n = 1, instances  !{
        biotic(n)%po4(isd:ied,jsd:jed),&
        biotic(n)%sio2(isd:ied,jsd:jed),                       &
        htotallo(isc:iec,jsc:jec), htotalhi(isc:iec,jsc:jec), &
-       biotic(n)%htotal(isc:iec,jsc:jec),                      &
+       biotic(n)%ahtotal(isc:iec,jsc:jec),                      &
        biotic(n)%acsurf(isc:iec,jsc:jec),                    &
        alpha=biotic(n)%alpha(isc:iec,jsc:jec) ,                   &            
        pco2surf = biotic(n)%paco2surf(isc:iec,jsc:jec),           &
@@ -1345,27 +1357,28 @@ if (id_fe.ne.0) then
   enddo  !} n
 endif
 
-!ice-to-ocean flux of algae
-if (id_phy.ne.0) then
-  do n = 1, instances  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
-        t_prog(ind_phy)%stf(i,j) = iof_alg(i,j)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} n
-endif
-!ice-to-ocean flux of nitrate
-if (id_no3.ne.0) then
-  do n = 1, instances  !{
-    do j = jsc, jec  !{
-      do i = isc, iec  !{
-        t_prog(ind_no3)%stf(i,j) = iof_nit(i,j)
-      enddo  !} i
-    enddo  !} j
-  enddo  !} n
-endif
-
+if (sea_ice_bgc) then
+ !ice-to-ocean flux of algae
+ if (id_phy.ne.0) then
+   do n = 1, instances  !{
+     do j = jsc, jec  !{
+       do i = isc, iec  !{
+         t_prog(ind_phy)%stf(i,j) = iof_alg(i,j)
+       enddo  !} i
+     enddo  !} j
+   enddo  !} n
+ endif
+ !ice-to-ocean flux of nitrate
+ if (id_no3.ne.0) then
+   do n = 1, instances  !{
+     do j = jsc, jec  !{
+       do i = isc, iec  !{
+         t_prog(ind_no3)%stf(i,j) = iof_nit(i,j)
+       enddo  !} i
+     enddo  !} j
+   enddo  !} n
+ endif
+endif  ! sea_ice_bgc
 
 if (.not. use_waterflux)  then  !{
 ! rjm - One only needs to compute virtual fluxes if waterflux is not used
@@ -1588,6 +1601,7 @@ call fm_util_start_namelist(package_name, '*global*', caller = caller_str, no_ov
   call fm_util_set_value('qbio_model', 'bio_vx') ! version name 
   call fm_util_set_value('bio_version',1)        ! version of the bgc module
   call fm_util_set_value('zero_floor', .false.)  ! apply hard floor to bgc tracers
+  call fm_util_set_value('sea_ice_bgc', .true.) ! exchange algae/phytoplankton and nutrients from sea ice BGC model
   call fm_util_set_value('sw_thru_ice', .true.)  ! is shortwave flux modified by an ice model?
   call fm_util_set_value('gasx_from_file', .true.)! use file with gas exchange coefficients?
   call fm_util_set_value('ice_file4gasx', .true.)! use file with ice cover for gas exchange?
@@ -1625,6 +1639,7 @@ call fm_util_start_namelist(package_name, '*global*', caller = caller_str, no_ov
   bio_version   =  fm_util_get_integer ('bio_version', scalar = .true.)
   ! rjm: Tracer to use
   zero_floor = fm_util_get_logical ('zero_floor', scalar = .true.)
+  sea_ice_bgc = fm_util_get_logical ('sea_ice_bgc', scalar = .true.)
   sw_thru_ice = fm_util_get_logical ('sw_thru_ice', scalar = .true.)
   gasx_from_file = fm_util_get_logical ('gasx_from_file', scalar = .true.)
   ice_file4gasx = fm_util_get_logical ('ice_file4gasx', scalar = .true.)
@@ -1935,6 +1950,14 @@ if (id_paco2 .gt. 0) then
   used = send_data(id_paco2, biotic(1)%paco2surf(isc:iec,jsc:jec),            &
        time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
 endif
+if (id_htotal .gt. 0) then
+  used = send_data(id_htotal, biotic(1)%htotal(isc:iec,jsc:jec),            &
+       time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
+endif
+if (id_ahtotal .gt. 0) then
+  used = send_data(id_ahtotal, biotic(1)%ahtotal(isc:iec,jsc:jec),            &
+       time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
+endif
 if (id_co2_sat .gt. 0) then
   used = send_data(id_co2_sat, biotic(1)%csat_csurf(isc:iec,jsc:jec),   &
        time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
@@ -2003,6 +2026,16 @@ endif
 ! at surface
 if (id_npp1 .gt. 0) then
   used = send_data(id_npp1, npp3d(isc:iec,jsc:jec,1),          &
+       time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
+endif
+
+if (id_export_prod .gt. 0) then
+  used = send_data(id_export_prod, export_prod(isc:iec,jsc:jec),          &
+       time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
+endif
+
+if (id_export_inorg .gt. 0) then
+  used = send_data(id_export_inorg, export_inorg(isc:iec,jsc:jec),          &
        time%model_time, rmask = grid%tmask(isc:iec,jsc:jec,1))
 endif
 
@@ -2413,6 +2446,14 @@ id_paco2 = register_diag_field('ocean_model',                   &
      'paco2', grid%tracer_axes(1:2),                            &
      Time%model_time, 'pCO2 inc. anthropogenic', ' ',               &
      missing_value = -1.0e+10)
+id_htotal = register_diag_field('ocean_model',                   &
+     'htotal', grid%tracer_axes(1:2),                            &
+     Time%model_time, 'Htotal', ' ',               &
+     missing_value = -1.0e+10)
+id_ahtotal = register_diag_field('ocean_model',                   &
+     'ahtotal', grid%tracer_axes(1:2),                            &
+     Time%model_time, 'Htotal inc. anthropogenic', ' ',               &
+     missing_value = -1.0e+10)
 id_co2_sat = register_diag_field('ocean_model',                  &
      'co2_saturation', grid%tracer_axes(1:2),                    &
      Time%model_time, 'CO2 saturation', 'mmol/m^3',            &
@@ -2558,6 +2599,14 @@ id_pprod_gross_2d = register_diag_field('ocean_model','pprod_gross_2d', &
 id_zprod_gross = register_diag_field('ocean_model','zprod_gross', &
      grid%tracer_axes(1:3),Time%model_time, 'Gross ZOO production', &
      'mmolN/m^3/s',missing_value = -1.0e+10)
+
+id_export_prod = register_diag_field('ocean_model','export_prod', &
+     grid%tracer_axes(1:2),Time%model_time, 'Organic export through 100m', &
+     'mmolN/m^2/s',missing_value = -1.0e+10)
+
+id_export_inorg = register_diag_field('ocean_model','export_inorg', &
+     grid%tracer_axes(1:2),Time%model_time, 'Inorganic export through 100m', &
+     'mmolN/m^2/s',missing_value = -1.0e+10)
 
 id_caco3_sediment = register_diag_field('ocean_model','caco3_sediment', &
      grid%tracer_axes(1:2),Time%model_time, 'Accumulated CaCO3 in sediment at base of water column', &
