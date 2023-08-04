@@ -698,9 +698,11 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
     stdoutunit=stdout()
     stdlogunit=stdlog() 
 
+#ifdef COSIMA_VERSION
     if (mpp_pe() == mpp_root_pe()) then
         write(stdoutunit,*) MOM_COMMIT_HASH
     endif
+#endif
 
     if (module_is_initialized) then 
       call mpp_error(FATAL, &
