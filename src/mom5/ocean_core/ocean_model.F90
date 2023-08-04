@@ -334,7 +334,9 @@ use ocean_xlandmix_mod,           only: ocean_xlandmix_init, xlandmix
 use ocean_drifters_mod,           only: ocean_drifters_init, update_ocean_drifters, ocean_drifters_end
 use wave_types_mod,               only: ocean_wave_type
 use ocean_wave_mod,               only: ocean_wave_init, ocean_wave_end, ocean_wave_model
-use version_mod,                  only: MOM_COMMIT_HASH
+#if defined(COSIMA_VERSION)
+  use version_mod,                  only: MOM_COMMIT_HASH
+#endif
 
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
   use auscom_ice_mod, only: auscom_ice_init

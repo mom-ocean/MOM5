@@ -151,6 +151,7 @@ if ( $cosima_version ) then
     echo "Including COSIMA version in build"
     # Build version. This prevents builds outside a git repo, so only enabled for COSIMA builds
     source ./version_compile.csh
+    set cppDefs = "$cppDefs -DCOSIMA_VERSION"
 endif
 
 # Build FMS.
