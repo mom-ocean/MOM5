@@ -40,6 +40,7 @@ integer :: index_temp, index_salt
 
       integer :: ts_npzd ! number of time steps within NPZD model
       integer :: kmeuph = 20 ! deepest level of  euphotic zone
+      integer :: k100 = 10 ! deepest level less than 100 m
       integer :: tn, trn
 
       real :: pi    = 3.14159265358979  !yes, this is pi
@@ -96,8 +97,10 @@ integer :: index_temp, index_salt
 ! set the maximum index for euphotic depth
       do k=1,grid%nk
          if (grid%zw(k).le. 400) kmeuph=k
+         if (grid%zw(k).le. 100) k100=k
       enddo
 !        print*,'rjm euphotic ', kmeuph
+!        print*,'mac k100 ', k100
 
 !
 !
@@ -140,6 +143,8 @@ do n = 1, instances  !{
 
   pprod_gross(:,:,:) = 0.0
   zprod_gross(:,:,:) = 0.0
+  export_prod(:,:) = 0.0
+  export_inorg(:,:) = 0.0
   light_limit(:,:) = 0.0
   radbio3d(:,:,:) = 0.0
   npp3d(:,:,:) = 0.0
@@ -169,7 +174,8 @@ do n = 1, instances  !{
   ind_dic = biotic(n)%ind_bgc(id_dic)
   ind_adic = biotic(n)%ind_bgc(id_adic)
   ind_alk = biotic(n)%ind_bgc(id_alk)
-  ind_po4 = biotic(n)%ind_bgc(id_po4)
+!  ind_po4 = biotic(n)%ind_bgc(id_po4)
+  if (id_po4 .ne. 0) ind_po4 = biotic(n)%ind_bgc(id_po4)
   ind_o2  = biotic(n)%ind_bgc(id_o2)
 
   ind_no3  = biotic(n)%ind_bgc(id_no3)
@@ -328,7 +334,7 @@ do n = 1, instances  !{
 ! change the ratio of remineralisation of det in upper to lower ocean from 5 to 2,
 !  but keep the remin rate the same at depth, so change the value in rjm_param_2010.... as well
 !  mac, jun10.
-        if (grid%zw(k) .ge. 180) f41 = f41*.5   ! reduce decay below 300m
+        if (grid%zw(k) .ge. 180) f41 = f41*.5   ! reduce decay at depth
 
         if (id_caco3.ne.0) then 
           f51 = muecaco3(i,j)*biocaco3 *bioma(i,k,id_caco3)
@@ -381,6 +387,14 @@ do n = 1, instances  !{
          enddo  !} i
         enddo  !} k
        enddo  !} tn 
+
+
+! Calculate export production, organic and inorganic.  mac, sep18.  
+        k=k100
+        do i = isc, iec  !{
+         export_prod(i,j)=t_prog(ind_det)%field(i,j,k,time%taum1)*wdetbio(i,j)*grid%tmask(i,j,k)
+         export_inorg(i,j)=t_prog(ind_caco3)%field(i,j,k,time%taum1)*wcaco3(i,j)*grid%tmask(i,j,k)
+        enddo  !} i
 
 
 !chd  add biotically induced tendency to biotracers,
