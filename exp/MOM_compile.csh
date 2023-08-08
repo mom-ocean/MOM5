@@ -94,7 +94,7 @@ endif
 
 if( $cosima_version == "unset" ) then
     if( $type =~ ACCESS-OM* ) then
-        # default to cosima versioniing for ACCESS-OM if not set explicitly as no_version argument
+        # default to cosima versioning for ACCESS-OM if not set explicitly as no_version argument
         set cosima_version = 1
     else
         set cosima_version = 0
