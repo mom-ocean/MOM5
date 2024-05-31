@@ -1349,7 +1349,7 @@ if (id_phy.ne.0) then
   do n = 1, instances  !{
     do j = jsc, jec  !{
       do i = isc, iec  !{
-        t_prog(ind_phy)%stf(i,j) = iof_alg(i,j)
+        t_prog(ind_phy)%stf(i,j) = rho0 * iof_alg(i,j)
       enddo  !} i
     enddo  !} j
   enddo  !} n
@@ -1359,7 +1359,7 @@ if (id_no3.ne.0) then
   do n = 1, instances  !{
     do j = jsc, jec  !{
       do i = isc, iec  !{
-        t_prog(ind_no3)%stf(i,j) = iof_nit(i,j)
+        t_prog(ind_no3)%stf(i,j) = rho0 * iof_nit(i,j)
       enddo  !} i
     enddo  !} j
   enddo  !} n
