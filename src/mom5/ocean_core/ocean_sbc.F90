@@ -522,7 +522,7 @@ use ocean_parameters_mod,     only: CONSERVATIVE_TEMP, POTENTIAL_TEMP, PREFORMED
 use ocean_parameters_mod,     only: MOM_BGRID, MOM_CGRID 
 use ocean_riverspread_mod,    only: spread_river_horz
 use ocean_tempsalt_mod,       only: pottemp_from_contemp
-use ocean_tpm_mod,            only: ocean_tpm_sum_sfc, ocean_tpm_avg_sfc, ocean_tpm_sbc
+use ocean_tpm_mod,            only: ocean_tpm_sum_sfc, ocean_tpm_avg_sfc, ocean_tpm_sbc, ocean_tpm_sbc_adjust
 use ocean_tpm_mod,            only: ocean_tpm_zero_sfc, ocean_tpm_sfc_end
 use ocean_types_mod,          only: ocean_grid_type, ocean_domain_type, ocean_public_type
 use ocean_types_mod,          only: ocean_time_type, ocean_thickness_type 
@@ -4466,7 +4466,7 @@ end subroutine get_ocean_sbc
 ! </DESCRIPTION>
 !
 
-subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, melt, pme)
+subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, melt, pme, runoff)
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
 
   use auscom_ice_parameters_mod, only : use_ioaice, aice_cutoff
@@ -4482,6 +4482,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
   real, dimension(isd:,jsd:),     intent(in)    :: river
   real, dimension(isd:,jsd:),     intent(in)    :: melt 
   real, dimension(isd:,jsd:),     intent(inout) :: pme
+  real, dimension(isd:,jsd:),     intent(inout) :: runoff
 
   real, dimension(isd:ied,jsd:jed) :: open_ocean_mask
   real, dimension(isd:ied,jsd:jed) :: pme_restore, flx_restore
@@ -4766,6 +4767,9 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
 
   endif   ! endif for if (id_correction(index_salt) > 0 )
 
+  ! apply adjustments to tracer surface boundary conditions due to salt restoring/correction
+
+  call ocean_tpm_sbc_adjust(Dom, T_prog, flx_restore(:,:)+flx_correct(:,:), runoff)
 
   ! diagnostics for salinity or pme restoring and correction 
 

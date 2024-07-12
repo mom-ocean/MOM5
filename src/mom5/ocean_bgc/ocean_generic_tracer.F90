@@ -27,10 +27,10 @@ module ocean_generic_mod
 
   use field_manager_mod, only: fm_get_index,fm_string_len, fm_new_value
   use generic_tracer, only: generic_tracer_init, generic_tracer_source, generic_tracer_update_from_bottom
-  use generic_tracer, only: generic_tracer_coupler_get, generic_tracer_coupler_set, generic_tracer_register_diag
+  use generic_tracer, only: generic_tracer_coupler_accumulate, generic_tracer_coupler_set, generic_tracer_register_diag
   use generic_tracer, only: generic_tracer_end, generic_tracer_get_list, do_generic_tracer, generic_tracer_register
   use generic_tracer, only: generic_tracer_coupler_zero, generic_tracer_vertdiff_G, generic_tracer_vertdiff_M
-  use generic_tracer, only: generic_tracer_diag
+  use generic_tracer, only: generic_tracer_diag, generic_tracer_update_from_coupler
 
   use g_tracer_utils,   only: g_tracer_get_name,g_tracer_get_alias,g_tracer_set_values,g_tracer_get_common
   use g_tracer_utils,   only: g_tracer_get_next,g_tracer_type,g_tracer_is_prog,g_tracer_flux_init
@@ -51,6 +51,7 @@ module ocean_generic_mod
   public ocean_generic_sum_sfc
   public ocean_generic_zero_sfc
   public ocean_generic_sbc
+  public ocean_generic_sbc_adjust
   public ocean_generic_init
   public ocean_generic_flux_init
   public ocean_generic_column_physics
@@ -336,9 +337,15 @@ contains
     character(len=fm_string_len)      :: g_tracer_name
     character(len=fm_string_len), parameter :: sub_name = 'update_generic_tracer_sbc'
 
-    !Extract the tracer surface fields from coupler 
-    call generic_tracer_coupler_get(Ice_ocean_boundary_fluxes)
+    !Extract the tracer surface fields from coupler
+    ! dts: change to use generic_tracer_coupler_accumulate with a weight of 1. for consistency
+    ! with MOM6. Note this means that the generic_?_update_from_coupler method is no longer
+    ! called here. Instead this will be called later in ocean_generic_sbc_adjust when flux
+    ! adjustments are available
+    ! call generic_tracer_coupler_get(Ice_ocean_boundary_fluxes)
+    call generic_tracer_coupler_accumulate(Ice_ocean_boundary_fluxes, 1.)
 
+    ! dts: Is this still needed here, since this is now also done in ocean_generic_sbc_adjust?
     !Update T_prog fields from generic tracer fields
     !
     !Get the tracer list
@@ -393,6 +400,87 @@ contains
 
     enddo
   end subroutine ocean_generic_sbc
+
+  ! <SUBROUTINE NAME="ocean_generic_sbc_adjust">
+  !  <OVERVIEW>
+  !   Adjust tracer surface boundary conditions
+  !  </OVERVIEW>
+  !  <DESCRIPTION>
+  !   This subroutine applies any adjustments to the generic tracers surface boundary conditions,
+  !   for example, adjustment of surface tracer fluxes due to salinity restoring.
+  !  </DESCRIPTION>
+  !  <TEMPLATE>
+  !   call ocean_generic_sbc_adjust(Ice_ocean_boundary_fluxes,Disd,Djsd, T_prog )
+  !  </TEMPLATE>
+  ! </SUBROUTINE>
+  subroutine ocean_generic_sbc_adjust(Disd, Djsd, T_prog, salt_flux_added, runoff)
+   integer, intent(in)                                             :: Disd, Djsd
+   type(ocean_prog_tracer_type), dimension(:), intent(inout)       :: T_prog
+   real, intent(in), dimension(Disd:,Djsd:)                        :: salt_flux_added
+   real, intent(in), dimension(Disd:,Djsd:)                        :: runoff
+
+   type(g_tracer_type), pointer    :: g_tracer_list,g_tracer,g_tracer_next
+   integer                           :: g_tracer_index
+   character(len=fm_string_len)      :: g_tracer_name
+   character(len=fm_string_len), parameter :: sub_name = 'ocean_generic_sbc_adjust'
+
+   ! Adjust tracer fields via the generic_?_update_from_coupler method
+   call generic_tracer_update_from_coupler(Disd, Djsd, salt_flux_added)
+
+   !Update T_prog fields from generic tracer fields
+   !
+   !Get the tracer list
+   call generic_tracer_get_list(g_tracer_list)
+   if(.NOT. associated(g_tracer_list)) call mpp_error(FATAL, trim(sub_name)//&
+        ": No tracer in the list.")
+   !For each tracer name get its T_prog index and get its flux fields
+   g_tracer=>g_tracer_list
+   do
+      if(g_tracer_is_prog(g_tracer)) then
+         call g_tracer_get_alias(g_tracer,g_tracer_name)
+         g_tracer_index = fm_get_index(trim('/ocean_mod/prog_tracers/'//g_tracer_name))
+         if (g_tracer_index .le. 0) &
+              call mpp_error(FATAL,trim(sub_name) // ' Could not get the index for '//g_tracer_name)
+
+         if (_ALLOCATED(g_tracer%stf) )&
+              call g_tracer_get_values(g_tracer,g_tracer_name,'stf',   T_prog(g_tracer_index)%stf,   Disd,Djsd)
+
+         if (_ALLOCATED(g_tracer%btf) )&
+              call g_tracer_get_values(g_tracer,g_tracer_name,'btf',   T_prog(g_tracer_index)%btf,   Disd,Djsd)
+
+         !If the tracer has runoff fill in the T_prog(n)%trunoff and  T_prog(n)%runoff_tracer_flux
+         if(_ALLOCATED(g_tracer%trunoff)) then
+            !Fill in T_prog(n)%trunoff
+
+            call g_tracer_get_values(g_tracer,g_tracer_name,'trunoff',T_prog(g_tracer_index)%trunoff,Disd,Djsd)
+
+            !Fill in T_prog(n)%runoff_tracer_flux
+            T_prog(g_tracer_index)%runoff_tracer_flux = T_prog(g_tracer_index)%trunoff * runoff
+
+            !Set g_tracer%runoff_tracer_flux
+            call g_tracer_set_values(g_tracer,g_tracer_name,'runoff_tracer_flux',T_prog(g_tracer_index)%runoff_tracer_flux,Disd,Djsd)
+            !
+            !Fill in T_prog(n)%triver in MOM
+            !Note: This is done so that MOM can apply the river fluxes through setting either
+            !        the runoff and calving fluxes (when discharge_combine_runoff_calve=.false.)
+            !      or
+            !        the total river concentration (when discharge_combine_runoff_calve=.true.)
+            !
+            !Assume zero calving flux for the generic tracers.
+            !T_prog(g_tracer_index)%tcalving = 0 !MOM default
+            T_prog(g_tracer_index)%triver = T_prog(g_tracer_index)%trunoff
+
+         endif
+
+      endif
+
+      !traverse the linked list till hit NULL
+      call g_tracer_get_next(g_tracer, g_tracer_next)
+      if(.NOT. associated(g_tracer_next)) exit
+      g_tracer=>g_tracer_next
+
+   enddo
+ end subroutine ocean_generic_sbc_adjust
 
   ! <SUBROUTINE NAME="ocean_generic_column_physics">
   !  <OVERVIEW>

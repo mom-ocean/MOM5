@@ -86,7 +86,9 @@ module generic_tracer
   public generic_tracer_source
   public generic_tracer_diag
   public generic_tracer_update_from_bottom
+  public generic_tracer_update_from_coupler
   public generic_tracer_coupler_get
+  public generic_tracer_coupler_accumulate
   public generic_tracer_coupler_set
   public generic_tracer_coupler_zero
   public generic_tracer_end
@@ -304,6 +306,28 @@ ierr = check_nml_error(io_status,'generic_tracer_nml')
 
   end subroutine generic_tracer_coupler_get
 
+  ! <SUBROUTINE NAME="generic_tracer_coupler_accumulate">
+  !  <OVERVIEW>
+  !   Accumulate the boundary values (%stf and %triver) from coupler fluxes
+  !  </OVERVIEW>
+  !  <DESCRIPTION>
+  !   This subroutine accumulates coupler values for those generic tracers that have flux
+  !   exchange with atmosphere. This routine simply wraps g_tracer_coupler_get for MOM5,
+  !   but the API is provided here for consistency with https://github.com/NOAA-GFDL/ocean_BGC
+  !  </DESCRIPTION>
+  !  <TEMPLATE>
+  !   call generic_tracer_coupler_accumulate(Ice_ocean_boundary_fluxes, weight)
+  !  </TEMPLATE>
+  ! </SUBROUTINE>
+  subroutine  generic_tracer_coupler_accumulate(IOB_struc, weight)
+    type(coupler_2d_bc_type), intent(in)    :: IOB_struc
+    real,                     intent(in)    :: weight
+
+    !All generic tracers
+    !Update tracer boundary values (%stf and %triver) from coupler fluxes foreach tracer in the prog_tracer_list
+    call g_tracer_coupler_get(tracer_list, IOB_struc)
+
+  end subroutine generic_tracer_coupler_accumulate
 
   ! <SUBROUTINE NAME="generic_tracer_diag">
   !  <OVERVIEW>
@@ -481,6 +505,44 @@ ierr = check_nml_error(io_status,'generic_tracer_nml')
 
   end subroutine generic_tracer_update_from_bottom
 
+  ! <SUBROUTINE NAME="generic_tracer_update_from_coupler">
+  !  <OVERVIEW>
+  !   Modify the values obtained from the coupler
+  !  </OVERVIEW>
+  !  <DESCRIPTION>
+  !   Calls the corresponding generic_X_update_from_coupler routine for each package X.
+  !  </DESCRIPTION>
+  !  <TEMPLATE>
+  !   call generic_tracer_update_from_coupler(ilb, jlb, salt_flux_added)
+  !  </TEMPLATE>
+  !  <IN NAME="ilb,jlb" TYPE="integer">
+  !   Lower bounds of x and y extents of input arrays on data domain
+  !  </IN>
+  !  <IN NAME="salt_flux_added" TYPE="real, dimension(ilb:,jlb:), optional">
+  !   Surface salt flux into ocean from restoring or flux adjustment [g/m^2/sec]
+  !  </IN>
+  ! </SUBROUTINE>
+
+  subroutine generic_tracer_update_from_coupler(ilb, jlb, salt_flux_added)
+     integer,                     intent(in) :: ilb, jlb
+     real, dimension(ilb:,jlb:),  intent(in) :: salt_flux_added
+
+    character(len=fm_string_len), parameter :: sub_name = 'generic_tracer_update_from_coupler'
+
+    !Specific tracers
+    !    if(do_generic_CFC)    call generic_CFC_update_from_coupler(tracer_list) !Nothing to do
+
+    if(do_generic_TOPAZ)  call generic_TOPAZ_update_from_coupler(tracer_list)
+
+    if(do_generic_BLING)  call generic_BLING_update_from_coupler(tracer_list)
+
+    if(do_generic_miniBLING)  call generic_miniBLING_update_from_coupler(tracer_list)
+
+    if(do_generic_COBALT)  call generic_COBALT_update_from_coupler(tracer_list)
+
+    return
+
+   end subroutine generic_tracer_update_from_coupler
 
   ! <SUBROUTINE NAME="generic_tracer_vertdiff_G">
   !  <OVERVIEW>
