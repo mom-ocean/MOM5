@@ -106,6 +106,7 @@ use ocean_types_mod, only: ice_ocean_boundary_type, &
                            ocean_public_type, &
                            ocean_domain_type
 use time_manager_mod, only: time_type, get_time
+use gtracer_flux_mod, only: set_coupler_type_data
 
 ! Timing
 
@@ -657,16 +658,18 @@ return
 end subroutine into_coupler
 
 !-----------------------------------------------------------------------------------
-subroutine from_coupler(step,Ocean_sfc,Ice_ocean_boundary, Time)
+subroutine from_coupler(step,Ocean_sfc,Ice_ocean_boundary, Atm_fields, Time)
 
 ! This is all highly user dependent. 
 
 use constants_mod, only  : hlv    ! 2.500e6 J/kg
 use auscom_ice_mod, only : chk_i2o_fields, chk_fields_period, chk_fields_start_time
+use coupler_types_mod, only: coupler_2d_bc_type, ind_u10, ind_psurf
 implicit none
 
 type (ocean_public_type) :: Ocean_sfc
 type (ice_ocean_boundary_type) :: Ice_ocean_boundary
+type (coupler_2d_bc_type) :: Atm_fields
 type (time_type),optional         :: Time
 
 real, dimension(isg:ieg,jsg:jeg) :: gtmp
@@ -674,7 +677,7 @@ real, dimension(isg:ieg,jsg:jeg) :: gtmp
 integer, intent(in) :: step
 
   character*80 :: fname = 'fields_i2o_in_ocn.nc'
-  integer :: ncid,currstep,ll,ilout
+  integer :: ncid,currstep,ll,ilout,n
   data currstep/0/
   save currstep
 
@@ -798,6 +801,18 @@ do jf =  1, num_fields_in
 
      if(jf .ne. 1) call mpp_clock_end(id_oasis_recv1)
 enddo    !jf
+
+    ! Set u10 and psurf for air-sea gas fluxes
+    do n = 1, Atm_fields%num_bcs
+      if ((Atm_fields%bc(n)%flux_type .eq. 'air_sea_gas_flux_generic') .or. &
+        (Atm_fields%bc(n)%flux_type .eq. 'air_sea_gas_flux')) then
+        call set_coupler_type_data(ice_ocean_boundary%wnd, Atm_fields%bc(n)%name, ind_u10, &
+          Atm_fields, idim=(/iisc,iisc,iiec,iiec/), jdim=(/jjsc,jjsc,jjec,jjec/))
+        call set_coupler_type_data(ice_ocean_boundary%p, Atm_fields%bc(n)%name, ind_psurf, &
+          Atm_fields, idim=(/iisc,iisc,iiec,iiec/), jdim=(/jjsc,jjsc,jjec,jjec/))
+      endif
+    enddo
+
      call mpp_clock_end(id_oasis_recv)
 
   if (chk_i2o_fields .and. (mod(step, chk_fields_period) == 0) .and. (step >= chk_fields_start_time) .and. (mpp_pe() == mpp_root_pe())) then
