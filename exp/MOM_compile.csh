@@ -221,12 +221,12 @@ if( $type == MOM_solo ) then
     set srcList = ( mom5/drivers )
     set libs = "$executable:h:h/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == ACCESS-CM || $type == ACCESS-ESM) then
-    set srcList = ( accesscm_coupler )
+    set srcList = ( access/accesscm_coupler )
     set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/$type/lib_ocean"
     set libs = "$executable:h:h/$type/lib_ocean/lib_ocean.a"
     setenv OASIS true
 else if( $type == ACCESS-OM || $type == ACCESS-OM-BGC) then
-    set srcList = ( accessom_coupler )
+    set srcList = ( access/accessom_coupler )
     set includes = "-I$executable:h:h/lib_FMS -I$executable:h:h/$type/lib_ocean"
     set libs = "$executable:h:h/$type/lib_ocean/lib_ocean.a $executable:h:h/lib_FMS/lib_FMS.a"
 else if( $type == MOM_SIS ) then
