@@ -46,6 +46,10 @@ module ocean_tpm_mod  !{
 !               this functionality may be moved into a new, generalized
 !               boundary condition manager.
 !
+!       ocean_tpm_sbc_adjust: Calls specified routines to adjust
+!               surface boundary condition, e.g. due to virtual fluxes
+!               that arise from salinity restoring
+!
 !       ocean_tpm_bbc: Calls specified routines to handle bottom
 !               coundary condition calculations.
 !
@@ -221,6 +225,7 @@ use ocean_generic_mod, only: do_generic_tracer
 use ocean_generic_mod, only: ocean_generic_sum_sfc
 use ocean_generic_mod, only: ocean_generic_zero_sfc
 use ocean_generic_mod, only: ocean_generic_sbc
+use ocean_generic_mod, only: ocean_generic_sbc_adjust
 use ocean_generic_mod, only: ocean_generic_init
 use ocean_generic_mod, only: ocean_generic_column_physics
 use ocean_generic_mod, only: ocean_generic_end
@@ -267,6 +272,7 @@ public ocean_tpm_end
 public ocean_tpm_init
 public ocean_tpm_flux_init
 public ocean_tpm_sbc
+public ocean_tpm_sbc_adjust
 public ocean_tpm_source
 public ocean_tpm_start
 public ocean_tpm_tracer
@@ -1336,6 +1342,54 @@ return
 end subroutine ocean_tpm_sbc  !}
 ! </SUBROUTINE> NAME="ocean_tpm_sbc"
 
+!#######################################################################
+! <SUBROUTINE NAME="ocean_tpm_sbc_adjust">
+!
+! <DESCRIPTION>
+!       call subroutines to adjust surface boundary condition, e.g. due to
+!       virtual fluxes that arise from salinity restoring
+! </DESCRIPTION>
+!
+
+subroutine ocean_tpm_sbc_adjust(Domain, T_prog, salt_flux_added, runoff)
+
+
+implicit none
+
+!
+!-----------------------------------------------------------------------
+!       Arguments
+!-----------------------------------------------------------------------
+!
+
+type(ocean_domain_type), intent(in)                             :: Domain
+type(ocean_prog_tracer_type), dimension(:), intent(inout)       :: T_prog
+real, dimension(Domain%isd:,Domain%jsd:), intent(in)            :: salt_flux_added
+real, dimension(Domain%isd:,Domain%jsd:), intent(in)            :: runoff
+
+!
+!-----------------------------------------------------------------------
+!     local parameters
+!-----------------------------------------------------------------------
+!
+
+!
+!-----------------------------------------------------------------------
+!     local variables
+!-----------------------------------------------------------------------
+!
+
+
+#ifdef USE_OCEAN_BGC
+
+if (do_generic_tracer) call ocean_generic_sbc_adjust(Domain%isd, Domain%jsd, T_prog, salt_flux_added, runoff)
+
+#endif
+
+return
+
+end subroutine ocean_tpm_sbc_adjust  !}
+! </SUBROUTINE> NAME="ocean_tpm_sbc_adjust"
 
 !#######################################################################
 ! <SUBROUTINE NAME="ocean_tpm_init">
