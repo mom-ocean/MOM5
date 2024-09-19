@@ -1751,27 +1751,27 @@ subroutine init_grids_diag(Grid, Time)
 
   id_dxt = register_static_field ('ocean_model', 'dxt', Grid%tracer_axes(1:2), 'ocean dxt on t-cells', 'm',&
                                   missing_value=missing_value, range=(/-1e9,1e9/))
-  call diagnose_2d(Time, Grid, id_dxt, Grid%dxt(:,:))
+  if (id_dxt > 0)  used = send_data(id_dxt,Grid%dxt(isc:iec,jsc:jec),  Time%model_time)
 
   id_dxu = register_static_field ('ocean_model', 'dxu', Grid%vel_axes_uv(1:2), 'ocean dxu on u-cells', 'm',&
                                   missing_value=missing_value, range=(/-1e9,1e9/))
-  call diagnose_2d_u(Time, Grid, id_dxu, Grid%dxu(:,:))
+  if (id_dxu > 0) used = send_data(id_dxu,Grid%dxu(isc:iec,jsc:jec), Time%model_time)
 
   id_dyt = register_static_field ('ocean_model', 'dyt', Grid%tracer_axes(1:2), 'ocean dyt on t-cells', 'm',&
                                   missing_value=missing_value, range=(/-1e9,1e9/))
-  call diagnose_2d(Time, Grid, id_dyt, Grid%dyt(:,:))
+  if (id_dyt > 0)  used = send_data(id_dyt,Grid%dyt(isc:iec,jsc:jec),  Time%model_time)
 
   id_dyu = register_static_field ('ocean_model', 'dyu', Grid%vel_axes_uv(1:2), 'ocean dyu on u-cells', 'm',&
                                   missing_value=missing_value, range=(/-1e9,1e9/))
-  call diagnose_2d_u(Time, Grid, id_dyu, Grid%dyu(:,:))
+  if (id_dyu > 0) used = send_data(id_dyu,Grid%dyu(isc:iec,jsc:jec), Time%model_time)
 
   id_dxtn = register_static_field ('ocean_model', 'dxtn', Grid%tracer_axes(1:2), 'ocean dxtn on t-cells', 'm',&
                                   missing_value=missing_value, range=(/-1e9,1e9/))
-  call diagnose_2d(Time, Grid, id_dxtn, Grid%dxtn(:,:))
+  if (id_dxtn > 0)  used = send_data(id_dxtn,Grid%dxtn(isc:iec,jsc:jec),  Time%model_time)
 
   id_dyte = register_static_field ('ocean_model', 'dyte', Grid%tracer_axes(1:2), 'ocean dyte on t-cells', 'm',&
                                   missing_value=missing_value, range=(/-1e9,1e9/))
-  call diagnose_2d(Time, Grid, id_dyte, Grid%dyte(:,:))
+  if (id_dyte > 0)  used = send_data(id_dyte,Grid%dyte(isc:iec,jsc:jec),  Time%model_time)
 
   id_tmask = register_static_field ('ocean_model', 'tmask', Grid%tracer_axes(1:3), 'tracer mask', 'dimensionless',&
                                   missing_value=missing_value, range=(/-1e1,1e1/))
