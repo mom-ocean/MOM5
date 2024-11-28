@@ -686,7 +686,12 @@ int main(int argc, char* argv[])
       set_mosaic_data_file(ntiles_out, mosaic_out, dir_out, file2_out, output_file[1]);    
     }
 
-    for(n=0; n<ntiles_in; n++) file_in[n].fid = mpp_open(file_in[n].name, MPP_READ);
+    for(n=0; n<ntiles_in; n++){
+      file_in[n].fid = mpp_open(file_in[n].name, MPP_READ);
+      if(nfiles == 2) {
+        file2_in[n].fid = mpp_open(file2_in[n].name, MPP_READ);
+      }
+    }
 
     set_field_struct ( ntiles_in,   scalar_in,   nscalar, scalar_name[0], file_in);
     set_field_struct ( ntiles_out,  scalar_out,  nscalar, scalar_name[0], file_out);
@@ -808,10 +813,8 @@ int main(int argc, char* argv[])
 	else {
 	  for(level_z=scalar_in->var[l].kstart; level_z <= scalar_in->var[l].kend; level_z++)
 	    {	    
-	      if(test_case)
-		get_test_input_data(test_case, test_param, ntiles_in, scalar_in, grid_in, bound_T, opcode);
-	      else
-		get_input_data(ntiles_in, scalar_in, grid_in, bound_T, l, level_z, level_n, level_t, extrapolate, stop_crit);
+	      if(test_case)	get_test_input_data(test_case, test_param, ntiles_in, scalar_in, grid_in, bound_T, opcode);
+	      else        	get_input_data(ntiles_in, scalar_in, grid_in, bound_T, l, level_z, level_n, level_t, extrapolate, stop_crit);
 	      allocate_field_data(ntiles_out, scalar_out, grid_out, 1);
 	      if( opcode & BILINEAR ) 
 		do_scalar_bilinear_interp(interp, l, ntiles_in, grid_in, grid_out, scalar_in, scalar_out, finer_step, fill_missing);
@@ -834,27 +837,32 @@ int main(int argc, char* argv[])
 
     /* then interp vector field */
     for(l=0; l<nvector; l++) {
-      if( !u_in[n].var[l].has_taxis && m>0) continue;
+      /*if( !u_in[n].var[l].has_taxis && m>0) continue;*/
+      if( !u_in->var[l].has_taxis && m>0) continue;
       level_t = m + u_in->var[l].lstart;
-      get_input_data(ntiles_in, u_in, grid_in, bound_T, l, level_z, level_n, level_t, extrapolate, stop_crit);
-      get_input_data(ntiles_in, v_in, grid_in, bound_T, l, level_z, level_n, level_t, extrapolate, stop_crit);
-      allocate_field_data(ntiles_out, u_out, grid_out, u_in[n].var[l].nz);
-      allocate_field_data(ntiles_out, v_out, grid_out, u_in[n].var[l].nz);
-      if( opcode & BILINEAR )
-	do_vector_bilinear_interp(interp, l, ntiles_in, grid_in, ntiles_out, grid_out, u_in, v_in, u_out, v_out, finer_step, fill_missing);
-      else
-	do_vector_conserve_interp(interp, l, ntiles_in, grid_in, ntiles_out, grid_out, u_in, v_in, u_out, v_out, opcode);
-      
-      write_field_data(ntiles_out, u_out, grid_out, l, level_z, level_n, m);
-      write_field_data(ntiles_out, v_out, grid_out, l, level_z, level_n, m);
-      for(n=0; n<ntiles_in; n++) {
-	free(u_in[n].data);
-	free(v_in[n].data);
+      for(level_n =0; level_n < u_in->var[l].nn; level_n++) {
+    	  for(level_z=u_in->var[l].kstart; level_z <= u_in->var[l].kend; level_z++){
+          get_input_data(ntiles_in, u_in, grid_in, bound_T, l, level_z, level_n, level_t, extrapolate, stop_crit);
+          get_input_data(ntiles_in, v_in, grid_in, bound_T, l, level_z, level_n, level_t, extrapolate, stop_crit);
+          allocate_field_data(ntiles_out, u_out, grid_out, u_in->var[l].nz);
+          allocate_field_data(ntiles_out, v_out, grid_out, u_in->var[l].nz);
+          if( opcode & BILINEAR )
+          	do_vector_bilinear_interp(interp, l, ntiles_in, grid_in, ntiles_out, grid_out, u_in, v_in, u_out, v_out, finer_step, fill_missing);
+          else
+    	      do_vector_conserve_interp(interp, l, ntiles_in, grid_in, ntiles_out, grid_out, u_in, v_in, u_out, v_out, opcode);
+          
+          write_field_data(ntiles_out, u_out, grid_out, l, level_z, level_n, m);
+          write_field_data(ntiles_out, v_out, grid_out, l, level_z, level_n, m);
+          for(n=0; n<ntiles_in; n++) {
+    	      free(u_in[n].data);
+          	free(v_in[n].data);
+          }
+          for(n=0; n<ntiles_out; n++) {
+          	free(u_out[n].data);
+          	free(v_out[n].data);
+          }      
+        }
       }
-      for(n=0; n<ntiles_out; n++) {
-	free(u_out[n].data);
-	free(v_out[n].data);
-      }      
     }
   }
 
